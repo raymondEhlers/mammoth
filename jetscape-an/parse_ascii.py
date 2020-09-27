@@ -5,6 +5,7 @@
 """
 
 from pathlib import Path
+from typing import Tuple
 
 import awkward1 as ak
 import numpy as np
@@ -53,81 +54,31 @@ def jetscape_array() -> ak.Array:
 
 
 def read(filename: Path):
-    event_line_number = []
+    # We keep track of the location of where to split each event.
+    # That way, we can come back later and split the 2D numpy array into an awkward array with a jagged structure.
+    event_split_index = []
 
-    def gen_events(filename: Path, events_per_file: int = 1e5):
-        #def yield_lines(i, line):
-        #    if line.startswith("#"):
-        #        if len(event_line_number) == events_per_file:
-        #            yield StopIteration
-        #        # Since this line will be skipped by loadtxt, we need to account for that
-        #        # but subtracting the number of events so far.
-        #        event_line_number.append(i - len(event_line_number))
-        #    yield line
+    def read_events_in_chunks(filename: Path, events_per_file: int = 1e5):
+        """
 
-        #def read_from_file():
-        #    stopped = False
-        #    with open(filename, "r") as f:
-        #        #yield from yield_lines(f.readlines())
-        #        for i, line in enumerate(f.readlines()):
-        #            res = yield i, line, stopped
-        #            if res is not None:
-        #                stopped = res
+        """
 
-        #def wrap_reading_file():
-        #    generate_from_file = read_from_file()
-        #    for i, line, stopped in generate_from_file:
-        #        if line.startswith("#"):
-        #            if len(event_line_number) % events_per_file == 0 and stopped == False:
-        #                print("Stopping")
-        #                generate_from_file.send(True)
-        #                stopped = True
-        #                raise StopIteration
-        #            # Since this line will be skipped by loadtxt, we need to account for that
-        #            # but subtracting the number of events so far.
-        #            event_line_number.append(i - len(event_line_number))
-        #        yield line
-
-        #def read_from_file():
-        #    with open(filename, "r") as f:
-        #        #yield from yield_lines(f.readlines())
-        #        for i, line in enumerate(f.readlines()):
-        #            yield i, line
-
-        #def wrap_reading_file():
-        #    generate_from_file = read_from_file()
-        #    for i, line in generate_from_file:
-        #        def _inner():
-        #            time_to_stop = False
-        #            if line.startswith("#"):
-        #                # Need to check if event_line_number so that we get past 0...
-        #                if event_line_number and len(event_line_number) % events_per_file == 0:
-        #                    time_to_stop = True
-        #                # Since this line will be skipped by loadtxt, we need to account for that
-        #                # but subtracting the number of events so far.
-        #                event_line_number.append(i - len(event_line_number))
-
-        #                if time_to_stop:
-        #                    return
-
-        #            yield line
-        #        return _inner()
-
-        line_count = 0
-
-        def _handle_line(line, line_count):
+        def _handle_line(line: str, line_count: int) -> Tuple[str, bool]:
             print(f"{line_count}: line: {line}")
             time_to_stop = False
             if line.startswith("#"):
-                # Need to check if event_line_number so that we get past 0...
-                if event_line_number and len(event_line_number) % events_per_file == 0:
+                # Need to check if event_split_index so that we get past 0...
+                if event_split_index and len(event_split_index) % events_per_file == 0:
                     print("Time to stop!")
                     time_to_stop = True
                 # Since this line will be skipped by loadtxt, we need to account for that
                 # but subtracting the number of events so far.
-                event_line_number.append(line_count - len(event_line_number))
+                event_split_index.append(line_count - len(event_split_index))
 
             return line, time_to_stop
+
+        # Keep track of the number of lines by hand because we can increment from multiple places.
+        line_count = 0
 
         with open(filename, "r") as f:
             read_lines = iter(f.readlines())
@@ -145,17 +96,17 @@ def read(filename: Path):
                         line_count += 1
                         yield l
                         if time_to_stop:
-                            print(f"event_line_number len: {len(event_line_number)} - {event_line_number}")
+                            print(f"event_split_index len: {len(event_split_index)} - {event_split_index}")
                             break
                         #if line_count > 5:
                         #    break
                         #if line.startswith("#"):
-                        #    # Need to check if event_line_number so that we get past 0...
-                        #    if event_line_number and len(event_line_number) % events_per_file == 0:
+                        #    # Need to check if event_split_index so that we get past 0...
+                        #    if event_split_index and len(event_split_index) % events_per_file == 0:
                         #        time_to_stop = True
                         #    # Since this line will be skipped by loadtxt, we need to account for that
                         #    # but subtracting the number of events so far.
-                        #    event_line_number.append(line_count - len(event_line_number))
+                        #    event_split_index.append(line_count - len(event_split_index))
 
                         #yield line
                         #line_count += 1
@@ -175,6 +126,15 @@ def read(filename: Path):
 
     import IPython; IPython.embed()
 
+    event_split_index_offset = 0
+    for chunk_generator in read_events_in_chunks(filename=filename, events_per_file=5):
+        hadrons = np.loadtxt(chunk_generator)
+        temp_arr = ak.Array(np.split(hadrons, event_split_index[event_split_index_offset + 1:]))
+        print(len(event_split_index))
+        print(hadrons)
+        print(temp_arr.shape)
+        event_split_index_offset = len(event_split_index) - 1
+
     # NOTE: Can parse / store more information here if it's helpful.
     def yield_final_state(filename: Path):
         with open(filename, "r") as f:
@@ -182,19 +142,14 @@ def read(filename: Path):
                 if line.startswith("#"):
                     # Since this line will be skipped by loadtxt, we need to account for that
                     # but subtracting the number of events so far.
-                    event_line_number.append(i - len(event_line_number))
+                    event_split_index.append(i - len(event_split_index))
                 yield line
-
-
-    for generate_block in gen_events(filename=filename, events_per_file=5):
-        hadrons = np.loadtxt(generate_block())
-        print(len(event_line_number))
 
     #hadrons = np.loadtxt(yield_final_state(filename=filename))
 
     # We have to take [1:] because we need to skip the first line. Otherwise,
     # we used up with an empty first event.
-    temp_arr = ak.Array(np.split(hadrons, event_line_number[1:]))
+    temp_arr = ak.Array(np.split(hadrons, event_split_index[1:]))
 
     array = ak.zip({
         # TODO: Does the conversion add any real computation time?
