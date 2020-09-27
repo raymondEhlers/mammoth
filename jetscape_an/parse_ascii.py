@@ -7,7 +7,7 @@
 import logging
 import re
 from pathlib import Path
-from typing import Any, Iterable, List, Optional, Sequence, Union, Tuple
+from typing import Any, Generator, Iterable, List, Optional, Sequence, Union, Tuple
 
 import awkward1 as ak
 import numpy as np
@@ -111,109 +111,132 @@ def _handle_line(line: str, n_events: int, events_per_chunk: int) -> Tuple[bool,
     return time_to_stop, header_info
 
 
-def read(filename: Union[Path, str]):
+def read_events_in_chunks(filename: Union[Path, str], events_per_chunk: int = int(1e5)) -> Iterable[Tuple[Iterable[str], List[int], List[Any]]]:
+    """ Read events in chunks from stored JETSCAPE ASCII files.
+
+    Args:
+        filename: Path to the file.
+        events_per_chunk: Number of events to store in each chunk. Default: 1e5.
+    Returns:
+        Chunks generator. When this generator is consumed, it will generate lines from the file
+            until it hits the number of events mark.
+    """
     # Validation
     filename = Path(filename)
 
-    def read_events_in_chunks(filename: Union[Path, str], events_per_chunk: int = int(1e5)):
-        """ Read events in chunks from stored JETSCAPE ASCII files.
+    with open(filename, "r") as f:
+        # Setup
+        # This is just for convenience.
+        return_count = 0
+        # This is used to pass a header to the next chunk. This is necessary because we don't know an event
+        # is over until we already get the header for the next event. We could keep that line and reparse,
+        # but there's no need to parse a file twice.
+        keep_header_for_next_chunk = None
 
-        Args:
-            filename: Path to the file.
-            events_per_chunk: Number of events to store in each chunk. Default: 1e5.
-        Returns:
-            Chunks generator. When this generator is consumed, it will generate lines from the file
-                until it hits the number of events mark.
-        """
-        # Validation
-        filename = Path(filename)
+        # Define an iterator so we can increment it in different locations in the code.
+        # Fine to use if it the entire file fits in memory.
+        #read_lines = iter(f.readlines())
+        # Use this if the file doesn't fit in memory (fairly likely for these type of files)
+        read_lines = iter(f)
 
-        # We keep track of the location of where to split each event.
-        # That way, we can come back later and split the 2D numpy array into an awkward array with a jagged structure.
-        #event_split_index = []
-
-        with open(filename, "r") as f:
+        for line in read_lines:
             # Setup
-            # This is just for convenience.
-            return_count = 0
-            # This is used to pass a header to the next chunk. This is necessary because we don't know an event
-            # is over until we already get the header for the next event. We could keep that line and reparse,
-            # but there's no need to parse a file twice.
-            keep_header_for_next_chunk = None
+            # We keep track of the location of where to split each event. That way, we can come back later
+            # and split the 2D numpy array into an awkward array with a jagged structure.
+            event_split_index: List[int] = []
+            # Store the event header info, to be returned alongside the particles and event split index.
+            event_header_info = []
+            # If we've kept around a header from a previous chunk, then store that for this iteration.
+            if keep_header_for_next_chunk:
+                event_header_info.append(keep_header_for_next_chunk)
+                # Now that we've stored it, reset it to ensure that it doesn't cause problems for future iterations.
+                keep_header_for_next_chunk = None
 
-            # Define an iterator so we can increment it in different locations in the code.
-            read_lines = iter(f.readlines())
-            #read_lines = f.readline()
+            def _inner(line: str, kept_header: bool) -> Iterable[str]:
+                """ Closure to generate a chunk of events.
 
-            for line in read_lines:
-                # Setup
-                # Keep track of the number of lines by hand because we can increment the iterator from multiple places.
-                line_count = 0
-                event_split_index: List[int] = []
-                print(f"return_count: {return_count}, keep_header_for_next_chunk: {keep_header_for_next_chunk}")
-                #event_header_info = [keep_header_for_next_chunk] if keep_header_for_next_chunk else []
-                event_header_info = []
-                if keep_header_for_next_chunk:
-                    event_header_info.append(keep_header_for_next_chunk)
-                    keep_header_for_next_chunk = None
+                The closure ensures access to the same generator used to access the file.
 
-                def _inner(kept_header: bool) -> Iterable[str]:
-                    """
+                Args:
+                    kept_header: If True, it means that we kept the header from a previous chunk.
+                Returns:
+                    Generator yielding the lines of the file.
+                """
+                # Anything that is returned from this function will be consumed by np.loadtxt, so we can't
+                # directly return any value. Instead, we have to make this nonlocal so we can set it here,
+                # and the result will be accessible outside during the next chunk.
+                nonlocal keep_header_for_next_chunk
+                # If we already have a header, then we already have an event, so we need to increment immediately.
+                # NOTE: Together with storing with handling the header in the first line a few lines below, we're
+                #       effectively 1-indexing n_events.
+                n_events = 0
+                if kept_header:
+                    n_events += 1
 
-                    """
-                    # 
-                    nonlocal line
-                    nonlocal line_count
-                    nonlocal keep_header_for_next_chunk
-                    # If we already have a header, then we already have an event, so we need to increment immediately.
-                    # NOTE: Together with storing with handling the header in the first line a few lines below, we're
-                    #       effectively 1-indexing n_events.
-                    n_events = 0
-                    if kept_header:
-                        n_events += 1
+                # Handle the first line from the generator.
+                _, header_info = _handle_line(line, n_events, events_per_chunk=events_per_chunk)
+                yield line
+                # We always increment after yielding.
+                # Instead of defining the variable here, we account for it in the enumeration below by
+                # starting at 1.
 
-                    # Handle the first line from the generator.
-                    _, header_info = _handle_line(line, n_events, events_per_chunk=events_per_chunk)
-                    yield line
-                    # We always increment after yielding.
+                # If we come across a header immediately (should only happen for the first line of the file),
+                # we note the new event, and store the header info.
+                # NOTE: Together with incrementing n_events above, we're effectively 1-indexing n_events.
+                if header_info:
+                    n_events += 1
+                    event_header_info.append(header_info)
+
+                # Handle additional lines
+                # Start at one to account for the first land already being handled.
+                for line_count, local_line in enumerate(read_lines, start=1):
+                    time_to_stop, header_info = _handle_line(local_line, n_events, events_per_chunk=events_per_chunk)
                     line_count += 1
-                    # If we come across a header immediately (should only happen for the first line of the file),
-                    # we note the new event, and store the header info.
-                    # NOTE: Together with incrementing n_events above, we're effectively 1-indexing n_events.
+
+                    # A new header signals a new event. It needs some careful handling.
                     if header_info:
                         n_events += 1
-                        event_header_info.append(header_info)
+                        # If it's just some event in the middle of the chunk, then we just store the header and event split information.
+                        if not time_to_stop:
+                            event_header_info.append(header_info)
+                            # Since the header line will be skipped by loadtxt, we need to account for that
+                            # by subtracting the number of events so far.
+                            event_split_index.append(line_count - len(event_split_index))
+                        else:
+                            # If we're about to end this chunk, we need to hold on to the most recent header
+                            # (which signaled that we're ready to end the chunk). We'll hold onto it until we
+                            # look at the next chunk.
+                            keep_header_for_next_chunk = header_info
+                            #print(f"header_info: {header_info}, keep_header_for_next_chunk: {keep_header_for_next_chunk}")
 
-                    # Handle additional lines
-                    for local_line in read_lines:
-                        time_to_stop, header_info = _handle_line(local_line, n_events, events_per_chunk=events_per_chunk)
-                        line_count += 1
-                        if header_info:
-                            n_events += 1
-                            if not time_to_stop:
-                                event_header_info.append(header_info)
-                                # Since the header line will be skipped by loadtxt, we need to account for that
-                                # by subtracting the number of events so far.
-                                event_split_index.append(line_count - len(event_split_index))
-                            else:
-                                keep_header_for_next_chunk = header_info
-                                print(f"header_info: {header_info}, keep_header_for_next_chunk: {keep_header_for_next_chunk}")
-                        yield local_line
-                        if time_to_stop:
-                            print(f"event_split_index len: {len(event_split_index)} - {event_split_index}")
-                            break
+                    # Regardless of the header status, we should always yield the line so it can be handled downstream.
+                    yield local_line
 
-                yield _inner(kept_header=len(event_header_info) > 0), event_split_index, event_header_info
-                #line_count += 1
-                return_count += 1
-                print(f"line_count: {line_count}, return_count: {return_count}")
-                print(f"keep_header_for_next_chunk: {keep_header_for_next_chunk}")
-                #yield i, line
-                #if return_count > 2:
-                #    return
+                    # Finally, if it's time to end the chunk, we need to fully break the loop. We'll pick
+                    # up in the next chunk from the first line of the new event (with the header info that's
+                    # stored above).
+                    if time_to_stop:
+                        #print(f"event_split_index len: {len(event_split_index)} - {event_split_index}")
+                        break
+
+            # Yield the generator for the chunk, along with useful information.
+            # NOTE: When we pass these lists, they're empty. This only works because lists are mutable, and thus
+            #       our changes are passed on.
+            yield _inner(line=line, kept_header=len(event_header_info) > 0), event_split_index, event_header_info
+
+            # Keep track of what's going on. This is basically a debugging tool.
+            return_count += 1
             #print(f"return_count: {return_count}")
+            #print(f"keep_header_for_next_chunk: {keep_header_for_next_chunk}")
 
-        #return wrap_reading_file
+        #print(f"return_count: {return_count}")
+
+    # If we've gotten here, that means we've finally exhausted the file. There's nothing else to do!
+
+
+def read(filename: Union[Path, str]) -> None:
+    # Validation
+    filename = Path(filename)
 
     #import IPython; IPython.embed()
 
