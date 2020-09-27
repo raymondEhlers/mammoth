@@ -114,13 +114,18 @@ def read(filename: Path):
                 line_count = 0
                 event_split_index = []
                 print(f"return_count: {return_count}, keep_header_for_next_iter: {keep_header_for_next_iter}")
-                event_header_info = [keep_header_for_next_iter] if keep_header_for_next_iter else []
-                keep_header_for_next_iter = None
+                #event_header_info = [keep_header_for_next_iter] if keep_header_for_next_iter else []
+                event_header_info = []
+                n_events = 0
+                if keep_header_for_next_iter:
+                    event_header_info.append(keep_header_for_next_iter)
+                    n_events += 1
+                    keep_header_for_next_iter = None
                 def _inner():
                     nonlocal line
                     nonlocal line_count
                     nonlocal keep_header_for_next_iter
-                    n_events = 0
+                    nonlocal n_events
                     _, header_info = _handle_line(line, n_events)
                     yield line
                     line_count += 1
@@ -173,9 +178,9 @@ def read(filename: Path):
         #import IPython; IPython.embed()
 
         # TEMP
-        if count > 2:
-            break
-        count += 1
+        #if count > 2:
+        #    break
+        #count += 1
         # ENDTEMP
 
     # NOTE: Can parse / store more information here if it's helpful.
