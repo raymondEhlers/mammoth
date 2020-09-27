@@ -7,7 +7,7 @@
 import logging
 import re
 from pathlib import Path
-from typing import Any, Iterable, List, Optional, Sequence, Tuple
+from typing import Any, Iterable, List, Optional, Sequence, Union, Tuple
 
 import awkward1 as ak
 import numpy as np
@@ -62,7 +62,7 @@ def jetscape_array() -> ak.Array:
 _header_regex = re.compile(r"\d+")
 
 
-def _handle_line(line: str, n_events: int, events_per_file: int) -> Tuple[bool, Optional[Any]]:
+def _handle_line(line: str, n_events: int, events_per_chunk: int) -> Tuple[bool, Optional[Any]]:
     """ Parse line as appropriate.
 
     If it's just a standard particle line, we just pass it on. However, if it's a header, we parse
@@ -90,8 +90,8 @@ def _handle_line(line: str, n_events: int, events_per_file: int) -> Tuple[bool, 
         # This is a bit awkward because we don't know that an event has ended until we get to the
         # next event. However, we check for exact agreement because we don't increment the number
         # of events until after we find a header. Basically, it all works out here.
-        #if n_events > 0 and n_events % events_per_file == 0:
-        if n_events == events_per_file:
+        #if n_events > 0 and n_events % events_per_chunk == 0:
+        if n_events == events_per_chunk:
             logger.debug("Time to stop!")
             time_to_stop = True
 
@@ -111,53 +111,82 @@ def _handle_line(line: str, n_events: int, events_per_file: int) -> Tuple[bool, 
     return time_to_stop, header_info
 
 
-def read(filename: Path):
-    def read_events_in_chunks(filename: Path, events_per_file: int = int(1e5)):
-        """
+def read(filename: Union[Path, str]):
+    # Validation
+    filename = Path(filename)
 
+    def read_events_in_chunks(filename: Union[Path, str], events_per_chunk: int = int(1e5)):
+        """ Read events in chunks from stored JETSCAPE ASCII files.
+
+        Args:
+            filename: Path to the file.
+            events_per_chunk: Number of events to store in each chunk. Default: 1e5.
+        Returns:
+            Chunks generator. When this generator is consumed, it will generate lines from the file
+                until it hits the number of events mark.
         """
+        # Validation
+        filename = Path(filename)
+
         # We keep track of the location of where to split each event.
         # That way, we can come back later and split the 2D numpy array into an awkward array with a jagged structure.
         #event_split_index = []
 
-        # Setup
-        # Keep track of the number of lines by hand because we can increment the iterator from multiple places.
-        line_count = 0
-
         with open(filename, "r") as f:
+            # Setup
+            # This is just for convenience.
+            return_count = 0
+            # This is used to pass a header to the next chunk. This is necessary because we don't know an event
+            # is over until we already get the header for the next event. We could keep that line and reparse,
+            # but there's no need to parse a file twice.
+            keep_header_for_next_chunk = None
+
+            # Define an iterator so we can increment it in different locations in the code.
             read_lines = iter(f.readlines())
             #read_lines = f.readline()
-            return_count = 0
-            keep_header_for_next_iter = None
+
             for line in read_lines:
+                # Setup
+                # Keep track of the number of lines by hand because we can increment the iterator from multiple places.
                 line_count = 0
                 event_split_index: List[int] = []
-                print(f"return_count: {return_count}, keep_header_for_next_iter: {keep_header_for_next_iter}")
-                #event_header_info = [keep_header_for_next_iter] if keep_header_for_next_iter else []
+                print(f"return_count: {return_count}, keep_header_for_next_chunk: {keep_header_for_next_chunk}")
+                #event_header_info = [keep_header_for_next_chunk] if keep_header_for_next_chunk else []
                 event_header_info = []
-                n_events = 0
-                if keep_header_for_next_iter:
-                    event_header_info.append(keep_header_for_next_iter)
-                    n_events += 1
-                    keep_header_for_next_iter = None
+                if keep_header_for_next_chunk:
+                    event_header_info.append(keep_header_for_next_chunk)
+                    keep_header_for_next_chunk = None
 
-                def _inner() -> Iterable[str]:
+                def _inner(kept_header: bool) -> Iterable[str]:
                     """
 
                     """
+                    # 
                     nonlocal line
                     nonlocal line_count
-                    nonlocal keep_header_for_next_iter
-                    nonlocal n_events
-                    _, header_info = _handle_line(line, n_events, events_per_file=events_per_file)
+                    nonlocal keep_header_for_next_chunk
+                    # If we already have a header, then we already have an event, so we need to increment immediately.
+                    # NOTE: Together with storing with handling the header in the first line a few lines below, we're
+                    #       effectively 1-indexing n_events.
+                    n_events = 0
+                    if kept_header:
+                        n_events += 1
+
+                    # Handle the first line from the generator.
+                    _, header_info = _handle_line(line, n_events, events_per_chunk=events_per_chunk)
                     yield line
+                    # We always increment after yielding.
                     line_count += 1
+                    # If we come across a header immediately (should only happen for the first line of the file),
+                    # we note the new event, and store the header info.
+                    # NOTE: Together with incrementing n_events above, we're effectively 1-indexing n_events.
                     if header_info:
                         n_events += 1
                         event_header_info.append(header_info)
+
                     # Handle additional lines
                     for local_line in read_lines:
-                        time_to_stop, header_info = _handle_line(local_line, n_events, events_per_file=events_per_file)
+                        time_to_stop, header_info = _handle_line(local_line, n_events, events_per_chunk=events_per_chunk)
                         line_count += 1
                         if header_info:
                             n_events += 1
@@ -167,18 +196,18 @@ def read(filename: Path):
                                 # by subtracting the number of events so far.
                                 event_split_index.append(line_count - len(event_split_index))
                             else:
-                                keep_header_for_next_iter = header_info
-                                print(f"header_info: {header_info}, keep_header_for_next_iter: {keep_header_for_next_iter}")
+                                keep_header_for_next_chunk = header_info
+                                print(f"header_info: {header_info}, keep_header_for_next_chunk: {keep_header_for_next_chunk}")
                         yield local_line
                         if time_to_stop:
                             print(f"event_split_index len: {len(event_split_index)} - {event_split_index}")
                             break
 
-                yield _inner(), event_split_index, event_header_info
+                yield _inner(kept_header=len(event_header_info) > 0), event_split_index, event_header_info
                 #line_count += 1
                 return_count += 1
                 print(f"line_count: {line_count}, return_count: {return_count}")
-                print(f"keep_header_for_next_iter: {keep_header_for_next_iter}")
+                print(f"keep_header_for_next_chunk: {keep_header_for_next_chunk}")
                 #yield i, line
                 #if return_count > 2:
                 #    return
@@ -190,7 +219,7 @@ def read(filename: Path):
 
     #event_split_index_offset = 0
     count = 0
-    for chunk_generator, event_split_index, event_header_info in read_events_in_chunks(filename=filename, events_per_file=5):
+    for chunk_generator, event_split_index, event_header_info in read_events_in_chunks(filename=filename, events_per_chunk=5):
         hadrons = np.loadtxt(chunk_generator)
         #temp_arr = ak.Array(np.split(hadrons, event_split_index[event_split_index_offset + 1:]))
         temp_arr = ak.Array(np.split(hadrons, event_split_index))
