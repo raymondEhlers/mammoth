@@ -1,0 +1,33 @@
+.DS_Store
+*.root
+
+# Data
+trains
+output/
+
+# Virtualenv
+env/
+.venv/
+
+# Misc
+temp/
+.vscode/
+
+# Python
+__pycache__/
+ipynb_checkpoints/
+.ipynb_checkpoints/
+.mypy_cache/
+.python-version
+# parsl
+monitoring.db
+runinfo/
+
+# Packaging
+dist/
+jet_substructure.egg-info/
+
+# Compiled
+bin/
+build/
+lib/
