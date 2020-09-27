@@ -1,5 +1,5 @@
 [tool.poetry]
-name = "jetscape-an"
+name = "jetscape_an"
 version = "0.1.0"
 description = "JETSCAPE analysis framework"
 authors = ["Raymond Ehlers <raymond.ehlers@gmail.com>"]
