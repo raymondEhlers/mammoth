@@ -16,49 +16,6 @@ import numpy as np
 logger = logging.getLogger(__name__)
 
 
-def parse_final_state_hadrons(filename: Path) -> np.ndarray:
-
-    b = ak.ArrayBuilder()
-
-    event = None
-    columns = ["E", "px", "py", "pz", "eta", "phi"]
-    with open(filename, "r") as f:
-        for line in f.readlines():
-            if line.startswith("#"):
-                # Parse event info.
-                #   0   Event1ID    240 pstat-EPx   Py  Pz  Eta Phi
-                "  0   Event{event_ID}ID    {hybrid_id}"
-                ...
-                if event:
-                    b.append(event)
-                event = []
-                continue
-            else:
-                #particle_index, particle_ID, pstat, E, px, py, pz, eta, phi = line.split(" ")
-                event.append(np.array(line.split(" "), dtype=np.float64))
-
-
-def jetscape_array() -> ak.Array:
-    b = ak.ArrayBuilder()
-    b.begin_record()
-    with b.list():
-        b.integer()
-
-    # Desired output:
-
-    ak.zip({
-        "E": [
-            [1,2,3],
-            [4,5,6,7],
-        ],
-        "px": [
-            [7,6,4],
-            [3,4,5,6],
-        ],
-        #...
-    })
-
-
 _header_regex = re.compile(r"\d+")
 
 
@@ -186,6 +143,8 @@ def read_events_in_chunks(filename: Union[Path, str], events_per_chunk: int = in
                 if header_info:
                     n_events += 1
                     event_header_info.append(header_info)
+                    # NOTE: We don't record any info here for event_split_index because this is line 0, and
+                    #       it would try to split on both sides of it, leading to an empty first event.
 
                 # Handle additional lines
                 # Start at one to account for the first land already being handled.
@@ -234,74 +193,50 @@ def read_events_in_chunks(filename: Union[Path, str], events_per_chunk: int = in
     # If we've gotten here, that means we've finally exhausted the file. There's nothing else to do!
 
 
-def read(filename: Union[Path, str]) -> None:
+def read(filename: Union[Path, str], events_per_chunk: int) -> None:
     # Validation
     filename = Path(filename)
 
-    #import IPython; IPython.embed()
-
-    #event_split_index_offset = 0
-    count = 0
-    for chunk_generator, event_split_index, event_header_info in read_events_in_chunks(filename=filename, events_per_chunk=5):
+    # Read the file, creating chunks of events.
+    for chunk_generator, event_split_index, event_header_info in read_events_in_chunks(filename=filename, events_per_chunk=events_per_chunk):
         hadrons = np.loadtxt(chunk_generator)
-        #temp_arr = ak.Array(np.split(hadrons, event_split_index[event_split_index_offset + 1:]))
-        temp_arr = ak.Array(np.split(hadrons, event_split_index))
-        print(len(event_split_index))
-        print(f"hadrons: {hadrons}")
-        print(f"temp_arr: {temp_arr}")
-        print(ak.type(temp_arr))
-        print(f"Event header info: {event_header_info}")
-        #event_split_index_offset = len(event_split_index) - 1
+        array_with_events = ak.Array(np.split(hadrons, event_split_index))
+        # Cross check
+        if events_per_chunk > 0:
+            assert len(event_split_index) == events_per_chunk - 1
+            assert len(event_header_info) == events_per_chunk
+        #print(len(event_split_index))
+        #print(f"hadrons: {hadrons}")
+        #print(f"array_with_events: {array_with_events}")
+        #print(ak.type(array_with_events))
+        #print(f"Event header info: {event_header_info}")
         #import IPython; IPython.embed()
 
-        # TEMP
-        #if count > 2:
-        #    break
-        #count += 1
-        # ENDTEMP
+        # Test
+        array = ak.zip({
+            # TODO: Does the conversion add any real computation time?
+            "particle_ID": ak.values_astype(array_with_events[:, :, 1], np.int32),
+            # I think the status is always 0 because we're looking at final state particles. So we skip storing it.
+            #"status": ak.values_astype(array_with_events[:, :, 2], np.int32),
+            "E": ak.values_astype(array_with_events[:, :, 3], np.float32),
+            "px": ak.values_astype(array_with_events[:, :, 4], np.float32),
+            "py": ak.values_astype(array_with_events[:, :, 5], np.float32),
+            "pz": ak.values_astype(array_with_events[:, :, 6], np.float32),
+            # Skip these because we're going to be working with four vectors anyway, so it shouldn't be a
+            # big deal to recalculate them, especially compare to the added storage space.
+            #"eta": ak.values_astype(array_with_events[:, :, 7], np.float32),
+            #"phi": ak.values_astype(array_with_events[:, :, 8], np.float32),
+        })
 
-    # NOTE: Can parse / store more information here if it's helpful.
-    def yield_final_state(filename: Path):
-        with open(filename, "r") as f:
-            for i, line in enumerate(f.readlines()):
-                if line.startswith("#"):
-                    # Since this line will be skipped by loadtxt, we need to account for that
-                    # but subtracting the number of events so far.
-                    event_split_index.append(i - len(event_split_index))
-                yield line
+        # TODO: Write this out with a proper filename...
+        # Parquet doesn't appear to save space vs tar.gz for all columns...
+        # However, we do save space by converting types and dropping unneeded columns.
+        # And it should load much faster!
+        ak.to_parquet(array, "test.parquet")
 
-    #hadrons = np.loadtxt(yield_final_state(filename=filename))
-
-    # We have to take [1:] because we need to skip the first line. Otherwise,
-    # we used up with an empty first event.
-    temp_arr = ak.Array(np.split(hadrons, event_split_index[1:]))
-
-    array = ak.zip({
-        # TODO: Does the conversion add any real computation time?
-        "pid": ak.values_astype(temp_arr[:, :, 1], np.int32),
-        # 2 == "status". Which I think is always 0 because we're looking at final state particles.
-        "E": temp_arr[:, :, 3],
-        "px": temp_arr[:, :, 4],
-        "py": temp_arr[:, :, 5],
-        "pz": temp_arr[:, :, 6],
-    })
-    # Test
-    array = ak.zip({
-        # TODO: Does the conversion add any real computation time?
-        "pid": ak.values_astype(temp_arr[:, :, 1], np.int32),
-        "E": ak.values_astype(temp_arr[:, :, 3], np.float32),
-        "px": ak.values_astype(temp_arr[:, :, 4], np.float32),
-        "py": ak.values_astype(temp_arr[:, :, 5], np.float32),
-        "pz": ak.values_astype(temp_arr[:, :, 6], np.float32),
-    })
-
-    # Parquet doesn't appear to save space...
-    # We do save space by converting types and dropping useless columns
-    ak.to_parquet(array, "test.parquet")
-
-    #import IPython; IPython.embed()
+    import IPython; IPython.embed()
 
 
 if __name__ == "__main__":
-    read(filename="final_state_hadrons.dat")
+    read(filename="final_state_hadrons.dat", events_per_chunk=5)
 
