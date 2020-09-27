@@ -4,12 +4,17 @@
 
 """
 
+import logging
 import re
 from pathlib import Path
-from typing import Any, Optional, Sequence, Tuple
+from typing import Any, Iterable, List, Optional, Sequence, Tuple
 
 import awkward1 as ak
 import numpy as np
+
+
+logger = logging.getLogger(__name__)
+
 
 def parse_final_state_hadrons(filename: Path) -> np.ndarray:
 
@@ -54,54 +59,68 @@ def jetscape_array() -> ak.Array:
     })
 
 
+_header_regex = re.compile(r"\d+")
+
+
+def _handle_line(line: str, n_events: int, events_per_file: int) -> Tuple[bool, Optional[Any]]:
+    """ Parse line as appropriate.
+
+    If it's just a standard particle line, we just pass it on. However, if it's a header, we parse
+    the header, as well as perform both an event count check. This way, we can split files without
+    having to worry about getting only part of an event (which would happen if we just trivially
+    split on lines).
+
+    Note:
+        We don't even have to yield the line back because we don't ever modify it.
+
+    Args:
+        line: Line to be parsed.
+        n_events: Number of events processed so far.
+    Returns:
+        Whether we've reached the desired number of events and should stop this block, any information parsed from the header.
+        The header info is None if it's not a header line.
+    """
+    time_to_stop = False
+    header_info = None
+    if line.startswith("#"):
+        # We've found a header line.
+
+        # We need to be able to chunk the files into something smaller and more manageable.
+        # Therefore, when we hit the target, we provide a signal that it's time to end the block.
+        # This is a bit awkward because we don't know that an event has ended until we get to the
+        # next event. However, we check for exact agreement because we don't increment the number
+        # of events until after we find a header. Basically, it all works out here.
+        #if n_events > 0 and n_events % events_per_file == 0:
+        if n_events == events_per_file:
+            logger.debug("Time to stop!")
+            time_to_stop = True
+
+        # Parse the header string.
+        # As of September 2020, the formatting isn't really right. This should be fixed in JS.
+        # Due to this formatting issue:
+        # - We ignore all of the column names.
+        # - We only parse the numbers:
+        #   1. I'm not sure what this number means
+        #   2. Event number. int
+        #   3. Hydro ID. int.
+        #
+        # For now, we don't construct any objects to contain the information because
+        # it's not worth the computing time - we're not really using this information...
+        header_info = [int(s) for s in re.findall(_header_regex, line)[1:]]
+
+    return time_to_stop, header_info
+
+
 def read(filename: Path):
-    def read_events_in_chunks(filename: Path, events_per_file: int = 1e5):
+    def read_events_in_chunks(filename: Path, events_per_file: int = int(1e5)):
         """
-        We define the closure here so that we have access to the event_split_index outside of everything else.
+
         """
         # We keep track of the location of where to split each event.
         # That way, we can come back later and split the 2D numpy array into an awkward array with a jagged structure.
         #event_split_index = []
 
-        header_regex = re.compile(r"\d+")
-        def _handle_line(line: str, n_events: int) -> Tuple[bool, Optional[Any]]:
-            """ Parse line as appropriate.
-
-            If it's just a standard line, we just pass it on. However, if it's a header, we parse the
-            header, as well as perform both an event count check. This way, we can split files without
-            having to worry about getting only part of an event (which would happen if we just trivially
-            split on lines).
-
-            Note:
-                We don't even have to yield the line back because we don't ever modify it.
-
-            Args:
-                line: Line to be parsed.
-                n_events: Number of events processed so far.
-            Returns:
-                Whether we've reached the desired number of events and should stop this block, any information parsed from the header.
-                The header info is None if it's not a header line.
-            """
-            #print(f"{line_count}: line: {line}")
-            time_to_stop = False
-            header_info = None
-            if line.startswith("#"):
-                # Need to check if event_split_index so that we get past 0...
-                if n_events > 0 and n_events % events_per_file == 0:
-                    print("Time to stop!")
-                    time_to_stop = True
-
-                # TODO: We can parse the header for additional info if so inclined.
-                #       As of the first prototype, it's not yet necessary.
-                #       For now, we just indicated that we found a header by setting it to True.
-                #       We just need something to differentiate it from not finding a header.
-                header_info = [int(s) for s in re.findall(header_regex, line)[1:]]
-                # Since this line will be skipped by loadtxt, we need to account for that
-                # but subtracting the number of events so far.
-                #event_split_index.append(line_count - len(event_split_index))
-
-            return time_to_stop, header_info
-
+        # Setup
         # Keep track of the number of lines by hand because we can increment the iterator from multiple places.
         line_count = 0
 
@@ -112,7 +131,7 @@ def read(filename: Path):
             keep_header_for_next_iter = None
             for line in read_lines:
                 line_count = 0
-                event_split_index = []
+                event_split_index: List[int] = []
                 print(f"return_count: {return_count}, keep_header_for_next_iter: {keep_header_for_next_iter}")
                 #event_header_info = [keep_header_for_next_iter] if keep_header_for_next_iter else []
                 event_header_info = []
@@ -121,12 +140,16 @@ def read(filename: Path):
                     event_header_info.append(keep_header_for_next_iter)
                     n_events += 1
                     keep_header_for_next_iter = None
-                def _inner():
+
+                def _inner() -> Iterable[str]:
+                    """
+
+                    """
                     nonlocal line
                     nonlocal line_count
                     nonlocal keep_header_for_next_iter
                     nonlocal n_events
-                    _, header_info = _handle_line(line, n_events)
+                    _, header_info = _handle_line(line, n_events, events_per_file=events_per_file)
                     yield line
                     line_count += 1
                     if header_info:
@@ -134,12 +157,14 @@ def read(filename: Path):
                         event_header_info.append(header_info)
                     # Handle additional lines
                     for local_line in read_lines:
-                        time_to_stop, header_info = _handle_line(local_line, n_events)
+                        time_to_stop, header_info = _handle_line(local_line, n_events, events_per_file=events_per_file)
                         line_count += 1
                         if header_info:
                             n_events += 1
                             if not time_to_stop:
                                 event_header_info.append(header_info)
+                                # Since the header line will be skipped by loadtxt, we need to account for that
+                                # by subtracting the number of events so far.
                                 event_split_index.append(line_count - len(event_split_index))
                             else:
                                 keep_header_for_next_iter = header_info
