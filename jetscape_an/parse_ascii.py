@@ -4,8 +4,9 @@
 
 """
 
+import re
 from pathlib import Path
-from typing import Tuple
+from typing import Any, Optional, Sequence, Tuple
 
 import awkward1 as ak
 import numpy as np
@@ -54,16 +55,16 @@ def jetscape_array() -> ak.Array:
 
 
 def read(filename: Path):
-    # We keep track of the location of where to split each event.
-    # That way, we can come back later and split the 2D numpy array into an awkward array with a jagged structure.
-    event_split_index = []
-
     def read_events_in_chunks(filename: Path, events_per_file: int = 1e5):
         """
         We define the closure here so that we have access to the event_split_index outside of everything else.
         """
+        # We keep track of the location of where to split each event.
+        # That way, we can come back later and split the 2D numpy array into an awkward array with a jagged structure.
+        #event_split_index = []
 
-        def _handle_line(line: str, line_count: int) -> Tuple[str, bool]:
+        header_regex = re.compile(r"\d+")
+        def _handle_line(line: str, n_events: int) -> Tuple[bool, Optional[Any]]:
             """ Parse line as appropriate.
 
             If it's just a standard line, we just pass it on. However, if it's a header, we parse the
@@ -71,52 +72,83 @@ def read(filename: Path):
             having to worry about getting only part of an event (which would happen if we just trivially
             split on lines).
 
-            Uses event_splint_index via the closure.
+            Note:
+                We don't even have to yield the line back because we don't ever modify it.
 
             Args:
                 line: Line to be parsed.
-                line_count: Current line number (0 indexed).
+                n_events: Number of events processed so far.
+            Returns:
+                Whether we've reached the desired number of events and should stop this block, any information parsed from the header.
+                The header info is None if it's not a header line.
             """
             #print(f"{line_count}: line: {line}")
             time_to_stop = False
+            header_info = None
             if line.startswith("#"):
                 # Need to check if event_split_index so that we get past 0...
-                if event_split_index and len(event_split_index) % events_per_file == 0:
+                if n_events > 0 and n_events % events_per_file == 0:
                     print("Time to stop!")
                     time_to_stop = True
+
+                # TODO: We can parse the header for additional info if so inclined.
+                #       As of the first prototype, it's not yet necessary.
+                #       For now, we just indicated that we found a header by setting it to True.
+                #       We just need something to differentiate it from not finding a header.
+                header_info = [int(s) for s in re.findall(header_regex, line)[1:]]
                 # Since this line will be skipped by loadtxt, we need to account for that
                 # but subtracting the number of events so far.
-                event_split_index.append(line_count - len(event_split_index))
+                #event_split_index.append(line_count - len(event_split_index))
 
-            return line, time_to_stop
+            return time_to_stop, header_info
 
-        # Keep track of the number of lines by hand because we can increment from multiple places.
+        # Keep track of the number of lines by hand because we can increment the iterator from multiple places.
         line_count = 0
 
         with open(filename, "r") as f:
             read_lines = iter(f.readlines())
             #read_lines = f.readline()
             return_count = 0
+            keep_header_for_next_iter = None
             for line in read_lines:
+                line_count = 0
+                event_split_index = []
+                print(f"return_count: {return_count}, keep_header_for_next_iter: {keep_header_for_next_iter}")
+                event_header_info = [keep_header_for_next_iter] if keep_header_for_next_iter else []
+                keep_header_for_next_iter = None
                 def _inner():
                     nonlocal line
                     nonlocal line_count
-                    l_first, _ = _handle_line(line, line_count)
-                    yield l_first
+                    nonlocal keep_header_for_next_iter
+                    n_events = 0
+                    _, header_info = _handle_line(line, n_events)
+                    yield line
                     line_count += 1
+                    if header_info:
+                        n_events += 1
+                        event_header_info.append(header_info)
                     # Handle additional lines
                     for local_line in read_lines:
-                        l, time_to_stop = _handle_line(local_line, line_count)
+                        time_to_stop, header_info = _handle_line(local_line, n_events)
                         line_count += 1
-                        yield l
+                        if header_info:
+                            n_events += 1
+                            if not time_to_stop:
+                                event_header_info.append(header_info)
+                                event_split_index.append(line_count - len(event_split_index))
+                            else:
+                                keep_header_for_next_iter = header_info
+                                print(f"header_info: {header_info}, keep_header_for_next_iter: {keep_header_for_next_iter}")
+                        yield local_line
                         if time_to_stop:
                             print(f"event_split_index len: {len(event_split_index)} - {event_split_index}")
                             break
 
-                yield _inner()
+                yield _inner(), event_split_index, event_header_info
                 #line_count += 1
                 return_count += 1
                 print(f"line_count: {line_count}, return_count: {return_count}")
+                print(f"keep_header_for_next_iter: {keep_header_for_next_iter}")
                 #yield i, line
                 #if return_count > 2:
                 #    return
@@ -126,14 +158,25 @@ def read(filename: Path):
 
     #import IPython; IPython.embed()
 
-    event_split_index_offset = 0
-    for chunk_generator in read_events_in_chunks(filename=filename, events_per_file=5):
+    #event_split_index_offset = 0
+    count = 0
+    for chunk_generator, event_split_index, event_header_info in read_events_in_chunks(filename=filename, events_per_file=5):
         hadrons = np.loadtxt(chunk_generator)
-        temp_arr = ak.Array(np.split(hadrons, event_split_index[event_split_index_offset + 1:]))
+        #temp_arr = ak.Array(np.split(hadrons, event_split_index[event_split_index_offset + 1:]))
+        temp_arr = ak.Array(np.split(hadrons, event_split_index))
         print(len(event_split_index))
-        print(hadrons)
+        print(f"hadrons: {hadrons}")
+        print(f"temp_arr: {temp_arr}")
         print(ak.type(temp_arr))
-        event_split_index_offset = len(event_split_index) - 1
+        print(f"Event header info: {event_header_info}")
+        #event_split_index_offset = len(event_split_index) - 1
+        #import IPython; IPython.embed()
+
+        # TEMP
+        if count > 2:
+            break
+        count += 1
+        # ENDTEMP
 
     # NOTE: Can parse / store more information here if it's helpful.
     def yield_final_state(filename: Path):
