@@ -60,11 +60,24 @@ def read(filename: Path):
 
     def read_events_in_chunks(filename: Path, events_per_file: int = 1e5):
         """
-
+        We define the closure here so that we have access to the event_split_index outside of everything else.
         """
 
         def _handle_line(line: str, line_count: int) -> Tuple[str, bool]:
-            print(f"{line_count}: line: {line}")
+            """ Parse line as appropriate.
+
+            If it's just a standard line, we just pass it on. However, if it's a header, we parse the
+            header, as well as perform both an event count check. This way, we can split files without
+            having to worry about getting only part of an event (which would happen if we just trivially
+            split on lines).
+
+            Uses event_splint_index via the closure.
+
+            Args:
+                line: Line to be parsed.
+                line_count: Current line number (0 indexed).
+            """
+            #print(f"{line_count}: line: {line}")
             time_to_stop = False
             if line.startswith("#"):
                 # Need to check if event_split_index so that we get past 0...
@@ -88,7 +101,8 @@ def read(filename: Path):
                 def _inner():
                     nonlocal line
                     nonlocal line_count
-                    yield _handle_line(line, line_count)
+                    l_first, _ = _handle_line(line, line_count)
+                    yield l_first
                     line_count += 1
                     # Handle additional lines
                     for local_line in read_lines:
@@ -98,20 +112,6 @@ def read(filename: Path):
                         if time_to_stop:
                             print(f"event_split_index len: {len(event_split_index)} - {event_split_index}")
                             break
-                        #if line_count > 5:
-                        #    break
-                        #if line.startswith("#"):
-                        #    # Need to check if event_split_index so that we get past 0...
-                        #    if event_split_index and len(event_split_index) % events_per_file == 0:
-                        #        time_to_stop = True
-                        #    # Since this line will be skipped by loadtxt, we need to account for that
-                        #    # but subtracting the number of events so far.
-                        #    event_split_index.append(line_count - len(event_split_index))
-
-                        #yield line
-                        #line_count += 1
-                        #if time_to_stop:
-                        #    return
 
                 yield _inner()
                 #line_count += 1
@@ -120,11 +120,11 @@ def read(filename: Path):
                 #yield i, line
                 #if return_count > 2:
                 #    return
-            print(f"return_count: {return_count}")
+            #print(f"return_count: {return_count}")
 
         #return wrap_reading_file
 
-    import IPython; IPython.embed()
+    #import IPython; IPython.embed()
 
     event_split_index_offset = 0
     for chunk_generator in read_events_in_chunks(filename=filename, events_per_file=5):
@@ -132,7 +132,7 @@ def read(filename: Path):
         temp_arr = ak.Array(np.split(hadrons, event_split_index[event_split_index_offset + 1:]))
         print(len(event_split_index))
         print(hadrons)
-        print(temp_arr.shape)
+        print(ak.type(temp_arr))
         event_split_index_offset = len(event_split_index) - 1
 
     # NOTE: Can parse / store more information here if it's helpful.
