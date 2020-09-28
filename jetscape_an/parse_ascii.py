@@ -219,20 +219,26 @@ def read(filename: Union[Path, str], events_per_chunk: int, base_output_filename
         #import IPython; IPython.embed()
 
         # Convert to the desired structure for our awkward array.
-        array = ak.zip({
-            # TODO: Does the conversion add any real computation time?
-            "particle_ID": ak.values_astype(array_with_events[:, :, 1], np.int32),
-            # I think the status is always 0 because we're looking at final state particles. So we skip storing it.
-            #"status": ak.values_astype(array_with_events[:, :, 2], np.int32),
-            "E": ak.values_astype(array_with_events[:, :, 3], np.float32),
-            "px": ak.values_astype(array_with_events[:, :, 4], np.float32),
-            "py": ak.values_astype(array_with_events[:, :, 5], np.float32),
-            "pz": ak.values_astype(array_with_events[:, :, 6], np.float32),
-            # Skip these because we're going to be working with four vectors anyway, so it shouldn't be a
-            # big deal to recalculate them, especially compare to the added storage space.
-            #"eta": ak.values_astype(array_with_events[:, :, 7], np.float32),
-            #"phi": ak.values_astype(array_with_events[:, :, 8], np.float32),
-        })
+        array = ak.zip(
+            {
+                # TODO: Does the conversion add any real computation time?
+                "particle_ID": ak.values_astype(array_with_events[:, :, 1], np.int32),
+                # I think the status is always 0 because we're looking at final state particles. So we skip storing it.
+                #"status": ak.values_astype(array_with_events[:, :, 2], np.int32),
+                "E": ak.values_astype(array_with_events[:, :, 3], np.float32),
+                "px": ak.values_astype(array_with_events[:, :, 4], np.float32),
+                "py": ak.values_astype(array_with_events[:, :, 5], np.float32),
+                "pz": ak.values_astype(array_with_events[:, :, 6], np.float32),
+                # Skip these because we're going to be working with four vectors anyway, so it shouldn't be a
+                # big deal to recalculate them, especially compare to the added storage space.
+                #"eta": ak.values_astype(array_with_events[:, :, 7], np.float32),
+                #"phi": ak.values_astype(array_with_events[:, :, 8], np.float32),
+            },
+            # Here, we limit the depth of the zip to ensure that we can write the parquet successfully.
+            # (parquet can't handle lists of structs at the moment). Later, we'll recreate this structure fully
+            # zipped together.
+            depth_limit = 1
+        )
 
         # Parquet doesn't appear to save space vs tar.gz for all columns...
         # However, we do save space by converting types and dropping unneeded columns.

@@ -11,6 +11,7 @@ awkward1 = "^0.3.1"
 uproot4 = "^0"
 numpy = "^1.19.2"
 pyarrow = "^1.0.1"
+pyfastjet = {path = "../python_bindings/fastjet"}
 
 [tool.poetry.dev-dependencies]
 flake8 = "^3.8.3"
