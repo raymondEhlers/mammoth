@@ -114,6 +114,8 @@ def read_events_in_chunks(filename: Union[Path, str], events_per_chunk: int = in
 
                 The closure ensures access to the same generator used to access the file.
 
+                This closure is inspired by: https://stackoverflow.com/a/24527424/12907985 .
+
                 Args:
                     kept_header: If True, it means that we kept the header from a previous chunk.
                 Returns:
@@ -193,12 +195,16 @@ def read_events_in_chunks(filename: Union[Path, str], events_per_chunk: int = in
     # If we've gotten here, that means we've finally exhausted the file. There's nothing else to do!
 
 
-def read(filename: Union[Path, str], events_per_chunk: int) -> None:
+def read(filename: Union[Path, str], events_per_chunk: int, base_output_filename: Union[Path, str]) -> None:
     # Validation
     filename = Path(filename)
+    base_output_filename = Path(base_output_filename)
+    if events_per_chunk > 0:
+        base_output_filename = base_output_filename.parent / f"events_per_chunk_{events_per_chunk}" / base_output_filename.name
+    base_output_filename.parent.mkdir(parents=True, exist_ok=True)
 
     # Read the file, creating chunks of events.
-    for chunk_generator, event_split_index, event_header_info in read_events_in_chunks(filename=filename, events_per_chunk=events_per_chunk):
+    for i, (chunk_generator, event_split_index, event_header_info) in enumerate(read_events_in_chunks(filename=filename, events_per_chunk=events_per_chunk)):
         hadrons = np.loadtxt(chunk_generator)
         array_with_events = ak.Array(np.split(hadrons, event_split_index))
         # Cross check
@@ -212,7 +218,7 @@ def read(filename: Union[Path, str], events_per_chunk: int) -> None:
         #print(f"Event header info: {event_header_info}")
         #import IPython; IPython.embed()
 
-        # Test
+        # Convert to the desired structure for our awkward array.
         array = ak.zip({
             # TODO: Does the conversion add any real computation time?
             "particle_ID": ak.values_astype(array_with_events[:, :, 1], np.int32),
@@ -228,15 +234,19 @@ def read(filename: Union[Path, str], events_per_chunk: int) -> None:
             #"phi": ak.values_astype(array_with_events[:, :, 8], np.float32),
         })
 
-        # TODO: Write this out with a proper filename...
         # Parquet doesn't appear to save space vs tar.gz for all columns...
         # However, we do save space by converting types and dropping unneeded columns.
         # And it should load much faster!
-        ak.to_parquet(array, "test.parquet")
+        if events_per_chunk > 0:
+            suffix = base_output_filename.suffix
+            output_filename = (base_output_filename.parent / f"{base_output_filename.stem}_{i:02}").with_suffix(suffix)
+        else:
+            output_filename = base_output_filename
+        ak.to_parquet(array, output_filename)
 
     import IPython; IPython.embed()
 
 
 if __name__ == "__main__":
-    read(filename="final_state_hadrons.dat", events_per_chunk=5)
+    read(filename="final_state_hadrons.dat", events_per_chunk=-1, base_output_filename="skim/jetscape.parquet")
 
