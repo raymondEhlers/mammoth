@@ -100,6 +100,8 @@ def find_jets(array: ak.Array) -> ...:
         jets = LorentzVectorArray.from_ptetaphim(
             **dict(zip(["pt", "eta", "phi", "m"], cs.to_numpy()))
         )
+        print(jets.layout)
+        print(ak.type(jets))
         sorted_by_pt = ak.argsort(jets.pt, ascending=True)
         jets = jets[sorted_by_pt]
 
@@ -111,6 +113,20 @@ def find_jets(array: ak.Array) -> ...:
         #import IPython; IPython.embed()
 
         #print(jets.to_numpy())
+
+
+def find_jets_arr(array: ak.Array) -> ak.Array:
+    """ Find jets.
+
+    """
+    jet_defintion = fj.JetDefinition(fj.JetAlgorithm.antikt_algorithm, R = 0.4)
+    area_definition = fj.AreaDefinition(fj.AreaType.passive_area, fj.GhostedAreaSpec(1, 1, 0.05))
+    settings = fj.JetFinderSettings(jet_definition=jet_defintion, area_definition=area_definition)
+
+    #jets = fj.find_jets(events=array.layout.Content, settings=settings)
+    jets = ak.Array(fj.find_jets(events=array.layout, settings=settings))
+
+    import IPython; IPython.embed()
 
 
 if __name__ == "__main__":
@@ -133,4 +149,4 @@ if __name__ == "__main__":
     )
     #import IPython; IPython.embed()
 
-    find_jets(array=arrays)
+    find_jets_arr(array=arrays)
