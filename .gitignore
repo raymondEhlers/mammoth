@@ -1,9 +1,12 @@
 .DS_Store
-*.root
+test/
 
 # Data
+*.root
 trains
 output/
+*.dat
+skim/
 
 # Virtualenv
 env/
@@ -25,7 +28,7 @@ runinfo/
 
 # Packaging
 dist/
-jet_substructure.egg-info/
+*.egg-info/
 
 # Compiled
 bin/
