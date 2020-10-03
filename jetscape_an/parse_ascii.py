@@ -195,7 +195,7 @@ def read_events_in_chunks(filename: Union[Path, str], events_per_chunk: int = in
     # If we've gotten here, that means we've finally exhausted the file. There's nothing else to do!
 
 
-def read(filename: Union[Path, str], events_per_chunk: int, base_output_filename: Union[Path, str]) -> None:
+def read(filename: Union[Path, str], events_per_chunk: int, base_output_filename: Union[Path, str], max_chunks: int = -1) -> None:
     # Validation
     filename = Path(filename)
     base_output_filename = Path(base_output_filename)
@@ -205,6 +205,11 @@ def read(filename: Union[Path, str], events_per_chunk: int, base_output_filename
 
     # Read the file, creating chunks of events.
     for i, (chunk_generator, event_split_index, event_header_info) in enumerate(read_events_in_chunks(filename=filename, events_per_chunk=events_per_chunk)):
+        print("New chunk")
+        # Bail out if we've done enough.
+        if i == max_chunks:
+            break
+
         hadrons = np.loadtxt(chunk_generator)
         array_with_events = ak.Array(np.split(hadrons, event_split_index))
         # Cross check
@@ -223,16 +228,16 @@ def read(filename: Union[Path, str], events_per_chunk: int, base_output_filename
             {
                 # TODO: Does the conversion add any real computation time?
                 "particle_ID": ak.values_astype(array_with_events[:, :, 1], np.int32),
-                # I think the status is always 0 because we're looking at final state particles. So we skip storing it.
-                #"status": ak.values_astype(array_with_events[:, :, 2], np.int32),
+                # Status is only a couple of numbers, but it's not always 0. It identifies recoils (1?) and holes (-1?)
+                "status": ak.values_astype(array_with_events[:, :, 2], np.int8),
                 "E": ak.values_astype(array_with_events[:, :, 3], np.float32),
                 "px": ak.values_astype(array_with_events[:, :, 4], np.float32),
                 "py": ak.values_astype(array_with_events[:, :, 5], np.float32),
                 "pz": ak.values_astype(array_with_events[:, :, 6], np.float32),
                 # Skip these because we're going to be working with four vectors anyway, so it shouldn't be a
                 # big deal to recalculate them, especially compare to the added storage space.
-                #"eta": ak.values_astype(array_with_events[:, :, 7], np.float32),
-                #"phi": ak.values_astype(array_with_events[:, :, 8], np.float32),
+                "eta": ak.values_astype(array_with_events[:, :, 7], np.float32),
+                "phi": ak.values_astype(array_with_events[:, :, 8], np.float32),
             },
             # Here, we limit the depth of the zip to ensure that we can write the parquet successfully.
             # (parquet can't handle lists of structs at the moment). Later, we'll recreate this structure fully
@@ -250,9 +255,17 @@ def read(filename: Union[Path, str], events_per_chunk: int, base_output_filename
             output_filename = base_output_filename
         ak.to_parquet(array, output_filename)
 
-    import IPython; IPython.embed()
+    #import IPython; IPython.embed()
 
 
 if __name__ == "__main__":
-    read(filename="final_state_hadrons.dat", events_per_chunk=-1, base_output_filename="skim/jetscape.parquet")
+    #read(filename="final_state_hadrons.dat", events_per_chunk=-1, base_output_filename="skim/jetscape.parquet")
+    directory_name = "5020_PbPb_0-10_0R25_1R0_1"
+    filename = "JetscapeHadronListBin100_110"
+    read(
+        filename=f"../phys_paper/AAPaperData/{directory_name}/{filename}.out",
+        events_per_chunk=1000,
+        base_output_filename=f"skim/{filename}.parquet",
+        max_chunks=1,
+    )
 
