@@ -87,32 +87,6 @@ def write_trees_with_root(arrays: ak.Array, tag: str = ""):
 
     import ROOT
 
-    tree = ROOT.TTree("tree", "tree")
-
-    # This is dumb. We should be able to use np arrays...
-    particle_ID = ROOT.vector("int32_t" if tag[1:] == "optimized_types" else "int")()
-    tree.Branch("particle_ID", particle_ID)
-    status = ROOT.vector("int8_t" if tag[1:] == "optimized_types" else "int")()
-    tree.Branch("status", status)
-    pt = ROOT.vector("float" if tag[1:] == "optimized_types" else "double")()
-    tree.Branch("pt", pt)
-    eta = ROOT.vector("float" if tag[1:] == "optimized_types" else "double")()
-    tree.Branch("eta", eta)
-    phi = ROOT.vector("float" if tag[1:] == "optimized_types" else "double")()
-    tree.Branch("phi", phi)
-
-    print("Filling tree")
-    for event in arrays[:100]:
-        for particle in event:
-            # Apparently pyroot can't handle type conversions. Cool.
-            particle_ID.push_back(int(particle["particle_ID"]))
-            status.push_back(int(particle["status"]))
-            pt.push_back(particle["pt"])
-            eta.push_back(particle["eta"])
-            phi.push_back(particle["phi"])
-        tree.Fill()
-    print("Done filling. Writing files...")
-
     # ROOT intuition from https://root-forum.cern.ch/t/new-compression-algorithm/27769/3:
     #
     # LZMA: Very slow, but highest compression ratio.
@@ -128,7 +102,7 @@ def write_trees_with_root(arrays: ak.Array, tag: str = ""):
         #                          (f"zstd_{level}", ROOT.ROOT.RCompressionSetting.EAlgorithm.kZSTD)]:
     # Better, use the ROOT default levels...
     # If the case of uncompressed, the algorithm shouldn't matter.
-    for name, compression, level in [("none_{level}", ROOT.ROOT.RCompressionSetting.EAlgorithm.kZLIB, ROOT.ROOT.RCompressionSetting.ELevel.kUncompressed),
+    for name, compression, level in [#("none_{level}", ROOT.ROOT.RCompressionSetting.EAlgorithm.kZLIB, ROOT.ROOT.RCompressionSetting.ELevel.kUncompressed),
                                      ("zlib_{level}", ROOT.ROOT.RCompressionSetting.EAlgorithm.kZLIB, ROOT.ROOT.RCompressionSetting.ELevel.kDefaultZLIB),
                                      ("lzma_{level}", ROOT.ROOT.RCompressionSetting.EAlgorithm.kLZMA, ROOT.ROOT.RCompressionSetting.ELevel.kDefaultLZMA),
                                      ("lz4_{level}", ROOT.ROOT.RCompressionSetting.EAlgorithm.kLZ4, ROOT.ROOT.RCompressionSetting.ELevel.kDefaultLZ4),
@@ -138,12 +112,40 @@ def write_trees_with_root(arrays: ak.Array, tag: str = ""):
         compress =  ROOT.ROOT.CompressionSettings(compression, level)
         start_time = timeit.default_timer()
         filename = output_dir / f"{name}{tag}.root"
+        print(f"Setup: ROOT {name}")
         f = ROOT.TFile(str(filename), "RECREATE", "", compress)
-        tree_to_write =  tree.Clone()
-        tree_to_write.Write()
+
+        # It seems that we need to define the tree here for compression to apply. So this is going to be slow....
+        tree = ROOT.TTree("tree", "tree")
+
+        # This is dumb. We should be able to use np arrays...
+        particle_ID = ROOT.vector("int32_t" if tag[1:] == "optimized_types" else "int")()
+        tree.Branch("particle_ID", particle_ID)
+        status = ROOT.vector("int8_t" if tag[1:] == "optimized_types" else "int")()
+        tree.Branch("status", status)
+        pt = ROOT.vector("float" if tag[1:] == "optimized_types" else "double")()
+        tree.Branch("pt", pt)
+        eta = ROOT.vector("float" if tag[1:] == "optimized_types" else "double")()
+        tree.Branch("eta", eta)
+        phi = ROOT.vector("float" if tag[1:] == "optimized_types" else "double")()
+        tree.Branch("phi", phi)
+
+        print("Filling tree")
+        for event in arrays[:200]:
+            for particle in event:
+                # Apparently pyroot can't handle type conversions. Cool.
+                particle_ID.push_back(int(particle["particle_ID"]))
+                status.push_back(int(particle["status"]))
+                pt.push_back(particle["pt"])
+                eta.push_back(particle["eta"])
+                phi.push_back(particle["phi"])
+            tree.Fill()
+        print("Done filling. Writing files...")
+
+        tree.Write()
         f.Close()
         elapsed = timeit.default_timer() - start_time
-        print(f"ROOT: {name}: {elapsed}")
+        print(f"ROOT (includes filling...): {name}: {elapsed}")
 
 
 def write_trees_with_awkward(arrays: ak.Array, tag: str = ""):
@@ -180,7 +182,7 @@ def write_ascii_ish(arrays: ak.Array, tag: str = ""):
     output_dir.mkdir(parents=True, exist_ok=True)
     filename = output_dir / f"ascii{tag}.out"
 
-    print(f"Writing to ascii for \"{tag[1:]}\"")
+    print(f"Writing to ascii (six digit truncation) for \"{tag[1:]}\"")
     start_time = timeit.default_timer()
     with open(filename, "w") as f:
         for event in arrays:
