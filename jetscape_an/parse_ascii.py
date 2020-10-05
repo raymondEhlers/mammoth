@@ -210,7 +210,13 @@ def read(filename: Union[Path, str], events_per_chunk: int, base_output_filename
         if i == max_chunks:
             break
 
-        hadrons = np.loadtxt(chunk_generator)
+        #hadrons = np.loadtxt(chunk_generator)
+        particles = []
+        # Parse the lines myself because np.loadtxt is suprisingly slow.
+        for p in chunk_generator:
+            if not p.startswith("#"):
+                particles.append(np.array(p.rstrip("\n").split(), dtype=np.float64))
+        hadrons = np.stack(particles)
         array_with_events = ak.Array(np.split(hadrons, event_split_index))
         # Cross check
         if events_per_chunk > 0:
