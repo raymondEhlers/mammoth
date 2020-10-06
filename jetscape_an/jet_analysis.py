@@ -3,10 +3,13 @@
 .. codeauthor:: Raymond Ehlers <raymond.ehlers@cern.ch>, ORNL
 """
 
-from typing import Any, Type, TypeVar
+import functools
+from typing import Any, Mapping, Type, TypeVar
 
 import awkward1 as ak
+import numba as nb
 import numpy as np
+import particle
 import pyfastjet as fj
 
 
@@ -115,38 +118,105 @@ def find_jets(array: ak.Array) -> ...:
         #print(jets.to_numpy())
 
 
+
+@functools.lru_cache()
+def _pdg_id_to_mass(pdg_id: int) -> float:
+    """ Convert PDG ID to mass.
+
+    We cache the result to speed it up.
+
+    Args:
+        pdg_id: PDG ID.
+    Returns:
+        Mass in MeV.
+    """
+    return particle.Particle.from_pdgid(pdg_id).mass
+
+@nb.njit
+def determine_mass(events: ak.Array, builder: ak.ArrayBuilder, pdg_id_to_mass: Mapping[int, float]) -> ak.Array:
+    for event in events:
+        builder.begin_list()
+        for particle in event:
+            builder.append(pdg_id_to_mass[particle["particle_ID"]])
+        builder.end_list()
+
+    #return builder.snapshot()
+
+
 def find_jets_arr(array: ak.Array) -> ak.Array:
     """ Find jets.
 
     """
+    # Particle selection
+    # Drop neutrinos.
+    new_array = array[(np.abs(array["particle_ID"]) != 12) & (np.abs(array["particle_ID"]) != 14) & (np.abs(array["particle_ID"]) != 16)]
+    # Determine masses
+    all_particle_IDs = np.unique(ak.to_numpy(ak.flatten(new_array["particle_ID"])))
+
+    pdg_id_to_mass = nb.typed.Dict.empty(
+        key_type=nb.core.types.int64,
+        value_type=nb.core.types.float32,
+    )
+    for pdg_id in all_particle_IDs:
+        pdg_id_to_mass[pdg_id] = _pdg_id_to_mass(np.float32(pdg_id))
+    #import IPython; IPython.embed()
+    #pdg_id_to_mass = nb.typed.Dict({pdg_id: _pdg_id_to_mass(pdg_id) for pdg_id in all_particle_IDs})
+
+    builder = ak.ArrayBuilder()
+    determine_mass(events=new_array, builder=builder, pdg_id_to_mass=pdg_id_to_mass)
+    #array["m"] = builder.snapshot()
+    mass = builder.snapshot()
+
+    new_array = LorentzVectorArray.from_ptetaphim(new_array["pt"], new_array["eta"], new_array["phi"], mass)
+
     jet_defintion = fj.JetDefinition(fj.JetAlgorithm.antikt_algorithm, R = 0.4)
     area_definition = fj.AreaDefinition(fj.AreaType.passive_area, fj.GhostedAreaSpec(1, 1, 0.05))
     settings = fj.JetFinderSettings(jet_definition=jet_defintion, area_definition=area_definition)
 
-    #jets = fj.find_jets(events=array.layout.Content, settings=settings)
-    jets = ak.Array(fj.find_jets(events=array.layout, settings=settings))
+    # TEMP!! The arguments don't match otherwise!!
+    temp_array = ak.zip(
+        {
+            "E": new_array["t"],
+            "px": new_array["x"],
+            "py": new_array["y"],
+            "pz": new_array["z"],
+        },
+        #with_name="LorentzVector",
+    )
+    print(temp_array.type)
+    # ENDTEMP
 
+    #jets = fj.find_jets(events=array.layout.Content, settings=settings)
+    #jets = ak.Array(fj.find_jets(events=temp_array.layout, settings=settings))
+
+    import IPython; IPython.embed()
+
+    jets = ak.Array(fj.find_jets_awkward_test(events=temp_array.layout))
+
+    #jets = fj.find_jets(events=temp_array, settings=settings)
     import IPython; IPython.embed()
 
 
 if __name__ == "__main__":
-    input_arrays = ak.from_parquet("skim/jetscape.parquet")
+    input_arrays = ak.from_parquet("skim/events_per_chunk_1/JetscapeHadronListBin100_110_00.parquet")
     # We use some very different value to make it clear if something ever goes wrong.
     # NOTE: It's important to do this before constructing anything else. Otherwise it can
     #       mess up the awkward1 behaviors.
     fill_none_value = -9999
     input_arrays = ak.fill_none(input_arrays, fill_none_value)
 
-    arrays = ak.zip(
-        {
-            "particle_ID": input_arrays["particle_ID"],
-            "E": input_arrays["E"],
-            "px": input_arrays["px"],
-            "py": input_arrays["py"],
-            "pz": input_arrays["pz"],
-        },
-        depth_limit = None,
-    )
-    #import IPython; IPython.embed()
+    # Fully zip the arrays together.
+    arrays = ak.zip(dict(zip(ak.fields(input_arrays), ak.unzip(input_arrays))), depth_limit=None)
+    #arrays = ak.zip(
+    #    {
+    #        "particle_ID": input_arrays["particle_ID"],
+    #        "E": input_arrays["E"],
+    #        "px": input_arrays["px"],
+    #        "py": input_arrays["py"],
+    #        "pz": input_arrays["pz"],
+    #    },
+    #    depth_limit = None,
+    #)
+    import IPython; IPython.embed()
 
     find_jets_arr(array=arrays)

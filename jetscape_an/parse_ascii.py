@@ -418,7 +418,7 @@ def parse_to_parquet(base_output_filename: Union[Path, str], store_only_necessar
         # (parquet can't handle lists of structs at the moment). Later, we'll recreate this
         # structure fully zipped together.
         ak.zip(
-            ak.unzip(arrays),
+            dict(zip(ak.fields(arrays), ak.unzip(arrays))),
             depth_limit = 1
         )
 
@@ -446,7 +446,7 @@ if __name__ == "__main__":
         base_output_filename=f"skim/{filename}.parquet",
         store_only_necessary_columns=True,
         input_filename=f"../phys_paper/AAPaperData/{directory_name}/{filename}.out",
-        events_per_chunk=1000,
+        events_per_chunk=1,
         max_chunks=1,
     )
 

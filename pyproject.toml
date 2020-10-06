@@ -11,8 +11,10 @@ awkward1 = "^0.3.1"
 uproot4 = "^0"
 numpy = "^1.19.2"
 pyarrow = "^1.0.1"
-pyfastjet = {path = "../python_bindings/fastjet"}
+pyfastjet = {path = "../../pyfastjet"}
 pandas = "^1.1.3"
+particle = "^0.12.0"
+numba = "^0.51.2"
 
 [tool.poetry.dev-dependencies]
 flake8 = "^3.8.3"
