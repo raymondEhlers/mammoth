@@ -7,6 +7,8 @@ trains
 output/
 *.dat
 skim/
+# For compression tests
+compression/
 
 # Virtualenv
 env/
