@@ -19,7 +19,7 @@ from jetscape_an import parse_ascii
 pachyderm.plot.configure()
 
 
-def setup(filename: str, events_per_chunk: int, base_output_dir: Path):
+def setup(filename: str, events_per_chunk: int, base_output_dir: Path) -> None:
     # Inputs
 
     directory_name = "5020_PbPb_0-10_0R25_1R0_1"
@@ -64,33 +64,33 @@ def setup(filename: str, events_per_chunk: int, base_output_dir: Path):
         f.write("".join(lines))
     # Write the tars here for convenience.
     with tarfile.open(output_filename.with_suffix(".tar.gz"), "w:gz") as tar:
-        tar.add(output_filename, arcname=output_filename.name)
+        tar.add(output_filename, arcname=output_filename.name)  # type: ignore
 
     # Try also writing in binary encoding with utf-8
     output_filename = output_dir / f"{filename}_{events_per_chunk}_00_binary_utf-8.out"
-    with open(output_filename, "wb") as f:
-        f.write("".join(lines).encode("utf-8"))
+    with open(output_filename, "wb") as f_bytes:
+        f.write("".join(lines).encode("utf-8"))  # type: ignore
     # Write the tars here for convenience.
     with tarfile.open(output_filename.with_suffix(".tar.gz"), "w:gz") as tar:
-        tar.add(output_filename, arcname=output_filename.name)
+        tar.add(output_filename, arcname=output_filename.name)  # type: ignore
 
     # Try also writing in binary encoding with ascii
     output_filename = output_dir / f"{filename}_{events_per_chunk}_00_binary_ascii.out"
-    with open(output_filename, "wb") as f:
-        f.write("".join(lines).encode("ascii"))
+    with open(output_filename, "wb") as f_bytes:
+        f.write("".join(lines).encode("ascii"))  # type: ignore
     # Write the tars here for convenience.
     with tarfile.open(output_filename.with_suffix(".tar.gz"), "w:gz") as tar:
-        tar.add(output_filename, arcname=output_filename.name)
+        tar.add(output_filename, arcname=output_filename.name)  # type: ignore
 
 
-def write_trees_with_root(arrays: ak.Array, base_output_dir: Path, tag: str = ""):
+def write_trees_with_root(arrays: ak.Array, base_output_dir: Path, tag: str = "") -> None:
     # NOTE: This won't work with uproot because it only supports simple branches - we need to use ROOT :-(
     if tag:
         tag = f"_{tag}"
     output_dir = base_output_dir / "ROOT"
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    import ROOT
+    import ROOT  # type: ignore
 
     # ROOT intuition from https://root-forum.cern.ch/t/new-compression-algorithm/27769/3:
     #
@@ -153,7 +153,7 @@ def write_trees_with_root(arrays: ak.Array, base_output_dir: Path, tag: str = ""
         print(f"ROOT (includes filling...): {name}: {elapsed}")
 
 
-def write_trees_with_parquet(arrays: ak.Array, base_output_dir: Path, tag: str = ""):
+def write_trees_with_parquet(arrays: ak.Array, base_output_dir: Path, tag: str = "") -> None:
     if tag:
         tag = f"_{tag}"
 
@@ -178,7 +178,10 @@ def write_trees_with_parquet(arrays: ak.Array, base_output_dir: Path, tag: str =
         print(f"Parquet: {compression}, tag: \"{tag[1:]}\": {elapsed}")
 
 
-def data_distribution(arrays: ak.Array, base_output_dir: Path, tag: str = ""):
+def data_distribution(arrays: ak.Array, base_output_dir: Path, tag: str = "") -> None:
+    """ Look at the storage taken by data in pt ranges.
+
+    """
     intervals = [0, 0.05, 0.1, 0.2, 0.3, 0.5, 1.0, 1.5, 2.0, 4000]
 
     if tag:
@@ -230,11 +233,11 @@ def data_distribution(arrays: ak.Array, base_output_dir: Path, tag: str = ""):
     plt.close(fig)
 
 
-def formatted(f):
+def formatted(f: float) -> str:
     return format(f, '.6f').rstrip('0').rstrip('.')
 
 
-def write_ascii_ish(arrays: ak.Array, base_output_dir: Path, tag: str = ""):
+def write_ascii_ish(arrays: ak.Array, base_output_dir: Path, tag: str = "") -> None:
     if tag:
         tag = f"_{tag}"
 
@@ -256,7 +259,7 @@ def write_ascii_ish(arrays: ak.Array, base_output_dir: Path, tag: str = ""):
 
     # Write the tar here for convenience.
     with tarfile.open(filename.with_suffix(".tar.gz"), "w:gz") as tar:
-        tar.add(filename, arcname=filename.name)
+        tar.add(filename, arcname=filename.name)  # type: ignore
 
 
 if __name__ == "__main__":
