@@ -69,8 +69,8 @@ def test_read(filename: Union[str, Path], events_per_chunk: int, max_chunks: int
             if ref is None:
                 ref = array_with_events
 
-            if loader == "pandas":
-                import IPython; IPython.embed()
+            #if loader == "pandas":
+            #    import IPython; IPython.embed()
 
             assert array_with_events == ref
 
