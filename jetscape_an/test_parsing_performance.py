@@ -1,0 +1,106 @@
+""" Tests related to parsing
+
+They're not really up to unit tests yet - this is just for me to take a look at performance
+
+.. codeauthor:: Raymond Ehlers <raymond.ehlers@cern.ch>, ORNL
+"""
+
+import timeit
+from pathlib import Path
+
+import awkward1 as ak
+import numpy as np
+import pandas
+
+from jetscape_an import parse_ascii
+
+class FileLikeGenerator:
+    """ Dummy class to make a generator look like a file.
+
+    Pandas requires passing a filename or a file-like object, but we handle the genrator externally
+    so we can find each event boundary, parse the headers, chunk, etc. Consequently, we need to make
+    this generator appear as if it's a file.
+
+    Args:
+        g: Generator to be wrapped.
+    """
+    def __init__(self, g):
+        self.g = g
+
+    def read(self, n=0):
+        """ Read method is required by pandas. """
+        try:
+            return next(self.g)
+        except StopIteration:
+            return ''
+
+    def __iter__(self):
+        """ Iter is required by pandas. """
+        return self.g
+
+
+def test_read(filename: Path, events_per_chunk: int, max_chunks: int = 1):
+
+    # Compare against the known result to ensure that it's working correctly!
+    ref = None
+    for loader in ["np", "pandas", "python"]:
+        for i, (chunk_generator, event_split_index, event_header_info) in enumerate(parse_ascii.read_events_in_chunks(filename=filename, events_per_chunk=events_per_chunk)):
+            # Bail out if we've done enough.
+            if i == max_chunks:
+                break
+
+            if loader == "np":
+                start_time = timeit.default_timer()
+                hadrons = np.loadtxt(chunk_generator)
+            elif loader == "pandas":
+                start_time = timeit.default_timer()
+                hadrons = pandas.read_csv(
+                    FileLikeGenerator(chunk_generator),
+                    names=["particle_index", "particle_ID", "status", "E", "px", "py", "pz", "eta", "phi"],
+                    skiprows=[0],
+                    header=None,
+                    comment="#",
+                    sep="\s+",
+                    dtype={
+                        "particle_index": np.int32, "particle_ID": np.int32, "status": np.int8,
+                        "E": np.float32, "px": np.float32, "py": np.float32, "pz": np.float32,
+                        "eta": np.float32, "phi": np.float32
+                    },
+                    # We can reduce columns to save a little time reading.
+                    # However, it makes little difference, and makes it less general. So we disable it for now.
+                    #usecols=["particle_ID", "status", "E", "px", "py", "eta", "phi"],
+                ).to_numpy()
+                # NOTE: It's important that we convert to numpy before splitting. Otherwise, it will return columns names,
+                #       which will break the indexing and therefore the conversion.
+            elif loader == "python":
+                # Python only solution because np.loadtxt isn't actually very fast...
+                start_time = timeit.default_timer()
+                particles = []
+                for p in chunk_generator:
+                    if not p.startswith("#"):
+                        particles.append(np.array(p.rstrip("\n").split(), dtype=np.float64))
+                hadrons = np.stack(particles)
+            else:
+                raise ValueError(f"Unrecognized loader '{loader}'")
+
+            elapsed = timeit.default_timer() - start_time
+            print(f"Loading {events_per_chunk} events with {loader}: {elapsed}")
+
+            array_with_events = ak.Array(np.split(hadrons, event_split_index))
+            if ref is None:
+                ref = array_with_events
+
+            if loader == "pandas":
+                import IPython; IPython.embed()
+
+            assert array_with_events == ref
+
+
+if __name__ == "__main__":
+
+    for pt_hat_range in ["7_9", "20_25", "50_55", "100_110", "250_260", "500_550", "900_1000"]:
+        filename = f"JetscapeHadronListBin{pt_hat_range}"
+        directory_name = "5020_PbPb_0-10_0R25_1R0_1"
+        full_filename = f"../phys_paper/AAPaperData/{directory_name}/{filename}.out"
+        test_read(filename=full_filename, events_per_chunk=100, max_chunks=1)
+
