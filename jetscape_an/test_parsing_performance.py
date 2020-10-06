@@ -7,39 +7,17 @@ They're not really up to unit tests yet - this is just for me to take a look at 
 
 import timeit
 from pathlib import Path
+from typing import Union
 
 import awkward1 as ak
 import numpy as np
-import pandas
+import pandas as pd
 
 from jetscape_an import parse_ascii
 
-class FileLikeGenerator:
-    """ Dummy class to make a generator look like a file.
-
-    Pandas requires passing a filename or a file-like object, but we handle the genrator externally
-    so we can find each event boundary, parse the headers, chunk, etc. Consequently, we need to make
-    this generator appear as if it's a file.
-
-    Args:
-        g: Generator to be wrapped.
-    """
-    def __init__(self, g):
-        self.g = g
-
-    def read(self, n=0):
-        """ Read method is required by pandas. """
-        try:
-            return next(self.g)
-        except StopIteration:
-            return ''
-
-    def __iter__(self):
-        """ Iter is required by pandas. """
-        return self.g
-
-
-def test_read(filename: Path, events_per_chunk: int, max_chunks: int = 1):
+def test_read(filename: Union[str, Path], events_per_chunk: int, max_chunks: int = 1) -> None:
+    # Validation
+    filename = Path(filename)
 
     # Compare against the known result to ensure that it's working correctly!
     ref = None
@@ -54,18 +32,19 @@ def test_read(filename: Path, events_per_chunk: int, max_chunks: int = 1):
                 hadrons = np.loadtxt(chunk_generator)
             elif loader == "pandas":
                 start_time = timeit.default_timer()
-                hadrons = pandas.read_csv(
-                    FileLikeGenerator(chunk_generator),
+                hadrons = pd.read_csv(
+                    parse_ascii.FileLikeGenerator(chunk_generator),
                     names=["particle_index", "particle_ID", "status", "E", "px", "py", "pz", "eta", "phi"],
                     skiprows=[0],
                     header=None,
                     comment="#",
                     sep="\s+",
-                    dtype={
-                        "particle_index": np.int32, "particle_ID": np.int32, "status": np.int8,
-                        "E": np.float32, "px": np.float32, "py": np.float32, "pz": np.float32,
-                        "eta": np.float32, "phi": np.float32
-                    },
+                    # Converting to numpy makes the dtype conversion moot.
+                    #dtype={
+                    #    "particle_index": np.int32, "particle_ID": np.int32, "status": np.int8,
+                    #    "E": np.float32, "px": np.float32, "py": np.float32, "pz": np.float32,
+                    #    "eta": np.float32, "phi": np.float32
+                    #},
                     # We can reduce columns to save a little time reading.
                     # However, it makes little difference, and makes it less general. So we disable it for now.
                     #usecols=["particle_ID", "status", "E", "px", "py", "eta", "phi"],

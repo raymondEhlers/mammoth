@@ -6,8 +6,10 @@
 
 import logging
 import re
+import typing
 from pathlib import Path
-from typing import Any, Generator, Iterable, List, Optional, Sequence, Union, Tuple
+from typing import Any, Generator, Iterator, Iterable, List, Optional, Sequence, Union, Tuple
+from typing_extensions import Literal
 
 import awkward1 as ak
 import numpy as np
@@ -68,7 +70,7 @@ def _handle_line(line: str, n_events: int, events_per_chunk: int) -> Tuple[bool,
     return time_to_stop, header_info
 
 
-def read_events_in_chunks(filename: Union[Path, str], events_per_chunk: int = int(1e5)) -> Iterable[Tuple[Iterable[str], List[int], List[Any]]]:
+def read_events_in_chunks(filename: Union[Path, str], events_per_chunk: int = int(1e5)) -> Iterator[Tuple[Iterator[str], List[int], List[Any]]]:
     """ Read events in chunks from stored JETSCAPE ASCII files.
 
     Args:
@@ -109,7 +111,7 @@ def read_events_in_chunks(filename: Union[Path, str], events_per_chunk: int = in
                 # Now that we've stored it, reset it to ensure that it doesn't cause problems for future iterations.
                 keep_header_for_next_chunk = None
 
-            def _inner(line: str, kept_header: bool) -> Iterable[str]:
+            def _inner(line: str, kept_header: bool) -> Iterator[str]:
                 """ Closure to generate a chunk of events.
 
                 The closure ensures access to the same generator used to access the file.
@@ -195,33 +197,139 @@ def read_events_in_chunks(filename: Union[Path, str], events_per_chunk: int = in
     # If we've gotten here, that means we've finally exhausted the file. There's nothing else to do!
 
 
-def read(filename: Union[Path, str], events_per_chunk: int, base_output_filename: Union[Path, str], max_chunks: int = -1) -> None:
+class FileLikeGenerator:
+    """ Wrapper class to make a generator look like a file.
+
+    Pandas requires passing a filename or a file-like object, but we handle the genrator externally
+    so we can find each event boundary, parse the headers, chunk, etc. Consequently, we need to make
+    this generator appear as if it's a file.
+
+    Based on https://stackoverflow.com/a/18916457/12907985
+
+    Args:
+        g: Generator to be wrapped.
+    """
+    def __init__(self, g: Iterator[str]):
+        self.g = g
+
+    def read(self, n: int = 0) -> Any:
+        """ Read method is required by pandas. """
+        try:
+            return next(self.g)
+        except StopIteration:
+            return ''
+
+    def __iter__(self) -> Iterator[str]:
+        """ Iteration is required by pandas. """
+        return self.g
+
+
+def _parse_with_pandas(chunk_generator: Iterator[str]) -> np.ndarray:
+    """ Parse the lines with `pandas.read_csv`
+
+    `read_csv` uses a compiled c parser. As of 6 October 2020, it is tested to be the fastest option.
+
+    Args:
+        chunk_generator: Generator of chunks of the input file for parsing.
+    Returns:
+        Array of the particles.
+    """
+    # Delayed import so we only take the import time if necessary.
+    import pandas as pd
+
+    return pd.read_csv(
+        FileLikeGenerator(chunk_generator),
+        names=["particle_index", "particle_ID", "status", "E", "px", "py", "pz", "eta", "phi"],
+        skiprows=[0],
+        header=None,
+        comment="#",
+        sep="\s+",
+        # Converting to numpy makes the dtype conversion moot.
+        #dtype={
+        #    "particle_index": np.int32, "particle_ID": np.int32, "status": np.int8,
+        #    "E": np.float32, "px": np.float32, "py": np.float32, "pz": np.float32,
+        #    "eta": np.float32, "phi": np.float32
+        #},
+        # We can reduce columns to save a little time reading.
+        # However, it makes little difference, and makes it less general. So we disable it for now.
+        #usecols=["particle_ID", "status", "E", "px", "py", "eta", "phi"],
+    # NOTE: It's important that we convert to numpy before splitting. Otherwise, it will return columns names,
+    #       which will break the header indexing and therefore the conversion to awkward.
+    ).to_numpy()
+
+
+def _parse_with_python(chunk_generator: Iterator[str]) -> np.ndarray:
+    """ Parse the lines with python.
+
+    We have this as an option because np.loadtxt is suprisingly slow.
+
+    Args:
+        chunk_generator: Generator of chunks of the input file for parsing.
+    Returns:
+        Array of the particles.
+    """
+    particles = []
+    for p in chunk_generator:
+        if not p.startswith("#"):
+            particles.append(np.array(p.rstrip("\n").split(), dtype=np.float64))
+    return np.stack(particles)
+
+
+def _parse_with_numpy(chunk_generator: Iterator[str]) -> np.ndarray:
+    """ Parse the lines with numpy.
+
+    Unfortunately, this option is suprisingly, persumably because it has so many options.
+    Pure python appears to be about 2x faster. So we keep this as an option for the future,
+    but it is not used by default.
+
+    Args:
+        chunk_generator: Generator of chunks of the input file for parsing.
+    Returns:
+        Array of the particles.
+    """
+    return np.loadtxt(chunk_generator)
+
+
+def read(filename: Union[Path, str], events_per_chunk: int, max_chunks: int = -1, parser: str = "pandas", base_output_filename: Optional[Union[Path, str]] = None
+         ) -> Optional[Iterator[ak.Array]]:
     # Validation
     filename = Path(filename)
-    base_output_filename = Path(base_output_filename)
-    if events_per_chunk > 0:
-        base_output_filename = base_output_filename.parent / f"events_per_chunk_{events_per_chunk}" / base_output_filename.name
-    base_output_filename.parent.mkdir(parents=True, exist_ok=True)
+
+    # Setup
+    parsing_function_map = {
+        "pandas": _parse_with_pandas,
+        "python": _parse_with_python,
+        "np": _parse_with_numpy,
+    }
+    parsing_function = parsing_function_map[parser]
+    # Setup the base output filename if we're going to write the output.
+    if base_output_filename is not None:
+        base_output_filename = Path(base_output_filename)
+        if events_per_chunk > 0:
+            base_output_filename = base_output_filename.parent / f"events_per_chunk_{events_per_chunk}" / base_output_filename.name
+        base_output_filename.parent.mkdir(parents=True, exist_ok=True)
 
     # Read the file, creating chunks of events.
     for i, (chunk_generator, event_split_index, event_header_info) in enumerate(read_events_in_chunks(filename=filename, events_per_chunk=events_per_chunk)):
-        print("New chunk")
         # Bail out if we've done enough.
         if i == max_chunks:
             break
 
-        #hadrons = np.loadtxt(chunk_generator)
-        particles = []
-        # Parse the lines myself because np.loadtxt is suprisingly slow.
-        for p in chunk_generator:
-            if not p.startswith("#"):
-                particles.append(np.array(p.rstrip("\n").split(), dtype=np.float64))
-        hadrons = np.stack(particles)
-        array_with_events = ak.Array(np.split(hadrons, event_split_index))
-        # Cross check
+        # Give a notification just in case the parsing is slow...
+        logger.debug("New chunk")
+
+        # Parse the file and create the awkward event structure.
+        array_with_events = ak.Array(
+            np.split(
+                parsing_function(chunk_generator), event_split_index
+            )
+        )
+
+        # Cross check that everything is in order and was parsed correctly.
         if events_per_chunk > 0:
             assert len(event_split_index) == events_per_chunk - 1
             assert len(event_header_info) == events_per_chunk
+
         #print(len(event_split_index))
         #print(f"hadrons: {hadrons}")
         #print(f"array_with_events: {array_with_events}")
@@ -251,15 +359,18 @@ def read(filename: Union[Path, str], events_per_chunk: int, base_output_filename
             depth_limit = 1
         )
 
-        # Parquet doesn't appear to save space vs tar.gz for all columns...
-        # However, we do save space by converting types and dropping unneeded columns.
-        # And it should load much faster!
-        if events_per_chunk > 0:
-            suffix = base_output_filename.suffix
-            output_filename = (base_output_filename.parent / f"{base_output_filename.stem}_{i:02}").with_suffix(suffix)
+        if base_output_filename:
+            # Parquet doesn't appear to save space vs tar.gz for all columns...
+            # However, we do save space by converting types and dropping unneeded columns.
+            # And it should load much faster!
+            if events_per_chunk > 0:
+                suffix = base_output_filename.suffix
+                output_filename = (base_output_filename.parent / f"{base_output_filename.stem}_{i:02}").with_suffix(suffix)
+            else:
+                output_filename = base_output_filename
+            ak.to_parquet(array, output_filename)
         else:
-            output_filename = base_output_filename
-        ak.to_parquet(array, output_filename)
+            yield array
 
     #import IPython; IPython.embed()
 
