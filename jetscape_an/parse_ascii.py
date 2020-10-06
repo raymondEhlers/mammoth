@@ -73,6 +73,11 @@ def _handle_line(line: str, n_events: int, events_per_chunk: int) -> Tuple[bool,
 def read_events_in_chunks(filename: Union[Path, str], events_per_chunk: int = int(1e5)) -> Iterator[Tuple[Iterator[str], List[int], List[Any]]]:
     """ Read events in chunks from stored JETSCAPE ASCII files.
 
+    Users are encouraged to use `read(...)`.
+
+   This provides the underlying implementation, and in principle could be used directly. However,
+   it's missing many useful features that are implemented elsewhere.
+
     Args:
         filename: Path to the file.
         events_per_chunk: Number of events to store in each chunk. Default: 1e5.
@@ -200,7 +205,7 @@ def read_events_in_chunks(filename: Union[Path, str], events_per_chunk: int = in
 class FileLikeGenerator:
     """ Wrapper class to make a generator look like a file.
 
-    Pandas requires passing a filename or a file-like object, but we handle the genrator externally
+    Pandas requires passing a filename or a file-like object, but we handle the generator externally
     so we can find each event boundary, parse the headers, chunk, etc. Consequently, we need to make
     this generator appear as if it's a file.
 
@@ -261,7 +266,7 @@ def _parse_with_pandas(chunk_generator: Iterator[str]) -> np.ndarray:
 def _parse_with_python(chunk_generator: Iterator[str]) -> np.ndarray:
     """ Parse the lines with python.
 
-    We have this as an option because np.loadtxt is suprisingly slow.
+    We have this as an option because np.loadtxt is surprisingly slow.
 
     Args:
         chunk_generator: Generator of chunks of the input file for parsing.
@@ -278,7 +283,7 @@ def _parse_with_python(chunk_generator: Iterator[str]) -> np.ndarray:
 def _parse_with_numpy(chunk_generator: Iterator[str]) -> np.ndarray:
     """ Parse the lines with numpy.
 
-    Unfortunately, this option is suprisingly, persumably because it has so many options.
+    Unfortunately, this option is surprisingly, presumably because it has so many options.
     Pure python appears to be about 2x faster. So we keep this as an option for the future,
     but it is not used by default.
 
@@ -290,8 +295,22 @@ def _parse_with_numpy(chunk_generator: Iterator[str]) -> np.ndarray:
     return np.loadtxt(chunk_generator)
 
 
-def read(filename: Union[Path, str], events_per_chunk: int, max_chunks: int = -1, parser: str = "pandas", base_output_filename: Optional[Union[Path, str]] = None
-         ) -> Optional[Iterator[ak.Array]]:
+def read(filename: Union[Path, str], events_per_chunk: int, parser: str = "pandas") -> Optional[Iterator[ak.Array]]:
+    """ Read a JETSCAPE ascii output file in chunks.
+
+    This is the main user function. We read in chunks to keep the memory usage manageable.
+
+    Note:
+        We store the data in the smallest possible types that can still encompass their range.
+
+    Args:
+        filename: Filename of the ascii file.
+        events_per_chunk: Number of events to provide in each chunk.
+        parser: Name of the parser to use. Default: `pandas`, which uses `pandas.read_csv`. It uses
+            compiled c, and seems to be the fastest available option. Other options: ["python", "numpy"].
+    Returns:
+        Generator of an array of events_per_chunk events.
+    """
     # Validation
     filename = Path(filename)
 
@@ -299,22 +318,12 @@ def read(filename: Union[Path, str], events_per_chunk: int, max_chunks: int = -1
     parsing_function_map = {
         "pandas": _parse_with_pandas,
         "python": _parse_with_python,
-        "np": _parse_with_numpy,
+        "numpy": _parse_with_numpy,
     }
     parsing_function = parsing_function_map[parser]
-    # Setup the base output filename if we're going to write the output.
-    if base_output_filename is not None:
-        base_output_filename = Path(base_output_filename)
-        if events_per_chunk > 0:
-            base_output_filename = base_output_filename.parent / f"events_per_chunk_{events_per_chunk}" / base_output_filename.name
-        base_output_filename.parent.mkdir(parents=True, exist_ok=True)
 
     # Read the file, creating chunks of events.
-    for i, (chunk_generator, event_split_index, event_header_info) in enumerate(read_events_in_chunks(filename=filename, events_per_chunk=events_per_chunk)):
-        # Bail out if we've done enough.
-        if i == max_chunks:
-            break
-
+    for chunk_generator, event_split_index, event_header_info in read_events_in_chunks(filename=filename, events_per_chunk=events_per_chunk):
         # Give a notification just in case the parsing is slow...
         logger.debug("New chunk")
 
@@ -353,36 +362,87 @@ def read(filename: Union[Path, str], events_per_chunk: int, max_chunks: int = -1
                 "eta": ak.values_astype(array_with_events[:, :, 7], np.float32),
                 "phi": ak.values_astype(array_with_events[:, :, 8], np.float32),
             },
-            # Here, we limit the depth of the zip to ensure that we can write the parquet successfully.
-            # (parquet can't handle lists of structs at the moment). Later, we'll recreate this structure fully
-            # zipped together.
+        )
+
+        yield array
+
+    #import IPython; IPython.embed()
+
+
+def parse_to_parquet(base_output_filename: Union[Path, str], store_only_necessary_columns: bool,
+                     input_filename: Union[Path, str], events_per_chunk: int, parser: str = "pandas",
+                     max_chunks: int = -1, compression: str = "zstd", compression_level: Optional[int] = None) -> Iterator[ak.Array]:
+    """ Parse the JETSCAPE ASCII and convert it to parquet, (potentially) storing only the minimum necessary columns.
+
+    Args:
+        base_output_filename: Basic output filename. Should include the entire path.
+        store_only_necessary_columns: If True, store only the necessary columns, rather than all of them.
+        input_filename: Filename of the input JETSCAPE ASCII file.
+        events_per_chunk: Number of events to be read per chunk.
+        parser: Name of the parser. Default: "pandas".
+        max_chunks: Maximum number of chunks to read. Default: -1.
+        compression: Compression algorithm for parquet. Default: "zstd". Options include: ["snappy", "gzip", "ztsd"].
+            "gzip" is slightly better for storage, but slower. See the compression tests and parquet docs for more.
+        compression_level: Compression level for parquet. Default: `None`, which lets parquet choose the best value.
+    Returns:
+        None. The parsed events are stored in parquet files.
+    """
+    # Validation
+    base_output_filename = Path(base_output_filename)
+    # Setup the base output filename
+    if events_per_chunk > 0:
+        base_output_filename = base_output_filename.parent / f"events_per_chunk_{events_per_chunk}" / base_output_filename.name
+    base_output_filename.parent.mkdir(parents=True, exist_ok=True)
+
+    for i, arrays in enumerate(read(filename=input_filename, events_per_chunk=events_per_chunk, parser=parser)):
+        if i == max_chunks:
+            break
+
+        # Reduce to the minimum required data.
+        if store_only_necessary_columns:
+            arrays = ak.zip(
+                {
+                    "particle_ID": arrays["particle_ID"],
+                    "status": arrays["status"],
+                    "pt": np.sqrt(arrays["px"] ** 2 + arrays["py"] ** 2),
+                    "eta": arrays["eta"],
+                    "phi": arrays["phi"],
+                },
+            )
+
+        # We limit the depth of the zip to ensure that we can write the parquet successfully.
+        # (parquet can't handle lists of structs at the moment). Later, we'll recreate this
+        # structure fully zipped together.
+        ak.zip(
+            ak.unzip(arrays),
             depth_limit = 1
         )
 
-        if base_output_filename:
-            # Parquet doesn't appear to save space vs tar.gz for all columns...
-            # However, we do save space by converting types and dropping unneeded columns.
-            # And it should load much faster!
-            if events_per_chunk > 0:
-                suffix = base_output_filename.suffix
-                output_filename = (base_output_filename.parent / f"{base_output_filename.stem}_{i:02}").with_suffix(suffix)
-            else:
-                output_filename = base_output_filename
-            ak.to_parquet(array, output_filename)
+        # Parquet with zlib seems to do about the same as ascii tar.gz when we drop unneeded columns.
+        # And it should load much faster!
+        if events_per_chunk > 0:
+            suffix = base_output_filename.suffix
+            output_filename = (base_output_filename.parent / f"{base_output_filename.stem}_{i:02}").with_suffix(suffix)
         else:
-            yield array
-
-    #import IPython; IPython.embed()
+            output_filename = base_output_filename
+        ak.to_parquet(
+            arrays, output_filename,
+            compression=compression, compression_level=compression_level,
+            # We run into a recursion limit or crash if there's a cut and we don't explode records. Probably a bug...
+            # But it works fine if we explored records, so fine for now.
+            explode_records=True,
+        )
 
 
 if __name__ == "__main__":
     #read(filename="final_state_hadrons.dat", events_per_chunk=-1, base_output_filename="skim/jetscape.parquet")
     directory_name = "5020_PbPb_0-10_0R25_1R0_1"
     filename = "JetscapeHadronListBin100_110"
-    read(
-        filename=f"../phys_paper/AAPaperData/{directory_name}/{filename}.out",
-        events_per_chunk=1000,
+    parse_to_parquet(
         base_output_filename=f"skim/{filename}.parquet",
+        store_only_necessary_columns=True,
+        input_filename=f"../phys_paper/AAPaperData/{directory_name}/{filename}.out",
+        events_per_chunk=1000,
         max_chunks=1,
     )
 
