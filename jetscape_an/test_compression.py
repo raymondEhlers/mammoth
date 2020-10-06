@@ -9,12 +9,17 @@ import timeit
 from pathlib import Path
 
 import awkward1 as ak
+import matplotlib.pyplot as plt
 import numpy as np
+import pachyderm.plot
 
 from jetscape_an import parse_ascii
 
 
-def setup(filename: str, events_per_chunk: int):
+pachyderm.plot.configure()
+
+
+def setup(filename: str, events_per_chunk: int, base_output_dir: Path):
     # Inputs
 
     directory_name = "5020_PbPb_0-10_0R25_1R0_1"
@@ -35,7 +40,7 @@ def setup(filename: str, events_per_chunk: int):
         break
 
     # Save the output
-    output_dir = Path("compression") / "input"
+    output_dir = base_output_dir / "input"
     output_dir.mkdir(parents=True, exist_ok=True)
     ak.to_parquet(array_with_events, output_dir / f"{filename}_{events_per_chunk}_00.parquet")
 
@@ -78,11 +83,11 @@ def setup(filename: str, events_per_chunk: int):
         tar.add(output_filename, arcname=output_filename.name)
 
 
-def write_trees_with_root(arrays: ak.Array, tag: str = ""):
+def write_trees_with_root(arrays: ak.Array, base_output_dir: Path, tag: str = ""):
     # NOTE: This won't work with uproot because it only supports simple branches - we need to use ROOT :-(
     if tag:
         tag = f"_{tag}"
-    output_dir = Path("compression/ROOT")
+    output_dir = base_output_dir / "ROOT"
     output_dir.mkdir(parents=True, exist_ok=True)
 
     import ROOT
@@ -148,11 +153,11 @@ def write_trees_with_root(arrays: ak.Array, tag: str = ""):
         print(f"ROOT (includes filling...): {name}: {elapsed}")
 
 
-def write_trees_with_awkward(arrays: ak.Array, tag: str = ""):
+def write_trees_with_parquet(arrays: ak.Array, base_output_dir: Path, tag: str = ""):
     if tag:
         tag = f"_{tag}"
 
-    output_dir = Path("compression/parquet")
+    output_dir = base_output_dir / "parquet"
     output_dir.mkdir(parents=True, exist_ok=True)
     # Valid values: {‘NONE’, ‘SNAPPY’, ‘GZIP’, ‘LZO’, ‘BROTLI’, ‘LZ4’, ‘ZSTD’}.
     for compression in ["snappy",
@@ -164,21 +169,76 @@ def write_trees_with_awkward(arrays: ak.Array, tag: str = ""):
         ak.to_parquet(
             arrays, output_dir / f"{compression}{tag}.parquet", compression=compression,
             # In principle, we could select a particular level. But for now, we leave it to arrow to decide.
-            compression_level=None
+            compression_level=None,
+            # We run into a recursion limit or crash if there's a cut and we don't explode records. Probably a bug...
+            # But it works fine if we explored records, so fine for now.
+            explode_records=True,
         )
         elapsed = timeit.default_timer() - start_time
         print(f"Parquet: {compression}, tag: \"{tag[1:]}\": {elapsed}")
+
+
+def data_distribution(arrays: ak.Array, base_output_dir: Path, tag: str = ""):
+    intervals = [0, 0.05, 0.1, 0.2, 0.3, 0.5, 1.0, 1.5, 2.0, 4000]
+
+    if tag:
+        tag = f"_{tag}"
+
+    output_dir = base_output_dir / "parquet_data_distribution"
+    output_dir.mkdir(parents=True, exist_ok=True)
+    # Valid values: {‘NONE’, ‘SNAPPY’, ‘GZIP’, ‘LZO’, ‘BROTLI’, ‘LZ4’, ‘ZSTD’}.
+    fig, ax = plt.subplots(figsize=(8,6))
+    for compression in ["snappy",
+                        "gzip",
+                        # Skip lz4 due to some bug, apparently. The package reports the issue.
+                        #"lz4",
+                        "zstd"]:
+        x = []
+        x_err = []
+        y = []
+        for low, high in zip(intervals[:-1], intervals[1:]):
+            start_time = timeit.default_timer()
+            selection = (arrays["pt"] >= low) & (arrays["pt"] < high)
+            filename = output_dir / f"{compression}{tag}_{int(low * 100)}_{int(high * 100)}.parquet"
+            ak.to_parquet(
+                arrays[selection], filename, compression=compression,
+                # In principle, we could select a particular level. But for now, we leave it to arrow to decide.
+                compression_level=None,
+                # We run into a recursion limit or crash if there's a cut and we don't explode records. Probably a bug...
+                # But it works fine if we explored records, so fine for now.
+                explode_records=True,
+            )
+            elapsed = timeit.default_timer() - start_time
+            print(f"Parquet data distribution: {compression}, tag: \"{tag[1:]}\": {elapsed}")
+
+            x.append(high - (high-low)/2)
+            x_err.append((high-low)/2)
+            y.append(filename.stat().st_size / 1000)
+
+        # Just use plot. It's lazy, but it works
+        #ax.plot(x, y, label=compression)
+        ax.errorbar(x, y, xerr=x_err, marker="o", linestyle="", label=compression)
+
+    ax.set_ylim([0, None])
+    ax.set_xlim([0, 6])
+    #ax.set_xscale("log")
+    ax.set_ylabel("kb")
+    ax.set_xlabel(r"$p_{\text{T}}$ (GeV/c)")
+    ax.legend(loc="upper right", frameon=False)
+    fig.tight_layout()
+    fig.savefig(output_dir / f"data_distribution{tag}.pdf")
+    plt.close(fig)
 
 
 def formatted(f):
     return format(f, '.6f').rstrip('0').rstrip('.')
 
 
-def write_ascii_ish(arrays: ak.Array, tag: str = ""):
+def write_ascii_ish(arrays: ak.Array, base_output_dir: Path, tag: str = ""):
     if tag:
         tag = f"_{tag}"
 
-    output_dir = Path("compression/ascii")
+    output_dir = base_output_dir / "ascii"
     output_dir.mkdir(parents=True, exist_ok=True)
     filename = output_dir / f"ascii{tag}.out"
 
@@ -201,58 +261,63 @@ def write_ascii_ish(arrays: ak.Array, tag: str = ""):
 
 if __name__ == "__main__":
     # Setup
-    events_per_chunk = 1000
-    filename = "JetscapeHadronListBin100_110"
-    input_filename = Path("compression") / "input" / f"{filename}_{events_per_chunk}_00.parquet"
-    if not input_filename.exists():
-        setup(filename=filename, events_per_chunk=events_per_chunk)
+    for pt_hat_range in ["7_9", "20_25", "50_55", "100_110", "250_260", "500_550", "900_1000"]:
+        print(f"Running for pt hat range: {pt_hat_range}")
+        events_per_chunk = 1000
+        filename = f"JetscapeHadronListBin{pt_hat_range}"
+        input_filename = Path("compression") / pt_hat_range / "input" / f"{filename}_{events_per_chunk}_00.parquet"
+        base_output_dir = Path("compression") / pt_hat_range
+        if not input_filename.exists():
+            setup(filename=filename, events_per_chunk=events_per_chunk, base_output_dir=base_output_dir)
 
-    input_arrays = ak.from_parquet(input_filename)
-    # We use some very different value to make it clear if something ever goes wrong.
-    # NOTE: It's important to do this before constructing anything else. Otherwise it can
-    #       mess up the awkward1 behaviors.
-    fill_none_value = -9999
-    input_arrays = ak.fill_none(input_arrays, fill_none_value)
+        input_arrays = ak.from_parquet(input_filename)
+        # We use some very different value to make it clear if something ever goes wrong.
+        # NOTE: It's important to do this before constructing anything else. Otherwise it can
+        #       mess up the awkward1 behaviors.
+        fill_none_value = -9999
+        input_arrays = ak.fill_none(input_arrays, fill_none_value)
 
-    # TODO: Compare just to the test size...
-    # TODO: Convert the types here. That way, we know what we're saving from the uncompressed version.
+        full_arrays = ak.zip(
+            {
+                "particle_ID": input_arrays[:, :, 1],
+                "status": input_arrays[:, :, 2],
+                "E": input_arrays[:, :, 3],
+                "px": input_arrays[:, :, 4],
+                "py": input_arrays[:, :, 5],
+                "pz": input_arrays[:, :, 6],
+                "eta": input_arrays[:, :, 7],
+                "phi": input_arrays[:, :, 8],
+            },
+            depth_limit = None,
+        )
+        arrays = ak.zip({
+            "pt": np.sqrt(full_arrays["px"] ** 2 + full_arrays["py"] ** 2),
+            "eta": full_arrays["eta"],
+            "phi": full_arrays["phi"],
+            "particle_ID": full_arrays["particle_ID"],
+            "status": full_arrays["status"],
+        })
+        # Convert to small types.
+        arrays_type_conversion = ak.zip({
+            "pt": ak.values_astype(np.sqrt(full_arrays["px"] ** 2 + full_arrays["py"] ** 2), np.float32),
+            "eta": ak.values_astype(full_arrays["eta"], np.float32),
+            "phi": ak.values_astype(full_arrays["phi"], np.float32),
+            "particle_ID": ak.values_astype(full_arrays["particle_ID"], np.int32),
+            "status": ak.values_astype(full_arrays["status"], np.int8),
+        })
 
-    full_arrays = ak.zip(
-        {
-            "particle_ID": input_arrays[:, :, 1],
-            "status": input_arrays[:, :, 2],
-            "E": input_arrays[:, :, 3],
-            "px": input_arrays[:, :, 4],
-            "py": input_arrays[:, :, 5],
-            "pz": input_arrays[:, :, 6],
-            "eta": input_arrays[:, :, 7],
-            "phi": input_arrays[:, :, 8],
-        },
-        depth_limit = None,
-    )
-    arrays = ak.zip({
-        "pt": np.sqrt(full_arrays["px"] ** 2 + full_arrays["py"] ** 2),
-        "eta": full_arrays["eta"],
-        "phi": full_arrays["phi"],
-        "particle_ID": full_arrays["particle_ID"],
-        "status": full_arrays["status"],
-    })
-    arrays_type_conversion = ak.zip({
-        "pt": ak.values_astype(np.sqrt(full_arrays["px"] ** 2 + full_arrays["py"] ** 2), np.float32),
-        "eta": ak.values_astype(full_arrays["eta"], np.float32),
-        "phi": ak.values_astype(full_arrays["phi"], np.float32),
-        "particle_ID": ak.values_astype(full_arrays["particle_ID"], np.int32),
-        "status": ak.values_astype(full_arrays["status"], np.int8),
-    })
-
-    # ROOT
-    write_trees_with_root(arrays)
-    # Intentionally let root do the type conversion...
-    write_trees_with_root(arrays, "optimized_types")
-    # Awkard
-    write_trees_with_awkward(arrays)
-    write_trees_with_awkward(arrays_type_conversion, "optimized_types")
-    # Ascii
-    write_ascii_ish(arrays)
-    write_ascii_ish(arrays_type_conversion, "optimized_types")
-
+        # Parquet data distributions test.
+        data_distribution(arrays, base_output_dir)
+        data_distribution(arrays_type_conversion, base_output_dir, "optimized_types")
+        # Parquet compression tests.
+        write_trees_with_parquet(arrays, base_output_dir)
+        write_trees_with_parquet(arrays_type_conversion, base_output_dir, "optimized_types")
+        write_trees_with_parquet(arrays_type_conversion[arrays_type_conversion["pt"] > 0.15], base_output_dir, "optimized_types_pt_cut")
+        # Ascii
+        write_ascii_ish(arrays, base_output_dir)
+        write_ascii_ish(arrays_type_conversion, base_output_dir, "optimized_types")
+        write_ascii_ish(arrays_type_conversion[arrays_type_conversion["pt"] > 0.15], base_output_dir, "optimized_types_pt_cut")
+        # ROOT
+        write_trees_with_root(arrays, base_output_dir)
+        # Intentionally let root do the type conversion...
+        write_trees_with_root(arrays, base_output_dir, "optimized_types")
