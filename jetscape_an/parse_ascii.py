@@ -369,6 +369,18 @@ def read(filename: Union[Path, str], events_per_chunk: int, parser: str = "panda
     #import IPython; IPython.embed()
 
 
+def full_events_to_only_necessary_columns(arrays: ak.Array) -> ak.Array:
+    return ak.zip(
+        {
+            "particle_ID": arrays["particle_ID"],
+            "status": arrays["status"],
+            "pt": np.sqrt(arrays["px"] ** 2 + arrays["py"] ** 2),
+            "eta": arrays["eta"],
+            "phi": arrays["phi"],
+        },
+    )
+
+
 def parse_to_parquet(base_output_filename: Union[Path, str], store_only_necessary_columns: bool,
                      input_filename: Union[Path, str], events_per_chunk: int, parser: str = "pandas",
                      max_chunks: int = -1, compression: str = "zstd", compression_level: Optional[int] = None) -> Iterator[ak.Array]:
@@ -400,15 +412,7 @@ def parse_to_parquet(base_output_filename: Union[Path, str], store_only_necessar
 
         # Reduce to the minimum required data.
         if store_only_necessary_columns:
-            arrays = ak.zip(
-                {
-                    "particle_ID": arrays["particle_ID"],
-                    "status": arrays["status"],
-                    "pt": np.sqrt(arrays["px"] ** 2 + arrays["py"] ** 2),
-                    "eta": arrays["eta"],
-                    "phi": arrays["phi"],
-                },
-            )
+            arrays = full_events_to_only_necessary_columns(arrays)
 
         # We limit the depth of the zip to ensure that we can write the parquet successfully.
         # (parquet can't handle lists of structs at the moment). Later, we'll recreate this
