@@ -155,10 +155,10 @@ def find_jets_arr(array: ak.Array) -> ak.Array:
 
     pdg_id_to_mass = nb.typed.Dict.empty(
         key_type=nb.core.types.int64,
-        value_type=nb.core.types.float32,
+        value_type=nb.core.types.float64,
     )
     for pdg_id in all_particle_IDs:
-        pdg_id_to_mass[pdg_id] = _pdg_id_to_mass(np.float32(pdg_id))
+        pdg_id_to_mass[pdg_id] = _pdg_id_to_mass(pdg_id)
     #import IPython; IPython.embed()
     #pdg_id_to_mass = nb.typed.Dict({pdg_id: _pdg_id_to_mass(pdg_id) for pdg_id in all_particle_IDs})
 
@@ -173,7 +173,8 @@ def find_jets_arr(array: ak.Array) -> ak.Array:
     area_definition = fj.AreaDefinition(fj.AreaType.passive_area, fj.GhostedAreaSpec(1, 1, 0.05))
     settings = fj.JetFinderSettings(jet_definition=jet_defintion, area_definition=area_definition)
 
-    # TEMP!! The arguments don't match otherwise!!
+    # Convert to an array that fj will recognize. Otherwise, the arguments won't match.
+    # TODO: Handle this more gracfully...
     temp_array = ak.zip(
         {
             "E": new_array["t"],
@@ -184,21 +185,20 @@ def find_jets_arr(array: ak.Array) -> ak.Array:
         #with_name="LorentzVector",
     )
     print(temp_array.type)
-    # ENDTEMP
 
     #jets = fj.find_jets(events=array.layout.Content, settings=settings)
     #jets = ak.Array(fj.find_jets(events=temp_array.layout, settings=settings))
 
-    import IPython; IPython.embed()
+    #import IPython; IPython.embed()
 
-    jets = ak.Array(fj.find_jets_awkward_test(events=temp_array.layout))
+    #jets = ak.Array(fj.find_jets_awkward_test(events=temp_array.layout))
 
-    #jets = fj.find_jets(events=temp_array, settings=settings)
+    jets = fj.find_jets(events=temp_array, settings=settings)
     import IPython; IPython.embed()
 
 
 if __name__ == "__main__":
-    input_arrays = ak.from_parquet("skim/events_per_chunk_1/JetscapeHadronListBin100_110_00.parquet")
+    input_arrays = ak.from_parquet("skim/events_per_chunk_1000/JetscapeHadronListBin100_110_00.parquet")
     # We use some very different value to make it clear if something ever goes wrong.
     # NOTE: It's important to do this before constructing anything else. Otherwise it can
     #       mess up the awkward1 behaviors.
@@ -217,6 +217,6 @@ if __name__ == "__main__":
     #    },
     #    depth_limit = None,
     #)
-    import IPython; IPython.embed()
+    #import IPython; IPython.embed()
 
     find_jets_arr(array=arrays)
