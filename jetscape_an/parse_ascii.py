@@ -61,7 +61,7 @@ def _handle_line(line: str, n_events: int, events_per_chunk: int) -> Tuple[bool,
         # - We only parse the numbers:
         #   1. I'm not sure what this number means
         #   2. Event number. int
-        #   3. Hydro ID. int.
+        #   3. Number of particles. int. (This wasn't clear, originally)
         #
         # For now, we don't construct any objects to contain the information because
         # it's not worth the computing time - we're not really using this information...
@@ -167,9 +167,11 @@ def read_events_in_chunks(filename: Union[Path, str], events_per_chunk: int = in
                         # If it's just some event in the middle of the chunk, then we just store the header and event split information.
                         if not time_to_stop:
                             event_header_info.append(header_info)
-                            # Since the header line will be skipped by loadtxt, we need to account for that
-                            # by subtracting the number of events so far.
-                            event_split_index.append(line_count - len(event_split_index))
+                            # Since the header line will be skipped by loadtxt, we need to account for that with:
+                            # The first -1 is for the current event header.
+                            # The second -1 is for the next event header, which is our current line.
+                            # Finally, we need to subtract to account for previous event header lines by subtracting the number of events so far.
+                            event_split_index.append(line_count - len(event_split_index) - 1 - 1)
                         else:
                             # If we're about to end this chunk, we need to hold on to the most recent header
                             # (which signaled that we're ready to end the chunk). We'll hold onto it until we
