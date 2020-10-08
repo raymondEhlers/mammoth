@@ -440,13 +440,15 @@ def parse_to_parquet(base_output_filename: Union[Path, str], store_only_necessar
 
 if __name__ == "__main__":
     #read(filename="final_state_hadrons.dat", events_per_chunk=-1, base_output_filename="skim/jetscape.parquet")
-    directory_name = "5020_PbPb_0-10_0R25_1R0_1"
-    filename = "JetscapeHadronListBin100_110"
-    parse_to_parquet(
-        base_output_filename=f"skim/{filename}.parquet",
-        store_only_necessary_columns=True,
-        input_filename=f"../phys_paper/AAPaperData/{directory_name}/{filename}.out",
-        events_per_chunk=1,
-        max_chunks=1,
-    )
+    for pt_hat_range in ["7_9", "20_25", "50_55", "100_110", "250_260", "500_550", "900_1000"]:
+        print(f"Processing pt hat range: {pt_hat_range}")
+        directory_name = "5020_PbPb_0-10_0R25_1R0_1"
+        filename = f"JetscapeHadronListBin{pt_hat_range}"
+        parse_to_parquet(
+            base_output_filename=f"skim/{filename}.parquet",
+            store_only_necessary_columns=True,
+            input_filename=f"../phys_paper/AAPaperData/{directory_name}/{filename}.out",
+            events_per_chunk=1000,
+            max_chunks=1,
+        )
 
