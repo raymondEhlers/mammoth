@@ -178,7 +178,7 @@ def write_trees_with_parquet(arrays: ak.Array, base_output_dir: Path, tag: str =
         print(f"Parquet: {compression}, tag: \"{tag[1:]}\": {elapsed}")
 
 
-def data_distribution(arrays: ak.Array, base_output_dir: Path, tag: str = "") -> None:
+def data_distribution(arrays: ak.Array, events_per_chunk: int, pt_hat_range: str, base_output_dir: Path, tag: str = "") -> None:
     """ Look at the storage taken by data in pt ranges.
 
     """
@@ -216,16 +216,26 @@ def data_distribution(arrays: ak.Array, base_output_dir: Path, tag: str = "") ->
 
             x.append(high - (high-low)/2)
             x_err.append((high-low)/2)
-            y.append(filename.stat().st_size / 1000)
+            # Divide by 1000 to get kb, and then divide by events_per_chunk to get kb/event
+            y.append(filename.stat().st_size / 1000 / events_per_chunk)
 
         # Just use plot. It's lazy, but it works
         #ax.plot(x, y, label=compression)
         ax.errorbar(x, y, xerr=x_err, marker="o", linestyle="", label=compression)
 
+    # Label
+    pt_hat_bin = pt_hat_range.split("_")
+    ax.text(
+        0.45,
+        0.97,
+        r"$\hat{p_{\text{T}}} =$ " + f"{pt_hat_bin[0]}-{pt_hat_bin[1]}",
+        transform=ax.transAxes,
+        horizontalalignment="left", verticalalignment="top", multialignment="left",
+    )
     ax.set_ylim([0, None])
     ax.set_xlim([0, 6])
     #ax.set_xscale("log")
-    ax.set_ylabel("kb")
+    ax.set_ylabel("kb / event")
     ax.set_xlabel(r"$p_{\text{T}}$ (GeV/c)")
     ax.legend(loc="upper right", frameon=False)
     fig.tight_layout()
@@ -310,8 +320,8 @@ if __name__ == "__main__":
         })
 
         # Parquet data distributions test.
-        data_distribution(arrays, base_output_dir)
-        data_distribution(arrays_type_conversion, base_output_dir, "optimized_types")
+        data_distribution(arrays, events_per_chunk, pt_hat_range, base_output_dir)
+        data_distribution(arrays_type_conversion, events_per_chunk, pt_hat_range, base_output_dir, "optimized_types")
         # Parquet compression tests.
         write_trees_with_parquet(arrays, base_output_dir)
         write_trees_with_parquet(arrays_type_conversion, base_output_dir, "optimized_types")
