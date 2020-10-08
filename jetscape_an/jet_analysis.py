@@ -290,6 +290,8 @@ def angular_distribution_around_jet(jets: ak.Array, arrays: ak.Array, pt_hat_bin
     jets = jets[jets.pt > min_jet_pt]
 
     fig, ax = plt.subplots(figsize=(8, 6))
+    fig_eta, ax_eta = plt.subplots(figsize=(8, 6))
+    fig_phi, ax_phi = plt.subplots(figsize=(8, 6))
 
     hists = []
     for status_code in all_status_codes:
@@ -298,11 +300,14 @@ def angular_distribution_around_jet(jets: ak.Array, arrays: ak.Array, pt_hat_bin
 
         # Calculate all of the distances. Hopefully this doesn't run out of memory!
         comb_jets, comb_particles = ak.unzip(ak.cartesian([jets, arrays[particle_mask]]))
-        distance_from_jet = np.sqrt((comb_jets.eta - comb_particles.eta) ** 2 + (comb_jets.phi - comb_particles.phi) ** 2)
+        delta_phi = ak.flatten(np.abs(comb_jets.phi - comb_particles.phi))
+        delta_phi = ak.where(delta_phi > np.pi, (2 * np.pi) - delta_phi, delta_phi)
+        delta_eta = ak.flatten(comb_jets.eta - comb_particles.eta)
+        distance_from_jet = np.sqrt(delta_eta ** 2 + delta_phi ** 2)
 
         # Create, fill, and plot the histogram
-        distance_hist = bh.Histogram(bh.axis.Regular(100, 0, 10), storage=bh.storage.Weight())
-        distance_hist.fill(ak.to_numpy(ak.flatten(distance_from_jet)))
+        distance_hist = bh.Histogram(bh.axis.Regular(160, 0, 8), storage=bh.storage.Weight())
+        distance_hist.fill(ak.to_numpy(distance_from_jet))
         hist = binned_data.BinnedData.from_existing_data(distance_hist)
 
         # Normalize
@@ -323,6 +328,48 @@ def angular_distribution_around_jet(jets: ak.Array, arrays: ak.Array, pt_hat_bin
         # Store for summary plot
         hists.append(hist)
 
+        # Create, fill, and plot the histogram
+        distance_from_jet = np.abs(delta_eta)
+        distance_hist = bh.Histogram(bh.axis.Regular(160, 0, 8), storage=bh.storage.Weight())
+        distance_hist.fill(ak.to_numpy(distance_from_jet))
+        hist = binned_data.BinnedData.from_existing_data(distance_hist)
+
+        # Normalize
+        # Bin widths
+        hist /= hist.axes[0].bin_widths
+        # N jets
+        hist /= ak.sum(ak.num(jets, axis=1))
+
+        ax_eta.errorbar(
+            hist.axes[0].bin_centers,
+            hist.values,
+            xerr=hist.axes[0].bin_widths / 2,
+            label=f"Status = {status_code}",
+            marker="o",
+            linestyle="",
+        )
+
+        # Create, fill, and plot the histogram
+        distance_from_jet = delta_phi
+        distance_hist = bh.Histogram(bh.axis.Regular(80, 0, 4), storage=bh.storage.Weight())
+        distance_hist.fill(ak.to_numpy(distance_from_jet))
+        hist = binned_data.BinnedData.from_existing_data(distance_hist)
+
+        # Normalize
+        # Bin widths
+        hist /= hist.axes[0].bin_widths
+        # N jets
+        hist /= ak.sum(ak.num(jets, axis=1))
+
+        ax_phi.errorbar(
+            hist.axes[0].bin_centers,
+            hist.values,
+            xerr=hist.axes[0].bin_widths / 2,
+            label=f"Status = {status_code}",
+            marker="o",
+            linestyle="",
+        )
+
     # Plot summary
     h_all = sum(hists)
     ax.errorbar(
@@ -335,23 +382,35 @@ def angular_distribution_around_jet(jets: ak.Array, arrays: ak.Array, pt_hat_bin
     )
 
     # Label
-    ax.text(
-        0.03,
-        0.97,
-        "R = 0.4 " + r"anti-$k_{\text{T}}$ jets"
-        "\n" + r"$p_{\text{T}}^{\text{jet}} > " + fr"{min_jet_pt}\:\text{{GeV}}/c$"
-        "\n" + r"$\hat{p_{\text{T}}} =$ " + f"{pt_hat_bin[0]}-{pt_hat_bin[1]}",
-        transform=ax.transAxes,
-        horizontalalignment="left", verticalalignment="top", multialignment="left",
-    )
+    for a in [ax, ax_eta, ax_phi]:
+        a.text(
+            0.03,
+            0.97,
+            "R = 0.4 " + r"anti-$k_{\text{T}}$ jets"
+            "\n" + r"$p_{\text{T}}^{\text{jet}} > " + fr"{min_jet_pt}\:\text{{GeV}}/c$"
+            "\n" + r"$\hat{p_{\text{T}}} =$ " + f"{pt_hat_bin[0]}-{pt_hat_bin[1]}",
+            transform=a.transAxes,
+            horizontalalignment="left", verticalalignment="top", multialignment="left",
+        )
+        a.legend(loc="upper right", frameon=False)
     #ax.set_yscale("log")
     ax.set_ylabel(r"$1/N_{\text{jets}} \text{d}N/\text{d}R$")
     ax.set_xlabel(r"Distance from jet axis")
-    ax.legend(loc="upper right", frameon=False)
+    ax_eta.set_ylabel(r"$1/N_{\text{jets}} \text{d}N/\text{d}\eta$")
+    ax_eta.set_xlabel(r"$\eta$ from jet axis")
+    ax_phi.set_ylabel(r"$1/N_{\text{jets}} \text{d}N/\text{d}\varphi$")
+    ax_phi.set_xlabel(r"$\varphi$ from jet axis")
 
     fig.tight_layout()
     fig.savefig(output_dir / f"distance_from_jet_{pt_hat_bin[0]}_{pt_hat_bin[1]}.pdf")
     plt.close(fig)
+
+    fig_eta.tight_layout()
+    fig_eta.savefig(output_dir / f"eta_from_jet_{pt_hat_bin[0]}_{pt_hat_bin[1]}.pdf")
+    plt.close(fig_eta)
+    fig_phi.tight_layout()
+    fig_phi.savefig(output_dir / f"phi_from_jet_{pt_hat_bin[0]}_{pt_hat_bin[1]}.pdf")
+    plt.close(fig_phi)
 
 if __name__ == "__main__":
     for pt_hat_bin in [(7, 9), (20, 25), (50, 55), (100, 110), (250, 260), (500, 550), (900, 1000)]:
