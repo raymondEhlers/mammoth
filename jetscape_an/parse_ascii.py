@@ -18,7 +18,9 @@ import numpy as np
 logger = logging.getLogger(__name__)
 
 
-_header_regex = re.compile(r"\d+")
+# Used to extract numbers, specifically trying to cover signed floating point values.
+# Based on https://stackoverflow.com/a/4703409/12907985
+_header_regex = re.compile("[-+]?\d*\.\d+|\d+")
 
 
 def _handle_line(line: str, n_events: int, events_per_chunk: int) -> Tuple[bool, Optional[Any]]:
@@ -55,17 +57,18 @@ def _handle_line(line: str, n_events: int, events_per_chunk: int) -> Tuple[bool,
             time_to_stop = True
 
         # Parse the header string.
-        # As of September 2020, the formatting isn't really right. This should be fixed in JS.
+        # As of 9 October 2020, the formatting isn't really right. This should be fixed in JS.
         # Due to this formatting issue:
         # - We ignore all of the column names.
         # - We only parse the numbers:
-        #   1. I'm not sure what this number means
-        #   2. Event number. int
-        #   3. Number of particles. int. (This wasn't clear, originally)
+        #   1. Event plane angle.
+        #   2. Number of particles. int. (This wasn't clear, originally)
+        #   3. Event ID from hydro. int
         #
         # For now, we don't construct any objects to contain the information because
         # it's not worth the computing time - we're not really using this information...
-        header_info = [int(s) for s in re.findall(_header_regex, line)[1:]]
+        header_values = re.findall(_header_regex, line)
+        header_info = [float(header_values[0]), int(header_values[1]), int(header_values[2])]
 
     return time_to_stop, header_info
 
@@ -128,6 +131,11 @@ def read_events_in_chunks(filename: Union[Path, str], events_per_chunk: int = in
                 Returns:
                     Generator yielding the lines of the file.
                 """
+                # Offset to account for the header lines that we have parsed, and therefore how much
+                # we must offset to properly align particles with events. By default, we expect to have
+                # one, which accounts for the header that we'll parse over at the end after finishing an event.
+                header_offset = 1
+
                 # Anything that is returned from this function will be consumed by np.loadtxt, so we can't
                 # directly return any value. Instead, we have to make this nonlocal so we can set it here,
                 # and the result will be accessible outside during the next chunk.
@@ -136,8 +144,11 @@ def read_events_in_chunks(filename: Union[Path, str], events_per_chunk: int = in
                 # NOTE: Together with storing with handling the header in the first line a few lines below, we're
                 #       effectively 1-indexing n_events.
                 n_events = 0
+                n_particles = 0
                 if kept_header:
                     n_events += 1
+                    # Always reset n particles on a new event (doesn't matter here, but done for constituency).
+                    n_particles = 0
 
                 # Handle the first line from the generator.
                 _, header_info = _handle_line(line, n_events, events_per_chunk=events_per_chunk)
@@ -150,10 +161,21 @@ def read_events_in_chunks(filename: Union[Path, str], events_per_chunk: int = in
                 # we note the new event, and store the header info.
                 # NOTE: Together with incrementing n_events above, we're effectively 1-indexing n_events.
                 if header_info:
+                    #logger.debug(f"special case header, {line}")
+
+                    # Now account for the new header.
                     n_events += 1
+                    # Always reset n particles on a new event.
+                    n_particles = 0
+                    # We add to the header offset because now we need to account for this initial header in
+                    # addition to the later one that we'll parse over.
+                    header_offset += 1
+                    # Store the header info
                     event_header_info.append(header_info)
                     # NOTE: We don't record any info here for event_split_index because this is line 0, and
                     #       it would try to split on both sides of it, leading to an empty first event.
+                else:
+                    n_particles += 1
 
                 # Handle additional lines
                 # Start at one to account for the first land already being handled.
@@ -163,21 +185,31 @@ def read_events_in_chunks(filename: Union[Path, str], events_per_chunk: int = in
 
                     # A new header signals a new event. It needs some careful handling.
                     if header_info:
+                        #logger.debug(f"standard case header: {local_line}")
+                        # Cross check that the number of particles extracted from the header matches the number that we think we've extracted.
+                        # NOTE: We have to grab the previous header, since the header_info contains the header for the next event.
+                        assert event_header_info[-1][2] == n_particles, f"Expected {event_header_info[-1][2]} particles from header, but found {n_particles}"
+
+                        # Now account for the new header.
                         n_events += 1
+                        # Always reset n particles on a new event.
+                        n_particles = 0
                         # If it's just some event in the middle of the chunk, then we just store the header and event split information.
                         if not time_to_stop:
                             event_header_info.append(header_info)
+                            # We need to account for header lines.
                             # Since the header line will be skipped by loadtxt, we need to account for that with:
-                            # The first -1 is for the current event header.
-                            # The second -1 is for the next event header, which is our current line.
-                            # Finally, we need to subtract to account for previous event header lines by subtracting the number of events so far.
-                            event_split_index.append(line_count - len(event_split_index) - 1 - 1)
+                            # We need to subtract to account for previous event header lines by subtracting the number of events so far.
+                            # We also need to account for other headers that we have seen in this round of parsing.
+                            event_split_index.append(line_count - len(event_split_index) - header_offset)
                         else:
                             # If we're about to end this chunk, we need to hold on to the most recent header
                             # (which signaled that we're ready to end the chunk). We'll hold onto it until we
                             # look at the next chunk.
                             keep_header_for_next_chunk = header_info
                             #print(f"header_info: {header_info}, keep_header_for_next_chunk: {keep_header_for_next_chunk}")
+                    else:
+                        n_particles += 1
 
                     # Regardless of the header status, we should always yield the line so it can be handled downstream.
                     yield local_line
@@ -247,7 +279,6 @@ def _parse_with_pandas(chunk_generator: Iterator[str]) -> np.ndarray:
     return pd.read_csv(
         FileLikeGenerator(chunk_generator),
         names=["particle_index", "particle_ID", "status", "E", "px", "py", "pz", "eta", "phi"],
-        skiprows=[0],
         header=None,
         comment="#",
         sep="\s+",
