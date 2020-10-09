@@ -9,6 +9,8 @@ output/
 skim/
 # For compression tests
 compression/
+# For performance tests
+performance_studies/
 
 # Virtualenv
 env/
