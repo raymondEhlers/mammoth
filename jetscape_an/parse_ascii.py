@@ -409,9 +409,6 @@ def parse_to_parquet(base_output_filename: Union[Path, str], store_only_necessar
     base_output_filename.parent.mkdir(parents=True, exist_ok=True)
 
     for i, arrays in enumerate(read(filename=input_filename, events_per_chunk=events_per_chunk, parser=parser)):
-        if i == max_chunks:
-            break
-
         # Reduce to the minimum required data.
         if store_only_necessary_columns:
             arrays = full_events_to_only_necessary_columns(arrays)
@@ -438,6 +435,10 @@ def parse_to_parquet(base_output_filename: Union[Path, str], store_only_necessar
             # But it works fine if we explored records, so fine for now.
             explode_records=True,
         )
+
+        # Break now so we don't have to read the next chunk.
+        if (i + 1) == max_chunks:
+            break
 
 
 if __name__ == "__main__":
