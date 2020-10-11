@@ -18,12 +18,7 @@ import numpy as np
 logger = logging.getLogger(__name__)
 
 
-# Used to extract numbers, specifically trying to cover signed floating point values.
-# Based on https://stackoverflow.com/a/4703409/12907985
-_header_regex = re.compile("[-+]?\d*\.\d+|\d+")
-
-
-def _handle_line(line: str, n_events: int, events_per_chunk: int) -> Tuple[bool, Optional[Any]]:
+def _parse_line_for_header(line: str, n_events: int, events_per_chunk: int) -> Tuple[bool, Optional[Any]]:
     """ Parse line as appropriate.
 
     If it's just a standard particle line, we just pass it on. However, if it's a header, we parse
@@ -37,6 +32,7 @@ def _handle_line(line: str, n_events: int, events_per_chunk: int) -> Tuple[bool,
     Args:
         line: Line to be parsed.
         n_events: Number of events processed so far.
+        events_per_chunk: Number of events per chunk.
     Returns:
         Whether we've reached the desired number of events and should stop this block, any information parsed from the header.
         The header info is None if it's not a header line.
@@ -53,7 +49,7 @@ def _handle_line(line: str, n_events: int, events_per_chunk: int) -> Tuple[bool,
         # of events until after we find a header. Basically, it all works out here.
         #if n_events > 0 and n_events % events_per_chunk == 0:
         if n_events == events_per_chunk:
-            logger.debug("Time to stop!")
+            logger.debug("Hit end of chunk - time to stop!")
             time_to_stop = True
 
         # Parse the header string.
@@ -61,14 +57,21 @@ def _handle_line(line: str, n_events: int, events_per_chunk: int) -> Tuple[bool,
         # Due to this formatting issue:
         # - We ignore all of the column names.
         # - We only parse the numbers:
-        #   1. Event plane angle.
-        #   2. Number of particles. int. (This wasn't clear, originally)
-        #   3. Event ID from hydro. int
+        #   1. Event plane angle. float, potentially in scientific notation.
+        #   3. Event number. int
+        #   3. Number of particles. int. (This wasn't clear, originally)
+        #
+        # It's unclear where the hydro ID is stored.
         #
         # For now, we don't construct any objects to contain the information because
         # it's not worth the computing time - we're not really using this information...
-        header_values = re.findall(_header_regex, line)
-        header_info = [float(header_values[0]), int(header_values[1]), int(header_values[2])]
+        header_values = line.split()
+        # Validation
+        if len(header_values) != 9:
+            raise ValueError(f"Parsing of header failed: {header_values}")
+        # The second value has to be clever because the file is improperly spaced for parsing...
+        # It's of the form: "Event5ID", where all we care about is the event number (in this case, 5)
+        header_info = [float(header_values[1]), int(header_values[2][5:-2]), int(header_values[3])]
 
     return time_to_stop, header_info
 
@@ -151,7 +154,7 @@ def read_events_in_chunks(filename: Union[Path, str], events_per_chunk: int = in
                     n_particles = 0
 
                 # Handle the first line from the generator.
-                _, header_info = _handle_line(line, n_events, events_per_chunk=events_per_chunk)
+                _, header_info = _parse_line_for_header(line, n_events, events_per_chunk=events_per_chunk)
                 yield line
                 # We always increment after yielding.
                 # Instead of defining the variable here, we account for it in the enumeration below by
@@ -180,7 +183,7 @@ def read_events_in_chunks(filename: Union[Path, str], events_per_chunk: int = in
                 # Handle additional lines
                 # Start at one to account for the first land already being handled.
                 for line_count, local_line in enumerate(read_lines, start=1):
-                    time_to_stop, header_info = _handle_line(local_line, n_events, events_per_chunk=events_per_chunk)
+                    time_to_stop, header_info = _parse_line_for_header(local_line, n_events, events_per_chunk=events_per_chunk)
                     line_count += 1
 
                     # A new header signals a new event. It needs some careful handling.
