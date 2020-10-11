@@ -92,6 +92,19 @@ class LorentzVectorArray(ak.Array, LorentzVectorCommon):  # type: ignore
             with_name="LorentzVector",
         )
 
+    @staticmethod
+    def from_ptetaphie(pt: np.ndarray, eta: np.ndarray, phi: np.ndarray, E: np.ndarray) -> ak.Array:
+        return ak.zip(
+            {
+                # magnitude of p = pt*cosh(eta)
+                "t": E,
+                "x": pt * np.cos(phi),
+                "y": pt * np.sin(phi),
+                "z": pt * np.sinh(eta),
+            },
+            with_name="LorentzVector",
+        )
+
 
 # Register behavior
 ak.behavior["LorentzVector"] = LorentzVector
@@ -274,6 +287,46 @@ def particle_pt_by_status(arrays: ak.Array, pt_hat_bin: Tuple[int, int], base_ou
     plt.close(fig)
 
 
+@nb.njit
+def phi_minus_pi_to_pi(phi_array: ak.Array, builder: ak.ArrayBuilder) -> ak.ArrayBuilder:
+    for event in phi_array:
+        builder.begin_list()
+        for particle_phi in event:
+            if particle_phi > np.pi:
+                builder.append(particle_phi - 2 * np.pi)
+            elif particle_phi < -np.pi:
+                builder.append(particle_phi + 2 * np.pi)
+            else:
+                builder.append(particle_phi)
+        builder.end_list()
+
+    return builder
+
+@nb.njit
+def get_constituents(array: ak.Array, event_constituent_indices: ak.Array, builder: ak.ArrayBuilder) -> ak.ArrayBuilder:
+    """ This is a hack, and should be handled properly later...
+
+    """
+    for event_particles, jet_constituent_indices in zip(array, event_constituent_indices):
+        builder.begin_list()
+        for indices in jet_constituent_indices:
+            builder.begin_list()
+            for i in indices:
+                builder.append(event_particles[i])
+            builder.end_list()
+        builder.end_list()
+
+    return builder
+
+
+def convert_local_phi(phi):
+    if phi > np.pi:
+        phi -= 2 * np.pi
+    elif phi < -np.pi:
+        phi += 2 * np.pi
+    return phi
+
+
 def angular_distribution_around_jet(jets: ak.Array, arrays: ak.Array, pt_hat_bin: Tuple[int, int], base_output_dir: Path) -> None:
     # Setup
     output_dir = base_output_dir
@@ -285,28 +338,77 @@ def angular_distribution_around_jet(jets: ak.Array, arrays: ak.Array, pt_hat_bin
     arrays = arrays[(np.abs(arrays["particle_ID"]) != 12) & (np.abs(arrays["particle_ID"]) != 14) & (np.abs(arrays["particle_ID"]) != 16)]
     all_status_codes = np.unique(ak.to_numpy(ak.flatten(arrays["status"])))
 
+    # Do the dumb thing to get phi in [-pi, pi) and keep awkward happy. There's got to be a better way...
+    #px = arrays["pt"] * np.cos(arrays["phi"])
+    #py = arrays["pt"] * np.sin(arrays["phi"])
+    #arrays["phi"] = np.arctan2(py, px)
+    # Should modify in place
+    builder = ak.ArrayBuilder()
+    arrays["phi"] = phi_minus_pi_to_pi(arrays["phi"], builder=builder).snapshot()
+
     # Jets selection
+    # TODO: Move this conversion into the pyfastjet...
+    jets["constituent_index"] = ak.values_astype(jets.constituent_index, np.int32)
     # Keep jets with at least min_jet_pt GeV.
-    jets = jets[jets.pt > min_jet_pt]
+    jets = jets[jets.jets.pt > min_jet_pt]
+
+    #import IPython; IPython.embed()
 
     fig, ax = plt.subplots(figsize=(8, 6))
+    fig_fj, ax_fj = plt.subplots(figsize=(8, 6))
     fig_eta, ax_eta = plt.subplots(figsize=(8, 6))
     fig_phi, ax_phi = plt.subplots(figsize=(8, 6))
 
     hists = []
+    hists_fj = []
     for status_code in all_status_codes:
         # Select only particles of a particular status.
         particle_mask = (arrays["status"] == status_code)
 
         # Calculate all of the distances. Hopefully this doesn't run out of memory!
-        comb_jets, comb_particles = ak.unzip(ak.cartesian([jets, arrays[particle_mask]]))
-        delta_phi = ak.flatten(np.abs(comb_jets.phi - comb_particles.phi))
-        delta_phi = ak.where(delta_phi > np.pi, (2 * np.pi) - delta_phi, delta_phi)
+        #comb_jets, comb_particles = ak.unzip(ak.cartesian([jets.jets, get_constituents(arrays, jets.constituent_index, ak.ArrayBuilder()).snapshot()]))
+        #comb_jets, comb_particles = ak.unzip(ak.cartesian([jets.jets, arrays[jets.constituent_index]]))
+        comb_jets, comb_particles = ak.unzip(ak.cartesian([jets.jets, arrays[particle_mask]]))
+        #import IPython; IPython.embed()
+        builder = ak.ArrayBuilder()
+        #delta_phi = ak.flatten(phi_minus_pi_to_pi(ak.flatten(comb_jets.phi, axis=1) - ak.flatten(comb_particles.phi, axis=1), builder=builder).snapshot())
+        delta_phi = ak.flatten(phi_minus_pi_to_pi(comb_jets.phi - comb_particles.phi, builder=builder).snapshot())
+        #delta_phi = ak.flatten(np.abs(comb_jets.phi - comb_particles.phi))
+        #delta_phi = np.mod(delta_phi, 2 * np.pi) - np.pi
+        #import IPython; IPython.embed()
+        #delta_phi = ak.where(delta_phi > np.pi, (2 * np.pi) - delta_phi, delta_phi)
+        #delta_phi = ak.where(delta_phi > np.pi, delta_phi - (2 * np.pi), delta_phi)
+        #import IPython; IPython.embed()
+        #delta_phi = ak.where(delta_phi < -np.pi, (2 * np.pi) + delta_phi, delta_phi)
+        #delta_eta = ak.flatten(ak.flatten(comb_jets.eta, axis=1) - ak.flatten(comb_particles.eta, axis=1))
         delta_eta = ak.flatten(comb_jets.eta - comb_particles.eta)
         distance_from_jet = np.sqrt(delta_eta ** 2 + delta_phi ** 2)
+        #mask = (delta_phi < 0.1) & (delta_eta < 0.1)
+        #distance_from_jet = np.sqrt(delta_eta[mask] ** 2 + delta_eta[mask] ** 2)
+
+        # Cross check deltaR calculation against fj
+        # Just for the first event
+        jets_fj = [fj.PseudoJet(j.x, j.y, j.z, j.t) for j in jets.jets[0]]
+        particles_fj = [
+            fj.PseudoJet(p.x, p.y, p.z, p.t) for p in
+            LorentzVectorArray.from_ptetaphie(arrays[particle_mask].pt, arrays[particle_mask].eta, arrays[particle_mask].phi, arrays[particle_mask].E)[0]
+        ]
+        # Compare for the first jet for simplicity
+        fj_distance_lead_jet_to_all_particles = [jets_fj[0].delta_R(p) for p in particles_fj]
+        # NOTE: PseudoJet.delta_R uses rapidity, not eta!!
+        #fj_delta_eta = [jets_fj[0].eta - p.eta for p in particles_fj]
+        fj_delta_eta = [jets_fj[0].rap - p.rap for p in particles_fj]
+        #fj_delta_phi = [convert_local_phi(jets_fj[0].phi_std - p.phi_std) for p in particles_fj]
+        fj_delta_phi = [np.abs(jets_fj[0].phi - p.phi) for p in particles_fj]
+        fj_delta_phi = [2*np.pi - dphi if dphi > np.pi else dphi for dphi in fj_delta_phi]
+        fj_distance_by_hand = [np.sqrt(eta ** 2 + phi ** 2) for eta, phi in zip(fj_delta_eta, fj_delta_phi)]
+        local_delta_eta = [jets.jets[0][0].eta - p.eta for p in arrays[particle_mask][0]]
+        local_delta_phi = [convert_local_phi(jets.jets[0][0].phi - p.phi) for p in arrays[particle_mask][0]]
+        local_distance = [np.sqrt(eta ** 2 + phi ** 2) for eta, phi in zip(local_delta_eta, local_delta_phi)]
 
         # Create, fill, and plot the histogram
         distance_hist = bh.Histogram(bh.axis.Regular(160, 0, 8), storage=bh.storage.Weight())
+        #distance_hist = bh.Histogram(bh.axis.Regular(20, 0, 1), storage=bh.storage.Weight())
         distance_hist.fill(ak.to_numpy(distance_from_jet))
         hist = binned_data.BinnedData.from_existing_data(distance_hist)
 
@@ -328,10 +430,59 @@ def angular_distribution_around_jet(jets: ak.Array, arrays: ak.Array, pt_hat_bin
         # Store for summary plot
         hists.append(hist)
 
-        # Create, fill, and plot the histogram
-        distance_from_jet = np.abs(delta_eta)
+        # Compare to fastjet...
+        # NOTE: It will be slightly different because fj use rapidity instead of eta, but the general shape should
+        #       be similar, I think.
+        #jets_fj = [[fj.PseudoJet(j.x, j.y, j.z, j.t) for j in _jets_in_event] for _jets_in_event in jets.jets]
+        #particles_fj = [
+        #    [fj.PseudoJet(p.x, p.y, p.z, p.t) for p in
+        #    LorentzVectorArray.from_ptetaphie(particles.pt, particles.eta, particles.phi, particles.E)]
+        #    for particles in arrays[particle_mask]
+        #]
+
+        # This is slow, but probably easier and safer...
+        #output = np.zeros(ak.sum(ak.num(jets, axis=1)) * ak.sum(ak.num(arrays[particle_mask], axis=1)), dtype=np.float64)
+        counter = 0
+
+        # About to calculate fj distances...
+        # Cut to only 50 for technical reasons.
         distance_hist = bh.Histogram(bh.axis.Regular(160, 0, 8), storage=bh.storage.Weight())
-        distance_hist.fill(ak.to_numpy(distance_from_jet))
+        for jets_in_event, particles_in_event in zip(jets.jets[:50], LorentzVectorArray.from_ptetaphie(arrays[particle_mask].pt, arrays[particle_mask].eta, arrays[particle_mask].phi, arrays[particle_mask].E)[:50]):
+            for jet in jets_in_event:
+                jet_fj = fj.PseudoJet(jet.x, jet.y, jet.z, jet.t)
+                if counter % 10000 == 0:
+                    print(f"Counter: {counter}")
+                for p in particles_in_event:
+                    particle_fj = fj.PseudoJet(p.x, p.y, p.z, p.t)
+                    distance_hist.fill(jet_fj.delta_R(particle_fj))
+                    #output[counter] = jet_fj.delta_R(particle_fj)
+                    counter += 1
+
+        # Plot fj comparison
+        # Create, fill, and plot the histogram
+        #distance_hist.fill(output)
+        hist = binned_data.BinnedData.from_existing_data(distance_hist)
+
+        # Normalize
+        # Bin widths
+        hist /= hist.axes[0].bin_widths
+        # N jets
+        hist /= ak.sum(ak.num(jets, axis=1))
+
+        ax_fj.errorbar(
+            hist.axes[0].bin_centers,
+            hist.values,
+            xerr=hist.axes[0].bin_widths / 2,
+            label=f"Status = {status_code}",
+            marker="o",
+            linestyle="",
+        )
+
+        hists_fj.append(hist)
+
+        # Create, fill, and plot the eta distance histogram
+        distance_hist = bh.Histogram(bh.axis.Regular(160, 0, 8), storage=bh.storage.Weight())
+        distance_hist.fill(ak.to_numpy(delta_eta))
         hist = binned_data.BinnedData.from_existing_data(distance_hist)
 
         # Normalize
@@ -350,9 +501,8 @@ def angular_distribution_around_jet(jets: ak.Array, arrays: ak.Array, pt_hat_bin
         )
 
         # Create, fill, and plot the histogram
-        distance_from_jet = delta_phi
         distance_hist = bh.Histogram(bh.axis.Regular(80, 0, 4), storage=bh.storage.Weight())
-        distance_hist.fill(ak.to_numpy(distance_from_jet))
+        distance_hist.fill(ak.to_numpy(delta_phi))
         hist = binned_data.BinnedData.from_existing_data(distance_hist)
 
         # Normalize
@@ -370,6 +520,31 @@ def angular_distribution_around_jet(jets: ak.Array, arrays: ak.Array, pt_hat_bin
             linestyle="",
         )
 
+        fig_eta_phi, ax_eta_phi = plt.subplots(figsize=(8, 6))
+
+        # Delta eta, delta phi
+        distance_from_jet = delta_phi
+        distance_hist = bh.Histogram(bh.axis.Regular(80, -4, 4), bh.axis.Regular(80, -3 * np.pi, 3 * np.pi), storage=bh.storage.Weight())
+        distance_hist.fill(ak.to_numpy(delta_eta), ak.to_numpy(delta_phi))
+        hist = binned_data.BinnedData.from_existing_data(distance_hist)
+        hist.values[hist.values == 0] = np.nan
+        z_axis_range = {
+            # "vmin": h_proj.values[h_proj.values > 0].min(),
+            # Don't show values at 0.
+            "vmin": 1,
+            # Account for the possibility of having no values.
+            "vmax": np.nanmax(hist.values) if (hist.values).any() else 1.0,
+        }
+        # Plot
+        mesh = ax_eta_phi.pcolormesh(
+            hist.axes[0].bin_edges.T, hist.axes[1].bin_edges.T, hist.values.T, norm=matplotlib.colors.Normalize(**z_axis_range),
+        )
+        fig_eta_phi.colorbar(mesh, pad=0.02)
+
+        fig_eta_phi.tight_layout()
+        fig_eta_phi.savefig(output_dir / f"delta_eta_phi_from_jet_{pt_hat_bin[0]}_{pt_hat_bin[1]}_status_{status_code}.pdf")
+        plt.close(fig_eta_phi)
+
     # Plot summary
     h_all = sum(hists)
     ax.errorbar(
@@ -380,9 +555,19 @@ def angular_distribution_around_jet(jets: ak.Array, arrays: ak.Array, pt_hat_bin
         marker="o",
         linestyle="",
     )
+    # For fj comparison
+    h_fj_all = sum(hists_fj)
+    ax_fj.errorbar(
+        h_fj_all.axes[0].bin_centers,
+        h_fj_all.values,
+        xerr=h_fj_all.axes[0].bin_widths / 2,
+        label=f"Sum",
+        marker="o",
+        linestyle="",
+    )
 
     # Label
-    for a in [ax, ax_eta, ax_phi]:
+    for a in [ax, ax_fj, ax_eta, ax_phi]:
         a.text(
             0.03,
             0.97,
@@ -396,6 +581,8 @@ def angular_distribution_around_jet(jets: ak.Array, arrays: ak.Array, pt_hat_bin
     #ax.set_yscale("log")
     ax.set_ylabel(r"$1/N_{\text{jets}} \text{d}N/\text{d}R$")
     ax.set_xlabel(r"Distance from jet axis")
+    ax_fj.set_ylabel(r"$1/N_{\text{jets}} \text{d}N/\text{d}R$")
+    ax_fj.set_xlabel(r"Distance from jet axis")
     ax_eta.set_ylabel(r"$1/N_{\text{jets}} \text{d}N/\text{d}\eta$")
     ax_eta.set_xlabel(r"$\eta$ from jet axis")
     ax_phi.set_ylabel(r"$1/N_{\text{jets}} \text{d}N/\text{d}\varphi$")
@@ -404,6 +591,9 @@ def angular_distribution_around_jet(jets: ak.Array, arrays: ak.Array, pt_hat_bin
     fig.tight_layout()
     fig.savefig(output_dir / f"distance_from_jet_{pt_hat_bin[0]}_{pt_hat_bin[1]}.pdf")
     plt.close(fig)
+    fig_fj.tight_layout()
+    fig_fj.savefig(output_dir / f"distance_from_jet_fj_{pt_hat_bin[0]}_{pt_hat_bin[1]}.pdf")
+    plt.close(fig_fj)
 
     fig_eta.tight_layout()
     fig_eta.savefig(output_dir / f"eta_from_jet_{pt_hat_bin[0]}_{pt_hat_bin[1]}.pdf")
