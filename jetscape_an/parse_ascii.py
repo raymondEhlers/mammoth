@@ -383,7 +383,7 @@ def read(filename: Union[Path, str], events_per_chunk: int, parser: str = "panda
         #import IPython; IPython.embed()
 
         # Convert to the desired structure for our awkward array.
-        array = ak.zip(
+        yield ak.zip(
             {
                 # TODO: Does the conversion add any real computation time?
                 "particle_ID": ak.values_astype(array_with_events[:, :, 1], np.int32),
@@ -399,8 +399,6 @@ def read(filename: Union[Path, str], events_per_chunk: int, parser: str = "panda
                 "phi": ak.values_astype(array_with_events[:, :, 8], np.float32),
             },
         )
-
-        yield array
 
     #import IPython; IPython.embed()
 
