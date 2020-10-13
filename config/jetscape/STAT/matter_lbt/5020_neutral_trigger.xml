@@ -3,6 +3,7 @@
 <jetscape>
 
   <!--<nEvents> 2500 </nEvents>-->
+  <outputFilename> 5020_neutral_trigger </outputFilename>
   <nEvents> 1000 </nEvents>
   <nEvents_printout> 1 </nEvents_printout>
   <setReuseHydro> true </setReuseHydro>
