@@ -18,6 +18,8 @@ import particle
 import pyfastjet as fj
 from pachyderm import binned_data
 
+from jetscape_an import base
+
 
 pachyderm.plot.configure()
 # Enable ticks on all sides
@@ -27,88 +29,6 @@ matplotlib.rcParams["xtick.top"] = True
 matplotlib.rcParams["xtick.minor.top"] = True
 matplotlib.rcParams["ytick.right"] = True
 matplotlib.rcParams["ytick.minor.right"] = True
-
-
-class LorentzVectorCommon:
-    """ Basic Lorentz Vector class for conveinence.
-
-    Assumes metric: (+ - - -)
-
-    """
-    t: Any
-    x: Any
-    y: Any
-    z: Any
-
-    @property
-    def pt(self):
-        return np.sqrt(self.x ** 2 + self.y ** 2)
-
-    @property
-    def eta(self):
-        return np.arcsinh(self.z / self.pt)
-
-    @property
-    def phi(self):
-        """
-
-        Appears to be defined from [-pi, pi). PseudoJets are defined from [0, 2pi)
-        """
-        # NOTE: Could put it within [0, 2pi) with (take from fastjet::PseudoJet):
-        #       if (_phi >= twopi) _phi -= twopi;
-        #       if (_phi < 0)      _phi += twopi;
-        return np.arctan2(self.y, self.x)
-
-
-class LorentzVector(ak.Record, LorentzVectorCommon):  # type: ignore
-    """ Basic Lorentz Vector class for conveinence.
-
-    Assumes metric: (+ - - -)
-
-    """
-    t: float
-    x: float
-    y: float
-    z: float
-    ...
-
-
-class LorentzVectorArray(ak.Array, LorentzVectorCommon):  # type: ignore
-    t: ak.Array
-    x: ak.Array
-    y: ak.Array
-    z: ak.Array
-
-    @staticmethod
-    def from_ptetaphim(pt: np.ndarray, eta: np.ndarray, phi: np.ndarray, m: np.ndarray) -> ak.Array:
-        return ak.zip(
-            {
-                # magnitude of p = pt*cosh(eta)
-                "t": np.sqrt((pt * np.cosh(eta)) ** 2 + m ** 2),
-                "x": pt * np.cos(phi),
-                "y": pt * np.sin(phi),
-                "z": pt * np.sinh(eta),
-            },
-            with_name="LorentzVector",
-        )
-
-    @staticmethod
-    def from_ptetaphie(pt: np.ndarray, eta: np.ndarray, phi: np.ndarray, E: np.ndarray) -> ak.Array:
-        return ak.zip(
-            {
-                # magnitude of p = pt*cosh(eta)
-                "t": E,
-                "x": pt * np.cos(phi),
-                "y": pt * np.sin(phi),
-                "z": pt * np.sinh(eta),
-            },
-            with_name="LorentzVector",
-        )
-
-
-# Register behavior
-ak.behavior["LorentzVector"] = LorentzVector
-ak.behavior["*", "LorentzVector"] = LorentzVectorArray
 
 
 def find_jets(array: ak.Array) -> ...:
@@ -196,20 +116,20 @@ def find_jets_arr(array: ak.Array) -> ak.Array:
     #array["m"] = builder.snapshot()
     mass = builder.snapshot()
 
-    new_array_lorentz = LorentzVectorArray.from_ptetaphim(new_array["pt"], new_array["eta"], new_array["phi"], mass)
+    new_array_lorentz = base.LorentzVectorArray.from_ptetaphim(new_array["pt"], new_array["eta"], new_array["phi"], mass)
 
     jet_defintion = fj.JetDefinition(fj.JetAlgorithm.antikt_algorithm, R = 0.4)
     area_definition = fj.AreaDefinition(fj.AreaType.passive_area, fj.GhostedAreaSpec(1, 1, 0.05))
     settings = fj.JetFinderSettings(jet_definition=jet_defintion, area_definition=area_definition)
 
     # Convert to an array that fj will recognize. Otherwise, the arguments won't match.
-    # TODO: Handle this more gracfully...
+    # TODO: Handle this more gracefully... (This was more of a problem in the past. Now, it just looks unnecessary, but not worth changing at the moment)
     temp_array = ak.zip(
         {
-            "E": new_array_lorentz["t"],
-            "px": new_array_lorentz["x"],
-            "py": new_array_lorentz["y"],
-            "pz": new_array_lorentz["z"],
+            "px": new_array_lorentz["px"],
+            "py": new_array_lorentz["py"],
+            "pz": new_array_lorentz["pz"],
+            "E": new_array_lorentz["E"],
             # NOTE: Having status is okay, even though it's not part of the LorentzVector. Which is quite nice!
             "status": new_array["status"],
         },
@@ -348,7 +268,7 @@ def angular_distribution_around_jet(jets: ak.Array, arrays: ak.Array, pt_hat_bin
 
     # Jets selection
     # TODO: Move this conversion into the pyfastjet...
-    jets["constituent_index"] = ak.values_astype(jets.constituent_index, np.int32)
+    jets["constituent_index"] = ak.values_astype(jets.constituent_indices, np.int32)
     # Keep jets with at least min_jet_pt GeV.
     jets = jets[jets.jets.pt > min_jet_pt]
 
@@ -388,10 +308,10 @@ def angular_distribution_around_jet(jets: ak.Array, arrays: ak.Array, pt_hat_bin
 
         # Cross check deltaR calculation against fj
         # Just for the first event
-        jets_fj = [fj.PseudoJet(j.x, j.y, j.z, j.t) for j in jets.jets[0]]
+        jets_fj = [fj.PseudoJet(j.px, j.py, j.pz, j.E) for j in jets.jets[0]]
         particles_fj = [
-            fj.PseudoJet(p.x, p.y, p.z, p.t) for p in
-            LorentzVectorArray.from_ptetaphie(arrays[particle_mask].pt, arrays[particle_mask].eta, arrays[particle_mask].phi, arrays[particle_mask].E)[0]
+            fj.PseudoJet(p.px, p.py, p.pz, p.E) for p in
+            base.LorentzVectorArray.from_ptetaphie(arrays[particle_mask].pt, arrays[particle_mask].eta, arrays[particle_mask].phi, arrays[particle_mask].E)[0]
         ]
         # Compare for the first jet for simplicity
         fj_distance_lead_jet_to_all_particles = [jets_fj[0].delta_R(p) for p in particles_fj]
@@ -447,13 +367,13 @@ def angular_distribution_around_jet(jets: ak.Array, arrays: ak.Array, pt_hat_bin
         # About to calculate fj distances...
         # Cut to only 50 for technical reasons.
         distance_hist = bh.Histogram(bh.axis.Regular(160, 0, 8), storage=bh.storage.Weight())
-        for jets_in_event, particles_in_event in zip(jets.jets[:50], LorentzVectorArray.from_ptetaphie(arrays[particle_mask].pt, arrays[particle_mask].eta, arrays[particle_mask].phi, arrays[particle_mask].E)[:50]):
+        for jets_in_event, particles_in_event in zip(jets.jets[:50], base.LorentzVectorArray.from_ptetaphie(arrays[particle_mask].pt, arrays[particle_mask].eta, arrays[particle_mask].phi, arrays[particle_mask].E)[:50]):
             for jet in jets_in_event:
-                jet_fj = fj.PseudoJet(jet.x, jet.y, jet.z, jet.t)
+                jet_fj = fj.PseudoJet(jet.px, jet.py, jet.pz, jet.E)
                 if counter % 10000 == 0:
                     print(f"Counter: {counter}")
                 for p in particles_in_event:
-                    particle_fj = fj.PseudoJet(p.x, p.y, p.z, p.t)
+                    particle_fj = fj.PseudoJet(p.px, p.py, p.pz, p.E)
                     distance_hist.fill(jet_fj.delta_R(particle_fj))
                     #output[counter] = jet_fj.delta_R(particle_fj)
                     counter += 1
