@@ -35,7 +35,7 @@
       <eCM>200</eCM>
       <LinesToRead>
         PhaseSpace:bias2Selection = on
-        PhaseSpace:bias2SelectionPow = 5.0
+        PhaseSpace:bias2SelectionPow = 5.1
         PhaseSpace:bias2SelectionRef = 1
       </LinesToRead>
     </PythiaGun>
