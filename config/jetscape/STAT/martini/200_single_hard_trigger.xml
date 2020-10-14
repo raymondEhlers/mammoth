@@ -2,12 +2,12 @@
 
 <jetscape>
 
-  <!--<nEvents> 2500 </nEvents>-->
-  <outputFilename> 200_single_hard_trigger </outputFilename>
+  <!--<nEvents> 10000 </nEvents>-->
+  <outputFilename>200_single_hard_trigger</outputFilename>
   <nEvents> 1000 </nEvents>
   <nEvents_printout> 1 </nEvents_printout>
   <setReuseHydro> true </setReuseHydro>
-  <nReuseHydro> 2500 </nReuseHydro>
+  <nReuseHydro> 10000 </nReuseHydro>
 
   <JetScapeWriterHepMC> off </JetScapeWriterHepMC>
   <JetScapeWriterAscii> on </JetScapeWriterAscii>
@@ -25,7 +25,7 @@
     <grid_step_y> 0.2 </grid_step_y>
     <grid_step_z> 0.2 </grid_step_z>
 
-    <initial_profile_path>/home/jetscape-user/examples/test_hydro_files</initial_profile_path>
+    <initial_profile_path>/home/jetscape-user/JETSCAPE/examples/test_hydro_files</initial_profile_path>
   </IS>
 
   <!-- Hard Process -->
@@ -45,7 +45,7 @@
   <!-- Hydro  Module  -->
   <Hydro>
     <hydro_from_file>
-      <hydro_files_folder>/home/jetscape-user/examples/test_hydro_files</hydro_files_folder>
+      <hydro_files_folder>/home/jetscape-user/JETSCAPE/examples/test_hydro_files</hydro_files_folder>
       <hydro_type>1</hydro_type>
       <load_viscous_info>0</load_viscous_info>
       <T_c>0.154</T_c>
@@ -64,7 +64,7 @@
       <pcut> 2.0 </pcut>
       <hydro_Tc> 0.16 </hydro_Tc>
       <recoil_on> 1 </recoil_on>
-      <path>../src/jet/Martini/</path>
+      <path>/home/jetscape-user/JETSCAPE/src/jet/Martini/</path>
     </Martini>
 
   </Eloss>
