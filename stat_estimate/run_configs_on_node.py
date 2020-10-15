@@ -8,11 +8,13 @@ This is more efficienct than requesting individual jobs.
 """
 
 import os.path
+import shutil
 import subprocess
 import time
+import timeit
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, List, Sequence
+from typing import Dict, List, Optional, Sequence
 
 import psutil
 
@@ -22,21 +24,38 @@ class Config:
     trigger: str
 
     def __str__(self):
-        return f"{self.sqrts}_{self.trigger}"
+        return f"{self.sqrts}_{self.trigger}_trigger"
 
 
-def run_job_with_config(scratch_dir: Path, base_config_dir: Path, model: str, config_name: str, node_type: str, index: int) -> None:
-    stdout = (base_config_dir / model / node_type / f"{config_name}_{index}").with_suffix(".log")
+def run_job_with_config(scratch_dir: Path, base_config_dir: Path, model: str, config_name: str, node_type: str, index: Optional[int] = None) -> None:
+    # Setup the config path
+    config_path = (base_config_dir / model / config_name).with_suffix(".xml")
+    # We need to separate this into a new directory so we don't overwrite it.
+    new_config_path = config_path.parent / node_type
+    if index is not None:
+        new_config_path = new_config_path / str(index)
+    new_config_path = (new_config_path / config_name).with_suffix(".xml")
+    # Create our new directory...
+    if not new_config_path.parent.exists():
+        new_config_path.parent.mkdir(parents=True, exist_ok=True)
+    # ... and copy the config to the new location...
+    shutil.copy(config_path, new_config_path)
+    # ... and then update our config path to the new file.
+    config_path = new_config_path
+
+    # Setup stdout
+    stdout = (config_path.parent / config_name).with_suffix(".log")
     if not stdout.parent.exists():
         stdout.parent.mkdir(parents=True, exist_ok=True)
     # Need to use Popen to ensure that we're not blocking.
     res = subprocess.Popen(
-        ["singularity", "run", "--cleanenv", scratch_dir / "jetscape-stat-estimate_latest.sif", (base_config_dir / model / config_name).with_suffix(".xml")],
+        ["time", "singularity", "run", "--cleanenv", scratch_dir / "jetscape-stat-estimate_latest.sif", config_path],
         #["sleep", "3"],
         #stdout=(base_config_dir / model / node_type / config_name).with_suffix(".log")
         stdout=open(stdout, "w"),
         stderr=subprocess.STDOUT,
     )
+
     return res
     #subprocess.run(
     #    #["echo", "singularity", "shell", "--cleanenv", scratch_dir / "jetscape-stat-estimate_latest.sif", (base_config_dir / model / config_name).with_suffix(".xml")],
@@ -73,28 +92,36 @@ def monitor_processes(processes: Sequence[subprocess.Popen]) -> None:
 
 if __name__ == "__main__":
     # Settings
-    n_cores = 6
-    node_type = f"KNL_{n_cores}"
-    scratch_dir = Path("scratch_dir")
-    #scratch_dir = Path(os.path.expandvars("$SCRATCH"))
+    n_cores = 48
+    node_type = f"skylake_{n_cores}"
+    #scratch_dir = Path("scratch_dir")
+    scratch_dir = Path(os.path.expandvars("$SCRATCH"))
 
     available_configs = setup_all_configs()
 
+    start_time = timeit.default_timer()
     processes = []
-    for i in range(10):
-        print(f"Starting {i}")
-        processes.append(run_job_with_config(
-            scratch_dir=scratch_dir,
-            base_config_dir=scratch_dir / "jetscape-an" / "config" / "jetscape" / "STAT",
-            model="lbt",
-            config_name="5020_single_hard_trigger",
-            node_type=node_type,
-            index=i,
-        ))
-        print(f"Finished {i}")
-        # Try to avoid going too crazy with the I/O.
-        time.sleep(10)
+    i = 0
+    for model in available_configs:
+        for config in available_configs[model]:
+            print(f"Starting {i}")
+            processes.append(run_job_with_config(
+                scratch_dir=scratch_dir,
+                base_config_dir=scratch_dir / "jetscape-an" / "config" / "jetscape" / "STAT",
+                #base_config_dir=Path("..") / "config" / "jetscape" / "STAT",
+                model=model,
+                config_name=str(config),
+                node_type=node_type,
+                index=i,
+            ))
+            print(f"Started {i}")
+            # Try to avoid going too crazy with the I/O.
+            time.sleep(10)
+            i += 1
 
     print(processes)
 
     monitor_processes(processes=processes)
+    elapsed = timeit.default_timer() - start_time
+    print("Done! Elapsed time since starting first process: {elapsed}")
+
