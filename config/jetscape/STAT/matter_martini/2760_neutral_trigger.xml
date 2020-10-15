@@ -39,6 +39,8 @@
         PhaseSpace:bias2SelectionPow = 2.9
         PhaseSpace:bias2SelectionRef = 1
         PromptPhoton:all = on
+        PartonLevel:ISR = on
+        PartonLevel:FSR = on
       </LinesToRead>
     </PythiaGun>
   </Hard>
