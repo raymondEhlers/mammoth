@@ -123,5 +123,5 @@ if __name__ == "__main__":
 
     monitor_processes(processes=processes)
     elapsed = timeit.default_timer() - start_time
-    print("Done! Elapsed time since starting first process: {elapsed}")
+    print(f"Done! Elapsed time since starting first process: {elapsed}")
 
