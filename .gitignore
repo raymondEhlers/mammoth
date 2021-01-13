@@ -38,3 +38,6 @@ dist/
 bin/
 build/
 lib/
+
+# Singularity
+*.sif
