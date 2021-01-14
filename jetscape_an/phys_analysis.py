@@ -3,76 +3,17 @@
 .. codeauthor:: Raymond Ehlers <raymond.ehlers@cern.ch>, ORNL
 """
 
-import functools
-import operator
-from typing import Mapping, Optional, Sequence, Tuple
+from typing import Sequence, Tuple
 from pathlib import Path
 
 import awkward1 as ak
 import numba as nb
 import numpy as np
-import particle
 import pyfastjet as fj
 from pachyderm import binned_data
 
 from jetscape_an import base
 
-
-@functools.lru_cache()
-def _pdg_id_to_mass(pdg_id: int) -> float:
-    """ Convert PDG ID to mass.
-
-    We cache the result to speed it up.
-
-    Args:
-        pdg_id: PDG ID.
-    Returns:
-        Mass in MeV.
-    """
-    return particle.Particle.from_pdgid(pdg_id).mass
-
-
-@nb.njit
-def determine_mass(events: ak.Array, builder: ak.ArrayBuilder, pdg_id_to_mass: Mapping[int, float]) -> ak.Array:
-    for event in events:
-        builder.begin_list()
-        for particle in event:
-            builder.append(pdg_id_to_mass[particle["particle_ID"]])
-        builder.end_list()
-
-    return builder
-
-
-def build_PID_selection(particles: ak.Array, absolute_pids: Optional[Sequence[int]] = None, single_pids: Optional[Sequence[int]] = None):
-    # Validation
-    if absolute_pids is None:
-        absolute_pids = []
-    if single_pids is None:
-        single_pids = []
-
-    pid_cuts = [
-        np.abs(particles["particle_ID"]) == pid for pid in absolute_pids
-    ]
-    pid_cuts.extend([
-        particles["particle_ID"] == pid for pid in single_pids
-    ])
-    return functools.reduce(operator.and_, pid_cuts)
-
-
-def add_masses_to_array(events: ak.Array) -> ak.Array:
-    # Add the masses based on the PDG code.
-    # First, determine all possible PDG codes, and then retrieve their masses for a lookup table.
-    all_particle_IDs = np.unique(ak.to_numpy(ak.flatten(events["particle_ID"])))
-    # NOTE: We need to use this special typed dict with numba.
-    pdg_id_to_mass = nb.typed.Dict.empty(
-        key_type=nb.core.types.int64,
-        value_type=nb.core.types.float64,
-    )
-    # As far as I can tell, we can't fill the dict directly on initialization, so we have to loop over entires.
-    for pdg_id in all_particle_IDs:
-        pdg_id_to_mass[pdg_id] = _pdg_id_to_mass(pdg_id)
-    # It's important that we snapshot it!
-    return determine_mass(events=events, builder=ak.ArrayBuilder(), pdg_id_to_mass=pdg_id_to_mass).snapshot()
 
 @nb.njit
 def _delta_phi(phi_a: float, phi_b: float, output_range: Tuple[float, float] = (-np.pi, np.pi)) -> float:
@@ -137,16 +78,16 @@ def run(particles: ak.Array) -> None:
     # First, determine all possible PDG codes, and then retrieve their masses for a lookup table.
     all_particle_IDs = np.unique(ak.to_numpy(ak.flatten(particles["particle_ID"])))
     # NOTE: We need to use this special typed dict with numba.
-    pdg_id_to_mass = nb.typed.Dict.empty(
-        key_type=nb.core.types.int64,
-        value_type=nb.core.types.float64,
-    )
-    # As far as I can tell, we can't fill the dict directly on initialization, so we have to loop over entires.
-    for pdg_id in all_particle_IDs:
-        pdg_id_to_mass[pdg_id] = _pdg_id_to_mass(pdg_id)
+    #pdg_id_to_mass = nb.typed.Dict.empty(
+    #    key_type=nb.core.types.int64,
+    #    value_type=nb.core.types.float64,
+    #)
+    ## As far as I can tell, we can't fill the dict directly on initialization, so we have to loop over entires.
+    #for pdg_id in all_particle_IDs:
+    #    pdg_id_to_mass[pdg_id] = _pdg_id_to_mass(pdg_id)
     # Finally, store the result in the existing particles array.
     # It's important that we snapshot it!
-    particles["m"] = add_masses_to_array(events=particles)
+    particles["m"] = base.determine_masses_from_events(events=particles)
     # Convert to the expected LorentzVector format
     #particles = base.LorentzVectorArray.from_awkward_ptetaphim(particles["pt"], particles["eta"], particles["phi"], particles["m"])
     #particles = base.LorentzVectorArray.from_awkward_ptetaphim(particles)
@@ -166,18 +107,18 @@ def run(particles: ak.Array) -> None:
     #       Since the main observables in this analysis are the charged hadron spectra, leptons arising from the decays of heavy vector bosons
     #       are excluded from the measured spectra.  Tracks forming part of reconstructedmuons  are  identified  and  the  contribution  from
     #       stable  leptons  is  subtracted  twice  from  the  measuredspectra, assuming that electrons contribute the same as muons.
-    atlas_charged_hadrons = particles_signal[build_PID_selection(particles_signal, absolute_pids=_default_charged_hadron_PID[2:])]
+    atlas_charged_hadrons = particles_signal[base.build_PID_selection_mask(particles_signal, absolute_pids=_default_charged_hadron_PID[2:])]
     # Eta selection
     atlas_charged_hadrons = atlas_charged_hadrons[np.abs(atlas_charged_hadrons.eta) < 2.5]
     # ALICE:
     # Charged hadrons: Primary charged particles (w/ mean proper lifetime τ larger than 1 cm/c )
     # Pratically, that means: (e-, mu-, pi+, K+, p+, Sigma+, Sigma-, Xi-, Omega-)
-    alice_charged_hadrons = particles_signal[build_PID_selection(particles_signal, absolute_pids=_default_charged_hadron_PID)]
+    alice_charged_hadrons = particles_signal[base.build_PID_selection_mask(particles_signal, absolute_pids=_default_charged_hadron_PID)]
     # Eta selection
     alice_charged_hadrons = alice_charged_hadrons[np.abs(alice_charged_hadrons.eta) < 0.8]
     # CMS:
     # Charged hadrons: (e-, mu-, pi+, K+, p+, Sigma+, Sigma-, Xi-, Omega-)
-    cms_charged_hadrons = particles_signal[build_PID_selection(particles_signal, absolute_pids=_default_charged_hadron_PID)]
+    cms_charged_hadrons = particles_signal[base.build_PID_selection_mask(particles_signal, absolute_pids=_default_charged_hadron_PID)]
     # Eta selection
     cms_charged_hadrons = cms_charged_hadrons[np.abs(cms_charged_hadrons.eta) < 1.0]
 
