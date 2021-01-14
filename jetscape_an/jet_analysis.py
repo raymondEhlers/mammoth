@@ -7,7 +7,7 @@ import functools
 from pathlib import Path
 from typing import Any, Mapping, Tuple, Type, TypeVar
 
-import awkward1 as ak
+import awkward as ak
 import boost_histogram as bh
 import matplotlib
 import matplotlib.pyplot as plt

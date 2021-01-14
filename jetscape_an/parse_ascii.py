@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import Any, Generator, Iterator, Iterable, List, Optional, Sequence, Union, Tuple
 from typing_extensions import Literal
 
-import awkward1 as ak
+import awkward as ak
 import numpy as np
 
 
