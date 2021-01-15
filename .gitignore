@@ -6,6 +6,7 @@ test/
 trains
 output/
 *.dat
+*.out
 skim/
 # For compression tests
 compression/
