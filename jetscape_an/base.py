@@ -75,7 +75,7 @@ class LorentzVectorCommon:
         #effective_m2 = ak.max(np.array(0.0), self.mass_squared)
         effective_m2 = self.mass_squared
         # p+/p- = (p+ p-) / (p-)^2 = (kt^2+m^2)/(p-)^2
-        sign = -1 if self.pz > 0 else 1
+        sign = ak.where(self.pz > 0, -1, 1)
         return sign * 0.5 * np.log(
             (self.pt2 + effective_m2)/((self.E + np.abs(self.pz)) ** 2)
         )
@@ -174,7 +174,11 @@ def _pdg_id_to_mass(pdg_id: int) -> float:
     Returns:
         Mass in GeV.
     """
-    return particle.Particle.from_pdgid(pdg_id).mass / 1000
+    m = particle.Particle.from_pdgid(pdg_id).mass
+    # Apparently neutrino mass returns None...
+    if m is None:
+        m = 0
+    return m / 1000
 
 
 @nb.njit
@@ -193,8 +197,10 @@ def _determine_mass_from_PDG(events: ak.Array, builder: ak.ArrayBuilder, pdg_id_
     """
     for event in events:
         builder.begin_list()
-        for particle in event:
-            builder.append(pdg_id_to_mass[particle["particle_ID"]])
+        # The conditions for where we can iterate over the entire event vs only one column aren't yet
+        # clear to me. It has something to do with record arrays...
+        for particle_ID in event["particle_ID"]:
+            builder.append(pdg_id_to_mass[particle_ID])
         builder.end_list()
 
     return builder

@@ -94,8 +94,11 @@ def analyze(output_dir: Path, reference_data: Mapping[str, binned_data.BinnedDat
 
     n_events = 0
     for filename in output_dir.glob("*.parquet"):
-        arrays = ak.with_name(ak.from_parquet(filename), "LorentzVector")
+        #arrays = ak.with_name(ak.from_parquet(filename), "LorentzVector")
+        arrays = ak.from_parquet(filename)
         n_events += len(arrays)
+        arrays["m"] = base.determine_masses_from_events(arrays)
+        arrays = base.LorentzVectorArray.from_awkward_ptetaphim(arrays)
 
         # Particle selections
         # Drop neutrinos.
@@ -108,15 +111,15 @@ def analyze(output_dir: Path, reference_data: Mapping[str, binned_data.BinnedDat
         charged_pions_mask = base.build_PID_selection_mask(arrays, absolute_pids=[211])
         # Selection from STAR analysis.
         # NOTE: For now, we use eta since we don't want to construct the full object. Can do more later.
-        rapidity_mask = np.abs(arrays["eta"]) < 0.5
-        #rapidity_mask = np.abs(arrays.rapidity) < 0.5
+        #rapidity_mask = np.abs(arrays["eta"]) < 0.5
+        rapidity_mask = np.abs(arrays.rapidity) < 0.5
         charged_pions = arrays[charged_pions_mask & rapidity_mask]
 
         # Subtract holes from hadrons
         # Not relevant for pp, so we skip it.
 
         # Fill the hists.
-        hist_pt.fill(ak.flatten(charged_pions["pt"]))
+        hist_pt.fill(ak.flatten(charged_pions.pt))
 
     # Convert the histogram to a suitable form
     h_pt = binned_data.BinnedData.from_existing_data(hist_pt)
