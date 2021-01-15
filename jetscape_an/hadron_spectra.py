@@ -48,6 +48,9 @@ def load_reference_data() -> Dict[str, binned_data.BinnedData]:
     return_data = {}
     input_data_path = Path("inputData")
 
+    # STAR Reference Data:
+    # 200 GeV charged pions - https://inspirehep.net/literature/709170
+    # I average the measurements and add the statistical and systematic errors in quadrature
     with uproot.open(input_data_path / "STAR" / "HEPData-ins709170-v1-Table_2.root") as f:
         print(f.keys())
         data = binned_data.BinnedData.from_existing_data(f["Table 2"][f"Hist1D_y1"])
@@ -161,6 +164,7 @@ def analyze(output_dir: Path, reference_data: Mapping[str, binned_data.BinnedDat
 
 
 if __name__ == "__main__":
+    # Setup doesn't autodetect if it needs to run. Instead, it's up to the user.
     #setup()
     reference_data = load_reference_data()
     analyze(output_dir=Path("skim") / "events_per_chunk_10000", reference_data=reference_data)

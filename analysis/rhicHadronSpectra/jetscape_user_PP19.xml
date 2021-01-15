@@ -10,7 +10,7 @@
   <!-- Hard Process -->
   <Hard>
     <PythiaGun>
-      <pTHatMin>0</pTHatMin>
+      <pTHatMin>2</pTHatMin>
       <pTHatMax>-1</pTHatMax>
       <eCM>200</eCM>
     </PythiaGun>
