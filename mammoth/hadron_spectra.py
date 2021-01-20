@@ -93,8 +93,8 @@ def setup() -> None:
 
 def analyze(output_dir: Path, reference_data: Mapping[str, binned_data.BinnedData]) -> None:
     hist_pt = bh.Histogram(bh.axis.Regular(50, 0, 10), storage=bh.storage.Weight())
-    # Load array
 
+    # Load array
     n_events = 0
     for filename in output_dir.glob("*.parquet"):
         #arrays = ak.with_name(ak.from_parquet(filename), "LorentzVector")
@@ -153,7 +153,7 @@ def analyze(output_dir: Path, reference_data: Mapping[str, binned_data.BinnedDat
         )
 
     # Presentation
-    ax.set_xlabel(r"$p_{\text{T}}\:\text{GeV}/c$")
+    ax.set_xlabel(r"$p_{\text{T}}\:(\text{GeV}/c)$")
     ax.set_yscale("log")
     ax.legend(loc="upper right", frameon=False)
 
