@@ -8,7 +8,7 @@ import tarfile
 import timeit
 from pathlib import Path
 
-import awkward1 as ak
+import awkward as ak
 import matplotlib.pyplot as plt
 import numpy as np
 import pachyderm.plot

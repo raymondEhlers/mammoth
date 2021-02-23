@@ -6,7 +6,7 @@
 from typing import Sequence, Tuple
 from pathlib import Path
 
-import awkward1 as ak
+import awkward as ak
 import numba as nb
 import numpy as np
 import pyfastjet as fj
