@@ -475,15 +475,27 @@ def parse_to_parquet(base_output_filename: Union[Path, str], store_only_necessar
 
 if __name__ == "__main__":
     #read(filename="final_state_hadrons.dat", events_per_chunk=-1, base_output_filename="skim/jetscape.parquet")
-    for pt_hat_range in ["7_9", "20_25", "50_55", "100_110", "250_260", "500_550", "900_1000"]:
-        print(f"Processing pt hat range: {pt_hat_range}")
-        directory_name = "5020_PbPb_0-10_0R25_1R0_1"
-        filename = f"JetscapeHadronListBin{pt_hat_range}"
-        parse_to_parquet(
-            base_output_filename=f"skim/{filename}.parquet",
-            store_only_necessary_columns=True,
-            input_filename=f"../phys_paper/AAPaperData/{directory_name}/{filename}.out",
-            events_per_chunk=1000,
-            max_chunks=1,
-        )
+    #for pt_hat_range in ["7_9", "20_25", "50_55", "100_110", "250_260", "500_550", "900_1000"]:
+    #    print(f"Processing pt hat range: {pt_hat_range}")
+    #    directory_name = "5020_PbPb_0-10_0R25_1R0_1"
+    #    filename = f"JetscapeHadronListBin{pt_hat_range}"
+    #    parse_to_parquet(
+    #        base_output_filename=f"skim/{filename}.parquet",
+    #        store_only_necessary_columns=True,
+    #        input_filename=f"../phys_paper/AAPaperData/{directory_name}/{filename}.out",
+    #        events_per_chunk=1000,
+    #        max_chunks=1,
+    #    )
 
+    for sqrts in [200, 2760, 5020]:
+        for trigger in ["single_hard_trigger", "neutral_trigger"]:
+            for output_type in ["final_state_hadrons", "final_state_partons"]:
+                for model in ["lbt", "matter", "martini", "matter_lbt", "matter_martini"]:
+                    print(f"sqrts: {sqrts}, trigger: {trigger}, output_type: {output_type}, model: {model}")
+                    parse_to_parquet(
+                        base_output_filename=f"stat_compression/skylake_30/STAT/{model}/{sqrts}_{trigger}_{output_type}.parquet",
+                        store_only_necessary_columns=True,
+                        input_filename=f"stat_compression/skylake_30/STAT/{model}/final_state/{sqrts}_{trigger}_{output_type}.dat",
+                        events_per_chunk=1000,
+                        max_chunks=1,
+                    )
