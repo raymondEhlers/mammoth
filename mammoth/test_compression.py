@@ -13,7 +13,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pachyderm.plot
 
-from jetscape_an import parse_ascii
+from mammoth import parse_ascii
 
 
 pachyderm.plot.configure()

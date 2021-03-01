@@ -13,7 +13,7 @@ import awkward1 as ak
 import numpy as np
 import pandas as pd
 
-from jetscape_an import parse_ascii
+from mammoth import parse_ascii
 
 def test_read(filename: Union[str, Path], events_per_chunk: int, max_chunks: int = 1) -> None:
     # Validation

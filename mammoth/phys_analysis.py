@@ -12,7 +12,7 @@ import numpy as np
 import pyfastjet as fj
 from pachyderm import binned_data
 
-from jetscape_an import base
+from mammoth import base
 
 
 @nb.njit

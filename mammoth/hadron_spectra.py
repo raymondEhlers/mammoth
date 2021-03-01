@@ -17,7 +17,7 @@ import particle
 import uproot
 from pachyderm import binned_data
 
-from jetscape_an import base, parse_ascii
+from mammoth import base, parse_ascii
 
 
 pachyderm.plot.configure()
