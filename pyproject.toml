@@ -11,7 +11,8 @@ awkward = "^1.2rc2"
 uproot = "^4"
 numpy = "^1.20"
 pyarrow = "^3"
-#pyfastjet = {path = "../pyfastjet"}
+pyfastjet = {path = "external/pyfastjet"}
+pachyderm = {path = "external/pachyderm"}
 pandas = "^1.2"
 particle = "^0.14.0"
 numba = {version = "^0.52.0", python = ">=3.7,<3.9"}
