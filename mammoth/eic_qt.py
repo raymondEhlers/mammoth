@@ -12,7 +12,7 @@ import numba as nb
 import numpy as np
 import pyfastjet as fj
 import uproot
-from pachyderm import binned_data
+from pachyderm import binned_data, yaml
 
 from mammoth import base
 
@@ -78,18 +78,22 @@ def run(particles: ak.Array, hists: Mapping[str, bh.Histogram]) -> None:
     particles = particles[particles["status"] == 1]
     # Remove neutrinos.
     particles = particles[(np.abs(particles["particle_ID"]) != 12) & (np.abs(particles["particle_ID"]) != 14) & (np.abs(particles["particle_ID"]) != 16)]
-    # Add the masses based on the PDG code.
-    # First, determine all possible PDG codes, and then retrieve their masses for a lookup table.
-    all_particle_IDs = np.unique(ak.to_numpy(ak.flatten(particles["particle_ID"])))
 
-    particles["m"] = base.determine_masses_from_events(events=particles)
+    # Add mass for calculating four vectors (if needed).
+    # particles["m"] = base.determine_masses_from_events(events=particles)
     # Convert to the expected LorentzVector format
     #particles = base.LorentzVectorArray.from_awkward_ptetaphim(particles["pt"], particles["eta"], particles["phi"], particles["m"])
     #particles = base.LorentzVectorArray.from_awkward_ptetaphim(particles)
 
     # Require at least one electron.
-    at_least_one_electron = (ak.num(particles["particle_ID"] == 11, axis=1) > 1)
-    #particles = particles[at_least_one_electron]
+    at_least_one_electron = (ak.count_nonzero(particles["particle_ID"] == 11, axis=1) > 0)
+    particles = particles[at_least_one_electron]
+
+    # Find our electrons for comparison
+    electrons = particles[particles["particle_ID"] == 11]
+    leading_electrons = base.LorentzVectorArray.from_awkward_ptetaphie(
+        electrons[ak.argmax(electrons.pt, axis=1, keepdims=True)]
+    )
 
     # TODO: Cleanup everything below. It has a bunch of unneeded crap
 
@@ -123,8 +127,6 @@ def run(particles: ak.Array, hists: Mapping[str, bh.Histogram]) -> None:
     ## Eta selection
     #cms_charged_hadrons = cms_charged_hadrons[np.abs(cms_charged_hadrons.eta) < 1.0]
 
-    import IPython; IPython.embed()
-
     # Jet finding
     # Setup
     jet_R = 1.0
@@ -139,34 +141,49 @@ def run(particles: ak.Array, hists: Mapping[str, bh.Histogram]) -> None:
     jets = res.jets
     constituent_indices = res.constituent_indices
 
-    # Subtract holes from jet pt.
-    jets["pt_subtracted"] = _subtract_holes_from_jets_pt(
-        jets_pt=jets.pt, jets_eta=jets.eta, jets_phi=jets.phi,
-        particles_holes_pt=particles_holes.pt, particles_holes_eta=particles_holes.eta, particles_holes_phi=particles_holes.phi,
-        jet_R=jet_R, builder=ak.ArrayBuilder()
-    ).snapshot()
+    # Jet selection
+    jets = jets[(jets.eta > 1 + jet_R) & (jets.eta < 4 - jet_R)]
+    # No jet pt cut for now...
 
-    # Select jets
-    # ATLAS
-    atlas_jets = jets[np.abs(jets.rapidity) < 2.8]
-    # ALICE
-    alice_jets_eta_mask = np.abs(jets.eta) < 0.7 - jet_R
-    alice_jets = jets[alice_jets_eta_mask]
-    # Apply leading track cut (ie. charged hadron).
-    # Assuming R = 0.4
-    leading_track_cut_mask = _calculate_leading_track_cut_mask(
-        constituent_indices=constituent_indices[alice_jets_eta_mask],
-        particles_pt=particles_signal.pt,
-        particles_id=particles_signal.particle_ID,
-        leading_track_cut=7,
-        charged_particle_PIDs=nb.typed.List(_default_charged_hadron_PID),
-        builder=ak.ArrayBuilder(),
-    ).snapshot()
-    alice_jets = alice_jets[leading_track_cut_mask]
-    # CMS
-    cms_jets = jets[np.abs(jets.eta) < 2.0]
+    # Calculate qt
+    qt = np.sqrt((leading_electrons[:, np.newaxis].px + jets.px) ** 2 + (leading_electrons[:, np.newaxis].py + jets.py) ** 2)
 
-    import IPython; IPython.embed()
+    #import IPython; IPython.embed()
+
+    try:
+        hists["qt"].fill(ak.flatten(jets.pt, axis=None), ak.flatten(qt, axis=None))
+    except ValueError as e:
+        print(f"Womp womp: {e}")
+        import IPython; IPython.embed()
+
+    # # Subtract holes from jet pt.
+    # jets["pt_subtracted"] = _subtract_holes_from_jets_pt(
+    #     jets_pt=jets.pt, jets_eta=jets.eta, jets_phi=jets.phi,
+    #     particles_holes_pt=particles_holes.pt, particles_holes_eta=particles_holes.eta, particles_holes_phi=particles_holes.phi,
+    #     jet_R=jet_R, builder=ak.ArrayBuilder()
+    # ).snapshot()
+
+    # # Select jets
+    # # ATLAS
+    # atlas_jets = jets[np.abs(jets.rapidity) < 2.8]
+    # # ALICE
+    # alice_jets_eta_mask = np.abs(jets.eta) < 0.7 - jet_R
+    # alice_jets = jets[alice_jets_eta_mask]
+    # # Apply leading track cut (ie. charged hadron).
+    # # Assuming R = 0.4
+    # leading_track_cut_mask = _calculate_leading_track_cut_mask(
+    #     constituent_indices=constituent_indices[alice_jets_eta_mask],
+    #     particles_pt=particles_signal.pt,
+    #     particles_id=particles_signal.particle_ID,
+    #     leading_track_cut=7,
+    #     charged_particle_PIDs=nb.typed.List(_default_charged_hadron_PID),
+    #     builder=ak.ArrayBuilder(),
+    # ).snapshot()
+    # alice_jets = alice_jets[leading_track_cut_mask]
+    # # CMS
+    # cms_jets = jets[np.abs(jets.eta) < 2.0]
+
+    # import IPython; IPython.embed()
 
 
 def setup() -> Dict[str, bh.Histogram]:
@@ -178,12 +195,24 @@ def setup() -> Dict[str, bh.Histogram]:
 
 if __name__ == "__main__":
     # Setup
-    input_file = Path("/alf/data/rehlers/eic/pythia6/writeTree_1000000.root")
+    #input_file = Path("/alf/data/rehlers/eic/pythia6/writeTree_1000000.root")
+    input_file = Path("/Volumes/data/eic/writeTree_1000000.root")
     hists = setup()
 
-    for i, arrays in enumerate(uproot.iterate(f"{input_file}:tree", step_size="400 MB")):
+    #for i, arrays in enumerate(uproot.iterate(f"{input_file}:tree", step_size="200 MB")):
+    for i, arrays in enumerate(uproot.iterate(f"{input_file}:tree", step_size="100 MB"), start=1):
+        print(f"Processing iter {i}")
         # Drop event_ID so it doesn't mess with selections later.
         # It may not actually be included, but we remove it to be thorough.
         arrays = arrays[[k for k in ak.fields(arrays) if k != "event_ID"]]
         run(particles=arrays, hists=hists)
+
+    print("Done. Writing hist...")
+    # Write out...
+    y = yaml.yaml(modules_to_register=[binned_data])
+    h = binned_data.BinnedData.from_existing_data(hists["qt"])
+    with open("qt.yaml", "w") as f:
+        y.dump([h], f)
+
+    import IPython; IPython.embed()
 
