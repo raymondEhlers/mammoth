@@ -157,6 +157,24 @@ class LorentzVectorArray(ak.Array, LorentzVectorCommon):  # type: ignore
             with_name="LorentzVector",
         )
 
+    @staticmethod
+    def from_awkward_ptetaphie(arrays: ak.Array) -> ak.Array:
+        """ Create LorentzVector while maintaining other fields of interest.
+
+        """
+        # TODO: Make this more general, such it copies all of the rest of the fields.
+        return ak.zip(
+            {
+                "px": arrays["pt"] * np.cos(arrays["phi"]),
+                "py": arrays["pt"] * np.sin(arrays["phi"]),
+                "pz": arrays["pt"] * np.sinh(arrays["eta"]),
+                # magnitude of p = pt*cosh(eta)
+                "E": arrays["E"],
+                "status": arrays["status"],
+                "particle_ID": arrays["particle_ID"],
+            },
+            with_name="LorentzVector",
+        )
 
 # Register behavior
 ak.behavior["LorentzVector"] = LorentzVector
