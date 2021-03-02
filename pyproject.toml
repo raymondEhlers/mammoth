@@ -16,6 +16,7 @@ pachyderm = {path = "external/pachyderm"}
 pandas = "^1.2"
 particle = "^0.14.0"
 numba = {version = "^0.52.0", python = ">=3.7,<3.9"}
+hist = {version = "^2.1.0", extras = ["plot"]}
 
 [tool.poetry.dev-dependencies]
 flake8 = "^3.8.3"
