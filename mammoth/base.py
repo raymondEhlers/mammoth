@@ -41,6 +41,10 @@ class LorentzVectorCommon:
         return self.px ** 2 + self.py ** 2
 
     @property
+    def p(self):
+        return np.sqrt(self.pt2 + self.pz ** 2)
+
+    @property
     def eta(self):
         return np.arcsinh(self.pz / self.pt)
 
@@ -89,7 +93,7 @@ class LorentzVectorCommon:
 
     def delta_R(self: _T, other: _T):
         # TODO: Fully implement...
-        ...
+        raise ValueError("Not implemented yet...")
 
 
 class LorentzVector(ak.Record, LorentzVectorCommon):  # type: ignore
