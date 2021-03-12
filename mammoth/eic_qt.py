@@ -15,7 +15,6 @@ from pachyderm import binned_data, yaml
 
 from mammoth import base
 
-
 def run(event_properties: ak.Array,
         particles: ak.Array,
         jet_R: float,
@@ -29,6 +28,8 @@ def run(event_properties: ak.Array,
     particles = particles[particles["status"] == 1]
     # Remove neutrinos.
     particles = particles[(np.abs(particles["particle_ID"]) != 12) & (np.abs(particles["particle_ID"]) != 14) & (np.abs(particles["particle_ID"]) != 16)]
+    # To avoid anything that's too soft, require E of at least 50 MeV.
+    particles = particles[particles.E > 0.005]
 
     # Potentially only select charged hadrons...
     # Charged hadrons: Primary charged particles (w/ mean proper lifetime τ larger than 1 cm/c )
@@ -41,17 +42,36 @@ def run(event_properties: ak.Array,
     at_least_one_electron = (ak.count_nonzero(particles["particle_ID"] == 11, axis=1) > 0)
     particles = particles[at_least_one_electron]
     event_properties = event_properties[at_least_one_electron]
-    # q2 and x selection
-    min_q2_selection = event_properties["q2"] > min_q2
-    # x1 is the electron because it is the projectile.
-    x_selection = (event_properties["x1"] > x_limits[0]) & (event_properties["x2"] < x_limits[1])
-    particles = particles[min_q2_selection & x_selection]
-    event_properties = event_properties[min_q2_selection & x_selection]
+    # Q2 and x selections are made during generation.
+    ## q2 and x selection
+    #min_q2_selection = event_properties["q2"] > min_q2
+    ## x1 is the electron because it is the projectile.
+    #x_selection = (event_properties["x1"] > x_limits[0]) & (event_properties["x2"] < x_limits[1])
+    #particles = particles[min_q2_selection & x_selection]
+    #event_properties = event_properties[min_q2_selection & x_selection]
 
     # Find our electrons for comparison
-    electrons = particles[particles["particle_ID"] == 11]
+    electrons_mask = (particles["particle_ID"] == 11)
+    # Need to concretely select one of the variables for the mask to work properly.
+    electrons_pt = ak.mask(particles.pt, electrons_mask)
+    leading_electrons_mask = ak.argmax(electrons_pt, axis=1, keepdims=True)
     leading_electrons = base.LorentzVectorArray.from_awkward_ptetaphie(
-        electrons[ak.argmax(electrons.pt, axis=1, keepdims=True)]
+        #electrons[ak.argmax(electrons.pt, axis=1, keepdims=True)]
+        particles[leading_electrons_mask]
+    )
+
+    # We want to remove all of the leading electrons from our particles for jet finding.
+    # We have the leading electrons indices, but we need a way to remove them.
+    # We do this by keeping particles with a local_index that doesn't match the argmax from the electron.
+    # This can't possibility be the best way to do this, but it seems to work, so I'll just take it...
+    particles_without_leading_electron_mask = ak.firsts(
+        ak.local_index(particles.pt) != leading_electrons_mask[:, np.newaxis],
+        axis=-1
+    )
+    # There is nothing empty, so filling none just gets rid of the "?"
+    particles = ak.fill_none(
+        particles[particles_without_leading_electron_mask],
+        -99999,
     )
 
     # Jet finding
@@ -68,16 +88,22 @@ def run(event_properties: ak.Array,
     # Jet selection
     # Select forward jets.
     jets = jets[(jets.eta > jet_eta_limits[0] + jet_R) & (jets.eta < jet_eta_limits[1] - jet_R)]
-    # No jet pt cut for now...
+    # Take only the leading jet.
+    jets = ak.firsts(jets)
 
     # Calculate qt
     qt = np.sqrt((leading_electrons[:, np.newaxis].px + jets.px) ** 2 + (leading_electrons[:, np.newaxis].py + jets.py) ** 2)
-    # TODO: Does a jet pt cut matter here?
+
+    # Print the means out of curiosity. Saved in histograms below.
+    print(f"Mean Q2: {ak.mean(event_properties['q2'])}")
+    print(f"Mean x: {ak.mean(event_properties['x2'])}")
 
     try:
         hists["qt"].fill(ak.flatten(jets.pt, axis=None), ak.flatten(qt, axis=None))
         hists["qt_pt"].fill(ak.flatten(jets.p, axis=None), ak.flatten(qt / jets.pt, axis=None))
         hists["qt_pte"].fill(ak.flatten(jets.p, axis=None), ak.flatten(qt / leading_electrons[:, np.newaxis].pt, axis=None))
+        hists["q2"].fill(ak.flatten(jets.p, axis=None), ak.flatten(event_properties.q2, axis=None))
+        hists["x"].fill(ak.flatten(jets.p, axis=None), ak.flatten(event_properties.x2, axis=None))
     except ValueError as e:
         print(f"Womp womp: {e}")
         import IPython; IPython.embed()
@@ -88,6 +114,8 @@ def setup() -> Dict[str, bh.Histogram]:
     hists["qt"] = bh.Histogram(bh.axis.Regular(100, 0, 100), bh.axis.Regular(50, 0, 10), storage=bh.storage.Weight())
     hists["qt_pt"] = bh.Histogram(bh.axis.Regular(30, 0, 300), bh.axis.Regular(20, 0, 1), storage=bh.storage.Weight())
     hists["qt_pte"] = bh.Histogram(bh.axis.Regular(30, 0, 300), bh.axis.Regular(20, 0, 1), storage=bh.storage.Weight())
+    hists["q2"] = bh.Histogram(bh.axis.Regular(30, 0, 300), bh.axis.Regular(100, 0, 1000), storage=bh.storage.Weight())
+    hists["x"] = bh.Histogram(bh.axis.Regular(30, 0, 300), bh.axis.Regular(100, 0, 1), storage=bh.storage.Weight())
 
     return hists
 
@@ -99,10 +127,13 @@ if __name__ == "__main__":
     min_q2 = 100
     x_limits = (0.05, 0.8)
     #input_file = Path("/alf/data/rehlers/eic/pythia6/writeTree_1000000.root")
-    #input_file = Path("/Volumes/data/eic/writeTree_1000000.root")
-    input_file = Path("/Volumes/data/eic/writeTree_1e6.root")
+    input_file = Path("/Volumes/data/eic/writeTree_nevents_200_x_q2_index_0.root")
+    output_dir = Path("output") / "eic_qt_test"
+    output_dir.mkdir(parents=True, exist_ok=True)
+
     hists = setup()
 
+    results = []
     for i, arrays in enumerate(uproot.iterate(f"{input_file}:tree", step_size="100 MB"), start=1):
         print(f"Processing iter {i}")
         # Split into event level and particle level properties. This makes working with the data
@@ -110,19 +141,20 @@ if __name__ == "__main__":
         event_property_names = ["event_ID", "x1", "x2", "q2"]
         event_properties = arrays[[k for k in ak.fields(arrays) if k in event_property_names]]
         particles = arrays[[k for k in ak.fields(arrays) if k not in event_property_names]]
-        run(
-            event_properties=event_properties,
-            particles=particles,
-            jet_R=jet_R,
-            jet_eta_limits=jet_eta_limits,
-            min_q2=min_q2,
-            x_limits=x_limits,
-            hists=hists
+        results.append(
+            run(
+                event_properties=event_properties,
+                particles=particles,
+                jet_R=jet_R,
+                jet_eta_limits=jet_eta_limits,
+                min_q2=min_q2,
+                x_limits=x_limits,
+                hists=hists
+            )
         )
 
     print("Done. Writing hist...")
     # Write out...
-    output_dir = Path("output") / "eic_qt"
     y = yaml.yaml(modules_to_register=[binned_data])
     #h = binned_data.BinnedData.from_existing_data(hists["qt"])
     with open(output_dir / "qt.yaml", "w") as f:

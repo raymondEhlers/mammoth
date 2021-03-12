@@ -250,10 +250,10 @@ def plot_qt_pt_comparison(
 if __name__ == "__main__":
     jet_R = 0.7
     eta_limits = (1.1, 3.5)
-    min_q2 = 100
+    min_q2 = 300
     x_limits = (0.05, 0.8)
     base_plot_label = _base_plot_label(jet_R=jet_R, eta_limits=eta_limits, min_q2=min_q2, x_limits=x_limits)
-    output_dir = Path("output") / "eic_qt"
+    output_dir = Path("output") / "eic_qt_test"
     output_dir.mkdir(parents=True, exist_ok=True)
 
     y = yaml.yaml(modules_to_register=[binned_data])
