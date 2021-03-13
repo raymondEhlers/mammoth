@@ -252,6 +252,7 @@ if __name__ == "__main__":
     eta_limits = (1.1, 3.5)
     min_q2 = 300
     x_limits = (0.05, 0.8)
+    p_ranges = [(100, 150), (150, 200), (200, 250)]
     base_plot_label = _base_plot_label(jet_R=jet_R, eta_limits=eta_limits, min_q2=min_q2, x_limits=x_limits)
     output_dir = Path("output") / "eic_qt_test"
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -259,6 +260,15 @@ if __name__ == "__main__":
     y = yaml.yaml(modules_to_register=[binned_data])
     with open(output_dir / "qt.yaml", "r") as f:
         hists = y.load(f)
+
+    x_mean = {}
+    Q2_mean = {}
+    for p_range in p_ranges:
+        x_mean[p_range] = hists["x"].to_boost_histogram()[bh.loc(p_range[0]):bh.loc(p_range[1]):bh.sum].value
+        Q2_mean[p_range] = hists["q2"].to_boost_histogram()[bh.loc(p_range[0]):bh.loc(p_range[1]):bh.sum].value
+
+    import IPython; IPython.embed()
+
     print("Plotting qt")
     plot_qt(
         hist=hists["qt"],

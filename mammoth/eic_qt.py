@@ -22,6 +22,10 @@ def run(event_properties: ak.Array,
         min_q2: float,
         x_limits: Tuple[float, float],
         hists: Mapping[str, bh.Histogram]) -> None:
+    # The outgoing parton always seems to be in index 7 (pythia index #8)
+    # Need to be retrieved immediately because it will be cut in the "status" cut.
+    outgoing_partons = particles[:, 7]
+
     # Particle setup and selection
     # Select only final state particles, which according to AliGenPythiaPlus, are 1. Note that this excludes some semi-stable
     # particles, but we don't have that info on hand, and I don't think this should have a huge impact.
@@ -41,6 +45,7 @@ def run(event_properties: ak.Array,
     # Require at least one electron.
     at_least_one_electron = (ak.count_nonzero(particles["particle_ID"] == 11, axis=1) > 0)
     particles = particles[at_least_one_electron]
+    outgoing_partons = outgoing_partons[at_least_one_electron]
     event_properties = event_properties[at_least_one_electron]
     # Q2 and x selections are made during generation.
     ## q2 and x selection
@@ -49,6 +54,9 @@ def run(event_properties: ak.Array,
     #x_selection = (event_properties["x1"] > x_limits[0]) & (event_properties["x2"] < x_limits[1])
     #particles = particles[min_q2_selection & x_selection]
     #event_properties = event_properties[min_q2_selection & x_selection]
+
+    # Convert the outgoing partons to LorentzVectors.
+    outgoing_partons = base.LorentzVectorArray.from_awkward_ptetaphie(outgoing_partons)
 
     # Find our electrons for comparison
     electrons_mask = (particles["particle_ID"] == 11)
@@ -100,10 +108,11 @@ def run(event_properties: ak.Array,
 
     try:
         hists["qt"].fill(ak.flatten(jets.pt, axis=None), ak.flatten(qt, axis=None))
-        hists["qt_pt"].fill(ak.flatten(jets.p, axis=None), ak.flatten(qt / jets.pt, axis=None))
-        hists["qt_pte"].fill(ak.flatten(jets.p, axis=None), ak.flatten(qt / leading_electrons[:, np.newaxis].pt, axis=None))
-        hists["q2"].fill(ak.flatten(jets.p, axis=None), ak.flatten(event_properties.q2, axis=None))
-        hists["x"].fill(ak.flatten(jets.p, axis=None), ak.flatten(event_properties.x2, axis=None))
+        hists["qt_pt_jet"].fill(ak.flatten(jets.p, axis=None), ak.flatten(qt / jets.pt, axis=None))
+        hists["qt_pt_electron"].fill(ak.flatten(jets.p, axis=None), ak.flatten(qt / leading_electrons[:, np.newaxis].pt, axis=None))
+        hists["qt_pt_parton"].fill(ak.flatten(jets.p, axis=None), ak.flatten(qt / outgoing_partons[:, np.newaxis].pt, axis=None))
+        hists["q2"].fill(ak.flatten(jets.p, axis=None), sample=ak.flatten(event_properties.q2, axis=None))
+        hists["x"].fill(ak.flatten(jets.p, axis=None), sample=ak.flatten(event_properties.x2, axis=None))
     except ValueError as e:
         print(f"Womp womp: {e}")
         import IPython; IPython.embed()
@@ -112,10 +121,13 @@ def run(event_properties: ak.Array,
 def setup() -> Dict[str, bh.Histogram]:
     hists = {}
     hists["qt"] = bh.Histogram(bh.axis.Regular(100, 0, 100), bh.axis.Regular(50, 0, 10), storage=bh.storage.Weight())
-    hists["qt_pt"] = bh.Histogram(bh.axis.Regular(30, 0, 300), bh.axis.Regular(20, 0, 1), storage=bh.storage.Weight())
-    hists["qt_pte"] = bh.Histogram(bh.axis.Regular(30, 0, 300), bh.axis.Regular(20, 0, 1), storage=bh.storage.Weight())
-    hists["q2"] = bh.Histogram(bh.axis.Regular(30, 0, 300), bh.axis.Regular(100, 0, 1000), storage=bh.storage.Weight())
-    hists["x"] = bh.Histogram(bh.axis.Regular(30, 0, 300), bh.axis.Regular(100, 0, 1), storage=bh.storage.Weight())
+    hists["qt_pt_jet"] = bh.Histogram(bh.axis.Regular(30, 0, 300), bh.axis.Regular(20, 0, 1), storage=bh.storage.Weight())
+    hists["qt_pt_electron"] = bh.Histogram(bh.axis.Regular(30, 0, 300), bh.axis.Regular(20, 0, 1), storage=bh.storage.Weight())
+    hists["qt_pt_parton"] = bh.Histogram(bh.axis.Regular(30, 0, 300), bh.axis.Regular(20, 0, 1), storage=bh.storage.Weight())
+    #hists["q2"] = bh.Histogram(bh.axis.Regular(30, 0, 300), bh.axis.Regular(100, 0, 1000), storage=bh.storage.Weight())
+    #hists["x"] = bh.Histogram(bh.axis.Regular(30, 0, 300), bh.axis.Regular(100, 0, 1), storage=bh.storage.Weight())
+    hists["q2"] = bh.Histogram(bh.axis.Regular(6, 0, 300), storage=bh.storage.WeightedMean())
+    hists["x"] = bh.Histogram(bh.axis.Regular(6, 0, 300), storage=bh.storage.WeightedMean())
 
     return hists
 
