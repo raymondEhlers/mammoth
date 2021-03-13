@@ -19,7 +19,7 @@ def run(event_properties: ak.Array,
         particles: ak.Array,
         jet_R: float,
         jet_eta_limits: Tuple[float, float],
-        min_q2: float,
+        min_Q2: float,
         x_limits: Tuple[float, float],
         hists: Mapping[str, bh.Histogram]) -> None:
     # The outgoing parton always seems to be in index 7 (pythia index #8)
@@ -49,11 +49,11 @@ def run(event_properties: ak.Array,
     event_properties = event_properties[at_least_one_electron]
     # Q2 and x selections are made during generation.
     ## q2 and x selection
-    #min_q2_selection = event_properties["q2"] > min_q2
+    #min_Q2_selection = event_properties["q2"] > min_Q2
     ## x1 is the electron because it is the projectile.
     #x_selection = (event_properties["x1"] > x_limits[0]) & (event_properties["x2"] < x_limits[1])
-    #particles = particles[min_q2_selection & x_selection]
-    #event_properties = event_properties[min_q2_selection & x_selection]
+    #particles = particles[min_Q2_selection & x_selection]
+    #event_properties = event_properties[min_Q2_selection & x_selection]
 
     # Convert the outgoing partons to LorentzVectors.
     outgoing_partons = base.LorentzVectorArray.from_awkward_ptetaphie(outgoing_partons)
@@ -76,7 +76,7 @@ def run(event_properties: ak.Array,
         ak.local_index(particles.pt) != leading_electrons_mask[:, np.newaxis],
         axis=-1
     )
-    # There is nothing empty, so filling none just gets rid of the "?"
+    # There is nothing empty, so filling none just to get rid of the "?"
     particles = ak.fill_none(
         particles[particles_without_leading_electron_mask],
         -99999,
@@ -101,6 +101,11 @@ def run(event_properties: ak.Array,
 
     # Calculate qt
     qt = np.sqrt((leading_electrons[:, np.newaxis].px + jets.px) ** 2 + (leading_electrons[:, np.newaxis].py + jets.py) ** 2)
+
+    # NOTE: A small number of events won't have jets in the acceptance. So we need to make sure the
+    #       event level properties match. Since qt uses the jets explicitly, it will pick this up naturally.
+    #       The outgoing_partons also broadcats with qt, so it doesn't need any modifications here.
+    event_properties = event_properties[~ak.is_none(jets)]
 
     # Print the means out of curiosity. Saved in histograms below.
     print(f"Mean Q2: {ak.mean(event_properties['q2'])}")
@@ -136,11 +141,16 @@ if __name__ == "__main__":
     # Setup
     jet_R = 0.7
     jet_eta_limits = (1.1, 3.5)
-    min_q2 = 100
+    # As of 13 March 2021, we don't set the Q2 and x limits here. Instead, we set them in the simulation.
+    # It appears to be much more efficient that way.
+    min_Q2 = 100
     x_limits = (0.05, 0.8)
     #input_file = Path("/alf/data/rehlers/eic/pythia6/writeTree_1000000.root")
-    input_file = Path("/Volumes/data/eic/writeTree_nevents_200_x_q2_index_0.root")
-    output_dir = Path("output") / "eic_qt_test"
+    #input_file = Path("/Volumes/data/eic/prod/writeTree_nevents_200_x_q2_index_0.root")
+    #input_file = Path("/Volumes/data/eic/prod/writeTree_nevents_*_p_trigger_*_x_0.1_1_q2_100_index_*.root")
+    #output_dir = Path("output") / "eic_qt_test"
+    input_file = Path("/Volumes/data/eic/prod/writeTree_nevents_*_p_trigger_*_x_0.1_1_q2_*_index_*.root")
+    output_dir = Path("output") / "eic_qt_test_all_q2_cuts"
     output_dir.mkdir(parents=True, exist_ok=True)
 
     hists = setup()
@@ -159,18 +169,30 @@ if __name__ == "__main__":
                 particles=particles,
                 jet_R=jet_R,
                 jet_eta_limits=jet_eta_limits,
-                min_q2=min_q2,
+                min_Q2=min_Q2,
                 x_limits=x_limits,
                 hists=hists
             )
         )
 
-    print("Done. Writing hist...")
+    # Do some projections here to ensure that we get them right. We won't get them right later
+    # because we convert the boost histogram type implicitly when converting to binned_data.
+    means = {}
+    p_ranges = [(100, 150), (150, 200), (200, 250), (100, 250), (0, 300)]
+    for p_range in p_ranges:
+        means[p_range] = {
+            "x": hists["x"][bh.loc(p_range[0]):bh.loc(p_range[1]):bh.sum].value,
+            "Q2": hists["q2"][bh.loc(p_range[0]):bh.loc(p_range[1]):bh.sum].value,
+        }
+
+    print("Done. Writing hist + info...")
     # Write out...
     y = yaml.yaml(modules_to_register=[binned_data])
     #h = binned_data.BinnedData.from_existing_data(hists["qt"])
     with open(output_dir / "qt.yaml", "w") as f:
-        y.dump({k: binned_data.BinnedData.from_existing_data(v) for k, v in hists.items()}, f)
+        output = {k: binned_data.BinnedData.from_existing_data(v) for k, v in hists.items()}
+        output["means"] = means
+        y.dump(output, f)
 
     import IPython; IPython.embed()
 
