@@ -4,7 +4,7 @@
 """
 
 from pathlib import Path
-from typing import Mapping, Sequence, Tuple
+from typing import Mapping, Sequence, Tuple, Union
 
 import boost_histogram as bh
 import mplhep
@@ -15,6 +15,7 @@ import numpy as np
 import pachyderm.plot
 import seaborn as sns
 from pachyderm import binned_data, yaml
+from scipy import optimize
 
 
 pachyderm.plot.configure()
@@ -25,6 +26,24 @@ matplotlib.rcParams["xtick.top"] = True
 matplotlib.rcParams["xtick.minor.top"] = True
 matplotlib.rcParams["ytick.right"] = True
 matplotlib.rcParams["ytick.minor.right"] = True
+
+
+def _gaussian(x: Union[np.ndarray, float], mean: float, sigma: float, amplitude: float) -> Union[np.ndarray, float]:
+    r"""Extended gaussian.
+
+    .. math::
+
+        f = A / \sqrt{2 * \pi * \sigma^{2}} * \exp{-\frac{(x - \mu)^{2}}{(2 * \sigma^{2}}}
+
+    Args:
+        x: Value(s) where the gaussian should be evaluated.
+        mean: Mean of the gaussian distribution.
+        sigma: Width of the gaussian distribution.
+        amplitude: Amplitude of the gaussian
+    Returns:
+        Calculated gaussian value(s).
+    """
+    return amplitude / np.sqrt(2 * np.pi * np.square(sigma)) * np.exp(-1.0 / 2.0 * np.square((x - mean) / sigma))  # type: ignore
 
 
 def _base_plot_label(jet_R: float, eta_limits: Tuple[float, float],
@@ -136,50 +155,101 @@ def plot_qt_pt_as_function_of_p(hist: binned_data.BinnedData,
         hists[p_range] /= np.sum(hists[p_range].values)
         #hists[p_range] /= hists[p_range].axes[0].bin_widths
 
-    fig, ax = plt.subplots(figsize=(12, 9))
+    for do_fit in [False, True]:
+        fig, ax = plt.subplots(figsize=(12, 9))
+        for p_range, h in hists.items():
+            # data = ax.errorbar(
+            #     h.axes[0].bin_centers,
+            #     h.values,
+            #     xerr=h.axes[0].bin_widths,
+            #     yerr=h.errors,
+            #     marker=".",
+            #     #markersize=11,
+            #     linestyle="",
+            #     zorder=10,
+            #     label=fr"${pt_range[0]} < p_{{\text{{T}}}} < {pt_range[1]}\:\text{{GeV}}/c$",
+            # )
+            p = mplhep.histplot(
+                H=h.values,
+                bins=h.axes[0].bin_edges,
+                yerr=h.errors,
+                label=fr"${p_range[0]} < |\vec{{p}}| < {p_range[1]}\:\text{{GeV}}/c$",
+                linewidth=2,
+                ax=ax,
+            )
 
-    for p_range, h in hists.items():
-        # data = ax.errorbar(
-        #     h.axes[0].bin_centers,
-        #     h.values,
-        #     xerr=h.axes[0].bin_widths,
-        #     yerr=h.errors,
-        #     marker=".",
-        #     #markersize=11,
-        #     linestyle="",
-        #     zorder=10,
-        #     label=fr"${pt_range[0]} < p_{{\text{{T}}}} < {pt_range[1]}\:\text{{GeV}}/c$",
-        # )
-        mplhep.histplot(
-            H=h.values,
-            bins=h.axes[0].bin_edges,
-            yerr=h.errors,
-            label=fr"${p_range[0]} < |\vec{{p}}| < {p_range[1]}\:\text{{GeV}}/c$",
-            linewidth=2,
-            ax=ax,
+            # Fit and plot
+            if do_fit:
+                print(f"p_range: {p_range}")
+                if True:
+                    fixed_gaussian_mean = 0.0
+                    popt, _ = optimize.curve_fit(
+                        lambda x, w, a: _gaussian(x, fixed_gaussian_mean, w, a), h.axes[0].bin_centers, h.values,
+                        p0 = [0.1, 1],
+                        maxfev = 2000,
+                    )
+                    print(f"Mean: {fixed_gaussian_mean}, Width: {popt[0]:.03g}, amplitude: {popt[1]:.03g}")
+                    ax.plot(
+                        #h.axes[0].bin_centers,
+                        #_gaussian(h.axes[0].bin_centers, 0.025, *popt),
+                        np.linspace(-0.5, 0.5, 100),
+                        _gaussian(np.linspace(-0.5, 0.5, 100), fixed_gaussian_mean, *popt),
+                        linestyle="--",
+                        linewidth=2,
+                        color=p[0].step.get_color(),
+                    )
+                else:
+                    popt, _ = optimize.curve_fit(
+                        _gaussian, h.axes[0].bin_centers, h.values,
+                        p0 = [0.0, 0.1, 0.1],
+                        #p0 = [0.0, 0.1],
+                        maxfev = 50000,
+                    )
+                    #print(f"Mean: {popt[0]}, Width: {popt[1]}, amplitude: {popt[2]}")
+                    print(f"Mean: {popt[0]:.03g}, Width: {popt[1]:.03g}")
+                    ax.plot(
+                        #h.axes[0].bin_centers,
+                        #_gaussian(h.axes[0].bin_centers, *popt),
+                        np.linspace(-0.5, 0.5, 100),
+                        _gaussian(np.linspace(-0.5, 0.5, 100), *popt),
+                        linestyle="--",
+                        linewidth=2,
+                        color=p[0].step.get_color(),
+                    )
+
+                # RMS from ROOT
+                try:
+                    import ROOT
+                    h_ROOT = h.to_ROOT()
+                    #fu = ROOT.TF1("fu", "[2] * TMath::Gaus(x,[0],[1])")
+                    #fu.SetParameters(0, 0.1, 0.1)
+                    #res = h_ROOT.Fit("fu")
+                    #import IPython; IPython.embed()
+                    print(f"RMS from ROOT: {h_ROOT.GetRMS():.03g}, Std Dev: {h_ROOT.GetStdDev():.03g}")
+                except ImportError:
+                    pass
+
+        text = base_plot_label
+        text += "\n" + _mean_values_label(mean_x = means[full_p_range]["x"], mean_Q2 = means[full_p_range]["Q2"])
+        ax.set_xlabel(r"$q_{\text{T}} / p_{\text{T}}^{\text{" + label + r"}}\:(\text{GeV}/c)$")
+        ax.set_ylabel(r"$1/N_{\text{" + label + r"}}\:\text{d}N/\text{d}(q_{\text{T}}/p_{\text{T}}^{\text{" + label + r"}})\:(\text{GeV}/c)^{-1}$")
+        ax.legend(
+            loc="upper right",
+            frameon=False,
+        )
+        ax.text(
+            0.68, 0.97,
+            text,
+            horizontalalignment="right",
+            verticalalignment="top",
+            multialignment="right",
+            transform=ax.transAxes,
+            fontsize=18,
         )
 
-    text = base_plot_label
-    text += "\n" + _mean_values_label(mean_x = means[full_p_range]["x"], mean_Q2 = means[full_p_range]["Q2"])
-    ax.set_xlabel(r"$q_{\text{T}} / p_{\text{T}}^{\text{" + label + r"}}\:(\text{GeV}/c)$")
-    ax.set_ylabel(r"$1/N_{\text{" + label + r"}}\:\text{d}N/\text{d}(q_{\text{T}}/p_{\text{T}}^{\text{" + label + r"}})\:(\text{GeV}/c)^{-1}$")
-    ax.legend(
-        loc="upper right",
-        frameon=False,
-    )
-    ax.text(
-        0.68, 0.97,
-        text,
-        horizontalalignment="right",
-        verticalalignment="top",
-        multialignment="right",
-        transform=ax.transAxes,
-        fontsize=18,
-    )
-
-    fig.tight_layout()
-    fig.savefig(output_dir / f"qt_pt_{label}_pythia6_ep.pdf")
-    plt.close(fig)
+        fig.tight_layout()
+        fig.savefig(output_dir / f"qt_pt_{label}_{'fit_' if do_fit else ''}pythia6_ep.pdf")
+        plt.close(fig)
 
     return True
 
