@@ -125,10 +125,10 @@ def run(event_properties: ak.Array,
 
 def setup() -> Dict[str, bh.Histogram]:
     hists = {}
-    hists["qt"] = bh.Histogram(bh.axis.Regular(100, 0, 100), bh.axis.Regular(50, 0, 10), storage=bh.storage.Weight())
-    hists["qt_pt_jet"] = bh.Histogram(bh.axis.Regular(30, 0, 300), bh.axis.Regular(20, 0, 1), storage=bh.storage.Weight())
-    hists["qt_pt_electron"] = bh.Histogram(bh.axis.Regular(30, 0, 300), bh.axis.Regular(20, 0, 1), storage=bh.storage.Weight())
-    hists["qt_pt_parton"] = bh.Histogram(bh.axis.Regular(30, 0, 300), bh.axis.Regular(20, 0, 1), storage=bh.storage.Weight())
+    hists["qt"] = bh.Histogram(bh.axis.Regular(100, 0, 100), bh.axis.Regular(200, 0, 10), storage=bh.storage.Weight())
+    hists["qt_pt_jet"] = bh.Histogram(bh.axis.Regular(30, 0, 300), bh.axis.Regular(100, 0, 1), storage=bh.storage.Weight())
+    hists["qt_pt_electron"] = bh.Histogram(bh.axis.Regular(30, 0, 300), bh.axis.Regular(100, 0, 1), storage=bh.storage.Weight())
+    hists["qt_pt_parton"] = bh.Histogram(bh.axis.Regular(30, 0, 300), bh.axis.Regular(100, 0, 1), storage=bh.storage.Weight())
     #hists["q2"] = bh.Histogram(bh.axis.Regular(30, 0, 300), bh.axis.Regular(100, 0, 1000), storage=bh.storage.Weight())
     #hists["x"] = bh.Histogram(bh.axis.Regular(30, 0, 300), bh.axis.Regular(100, 0, 1), storage=bh.storage.Weight())
     hists["q2"] = bh.Histogram(bh.axis.Regular(6, 0, 300), storage=bh.storage.WeightedMean())
@@ -150,7 +150,7 @@ if __name__ == "__main__":
     #input_file = Path("/Volumes/data/eic/prod/writeTree_nevents_*_p_trigger_*_x_0.1_1_q2_100_index_*.root")
     #output_dir = Path("output") / "eic_qt_test"
     input_file = Path("/Volumes/data/eic/prod/writeTree_nevents_*_p_trigger_*_x_0.1_1_q2_*_index_*.root")
-    output_dir = Path("output") / "eic_qt_test_all_q2_cuts"
+    output_dir = Path("output") / "eic_qt_all_q2_cuts_narrow_bins"
     output_dir.mkdir(parents=True, exist_ok=True)
 
     hists = setup()

@@ -77,7 +77,7 @@ def plot_qt(hist: binned_data.BinnedData,
     pt_ranges = [(10, 15), (20, 25), (30, 40)]
     for pt_range in pt_ranges:
         hists[pt_range] = binned_data.BinnedData.from_existing_data(
-            bh_hist[bh.loc(pt_range[0]):bh.loc(pt_range[1]):bh.sum, :bh.loc(max_qt)]
+            bh_hist[bh.loc(pt_range[0]):bh.loc(pt_range[1]):bh.sum, :: bh.rebin(2)]
         )
 
         # Normalize
@@ -108,20 +108,27 @@ def plot_qt(hist: binned_data.BinnedData,
 
     text = base_plot_label
     text += "\n" + _mean_values_label(mean_x = means[p_range_for_mean_label]["x"], mean_Q2 = means[p_range_for_mean_label]["Q2"])
-    ax.set_xlabel(r"$q_{\text{T}}\:(\text{GeV}/c)$")
-    ax.set_ylabel(r"$1/N_{\text{jets}}\:\text{d}N/\text{d}q_{\text{T}}\:(\text{GeV}/c)^{-1}$")
+    ax.set_xlabel(r"$q_{\text{T}}\:(\text{GeV}/c)$", fontsize=20)
+    ax.set_xlim([-0.25, max_qt * 1.05])
+    ax.set_ylabel(r"$1/N_{\text{jets}}\:\text{d}N/\text{d}q_{\text{T}}\:(\text{GeV}/c)^{-1}$", fontsize=20)
     ax.legend(
         loc="upper right",
         frameon=False,
+        bbox_to_anchor=(0.97, 0.765),
+        # If we specify an anchor, we want to reduce an additional padding
+        # to ensure that we have accurate placement.
+        borderaxespad=0,
+        borderpad=0,
+        fontsize=20,
     )
     ax.text(
-        0.68, 0.97,
+        0.97, 0.97,
         text,
         horizontalalignment="right",
         verticalalignment="top",
         multialignment="right",
         transform=ax.transAxes,
-        fontsize=18,
+        fontsize=20,
     )
 
     fig.tight_layout()
@@ -136,6 +143,7 @@ def plot_qt_pt_as_function_of_p(hist: binned_data.BinnedData,
                                 base_plot_label: str,
                                 means: Mapping[Tuple[float, float], Mapping[str, float]],
                                 output_dir: Path,
+                                debug_fit: bool = False,
                                 ) -> bool:
     # Setup
     bh_hist = hist.to_boost_histogram()
@@ -157,31 +165,13 @@ def plot_qt_pt_as_function_of_p(hist: binned_data.BinnedData,
 
     for do_fit in [False, True]:
         fig, ax = plt.subplots(figsize=(12, 9))
-        for p_range, h in hists.items():
-            # data = ax.errorbar(
-            #     h.axes[0].bin_centers,
-            #     h.values,
-            #     xerr=h.axes[0].bin_widths,
-            #     yerr=h.errors,
-            #     marker=".",
-            #     #markersize=11,
-            #     linestyle="",
-            #     zorder=10,
-            #     label=fr"${pt_range[0]} < p_{{\text{{T}}}} < {pt_range[1]}\:\text{{GeV}}/c$",
-            # )
-            p = mplhep.histplot(
-                H=h.values,
-                bins=h.axes[0].bin_edges,
-                yerr=h.errors,
-                label=fr"${p_range[0]} < |\vec{{p}}| < {p_range[1]}\:\text{{GeV}}/c$",
-                linewidth=2,
-                ax=ax,
-            )
-
+        for i, (p_range, h) in enumerate(hists.items()):
             # Fit and plot
+            width = -100
             if do_fit:
                 print(f"p_range: {p_range}")
-                if True:
+                x_linspace_min_for_plotting = -0.2 if debug_fit else 0.0
+                if False:
                     fixed_gaussian_mean = 0.0
                     popt, _ = optimize.curve_fit(
                         lambda x, w, a: _gaussian(x, fixed_gaussian_mean, w, a), h.axes[0].bin_centers, h.values,
@@ -189,33 +179,42 @@ def plot_qt_pt_as_function_of_p(hist: binned_data.BinnedData,
                         maxfev = 2000,
                     )
                     print(f"Mean: {fixed_gaussian_mean}, Width: {popt[0]:.03g}, amplitude: {popt[1]:.03g}")
-                    ax.plot(
+                    p = ax.plot(
                         #h.axes[0].bin_centers,
                         #_gaussian(h.axes[0].bin_centers, 0.025, *popt),
-                        np.linspace(-0.5, 0.5, 100),
-                        _gaussian(np.linspace(-0.5, 0.5, 100), fixed_gaussian_mean, *popt),
+                        np.linspace(x_linspace_min_for_plotting, 0.5, 100),
+                        _gaussian(np.linspace(x_linspace_min_for_plotting, 0.5, 100), fixed_gaussian_mean, *popt),
                         linestyle="--",
                         linewidth=2,
-                        color=p[0].step.get_color(),
+                        # color=p[0].step.get_color(),
+                        # We want to be on top, even if plotted first.
+                        zorder=10,
                     )
+                    # Store for plotting
+                    width = popt[0]
                 else:
+                    initial_mean = [0.05, 0.025, 0.01]
                     popt, _ = optimize.curve_fit(
                         _gaussian, h.axes[0].bin_centers, h.values,
-                        p0 = [0.0, 0.1, 0.1],
+                        p0 = [initial_mean[i], 0.05, 0.1],
                         #p0 = [0.0, 0.1],
                         maxfev = 50000,
                     )
                     #print(f"Mean: {popt[0]}, Width: {popt[1]}, amplitude: {popt[2]}")
                     print(f"Mean: {popt[0]:.03g}, Width: {popt[1]:.03g}")
-                    ax.plot(
+                    p = ax.plot(
                         #h.axes[0].bin_centers,
                         #_gaussian(h.axes[0].bin_centers, *popt),
-                        np.linspace(-0.5, 0.5, 100),
-                        _gaussian(np.linspace(-0.5, 0.5, 100), *popt),
+                        np.linspace(x_linspace_min_for_plotting, 0.5, 100),
+                        _gaussian(np.linspace(x_linspace_min_for_plotting, 0.5, 100), *popt),
                         linestyle="--",
                         linewidth=2,
-                        color=p[0].step.get_color(),
+                        # color=p[0].step.get_color(),
+                        # We want to be on top, even if plotted first.
+                        zorder=10,
                     )
+                    # Store for plotting
+                    width = popt[1]
 
                 # RMS from ROOT
                 try:
@@ -229,22 +228,52 @@ def plot_qt_pt_as_function_of_p(hist: binned_data.BinnedData,
                 except ImportError:
                     pass
 
+            kwargs = {}
+            plot_label = fr"${p_range[0]} < |\vec{{p}}| < {p_range[1]}\:\text{{GeV}}/c$"
+            if do_fit:
+                plot_label += fr", $\sigma = {width:.02g}$"
+                kwargs = {
+                    "color": p[0].get_color()
+                }
+            mplhep.histplot(
+                H=h.values,
+                bins=h.axes[0].bin_edges,
+                yerr=h.errors,
+                label=plot_label,
+                linewidth=2,
+                ax=ax,
+                **kwargs,
+            )
+
         text = base_plot_label
         text += "\n" + _mean_values_label(mean_x = means[full_p_range]["x"], mean_Q2 = means[full_p_range]["Q2"])
-        ax.set_xlabel(r"$q_{\text{T}} / p_{\text{T}}^{\text{" + label + r"}}\:(\text{GeV}/c)$")
-        ax.set_ylabel(r"$1/N_{\text{" + label + r"}}\:\text{d}N/\text{d}(q_{\text{T}}/p_{\text{T}}^{\text{" + label + r"}})\:(\text{GeV}/c)^{-1}$")
+        if do_fit:
+            text += "\n" + r"Gaussian fit"
+        ax.set_xlabel(r"$q_{\text{T}} / p_{\text{T}}^{\text{" + label + r"}}$", fontsize=20)
+        ax.set_ylabel(r"$1/N_{\text{" + label + r"}}\:\text{d}N/\text{d}(q_{\text{T}}/p_{\text{T}}^{\text{" + label + r"}})$", fontsize=20)
+        # Focus on range of interest.
+        min_x = -0.025
+        if debug_fit:
+            min_x = -0.1
+        ax.set_xlim([min_x, 0.4])
         ax.legend(
             loc="upper right",
             frameon=False,
+            bbox_to_anchor=(0.97, 0.765),
+            # If we specify an anchor, we want to reduce an additional padding
+            # to ensure that we have accurate placement.
+            borderaxespad=0,
+            borderpad=0,
+            fontsize=20,
         )
         ax.text(
-            0.68, 0.97,
+            0.97, 0.97,
             text,
             horizontalalignment="right",
             verticalalignment="top",
             multialignment="right",
             transform=ax.transAxes,
-            fontsize=18,
+            fontsize=20,
         )
 
         fig.tight_layout()
@@ -277,7 +306,7 @@ def plot_qt_pt_comparison(
                 H=h.values,
                 bins=h.axes[0].bin_edges,
                 yerr=h.errors,
-                label=r"$q_{\text{T}} / p_{\text{T}}^{\text{" + label + r"}}\:(\text{GeV}/c)$",
+                label=r"$q_{\text{T}} / p_{\text{T}}^{\text{" + label + r"}}$",
                 linewidth=2,
                 ax=ax,
             )
@@ -285,20 +314,28 @@ def plot_qt_pt_comparison(
         text = base_plot_label
         text += "\n" + _mean_values_label(mean_x = means[p_range]["x"], mean_Q2 = means[p_range]["Q2"])
         text += "\n" + fr"${p_range[0]} < |\vec{{p}}| < {p_range[1]}\:\text{{GeV}}/c$"
-        ax.set_xlabel(r"$q_{\text{T}} / p_{\text{T}}^{\text{X}}\:(\text{GeV}/c)$")
-        ax.set_ylabel(r"$1/N_{\text{X}}\:\text{d}N/\text{d}(q_{\text{T}}/p_{\text{T}}^{\text{X}})\:(\text{GeV}/c)^{-1}$")
+        ax.set_xlabel(r"$q_{\text{T}} / p_{\text{T}}^{\text{X}}$", fontsize=20)
+        ax.set_ylabel(r"$1/N_{\text{X}}\:\text{d}N/\text{d}(q_{\text{T}}/p_{\text{T}}^{\text{X}})$", fontsize=20)
+        # Focus on range of interest.
+        ax.set_xlim([-0.025, 0.4])
         ax.legend(
             loc="upper right",
             frameon=False,
+            bbox_to_anchor=(0.97, 0.76),
+            # If we specify an anchor, we want to reduce an additional padding
+            # to ensure that we have accurate placement.
+            borderaxespad=0,
+            borderpad=0,
+            fontsize=20,
         )
         ax.text(
-            0.68, 0.97,
+            0.97, 0.97,
             text,
             horizontalalignment="right",
             verticalalignment="top",
             multialignment="right",
             transform=ax.transAxes,
-            fontsize=18,
+            fontsize=20,
         )
 
         fig.tight_layout()
@@ -315,7 +352,7 @@ if __name__ == "__main__":
     #min_q2 = 300
     #x_limits = (0.05, 0.8)
     base_plot_label = _base_plot_label(jet_R=jet_R, eta_limits=eta_limits)
-    output_dir = Path("output") / "eic_qt_test_all_q2_cuts"
+    output_dir = Path("output") / "eic_qt_all_q2_cuts_narrow_bins"
     output_dir.mkdir(parents=True, exist_ok=True)
 
     y = yaml.yaml(modules_to_register=[binned_data])
