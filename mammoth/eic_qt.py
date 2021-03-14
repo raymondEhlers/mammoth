@@ -3,7 +3,7 @@
 .. codeauthor:: Raymond Ehlers <raymond.ehlers@cern.ch>, ORNL
 """
 
-from typing import Dict, Mapping, Sequence, Tuple
+from typing import Any, Dict, Mapping, Sequence, Tuple
 from pathlib import Path
 
 import awkward as ak
@@ -15,13 +15,18 @@ from pachyderm import binned_data, yaml
 
 from mammoth import base
 
+
+def jet_R_to_str(jet_R: float) -> str:
+    return f"jet_R_{jet_R * 100:03g}"
+
+
 def run(event_properties: ak.Array,
         particles: ak.Array,
-        jet_R: float,
+        jet_R_values: Sequence[float],
         jet_eta_limits: Tuple[float, float],
         min_Q2: float,
         x_limits: Tuple[float, float],
-        hists: Mapping[str, bh.Histogram]) -> None:
+        hists: Mapping[str, Mapping[str, bh.Histogram]]) -> None:
     # The outgoing parton always seems to be in index 7 (pythia index #8)
     # Need to be retrieved immediately because it will be cut in the "status" cut.
     outgoing_partons = particles[:, 7]
@@ -84,46 +89,49 @@ def run(event_properties: ak.Array,
 
     # Jet finding
     # Setup
-    jet_defintion = fj.JetDefinition(fj.JetAlgorithm.antikt_algorithm, R = jet_R)
-    area_definition = fj.AreaDefinition(fj.AreaType.passive_area, fj.GhostedAreaSpec(1, 1, 0.05))
-    settings = fj.JetFinderSettings(jet_definition=jet_defintion, area_definition=area_definition)
-    # Run the jet finder
     particles = base.LorentzVectorArray.from_awkward_ptetaphie(particles)
-    res = fj.find_jets(events=particles, settings=settings)
-    jets = res.jets
-    constituent_indices = res.constituent_indices
+    for jet_R in jet_R_values:
+        print(f"Jet R: {jet_R}")
+        jet_defintion = fj.JetDefinition(fj.JetAlgorithm.antikt_algorithm, R = jet_R)
+        area_definition = fj.AreaDefinition(fj.AreaType.passive_area, fj.GhostedAreaSpec(1, 1, 0.05))
+        settings = fj.JetFinderSettings(jet_definition=jet_defintion, area_definition=area_definition)
+        # Run the jet finder
+        res = fj.find_jets(events=particles, settings=settings)
+        jets = res.jets
+        constituent_indices = res.constituent_indices
 
-    # Jet selection
-    # Select forward jets.
-    jets = jets[(jets.eta > jet_eta_limits[0] + jet_R) & (jets.eta < jet_eta_limits[1] - jet_R)]
-    # Take only the leading jet.
-    jets = ak.firsts(jets)
+        # Jet selection
+        # Select forward jets.
+        jets = jets[(jets.eta > jet_eta_limits[0] + jet_R) & (jets.eta < jet_eta_limits[1] - jet_R)]
+        # Take only the leading jet.
+        jets = ak.firsts(jets)
 
-    # Calculate qt
-    qt = np.sqrt((leading_electrons[:, np.newaxis].px + jets.px) ** 2 + (leading_electrons[:, np.newaxis].py + jets.py) ** 2)
+        # Calculate qt
+        qt = np.sqrt((leading_electrons[:, np.newaxis].px + jets.px) ** 2 + (leading_electrons[:, np.newaxis].py + jets.py) ** 2)
 
-    # NOTE: A small number of events won't have jets in the acceptance. So we need to make sure the
-    #       event level properties match. Since qt uses the jets explicitly, it will pick this up naturally.
-    #       The outgoing_partons also broadcats with qt, so it doesn't need any modifications here.
-    event_properties = event_properties[~ak.is_none(jets)]
+        # NOTE: A small number of events won't have jets in the acceptance. So we need to make sure the
+        #       event level properties match. Since qt uses the jets explicitly, it will pick this up naturally.
+        #       The outgoing_partons also broadcats with qt, so it doesn't need any modifications here.
+        event_properties_R_dependent = event_properties[~ak.is_none(jets)]
 
-    # Print the means out of curiosity. Saved in histograms below.
-    print(f"Mean Q2: {ak.mean(event_properties['q2'])}")
-    print(f"Mean x: {ak.mean(event_properties['x2'])}")
+        # Print the means out of curiosity. Saved in histograms below.
+        print(f"Mean Q2: {ak.mean(event_properties_R_dependent['q2'])}")
+        print(f"Mean x: {ak.mean(event_properties_R_dependent['x2'])}")
 
-    try:
-        hists["qt"].fill(ak.flatten(jets.pt, axis=None), ak.flatten(qt, axis=None))
-        hists["qt_pt_jet"].fill(ak.flatten(jets.p, axis=None), ak.flatten(qt / jets.pt, axis=None))
-        hists["qt_pt_electron"].fill(ak.flatten(jets.p, axis=None), ak.flatten(qt / leading_electrons[:, np.newaxis].pt, axis=None))
-        hists["qt_pt_parton"].fill(ak.flatten(jets.p, axis=None), ak.flatten(qt / outgoing_partons[:, np.newaxis].pt, axis=None))
-        hists["q2"].fill(ak.flatten(jets.p, axis=None), sample=ak.flatten(event_properties.q2, axis=None))
-        hists["x"].fill(ak.flatten(jets.p, axis=None), sample=ak.flatten(event_properties.x2, axis=None))
-    except ValueError as e:
-        print(f"Womp womp: {e}")
-        import IPython; IPython.embed()
+        try:
+            jet_R_str = jet_R_to_str(jet_R)
+            hists[jet_R_str]["qt"].fill(ak.flatten(jets.pt, axis=None), ak.flatten(qt, axis=None))
+            hists[jet_R_str]["qt_pt_jet"].fill(ak.flatten(jets.p, axis=None), ak.flatten(qt / jets.pt, axis=None))
+            hists[jet_R_str]["qt_pt_electron"].fill(ak.flatten(jets.p, axis=None), ak.flatten(qt / leading_electrons[:, np.newaxis].pt, axis=None))
+            hists[jet_R_str]["qt_pt_parton"].fill(ak.flatten(jets.p, axis=None), ak.flatten(qt / outgoing_partons[:, np.newaxis].pt, axis=None))
+            hists[jet_R_str]["q2"].fill(ak.flatten(jets.p, axis=None), sample=ak.flatten(event_properties_R_dependent.q2, axis=None))
+            hists[jet_R_str]["x"].fill(ak.flatten(jets.p, axis=None), sample=ak.flatten(event_properties_R_dependent.x2, axis=None))
+        except ValueError as e:
+            print(f"Womp womp: {e}")
+            import IPython; IPython.embed()
 
 
-def setup() -> Dict[str, bh.Histogram]:
+def setup_hists() -> Dict[str, bh.Histogram]:
     hists = {}
     hists["qt"] = bh.Histogram(bh.axis.Regular(100, 0, 100), bh.axis.Regular(200, 0, 10), storage=bh.storage.Weight())
     hists["qt_pt_jet"] = bh.Histogram(bh.axis.Regular(30, 0, 300), bh.axis.Regular(100, 0, 1), storage=bh.storage.Weight())
@@ -139,7 +147,7 @@ def setup() -> Dict[str, bh.Histogram]:
 
 if __name__ == "__main__":
     # Setup
-    jet_R = 0.7
+    jet_R_values = [0.5, 0.7, 1.0]
     jet_eta_limits = (1.1, 3.5)
     # As of 13 March 2021, we don't set the Q2 and x limits here. Instead, we set them in the simulation.
     # It appears to be much more efficient that way.
@@ -150,12 +158,13 @@ if __name__ == "__main__":
     #input_file = Path("/Volumes/data/eic/prod/writeTree_nevents_*_p_trigger_*_x_0.1_1_q2_100_index_*.root")
     #output_dir = Path("output") / "eic_qt_test"
     input_file = Path("/Volumes/data/eic/prod/writeTree_nevents_*_p_trigger_*_x_0.1_1_q2_*_index_*.root")
-    output_dir = Path("output") / "eic_qt_all_q2_cuts_narrow_bins"
+    output_dir = Path("output") / "eic_qt_all_q2_cuts_narrow_bins_jet_R_dependence"
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    hists = setup()
+    hists = {}
+    for jet_R in jet_R_values:
+        hists[jet_R_to_str(jet_R)] = setup_hists()
 
-    results = []
     for i, arrays in enumerate(uproot.iterate(f"{input_file}:tree", step_size="100 MB"), start=1):
         print(f"Processing iter {i}")
         # Split into event level and particle level properties. This makes working with the data
@@ -163,34 +172,37 @@ if __name__ == "__main__":
         event_property_names = ["event_ID", "x1", "x2", "q2"]
         event_properties = arrays[[k for k in ak.fields(arrays) if k in event_property_names]]
         particles = arrays[[k for k in ak.fields(arrays) if k not in event_property_names]]
-        results.append(
-            run(
-                event_properties=event_properties,
-                particles=particles,
-                jet_R=jet_R,
-                jet_eta_limits=jet_eta_limits,
-                min_Q2=min_Q2,
-                x_limits=x_limits,
-                hists=hists
-            )
+        run(
+            event_properties=event_properties,
+            particles=particles,
+            jet_R_values=jet_R_values,
+            jet_eta_limits=jet_eta_limits,
+            min_Q2=min_Q2,
+            x_limits=x_limits,
+            hists=hists
         )
 
     # Do some projections here to ensure that we get them right. We won't get them right later
     # because we convert the boost histogram type implicitly when converting to binned_data.
-    means = {}
+    means: Dict[str, Dict[Tuple[int, int], Dict[str, float]]] = {}
     p_ranges = [(100, 150), (150, 200), (200, 250), (100, 250), (0, 300)]
-    for p_range in p_ranges:
-        means[p_range] = {
-            "x": hists["x"][bh.loc(p_range[0]):bh.loc(p_range[1]):bh.sum].value,
-            "Q2": hists["q2"][bh.loc(p_range[0]):bh.loc(p_range[1]):bh.sum].value,
-        }
+    for jet_R in jet_R_values:
+        jet_R_str = jet_R_to_str(jet_R)
+        means[jet_R_str] = {}
+        for p_range in p_ranges:
+            means[jet_R_str][p_range] = {
+                "x": hists[jet_R_str]["x"][bh.loc(p_range[0]):bh.loc(p_range[1]):bh.sum].value,
+                "Q2": hists[jet_R_str]["q2"][bh.loc(p_range[0]):bh.loc(p_range[1]):bh.sum].value,
+            }
 
     print("Done. Writing hist + info...")
     # Write out...
     y = yaml.yaml(modules_to_register=[binned_data])
     #h = binned_data.BinnedData.from_existing_data(hists["qt"])
     with open(output_dir / "qt.yaml", "w") as f:
-        output = {k: binned_data.BinnedData.from_existing_data(v) for k, v in hists.items()}
+        output: Dict[str, Any] = {}
+        for jet_R_str, output_hists in hists.items():
+            output[jet_R_str] = {k: binned_data.BinnedData.from_existing_data(v) for k, v in output_hists.items()}
         output["means"] = means
         y.dump(output, f)
 

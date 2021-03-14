@@ -17,6 +17,7 @@ import seaborn as sns
 from pachyderm import binned_data, yaml
 from scipy import optimize
 
+from mammoth import eic_qt
 
 pachyderm.plot.configure()
 # Enable ticks on all sides
@@ -63,6 +64,7 @@ def _mean_values_label(mean_x: float, mean_Q2: float) -> str:
 
 def plot_qt(hist: binned_data.BinnedData,
             base_plot_label: str,
+            jet_R: float,
             means: Mapping[Tuple[float, float], Mapping[str, float]],
             output_dir: Path,
             ) -> bool:
@@ -132,7 +134,7 @@ def plot_qt(hist: binned_data.BinnedData,
     )
 
     fig.tight_layout()
-    fig.savefig(output_dir / "qt_pythia6_ep.pdf")
+    fig.savefig(output_dir / f"qt_{eic_qt.jet_R_to_str(jet_R)}_pythia6_ep.pdf")
     plt.close(fig)
 
     return True
@@ -141,6 +143,7 @@ def plot_qt(hist: binned_data.BinnedData,
 def plot_qt_pt_as_function_of_p(hist: binned_data.BinnedData,
                                 label: str,
                                 base_plot_label: str,
+                                jet_R: float,
                                 means: Mapping[Tuple[float, float], Mapping[str, float]],
                                 output_dir: Path,
                                 debug_fit: bool = False,
@@ -277,7 +280,7 @@ def plot_qt_pt_as_function_of_p(hist: binned_data.BinnedData,
         )
 
         fig.tight_layout()
-        fig.savefig(output_dir / f"qt_pt_{label}_{'fit_' if do_fit else ''}pythia6_ep.pdf")
+        fig.savefig(output_dir / f"qt_pt_{label}_{eic_qt.jet_R_to_str(jet_R)}_{'fit_' if do_fit else ''}pythia6_ep.pdf")
         plt.close(fig)
 
     return True
@@ -286,6 +289,7 @@ def plot_qt_pt_as_function_of_p(hist: binned_data.BinnedData,
 def plot_qt_pt_comparison(
     hists: Mapping[str, binned_data.BinnedData],
     base_plot_label: str,
+    jet_R: float,
     means: Mapping[Tuple[float, float], Mapping[str, float]],
     output_dir: Path,
 ) -> bool:
@@ -339,22 +343,22 @@ def plot_qt_pt_comparison(
         )
 
         fig.tight_layout()
-        fig.savefig(output_dir / f"qt_pt_p_range_{p_range[0]}_{p_range[1]}_pythia6_ep.pdf")
+        fig.savefig(output_dir / f"qt_pt_{eic_qt.jet_R_to_str(jet_R)}_p_range_{p_range[0]}_{p_range[1]}_pythia6_ep.pdf")
         plt.close(fig)
 
     return True
 
 
 if __name__ == "__main__":
-    jet_R = 0.7
+    jet_R_values = [0.5, 0.7, 1.0]
     eta_limits = (1.1, 3.5)
     p_ranges = [(100, 150), (150, 200), (200, 250)]
     #min_q2 = 300
     #x_limits = (0.05, 0.8)
-    base_plot_label = _base_plot_label(jet_R=jet_R, eta_limits=eta_limits)
-    output_dir = Path("output") / "eic_qt_all_q2_cuts_narrow_bins"
+    output_dir = Path("output") / "eic_qt_all_q2_cuts_narrow_bins_jet_R_dependence/"
     output_dir.mkdir(parents=True, exist_ok=True)
 
+    print("Loading hists. One sec...")
     y = yaml.yaml(modules_to_register=[binned_data])
     with open(output_dir / "qt.yaml", "r") as f:
         hists = y.load(f)
@@ -362,47 +366,56 @@ if __name__ == "__main__":
     # pop because it's not a hist...
     means = hists.pop("means")
 
-    with sns.color_palette("Set2"):
-        print("Plotting qt")
-        plot_qt(
-            hist=hists["qt"],
-            base_plot_label=base_plot_label,
-            means=means,
-            output_dir=output_dir,
-        )
-        print("Plotting qt/pt jet")
-        plot_qt_pt_as_function_of_p(
-            hist=hists["qt_pt_jet"],
-            label="jet",
-            base_plot_label=base_plot_label,
-            means=means,
-            output_dir=output_dir,
-        )
-        print("Plotting qt/pt e")
-        plot_qt_pt_as_function_of_p(
-            hist=hists["qt_pt_electron"],
-            label="e",
-            base_plot_label=base_plot_label,
-            means=means,
-            output_dir=output_dir,
-        )
-        print("Plotting qt/pt parton")
-        plot_qt_pt_as_function_of_p(
-            hist=hists["qt_pt_parton"],
-            label="parton",
-            base_plot_label=base_plot_label,
-            means=means,
-            output_dir=output_dir,
-        )
-        print("Plotting qt/pt jet vs e comparison")
-        plot_qt_pt_comparison(
-            hists={
-                "jet": hists["qt_pt_jet"],
-                "e": hists["qt_pt_electron"],
-                "parton": hists["qt_pt_parton"],
-            },
-            base_plot_label=base_plot_label,
-            means=means,
-            output_dir=output_dir,
-        )
+    for jet_R in jet_R_values:
+        print(f"Plotting jet R = {jet_R}")
+        jet_R_str = eic_qt.jet_R_to_str(jet_R)
+        base_plot_label = _base_plot_label(jet_R=jet_R, eta_limits=eta_limits)
+        with sns.color_palette("Set2"):
+            print("Plotting qt")
+            plot_qt(
+                hist=hists[jet_R_str]["qt"],
+                base_plot_label=base_plot_label,
+                jet_R=jet_R,
+                means=means[jet_R_str],
+                output_dir=output_dir,
+            )
+            print("Plotting qt/pt jet")
+            plot_qt_pt_as_function_of_p(
+                hist=hists[jet_R_str]["qt_pt_jet"],
+                label="jet",
+                base_plot_label=base_plot_label,
+                jet_R=jet_R,
+                means=means[jet_R_str],
+                output_dir=output_dir,
+            )
+            print("Plotting qt/pt e")
+            plot_qt_pt_as_function_of_p(
+                hist=hists[jet_R_str]["qt_pt_electron"],
+                label="e",
+                base_plot_label=base_plot_label,
+                jet_R=jet_R,
+                means=means[jet_R_str],
+                output_dir=output_dir,
+            )
+            print("Plotting qt/pt parton")
+            plot_qt_pt_as_function_of_p(
+                hist=hists[jet_R_str]["qt_pt_parton"],
+                label="parton",
+                base_plot_label=base_plot_label,
+                jet_R=jet_R,
+                means=means[jet_R_str],
+                output_dir=output_dir,
+            )
+            print("Plotting qt/pt jet vs e comparison")
+            plot_qt_pt_comparison(
+                hists={
+                    "jet": hists[jet_R_str]["qt_pt_jet"],
+                    "e": hists[jet_R_str]["qt_pt_electron"],
+                    "parton": hists[jet_R_str]["qt_pt_parton"],
+                },
+                base_plot_label=base_plot_label,
+                jet_R=jet_R,
+                means=means[jet_R_str],
+                output_dir=output_dir,
+            )
 
