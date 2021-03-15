@@ -378,7 +378,7 @@ def plot_qt_pt_as_function_of_p(hist: binned_data.BinnedData,
                         np.linspace(x_linspace_min_for_plotting, 0.5, 100),
                         _gaussian(np.linspace(x_linspace_min_for_plotting, 0.5, 100), fixed_gaussian_mean, *popt),
                         linestyle="--",
-                        linewidth=2,
+                        linewidth=3,
                         # color=p[0].step.get_color(),
                         # We want to be on top, even if plotted first.
                         zorder=10,
@@ -401,7 +401,7 @@ def plot_qt_pt_as_function_of_p(hist: binned_data.BinnedData,
                         np.linspace(x_linspace_min_for_plotting, 0.5, 100),
                         _gaussian(np.linspace(x_linspace_min_for_plotting, 0.5, 100), *popt),
                         linestyle="--",
-                        linewidth=2,
+                        linewidth=3,
                         # color=p[0].step.get_color(),
                         # We want to be on top, even if plotted first.
                         zorder=10,
@@ -428,36 +428,55 @@ def plot_qt_pt_as_function_of_p(hist: binned_data.BinnedData,
                 kwargs = {
                     "color": p[0].get_color()
                 }
-            mplhep.histplot(
-                H=h.values,
-                bins=h.axes[0].bin_edges,
+
+            ax.errorbar(
+                h.axes[0].bin_centers,
+                h.values,
+                xerr=h.axes[0].bin_widths,
                 yerr=h.errors,
+                marker="o",
+                markersize=11,
+                linestyle="",
+                linewidth=4,
                 label=plot_label,
-                linewidth=2,
-                ax=ax,
                 **kwargs,
             )
+            # mplhep plays tricks with the legend marker, such that it doesn't increase the legend linewidth
+            # when it increases in the plot. I think it's because it uses the errorbar as the marker, but
+            # that linewidth isn't increased. One could do this manually perhaps, but for now, it's easier
+            # to just plot it with errorbar.
+            #mplhep.histplot(
+            #    H=h.values,
+            #    bins=h.axes[0].bin_edges,
+            #    yerr=h.errors,
+            #    label=plot_label,
+            #    linewidth=5,
+            #    ax=ax,
+            #    **kwargs,
+            #)
 
         text = base_plot_label
         text += "\n" + _mean_values_label(mean_x = means[full_p_range]["x"], mean_Q2 = means[full_p_range]["Q2"])
         if do_fit:
             text += "\n" + r"Gaussian fit"
-        ax.set_xlabel(r"$q_{\text{T}} / p_{\text{T}}^{\text{" + label + r"}}$", fontsize=20)
-        ax.set_ylabel(r"$1/N_{\text{" + label + r"}}\:\text{d}N/\text{d}(q_{\text{T}}/p_{\text{T}}^{\text{" + label + r"}})$", fontsize=20)
+        ax.set_xlabel(r"$q_{\text{T}} / p_{\text{T}}^{\text{" + label + r"}}$", fontsize=28)
+        ax.set_ylabel(r"$1/N_{\text{" + label + r"}}\:\text{d}N/\text{d}(q_{\text{T}}/p_{\text{T}}^{\text{" + label + r"}})$", fontsize=28)
         # Focus on range of interest.
         min_x = -0.025
         if debug_fit:
             min_x = -0.1
         ax.set_xlim([min_x, 0.4])
-        ax.legend(
+        # Ensure we stop at 0, so it displays the same as a step plot.
+        ax.set_ylim([0, None])
+        leg = ax.legend(
             loc="upper right",
             frameon=False,
-            bbox_to_anchor=(0.97, 0.765),
+            bbox_to_anchor=(0.97, 0.68),
             # If we specify an anchor, we want to reduce an additional padding
             # to ensure that we have accurate placement.
             borderaxespad=0,
             borderpad=0,
-            fontsize=20,
+            fontsize=28,
         )
         ax.text(
             0.97, 0.97,
@@ -466,7 +485,7 @@ def plot_qt_pt_as_function_of_p(hist: binned_data.BinnedData,
             verticalalignment="top",
             multialignment="right",
             transform=ax.transAxes,
-            fontsize=20,
+            fontsize=28,
         )
 
         fig.tight_layout()
