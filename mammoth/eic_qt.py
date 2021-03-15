@@ -102,9 +102,13 @@ def run(event_properties: ak.Array,
 
         # Jet selection
         # Select forward jets.
-        jets = jets[(jets.eta > jet_eta_limits[0] + jet_R) & (jets.eta < jet_eta_limits[1] - jet_R)]
+        jets_eta_mask = (jets.eta > jet_eta_limits[0] + jet_R) & (jets.eta < jet_eta_limits[1] - jet_R)
+        jets = jets[jets_eta_mask]
+        constituent_indices = constituent_indices[jets_eta_mask]
+
         # Take only the leading jet.
         jets = ak.firsts(jets)
+        constituent_indices = ak.firsts(constituent_indices)
 
         # Calculate qt
         qt = np.sqrt((leading_electrons[:, np.newaxis].px + jets.px) ** 2 + (leading_electrons[:, np.newaxis].py + jets.py) ** 2)
@@ -120,6 +124,9 @@ def run(event_properties: ak.Array,
 
         try:
             jet_R_str = jet_R_to_str(jet_R)
+            hists[jet_R_str]["jet_p"].fill(ak.flatten(jets.p, axis=None))
+            hists[jet_R_str]["jet_pt"].fill(ak.flatten(jets.p, axis=None), ak.flatten(jets.pt, axis=None))
+            hists[jet_R_str]["jet_multiplicity"].fill(ak.flatten(jets.p, axis=None), ak.flatten(ak.num(constituent_indices, axis=1), axis=None))
             hists[jet_R_str]["qt"].fill(ak.flatten(jets.pt, axis=None), ak.flatten(qt, axis=None))
             hists[jet_R_str]["qt_pt_jet"].fill(ak.flatten(jets.p, axis=None), ak.flatten(qt / jets.pt, axis=None))
             hists[jet_R_str]["qt_pt_electron"].fill(ak.flatten(jets.p, axis=None), ak.flatten(qt / leading_electrons[:, np.newaxis].pt, axis=None))
@@ -133,6 +140,9 @@ def run(event_properties: ak.Array,
 
 def setup_hists() -> Dict[str, bh.Histogram]:
     hists = {}
+    hists["jet_p"] = bh.Histogram(bh.axis.Regular(600, 0, 300), storage=bh.storage.Weight())
+    hists["jet_pt"] = bh.Histogram(bh.axis.Regular(30, 0, 300), bh.axis.Regular(200, 0, 50), storage=bh.storage.Weight())
+    hists["jet_multiplicity"] = bh.Histogram(bh.axis.Regular(30, 0, 300), bh.axis.Regular(30, 0, 30), storage=bh.storage.Weight())
     hists["qt"] = bh.Histogram(bh.axis.Regular(100, 0, 100), bh.axis.Regular(200, 0, 10), storage=bh.storage.Weight())
     hists["qt_pt_jet"] = bh.Histogram(bh.axis.Regular(30, 0, 300), bh.axis.Regular(100, 0, 1), storage=bh.storage.Weight())
     hists["qt_pt_electron"] = bh.Histogram(bh.axis.Regular(30, 0, 300), bh.axis.Regular(100, 0, 1), storage=bh.storage.Weight())

@@ -4,7 +4,7 @@
 """
 
 from pathlib import Path
-from typing import Mapping, Sequence, Tuple, Union
+from typing import Mapping, Optional, Sequence, Tuple, Union
 
 import boost_histogram as bh
 import mplhep
@@ -47,19 +47,209 @@ def _gaussian(x: Union[np.ndarray, float], mean: float, sigma: float, amplitude:
     return amplitude / np.sqrt(2 * np.pi * np.square(sigma)) * np.exp(-1.0 / 2.0 * np.square((x - mean) / sigma))  # type: ignore
 
 
-def _base_plot_label(jet_R: float, eta_limits: Tuple[float, float],
+def _base_plot_label(eta_limits: Tuple[float, float], jet_R: Optional[float] = None,
                      #min_q2: float, x_limits: Tuple[float, float]
                      ) -> str:
     eta_min, eta_max = eta_limits
     text = r"PYTHIA 6, e+p 10+275 $\text{GeV}^2$"
-    #text += "\n" + fr"$Q^{{2}} > {min_q2} \text{{GeV}}^{{2}}$, ${x_limits[0]} < x < {x_limits[1]}$"
-    text += "\n" + fr"R = {jet_R:g} anti-$k_{{\text{{T}}}}$ jets"
-    text += "\n" + fr"${eta_min + jet_R:g} < \eta_{{\text{{jet}}}} < {eta_max - jet_R:g}$"
+    if jet_R is not None:
+        #text += "\n" + fr"$Q^{{2}} > {min_q2} \text{{GeV}}^{{2}}$, ${x_limits[0]} < x < {x_limits[1]}$"
+        text += "\n" + fr"R = {jet_R} anti-$k_{{\text{{T}}}}$ jets"
+        text += "\n" + fr"${eta_min + jet_R:g} < \eta_{{\text{{jet}}}} < {eta_max - jet_R:g}$"
+    else:
+        text += "\n" + r"anti-$k_{\text{T}}$ jets"
+        text += "\n" + fr"${eta_min} + R < \eta_{{\text{{jet}}}} < {eta_max} - R$"
     return text
 
 
 def _mean_values_label(mean_x: float, mean_Q2: float) -> str:
     return fr"$\langle Q^{{2}} \rangle = {round(mean_Q2)}\:\text{{GeV}}^{{2}}$, $\langle x \rangle = {mean_x:.03g}$"
+
+
+def plot_jet_p(
+    hists: Mapping[str, binned_data.BinnedData],
+    base_plot_label: str,
+    jet_R_values: Sequence[float],
+    means: Mapping[str, Mapping[Tuple[float, float], Mapping[str, float]]],
+    output_dir: Path,
+) -> bool:
+    # Setup
+    p_range_for_mean_label = (0, 300)
+
+    fig, ax = plt.subplots(figsize=(12, 9))
+    for jet_R in jet_R_values:
+        jet_R_str = eic_qt.jet_R_to_str(jet_R)
+        h = hists[jet_R_str]["jet_p"]
+
+        # Normalize
+        h /= sum(h.values)
+
+        # Plot
+        mplhep.histplot(
+            H=h.values,
+            bins=h.axes[0].bin_edges,
+            yerr=h.errors,
+            label=fr"$R = {jet_R}$",
+            linewidth=2,
+            ax=ax,
+        )
+
+    text = base_plot_label
+    # Assuming R = 0.7 jets here. Perhaps not entirely reasonable, but close enough for effectively a QA plot.
+    text += "\n" + _mean_values_label(mean_x = means[eic_qt.jet_R_to_str(0.7)][p_range_for_mean_label]["x"], mean_Q2 = means[eic_qt.jet_R_to_str(0.7)][p_range_for_mean_label]["Q2"])
+    ax.set_xlabel(r"$p_{\text{jet}}\:(\text{GeV}/c)$", fontsize=20)
+    ax.set_yscale("log")
+    ax.set_ylabel(r"$1/N_{\text{jets}}\:\text{d}N/\text{d}p_{\text{jet}}\:(\text{GeV}/c)^{-1}$", fontsize=20)
+    ax.legend(
+        loc="upper right",
+        frameon=False,
+        bbox_to_anchor=(0.97, 0.765),
+        # If we specify an anchor, we want to reduce an additional padding
+        # to ensure that we have accurate placement.
+        borderaxespad=0,
+        borderpad=0,
+        fontsize=20,
+    )
+    ax.text(
+        0.97, 0.97,
+        text,
+        horizontalalignment="right",
+        verticalalignment="top",
+        multialignment="right",
+        transform=ax.transAxes,
+        fontsize=20,
+    )
+
+    fig.tight_layout()
+    fig.savefig(output_dir / f"p_jet_pythia6_ep.pdf")
+    plt.close(fig)
+
+    return True
+
+
+def plot_jet_pt(
+    hist: binned_data.BinnedData,
+    base_plot_label: str,
+    jet_R: float,
+    means: Mapping[Tuple[float, float], Mapping[str, float]],
+    output_dir: Path,
+) -> bool:
+    # Setup
+    p_ranges = [(100, 150), (150, 200), (200, 250), (0, 300)]
+    p_range_for_mean_label = (0, 300)
+    bh_hist = hist.to_boost_histogram()
+
+    fig, ax = plt.subplots(figsize=(12, 9))
+    for p_range in p_ranges:
+        h = binned_data.BinnedData.from_existing_data(
+            bh_hist[bh.loc(p_range[0]):bh.loc(p_range[1]):bh.sum, :]
+        )
+
+        # Normalize
+        h /= np.sum(h.values)
+
+        # Plot
+        mplhep.histplot(
+            H=h.values,
+            bins=h.axes[0].bin_edges,
+            yerr=h.errors,
+            label=fr"${p_range[0]} < |\vec{{p}}| < {p_range[1]}\:\text{{GeV}}/c$",
+            linewidth=2,
+            ax=ax,
+        )
+
+    text = base_plot_label
+    text += "\n" + _mean_values_label(mean_x = means[p_range_for_mean_label]["x"], mean_Q2 = means[p_range_for_mean_label]["Q2"])
+    ax.set_xlabel(r"$p_{\text{T}}^{\text{jet}}\:(\text{GeV}/c)$", fontsize=20)
+    ax.set_yscale("log")
+    ax.set_ylabel(r"$1/N_{\text{jets}}\:\text{d}N/\text{d}p_{\text{T}}^{\text{jet}}\:(\text{GeV}/c)^{-1}$", fontsize=20)
+    ax.legend(
+        loc="upper right",
+        frameon=False,
+        bbox_to_anchor=(0.97, 0.765),
+        # If we specify an anchor, we want to reduce an additional padding
+        # to ensure that we have accurate placement.
+        borderaxespad=0,
+        borderpad=0,
+        fontsize=20,
+    )
+    ax.text(
+        0.97, 0.97,
+        text,
+        horizontalalignment="right",
+        verticalalignment="top",
+        multialignment="right",
+        transform=ax.transAxes,
+        fontsize=20,
+    )
+
+    fig.tight_layout()
+    fig.savefig(output_dir / f"pt_jet_{eic_qt.jet_R_to_str(jet_R)}_pythia6_ep.pdf")
+    plt.close(fig)
+
+    return True
+
+
+def plot_jet_constituent_multiplicity(
+    hist: binned_data.BinnedData,
+    base_plot_label: str,
+    jet_R: float,
+    means: Mapping[Tuple[float, float], Mapping[str, float]],
+    output_dir: Path,
+) -> bool:
+    # Setup
+    p_ranges = [(100, 150), (150, 200), (200, 250), (0, 300)]
+    p_range_for_mean_label = (0, 300)
+    bh_hist = hist.to_boost_histogram()
+
+    fig, ax = plt.subplots(figsize=(12, 9))
+    for p_range in p_ranges:
+        h = binned_data.BinnedData.from_existing_data(
+            bh_hist[bh.loc(p_range[0]):bh.loc(p_range[1]):bh.sum, :]
+        )
+
+        # Normalize
+        h /= np.sum(h.values)
+
+        # Plot
+        mplhep.histplot(
+            H=h.values,
+            bins=h.axes[0].bin_edges,
+            yerr=h.errors,
+            label=fr"${p_range[0]} < |\vec{{p}}| < {p_range[1]}\:\text{{GeV}}/c$",
+            linewidth=2,
+            ax=ax,
+        )
+
+    text = base_plot_label
+    text += "\n" + _mean_values_label(mean_x = means[p_range_for_mean_label]["x"], mean_Q2 = means[p_range_for_mean_label]["Q2"])
+    ax.set_xlabel(r"$N_{\text{const.}}^{\text{jet}}$", fontsize=20)
+    ax.set_ylabel(r"$1/N_{\text{jets}}\:\text{d}N/\text{d}N_{\text{const.}}^{\text{jet}}$", fontsize=20)
+    ax.legend(
+        loc="upper right",
+        frameon=False,
+        bbox_to_anchor=(0.97, 0.765),
+        # If we specify an anchor, we want to reduce an additional padding
+        # to ensure that we have accurate placement.
+        borderaxespad=0,
+        borderpad=0,
+        fontsize=20,
+    )
+    ax.text(
+        0.97, 0.97,
+        text,
+        horizontalalignment="right",
+        verticalalignment="top",
+        multialignment="right",
+        transform=ax.transAxes,
+        fontsize=20,
+    )
+
+    fig.tight_layout()
+    fig.savefig(output_dir / f"jet_multiplicity_{eic_qt.jet_R_to_str(jet_R)}_pythia6_ep.pdf")
+    plt.close(fig)
+
+    return True
 
 
 def plot_qt(hist: binned_data.BinnedData,
@@ -355,7 +545,7 @@ if __name__ == "__main__":
     p_ranges = [(100, 150), (150, 200), (200, 250)]
     #min_q2 = 300
     #x_limits = (0.05, 0.8)
-    output_dir = Path("output") / "eic_qt_all_q2_cuts_narrow_bins_jet_R_dependence/"
+    output_dir = Path("output") / "eic_qt_all_q2_cuts_narrow_bins_jet_R_dependence"
     output_dir.mkdir(parents=True, exist_ok=True)
 
     print("Loading hists. One sec...")
@@ -366,11 +556,38 @@ if __name__ == "__main__":
     # pop because it's not a hist...
     means = hists.pop("means")
 
-    for jet_R in jet_R_values:
-        print(f"Plotting jet R = {jet_R}")
-        jet_R_str = eic_qt.jet_R_to_str(jet_R)
-        base_plot_label = _base_plot_label(jet_R=jet_R, eta_limits=eta_limits)
-        with sns.color_palette("Set2"):
+    print("Beginning plotting")
+    with sns.color_palette("Set2"):
+        # We have no p dependence here by defintion, so plot all spectra together.
+        print("Jet p")
+        plot_jet_p(
+            hists=hists,
+            # Intentionally leave out jet_R from the label.
+            base_plot_label=_base_plot_label(eta_limits=eta_limits),
+            jet_R_values=jet_R_values,
+            means=means,
+            output_dir=output_dir,
+        )
+        for jet_R in jet_R_values:
+            print(f"Plotting jet R = {jet_R}")
+            jet_R_str = eic_qt.jet_R_to_str(jet_R)
+            base_plot_label = _base_plot_label(jet_R=jet_R, eta_limits=eta_limits)
+            print("Jet pt")
+            plot_jet_pt(
+                hist=hists[jet_R_str]["jet_pt"],
+                base_plot_label=base_plot_label,
+                jet_R=jet_R,
+                means=means[jet_R_str],
+                output_dir=output_dir,
+            )
+            print("Jet multiplicity")
+            plot_jet_constituent_multiplicity(
+                hist=hists[jet_R_str]["jet_multiplicity"],
+                base_plot_label=base_plot_label,
+                jet_R=jet_R,
+                means=means[jet_R_str],
+                output_dir=output_dir,
+            )
             print("Plotting qt")
             plot_qt(
                 hist=hists[jet_R_str]["qt"],
