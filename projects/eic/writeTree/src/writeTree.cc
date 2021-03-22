@@ -22,9 +22,15 @@
 #include <cmath>
 #include <iostream>
 #include <limits>
+#include <memory>
 #include <stdexcept>
 
 using namespace std;
+
+template<typename T, typename... Args>
+std::unique_ptr<T> my_make_unique(Args&&... args) {
+    return std::unique_ptr<T>(new T(std::forward<Args>(args)...));
+}
 
 WriteTree::WriteTree(const std::string& outputfilename)
   : SubsysReco("WriteTree")
@@ -89,11 +95,19 @@ int WriteTree::InitRun(PHCompositeNode* topNode)
 
 int WriteTree::process_event(PHCompositeNode* topNode)
 {
-  if (Verbosity() >= WriteTree::VERBOSITY_SOME) {
+  //if (Verbosity() >= WriteTree::VERBOSITY_SOME) {
+  if (Verbosity() >= 3) {
       std::cout << "WriteTree::process_event() entered" << endl;
   }
-  if (m_event % 1000 == 0) {
-      std::cout << "m_event: " << m_event << "\n";
+  if (Verbosity() >= 2) {
+      if (m_event % 1 == 0) {
+          std::cout << "m_event: " << m_event << "\n";
+      }
+  }
+  else {
+      if (m_event % 100 == 0) {
+          std::cout << "m_event: " << m_event << "\n";
+      }
   }
 
   // Reset tree branches
@@ -129,18 +143,98 @@ int WriteTree::process_event(PHCompositeNode* topNode)
   m_x1 = pdfInfo->x1();
   m_x2 = pdfInfo->x2();
   m_q2 = pdfInfo->scalePDF();
+  //unsigned int outgoingPartonPDGID = pdfInfo->id2();
 
+  int i = 0;
   for (auto p = event->particles_begin(); p != event->particles_end(); ++p) {
-      //std::cout << (*p)->momentum().px() << ", " << (*p)->pdg_id() << "\n";
+      //std::cout << i << ": " << (*p)->pdg_id() << ", status: " << (*p)->status() << ", pz: " << (*p)->momentum().pz() << "\n";
       m_particleID.emplace_back((*p)->pdg_id());
       m_particleStatus.emplace_back((*p)->status());
       m_pt.emplace_back((*p)->momentum().perp());
       m_eta.emplace_back((*p)->momentum().eta());
       m_phi.emplace_back((*p)->momentum().phi());
       m_E.emplace_back((*p)->momentum().e());
+
+      i++;
   }
 
   m_T->Fill();
+
+  /*
+  // Try to get some info myself...
+  // NOTE: Careful: This is pythia e-p config specific, etc. May need to adjust
+  //       if the config is modified.
+  auto res = event->beam_particles();
+  std::cout << "First beam particle pdg id: " << res.first->pdg_id() << "\n";
+  std::cout << "Second beam particle pdg id: " << res.second->pdg_id() << "\n";
+  //auto vertex = res.second->end_vertex();
+  auto vertex = res.first->end_vertex();
+  // NOTE: descendants vs children is the critical difference here.
+  //for (HepMC::GenVertex::particle_iterator des = vertex->particles_begin(HepMC::descendants);
+  //     des != vertex->particles_end(HepMC::descendants);
+  //     ++des)
+  for (HepMC::GenVertex::particle_iterator des = vertex->particles_begin(HepMC::children);
+       des != vertex->particles_end(HepMC::children);
+       ++des)
+  {
+      std::cout << "Descendent pdgid: " << (*des)->pdg_id() << ", status: " << (*des)->status() << "\n";
+      //for (HepMC::GenVertex::particle_iterator des2 = (*des)->end_vertex()->particles_begin(HepMC::descendants);
+      //     des2 != (*des)->end_vertex()->particles_end(HepMC::descendants);
+      //     ++des2)
+      //{
+      //    std::cout << "\t->Descendent pdgid: " << (*des2)->pdg_id() << ", status: " << (*des2)->status() << "\n";
+      //}
+  }
+  std::cout << "Done\n";
+
+  // Proton beam particle.
+  std::unique_ptr<HepMC::FourVector> incomingProton = nullptr;
+  // Electron coming into the 2->2 scattering (post ISR)
+  std::unique_ptr<HepMC::FourVector> incomingElectron = nullptr;
+  // Electron coming out of the 2->2 scattering.
+  std::unique_ptr<HepMC::FourVector> outgoingElectron = nullptr;
+  unsigned int index = 0;
+  for (auto p = event->particles_begin(); p != event->particles_end(); ++p) {
+      std::cout << index << ": " << (*p)->pdg_id() << ", status: " << (*p)->status() << ", pz: " << (*p)->momentum().pz() << "\n";
+      // This is pythia record 2
+      if (index == 1) {
+          std::cout << "Proton\n";
+          if ((*p)->pdg_id() != 2212) { std::cout << "Not a proton in the proton beamline spot. Quitting!\n"; std::exit(1); }
+          incomingProton = my_make_unique<HepMC::FourVector>((*p)->momentum());
+      }
+      // This is pythia record 5
+      if (index == 4) {
+          std::cout << "Incoming electron\n";
+          if ((*p)->pdg_id() != 11) { std::cout << "Not an electron in the incoming electron spot. Quitting!\n"; std::exit(1); }
+          incomingElectron = my_make_unique<HepMC::FourVector>((*p)->momentum());
+      }
+      // This is pythia record 7
+      if (index == 6) {
+          std::cout << "Outgoing electron\n";
+          if ((*p)->pdg_id() != 11) { std::cout << "Not an electron in the outgoing electron spot. Quitting!\n"; std::exit(1); }
+          outgoingElectron = my_make_unique<HepMC::FourVector>((*p)->momentum());
+      }
+      index++;
+  }
+
+  // Virtual photon corresponds to the difference in the four vectors.
+  // Apparently they don't implement operators...
+  HepMC::FourVector photon(incomingElectron->px() - outgoingElectron->px(),
+                           incomingElectron->py() - outgoingElectron->py(),
+                           incomingElectron->pz() - outgoingElectron->pz(),
+                           incomingElectron->e() - outgoingElectron->e());
+  std::cout << "Photon: px=" << photon.px() << ", py=" << photon.py() << ", pz=" << photon.pz() << ", e=" << photon.e() << "\n";
+
+  double Q2 = - photon.m2();
+  // Apparently they don't implement dot product...
+  // Using + - - - signature.
+  double dotProduct = (incomingProton->e() * photon.e()) - (incomingProton->px() * photon.px()) - (incomingProton->py() * photon.py()) - (incomingProton->pz() * photon.pz());
+  double x = Q2 / (2. * dotProduct);
+
+  // Summary: manually calculated Q2 seems to be a little high, while the x seems to fluctuate up and down.
+  std::cout << "Manually calculated  Q2: " << Q2 << ", x: " << x << "\n";
+  std::cout << "Extracted from HepMC Q2: " << m_q2 << ", x1: " << m_x1 << ", m_x2: " << m_x2 << "\n";
+  */
 
   /*JetMap* jets = findNode::getClass<JetMap>(topNode, m_recoJetName);
 
