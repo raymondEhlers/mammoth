@@ -3,23 +3,62 @@
 // Based on code by Markus Fasel
 //
 
+#include <cmath>
+#include <limits>
 #include <vector>
 
 #include <TKDTree.h>
 
+
+template<typename T>
+std::vector<std::size_t> DuplicateJetsAroundPhiEdges(
+    std::vector<T> & jetsPhi,
+    std::vector<T> & jetsEta,
+    double maxMatchingDistance
+)
+{
+    const std::size_t nJets = jetsPhi.size();
+    std::vector<std::size_t> jetsMapToOriginalIndex(nJets);
+    // First, fill them up with the indices of the existing jets.
+    std::iota(jetsMapToOriginalIndex.begin(), jetsMapToOriginalIndex.end(), 0);
+
+    // NOTE: Assumes 0 <= phi < 2pi.
+    // TODO: Validation phi range(?)
+    // TODO: Remove additional margin afer some testing.
+    double additionalMargin = 0.05;
+    for (std::size_t i = 0; i < nJets; i++) {
+        // Handle lower edge
+        if (jetsPhi[i] <= (maxMatchingDistance + additionalMargin)) {
+            jetsPhi.emplace_back(jetsPhi[i] + 2 * M_PI);
+            jetsEta.emplace_back(jetsEta[i]);
+            jetsMapToOriginalIndex.emplace_back(jetsMapToOriginalIndex[i]);
+        }
+        // Handle upper edge
+        if (jetsPhi[i] >= (2 * M_PI - (maxMatchingDistance + additionalMargin))) {
+            jetsPhi.emplace_back(jetsPhi[i] - 2 * M_PI);
+            jetsEta.emplace_back(jetsEta[i]);
+            jetsMapToOriginalIndex.emplace_back(jetsMapToOriginalIndex[i]);
+        }
+    }
+
+    return jetsMapToOriginalIndex;
+}
+
 //bool AliEmcalJetTaggerTaskFast::MatchJetsGeo(AliJetContainer &contBase, AliJetContainer &contTag, Float_t maxDist) const {
 template<typename T>
-bool MatchJetsGeometrically(
-        const std::vector<T> jetBasePhi,
-        const std::vector<T> jetBaseEta,
+bool MatchJetsGeometricallyImpl(
+        const std::vector<T> & jetBasePhi,
+        const std::vector<T> & jetBaseEta,
+        const std::vector<std::size_t> & jetMapBaseToOriginalIndex,
         //const std::vector<int> jetBaseIndex,
-        const std::vector<T> jetTagPhi,
-        const std::vector<T> jetTagEta,
+        const std::vector<T> & jetTagPhi,
+        const std::vector<T> & jetTagEta,
+        const std::vector<std::size_t> & jetMapTagToOriginalIndex,
         //const std::vector<int> jetTagIndex,
-        double maxMatchingDistance,
+        double maxMatchingDistance
         )
 {
-    // TODO: Validation
+    // TODO: Further validation
     const std::size_t nJetsBase = jetBaseEta.size();
     const std::size_t nJetsTag = jetTagEta.size();
     if(!(nJetsBase && nJetsTag)) return false;
@@ -42,98 +81,98 @@ bool MatchJetsGeometrically(
         countTag++;
     }*/
 
-    // Using TArray
-    TKDTreeID treeBase(etaBase.GetSize(), 2, 1), treeTag(etaTag.GetSize(), 2, 1);
-    treeBase.SetData(0, etaBase.GetArray());
-    treeBase.SetData(1, phiBase.GetArray());
+    // Build KDTrees using vector
+    TKDTreeID treeBase(jetBaseEta.size(), 2, 1), treeTag(jetTagEta.size(), 2, 1);
+    treeBase.SetData(0, jetBaseEta.data());
+    treeBase.SetData(1, jetBasePhi.data());
     treeBase.Build();
-    treeTag.SetData(0, etaTag.GetArray());
-    treeTag.SetData(1, phiTag.GetArray());
+    treeTag.SetData(0, jetTagEta.data());
+    treeTag.SetData(1, jetTagPhi.data());
     treeTag.Build();
-    // Using vector
 
     std::vector<int> matchIndexTag(nJetsBase, -1), matchIndexBase(nJetsTag, -1);
 
-    // find the closest distance to the full jet
-    int countBase(0), countTag(0);
-    countBase = 0;
-    for (std::size_t i = 0; i < nJetsBase; i++) {
-    for(auto j : contBase.accepted()) {
-        Double_t point[2] = {j->Eta(), j->Phi()};
+    // Find the tag jet closest to each base jet.
+    for (std::size_t iBase = 0; iBase < nJetsBase; iBase++) {
+        Double_t point[2] = {jetBaseEta[iBase], jetBasePhi[iBase]};
         Int_t index(-1); Double_t distance(-1);
         treeTag.FindNearestNeighbors(point, 1, &index, &distance);
         // test whether indices are matching:
-        if(index >= 0 && distance < maxDist){
-            AliDebugStream(1) << "Found closest tag jet for " << countBase << " with match index " << index << " and distance " << distance << std::endl;
-            matchIndexTag[countBase]=index;
+        if(index >= 0 && distance < maxMatchingDistance) {
+            //LOG(DEBUG) << "Found closest tag jet for " << iBase << " with match index " << index << " and distance " << distance << "\n";
+            std::cout << "Found closest tag jet for " << iBase << " with match index " << index << " and distance " << distance << "\n";
+            matchIndexTag[iBase] = index;
         } else {
-            AliDebugStream(1) << "Not found closest tag jet for " << countBase << ", distance to closest " << distance << std::endl;
+            //LOG(DEBUG) << "Closest tag jet for not found " << iBase << ", distance to closest " << distance << "\n";
+            std::cout << "Closest tag jet for not found " << iBase << ", distance to closest " << distance << "\n";
         }
 
 #ifdef JETTAGGERFAST_TEST
-        if(index>-1){
-            Double_t distanceTest(-1);
-            distanceTest = TMath::Sqrt(TMath::Power(etaTag[index] - j->Eta(), 2) +  TMath::Power(phiTag[index] - j->Phi(), 2));
-            if(TMath::Abs(distanceTest - distance) > DBL_EPSILON){
-                AliDebugStream(1) << "Mismatch in distance from tag jet with index from tree: " << distanceTest << ", distance from tree " << distance << std::endl;
-                fIndexErrorRateBase->Fill(1);
+        if(index > -1){
+            double distanceTest = std::sqrt(std::pow(jetTagEta[index] - jetBaseEta, 2) +  std::pow(jetTagPhi[index] - jetBasePhi, 2));
+            if(std::abs(distanceTest - distance) > std::numeric_limits<double>::epsilon()){
+                //LOG(DEBUG) << "Mismatch in distance from tag jet with index from tree: " << distanceTest << ", distance from tree " << distance << "\n";
+                std::cout << "Mismatch in distance from tag jet with index from tree: " << distanceTest << ", distance from tree " << distance << "\n";
+                //fIndexErrorRateBase->Fill(1);
             }
         }
 #endif
-
-        countBase++;
     }
 
     // other way around
-    countTag = 0;
-    for(auto j : contTag.accepted()){
-        Double_t point[2] = {j->Eta(), j->Phi()};
+    for (std::size_t iTag = 0; iTag < nJetsTag; iTag++) {
+        Double_t point[2] = {jetTagEta[iTag], jetTagPhi[iTag]};
         Int_t index(-1); Double_t distance(-1);
         treeBase.FindNearestNeighbors(point, 1, &index, &distance);
-        if(index >= 0 && distance < maxDist){
-            AliDebugStream(1) << "Found closest base jet for " << countBase << " with match index " << index << " and distance " << distance << std::endl;
-            matchIndexBase[countTag]=index;
+        if(index >= 0 && distance < maxMatchingDistance) {
+            //LOG(DEBUG) << "Found closest base jet for " << iTag << " with match index " << index << " and distance " << distance << std::endl;
+            std::cout << "Found closest base jet for " << iTag << " with match index " << index << " and distance " << distance << std::endl;
+            matchIndexBase[iTag] = index;
         } else {
-            AliDebugStream(1) << "Not found closest tag jet for " << countBase << ", distance to closest " << distance << std::endl;
+            //LOG(DEBUG) << "Closest tag jet for not found " << iTag << ", distance to closest " << distance << "\n";
+            std::cout << "Closest tag jet for not found " << iTag << ", distance to closest " << distance << "\n";
         }
 
 #ifdef JETTAGGERFAST_TEST
-        if(index>-1){
-            Double_t distanceTest(-1);
-            distanceTest = TMath::Sqrt(TMath::Power(etaBase[index] - j->Eta(), 2) +  TMath::Power(phiBase[index] - j->Phi(), 2));
-            if(TMath::Abs(distanceTest - distance) > DBL_EPSILON){
-                AliDebugStream(1) << "Mismatch in distance from base jet with index from tree: " << distanceTest << ", distance from tree " << distance << std::endl;
-                fIndexErrorRateTag->Fill(1);
+        if(index > -1){
+            double distanceTest = std::sqrt(std::pow(jetBaseEta[index] - jetTagEta, 2) +  std::pow(jetBasePhi[index] - jetTagPhi, 2));
+            if(std::abs(distanceTest - distance) > std::numeric_limits<double>::epsilon()){
+                //LOG(DEBUG) << "Mismatch in distance from base jet with index from tree: " << distanceTest << ", distance from tree " << distance << "\n";
+                std::cout << "Mismatch in distance from base jet with index from tree: " << distanceTest << ", distance from tree " << distance << "\n";
+                //fIndexErrorRateTag->Fill(1);
             }
         }
 #endif
-
-        countTag++;
     }
 
     // check for "true" correlations
     // these are pairs where the base jet is the closest to the tag jet and vice versa
     // As the lists are linear a loop over the outer base jet is sufficient.
-    AliDebugStream(1) << "Starting true jet loop: nbase(" << nJetsBase << "), ntag(" << nJetsTag << ")\n";
-    for(int ibase = 0; ibase < nJetsBase; ibase++) {
-        AliDebugStream(2) << "base jet " << ibase << ": match index in tag jet container " << matchIndexTag[ibase] << "\n";
-        if(matchIndexTag[ibase] > -1){
-          AliDebugStream(2) << "tag jet " << matchIndexTag[ibase] << ": matched base jet " << matchIndexBase[matchIndexTag[ibase]] << "\n";
+    //LOG(DEBUG) << "Starting true jet loop: nbase(" << nJetsBase << "), ntag(" << nJetsTag << ")\n";
+    std::cout << "Starting true jet loop: nbase(" << nJetsBase << "), ntag(" << nJetsTag << ")\n";
+    for (std::size_t iBase = 0; iBase < nJetsBase; iBase++) {
+        //LOG(DEBUG) << "base jet " << iBase << ": match index in tag jet container " << matchIndexTag[iBase] << "\n";
+        std::cout << "base jet " << iBase << ": match index in tag jet container " << matchIndexTag[iBase] << "\n";
+        if(matchIndexTag[iBase] > -1){
+          //LOG(DEBUG) << "tag jet " << matchIndexTag[iBase] << ": matched base jet " << matchIndexBase[matchIndexTag[iBase]] << "\n";
+            std::cout << "tag jet " << matchIndexTag[iBase] << ": matched base jet " << matchIndexBase[matchIndexTag[iBase]] << "\n";
         }
-        if(matchIndexTag[ibase] > -1 && matchIndexBase[matchIndexTag[ibase]] == ibase) {
-            AliDebugStream(2) << "found a true match \n";
-            AliEmcalJet *jetBase = jetsBase[ibase],
-                                    *jetTag = jetsTag[matchIndexTag[ibase]];
+        if(matchIndexTag[iBase] > -1 && matchIndexBase[matchIndexTag[iBase]] == iBase) {
+            //LOG(DEBUG) << "found a true match \n";
+            std::cout << "found a true match \n";
+            // TODO: Need to figure out storage...
+            /*AliEmcalJet *jetBase = jetsBase[iBase],
+                                    *jetTag = jetsTag[matchIndexTag[iBase]];
             if(jetBase && jetTag) {
 #ifdef JETTAGGERFAST_TEST
-                if(TMath::Abs(etaBase[ibase] - jetBase->Eta()) > DBL_EPSILON || TMath::Abs(phiBase[ibase] - jetBase->Phi()) > DBL_EPSILON){
-                    AliErrorStream() << "Selected incorrect base jet for tagging : eta test(" << jetBase->Eta() << ")/true(" << etaBase[ibase]
-                                                      << "), phi test(" << jetBase->Phi() << ")/true(" << phiBase[ibase] << ")\n";
+                if(std::abs(etaBase[iBase] - jetBase->Eta()) > std::numeric_limits<double>::epsilon() || std::abs(phiBase[iBase] - jetBase->Phi()) > std::numeric_limits<double>::epsilon()){
+                    LOG(ERROR)() << "Selected incorrect base jet for tagging : eta test(" << jetBase->Eta() << ")/true(" << etaBase[iBase]
+                                                      << "), phi test(" << jetBase->Phi() << ")/true(" << phiBase[iBase] << ")\n";
                     fContainerErrorRateBase->Fill(1);
                 }
-                if(TMath::Abs(etaTag[matchIndexTag[ibase]] - jetTag->Eta()) > DBL_EPSILON || TMath::Abs(phiTag[matchIndexTag[ibase]] - jetTag->Phi()) > DBL_EPSILON){
-                    AliErrorStream() << "Selected incorrect tag jet for tagging : eta test(" << jetTag->Eta() << ")/true(" << etaTag[matchIndexTag[ibase]]
-                                                      << "), phi test(" << jetTag->Phi() << ")/true(" << phiTag[matchIndexTag[ibase]] << ")\n";
+                if(std::abs(etaTag[matchIndexTag[iBase]] - jetTag->Eta()) > std::numeric_limits<double>::epsilon() || std::abs(phiTag[matchIndexTag[iBase]] - jetTag->Phi()) > std::numeric_limits<double>::epsilon()){
+                    LOG(ERROR)() << "Selected incorrect tag jet for tagging : eta test(" << jetTag->Eta() << ")/true(" << etaTag[matchIndexTag[iBase]]
+                                                      << "), phi test(" << jetTag->Phi() << ")/true(" << phiTag[matchIndexTag[iBase]] << ")\n";
                     fContainerErrorRateTag->Fill(1);
                 }
 #endif
@@ -152,8 +191,53 @@ bool MatchJetsGeometrically(
                     jetTag->SetClosestJet(jetBase,dR);
                     break;
                 };
-            }
+            }*/
         }
     }
-    return kTRUE;
+    return true;
+}
+
+template<typename T>
+bool MatchJetsGeometrically(
+    std::vector<T> jetBasePhi,
+    std::vector<T> jetBaseEta,
+    //const std::vector<int> jetBaseIndex,
+    std::vector<T> jetTagPhi,
+    std::vector<T> jetTagEta,
+    //const std::vector<int> jetTagIndex,
+    double maxMatchingDistance
+)
+{
+    // TODO: Validation
+    const std::size_t nJetsBase = jetBaseEta.size();
+    const std::size_t nJetsTag = jetTagEta.size();
+    if(!(nJetsBase && nJetsTag)) return false;
+
+    // Need to duplicate data up to maxMatchingDistance in phi because phi is cyclical.
+    // NOTE: vectors are modified in place to avoid copies.
+    std::vector<std::size_t> jetMapBaseToOriginalIndex = DuplicateJetsAroundPhiEdges(jetBasePhi, jetBaseEta, maxMatchingDistance);
+    std::vector<std::size_t> jetMapTagToOriginalIndex = DuplicateJetsAroundPhiEdges(jetTagPhi, jetTagEta, maxMatchingDistance);
+
+    bool res = MatchJetsGeometricallyImpl(
+        jetBasePhi, jetBaseEta, jetMapBaseToOriginalIndex,
+        jetTagPhi, jetTagEta, jetMapTagToOriginalIndex,
+        maxMatchingDistance
+    );
+    return res;
+}
+
+
+void test_jet_matching() {
+    std::vector<double> jetBaseEta = {0.5, -0.6};
+    std::vector<double> jetBasePhi = {1.2, 1.3};
+    std::vector<double> jetTagEta = {0.55, -0.65};
+    std::vector<double> jetTagPhi = {1.25, 1.4};
+    double maxMatchingDistance = 1.0;
+
+    bool res = MatchJetsGeometrically(
+        jetBasePhi, jetBaseEta,
+        jetTagPhi, jetTagEta,
+        maxMatchingDistance
+    );
+    std::cout << "Res " << res << "\n";
 }
