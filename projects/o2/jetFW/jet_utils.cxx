@@ -47,13 +47,14 @@ std::vector<std::size_t> DuplicateJetsAroundPhiEdges(
 //bool AliEmcalJetTaggerTaskFast::MatchJetsGeo(AliJetContainer &contBase, AliJetContainer &contTag, Float_t maxDist) const {
 template<typename T>
 bool MatchJetsGeometricallyImpl(
-        const std::vector<T> & jetBasePhi,
-        const std::vector<T> & jetBaseEta,
-        const std::vector<std::size_t> & jetMapBaseToOriginalIndex,
+        // NOTE: These could all be const, except that SetData() doesn't take a const. Thanks guys...
+        std::vector<T> & jetBasePhi,
+        std::vector<T> & jetBaseEta,
+        std::vector<std::size_t> & jetMapBaseToOriginalIndex,
         //const std::vector<int> jetBaseIndex,
-        const std::vector<T> & jetTagPhi,
-        const std::vector<T> & jetTagEta,
-        const std::vector<std::size_t> & jetMapTagToOriginalIndex,
+        std::vector<T> & jetTagPhi,
+        std::vector<T> & jetTagEta,
+        std::vector<std::size_t> & jetMapTagToOriginalIndex,
         //const std::vector<int> jetTagIndex,
         double maxMatchingDistance
         )
@@ -103,8 +104,8 @@ bool MatchJetsGeometricallyImpl(
             std::cout << "Found closest tag jet for " << iBase << " with match index " << index << " and distance " << distance << "\n";
             matchIndexTag[iBase] = index;
         } else {
-            //LOG(DEBUG) << "Closest tag jet for not found " << iBase << ", distance to closest " << distance << "\n";
-            std::cout << "Closest tag jet for not found " << iBase << ", distance to closest " << distance << "\n";
+            //LOG(DEBUG) << "Closest tag jet not found for" << iBase << ", distance to closest " << distance << "\n";
+            std::cout << "Closest tag jet not found for " << iBase << ", distance to closest " << distance << "\n";
         }
 
 #ifdef JETTAGGERFAST_TEST
@@ -129,8 +130,8 @@ bool MatchJetsGeometricallyImpl(
             std::cout << "Found closest base jet for " << iTag << " with match index " << index << " and distance " << distance << std::endl;
             matchIndexBase[iTag] = index;
         } else {
-            //LOG(DEBUG) << "Closest tag jet for not found " << iTag << ", distance to closest " << distance << "\n";
-            std::cout << "Closest tag jet for not found " << iTag << ", distance to closest " << distance << "\n";
+            //LOG(DEBUG) << "Closest tag jet not found for " << iTag << ", distance to closest " << distance << "\n";
+            std::cout << "Closest tag jet not found for " << iTag << ", distance to closest " << distance << "\n";
         }
 
 #ifdef JETTAGGERFAST_TEST
@@ -161,6 +162,7 @@ bool MatchJetsGeometricallyImpl(
             //LOG(DEBUG) << "found a true match \n";
             std::cout << "found a true match \n";
             // TODO: Need to figure out storage...
+            // NOTE: Need to deduplicate carefully...
             /*AliEmcalJet *jetBase = jetsBase[iBase],
                                     *jetTag = jetsTag[matchIndexTag[iBase]];
             if(jetBase && jetTag) {
@@ -233,6 +235,21 @@ void test_jet_matching() {
     std::vector<double> jetTagEta = {0.55, -0.65};
     std::vector<double> jetTagPhi = {1.25, 1.4};
     double maxMatchingDistance = 1.0;
+
+    bool res = MatchJetsGeometrically(
+        jetBasePhi, jetBaseEta,
+        jetTagPhi, jetTagEta,
+        maxMatchingDistance
+    );
+    std::cout << "Res " << res << "\n";
+}
+
+void test_jet_matching2() {
+    std::vector<double> jetBaseEta = {0.5};
+    std::vector<double> jetBasePhi = {0.1};
+    std::vector<double> jetTagEta = {0.55, 0.45};
+    std::vector<double> jetTagPhi = {2 * M_PI, 0.7};
+    double maxMatchingDistance = 0.5;
 
     bool res = MatchJetsGeometrically(
         jetBasePhi, jetBaseEta,
