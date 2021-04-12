@@ -240,6 +240,36 @@ bool MatchJetsGeometrically(
     // Now, we remove the duplicated data, updating the mapping as needed.
     for (std::size_t i = 0; i < baseToTagMap.size(); ++i)
     {
+        int tagIndex = baseToTagMap[i];
+        // Update mapping if it's pointing to a duplicated tag.
+        if (tagIndex != jetMapTagToJetIndex[tagIndex]) {
+            baseToTagMap[i] = jetMapTagToJetIndex[tagIndex];
+        }
+    }
+    std::map<std::size_t, int> finalBaseToTagMap;
+    for (std::size_t i = 0; i < baseToTagMap.size(); ++i)
+    {
+        // Compare the values if we have duplicated jets.
+        if (jetMapBaseToJetIndex[i] != i) {
+            int tagMatchedToOriginalJet = baseToTagMap[jetMapBaseToJetIndex[i]];
+            int tagMatchedToDuplicatedJet = baseToTagMap[i];
+            if (tagMatchedToDuplicatedJet == tagMatchedToOriginalJet) {
+                finalBaseToTagMap[jetMapBaseToJetIndex[i]] = tagMatchedToOriginalJet;
+            }
+            else {
+                // Matching doesn't agree.
+                // TODO: Take the closer jet.
+                std::cout << "Matching doesn't agree...\n";
+                finalBaseToTagMap[jetMapBaseToJetIndex[i]] = -1;
+            }
+        }
+    }
+
+    for (const auto v : finalBaseToTagMap) {
+        std::cout << "v.first: " << v.first << ", v.second: " << v.second << "\n";
+    }
+    /*for (std::size_t i = 0; i < baseToTagMap.size(); ++i)
+    {
         int baseJetIndex = jetMapBaseToJetIndex[iBase];
         if (baseJetIndex != jetMapBaseToJetIndex[iBase]) {
 
@@ -262,7 +292,7 @@ bool MatchJetsGeometrically(
             baseToTagMap[baseJetIndex] = tagJetIndex;
             tagToBaseMap[tagJetIndex] = baseJetIndex;
         }
-    }
+    }*/
 
     return true;
 }
@@ -286,8 +316,23 @@ void test_jet_matching() {
 void test_jet_matching2() {
     std::vector<double> jetBaseEta = {0.5};
     std::vector<double> jetBasePhi = {0.1};
-    std::vector<double> jetTagEta = {0.55, 0.45};
-    std::vector<double> jetTagPhi = {2 * M_PI, 0.7};
+    std::vector<double> jetTagEta = {0.45, 0.55};
+    std::vector<double> jetTagPhi = {0.7, 2 * M_PI};
+    double maxMatchingDistance = 0.5;
+
+    bool res = MatchJetsGeometrically(
+        jetBasePhi, jetBaseEta,
+        jetTagPhi, jetTagEta,
+        maxMatchingDistance
+    );
+    std::cout << "Res " << res << "\n";
+}
+
+void test_jet_matching3() {
+    std::vector<double> jetBaseEta = {0.5};
+    std::vector<double> jetBasePhi = {0.1};
+    std::vector<double> jetTagEta = {0.55};
+    std::vector<double> jetTagPhi = {6.1};
     double maxMatchingDistance = 0.5;
 
     bool res = MatchJetsGeometrically(
