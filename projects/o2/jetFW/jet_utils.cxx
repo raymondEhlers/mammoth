@@ -5,6 +5,7 @@
 
 #include <cmath>
 #include <limits>
+#include <tuple>
 #include <vector>
 
 #include <TKDTree.h>
@@ -18,9 +19,9 @@ std::vector<std::size_t> DuplicateJetsAroundPhiEdges(
 )
 {
     const std::size_t nJets = jetsPhi.size();
-    std::vector<std::size_t> jetsMapToOriginalIndex(nJets);
+    std::vector<std::size_t> jetsMapToJetIndex(nJets);
     // First, fill them up with the indices of the existing jets.
-    std::iota(jetsMapToOriginalIndex.begin(), jetsMapToOriginalIndex.end(), 0);
+    std::iota(jetsMapToJetIndex.begin(), jetsMapToJetIndex.end(), 0);
 
     // NOTE: Assumes 0 <= phi < 2pi.
     // TODO: Validation phi range(?)
@@ -31,30 +32,30 @@ std::vector<std::size_t> DuplicateJetsAroundPhiEdges(
         if (jetsPhi[i] <= (maxMatchingDistance + additionalMargin)) {
             jetsPhi.emplace_back(jetsPhi[i] + 2 * M_PI);
             jetsEta.emplace_back(jetsEta[i]);
-            jetsMapToOriginalIndex.emplace_back(jetsMapToOriginalIndex[i]);
+            jetsMapToJetIndex.emplace_back(jetsMapToJetIndex[i]);
         }
         // Handle upper edge
         if (jetsPhi[i] >= (2 * M_PI - (maxMatchingDistance + additionalMargin))) {
             jetsPhi.emplace_back(jetsPhi[i] - 2 * M_PI);
             jetsEta.emplace_back(jetsEta[i]);
-            jetsMapToOriginalIndex.emplace_back(jetsMapToOriginalIndex[i]);
+            jetsMapToJetIndex.emplace_back(jetsMapToJetIndex[i]);
         }
     }
 
-    return jetsMapToOriginalIndex;
+    return std::move(jetsMapToJetIndex);
 }
 
 //bool AliEmcalJetTaggerTaskFast::MatchJetsGeo(AliJetContainer &contBase, AliJetContainer &contTag, Float_t maxDist) const {
 template<typename T>
-bool MatchJetsGeometricallyImpl(
+std::tuple<std::vector<int>, std::vector<int>> MatchJetsGeometricallyImpl(
         // NOTE: These could all be const, except that SetData() doesn't take a const. Thanks guys...
         std::vector<T> & jetBasePhi,
         std::vector<T> & jetBaseEta,
-        std::vector<std::size_t> & jetMapBaseToOriginalIndex,
+        std::vector<std::size_t> & jetMapBaseToJetIndex,
         //const std::vector<int> jetBaseIndex,
         std::vector<T> & jetTagPhi,
         std::vector<T> & jetTagEta,
-        std::vector<std::size_t> & jetMapTagToOriginalIndex,
+        std::vector<std::size_t> & jetMapTagToJetIndex,
         //const std::vector<int> jetTagIndex,
         double maxMatchingDistance
         )
@@ -62,7 +63,9 @@ bool MatchJetsGeometricallyImpl(
     // TODO: Further validation
     const std::size_t nJetsBase = jetBaseEta.size();
     const std::size_t nJetsTag = jetTagEta.size();
-    if(!(nJetsBase && nJetsTag)) return false;
+    if(!(nJetsBase && nJetsTag)) {
+        return std::make_tuple(std::vector<int>(), std::vector<int>());
+    }
 
     // Build kd-trees
     //TArrayD etaBase(nJetsBase, jetBaseEta.data()), phiBase(nJetsBase, jetBasePhi.data()),
@@ -83,7 +86,8 @@ bool MatchJetsGeometricallyImpl(
     }*/
 
     // Build KDTrees using vector
-    TKDTreeID treeBase(jetBaseEta.size(), 2, 1), treeTag(jetTagEta.size(), 2, 1);
+    //TKDTreeID treeBase(jetBaseEta.size(), 2, 1), treeTag(jetTagEta.size(), 2, 1);
+    TKDTree<int, T> treeBase(jetBaseEta.size(), 2, 1), treeTag(jetTagEta.size(), 2, 1);
     treeBase.SetData(0, jetBaseEta.data());
     treeBase.SetData(1, jetBasePhi.data());
     treeBase.Build();
@@ -146,6 +150,9 @@ bool MatchJetsGeometricallyImpl(
 #endif
     }
 
+    std::vector<int> baseToTagMap(nJetsBase, -1);
+    std::vector<int> tagToBaseMap(nJetsTag, -1);
+
     // check for "true" correlations
     // these are pairs where the base jet is the closest to the tag jet and vice versa
     // As the lists are linear a loop over the outer base jet is sufficient.
@@ -154,15 +161,15 @@ bool MatchJetsGeometricallyImpl(
     for (std::size_t iBase = 0; iBase < nJetsBase; iBase++) {
         //LOG(DEBUG) << "base jet " << iBase << ": match index in tag jet container " << matchIndexTag[iBase] << "\n";
         std::cout << "base jet " << iBase << ": match index in tag jet container " << matchIndexTag[iBase] << "\n";
-        if(matchIndexTag[iBase] > -1){
+        if (matchIndexTag[iBase] > -1){
           //LOG(DEBUG) << "tag jet " << matchIndexTag[iBase] << ": matched base jet " << matchIndexBase[matchIndexTag[iBase]] << "\n";
             std::cout << "tag jet " << matchIndexTag[iBase] << ": matched base jet " << matchIndexBase[matchIndexTag[iBase]] << "\n";
         }
-        if(matchIndexTag[iBase] > -1 && matchIndexBase[matchIndexTag[iBase]] == iBase) {
-            //LOG(DEBUG) << "found a true match \n";
-            std::cout << "found a true match \n";
-            // TODO: Need to figure out storage...
-            // NOTE: Need to deduplicate carefully...
+        if (matchIndexTag[iBase] > -1 && matchIndexBase[matchIndexTag[iBase]] == iBase) {
+            baseToTagMap[iBase] = matchIndexTag[iBase];
+            tagToBaseMap[matchIndexTag[iBase]] = iBase;
+
+            // NOTE: These tests below will only work if periodic phi is accounted for properly.
             /*AliEmcalJet *jetBase = jetsBase[iBase],
                                     *jetTag = jetsTag[matchIndexTag[iBase]];
             if(jetBase && jetTag) {
@@ -196,36 +203,68 @@ bool MatchJetsGeometricallyImpl(
             }*/
         }
     }
-    return true;
+    return std::make_tuple(baseToTagMap, tagToBaseMap);
 }
 
 template<typename T>
 bool MatchJetsGeometrically(
     std::vector<T> jetBasePhi,
     std::vector<T> jetBaseEta,
-    //const std::vector<int> jetBaseIndex,
     std::vector<T> jetTagPhi,
     std::vector<T> jetTagEta,
-    //const std::vector<int> jetTagIndex,
     double maxMatchingDistance
 )
 {
-    // TODO: Validation
+    // Validation
+    // TODO: Additional Validation
     const std::size_t nJetsBase = jetBaseEta.size();
     const std::size_t nJetsTag = jetTagEta.size();
     if(!(nJetsBase && nJetsTag)) return false;
 
-    // Need to duplicate data up to maxMatchingDistance in phi because phi is cyclical.
+    // Need to duplicate data up to maxMatchingDistance in phi because phi is periodic.
     // NOTE: vectors are modified in place to avoid copies.
-    std::vector<std::size_t> jetMapBaseToOriginalIndex = DuplicateJetsAroundPhiEdges(jetBasePhi, jetBaseEta, maxMatchingDistance);
-    std::vector<std::size_t> jetMapTagToOriginalIndex = DuplicateJetsAroundPhiEdges(jetTagPhi, jetTagEta, maxMatchingDistance);
+    std::vector<std::size_t> && jetMapBaseToJetIndex = DuplicateJetsAroundPhiEdges(jetBasePhi, jetBaseEta, maxMatchingDistance);
+    std::vector<std::size_t> && jetMapTagToJetIndex = DuplicateJetsAroundPhiEdges(jetTagPhi, jetTagEta, maxMatchingDistance);
 
-    bool res = MatchJetsGeometricallyImpl(
-        jetBasePhi, jetBaseEta, jetMapBaseToOriginalIndex,
-        jetTagPhi, jetTagEta, jetMapTagToOriginalIndex,
+    //auto res = MatchJetsGeometricallyImpl(
+    auto && [baseToTagMap, tagToBaseMap] = MatchJetsGeometricallyImpl(
+        jetBasePhi, jetBaseEta, jetMapBaseToJetIndex,
+        jetTagPhi, jetTagEta, jetMapTagToJetIndex,
         maxMatchingDistance
     );
-    return res;
+
+    for (auto v : baseToTagMap) {
+        std::cout << "v: " << v << "\n";
+    }
+
+    // Now, we remove the duplicated data, updating the mapping as needed.
+    for (std::size_t i = 0; i < baseToTagMap.size(); ++i)
+    {
+        int baseJetIndex = jetMapBaseToJetIndex[iBase];
+        if (baseJetIndex != jetMapBaseToJetIndex[iBase]) {
+
+        }
+        int tagJetIndex = jetMapTagToJetIndex[matchIndexTag[iBase]];
+        //LOG(DEBUG) << "found a true match \n";
+        std::cout << "found a true match \n";
+        // TODO: Need to figure out storage...
+        // NOTE: Need to deduplicate carefully...
+        if (baseToTagMap[baseJetIndex] != -1) {
+            // It's already been set - check it's still unique
+            // This may not be the best way to go about this point.
+            int existingValue = baseToTagMap[baseJetIndex];
+            if (existingValue != ) {
+
+            }
+        }
+        else {
+            // Store the result.
+            baseToTagMap[baseJetIndex] = tagJetIndex;
+            tagToBaseMap[tagJetIndex] = baseJetIndex;
+        }
+    }
+
+    return true;
 }
 
 
