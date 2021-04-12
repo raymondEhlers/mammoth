@@ -11,8 +11,10 @@
 #include <TKDTree.h>
 
 
+// TODO: Make naming uniform...
+
 template<typename T>
-std::vector<std::size_t> DuplicateJetsAroundPhiEdges(
+std::tuple<std::vector<std::size_t>, std::vector<T>, std::vector<T>> DuplicateJetsAroundPhiEdges(
     std::vector<T> & jetsPhi,
     std::vector<T> & jetsEta,
     double maxMatchingDistance
@@ -23,6 +25,10 @@ std::vector<std::size_t> DuplicateJetsAroundPhiEdges(
     // First, fill them up with the indices of the existing jets.
     std::iota(jetsMapToJetIndex.begin(), jetsMapToJetIndex.end(), 0);
 
+    // Copy base values
+    std::vector<T> jetsPhiComparison(jetsPhi);
+    std::vector<T> jetsEtaComparison(jetsEta);
+
     // NOTE: Assumes 0 <= phi < 2pi.
     // TODO: Validation phi range(?)
     // TODO: Remove additional margin afer some testing.
@@ -30,33 +36,34 @@ std::vector<std::size_t> DuplicateJetsAroundPhiEdges(
     for (std::size_t i = 0; i < nJets; i++) {
         // Handle lower edge
         if (jetsPhi[i] <= (maxMatchingDistance + additionalMargin)) {
-            jetsPhi.emplace_back(jetsPhi[i] + 2 * M_PI);
-            jetsEta.emplace_back(jetsEta[i]);
+            jetsPhiComparison.emplace_back(jetsPhi[i] + 2 * M_PI);
+            jetsEtaComparison.emplace_back(jetsEta[i]);
             jetsMapToJetIndex.emplace_back(jetsMapToJetIndex[i]);
         }
         // Handle upper edge
         if (jetsPhi[i] >= (2 * M_PI - (maxMatchingDistance + additionalMargin))) {
-            jetsPhi.emplace_back(jetsPhi[i] - 2 * M_PI);
-            jetsEta.emplace_back(jetsEta[i]);
+            jetsPhiComparison.emplace_back(jetsPhi[i] - 2 * M_PI);
+            jetsEtaComparison.emplace_back(jetsEta[i]);
             jetsMapToJetIndex.emplace_back(jetsMapToJetIndex[i]);
         }
     }
 
-    return std::move(jetsMapToJetIndex);
+    return std::move(std::make_tuple(jetsMapToJetIndex, jetsPhiComparison, jetsEtaComparison));
 }
 
-//bool AliEmcalJetTaggerTaskFast::MatchJetsGeo(AliJetContainer &contBase, AliJetContainer &contTag, Float_t maxDist) const {
 template<typename T>
 std::tuple<std::vector<int>, std::vector<int>> MatchJetsGeometricallyImpl(
-        // NOTE: These could all be const, except that SetData() doesn't take a const. Thanks guys...
-        std::vector<T> & jetBasePhi,
-        std::vector<T> & jetBaseEta,
-        std::vector<std::size_t> & jetMapBaseToJetIndex,
-        //const std::vector<int> jetBaseIndex,
-        std::vector<T> & jetTagPhi,
-        std::vector<T> & jetTagEta,
-        std::vector<std::size_t> & jetMapTagToJetIndex,
-        //const std::vector<int> jetTagIndex,
+        // NOTE: These could all be const, except that SetData() doesn't take a const. Sigh...
+        const std::vector<T> & jetBasePhi,
+        const std::vector<T> & jetBaseEta,
+        std::vector<T> jetBasePhiComparison,
+        std::vector<T> jetBaseEtaComparison,
+        const std::vector<std::size_t> jetMapBaseToJetIndex,
+        const std::vector<T> & jetTagPhi,
+        const std::vector<T> & jetTagEta,
+        std::vector<T> jetTagPhiComparison,
+        std::vector<T> jetTagEtaComparison,
+        const std::vector<std::size_t> jetMapTagToJetIndex,
         double maxMatchingDistance
         )
 {
@@ -66,6 +73,7 @@ std::tuple<std::vector<int>, std::vector<int>> MatchJetsGeometricallyImpl(
     if(!(nJetsBase && nJetsTag)) {
         return std::make_tuple(std::vector<int>(), std::vector<int>());
     }
+    // TODO: Requier that the comparison is greater than or equal to the standard collections.
 
     // Build kd-trees
     //TArrayD etaBase(nJetsBase, jetBaseEta.data()), phiBase(nJetsBase, jetBasePhi.data()),
@@ -87,12 +95,12 @@ std::tuple<std::vector<int>, std::vector<int>> MatchJetsGeometricallyImpl(
 
     // Build KDTrees using vector
     //TKDTreeID treeBase(jetBaseEta.size(), 2, 1), treeTag(jetTagEta.size(), 2, 1);
-    TKDTree<int, T> treeBase(jetBaseEta.size(), 2, 1), treeTag(jetTagEta.size(), 2, 1);
-    treeBase.SetData(0, jetBaseEta.data());
-    treeBase.SetData(1, jetBasePhi.data());
+    TKDTree<int, T> treeBase(jetBaseEtaComparison.size(), 2, 1), treeTag(jetTagEtaComparison.size(), 2, 1);
+    treeBase.SetData(0, jetBaseEtaComparison.data());
+    treeBase.SetData(1, jetBasePhiComparison.data());
     treeBase.Build();
-    treeTag.SetData(0, jetTagEta.data());
-    treeTag.SetData(1, jetTagPhi.data());
+    treeTag.SetData(0, jetTagEtaComparison.data());
+    treeTag.SetData(1, jetTagPhiComparison.data());
     treeTag.Build();
 
     std::vector<int> matchIndexTag(nJetsBase, -1), matchIndexBase(nJetsTag, -1);
@@ -150,6 +158,30 @@ std::tuple<std::vector<int>, std::vector<int>> MatchJetsGeometricallyImpl(
 #endif
     }
 
+    // Convert...
+    std::cout << "before tag\n";
+    for (auto & v : matchIndexTag) {
+        std::cout << "v: " << v << "\n";
+        if (v != -1) {
+            v = jetMapTagToJetIndex[v];
+        }
+    }
+    std::cout << "after tag\n";
+    for (const auto & v : matchIndexTag) {
+        std::cout << "v: " << v << "\n";
+    }
+    std::cout << "before base\n";
+    for (auto & v : matchIndexBase) {
+        std::cout << "v: " << v << "\n";
+        if (v != -1) {
+            v = jetMapBaseToJetIndex[v];
+        }
+    }
+    std::cout << "after base\n";
+    for (const auto & v : matchIndexBase) {
+        std::cout << "v: " << v << "\n";
+    }
+
     std::vector<int> baseToTagMap(nJetsBase, -1);
     std::vector<int> tagToBaseMap(nJetsTag, -1);
 
@@ -166,6 +198,7 @@ std::tuple<std::vector<int>, std::vector<int>> MatchJetsGeometricallyImpl(
             std::cout << "tag jet " << matchIndexTag[iBase] << ": matched base jet " << matchIndexBase[matchIndexTag[iBase]] << "\n";
         }
         if (matchIndexTag[iBase] > -1 && matchIndexBase[matchIndexTag[iBase]] == iBase) {
+            std::cout << "True match! base index: " << iBase << ", tag index: " << matchIndexTag[iBase] << "\n";
             baseToTagMap[iBase] = matchIndexTag[iBase];
             tagToBaseMap[matchIndexTag[iBase]] = iBase;
 
@@ -219,17 +252,28 @@ bool MatchJetsGeometrically(
     // TODO: Additional Validation
     const std::size_t nJetsBase = jetBaseEta.size();
     const std::size_t nJetsTag = jetTagEta.size();
-    if(!(nJetsBase && nJetsTag)) return false;
+    if(!(nJetsBase && nJetsTag)) {
+        return false;
+    }
 
     // Need to duplicate data up to maxMatchingDistance in phi because phi is periodic.
     // NOTE: vectors are modified in place to avoid copies.
-    std::vector<std::size_t> && jetMapBaseToJetIndex = DuplicateJetsAroundPhiEdges(jetBasePhi, jetBaseEta, maxMatchingDistance);
-    std::vector<std::size_t> && jetMapTagToJetIndex = DuplicateJetsAroundPhiEdges(jetTagPhi, jetTagEta, maxMatchingDistance);
+    auto && [jetMapBaseToJetIndex, jetBasePhiComparison, jetBaseEtaComparison] = DuplicateJetsAroundPhiEdges(jetBasePhi, jetBaseEta, maxMatchingDistance);
+    auto && [jetMapTagToJetIndex, jetTagPhiComparison, jetTagEtaComparison] = DuplicateJetsAroundPhiEdges(jetTagPhi, jetTagEta, maxMatchingDistance);
+
+    std::cout << "jetMapBaseToJetIndex\n";
+    for (const auto v : jetMapBaseToJetIndex) {
+        std::cout << v << "\n";
+    }
+    std::cout << "jetMapTagToJetIndex\n";
+    for (const auto v : jetMapTagToJetIndex) {
+        std::cout << v << "\n";
+    }
 
     //auto res = MatchJetsGeometricallyImpl(
     auto && [baseToTagMap, tagToBaseMap] = MatchJetsGeometricallyImpl(
-        jetBasePhi, jetBaseEta, jetMapBaseToJetIndex,
-        jetTagPhi, jetTagEta, jetMapTagToJetIndex,
+        jetBasePhi, jetBaseEta, jetBasePhiComparison, jetBaseEtaComparison, jetMapBaseToJetIndex,
+        jetTagPhi, jetTagEta, jetTagPhiComparison, jetTagEtaComparison, jetMapTagToJetIndex,
         maxMatchingDistance
     );
 
@@ -238,7 +282,7 @@ bool MatchJetsGeometrically(
     }
 
     // Now, we remove the duplicated data, updating the mapping as needed.
-    for (std::size_t i = 0; i < baseToTagMap.size(); ++i)
+    /*for (std::size_t i = 0; i < baseToTagMap.size(); ++i)
     {
         int tagIndex = baseToTagMap[i];
         // Update mapping if it's pointing to a duplicated tag.
@@ -267,7 +311,8 @@ bool MatchJetsGeometrically(
 
     for (const auto v : finalBaseToTagMap) {
         std::cout << "v.first: " << v.first << ", v.second: " << v.second << "\n";
-    }
+    }*/
+
     /*for (std::size_t i = 0; i < baseToTagMap.size(); ++i)
     {
         int baseJetIndex = jetMapBaseToJetIndex[iBase];
