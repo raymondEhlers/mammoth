@@ -159,28 +159,28 @@ std::tuple<std::vector<int>, std::vector<int>> MatchJetsGeometricallyImpl(
     }
 
     // Convert...
-    std::cout << "before tag\n";
+    //std::cout << "before tag\n";
     for (auto & v : matchIndexTag) {
-        std::cout << "v: " << v << "\n";
+        //std::cout << "v: " << v << "\n";
         if (v != -1) {
             v = jetMapTagToJetIndex[v];
         }
     }
-    std::cout << "after tag\n";
-    for (const auto & v : matchIndexTag) {
-        std::cout << "v: " << v << "\n";
-    }
-    std::cout << "before base\n";
+    //std::cout << "after tag\n";
+    //for (const auto & v : matchIndexTag) {
+    //    std::cout << "v: " << v << "\n";
+    //}
+    //std::cout << "before base\n";
     for (auto & v : matchIndexBase) {
-        std::cout << "v: " << v << "\n";
+        //std::cout << "v: " << v << "\n";
         if (v != -1) {
             v = jetMapBaseToJetIndex[v];
         }
     }
-    std::cout << "after base\n";
-    for (const auto & v : matchIndexBase) {
-        std::cout << "v: " << v << "\n";
-    }
+    //std::cout << "after base\n";
+    //for (const auto & v : matchIndexBase) {
+    //    std::cout << "v: " << v << "\n";
+    //}
 
     std::vector<int> baseToTagMap(nJetsBase, -1);
     std::vector<int> tagToBaseMap(nJetsTag, -1);
@@ -261,14 +261,14 @@ bool MatchJetsGeometrically(
     auto && [jetMapBaseToJetIndex, jetBasePhiComparison, jetBaseEtaComparison] = DuplicateJetsAroundPhiEdges(jetBasePhi, jetBaseEta, maxMatchingDistance);
     auto && [jetMapTagToJetIndex, jetTagPhiComparison, jetTagEtaComparison] = DuplicateJetsAroundPhiEdges(jetTagPhi, jetTagEta, maxMatchingDistance);
 
-    std::cout << "jetMapBaseToJetIndex\n";
-    for (const auto v : jetMapBaseToJetIndex) {
-        std::cout << v << "\n";
-    }
-    std::cout << "jetMapTagToJetIndex\n";
-    for (const auto v : jetMapTagToJetIndex) {
-        std::cout << v << "\n";
-    }
+    //std::cout << "jetMapBaseToJetIndex\n";
+    //for (const auto v : jetMapBaseToJetIndex) {
+    //    std::cout << v << "\n";
+    //}
+    //std::cout << "jetMapTagToJetIndex\n";
+    //for (const auto v : jetMapTagToJetIndex) {
+    //    std::cout << v << "\n";
+    //}
 
     //auto res = MatchJetsGeometricallyImpl(
     auto && [baseToTagMap, tagToBaseMap] = MatchJetsGeometricallyImpl(
