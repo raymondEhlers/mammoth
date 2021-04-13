@@ -3,7 +3,7 @@
 .. codeauthor:: Raymond Ehlers <raymond.ehlers@cern.ch>, ORNL
 """
 
-from typing import Any, Iterator, Mapping, Sequence, Tuple
+from typing import Any, Iterator, List, Mapping, Sequence, Tuple, Type
 from typing_extensions import Protocol
 
 import attr
@@ -13,11 +13,23 @@ import numpy as np
 class Source(Protocol):
     metadata: Mapping[str, Any]
 
-    def events(self) -> Iterator[Tuple[ak.Array, ak.Array]]: ...
+    def events(self) -> Iterator[Tuple[ak.Array, ak.Array]]:
+        """
+
+        Returns:
+            Event info, particles
+        """
+        ...
 
 
-class TreeSource:
-    ...
+@attr.s
+class UprootSource:
+    _filename: str = attr.ib()
+    _columns: Sequence[str] = attr.ib(factory=list)
+    metadata: Mapping[str, Any] = attr.ib(factory=dict)
+
+    def events(self) -> Iterator[Tuple[ak.Array, ak.Array]]:
+        ...
 
 
 @attr.s
@@ -27,11 +39,6 @@ class ParquetSource:
     metadata: Mapping[str, Any] = attr.ib(factory=dict)
 
     def events(self) -> Iterator[Tuple[ak.Array, ak.Array]]:
-        """
-
-        Returns:
-            Event info, particles
-        """
         yield ak.from_parquet(
             self._filename,
             columns=self._columns if self._columns else None,
@@ -51,12 +58,25 @@ class GeneratorSource:
     ...
 
 
+@attr.s
 class ThermalBackground:
     """ Thermal Background
 
     Try quick prototype to ensure that it works with this approach.
     """
+    parameters: List[float] = attr.ib()
+    n_events: int = attr.ib()
+
+
+@attr.s
+class MultipleFileSource:
+    _filenames: Sequence[str] = attr.ib()
+    _source_type: Type[Source] = attr.ib()
+    metadata: Mapping[str, Any] = attr.ib(factory=dict)
     ...
+
+    def events(self) -> Iterator[Tuple[ak.Array, ak.Array]]:
+        ...
 
 
 def _contains_signal_and_background(instance: "MultipleSources", attribute: attr.Attribute[Mapping[str, int]], value: Mapping[str, int]) -> None:
@@ -96,7 +116,7 @@ class MultipleSources:
 
     def events(self) -> Iterator[Tuple[ak.Array, ak.Array]]:
         # Grab the events from the sources
-        source_events = {k: v.events() for k, v in self._sources.items()}
+        source_events = {k: v.events()() for k, v in self._sources.items()}
 
         # Add source IDs
         for k, v in source_events.items():
@@ -128,13 +148,16 @@ class MultipleSources:
 
         # TODO: This isn't right. It needs to append the two collections together.
         #       This should be done via awkward primivities.
-        particles = {
+        particles = ak.zip(
             {
-                # TODO: I'm not sure these would combine cleanly...
-                #       May need to ask a question on the awkward discussion board.
-                ak.unzip(source.events()[self._particles_columns]) for k, source in source_events
+                k: ak.concatenate(
+                    [source[k] for source in source_events.values()],
+                    axis=1
+                )
+                for k in self._particles_columns
             },
-        }
+        )
 
+        # TODO: This isn't right. What about part vs det vs hybrid level, for example?
         yield event_info, particles
 
