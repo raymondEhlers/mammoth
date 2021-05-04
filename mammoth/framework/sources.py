@@ -3,33 +3,68 @@
 .. codeauthor:: Raymond Ehlers <raymond.ehlers@cern.ch>, ORNL
 """
 
-from typing import Any, Iterator, List, Mapping, Sequence, Tuple, Type
+from typing import Any, Iterable, List, Mapping, Sequence, Tuple, Type
 from typing_extensions import Protocol
 
 import attr
 import awkward as ak
 import numpy as np
+import uproot
 
 class Source(Protocol):
+    """ Data source.
+
+    Attributes:
+        metadata: Source metadata.
+    """
     metadata: Mapping[str, Any]
 
-    def events(self) -> Iterator[Tuple[ak.Array, ak.Array]]:
-        """
+    def data(self) -> Iterable[ak.Array]:
+        """ Return data from the source.
 
         Returns:
-            Event info, particles
+            Data in the form of awkward arrays.
         """
         ...
+
+
+def _contains_required_uproot_fields(instance: "UprootSource", attribute: attr.Attribute[Mapping[str, int]], value: Mapping[str, Any]) -> None:
+    """Require that the uproot source has sufficient metadata info to work with a file."""
+    required_keys = set(["tree_name"])
+    all_keys = set(value.keys())
+    missing_keys = all_keys
+
+    # Validate
+    missing_keys = [k for k in required_keys if k not in value.keys()]
+    if missing_keys:
+        raise ValueError(f"Missing metadata keys: {missing_keys}")
 
 
 @attr.s
 class UprootSource:
     _filename: str = attr.ib()
     _columns: Sequence[str] = attr.ib(factory=list)
-    metadata: Mapping[str, Any] = attr.ib(factory=dict)
+    _entry_range: Tuple[Optional[int], Optional[int]] = attr.ib(default=[None, None])
+    metadata: Mapping[str, Any] = attr.ib(factory=dict, validator=[_contains_required_uproot_fields])
 
-    def events(self) -> Iterator[Tuple[ak.Array, ak.Array]]:
-        ...
+    def data(self) -> Iterable[ak.Array]:
+        with uproot.open(self._filename) as f:
+            tree = f[self.metadata["tree_name"]]
+
+            # Add metadata
+            self.metadata["n_entries"] = tree.num_entries
+            if self._entry_range[0] is not None or self._entry_range[1] is not None:
+                self.metadata["entry_start"] = self._entry_range[0]
+                self.metadata["entry_stop"] = self._entry_range[1]
+
+            # Add restricted start and stop entries if requested.
+            reading_kwargs = {
+                "expressions": self._columns if self._columns else None,
+            }
+            if self.metadata["entry_start"] and self.metadata["entry_stop"]:
+                reading_kwargs.update({"entry_start": self.metadata["entry_start"], "entry_stop": self.metadata["entry_stop"]})
+
+            yield tree.arrays(**reading_kwargs)
 
 
 @attr.s
@@ -38,7 +73,7 @@ class ParquetSource:
     _columns: Sequence[str] = attr.ib(factory=list)
     metadata: Mapping[str, Any] = attr.ib(factory=dict)
 
-    def events(self) -> Iterator[Tuple[ak.Array, ak.Array]]:
+    def data(self) -> Iterable[ak.Array]:
         yield ak.from_parquet(
             self._filename,
             columns=self._columns if self._columns else None,
@@ -64,19 +99,66 @@ class ThermalBackground:
 
     Try quick prototype to ensure that it works with this approach.
     """
-    parameters: List[float] = attr.ib()
-    n_events: int = attr.ib()
+    _parameters: List[float] = attr.ib()
+    _n_events: int = attr.ib()
+    metadata: Mapping[str, Any] = attr.ib(factory=dict)
 
 
 @attr.s
 class MultipleFileSource:
+    """ Source which is composed of multiple files.
+
+    Args:
+        filenames: Names of the files.
+        source_type: Source to use with the filenames.
+        metadata: Source metadata.
+    """
     _filenames: Sequence[str] = attr.ib()
     _source_type: Type[Source] = attr.ib()
     metadata: Mapping[str, Any] = attr.ib(factory=dict)
-    ...
 
-    def events(self) -> Iterator[Tuple[ak.Array, ak.Array]]:
-        ...
+    def data(self) -> Iterable[ak.Array]:
+        for filename in self._filenames:
+            _source = self._source_type(filename)
+            yield _source
+
+
+class ChunkSource:
+    chunk_size: int = attr.ib()
+    _source: MultipleFileSource = attr.ib()
+    metadata: Mapping[str, Any] = attr.ib(factory=dict)
+
+    def data(self) -> Iterable[ak.Array]:
+        source_iter = self._source.data()
+        remaining_data = None
+        while True:
+            if remaining_data:
+                _data = remaining_data
+                remaining_data = None
+            else:
+                _data = next(source_iter)
+
+            if len(_data) == self.chunk_size:
+                yield _data
+            elif len(_data) < self.chunk_size:
+                additional_chunks = []
+                remaining_n_events = self.chunk_size - len(_data)
+                for _more_data in source_iter:
+                    remaining_n_events -= len(_more_data)
+                    if remaining_n_events < 0:
+                        # Slice the reamining data and store for the next iteration
+                        additional_chunks.append(_more_data[:remaining_n_events])
+                        remaining_data = _more_data[remaining_n_events:]
+                        break
+                    additional_chunks.append(_more_data)
+                yield ak.concatenate(
+                    [_data, *additional_chunks],
+                    axis=0,
+                )
+            else:
+                remaining_n_events = self.chunk_size - len(_data)
+                remaining_data = _data[remaining_n_events:]
+                yield _data[:remaining_n_events]
 
 
 def _contains_signal_and_background(instance: "MultipleSources", attribute: attr.Attribute[Mapping[str, int]], value: Mapping[str, int]) -> None:
@@ -114,7 +196,7 @@ class MultipleSources:
     _particles_columns: Sequence[str] = attr.ib(factory=lambda: ["px", "py", "pz", "E"])
     metadata: Mapping[str, Any] = attr.ib(factory=dict)
 
-    def events(self) -> Iterator[Tuple[ak.Array, ak.Array]]:
+    def data(self) -> Iterable[ak.Array]:
         # Grab the events from the sources
         source_events = {k: v.events()() for k, v in self._sources.items()}
 
@@ -161,3 +243,17 @@ class MultipleSources:
         # TODO: This isn't right. What about part vs det vs hybrid level, for example?
         yield event_info, particles
 
+
+@attr.s
+class EmbeddedSourceTransform:
+    """ Transform an embedded source
+
+    """
+
+    def transform(self, input: ak.Array) -> ak.Array:
+        particles = ak.Array({
+            "true": input[[]],
+            "det_level": input[[]],
+            "hybrid": input[[]],
+        })
+        return particles
