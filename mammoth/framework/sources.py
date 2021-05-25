@@ -5,6 +5,7 @@
 
 from __future__ import annotations
 
+import collections.abc
 import itertools
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Mapping, MutableMapping, Optional, Sequence, Union
@@ -162,6 +163,18 @@ class JetscapeSource(ParquetSource):
     """
     ...
 
+@attr.s
+class PythiaSource:
+    config: Path = attr.ib(converter=Path)
+    chunk_size: int = attr.ib()
+    metadata: MutableMapping[str, Any] = attr.ib(factory=dict)
+
+    def __len__(self) -> int:
+        return self.chunk_size
+
+    def data(self) -> ak.Array:
+        raise NotImplementedError("Working on it...")
+
 
 @attr.s
 class ThermalBackgroundExponential:
@@ -184,6 +197,9 @@ class ThermalBackgroundExponential:
     n_particles_per_event_sigma: float = attr.ib()
     pt_exponential_scale: float = attr.ib(default=0.4)
     metadata: MutableMapping[str, Any] = attr.ib(factory=dict)
+
+    def __len__(self) -> int:
+        return self.chunk_size
 
     def data(self) -> ak.Array:
         # Setup
@@ -217,11 +233,16 @@ class ThermalBackgroundExponential:
             counts=n_particles_per_event,
         )
 
+def _sources_to_list(sources: Union[Source, Sequence[Source]]) -> Sequence[Source]:
+    if not isinstance(sources, collections.abc.Iterable):
+        return [sources]
+    return sources
+
 
 @attr.s
 class ChunkSource:
     _chunk_size: int = attr.ib()
-    _sources: Sequence[Source] = attr.ib()
+    _sources: Sequence[Source] = attr.ib(converter=_sources_to_list)
     _repeat: bool = attr.ib(default=False)
     metadata: MutableMapping[str, Any] = attr.ib(factory=dict)
 
