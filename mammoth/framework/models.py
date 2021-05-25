@@ -1,5 +1,3 @@
-
-
 import functools
 from typing import Callable, Union
 
@@ -16,7 +14,13 @@ def inverse_sample_decorator(
     """
 
     @functools.wraps(distribution)
-    def wrapper(n_samples: int, x_min: float, x_max: float, n_distribution_samples: int = 100_000, **kwargs) -> Union[np.ndarray, float]:
+    def wrapper(
+        n_samples: int,
+        x_min: float,
+        x_max: float,
+        n_distribution_samples: int = 100_000,
+        **kwargs,
+    ) -> Union[np.ndarray, float]:
         # Validation
         x = np.linspace(x_min, x_max, int(n_distribution_samples))
         cumulative = np.cumsum(distribution(x, **kwargs))

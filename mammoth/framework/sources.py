@@ -8,7 +8,17 @@ from __future__ import annotations
 import collections.abc
 import itertools
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, Mapping, MutableMapping, Optional, Sequence, Union
+from typing import (
+    Any,
+    Dict,
+    Iterable,
+    List,
+    Mapping,
+    MutableMapping,
+    Optional,
+    Sequence,
+    Union,
+)
 from typing_extensions import Protocol
 
 import attr
@@ -20,11 +30,12 @@ from mammoth.framework import models, utils
 
 
 class Source(Protocol):
-    """ Data source.
+    """Data source.
 
     Attributes:
         metadata: Source metadata.
     """
+
     metadata: MutableMapping[str, Any]
 
     def __len__(self) -> int:
@@ -32,7 +43,7 @@ class Source(Protocol):
         ...
 
     def data(self) -> ak.Array:
-        """ Return data from the source.
+        """Return data from the source.
 
         Returns:
             Data in an awkward array.
@@ -58,7 +69,9 @@ class UprootSource:
     _filename: Path = attr.ib(converter=Path)
     _tree_name: str = attr.ib()
     _columns: Sequence[str] = attr.ib(factory=list)
-    _entry_range: utils.Range = attr.ib(converter=_convert_range, default=utils.Range(None, None))
+    _entry_range: utils.Range = attr.ib(
+        converter=_convert_range, default=utils.Range(None, None)
+    )
     metadata: MutableMapping[str, Any] = attr.ib(factory=dict)
 
     def __len__(self) -> int:
@@ -78,12 +91,25 @@ class UprootSource:
             # Add restricted start and stop entries if requested.
             # Only if we specify a start and stop do we actually pass it on to uproot.
             if self._entry_range.min and self._entry_range.max:
-                reading_kwargs.update({"entry_start": self._entry_range.min, "entry_stop": self._entry_range.max})
+                reading_kwargs.update(
+                    {
+                        "entry_start": self._entry_range.min,
+                        "entry_stop": self._entry_range.max,
+                    }
+                )
 
             # Add metadata
-            self.metadata["entry_start"] = self._entry_range.min if self._entry_range.min is not None else 0
-            self.metadata["entry_stop"] = self._entry_range.max if self._entry_range.max is not None else tree.num_entries
-            self.metadata["n_entries"] = self.metadata["entry_stop"] - self.metadata["entry_start"]
+            self.metadata["entry_start"] = (
+                self._entry_range.min if self._entry_range.min is not None else 0
+            )
+            self.metadata["entry_stop"] = (
+                self._entry_range.max
+                if self._entry_range.max is not None
+                else tree.num_entries
+            )
+            self.metadata["n_entries"] = (
+                self.metadata["entry_stop"] - self.metadata["entry_start"]
+            )
 
             return tree.arrays(**reading_kwargs)
 
@@ -94,7 +120,7 @@ def chunked_uproot_source(
     chunk_size: int,
     columns: Optional[Sequence[str]] = None,
 ) -> List[UprootSource]:
-    """ Create a set of uproot sources in chunks for a given filename.
+    """Create a set of uproot sources in chunks for a given filename.
 
     This is most likely to be the main interface.
 
@@ -150,18 +176,22 @@ class ParquetSource:
         # Extract metadata
         self.metadata["entry_start"] = 0
         self.metadata["entry_stop"] = len(arrays)
-        self.metadata["n_entries"] = self.metadata["entry_stop"] - self.metadata["entry_start"]
+        self.metadata["n_entries"] = (
+            self.metadata["entry_stop"] - self.metadata["entry_start"]
+        )
 
         return arrays
 
 
 @attr.s
 class JetscapeSource(ParquetSource):
-    """ Jetscape source via Parquet file.
+    """Jetscape source via Parquet file.
 
     Nothing needs to be done here.
     """
+
     ...
+
 
 @attr.s
 class PythiaSource:
@@ -178,7 +208,7 @@ class PythiaSource:
 
 @attr.s
 class ThermalBackgroundExponential:
-    """ Thermal background model from Leticia
+    """Thermal background model from Leticia
 
     Assume thermal particles are massless.
     pt = x*exp(-x/pt_exponential_scale), from 0 to 400, at least 40000 sampling points
@@ -192,6 +222,7 @@ class ThermalBackgroundExponential:
     - semi-central: mean = 1000, sigma = 400
 
     """
+
     chunk_size: int = attr.ib()
     n_particles_per_event_mean: float = attr.ib()
     n_particles_per_event_sigma: float = attr.ib()
@@ -209,13 +240,22 @@ class ThermalBackgroundExponential:
         # NOTE: This is effectively jagged, since the number of particles per event varies
         # NOTE: We round to integers because the number of particles must of course be an int.
         n_particles_per_event = np.rint(
-            rng.normal(loc=self.n_particles_per_event_mean, scale=self.n_particles_per_event_sigma, size=self.chunk_size),
+            rng.normal(
+                loc=self.n_particles_per_event_mean,
+                scale=self.n_particles_per_event_sigma,
+                size=self.chunk_size,
+            ),
         ).astype(np.int32)
         # To help out with this effective jaggedness, we flatten everything, and then will unflatten with awkward.
         total_n_samples = int(np.sum(n_particles_per_event))
 
         # Sample the distributions.
-        pt = models.sample_x_exp(n_samples=total_n_samples, scale=self.pt_exponential_scale, x_min=0, x_max=400)
+        pt = models.sample_x_exp(
+            n_samples=total_n_samples,
+            scale=self.pt_exponential_scale,
+            x_min=0,
+            x_max=400,
+        )
         eta = rng.uniform(low=-1, high=1, size=total_n_samples)
         phi = rng.uniform(low=-np.pi, high=np.pi, size=total_n_samples)
 
@@ -224,14 +264,17 @@ class ThermalBackgroundExponential:
 
         # Finally, add the particle structure at the end.
         return ak.unflatten(
-            ak.Array({
-                "px": pt * np.cos(phi),
-                "py": pt * np.sin(phi),
-                "pz": pz,
-                "E": np.sqrt(pt ** 2 + pz ** 2),
-            }),
+            ak.Array(
+                {
+                    "px": pt * np.cos(phi),
+                    "py": pt * np.sin(phi),
+                    "pz": pz,
+                    "E": np.sqrt(pt ** 2 + pz ** 2),
+                }
+            ),
             counts=n_particles_per_event,
         )
+
 
 def _sources_to_list(sources: Union[Source, Sequence[Source]]) -> Sequence[Source]:
     if not isinstance(sources, collections.abc.Iterable):
@@ -252,9 +295,7 @@ class ChunkSource:
         raise ValueError("N entries not yet available.")
 
     def data(self) -> ak.Array:
-        """ Retrieve data to satisfy the given chunk size.
-
-        """
+        """Retrieve data to satisfy the given chunk size."""
         return next(iter(self.data_iter()))
 
     def data_iter(self) -> Iterable[ak.Array]:
@@ -300,7 +341,11 @@ class ChunkSource:
                 yield _data[:remaining_n_events]
 
 
-def _contains_signal_and_background(instance: "MultipleSources", attribute: attr.Attribute[Mapping[str, int]], value: Mapping[str, int]) -> None:
+def _contains_signal_and_background(
+    instance: "MultipleSources",
+    attribute: attr.Attribute[Mapping[str, int]],
+    value: Mapping[str, int],
+) -> None:
     found_signal = False
     found_background = False
     for k in value.keys():
@@ -309,19 +354,29 @@ def _contains_signal_and_background(instance: "MultipleSources", attribute: attr
         if "background" in k:
             found_background = True
     if not found_signal:
-        raise ValueError(f"Must contain at least one signal source. Found: {list(value.keys())}.")
+        raise ValueError(
+            f"Must contain at least one signal source. Found: {list(value.keys())}."
+        )
     if not found_background:
-        raise ValueError(f"Must contain at least one background source. Found: {list(value.keys())}.")
+        raise ValueError(
+            f"Must contain at least one background source. Found: {list(value.keys())}."
+        )
 
 
-def _has_offset_per_source(instance: "MultipleSources", attribute: attr.Attribute[Mapping[str, int]], value: Mapping[str, int]) -> None:
+def _has_offset_per_source(
+    instance: "MultipleSources",
+    attribute: attr.Attribute[Mapping[str, int]],
+    value: Mapping[str, int],
+) -> None:
     if set(instance._sources) != set(instance._source_index_identifiers):
-        raise ValueError("Mismatch in sources and offsets. Sources: {list(instance._sources)}, offsets: {list(instance.source_index_identifiers)}")
+        raise ValueError(
+            "Mismatch in sources and offsets. Sources: {list(instance._sources)}, offsets: {list(instance.source_index_identifiers)}"
+        )
 
 
 @attr.s
 class MultipleSources:
-    """ Combine multiple data sources together.
+    """Combine multiple data sources together.
 
     Think: Embedding into data, embedding into thermal model, etc.
 
@@ -330,10 +385,14 @@ class MultipleSources:
         source_index_identifiers: Map containing an integer identifier for each source.
         _particles_columns: Names of columns to include in the particles.
     """
+
     # _signal_source: ChunkSource = attr.ib()
     # _background_source: ChunkSource = attr.ib()
     _sources: Mapping[str, Source] = attr.ib(validator=_contains_signal_and_background)
-    _source_index_identifiers: Mapping[str, int] = attr.ib(factory=dict, validator=[_contains_signal_and_background, _has_offset_per_source])
+    _source_index_identifiers: Mapping[str, int] = attr.ib(
+        factory=dict,
+        validator=[_contains_signal_and_background, _has_offset_per_source],
+    )
     _particles_columns: Sequence[str] = attr.ib(factory=lambda: ["px", "py", "pz", "E"])
     metadata: MutableMapping[str, Any] = attr.ib(factory=dict)
 
@@ -366,8 +425,8 @@ class MultipleSources:
         return ak.Array(source_data)
 
 
-#@attr.s
-#class MultipleSources:
+# @attr.s
+# class MultipleSources:
 #    """ Combine multiple data sources together.
 #
 #    Think: Embedding into data, embedding into thermal model, etc.
@@ -432,14 +491,14 @@ class MultipleSources:
 
 @attr.s
 class EmbeddedSourceTransform:
-    """ Transform an embedded source
-
-    """
+    """Transform an embedded source"""
 
     def transform(self, input: ak.Array) -> ak.Array:
-        particles = ak.Array({
-            "true": input[[]],
-            "det_level": input[[]],
-            "hybrid": input[[]],
-        })
+        particles = ak.Array(
+            {
+                "true": input[[]],
+                "det_level": input[[]],
+                "hybrid": input[[]],
+            }
+        )
         return particles
