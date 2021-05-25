@@ -146,7 +146,7 @@ class ParquetSource:
             columns=self._columns if self._columns else None,
         )
 
-        # Extract metdata
+        # Extract metadata
         self.metadata["entry_start"] = 0
         self.metadata["entry_stop"] = len(arrays)
         self.metadata["n_entries"] = self.metadata["entry_stop"] - self.metadata["entry_start"]
@@ -264,7 +264,7 @@ class ChunkSource:
                     _more_data = _more_data_source.data()
                     remaining_n_events -= len(_more_data)
                     if remaining_n_events < 0:
-                        # Slice the reamining data and store for the next iteration
+                        # Slice the remaining data and store for the next iteration
                         additional_chunks.append(_more_data[:remaining_n_events])
                         remaining_data = _more_data[remaining_n_events:]
                         break
@@ -295,7 +295,7 @@ def _contains_signal_and_background(instance: "MultipleSources", attribute: attr
 
 def _has_offset_per_source(instance: "MultipleSources", attribute: attr.Attribute[Mapping[str, int]], value: Mapping[str, int]) -> None:
     if set(instance._sources) != set(instance._source_index_identifiers):
-        raise ValueError("Mismtach in sources and offsets. Sources: {list(instance._sources)}, offsets: {list(instance.source_index_identifiers)}")
+        raise ValueError("Mismatch in sources and offsets. Sources: {list(instance._sources)}, offsets: {list(instance.source_index_identifiers)}")
 
 
 @attr.s
@@ -305,8 +305,8 @@ class MultipleSources:
     Think: Embedding into data, embedding into thermal model, etc.
 
     Attributes:
-        _sources: Contains an arbitary number of sources.
-        source_index_identifiers: Map contanining an integer identifier for each source.
+        _sources: Contains an arbitrary number of sources.
+        source_index_identifiers: Map containing an integer identifier for each source.
         _particles_columns: Names of columns to include in the particles.
     """
     # _signal_source: ChunkSource = attr.ib()
