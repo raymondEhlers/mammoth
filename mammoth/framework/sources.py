@@ -3,6 +3,8 @@
 .. codeauthor:: Raymond Ehlers <raymond.ehlers@cern.ch>, ORNL
 """
 
+from __future__ import annotations
+
 import itertools
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Mapping, MutableMapping, Optional, Sequence, Union
@@ -13,7 +15,8 @@ import awkward as ak
 import numpy as np
 import uproot
 
-from mammoth.framework import utils
+from mammoth.framework import models, utils
+
 
 class Source(Protocol):
     """ Data source.
@@ -54,7 +57,7 @@ class UprootSource:
     _filename: Path = attr.ib(converter=Path)
     _tree_name: str = attr.ib()
     _columns: Sequence[str] = attr.ib(factory=list)
-    _entry_range: utils.Range = attr.ib(coverter=_convert_range, default=utils.Range(None, None))  # type: ignore
+    _entry_range: utils.Range = attr.ib(converter=_convert_range, default=utils.Range(None, None))
     metadata: MutableMapping[str, Any] = attr.ib(factory=dict)
 
     def __len__(self) -> int:
@@ -161,14 +164,58 @@ class JetscapeSource(ParquetSource):
 
 
 @attr.s
-class ThermalBackground:
-    """ Thermal Background
+class ThermalBackgroundExponential:
+    """ Thermal background model from Leticia
 
-    Try quick prototype to ensure that it works with this approach.
+    Assume thermal particles are massless.
+    pt = x*exp(-x/pt_exponential_scale), from 0 to 400, at least 40000 sampling points
+    eta = flat from -1 to 1, at least 200 sampling points
+    phi = flat from -pi to pi, at least 700 sampling points
+
+    pt exponential scale is 0.4 by default.
+
+    The number of thermal particles is determined by a Gaussian. The parameters are:
+    - central: mean = 2500, sigma = 500
+    - semi-central: mean = 1000, sigma = 400
+
     """
-    _parameters: List[float] = attr.ib()
-    _n_events: int = attr.ib()
+    chunk_size: int = attr.ib()
+    n_particles_per_event_mean: float = attr.ib()
+    n_particles_per_event_sigma: float = attr.ib()
+    pt_exponential_scale: float = attr.ib(default=0.4)
     metadata: MutableMapping[str, Any] = attr.ib(factory=dict)
+
+    def data(self) -> ak.Array:
+        # Setup
+        rng = np.random.default_rng()
+
+        # Determine overall event parameters.
+        # NOTE: This is effectively jagged, since the number of particles per event varies
+        # NOTE: We round to integers because the number of particles must of course be an int.
+        n_particles_per_event = np.rint(
+            rng.normal(loc=self.n_particles_per_event_mean, scale=self.n_particles_per_event_sigma, size=self.chunk_size),
+        ).astype(np.int32)
+        # To help out with this effective jaggedness, we flatten everything, and then will unflatten with awkward.
+        total_n_samples = int(np.sum(n_particles_per_event))
+
+        # Sample the distributions.
+        pt = models.sample_x_exp(n_samples=total_n_samples, scale=self.pt_exponential_scale, x_min=0, x_max=400)
+        eta = rng.uniform(low=-1, high=1, size=total_n_samples)
+        phi = rng.uniform(low=-np.pi, high=np.pi, size=total_n_samples)
+
+        # Need this as an intermediary, so calculate it first
+        pz = pt * np.sinh(eta)
+
+        # Finally, add the particle structure at the end.
+        return ak.unflatten(
+            ak.Array({
+                "px": pt * np.cos(phi),
+                "py": pt * np.sin(phi),
+                "pz": pz,
+                "E": np.sqrt(pt ** 2 + pz ** 2),
+            }),
+            counts=n_particles_per_event,
+        )
 
 
 @attr.s
