@@ -3,8 +3,9 @@
 .. codeauthor:: Raymond Ehlers <raymond.ehlers@cern.ch>, ORNL
 """
 
+import itertools
 from pathlib import Path
-from typing import Any, Iterable, List, Mapping, Optional, Sequence, Tuple, Type
+from typing import Any, Dict, Iterable, List, Mapping, MutableMapping, Optional, Sequence, Union
 from typing_extensions import Protocol
 
 import attr
@@ -20,58 +21,74 @@ class Source(Protocol):
     Attributes:
         metadata: Source metadata.
     """
-    chunk_size: int
-    metadata: Mapping[str, Any]
+    metadata: MutableMapping[str, Any]
 
-    def data(self) -> Iterable[ak.Array]:
+    def __len__(self) -> int:
+        """ Number of entries in the source. """
+        ...
+
+    def data(self) -> ak.Array:
         """ Return data from the source.
 
         Returns:
-            Data in the form of awkward arrays.
+            Data in an awkward array.
         """
         ...
 
 
+def _convert_range(entry_range: Union[utils.Range, Sequence[float]]) -> utils.Range:
+    """Convert sequences to Range.
+
+    Args:
+        entry_range: Range of entries to be stored in a Range.
+    Returns:
+        Range
+    """
+    if isinstance(entry_range, utils.Range):
+        return entry_range
+    return utils.Range(*entry_range)
+
+
 @attr.s
 class UprootSource:
-    filename: str = attr.ib()
-    tree_name: str = attr.ib()
-    columns: Sequence[str] = attr.ib(factory=list)
-    entry_range: utils.Range = attr.ib(coverter=utils.Range, default=utils.Range(None, None))
-    metadata: Mapping[str, Any] = attr.ib(factory=dict)
+    _filename: Path = attr.ib(converter=Path)
+    _tree_name: str = attr.ib()
+    _columns: Sequence[str] = attr.ib(factory=list)
+    _entry_range: utils.Range = attr.ib(coverter=_convert_range, default=utils.Range(None, None))  # type: ignore
+    metadata: MutableMapping[str, Any] = attr.ib(factory=dict)
 
-    @property
-    def chunk_size(self) -> int:
-        if self._entry_range[0] is not None and self._entry_range[1] is not None:
-            return self._entry_range[1] - self._entry_range[0]
-        return -1
+    def __len__(self) -> int:
+        if "n_entries" in self.metadata:
+            return int(self.metadata["n_entries"])
+        raise ValueError("N entries not yet available.")
 
-    def data(self) -> Iterable[ak.Array]:
+    def data(self) -> ak.Array:
         with uproot.open(self._filename) as f:
             tree = f[self.metadata["tree_name"]]
 
-            # Add metadata
-            self.metadata["n_entries"] = tree.num_entries
-            if self.entry_range.min is not None or self.entry_range.max is not None:
-                self.metadata["entry_start"] = self.entry_range.min
-                self.metadata["entry_stop"] = self.entry_range.max
-                self.metadata["chunk_size"] = self.chunk_size
-
-            # Add restricted start and stop entries if requested.
-            reading_kwargs = {
+            # First, let's setup the arguments
+            # Columns
+            reading_kwargs: Dict[str, Any] = {
                 "expressions": self._columns if self._columns else None,
             }
-            if self.metadata["entry_start"] and self.metadata["entry_stop"]:
-                reading_kwargs.update({"entry_start": self.metadata["entry_start"], "entry_stop": self.metadata["entry_stop"]})
+            # Add restricted start and stop entries if requested.
+            # Only if we specify a start and stop do we actually pass it on to uproot.
+            if self._entry_range.min and self._entry_range.max:
+                reading_kwargs.update({"entry_start": self._entry_range.min, "entry_stop": self._entry_range.max})
 
-            yield tree.arrays(**reading_kwargs)
+            # Add metadata
+            self.metadata["entry_start"] = self._entry_range.min if self._entry_range.min is not None else 0
+            self.metadata["entry_stop"] = self._entry_range.max if self._entry_range.max is not None else tree.num_entries
+            self.metadata["n_entries"] = self.metadata["entry_stop"] - self.metadata["entry_start"]
+
+            return tree.arrays(**reading_kwargs)
 
 
 def chunked_uproot_source(
     filename: Path,
     tree_name: str,
     chunk_size: int,
-    columns: Optional[Sequence] = None,
+    columns: Optional[Sequence[str]] = None,
 ) -> List[UprootSource]:
     """ Create a set of uproot sources in chunks for a given filename.
 
@@ -86,7 +103,6 @@ def chunked_uproot_source(
     with uproot.open(filename) as f:
         number_of_entries = f[tree_name].num_entries
 
-        splits = []
         start = 0
         continue_iterating = True
         while continue_iterating:
@@ -101,7 +117,7 @@ def chunked_uproot_source(
                     filename=filename,
                     tree_name=tree_name,
                     columns=columns,
-                    entry_range=(start, end),
+                    entry_range=utils.Range(start, end),
                 )
             )
             # Move up to the next iteration.
@@ -109,17 +125,30 @@ def chunked_uproot_source(
 
     return sources
 
+
 @attr.s
 class ParquetSource:
-    _filename: str = attr.ib()
+    _filename: Path = attr.ib(converter=Path)
     _columns: Sequence[str] = attr.ib(factory=list)
-    metadata: Mapping[str, Any] = attr.ib(factory=dict)
+    metadata: MutableMapping[str, Any] = attr.ib(factory=dict)
 
-    def data(self) -> Iterable[ak.Array]:
-        yield ak.from_parquet(
+    def __len__(self) -> int:
+        if "n_entries" in self.metadata:
+            return int(self.metadata["n_entries"])
+        raise ValueError("N entries not yet available.")
+
+    def data(self) -> ak.Array:
+        arrays = ak.from_parquet(
             self._filename,
             columns=self._columns if self._columns else None,
         )
+
+        # Extract metdata
+        self.metadata["entry_start"] = 0
+        self.metadata["entry_stop"] = len(arrays)
+        self.metadata["n_entries"] = self.metadata["entry_stop"] - self.metadata["entry_start"]
+
+        return arrays
 
 
 @attr.s
@@ -139,50 +168,53 @@ class ThermalBackground:
     """
     _parameters: List[float] = attr.ib()
     _n_events: int = attr.ib()
-    metadata: Mapping[str, Any] = attr.ib(factory=dict)
-
-
-@attr.s
-class MultipleFileSource:
-    """ Source which is composed of multiple files.
-
-    Args:
-        filenames: Names of the files.
-        source_type: Source to use with the filenames.
-        metadata: Source metadata.
-    """
-    _filenames: Sequence[str] = attr.ib()
-    _source_type: Type[Source] = attr.ib()
-    metadata: Mapping[str, Any] = attr.ib(factory=dict)
-
-    def data(self) -> Iterable[ak.Array]:
-        for filename in self._filenames:
-            _source = self._source_type(filename)
-            yield _source
+    metadata: MutableMapping[str, Any] = attr.ib(factory=dict)
 
 
 @attr.s
 class ChunkSource:
-    chunk_size: int = attr.ib()
-    _source: MultipleFileSource = attr.ib()
-    metadata: Mapping[str, Any] = attr.ib(factory=dict)
+    _chunk_size: int = attr.ib()
+    _sources: Sequence[Source] = attr.ib()
+    _repeat: bool = attr.ib(default=False)
+    metadata: MutableMapping[str, Any] = attr.ib(factory=dict)
 
-    def data(self) -> Iterable[ak.Array]:
-        source_iter = self._source.data()
+    def __len__(self) -> int:
+        if "n_entries" in self.metadata:
+            return int(self.metadata["n_entries"])
+        raise ValueError("N entries not yet available.")
+
+    def data(self) -> ak.Array:
+        """ Retrieve data to satisfy the given chunk size.
+
+        """
+        return next(iter(self.data_iter()))
+
+    def data_iter(self) -> Iterable[ak.Array]:
+        if self._repeat:
+            # See: https://stackoverflow.com/a/24225372/12907985
+            source_iter = itertools.chain.from_iterable(itertools.repeat(self._sources))
+        else:
+            source_iter = iter(self._sources)
         remaining_data = None
+
         while True:
             if remaining_data:
                 _data = remaining_data
                 remaining_data = None
             else:
-                _data = next(source_iter)
+                _data = next(source_iter).data()
 
-            if len(_data) == self.chunk_size:
+            # Regardless of where we end up, the number of entries must be equal to the chunk size
+            self.metadata["n_entries"] = self._chunk_size
+
+            # Now, figure out how to get all of the required data.
+            if len(_data) == self._chunk_size:
                 yield _data
-            elif len(_data) < self.chunk_size:
+            elif len(_data) < self._chunk_size:
                 additional_chunks = []
-                remaining_n_events = self.chunk_size - len(_data)
-                for _more_data in source_iter:
+                remaining_n_events = self._chunk_size - len(_data)
+                for _more_data_source in source_iter:
+                    _more_data = _more_data_source.data()
                     remaining_n_events -= len(_more_data)
                     if remaining_n_events < 0:
                         # Slice the reamining data and store for the next iteration
@@ -195,7 +227,7 @@ class ChunkSource:
                     axis=0,
                 )
             else:
-                remaining_n_events = self.chunk_size - len(_data)
+                remaining_n_events = self._chunk_size - len(_data)
                 remaining_data = _data[remaining_n_events:]
                 yield _data[:remaining_n_events]
 
@@ -215,7 +247,7 @@ def _contains_signal_and_background(instance: "MultipleSources", attribute: attr
 
 
 def _has_offset_per_source(instance: "MultipleSources", attribute: attr.Attribute[Mapping[str, int]], value: Mapping[str, int]) -> None:
-    if set(instance._sources) != set(instance.source_index_identifiers):
+    if set(instance._sources) != set(instance._source_index_identifiers):
         raise ValueError("Mismtach in sources and offsets. Sources: {list(instance._sources)}, offsets: {list(instance.source_index_identifiers)}")
 
 
@@ -230,57 +262,104 @@ class MultipleSources:
         source_index_identifiers: Map contanining an integer identifier for each source.
         _particles_columns: Names of columns to include in the particles.
     """
+    # _signal_source: ChunkSource = attr.ib()
+    # _background_source: ChunkSource = attr.ib()
     _sources: Mapping[str, Source] = attr.ib(validator=_contains_signal_and_background)
-    source_index_identifiers: Mapping[str, int] = attr.ib(factory=dict, validator=[_contains_signal_and_background, _has_offset_per_source])
+    _source_index_identifiers: Mapping[str, int] = attr.ib(factory=dict, validator=[_contains_signal_and_background, _has_offset_per_source])
     _particles_columns: Sequence[str] = attr.ib(factory=lambda: ["px", "py", "pz", "E"])
-    metadata: Mapping[str, Any] = attr.ib(factory=dict)
+    metadata: MutableMapping[str, Any] = attr.ib(factory=dict)
 
-    def data(self) -> Iterable[ak.Array]:
+    def __len__(self) -> int:
+        if "n_entries" in self.metadata:
+            return int(self.metadata["n_entries"])
+        raise ValueError("N entries not yet available.")
+
+    def data(self) -> ak.Array:
         # Grab the events from the sources
-        source_events = {k: v.events()() for k, v in self._sources.items()}
+        source_data = {k: v.data() for k, v in self._sources.items()}
+
+        # Cross check that we have the right sizes for all data sources
+        lengths = [len(v) for v in source_data.values()]
+        if lengths.count(lengths[0]) != len(lengths):
+            raise ValueError(f"Length of data doesn't match: {lengths}")
 
         # Add source IDs
-        for k, v in source_events.items():
+        for k, v in source_data.items():
             # Need a way to get a column that's properly formatted, so we take a known good one,
             # and then set the value as appropriate.
             v["source_ID"] = ak.values_astype(
-                v[self._particles_columns[0]] * 0 + self.source_index_identifiers[k],
+                v[self._particles_columns[0]] * 0 + self._source_index_identifiers[k],
                 np.int16,
             )
 
-        # Need to differentiate the event info keys from the particle keys.
-        event_keys = {k: set(ak.keys(source_events[k])) for k in source_events}
-        event_keys = {k: v.difference(self._particles_columns) for k, v in event_keys.items()}
+        # Add metadata
+        self.metadata["n_entries"] = lengths[0]
 
-        # Check if there are keys which we will overwrite with each other.
-        shared_keys = {k: k1.union(k2) for k, k1 in event_keys.items() for k2 in event_keys if k1 != k2}
-        # If there are shared keys, need to rename them to be unique.
-        # TODO: For now, just raise a KeyError
-        raise KeyError(f"Overlapping keys: {shared_keys}")
+        return ak.Array(source_data)
 
-        event_info = ak.zip(
-            {
-                # TODO: I'm not sure these would combine cleanly...
-                #       May need to ask a question on the awkward discussion board.
-                ak.unzip(source.events()[event_keys[k]]) for k, source in source_events
-            },
-            depth = 1,
-        )
 
-        # TODO: This isn't right. It needs to append the two collections together.
-        #       This should be done via awkward primivities.
-        particles = ak.zip(
-            {
-                k: ak.concatenate(
-                    [source[k] for source in source_events.values()],
-                    axis=1
-                )
-                for k in self._particles_columns
-            },
-        )
-
-        # TODO: This isn't right. What about part vs det vs hybrid level, for example?
-        yield event_info, particles
+#@attr.s
+#class MultipleSources:
+#    """ Combine multiple data sources together.
+#
+#    Think: Embedding into data, embedding into thermal model, etc.
+#
+#    Attributes:
+#        _sources: Contains an arbitary number of sources.
+#        source_index_identifiers: Map contanining an integer identifier for each source.
+#        _particles_columns: Names of columns to include in the particles.
+#    """
+#    _sources: Mapping[str, Source] = attr.ib(validator=_contains_signal_and_background)
+#    source_index_identifiers: Mapping[str, int] = attr.ib(factory=dict, validator=[_contains_signal_and_background, _has_offset_per_source])
+#    _particles_columns: Sequence[str] = attr.ib(factory=lambda: ["px", "py", "pz", "E"])
+#    metadata: MutableMapping[str, Any] = attr.ib(factory=dict)
+#
+#    def data(self) -> Iterable[ak.Array]:
+#        # Grab the events from the sources
+#        source_events = {k: v.events()() for k, v in self._sources.items()}
+#
+#        # Add source IDs
+#        for k, v in source_events.items():
+#            # Need a way to get a column that's properly formatted, so we take a known good one,
+#            # and then set the value as appropriate.
+#            v["source_ID"] = ak.values_astype(
+#                v[self._particles_columns[0]] * 0 + self.source_index_identifiers[k],
+#                np.int16,
+#            )
+#
+#        # Need to differentiate the event info keys from the particle keys.
+#        event_keys = {k: set(ak.keys(source_events[k])) for k in source_events}
+#        event_keys = {k: v.difference(self._particles_columns) for k, v in event_keys.items()}
+#
+#        # Check if there are keys which we will overwrite with each other.
+#        shared_keys = {k: k1.union(k2) for k, k1 in event_keys.items() for k2 in event_keys if k1 != k2}
+#        # If there are shared keys, need to rename them to be unique.
+#        # TODO: For now, just raise a KeyError
+#        raise KeyError(f"Overlapping keys: {shared_keys}")
+#
+#        event_info = ak.zip(
+#            {
+#                # TODO: I'm not sure these would combine cleanly...
+#                #       May need to ask a question on the awkward discussion board.
+#                ak.unzip(source.events()[event_keys[k]]) for k, source in source_events
+#            },
+#            depth = 1,
+#        )
+#
+#        # TODO: This isn't right. It needs to append the two collections together.
+#        #       This should be done via awkward primivities.
+#        particles = ak.zip(
+#            {
+#                k: ak.concatenate(
+#                    [source[k] for source in source_events.values()],
+#                    axis=1
+#                )
+#                for k in self._particles_columns
+#            },
+#        )
+#
+#        # TODO: This isn't right. What about part vs det vs hybrid level, for example?
+#        yield event_info, particles
 
 
 @attr.s
