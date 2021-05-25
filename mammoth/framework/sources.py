@@ -3,7 +3,8 @@
 .. codeauthor:: Raymond Ehlers <raymond.ehlers@cern.ch>, ORNL
 """
 
-from typing import Any, Iterable, List, Mapping, Sequence, Tuple, Type
+from pathlib import Path
+from typing import Any, Iterable, List, Mapping, Optional, Sequence, Tuple, Type
 from typing_extensions import Protocol
 
 import attr
@@ -11,12 +12,15 @@ import awkward as ak
 import numpy as np
 import uproot
 
+from mammoth.framework import utils
+
 class Source(Protocol):
     """ Data source.
 
     Attributes:
         metadata: Source metadata.
     """
+    chunk_size: int
     metadata: Mapping[str, Any]
 
     def data(self) -> Iterable[ak.Array]:
@@ -28,24 +32,19 @@ class Source(Protocol):
         ...
 
 
-def _contains_required_uproot_fields(instance: "UprootSource", attribute: attr.Attribute[Mapping[str, int]], value: Mapping[str, Any]) -> None:
-    """Require that the uproot source has sufficient metadata info to work with a file."""
-    required_keys = set(["tree_name"])
-    all_keys = set(value.keys())
-    missing_keys = all_keys
-
-    # Validate
-    missing_keys = [k for k in required_keys if k not in value.keys()]
-    if missing_keys:
-        raise ValueError(f"Missing metadata keys: {missing_keys}")
-
-
 @attr.s
 class UprootSource:
-    _filename: str = attr.ib()
-    _columns: Sequence[str] = attr.ib(factory=list)
-    _entry_range: Tuple[Optional[int], Optional[int]] = attr.ib(default=[None, None])
-    metadata: Mapping[str, Any] = attr.ib(factory=dict, validator=[_contains_required_uproot_fields])
+    filename: str = attr.ib()
+    tree_name: str = attr.ib()
+    columns: Sequence[str] = attr.ib(factory=list)
+    entry_range: utils.Range = attr.ib(coverter=utils.Range, default=utils.Range(None, None))
+    metadata: Mapping[str, Any] = attr.ib(factory=dict)
+
+    @property
+    def chunk_size(self) -> int:
+        if self._entry_range[0] is not None and self._entry_range[1] is not None:
+            return self._entry_range[1] - self._entry_range[0]
+        return -1
 
     def data(self) -> Iterable[ak.Array]:
         with uproot.open(self._filename) as f:
@@ -53,9 +52,10 @@ class UprootSource:
 
             # Add metadata
             self.metadata["n_entries"] = tree.num_entries
-            if self._entry_range[0] is not None or self._entry_range[1] is not None:
-                self.metadata["entry_start"] = self._entry_range[0]
-                self.metadata["entry_stop"] = self._entry_range[1]
+            if self.entry_range.min is not None or self.entry_range.max is not None:
+                self.metadata["entry_start"] = self.entry_range.min
+                self.metadata["entry_stop"] = self.entry_range.max
+                self.metadata["chunk_size"] = self.chunk_size
 
             # Add restricted start and stop entries if requested.
             reading_kwargs = {
@@ -66,6 +66,48 @@ class UprootSource:
 
             yield tree.arrays(**reading_kwargs)
 
+
+def chunked_uproot_source(
+    filename: Path,
+    tree_name: str,
+    chunk_size: int,
+    columns: Optional[Sequence] = None,
+) -> List[UprootSource]:
+    """ Create a set of uproot sources in chunks for a given filename.
+
+    This is most likely to be the main interface.
+
+    Returns:
+        List of UprootSource configured with the provided properties.
+    """
+    sources = []
+    if columns is None:
+        columns = []
+    with uproot.open(filename) as f:
+        number_of_entries = f[tree_name].num_entries
+
+        splits = []
+        start = 0
+        continue_iterating = True
+        while continue_iterating:
+            end = start + chunk_size
+            # Ensure that we never ask for more entries than are in the file.
+            if start + chunk_size > number_of_entries:
+                end = number_of_entries
+                continue_iterating = False
+            # Store the start and stop for convenience.
+            sources.append(
+                UprootSource(
+                    filename=filename,
+                    tree_name=tree_name,
+                    columns=columns,
+                    entry_range=(start, end),
+                )
+            )
+            # Move up to the next iteration.
+            start = end
+
+    return sources
 
 @attr.s
 class ParquetSource:
@@ -86,10 +128,6 @@ class JetscapeSource(ParquetSource):
 
     Nothing needs to be done here.
     """
-    ...
-
-
-class GeneratorSource:
     ...
 
 
@@ -123,6 +161,7 @@ class MultipleFileSource:
             yield _source
 
 
+@attr.s
 class ChunkSource:
     chunk_size: int = attr.ib()
     _source: MultipleFileSource = attr.ib()
