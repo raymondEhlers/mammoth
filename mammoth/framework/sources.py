@@ -219,7 +219,7 @@ class ThermalBackgroundExponential:
 
     The number of thermal particles is determined by a Gaussian. The parameters are:
     - central: mean = 2500, sigma = 500
-    - semi-central: mean = 1000, sigma = 400
+    - semi-central: mean = 1000, sigma = 40
 
     """
 
