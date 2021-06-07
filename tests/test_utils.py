@@ -14,10 +14,11 @@ from mammoth.framework import utils
 @pytest.mark.parametrize(
     "columns",
     [
-        0,
-        [0],
+        #0,
+        #[0],
         [0, 1],
-    ], ids = ["first, int", "first, sequence", "first and second"])
+    #], ids = ["first, int", "first, sequence", "first and second"])
+    ], ids = ["first and second"])
 def test_group_by(columns: Sequence[int]) -> None:
     array = ak.Array([
         [   2.,    1.,    2.,    0.],
@@ -28,7 +29,8 @@ def test_group_by(columns: Sequence[int]) -> None:
         [   2.,    2.,  100.,    0.],
         [   4.,    2.,    2.,    0.],
         [   3.,    1.,    4.,    0.],
-        [   4.,    2.,    6.,    0.]
+        [   4.,    2.,    6.,    0.],
+        [   5.,    2.,    6.,    0.],
     ])
     group_by = utils.group_by(array=array, by=columns)
 
@@ -72,6 +74,9 @@ def test_group_by(columns: Sequence[int]) -> None:
             [   4.,   2.,   2.,   0.],
             [   4.,   2.,   6.,   0.],
         ],
+        [
+            [   5.,    2.,    6.,    0.]
+        ],
     ])
 
     desired_result_group_by_first_and_second = ak.Array([
@@ -94,6 +99,9 @@ def test_group_by(columns: Sequence[int]) -> None:
             [   4.,   2.,   2.,   0.],
             [   4.,   2.,   6.,   0.],
         ],
+        [
+            [   5.,    2.,    6.,    0.]
+        ]
     ])
 
     comparison = desired_result_group_by_first

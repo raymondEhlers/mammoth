@@ -631,7 +631,7 @@ numpy = "^1.20"
 
 [package.source]
 type = "directory"
-url = "../jetscape/python_bindings/fastjet"
+url = "external/pyfastjet"
 
 [[package]]
 name = "pyflakes"

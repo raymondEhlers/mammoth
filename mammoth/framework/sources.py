@@ -81,7 +81,7 @@ class UprootSource:
 
     def data(self) -> ak.Array:
         with uproot.open(self._filename) as f:
-            tree = f[self.metadata["tree_name"]]
+            tree = f[self._tree_name]
 
             # First, let's setup the arguments
             # Columns
