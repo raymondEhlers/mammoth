@@ -19,7 +19,7 @@ class Range:
     max: Optional[float] = attr.ib()
 
 
-def _groupby_lexsort(array: ak.Array, columns: Sequence[Union[str, int]]) -> ak.Array:
+def _lexsort_for_groupby(array: ak.Array, columns: Sequence[Union[str, int]]) -> ak.Array:
     """Sort for groupby."""
     sort = np.lexsort(tuple(np.asarray(array[:, col]) for col in reversed(columns)))
     return array[sort]
@@ -58,7 +58,8 @@ def group_by(array: ak.Array, by: Sequence[Union[str, int]]) -> ak.Array:
         by = [by]
 
     # First, sort
-    sorted_array = _groupby_lexsort(array=array, columns=by)
+    # See: https://stackoverflow.com/a/64053838/12907985
+    sorted_array = _lexsort_for_groupby(array=array, columns=by)
 
     # Now, we need to combine the run lengths from the different columns. We need to split
     # every time any of them change.
@@ -72,6 +73,7 @@ def group_by(array: ak.Array, by: Sequence[Union[str, int]]) -> ak.Array:
     # Combine all of the indices together into one array. Note that this isn't unique.
     combined = np.concatenate(run_starts)
     # TODO: Unique properly...
+    # See: https://stackoverflow.com/a/12427633/12907985
     combined = np.unique(combined)
 
     run_length = np.zeros(len(combined), dtype=np.int64)
