@@ -3,6 +3,7 @@
 .. codeauthor:: Raymond Ehlers <raymond.ehlers@cern.ch>, ORNL
 """
 
+import time
 from pathlib import Path
 
 import awkward as ak
@@ -124,6 +125,8 @@ def hf_tree_to_parquet(filename: Path) -> bool:
 
     #import IPython; IPython.embed()
     print("About to calculate det level tracks mask")
+    # NOTE: isin doesn't work for a standard 2D array because the 2D array in the second argument will be flattened by numpy.
+    #       However, it works as expected if it's a structured array (which is the default approach for Array conversion
     det_level_tracks_mask = (
         np.isin(np.asarray(det_level_tracks_identifiers), np.asarray(part_level_tracks_identifiers))
         & np.isin(np.asarray(det_level_tracks_identifiers), np.asarray(event_properties_identifiers))
@@ -150,16 +153,62 @@ def hf_tree_to_parquet(filename: Path) -> bool:
         "ParticlePhi": "phi",
     }
 
-    return ak.zip({
-            "det_level": det_level_tracks,
-            "part_level": part_level_tracks,
-            "event": event_properties,
+    #print("Making")
+    #det_level = dict(
+    #    zip(list(_standardized_particle_names.values()), ak.unzip(det_level_tracks[list(_standardized_particle_names.keys())]))
+    #)
+    #part_level = dict(
+    #   zip(list(_standardized_particle_names.values()), ak.unzip(part_level_tracks[list(_standardized_particle_names.keys())]))
+    #)
+    #print("Done")
+
+    #import IPython; IPython.embed()
+    start = time.time()
+    #zipped = ak.zip({
+    #        "det_level": dict(
+    #            zip(list(_standardized_particle_names.values()), ak.unzip(det_level_tracks[list(_standardized_particle_names.keys())]))
+    #        ),
+    #        "part_level": dict(
+    #            zip(list(_standardized_particle_names.values()), ak.unzip(part_level_tracks[list(_standardized_particle_names.keys())]))
+    #        ),
+    #        "event": event_properties,
+    #    },
+    #    depth_limit=1,
+    #)
+    #zipped = ak.zip(
+    #    {
+    #        "det_level": det_level,
+    #        "part_level": part_level,
+    #        **dict(zip(ak.fields(event_properties), ak.unzip(event_properties))),
+    #    },
+    #    depth_limit = 1,
+    #)
+
+    #arrays = ak.Array(
+    #    {
+    #        "det_level": det_level,
+    #        "part_level": part_level,
+    #        **dict(zip(ak.fields(event_properties), ak.unzip(event_properties))),
+    #    },
+    #)
+    arrays = ak.Array(
+        {
+            "det_level": dict(
+                zip(list(_standardized_particle_names.values()), ak.unzip(det_level_tracks[list(_standardized_particle_names.keys())]))
+            ),
+            "part_level": dict(
+               zip(list(_standardized_particle_names.values()), ak.unzip(part_level_tracks[list(_standardized_particle_names.keys())]))
+            ),
+            **dict(zip(ak.fields(event_properties), ak.unzip(event_properties))),
         },
-        depth_limit=1,
     )
+    print(f"zip time: {time.time() - start}")
+    return arrays
+
 
 if __name__ == "__main__":
-    ...
-    arrays = hf_tree_to_parquet(filename=Path("/software/rehlers/dev/substructure/trains/pythia/568/AnalysisResults.20g4.001.root"))
+    #arrays = hf_tree_to_parquet(filename=Path("/software/rehlers/dev/substructure/trains/pythia/568/AnalysisResults.20g4.001.root"))
+    arrays = hf_tree_to_parquet(filename=Path("/software/rehlers/dev/mammoth/AnalysisResults.root"))
+    print("Returned")
 
     import IPython; IPython.embed()
