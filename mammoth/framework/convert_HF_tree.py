@@ -153,56 +153,21 @@ def hf_tree_to_parquet(filename: Path) -> bool:
         "ParticlePhi": "phi",
     }
 
-    #print("Making")
-    #det_level = dict(
-    #    zip(list(_standardized_particle_names.values()), ak.unzip(det_level_tracks[list(_standardized_particle_names.keys())]))
-    #)
-    #part_level = dict(
-    #   zip(list(_standardized_particle_names.values()), ak.unzip(part_level_tracks[list(_standardized_particle_names.keys())]))
-    #)
-    #print("Done")
-
-    #import IPython; IPython.embed()
-    start = time.time()
-    #zipped = ak.zip({
-    #        "det_level": dict(
-    #            zip(list(_standardized_particle_names.values()), ak.unzip(det_level_tracks[list(_standardized_particle_names.keys())]))
-    #        ),
-    #        "part_level": dict(
-    #            zip(list(_standardized_particle_names.values()), ak.unzip(part_level_tracks[list(_standardized_particle_names.keys())]))
-    #        ),
-    #        "event": event_properties,
-    #    },
-    #    depth_limit=1,
-    #)
-    #zipped = ak.zip(
-    #    {
-    #        "det_level": det_level,
-    #        "part_level": part_level,
-    #        **dict(zip(ak.fields(event_properties), ak.unzip(event_properties))),
-    #    },
-    #    depth_limit = 1,
-    #)
-
-    #arrays = ak.Array(
-    #    {
-    #        "det_level": det_level,
-    #        "part_level": part_level,
-    #        **dict(zip(ak.fields(event_properties), ak.unzip(event_properties))),
-    #    },
-    #)
     arrays = ak.Array(
         {
-            "det_level": dict(
-                zip(list(_standardized_particle_names.values()), ak.unzip(det_level_tracks[list(_standardized_particle_names.keys())]))
+            "det_level": ak.zip(
+                dict(
+                    zip(list(_standardized_particle_names.values()), ak.unzip(det_level_tracks[list(_standardized_particle_names.keys())]))
+                )
             ),
-            "part_level": dict(
-               zip(list(_standardized_particle_names.values()), ak.unzip(part_level_tracks[list(_standardized_particle_names.keys())]))
+            "part_level": ak.zip(
+                dict(
+                    zip(list(_standardized_particle_names.values()), ak.unzip(part_level_tracks[list(_standardized_particle_names.keys())]))
+                )
             ),
             **dict(zip(ak.fields(event_properties), ak.unzip(event_properties))),
         },
     )
-    print(f"zip time: {time.time() - start}")
     return arrays
 
 
