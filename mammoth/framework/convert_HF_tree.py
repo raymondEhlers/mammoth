@@ -13,18 +13,18 @@ import pandas as pd
 from mammoth.framework import sources, utils
 
 
-def hf_tree_to_parquet(filename: Path) -> bool:
+def hf_tree_to_parquet(filename: Path, collision_system: str,) -> bool:
     # Setup
     # First, we need the identifiers to group_by
+    # According to James:
+    # Both data and MC need run_number and ev_id.
+    # Data additionally needs ev_id_ext
     identifiers = [
         "run_number",
-        # According to James:
-        # TODO: Configure this, eventually...
-        # - Data needs ev_id and ev_id_ext
-        # - MC only needs ev_id
         "ev_id",
-        #"ev_id_ext",
     ]
+    if collision_system in ["pp", "PbPb"]:
+        identifiers += ["ev_id_ext"]
     # Particle columns and names.
     particle_level_columns = identifiers + [
         "ParticlePt",
@@ -51,15 +51,20 @@ def hf_tree_to_parquet(filename: Path) -> bool:
         columns=particle_level_columns,
     )
     # Event level properties
+    event_properties_columns = [
+        "z_vtx_reco", "is_ev_rej"
+    ]
+    # Collision system customization
+    if collision_system == "PbPb":
+        event_properties_columns += ["centrality"]
+        # For the future, perhaps can add:
+        # - event plane angle (but doesn't seem to be in HF tree output :-( )
+    # It seems that the pythia relevant properties like pt hard bin, etc, are
+    # all empty so nothing special to be done there.
     event_properties = sources.UprootSource(
         filename=filename,
         tree_name="PWGHF_TreeCreator/tree_event_char",
-        columns=identifiers + [
-            "z_vtx_reco", "is_ev_rej"
-            # If it wasn't pythia, could also add:
-            # - "centrality"
-            # - event plane angle (but doesn't seem to be in HF tree output :-( )
-        ],
+        columns=identifiers + event_properties_columns,
     )
 
     # Convert the flat arrays into jagged arrays by grouping by the identifiers.
@@ -138,6 +143,6 @@ def hf_tree_to_parquet(filename: Path) -> bool:
 
 if __name__ == "__main__":
     #arrays = hf_tree_to_parquet(filename=Path("/software/rehlers/dev/substructure/trains/pythia/568/AnalysisResults.20g4.001.root"))
-    arrays = hf_tree_to_parquet(filename=Path("/software/rehlers/dev/mammoth/AnalysisResults.root"))
+    arrays = hf_tree_to_parquet(filename=Path("/software/rehlers/dev/mammoth/AnalysisResults.root"), collision_system="pythia")
 
     import IPython; IPython.embed()
