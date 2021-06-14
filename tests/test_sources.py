@@ -16,6 +16,7 @@ def test_uproot_source() -> None:
 
 def test_thermal_embedding() -> None:
     chunk_size = 500
+    # Signal
     pythia_source = sources.ChunkSource(
         chunk_size=chunk_size,
         sources=sources.PythiaSource(
@@ -24,21 +25,19 @@ def test_thermal_embedding() -> None:
             chunk_size=chunk_size,
         ),
     )
-
-    thermal_source = sources.ChunkSource(
-        chunk_size=chunk_size,
-        sources=sources.ThermalBackgroundExponential(
-            chunk_size=chunk_size,
-            n_particles_per_event_mean=2500,
-            n_particles_per_event_sigma=500,
-            pt_exponential_scale=0.4
-        ),
-        repeat=True
+    # Background
+    thermal_source = sources.ThermalModelExponential(
+        # Chunk sizee will be set when combining the sources.
+        chunk_size=-1,
+        n_particles_per_event_mean=2500,
+        n_particles_per_event_sigma=500,
+        pt_exponential_scale=0.4,
     )
 
     # Now, just zip them together, effectively.
     combined_source = sources.MultipleSources(
-        sources={"signal": pythia_source, "background": thermal_source},
+        fixed_size_sources={"signal": pythia_source},
+        chunked_sources={"background": thermal_source},
         source_index_identifiers={"signal": 0, "background": 100_000},
     )
 
