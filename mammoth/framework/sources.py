@@ -50,6 +50,12 @@ class Source(Protocol):
         """
         ...
 
+class SourceWithChunks(Source, Protocol):
+    """A source that operates in chunks.
+
+    """
+    chunk_size: int
+
 
 def _convert_range(entry_range: Union[utils.Range, Sequence[float]]) -> utils.Range:
     """Convert sequences to Range.
@@ -207,7 +213,7 @@ class PythiaSource:
 
 
 @attr.s
-class ThermalBackgroundExponential:
+class ThermalModelExponential:
     """Thermal background model from Leticia
 
     Assume thermal particles are massless.
@@ -284,9 +290,9 @@ def _sources_to_list(sources: Union[Source, Sequence[Source]]) -> Sequence[Sourc
 
 @attr.s
 class ChunkSource:
-    _chunk_size: int = attr.ib()
-    _sources: Sequence[Source] = attr.ib(converter=_sources_to_list)
-    _repeat: bool = attr.ib(default=False)
+    chunk_size: int = attr.ib()
+    sources: Sequence[Source] = attr.ib(converter=_sources_to_list)
+    repeat: bool = attr.ib(default=False)
     metadata: MutableMapping[str, Any] = attr.ib(factory=dict)
 
     def __len__(self) -> int:
@@ -299,11 +305,11 @@ class ChunkSource:
         return next(iter(self.data_iter()))
 
     def data_iter(self) -> Iterable[ak.Array]:
-        if self._repeat:
+        if self.repeat:
             # See: https://stackoverflow.com/a/24225372/12907985
-            source_iter = itertools.chain.from_iterable(itertools.repeat(self._sources))
+            source_iter = itertools.chain.from_iterable(itertools.repeat(self.sources))
         else:
-            source_iter = iter(self._sources)
+            source_iter = iter(self.sources)
         remaining_data = None
 
         while True:
@@ -314,14 +320,14 @@ class ChunkSource:
                 _data = next(source_iter).data()
 
             # Regardless of where we end up, the number of entries must be equal to the chunk size
-            self.metadata["n_entries"] = self._chunk_size
+            self.metadata["n_entries"] = self.chunk_size
 
             # Now, figure out how to get all of the required data.
-            if len(_data) == self._chunk_size:
+            if len(_data) == self.chunk_size:
                 yield _data
-            elif len(_data) < self._chunk_size:
+            elif len(_data) < self.chunk_size:
                 additional_chunks = []
-                remaining_n_events = self._chunk_size - len(_data)
+                remaining_n_events = self.chunk_size - len(_data)
                 for _more_data_source in source_iter:
                     _more_data = _more_data_source.data()
                     remaining_n_events -= len(_more_data)
@@ -336,9 +342,19 @@ class ChunkSource:
                     axis=0,
                 )
             else:
-                remaining_n_events = self._chunk_size - len(_data)
+                remaining_n_events = self.chunk_size - len(_data)
                 remaining_data = _data[remaining_n_events:]
                 yield _data[:remaining_n_events]
+
+def _no_overlapping_keys(
+    instance: "MultipleSources",
+    attribute: attr.Attribute[Mapping[str, int]],
+    value: Mapping[str, int],
+) -> None:
+    if set(instance._fixed_size_sources).intersection(set(instance._chunked_sources)):
+        raise ValueError(
+            f"Overlapping keys between fixed size and chunk sources. Fixed size sources: {list(instance._fixed_size_sources)}, chunked sources: {list(instance._chunked_sources)}."
+        )
 
 
 def _contains_signal_and_background(
@@ -368,9 +384,9 @@ def _has_offset_per_source(
     attribute: attr.Attribute[Mapping[str, int]],
     value: Mapping[str, int],
 ) -> None:
-    if set(instance._sources) != set(instance._source_index_identifiers):
+    if (set(instance._fixed_size_sources) | set(instance._chunked_sources)) != set(instance._source_index_identifiers):
         raise ValueError(
-            "Mismatch in sources and offsets. Sources: {list(instance._sources)}, offsets: {list(instance.source_index_identifiers)}"
+            f"Mismatch in sources and offsets. Fixed size sources: {list(instance._fixed_size_sources)}, chunked sources: {list(instance._chunked_sources)}, offsets: {list(instance._source_index_identifiers)}"
         )
 
 
@@ -386,9 +402,11 @@ class MultipleSources:
         _particles_columns: Names of columns to include in the particles.
     """
 
+    _fixed_size_sources: Mapping[str, Source] = attr.ib(validator=[_no_overlapping_keys])
+    _chunked_sources: Mapping[str, SourceWithChunks] = attr.ib(validator=[_no_overlapping_keys])
     # _signal_source: ChunkSource = attr.ib()
     # _background_source: ChunkSource = attr.ib()
-    _sources: Mapping[str, Source] = attr.ib(validator=_contains_signal_and_background)
+    # _sources: Mapping[str, Source] = attr.ib(validator=_contains_signal_and_background)
     _source_index_identifiers: Mapping[str, int] = attr.ib(
         factory=dict,
         validator=[_contains_signal_and_background, _has_offset_per_source],
@@ -403,26 +421,32 @@ class MultipleSources:
 
     def data(self) -> ak.Array:
         # Grab the events from the sources
-        source_data = {k: v.data() for k, v in self._sources.items()}
+        fixed_sized_data = {k: v.data() for k, v in self._fixed_size_sources.items()}
+        #source_data = {k: v.data() for k, v in self._sources.items()}
 
         # Cross check that we have the right sizes for all data sources
-        lengths = [len(v) for v in source_data.values()]
+        lengths = [len(v) for v in fixed_sized_data.values()]
         if lengths.count(lengths[0]) != len(lengths):
             raise ValueError(f"Length of data doesn't match: {lengths}")
 
         # Add source IDs
-        for k, v in source_data.items():
+        for k, v in fixed_sized_data.items():
             # Need a way to get a column that's properly formatted, so we take a known good one,
             # and then set the value as appropriate.
-            v["source_ID"] = ak.values_astype(
-                v[self._particles_columns[0]] * 0 + self._source_index_identifiers[k],
-                np.int16,
-            )
+            #v["source_ID"] = ak.values_astype(
+            #    v[self._particles_columns[0]] * 0 + self._source_index_identifiers[k],
+            #    np.int16,
+            #)
+            pass
+
+        for v in self._chunked_sources.values():
+            v.chunk_size = lengths[0]
+        chunked_data = {k: v.data() for k, v in self._chunked_sources.items()}
 
         # Add metadata
         self.metadata["n_entries"] = lengths[0]
 
-        return ak.Array(source_data)
+        return ak.zip({**fixed_sized_data, **chunked_data}, depth_limit=1)
 
 
 # @attr.s
