@@ -13,7 +13,7 @@ import pandas as pd
 from mammoth.framework import sources, utils
 
 
-def hf_tree_to_parquet(filename: Path, collision_system: str,) -> bool:
+def hf_tree_to_awkward(filename: Path, collision_system: str,) -> ak.Array:
     # Setup
     # First, we need the identifiers to group_by
     # According to James:
@@ -39,13 +39,13 @@ def hf_tree_to_parquet(filename: Path, collision_system: str,) -> bool:
     }
 
     # Detector level
-    det_level_tracks = sources.UprootSource(
+    det_level_tracks_source = sources.UprootSource(
         filename=filename,
         tree_name="PWGHF_TreeCreator/tree_Particle",
         columns=particle_level_columns,
     )
     # Particle level
-    part_level_tracks = sources.UprootSource(
+    part_level_tracks_source = sources.UprootSource(
         filename=filename,
         tree_name="PWGHF_TreeCreator/tree_Particle_gen",
         columns=particle_level_columns,
@@ -61,7 +61,7 @@ def hf_tree_to_parquet(filename: Path, collision_system: str,) -> bool:
         # - event plane angle (but doesn't seem to be in HF tree output :-( )
     # It seems that the pythia relevant properties like pt hard bin, etc, are
     # all empty so nothing special to be done there.
-    event_properties = sources.UprootSource(
+    event_properties_source = sources.UprootSource(
         filename=filename,
         tree_name="PWGHF_TreeCreator/tree_event_char",
         columns=identifiers + event_properties_columns,
@@ -69,10 +69,10 @@ def hf_tree_to_parquet(filename: Path, collision_system: str,) -> bool:
 
     # Convert the flat arrays into jagged arrays by grouping by the identifiers.
     # This allows us to work with the data as expected.
-    det_level_tracks = utils.group_by(array=det_level_tracks.data(), by=identifiers)
-    part_level_tracks = utils.group_by(array=part_level_tracks.data(), by=identifiers)
+    det_level_tracks = utils.group_by(array=det_level_tracks_source.data(), by=identifiers)
+    part_level_tracks = utils.group_by(array=part_level_tracks_source.data(), by=identifiers)
     # There is one entry per event, so we don't need to do any group by steps.
-    event_properties = event_properties.data()
+    event_properties = event_properties_source.data()
 
     # Event selection
     # We apply the event selection implicitly to the particles by requiring the identifiers
@@ -179,8 +179,8 @@ def write_to_parquet(arrays: ak.Array, filename: Path) -> bool:
 
 
 if __name__ == "__main__":
-    #arrays = hf_tree_to_parquet(filename=Path("/software/rehlers/dev/substructure/trains/pythia/568/AnalysisResults.20g4.001.root"))
-    arrays = hf_tree_to_parquet(filename=Path("/software/rehlers/dev/mammoth/AnalysisResults.root"), collision_system="pythia")
+    #arrays = hf_tree_to_awkward(filename=Path("/software/rehlers/dev/substructure/trains/pythia/568/AnalysisResults.20g4.001.root"))
+    arrays = hf_tree_to_awkward(filename=Path("/software/rehlers/dev/mammoth/AnalysisResults.root"), collision_system="pythia")
 
     if True:
         write_to_parquet(arrays=arrays, filename=Path("/software/rehlers/dev/mammoth/AnalysisResults.parquet"))

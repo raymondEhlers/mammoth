@@ -1,5 +1,5 @@
 import functools
-from typing import Callable, Union
+from typing import Any, Callable, Union
 
 import numpy as np
 from scipy.interpolate import interp1d
@@ -19,7 +19,7 @@ def inverse_sample_decorator(
         x_min: float,
         x_max: float,
         n_distribution_samples: int = 100_000,
-        **kwargs,
+        **kwargs: Any,
     ) -> Union[np.ndarray, float]:
         # Validation
         x = np.linspace(x_min, x_max, int(n_distribution_samples))
@@ -29,13 +29,13 @@ def inverse_sample_decorator(
         # See: https://tmramalho.github.io/blog/2013/12/16/how-to-do-inverse-transformation-sampling-in-scipy-and-numpy/
         f = interp1d(cumulative / cumulative.max(), x)
         rng = np.random.default_rng()
-        return f(rng.uniform(size=n_samples))
+        return f(rng.uniform(size=n_samples))  # type: ignore
 
     return wrapper
 
 
 def x_exp(x: Union[float, np.ndarray], scale: float) -> np.ndarray:
-    return x * np.exp(-x / scale)
+    return x * np.exp(-x / scale)  # type: ignore
 
 
 sample_x_exp = inverse_sample_decorator(x_exp)

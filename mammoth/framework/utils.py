@@ -54,8 +54,9 @@ def group_by(array: ak.Array, by: Sequence[Union[str, int]]) -> ak.Array:
         Array grouped by the columns.
     """
     # Validation
-    if not isinstance(by, collections.abc.Iterable):
-        by = [by]
+    if not (isinstance(by, collections.abc.Sequence) and not isinstance(by, str)):
+        # mypy doesn't pick up that it's not a sequence. It's probably an issue with my type checking...
+        by = [by]  # type: ignore
 
     # First, sort
     # See: https://stackoverflow.com/a/64053838/12907985
