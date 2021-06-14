@@ -13,7 +13,10 @@ import pandas as pd
 from mammoth.framework import sources, utils
 
 
-def hf_tree_to_awkward(filename: Path, collision_system: str,) -> ak.Array:
+def hf_tree_to_awkward(
+    filename: Path,
+    collision_system: str,
+) -> ak.Array:
     # Setup
     # First, we need the identifiers to group_by
     # According to James:
@@ -51,9 +54,7 @@ def hf_tree_to_awkward(filename: Path, collision_system: str,) -> ak.Array:
         columns=particle_level_columns,
     )
     # Event level properties
-    event_properties_columns = [
-        "z_vtx_reco", "is_ev_rej"
-    ]
+    event_properties_columns = ["z_vtx_reco", "is_ev_rej"]
     # Collision system customization
     if collision_system == "PbPb":
         event_properties_columns += ["centrality"]
@@ -105,19 +106,28 @@ def hf_tree_to_awkward(filename: Path, collision_system: str,) -> ak.Array:
     # NOTE: isin doesn't work for a standard 2D array because a 2D array in the second argument will
     #       be flattened by numpy.  However, it works as expected if it's a structured array (which
     #       is the default approach for Array conversion, so we get a bit lucky here).
-    det_level_tracks_mask = (
-        np.isin(np.asarray(det_level_tracks_identifiers), np.asarray(part_level_tracks_identifiers))
-        & np.isin(np.asarray(det_level_tracks_identifiers), np.asarray(event_properties_identifiers))
+    det_level_tracks_mask = np.isin(
+        np.asarray(det_level_tracks_identifiers),
+        np.asarray(part_level_tracks_identifiers),
+    ) & np.isin(
+        np.asarray(det_level_tracks_identifiers),
+        np.asarray(event_properties_identifiers),
     )
     det_level_tracks = det_level_tracks[det_level_tracks_mask]
-    part_level_tracks_mask = (
-        np.isin(np.asarray(part_level_tracks_identifiers), np.asarray(det_level_tracks_identifiers))
-        & np.isin(np.asarray(part_level_tracks_identifiers), np.asarray(event_properties_identifiers))
+    part_level_tracks_mask = np.isin(
+        np.asarray(part_level_tracks_identifiers),
+        np.asarray(det_level_tracks_identifiers),
+    ) & np.isin(
+        np.asarray(part_level_tracks_identifiers),
+        np.asarray(event_properties_identifiers),
     )
     part_level_tracks = part_level_tracks[part_level_tracks_mask]
-    event_properties_mask = (
-        np.isin(np.asarray(event_properties_identifiers), np.asarray(det_level_tracks_identifiers))
-        & np.isin(np.asarray(event_properties_identifiers), np.asarray(part_level_tracks_identifiers))
+    event_properties_mask = np.isin(
+        np.asarray(event_properties_identifiers),
+        np.asarray(det_level_tracks_identifiers),
+    ) & np.isin(
+        np.asarray(event_properties_identifiers),
+        np.asarray(part_level_tracks_identifiers),
     )
     event_properties = event_properties[event_properties_mask]
 
@@ -128,17 +138,24 @@ def hf_tree_to_awkward(filename: Path, collision_system: str,) -> ak.Array:
         {
             "det_level": ak.zip(
                 dict(
-                    zip(list(_standardized_particle_names.values()), ak.unzip(det_level_tracks[list(_standardized_particle_names.keys())]))
+                    zip(
+                        list(_standardized_particle_names.values()),
+                        ak.unzip(det_level_tracks[list(_standardized_particle_names.keys())]),
+                    )
                 )
             ),
             "part_level": ak.zip(
                 dict(
-                    zip(list(_standardized_particle_names.values()), ak.unzip(part_level_tracks[list(_standardized_particle_names.keys())]))
+                    zip(
+                        list(_standardized_particle_names.values()),
+                        ak.unzip(part_level_tracks[list(_standardized_particle_names.keys())]),
+                    )
                 )
             ),
             **dict(zip(ak.fields(event_properties), ak.unzip(event_properties))),
         },
     )
+
 
 def write_to_parquet(arrays: ak.Array, filename: Path) -> bool:
     """Write the jagged HF tree arrays to parquet.
@@ -148,15 +165,16 @@ def write_to_parquet(arrays: ak.Array, filename: Path) -> bool:
     # Determine the types for improved compression when writing
     # Ideally, we would determine these dyanmically, but it's unclear how to do this at
     # the moment with awkward, so for now we specify them by hand...
-    #float_types = [np.float32, np.float64]
-    #float_columns = list(self.output_dataframe.select_dtypes(include=float_types).keys())
-    #other_columns = list(self.output_dataframe.select_dtypes(exclude=float_types).keys())
+    # float_types = [np.float32, np.float64]
+    # float_columns = list(self.output_dataframe.select_dtypes(include=float_types).keys())
+    # other_columns = list(self.output_dataframe.select_dtypes(exclude=float_types).keys())
     # Typing info
     # In [8]: arrays.type
     # Out[8]: 18681 * {"det_level": var * {"pt": float32, "eta": float32, "phi": float32}, "part_level": var * {"pt": float32, "eta": float32, "phi": float32}, "run_number": int32, "ev_id": int32, "z_vtx_reco": float32, "is_ev_rej": int32}
 
     ak.to_parquet(
-        array=arrays, where=filename,
+        array=arrays,
+        where=filename,
         compression="zstd",
         # Use for anything other than floats
         use_dictionary=[
@@ -179,10 +197,18 @@ def write_to_parquet(arrays: ak.Array, filename: Path) -> bool:
 
 
 if __name__ == "__main__":
-    #arrays = hf_tree_to_awkward(filename=Path("/software/rehlers/dev/substructure/trains/pythia/568/AnalysisResults.20g4.001.root"))
-    arrays = hf_tree_to_awkward(filename=Path("/software/rehlers/dev/mammoth/AnalysisResults.root"), collision_system="pythia")
+    # arrays = hf_tree_to_awkward(filename=Path("/software/rehlers/dev/substructure/trains/pythia/568/AnalysisResults.20g4.001.root"))
+    arrays = hf_tree_to_awkward(
+        filename=Path("/software/rehlers/dev/mammoth/AnalysisResults.root"),
+        collision_system="pythia",
+    )
 
     if True:
-        write_to_parquet(arrays=arrays, filename=Path("/software/rehlers/dev/mammoth/AnalysisResults.parquet"))
+        write_to_parquet(
+            arrays=arrays,
+            filename=Path("/software/rehlers/dev/mammoth/AnalysisResults.parquet"),
+        )
 
-    import IPython; IPython.embed()
+    import IPython
+
+    IPython.embed()
