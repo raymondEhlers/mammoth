@@ -140,9 +140,49 @@ def hf_tree_to_parquet(filename: Path, collision_system: str,) -> bool:
         },
     )
 
+def write_to_parquet(arrays: ak.Array, filename: Path) -> bool:
+    """Write the jagged HF tree arrays to parquet.
+
+    In this form, they should be ready to analyze.
+    """
+    # Determine the types for improved compression when writing
+    # Ideally, we would determine these dyanmically, but it's unclear how to do this at
+    # the moment with awkward, so for now we specify them by hand...
+    #float_types = [np.float32, np.float64]
+    #float_columns = list(self.output_dataframe.select_dtypes(include=float_types).keys())
+    #other_columns = list(self.output_dataframe.select_dtypes(exclude=float_types).keys())
+    # Typing info
+    # In [8]: arrays.type
+    # Out[8]: 18681 * {"det_level": var * {"pt": float32, "eta": float32, "phi": float32}, "part_level": var * {"pt": float32, "eta": float32, "phi": float32}, "run_number": int32, "ev_id": int32, "z_vtx_reco": float32, "is_ev_rej": int32}
+
+    ak.to_parquet(
+        array=arrays, where=filename,
+        compression="zstd",
+        # Use for anything other than floats
+        use_dictionary=[
+            "run_number",
+            "ev_id",
+            "is_ev_rej",
+        ],
+        # Optimize for floats for the rest
+        # Generally enabling seems to work better than specifying exactly the fields
+        # because it's unclear how to specify nested fields here.
+        use_byte_stream_split=True,
+        # use_byte_stream_split=[
+        #     "pt", "eta", "phi",
+        #     #"det_level", "part_level",
+        #     "z_vtx_reco",
+        # ],
+    )
+
+    return True
+
 
 if __name__ == "__main__":
     #arrays = hf_tree_to_parquet(filename=Path("/software/rehlers/dev/substructure/trains/pythia/568/AnalysisResults.20g4.001.root"))
     arrays = hf_tree_to_parquet(filename=Path("/software/rehlers/dev/mammoth/AnalysisResults.root"), collision_system="pythia")
+
+    if True:
+        write_to_parquet(arrays=arrays, filename=Path("/software/rehlers/dev/mammoth/AnalysisResults.parquet"))
 
     import IPython; IPython.embed()
