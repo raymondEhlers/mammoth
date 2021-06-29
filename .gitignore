@@ -1,6 +1,9 @@
 .DS_Store
 test/
-external/
+external/fastjet
+external/install
+external/pyfastjet
+external/pachyderm
 
 # Data
 *.root
