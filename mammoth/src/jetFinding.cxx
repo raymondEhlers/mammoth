@@ -1,106 +1,40 @@
-#include <pybind11/pybind11.h>
-#include <pybind11/numpy.h>
-#include <pybind11/operators.h>
-#include <pybind11/stl.h>
+#include "mammoth/jetFinding.hpp"
 
 #include <fastjet/ClusterSequence.hh>
 #include <fastjet/ClusterSequenceArea.hh>
 #include <fastjet/JetDefinition.hh>
-#include <fastjet/PseudoJet.hh>
 #include <fastjet/AreaDefinition.hh>
 #include <fastjet/GhostedAreaSpec.hh>
 #include <fastjet/tools/JetMedianBackgroundEstimator.hh>
 #include <fastjet/tools/Subtractor.hh>
 #include <fastjet/contrib/ConstituentSubtractor.hh>
 
-namespace py = pybind11;
-// Shorthand for literals
-using namespace pybind11::literals;
+namespace mammoth {
 
-// Convenience
-template<class T>
-using FourVectorTuple = std::tuple<std::vector<T>, std::vector<T>, std::vector<T>, std::vector<T>>
-
-/**
- * Create PseudoJet objects from a numpy array of px, py, pz, E. Axis 0 is the number of particles,
- * while axis 1 must be the 4 parameters.
- *
- * Note: The array is required to be c-style, which ensures that it works with other packages. For example,
- *       pandas caused a problem in some cases without that argument.
- *
- * @param[jets] Numpy input array.
- * @returns Vector of PseudoJets.
- */
-std::vector<fastjet::PseudoJet> constructPseudojetsFromNumpy(const py::array_t<double, py::array::c_style | py::array::forcecast> & jets)
-{
-  // Retrieve array and relevant information
-  py::buffer_info info = jets.request();
-  // I'm not sure which one of these is better.
-  //auto inputJets = static_cast<double *>(info.ptr);
-  auto inputJets = jets.data();
-  std::vector<fastjet::PseudoJet> outputJets;
-  // This defines our numpy array shape.
-  int nParticles = info.shape[0];
-  int nParams = info.shape[1];
-  //std::cout << "nParams: " << nParams << ", nParticles: " << nParticles << "\n";
-
-  // Validation.
-  if (nParams != 4) {
-    throw std::runtime_error("Number of params is not correct. Should be four per particle.");
-  }
-  // Convert the arrays
-  for (size_t i = 0; i < nParticles; ++i) {
-    /*std::cout << "i: " << i << " inputs: " << inputJets[i * nParams + 0] << " " << inputJets[i * nParams + 1]
-      << " " << inputJets[i * nParams + 2] << " " <<  inputJets[i * nParams + 3] << "\n";*/
-    outputJets.push_back(fastjet::PseudoJet(
-      inputJets[i * nParams + 0], inputJets[i * nParams + 1],
-      inputJets[i * nParams + 2], inputJets[i * nParams + 3]));
-  }
-
-  return outputJets;
-}
-
-std::vector<fastjet::PseudoJet> numpyToPseudoJet(
-  const py::array_t<double, py::array::c_style | py::array::forcecast> & pxIn,
-  const py::array_t<double, py::array::c_style | py::array::forcecast> & pyIn,
-  const py::array_t<double, py::array::c_style | py::array::forcecast> & pzIn,
-  const py::array_t<double, py::array::c_style | py::array::forcecast> & EIn
-  //const py::array_t<double, py::array::c_style | py::array::forcecast> & particleIndexIn
+template<typename T>
+std::vector<fastjet::PseudoJet> & vectorsToPseudoJets(
+    const FourVectorTuple<T> & fourVectors
 )
 {
-  // Retrieve array and relevant information
-  py::buffer_info infoPx = pxIn.request();
-  auto px = pxIn.data();
-  // This defines our numpy array shape.
-  int nParticles = info.shape[0];
-  //int nParams = info.shape[1];
-  // py
-  auto py = pyIn.data();
-  auto pz = pzIn.data();
-  auto E = EIn.data();
-  auto particleIndex = particleIndexIn.data();
-
-  std::vector<fastjet::PseudoJet> inputVectors;
-
-  // Convert the arrays
-  for (size_t i = 0; i < nParticles; ++i) {
-    /*std::cout << "i: " << i << " inputs: " << inputJets[i * nParams + 0] << " " << inputJets[i * nParams + 1]
-      << " " << inputJets[i * nParams + 2] << " " <<  inputJets[i * nParams + 3] << "\n";*/
-    outputJets.emplace_back(fastjet::PseudoJet(px[i], py[i], pz[i], E[i]));
-    //outputJets.back().set_user_index(particleIndex[i]);
-    outputJets.back().set_user_index(i);
-  }
-  return outputJets;
+    std::vector<fastjet::PseudoJet> particles;
+    unsigned int i = 0;
+    for (auto && [px, py, pz, E] : fourVectors) {
+        particles.emplace_back(fastjet::PseudoJet(px[i], py[i], pz[i], E[i]));
+        particles.back().set_user_index(i);
+        ++i;
+    }
+    return particles;
 }
 
-std::tuple<std::vector<T>, std::vector<T>, std::vector<T>, std::vector<T>> pseudoJetsToNumpy(
-    const & std::vector<fastjet::PseudoJet> jets
+template<typename T>
+FourVectorTuple<T> pseudoJetsToVectors(
+    const std::vector<fastjet::PseudoJet> & jets
 )
 {
   std::size_t nJets = jets.size();
   std::vector<T> px(nJets), py(nJets), pz(nJets), E(nJets);
 
-  for (auto pseudoJet : pseudoJets) {
+  for (auto pseudoJet : jets) {
     px.emplace_back(pseudoJet.px());
     py.emplace_back(pseudoJet.py());
     pz.emplace_back(pseudoJet.pz());
@@ -109,8 +43,8 @@ std::tuple<std::vector<T>, std::vector<T>, std::vector<T>, std::vector<T>> pseud
   return std::make_tuple(px, py, pz, E);
 }
 
-std::vector<std::vector<unsigned int>> jetsToConstituentIndices(
-  const & std::vector<fastjet::PseudoJet> jets
+std::vector<std::vector<unsigned int>> constituentIndicesFromJets(
+  const std::vector<fastjet::PseudoJet> & jets
 )
 {
   std::vector<std::vector<unsigned int>> indices;
@@ -124,8 +58,8 @@ std::vector<std::vector<unsigned int>> jetsToConstituentIndices(
   return indices;
 }
 
-std::vector<unsigned int> & updateSubtractedConstituentIndices(
-  const & std::vector<fastjet::PseudoJet> pseudoJets
+std::vector<unsigned int> updateSubtractedConstituentIndices(
+  std::vector<fastjet::PseudoJet> & pseudoJets
 )
 {
   std::vector<unsigned int> subtractedToUnsubtractedIndices;
@@ -135,22 +69,20 @@ std::vector<unsigned int> & updateSubtractedConstituentIndices(
     pseudoJets[i].set_user_index(i);
   }
 
-  return subtractedToUnsubtractedIndices;
+  return std::move(subtractedToUnsubtractedIndices);
 }
 
-std::tuple<FourVectorTuple<T>, std::vector<std::vector<unsigned int>, std::optional<std::tuple<FourVectorTuple<T>, std::vector<unsigned int>>> findJets(
-  const py::array_t<double, py::array::c_style | py::array::forcecast> & pxIn,
-  const py::array_t<double, py::array::c_style | py::array::forcecast> & pyIn,
-  const py::array_t<double, py::array::c_style | py::array::forcecast> & pzIn,
-  const py::array_t<double, py::array::c_style | py::array::forcecast> & EIn,
-  //const py::array_t<double, py::array::c_style | py::array::forcecast> & indexIn
+template<typename T>
+std::tuple<FourVectorTuple<T>, std::vector<std::vector<unsigned int>>, std::optional<std::tuple<FourVectorTuple<T>, std::vector<unsigned int>>>> findJets(
+  FourVectorTuple<T> & columnFourVectors,
   double jetR,
-  std::tuple<double, double> etaRange = std::make_tuple(-0.9, 0.9)
+  std::tuple<double, double> etaRange
 )
 {
   // General settings
-  double etaMin = etaRange.get<0>();
-  double etaMax = etaRange.get<1>();
+  double etaMin = std::get<0>(etaRange);
+  double etaMax = std::get<1>(etaRange);
+  double minJetPt = 1;
   // Ghost settings
   double ghostEtaMin = etaMin;
   double ghostEtaMax = etaMax;
@@ -177,6 +109,7 @@ std::tuple<FourVectorTuple<T>, std::vector<std::vector<unsigned int>, std::optio
   fastjet::AreaDefinition backgroundAreaDefinition(backgroundAreaType, ghostAreaSpec);
   fastjet::Selector selRho = fastjet::SelectorRapRange(backgroundJetEtaMin, backgroundJetEtaMax) && fastjet::SelectorPhiRange(backgroundJetPhiMin, backgroundJetPhiMax) && !fastjet::SelectorNHardest(2);
   // Constituent subtraction options (if used)
+  bool useConstituentSubtraction = true;
   double constituentSubAlpha = 1.0;
   double constituentSubRMax = 0.25;
 
@@ -204,10 +137,11 @@ std::tuple<FourVectorTuple<T>, std::vector<std::vector<unsigned int>, std::optio
   fastjet::Selector selJets = fastjet::SelectorPtRange(jetPtMin, jetPtMax) && fastjet::SelectorEtaRange(jetEtaMin, jetEtaMax) && fastjet::SelectorPhiRange(jetPhiMin, jetPhiMax);
 
   // Convert numpy input to pseudo jets.
-  auto inputVectors = numpyToPseudoJet(pxIn, pyIn, pzIn, EIn, indexIn);
+  //auto particlePseudoJets = numpyToPseudoJet(pxIn, pyIn, pzIn, EIn, indexIn);
+  auto particlePseudoJets = vectorsToPseudoJets(columnFourVectors);
 
   // Setup the background estimator to be able to make the estimation.
-  backgroundEstimator.set_particles(inputPseudoJets);
+  backgroundEstimator.set_particles(particlePseudoJets);
 
   // Now, deal with applying the background subtraction.
   // The subtractor will subtract the background from jets. It's not used in the case of constituent subtraction.
@@ -232,13 +166,13 @@ std::tuple<FourVectorTuple<T>, std::vector<std::vector<unsigned int>, std::optio
   // For constituent subtraction, we subtract the input particles
   std::vector<unsigned int> subtractedToUnsubtractedIndices;
   if (useConstituentSubtraction) {
-    inputVectors = constituentSubtraction->subtract_event(inputVectors);
-    subtractedToUnsubtractedIndices = updateSubtractedConstituentIndices(inputVectors);
+    particlePseudoJets = constituentSubtraction->subtract_event(particlePseudoJets);
+    subtractedToUnsubtractedIndices = updateSubtractedConstituentIndices(particlePseudoJets);
   }
 
   // Perform jet finding on signal
-  fastjet::ClusterSequenceArea cs(inputVectors, jetDefinition, areaDefinition);
-  auto jets = cs->inclusive_jets(0);
+  fastjet::ClusterSequenceArea cs(particlePseudoJets, jetDefinition, areaDefinition);
+  auto jets = cs.inclusive_jets(minJetPt);
   // Apply the subtractor when appropriate
   if (!useConstituentSubtraction) {
     jets = (*subtractor)(jets);
@@ -250,13 +184,15 @@ std::tuple<FourVectorTuple<T>, std::vector<std::vector<unsigned int>, std::optio
   // Now, handle returning the values.
   // First, we need to extract the constituents.
   //auto & [px, py, pz, E] = pseudoJetsToNumpy(jets);
-  auto & numpyJets = pseudoJetsToNumpy(jets);
+  auto & numpyJets = pseudoJetsToVectors<T>(jets);
   // Then, we convert the jets themselves into vectors to return.
-  auto constituentIndices = jetsToConstituentIndices(jets);
+  auto & constituentIndices = constituentIndicesFromJets(jets);
 
   if (useConstituentSubtraction) {
-    return std::make_tuple(numpyJets, constituentIndices, std::make_tuple(pseudoJetsToNumpy(inputPseudoJets), subtractedToUnsubtractedIndices);
+    // NOTE: particlePseudoJets are actually the subtracted constituents now.
+    return std::make_tuple(numpyJets, constituentIndices, std::make_tuple(pseudoJetsToVectors<T>(particlePseudoJets), subtractedToUnsubtractedIndices));
   }
   return std::make_tuple(numpyJets, constituentIndices);
-
 }
+
+} // namesapce mammoth

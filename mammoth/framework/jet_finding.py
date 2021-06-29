@@ -36,10 +36,26 @@ def find_jets(particles: ak.Array, jet_R: float, algorithm: fj_wrapper.JetAlgori
 
         if len(res) == 3:
             # NOTE: Here, constituent_indices is the _subtracted_ constituent indices.
-            jets, constituent_indices, (subtracted_constituents, subtracted_to_unsubtracted_indices) = res
+            jetsArray, constituent_indices, (subtracted_constituents, subtracted_to_unsubtracted_indices) = res
         else:
-            jets, constituent_indices = res
+            jetsArray, constituent_indices = res
 
         # Make an output based on this information...
         ...
+        jets = ak.Array(
+            ak.layout.ListOffsetArray64(
+                ak.layout.Index64(np.array([0, len(array)])),
+                ak.layout.RecordArray(
+                    [
+                        ak.layout.NumpyArray(jetsArray[0]),
+                        ak.layout.NumpyArray(jetsArray[1]),
+                        ak.layout.NumpyArray(jetsArray[2]),
+                        ak.layout.NumpyArray(jetsArray[3]),
+                    ],
+                    ["px", "py", "pz", "E"],
+                ),
+            )
+        )
+
+    return jets
 

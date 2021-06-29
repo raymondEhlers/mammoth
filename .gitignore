@@ -43,6 +43,7 @@ dist/
 bin/
 build/
 lib/
+*.so
 
 # Singularity
 *.sif
