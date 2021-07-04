@@ -20,9 +20,13 @@ set(PKGNAME ${CMAKE_FIND_PACKAGE_NAME})
 string(TOUPPER ${PKGNAME} PKGENVNAME)
 string(TOLOWER "${PKGNAME}-config" PKGCONFIG)
 
+# Add the most likely local install location for conveience.
+# That way, we simplify setup for many common cases.
 find_program(${PKGNAME}_CONFIG
              NAMES ${PKGCONFIG}
-             PATHS $ENV{${PKGENVNAME}})
+             PATHS $ENV{${PKGENVNAME}}
+             $ENV{PWD}/external/install/fastjet/bin
+             )
 mark_as_advanced(${PKGNAME}_CONFIG)
 
 if(${PKGNAME}_CONFIG)
