@@ -67,7 +67,7 @@ def find_jets(particles: ak.Array, jet_R: float,
         #    #jetsArray, constituent_indices, (subtracted_constituents, subtracted_to_unsubtracted_indices) = res
 
     # Make an output based on this information...
-    output_jets = ak.Array({
+    output_jets = ak.zip({
         "px": jets["px"],
         "py": jets["py"],
         "pz": jets["pz"],

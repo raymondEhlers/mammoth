@@ -115,7 +115,6 @@ std::vector<fastjet::PseudoJet> vectorsToPseudoJets(
 {
     std::vector<fastjet::PseudoJet> particles;
     const auto & [px, py, pz, E] = fourVectors;
-    std::cout << "px size: " << px.size() << "\n";
     for (std::size_t i = 0; i < px.size(); ++i) {
         particles.emplace_back(fastjet::PseudoJet(px[i], py[i], pz[i], E[i]));
         particles.back().set_user_index(i);
@@ -128,10 +127,11 @@ FourVectorTuple<T> pseudoJetsToVectors(
     const std::vector<fastjet::PseudoJet> & jets
 )
 {
+  // Setup
   std::size_t nJets = jets.size();
-  std::cout << "nJets: " << nJets << "\n";
   std::vector<T> px(nJets), py(nJets), pz(nJets), E(nJets);
 
+  // Fill column vectors
   std::size_t i = 0;
   for (const auto & pseudoJet : jets) {
     px[i] = pseudoJet.px();
@@ -168,14 +168,10 @@ OutputWrapper<T> findJets(
   auto particlePseudoJets = vectorsToPseudoJets(columnFourVectors);
 
   // TEMP
-  std::cout << "inputs\n";
-  for (auto temp : particlePseudoJets) {
-    std::cout << "input pt: " << temp.perp() << "\n";
-  }
-  // ENDTEMP
   std::cout << std::boolalpha << "Settings:\n"
     << "\tBackground subtraction: " << backgroundSubtraction << "\n"
     << "\tConstituent subtraction: " << static_cast<bool>(constituentSubtraction) << "\n";
+  // ENDTEMP
 
   // General settings
   double etaMin = std::get<0>(etaRange);
@@ -269,9 +265,6 @@ OutputWrapper<T> findJets(
   // Perform jet finding on signal
   fastjet::ClusterSequenceArea cs(particlePseudoJets, jetDefinition, areaDefinition);
   auto jets = cs.inclusive_jets(minJetPt);
-  for (auto j : jets) {
-    std::cout << "j pt=" << j.perp() << "\n";
-  }
   // Apply the subtractor when appropriate
   if (backgroundSubtraction) {
     jets = (*subtractor)(jets);
