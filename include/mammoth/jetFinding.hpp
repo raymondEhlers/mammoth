@@ -21,26 +21,64 @@ struct OutputWrapper {
   std::optional<std::tuple<FourVectorTuple<T>, std::vector<unsigned int>>> subtracted;
 };
 
+/**
+ * @brief Convert column vectors to a vector of PseudoJets
+ *
+ * @tparam T Input data type (usually float or double)
+ * @param fourVectors Column four vectors, with the columns ordered ["px", "py", "pz", "E"]
+ * @return std::vector<fastjet::PseudoJet> Vector of PseudoJets containing the same information.
+ */
 template<typename T>
 std::vector<fastjet::PseudoJet> vectorsToPseudoJets(
     const FourVectorTuple<T> & fourVectors
 );
 
+/**
+ * @brief Convert vector of PseudoJets to a column of vectors.
+ *
+ * @tparam T Input data type (usually float or double)
+ * @param jets Input pseudo jets
+ * @return FourVectorTuple<T> Column four vectors, with the columns ordered ["px", "py", "pz", "E"]
+ */
 template<typename T>
 FourVectorTuple<T> pseudoJetsToVectors(
     const std::vector<fastjet::PseudoJet> & jets
 );
 
+/**
+ * @brief Extract constituent indices from jets.
+ *
+ * @param jets Jets with constituents.
+ * @return std::vector<std::vector<unsigned int>> The indices of all constituents in all jets.
+ */
 std::vector<std::vector<unsigned int>> constituentIndicesFromJets(
   const std::vector<fastjet::PseudoJet> & jets
 );
 
+/**
+ * @brief Update the indices in subtracted constituents.
+ *
+ * Updating this indexing ensures that we can keep track of everything.
+ *
+ * @param pseudoJets Subtracted input particles.
+ * @return std::vector<unsigned int> Map of indices from subtracted constituents to unsubtracted constituents.
+ */
 std::vector<unsigned int> updateSubtractedConstituentIndices(
   std::vector<fastjet::PseudoJet> & pseudoJets
 );
 
+/**
+ * @brief Implementatino of main jet finder.
+ *
+ * @tparam T Input data type (usually float or double)
+ * @param columnFourVectors Column four vectors, with the columns ordered ["px", "py", "pz", "E"]
+ * @param jetR jet resolution parameter
+ * @param jetAlgorithmStr jet alogrithm
+ * @param etaRange Eta range. Tuple of min and max
+ * @param minJetPt Minimum jet pt.
+ * @return OutputWrapper<T> Output from jet finding.
+ */
 template<typename T>
-//std::tuple<FourVectorTuple<T>, std::vector<std::vector<unsigned int>>, std::optional<std::tuple<FourVectorTuple<T>, std::vector<unsigned int>>>> findJets(
 OutputWrapper<T> findJets(
   FourVectorTuple<T> & columnFourVectors,
   double jetR,
@@ -60,6 +98,7 @@ std::vector<fastjet::PseudoJet> vectorsToPseudoJets(
 {
     std::vector<fastjet::PseudoJet> particles;
     const auto & [px, py, pz, E] = fourVectors;
+    std::cout << "px size: " << px.size() << "\n";
     for (std::size_t i = 0; i < px.size(); ++i) {
         particles.emplace_back(fastjet::PseudoJet(px[i], py[i], pz[i], E[i]));
         particles.back().set_user_index(i);
@@ -87,8 +126,6 @@ FourVectorTuple<T> pseudoJetsToVectors(
   return std::make_tuple(px, py, pz, E);
 }
 
-//template<typename T>
-//std::tuple<FourVectorTuple<T>, std::vector<std::vector<unsigned int>>, std::optional<std::tuple<FourVectorTuple<T>, std::vector<unsigned int>>>> findJets(
 template<typename T>
 OutputWrapper<T> findJets(
   FourVectorTuple<T> & columnFourVectors,
@@ -157,7 +194,8 @@ OutputWrapper<T> findJets(
   //fastjet::JetAlgorithm jetAlgorithm(fastjet::antikt_algorithm);
   fastjet::RecombinationScheme recombinationScheme(fastjet::E_scheme);
   fastjet::Strategy strategy(fastjet::Best);
-  fastjet::AreaType areaType(fastjet::active_area);
+  //fastjet::AreaType areaType(fastjet::active_area);
+  fastjet::AreaType areaType(fastjet::active_area_explicit_ghosts);
   // Derived fastjet settings
   fastjet::JetDefinition jetDefinition(jetAlgorithm, jetR, recombinationScheme, strategy);
   fastjet::AreaDefinition areaDefinition(areaType, ghostAreaSpec);
@@ -167,8 +205,13 @@ OutputWrapper<T> findJets(
   //auto particlePseudoJets = numpyToPseudoJet(pxIn, pyIn, pzIn, EIn, indexIn);
   auto particlePseudoJets = vectorsToPseudoJets(columnFourVectors);
 
+  std::cout << "inputs\n";
+  for (auto temp : particlePseudoJets) {
+    std::cout << "input pt: " << temp.perp() << "\n";
+  }
+
   // Setup the background estimator to be able to make the estimation.
-  backgroundEstimator.set_particles(particlePseudoJets);
+  //backgroundEstimator.set_particles(particlePseudoJets);
 
   // Now, deal with applying the background subtraction.
   // The subtractor will subtract the background from jets. It's not used in the case of constituent subtraction.
@@ -178,7 +221,7 @@ OutputWrapper<T> findJets(
   std::shared_ptr<fastjet::contrib::ConstituentSubtractor> constituentSubtraction = nullptr;
   // Now, set them up as necessary.
   if (!useConstituentSubtraction) {
-    subtractor = std::make_shared<fastjet::Subtractor>(&backgroundEstimator);
+    //subtractor = std::make_shared<fastjet::Subtractor>(&backgroundEstimator);
   }
   else {
     constituentSubtraction = std::make_shared<fastjet::contrib::ConstituentSubtractor>(&backgroundEstimator);
@@ -205,28 +248,16 @@ OutputWrapper<T> findJets(
   }
   // Apply the subtractor when appropriate
   if (!useConstituentSubtraction) {
-    jets = (*subtractor)(jets);
-  }
-  for (auto j : jets) {
-    std::cout << "j pt=" << j.perp() << "\n";
+    //jets = (*subtractor)(jets);
   }
 
   // It's also not uncommon to apply a sorting by E or pt.
   jets = fastjet::sorted_by_pt(jets);
-  for (auto j : jets) {
-    std::cout << "j pt=" << j.perp() << "\n";
-  }
 
   // Now, handle returning the values.
   // First, we need to extract the constituents.
   //auto & [px, py, pz, E] = pseudoJetsToNumpy(jets);
-  std::cout << "jets.size() before: " << jets.size() << "\n";
   auto numpyJets = pseudoJetsToVectors<T>(jets);
-  std::cout << "jets.size()  after: " << jets.size() << "\n";
-  auto & [px, py, pz, E] = numpyJets;
-  for (std::size_t i = 0; i < px.size(); ++i) {
-    std::cout << "j[" << i << "] pt=" << std::sqrt(std::pow(px[i], 2) + std::pow(py[i], 2)) << "\n";
-  }
 
   // Then, we convert the jets themselves into vectors to return.
   auto constituentIndices = constituentIndicesFromJets(jets);

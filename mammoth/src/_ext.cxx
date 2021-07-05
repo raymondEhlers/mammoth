@@ -19,6 +19,7 @@ using namespace pybind11::literals;
   * Note: The array is required to be c-style, which ensures that it works with other packages.
   *       For example, pandas caused a problem in some cases without that argument.
   *
+  * @tparam T Input data type (usually float or double).
   * @param[in] pxIn Numpy px array.
   * @param[in] pyIn Numpy py array.
   * @param[in] pzIn Numpy pz array.
@@ -45,94 +46,31 @@ mammoth::FourVectorTuple<T> numpyToColumnFourVector(
   // Convert the arrays
   std::vector<T> pxOut(nParticles), pyOut(nParticles), pzOut(nParticles), EOut(nParticles);
   for (size_t i = 0; i < nParticles; ++i) {
-    /*std::cout << "i: " << i << " inputs: " << inputJets[i * nParams + 0] << " " << inputJets[i * nParams + 1]
-      << " " << inputJets[i * nParams + 2] << " " <<  inputJets[i * nParams + 3] << "\n";*/
-    pxOut.push_back(px[i]);
-    pyOut.push_back(py[i]);
-    pzOut.push_back(pz[i]);
-    EOut.push_back(E[i]);
+    // NOTE: Don't emplace back - the size is set above.
+    pxOut[i] = px[i];
+    pyOut[i] = py[i];
+    pzOut[i] = pz[i];
+    EOut[i] = E[i];
   }
 
   return {pxOut, pyOut, pzOut, EOut};
 }
 
-/**
- * Create PseudoJet objects from a numpy array of px, py, pz, E. Axis 0 is the number of particles,
- * while axis 1 must be the 4 parameters.
- *
- * Note: The array is required to be c-style, which ensures that it works with other packages. For example,
- *       pandas caused a problem in some cases without that argument.
- *
- * @param[jets] Numpy input array.
- * @returns Vector of PseudoJets.
- */
-//std::vector<fastjet::PseudoJet> constructPseudojetsFromNumpy(const py::array_t<double, py::array::c_style | py::array::forcecast> & jets)
-//{
-//  // Retrieve array and relevant information
-//  py::buffer_info info = jets.request();
-//  // I'm not sure which one of these is better.
-//  //auto inputJets = static_cast<double *>(info.ptr);
-//  auto inputJets = jets.data();
-//  std::vector<fastjet::PseudoJet> outputJets;
-//  // This defines our numpy array shape.
-//  int nParticles = info.shape[0];
-//  int nParams = info.shape[1];
-//  //std::cout << "nParams: " << nParams << ", nParticles: " << nParticles << "\n";
-//
-//  // Validation.
-//  if (nParams != 4) {
-//    throw std::runtime_error("Number of params is not correct. Should be four per particle.");
-//  }
-//  // Convert the arrays
-//  for (size_t i = 0; i < nParticles; ++i) {
-//    /*std::cout << "i: " << i << " inputs: " << inputJets[i * nParams + 0] << " " << inputJets[i * nParams + 1]
-//      << " " << inputJets[i * nParams + 2] << " " <<  inputJets[i * nParams + 3] << "\n";*/
-//    outputJets.push_back(fastjet::PseudoJet(
-//      inputJets[i * nParams + 0], inputJets[i * nParams + 1],
-//      inputJets[i * nParams + 2], inputJets[i * nParams + 3]));
-//  }
-//
-//  return outputJets;
-//}
-
-//std::vector<fastjet::PseudoJet> numpyToPseudoJet(
-//  const py::array_t<double, py::array::c_style | py::array::forcecast> & pxIn,
-//  const py::array_t<double, py::array::c_style | py::array::forcecast> & pyIn,
-//  const py::array_t<double, py::array::c_style | py::array::forcecast> & pzIn,
-//  const py::array_t<double, py::array::c_style | py::array::forcecast> & EIn
-//  //const py::array_t<double, py::array::c_style | py::array::forcecast> & particleIndexIn
-//)
-//{
-//  // Retrieve array and relevant information
-//  py::buffer_info infoPx = pxIn.request();
-//  auto px = pxIn.data();
-//  // This defines our numpy array shape.
-//  int nParticles = info.shape[0];
-//  //int nParams = info.shape[1];
-//  // py
-//  auto py = pyIn.data();
-//  auto pz = pzIn.data();
-//  auto E = EIn.data();
-//  //auto particleIndex = particleIndexIn.data();
-//
-//  std::vector<fastjet::PseudoJet> outputJets;
-//
-//  // Convert the arrays
-//  for (size_t i = 0; i < nParticles; ++i) {
-//    /*std::cout << "i: " << i << " inputs: " << inputJets[i * nParams + 0] << " " << inputJets[i * nParams + 1]
-//      << " " << inputJets[i * nParams + 2] << " " <<  inputJets[i * nParams + 3] << "\n";*/
-//    outputJets.emplace_back(fastjet::PseudoJet(px[i], py[i], pz[i], E[i]));
-//    //outputJets.back().set_user_index(particleIndex[i]);
-//    outputJets.back().set_user_index(i);
-//  }
-//  return outputJets;
-//}
-
-/**
-  * Find jets with background subtraction.
+ /**
+  * @brief Find jets with background subtraction.
+  *
+  * @tparam T Input data type (usually float or double).
+  * @param pxIn px of input particles
+  * @param pyIn py of input particles
+  * @param pzIn pz of input particles
+  * @param EIn energy of input particles
+  * @param jetR jet resolution parameter
+  * @param jetAlgorithm jet alogrithm
+  * @param etaRange Eta range. Tuple of min and max
+  * @param minJetPt Minimum jet pt.
+  * @return mammoth::OutputWrapper<T> Output from jet finding.
   */
 template <typename T>
-//std::tuple<mammoth::FourVectorTuple<T>, std::vector<std::vector<unsigned int>>, std::optional<std::tuple<mammoth::FourVectorTuple<T>, std::vector<unsigned int>>>> findJets(
 mammoth::OutputWrapper<T> findJets(
   const py::array_t<T, py::array::c_style | py::array::forcecast> & pxIn,
   const py::array_t<T, py::array::c_style | py::array::forcecast> & pyIn,
@@ -148,12 +86,7 @@ mammoth::OutputWrapper<T> findJets(
   return mammoth::findJets(fourVectors, jetR, jetAlgorithm, etaRange, minJetPt);
 }
 
-void testFunc() {
-  std::cout << "Hi!\n";
-}
-
 PYBIND11_MODULE(_ext, m) {
-  m.def("test_func", &testFunc, "Test function...");
   m.def("find_jets", &findJets<float>, "px"_a, "py"_a, "pz"_a, "E"_a, "jet_R"_a, "jet_algorithm"_a = "anti-kt", "eta_range"_a = std::make_tuple(-0.9, 0.9), "min_jet_pt"_a = 1., "Jet finding function");
   m.def("find_jets", &findJets<double>, "px"_a, "py"_a, "pz"_a, "E"_a, "jet_R"_a, "jet_algorithm"_a = "anti-kt", "eta_range"_a = std::make_tuple(-0.9, 0.9), "min_jet_pt"_a = 1., "Jet finding function");
   // Output wrapper. Just providing access to the fields.
@@ -162,11 +95,4 @@ PYBIND11_MODULE(_ext, m) {
     .def_readonly("constituent_indices", &mammoth::OutputWrapper<double>::constituent_indices)
     .def_readonly("subtracted_info", &mammoth::OutputWrapper<double>::subtracted)
   ;
-  // Helper functions
-  //m.def("dot_product", &dot_product, "jet_1"_a, "jet_2"_a, "Returns the 4-vector dot product of a and b");
-  //m.def("have_same_momentum", &have_same_momentum, "jet_1"_a, "jet_2"_a, "Returns true if the momenta of the two input jets are identical");
-  //m.def("sorted_by_pt", &sorted_by_pt, "jets"_a, "Return a vector of jets sorted into decreasing transverse momentum");
-  //m.def("sorted_by_pz", &sorted_by_pz, "jets"_a, "Return a vector of jets sorted into increasing pz");
-  //m.def("sorted_by_rapidity", &sorted_by_rapidity, "jets"_a, "Return a vector of jets sorted into increasing rapidity");
-  //m.def("sorted_by_E", &sorted_by_E, "jets"_a, "Return a vector of jets sorted into decreasing energy");
 }

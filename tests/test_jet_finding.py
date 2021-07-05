@@ -27,7 +27,6 @@ def test_jet_finding_basic() -> None:
         with_name="Momentum4D",
     )
     print(f"input particles array type: {ak.type(input_particles)}")
-
     jets = jet_finding.find_jets(particles=input_particles, jet_R=0.7, algorithm="anti-kt")
 
     expected_jets = ak.Array(
@@ -50,7 +49,8 @@ def test_jet_finding_basic() -> None:
                 and np.allclose(np.asarray(measured.pz), np.asarray(expected.pz))
                 and np.allclose(np.asarray(measured.E), np.asarray(expected.E))
                 for measured, expected in zip(jets, expected_jets)])
-    
+
+    # only for testing - we want to see any fastjet warnings
     assert False
 
 
