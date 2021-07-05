@@ -85,7 +85,7 @@ mammoth::OutputWrapper<T> findJets(
 )
 {
   auto fourVectors = numpyToColumnFourVector<T>(pxIn, pyIn, pzIn, EIn);
-  return mammoth::findJets(fourVectors, jetR, jetAlgorithm, etaRange, minJetPt);
+  return mammoth::findJets(fourVectors, jetR, jetAlgorithm, etaRange, minJetPt, backgroundSubtraction, constituentSubtraction);
 }
 
 PYBIND11_MODULE(_ext, m) {

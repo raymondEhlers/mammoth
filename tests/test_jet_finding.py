@@ -155,7 +155,9 @@ def test_jet_finding_with_subtraction_multiple_events() -> None:
         with_name="Momentum4D",
     )
     print(f"input particles array type: {ak.type(input_particles)}")
-    jets = jet_finding.find_jets(particles=input_particles, jet_R=0.7, algorithm="anti-kt", )
+    jets = jet_finding.find_jets(particles=input_particles, jet_R=0.7,
+                                 algorithm="anti-kt",
+                                 background_subtraction=True)
 
     expected_jets = ak.zip(
         {

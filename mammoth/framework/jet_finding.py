@@ -3,7 +3,7 @@
 .. codeauthor:: Raymond Ehlers <raymond.ehlers@cern.ch>, ORNL
 """
 
-from typing import Dict, List
+from typing import Dict, List, Optional, Tuple
 
 import awkward as ak
 import numpy as np
@@ -14,7 +14,12 @@ import mammoth._ext
 vector.register_awkward()
 
 def find_jets(particles: ak.Array, jet_R: float,
-              algorithm: str = "anti-kt") -> ak.Array:
+              algorithm: str = "anti-kt",
+              eta_range: Tuple[float, float] = (-0.9, 0.9),
+              min_jet_pt: float = 1.0,
+              background_subtraction: bool = False,
+              constituent_subtraction: Optional[mammoth._ext.ConstituentSubtractionSettings] = None,
+              ) -> ak.Array:
     #counts = ak.num(particles, axis=1)
     #flattened_particles = ak.flatten(particles)
     #sum_counts = np.cumsum(np.asarray(counts))
@@ -47,8 +52,10 @@ def find_jets(particles: ak.Array, jet_R: float,
             E=np.array(event_particles.E, dtype=np.float64),
             jet_R=jet_R,
             jet_algorithm=algorithm,
-            eta_range=(-0.9, 0.9),
-            min_jet_pt=1.0,
+            eta_range=eta_range,
+            min_jet_pt=min_jet_pt,
+            background_subtraction=background_subtraction,
+            constituent_subtraction=constituent_subtraction,
         )
 
         # Determine the offsets for jets immediately
