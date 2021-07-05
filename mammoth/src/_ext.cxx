@@ -79,7 +79,9 @@ mammoth::OutputWrapper<T> findJets(
   double jetR,
   std::string jetAlgorithm,
   std::tuple<double, double> etaRange,
-  double minJetPt
+  double minJetPt,
+  bool backgroundSubtraction,
+  std::optional<mammoth::ConstituentSubtractionSettings> constituentSubtraction
 )
 {
   auto fourVectors = numpyToColumnFourVector<T>(pxIn, pyIn, pzIn, EIn);
@@ -87,12 +89,18 @@ mammoth::OutputWrapper<T> findJets(
 }
 
 PYBIND11_MODULE(_ext, m) {
-  m.def("find_jets", &findJets<float>, "px"_a, "py"_a, "pz"_a, "E"_a, "jet_R"_a, "jet_algorithm"_a = "anti-kt", "eta_range"_a = std::make_tuple(-0.9, 0.9), "min_jet_pt"_a = 1., "Jet finding function");
-  m.def("find_jets", &findJets<double>, "px"_a, "py"_a, "pz"_a, "E"_a, "jet_R"_a, "jet_algorithm"_a = "anti-kt", "eta_range"_a = std::make_tuple(-0.9, 0.9), "min_jet_pt"_a = 1., "Jet finding function");
+  m.def("find_jets", &findJets<float>, "px"_a, "py"_a, "pz"_a, "E"_a, "jet_R"_a, "jet_algorithm"_a = "anti-kt", "eta_range"_a = std::make_tuple(-0.9, 0.9), "min_jet_pt"_a = 1., "background_subtraction"_a = false, "constituent_subtraction"_a = std::nullopt, "Jet finding function");
+  m.def("find_jets", &findJets<double>, "px"_a, "py"_a, "pz"_a, "E"_a, "jet_R"_a, "jet_algorithm"_a = "anti-kt", "eta_range"_a = std::make_tuple(-0.9, 0.9), "min_jet_pt"_a = 1., "background_subtraction"_a = false, "constituent_subtraction"_a = std::nullopt, "Jet finding function");
   // Output wrapper. Just providing access to the fields.
   py::class_<mammoth::OutputWrapper<double>>(m, "OutputWrapper", "Output wrapper")
     .def_readonly("jets", &mammoth::OutputWrapper<double>::jets)
     .def_readonly("constituent_indices", &mammoth::OutputWrapper<double>::constituent_indices)
     .def_readonly("subtracted_info", &mammoth::OutputWrapper<double>::subtracted)
+  ;
+  // Wrapper for constituent subtraction settings
+  py::class_<mammoth::ConstituentSubtractionSettings>(m, "ConstituentSubtractionSettings", "Constituent subtraction settings")
+    .def(py::init<double, double>(), "r_max"_a = 0.25, "alpha"_a = 1)
+    .def_readwrite("r_max", &mammoth::ConstituentSubtractionSettings::rMax)
+    .def_readwrite("alpha", &mammoth::ConstituentSubtractionSettings::alpha)
   ;
 }

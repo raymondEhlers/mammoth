@@ -14,11 +14,26 @@ namespace mammoth {
 template<typename T>
 using FourVectorTuple = std::tuple<std::vector<T>, std::vector<T>, std::vector<T>, std::vector<T>>;
 
+/**
+ * @brief Jet finding output wrapper
+ *
+ * @tparam T Input data type (usually float or double)
+ */
 template<typename T>
 struct OutputWrapper {
   FourVectorTuple<T> jets;
   std::vector<std::vector<unsigned int>> constituent_indices;
   std::optional<std::tuple<FourVectorTuple<T>, std::vector<unsigned int>>> subtracted;
+};
+
+/**
+ * @brief Constituent subtraction settings
+ *
+ * Just a simple container
+ */
+struct ConstituentSubtractionSettings {
+  double rMax{0.25};
+  double alpha{1.0};
 };
 
 /**
@@ -84,7 +99,9 @@ OutputWrapper<T> findJets(
   double jetR,
   std::string jetAlgorithmStr,
   std::tuple<double, double> etaRange = std::make_tuple(-0.9, 0.9),
-  double minJetPt = 1
+  double minJetPt = 1,
+  bool backgroundSubtraction = false,
+  std::optional<ConstituentSubtractionSettings> constituentSubtraction = std::nullopt
 );
 
 /********************
@@ -132,16 +149,33 @@ OutputWrapper<T> findJets(
   double jetR,
   std::string jetAlgorithmStr,
   std::tuple<double, double> etaRange,
-  double minJetPt
+  double minJetPt,
+  bool backgroundSubtraction,
+  std::optional<ConstituentSubtractionSettings> constituentSubtraction
 )
 {
   // Validation
+  // Jet algorithm name
   std::map<std::string, fastjet::JetAlgorithm> jetAlgorithms = {
     {"anti-kt", fastjet::JetAlgorithm::antikt_algorithm},
     {"kt", fastjet::JetAlgorithm::kt_algorithm},
     {"CA", fastjet::JetAlgorithm::cambridge_algorithm},
   };
+
+  // Main jet algorithm
   fastjet::JetAlgorithm jetAlgorithm(jetAlgorithms.at(jetAlgorithmStr));
+  // Convert column vector input to pseudo jets.
+  auto particlePseudoJets = vectorsToPseudoJets(columnFourVectors);
+
+  // TEMP
+  std::cout << "inputs\n";
+  for (auto temp : particlePseudoJets) {
+    std::cout << "input pt: " << temp.perp() << "\n";
+  }
+  // ENDTEMP
+  std::cout << std::boolalpha << "Settings:\n"
+    << "\tBackground subtraction: " << backgroundSubtraction << "\n"
+    << "\tConstituent subtraction: " << static_cast<bool>(constituentSubtraction) << "\n";
 
   // General settings
   double etaMin = std::get<0>(etaRange);
@@ -157,29 +191,53 @@ OutputWrapper<T> findJets(
   fastjet::GhostedAreaSpec ghostAreaSpec(ghostEtaMax, ghostRepeatN, ghostArea, gridScatter, ktScatter, ghostktMean);
 
   // Background settings
-  double backgroundJetR = 0.2;
-  double backgroundJetEtaMin = etaMin;
-  double backgroundJetEtaMax = etaMax;
-  double backgroundJetPhiMin = 0;
-  double backgroundJetPhiMax = 2 * M_PI;
-  // Fastjet background settings
-  fastjet::JetAlgorithm backgroundJetAlgorithm(fastjet::kt_algorithm);
-  fastjet::RecombinationScheme backgroundRecombinationScheme(fastjet::E_scheme);
-  fastjet::Strategy backgroundStrategy(fastjet::Best);
-  fastjet::AreaType backgroundAreaType(fastjet::active_area);
-  // Derived fastjet settings
-  fastjet::JetDefinition backgroundJetDefinition(backgroundJetAlgorithm, backgroundJetR, backgroundRecombinationScheme, backgroundStrategy);
-  fastjet::AreaDefinition backgroundAreaDefinition(backgroundAreaType, ghostAreaSpec);
-  fastjet::Selector selRho = fastjet::SelectorRapRange(backgroundJetEtaMin, backgroundJetEtaMax) && fastjet::SelectorPhiRange(backgroundJetPhiMin, backgroundJetPhiMax) && !fastjet::SelectorNHardest(2);
-  // Constituent subtraction options (if used)
-  // TODO: Add these options...
-  bool useConstituentSubtraction = false;
-  double constituentSubAlpha = 1.0;
-  double constituentSubRMax = 0.25;
+  // We need to define these basic settings for both rho subtraction and constituent subtraction.
+  std::shared_ptr<fastjet::JetMedianBackgroundEstimator> backgroundEstimator = nullptr;
+  // We'll also define the constituent subtractor here too.
+  std::shared_ptr<fastjet::contrib::ConstituentSubtractor> constituentSubtractor = nullptr;
+  if (backgroundSubtraction || constituentSubtraction) {
+    double backgroundJetR = 0.2;
+    double backgroundJetEtaMin = etaMin;
+    double backgroundJetEtaMax = etaMax;
+    double backgroundJetPhiMin = 0;
+    double backgroundJetPhiMax = 2 * M_PI;
+    // Fastjet background settings
+    fastjet::JetAlgorithm backgroundJetAlgorithm(fastjet::kt_algorithm);
+    fastjet::RecombinationScheme backgroundRecombinationScheme(fastjet::E_scheme);
+    fastjet::Strategy backgroundStrategy(fastjet::Best);
+    fastjet::AreaType backgroundAreaType(fastjet::active_area);
+    // Derived fastjet settings
+    fastjet::JetDefinition backgroundJetDefinition(backgroundJetAlgorithm, backgroundJetR, backgroundRecombinationScheme, backgroundStrategy);
+    fastjet::AreaDefinition backgroundAreaDefinition(backgroundAreaType, ghostAreaSpec);
+    fastjet::Selector selRho = fastjet::SelectorRapRange(backgroundJetEtaMin, backgroundJetEtaMax) && fastjet::SelectorPhiRange(backgroundJetPhiMin, backgroundJetPhiMax) && !fastjet::SelectorNHardest(2);
 
-  // Finally, define the background estimator
-  // This is needed for all background subtraction cases.
-  fastjet::JetMedianBackgroundEstimator backgroundEstimator(selRho, backgroundJetDefinition, backgroundAreaDefinition);
+    // Finally, define the background estimator
+    // This is needed for all background subtraction cases.
+    backgroundEstimator = std::make_shared<fastjet::JetMedianBackgroundEstimator>(selRho, backgroundJetDefinition, backgroundAreaDefinition);
+
+    // Setup the background estimator to be able to make the estimation.
+    backgroundEstimator->set_particles(particlePseudoJets);
+
+    // Specific setup for event-wise constituent subtraction
+    if (constituentSubtraction) {
+      constituentSubtractor = std::make_shared<fastjet::contrib::ConstituentSubtractor>(backgroundEstimator.get());
+      constituentSubtractor->set_distance_type(fastjet::contrib::ConstituentSubtractor::deltaR);
+      constituentSubtractor->set_max_distance(constituentSubtraction->rMax);
+      constituentSubtractor->set_alpha(constituentSubtraction->alpha);
+      constituentSubtractor->set_ghost_area(ghostArea);
+      constituentSubtractor->set_max_eta(backgroundJetEtaMax);
+      constituentSubtractor->set_background_estimator(backgroundEstimator.get());
+    }
+  }
+
+  // Now, setup the subtractor object (when needed), which will subtract the background from jets.
+  // NOTE: It's not used in the case of event-wise constituent subtraction, since the subtraction
+  //       is applied separately.
+  std::shared_ptr<fastjet::Subtractor> subtractor = nullptr;
+  // Now, set it up as necessary.
+  if (backgroundSubtraction) {
+    subtractor = std::make_shared<fastjet::Subtractor>(backgroundEstimator.get());
+  }
 
   // Signal jet settings
   // Again, these should all be settable, but I wanted to keep the signature simple, so I just define them here with some reasonable(ish) defaults.
@@ -191,52 +249,20 @@ OutputWrapper<T> findJets(
   double jetPhiMin = 0;
   double jetPhiMax = 2 * M_PI;
   // Fastjet settings
-  //fastjet::JetAlgorithm jetAlgorithm(fastjet::antikt_algorithm);
+  // NOTE: Jet algorithm defined at the beginning
   fastjet::RecombinationScheme recombinationScheme(fastjet::E_scheme);
   fastjet::Strategy strategy(fastjet::Best);
-  //fastjet::AreaType areaType(fastjet::active_area);
-  fastjet::AreaType areaType(fastjet::active_area_explicit_ghosts);
+  fastjet::AreaType areaType(fastjet::active_area);
+  //fastjet::AreaType areaType(fastjet::active_area_explicit_ghosts);
   // Derived fastjet settings
   fastjet::JetDefinition jetDefinition(jetAlgorithm, jetR, recombinationScheme, strategy);
   fastjet::AreaDefinition areaDefinition(areaType, ghostAreaSpec);
   fastjet::Selector selJets = fastjet::SelectorPtRange(jetPtMin, jetPtMax) && fastjet::SelectorEtaRange(jetEtaMin, jetEtaMax) && fastjet::SelectorPhiRange(jetPhiMin, jetPhiMax);
 
-  // Convert numpy input to pseudo jets.
-  //auto particlePseudoJets = numpyToPseudoJet(pxIn, pyIn, pzIn, EIn, indexIn);
-  auto particlePseudoJets = vectorsToPseudoJets(columnFourVectors);
-
-  std::cout << "inputs\n";
-  for (auto temp : particlePseudoJets) {
-    std::cout << "input pt: " << temp.perp() << "\n";
-  }
-
-  // Setup the background estimator to be able to make the estimation.
-  //backgroundEstimator.set_particles(particlePseudoJets);
-
-  // Now, deal with applying the background subtraction.
-  // The subtractor will subtract the background from jets. It's not used in the case of constituent subtraction.
-  std::shared_ptr<fastjet::Subtractor> subtractor = nullptr;
-  // The constituent subtraction (here, it's implemented as event-wise subtraction, but that doesn't matter) takes
-  // a different approach to background subtraction. It's used here to illustrate a different work flow.
-  std::shared_ptr<fastjet::contrib::ConstituentSubtractor> constituentSubtraction = nullptr;
-  // Now, set them up as necessary.
-  if (!useConstituentSubtraction) {
-    //subtractor = std::make_shared<fastjet::Subtractor>(&backgroundEstimator);
-  }
-  else {
-    constituentSubtraction = std::make_shared<fastjet::contrib::ConstituentSubtractor>(&backgroundEstimator);
-    constituentSubtraction->set_distance_type(fastjet::contrib::ConstituentSubtractor::deltaR);
-    constituentSubtraction->set_max_distance(constituentSubRMax);
-    constituentSubtraction->set_alpha(constituentSubAlpha);
-    constituentSubtraction->set_ghost_area(ghostArea);
-    constituentSubtraction->set_max_eta(backgroundJetEtaMax);
-    constituentSubtraction->set_background_estimator(&backgroundEstimator);
-  }
-
-  // For constituent subtraction, we subtract the input particles
+  // For constituent subtraction, we perform event-wise subtraction on the input particles
   std::vector<unsigned int> subtractedToUnsubtractedIndices;
-  if (useConstituentSubtraction) {
-    particlePseudoJets = constituentSubtraction->subtract_event(particlePseudoJets);
+  if (constituentSubtractor) {
+    particlePseudoJets = constituentSubtractor->subtract_event(particlePseudoJets);
     subtractedToUnsubtractedIndices = updateSubtractedConstituentIndices(particlePseudoJets);
   }
 
@@ -247,8 +273,8 @@ OutputWrapper<T> findJets(
     std::cout << "j pt=" << j.perp() << "\n";
   }
   // Apply the subtractor when appropriate
-  if (!useConstituentSubtraction) {
-    //jets = (*subtractor)(jets);
+  if (backgroundSubtraction) {
+    jets = (*subtractor)(jets);
   }
 
   // It's also not uncommon to apply a sorting by E or pt.
@@ -262,7 +288,7 @@ OutputWrapper<T> findJets(
   // Then, we convert the jets themselves into vectors to return.
   auto constituentIndices = constituentIndicesFromJets(jets);
 
-  if (useConstituentSubtraction) {
+  if (constituentSubtraction) {
     // NOTE: particlePseudoJets are actually the subtracted constituents now.
     return OutputWrapper<T>{
       numpyJets, constituentIndices, std::make_tuple(pseudoJetsToVectors<T>(particlePseudoJets), subtractedToUnsubtractedIndices)
