@@ -5,6 +5,7 @@ import os
 import shutil
 import subprocess
 import sys
+from pathlib import Path
 from typing import Any, Mapping
 
 from setuptools import Distribution, Extension
@@ -113,7 +114,13 @@ def build(setup_kwargs: Mapping[str, Any]) -> None:
     cmd.run()
 
     # Copy built extensions back to the project
-    for output in cmd.get_outputs():
+    # We want to retrieve everything from the cmd outputs (which contains the pybind11 bindings),
+    output_directories = set(Path(p).parent for p in cmd.get_outputs())
+    # However, we also need the additional libraries that we've build.
+    # We can add those by looking for libraries in the same directory as the bindings.
+    libraries_to_move = [Path(p) for p in cmd.get_outputs()] + \
+                        [p for output_dir in output_directories for p in Path(output_dir).glob("lib*")]
+    for output in libraries_to_move:
         relative_extension = os.path.relpath(output, cmd.build_lib)
         print(f"Copying {output} to {relative_extension}")
         shutil.copyfile(output, relative_extension)

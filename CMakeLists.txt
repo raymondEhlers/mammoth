@@ -42,12 +42,12 @@ find_package(FastJet REQUIRED)
 
 # Setup mammothExt, which includes jet finding functionality.
 # c++17 is required for std::optional
-add_library(mammothExt mammoth/src/jetFinding.cxx)
-target_compile_features(mammothExt PUBLIC cxx_std_17)
-target_link_libraries(mammothExt PUBLIC FastJet::FastJet FastJet::Contrib)
-target_include_directories(mammothExt PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include" FastJet::FastJet)
+add_library(mammothext SHARED mammoth/src/jetFinding.cxx)
+target_compile_features(mammothext PUBLIC cxx_std_17)
+target_link_libraries(mammothext PUBLIC FastJet::FastJet FastJet::Contrib)
+target_include_directories(mammothext PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include" FastJet::FastJet)
 
 # Create the pybind11 bindings
 pybind11_add_module(_ext mammoth/src/_ext.cxx)
-target_link_libraries(_ext PRIVATE mammothExt)
-target_include_directories(_ext PUBLIC mammothExt)
+target_link_libraries(_ext PUBLIC mammothext)
+target_include_directories(_ext PUBLIC mammothext)
