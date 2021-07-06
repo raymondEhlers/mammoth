@@ -10,6 +10,7 @@ import numpy as np
 import vector
 
 import mammoth._ext
+from mammoth._ext import ConstituentSubtractionSettings
 
 vector.register_awkward()
 
@@ -18,7 +19,7 @@ def find_jets(particles: ak.Array, jet_R: float,
               eta_range: Tuple[float, float] = (-0.9, 0.9),
               min_jet_pt: float = 1.0,
               background_subtraction: bool = False,
-              constituent_subtraction: Optional[mammoth._ext.ConstituentSubtractionSettings] = None,
+              constituent_subtraction: Optional[ConstituentSubtractionSettings] = None,
               ) -> ak.Array:
     #counts = ak.num(particles, axis=1)
     #flattened_particles = ak.flatten(particles)
