@@ -2,6 +2,7 @@
 #include <pybind11/numpy.h>
 #include <pybind11/operators.h>
 #include <pybind11/stl.h>
+#include <pybind11/iostream.h>
 
 #include "mammoth/jetFinding.hpp"
 
@@ -88,9 +89,39 @@ mammoth::OutputWrapper<T> findJets(
   return mammoth::findJets(fourVectors, jetR, jetAlgorithm, etaRange, minJetPt, backgroundSubtraction, constituentSubtraction);
 }
 
+ /**
+  * @brief Redirect stdout for logging for jet finding functionality.
+  *
+  * It's a trivial wrapper so we can use call_guard, which makes things simpler but
+  * ca't pass arguments, so we need to set the defaults.
+  */
+class JetFindingLoggingStdout : public py::scoped_ostream_redirect {
+  public:
+    JetFindingLoggingStdout(): py::scoped_ostream_redirect(
+        std::cout,                               // std::ostream&
+        py::module_::import("mammoth.src.logging").attr("jet_finding_logger_stdout") // Python output
+    ) {}
+};
+
+ /**
+  * @brief Redirect stderr for logging for jet finding functionality.
+  *
+  * It's a trivial wrapper so we can use call_guard, which makes things simpler but
+  * ca't pass arguments, so we need to set the defaults.
+  */
+class JetFindingLoggingStderr : public py::scoped_ostream_redirect {
+  public:
+    JetFindingLoggingStderr(): py::scoped_ostream_redirect(
+        std::cout,                               // std::ostream&
+        py::module_::import("mammoth.src.logging").attr("jet_finding_logger_stderr") // Python output
+    ) {}
+};
+
+
 PYBIND11_MODULE(_ext, m) {
-  m.def("find_jets", &findJets<float>, "px"_a, "py"_a, "pz"_a, "E"_a, "jet_R"_a, "jet_algorithm"_a = "anti-kt", "eta_range"_a = std::make_tuple(-0.9, 0.9), "min_jet_pt"_a = 1., "background_subtraction"_a = false, "constituent_subtraction"_a = std::nullopt, "Jet finding function");
-  m.def("find_jets", &findJets<double>, "px"_a, "py"_a, "pz"_a, "E"_a, "jet_R"_a, "jet_algorithm"_a = "anti-kt", "eta_range"_a = std::make_tuple(-0.9, 0.9), "min_jet_pt"_a = 1., "background_subtraction"_a = false, "constituent_subtraction"_a = std::nullopt, "Jet finding function");
+  m.def("find_jets", &findJets<float>, "px"_a, "py"_a, "pz"_a, "E"_a, "jet_R"_a, "jet_algorithm"_a = "anti-kt", "eta_range"_a = std::make_tuple(-0.9, 0.9), "min_jet_pt"_a = 1., "background_subtraction"_a = false, "constituent_subtraction"_a = std::nullopt, "Jet finding function", py::call_guard<JetFindingLoggingStdout, JetFindingLoggingStderr>());
+  m.def("find_jets", &findJets<double>, "px"_a, "py"_a, "pz"_a, "E"_a, "jet_R"_a, "jet_algorithm"_a = "anti-kt", "eta_range"_a = std::make_tuple(-0.9, 0.9), "min_jet_pt"_a = 1., "background_subtraction"_a = false, "constituent_subtraction"_a = std::nullopt, "Jet finding function", py::call_guard<JetFindingLoggingStdout, JetFindingLoggingStderr>());
+
   // Output wrapper. Just providing access to the fields.
   py::class_<mammoth::OutputWrapper<double>>(m, "OutputWrapper", "Output wrapper")
     .def_readonly("jets", &mammoth::OutputWrapper<double>::jets)
