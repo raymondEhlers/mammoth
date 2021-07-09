@@ -8,7 +8,6 @@ from pathlib import Path
 
 import awkward as ak
 import numpy as np
-import pandas as pd
 
 from mammoth.framework import sources, utils
 
