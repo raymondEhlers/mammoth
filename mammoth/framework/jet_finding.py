@@ -21,6 +21,9 @@ def find_jets(particles: ak.Array, jet_R: float,
               background_subtraction: bool = False,
               constituent_subtraction: Optional[ConstituentSubtractionSettings] = None,
               ) -> ak.Array:
+    # Validation
+    min_jet_pt = float(min_jet_pt)
+
     #counts = ak.num(particles, axis=1)
     #flattened_particles = ak.flatten(particles)
     #sum_counts = np.cumsum(np.asarray(counts))
