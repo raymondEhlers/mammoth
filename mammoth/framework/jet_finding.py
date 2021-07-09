@@ -77,13 +77,45 @@ def find_jets(particles: ak.Array, jet_R: float,
         #    subtracted_to_unsubtracted_indices.append(res[2][1])
         #    #jetsArray, constituent_indices, (subtracted_constituents, subtracted_to_unsubtracted_indices) = res
 
+    # Determine constituent indices
+    output_constituent_indices = ak.Array(constituent_indices)
+    # Following the example
+    constituents_shape = ak.num(output_constituent_indices, axis=1)
+    # Duplicate constituents so we can project along them
+    duplicate_mask = ak.unflatten(np.zeros(np.sum(constituents_shape), np.int64), constituents_shape)
+    duplicated_particles = particles[:, np.newaxis][duplicate_mask]
+    output_constituents = duplicated_particles[output_constituent_indices]
+
+    #outputs_to_inputs = self.constituent_index(min_pt)
+    #shape = ak.num(outputs_to_inputs)
+    #total = np.sum(shape)
+    #duplicate = ak.unflatten(np.zeros(total, np.int64), shape)
+    #prepared = self.data[:, np.newaxis][duplicate]
+    #return prepared[outputs_to_inputs]
+    #output_constituents = ak.Array(
+    #    ak.layout.ListOffsetArray64(
+    #        ak.layout.Index64(output_constituent_indices.layout),
+    #        particles.layout,
+    #        #ak.layout.RecordArray(
+    #        #    [
+    #        #        ak.layout.NumpyArray(array.px),
+    #        #        ak.layout.NumpyArray(array.py),
+    #        #        ak.layout.NumpyArray(array.pz),
+    #        #        ak.layout.NumpyArray(array.E),
+    #        #    ],
+    #        #    ["px", "py", "pz", "E"],
+    #        #),
+    #    )
+    #)
+
     # Make an output based on this information...
     output_jets = ak.zip({
         "px": jets["px"],
         "py": jets["py"],
         "pz": jets["pz"],
         "E": jets["E"],
-    }, with_name="Momentum4D")
+        "constituents": output_constituents,
+    }, with_name="Momentum4D", depth_limit=2)
     #outputJets = ak.Array([output.jets for output in outputs], with_name="Momentum4D")
     #jets = ak.Array(
     #    ak.layout.ListOffsetArray64(
