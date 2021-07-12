@@ -3,16 +3,20 @@
 .. codeuathor:: Raymond Ehlers <raymond.ehlers@cern.ch>, ORNL
 """
 
+import logging
+import time
 from pathlib import Path
-from typing import Dict, Mapping, Optional, Sequence, Tuple
+from typing import Dict, Mapping, Optional, Tuple
 
 import awkward as ak
 import numpy as np
 import numpy.typing as npt
 import vector
 
-from mammoth.framework import sources
+from mammoth.framework import jet_finding, sources
 
+
+logger = logging.getLogger(__name__)
 vector.register_awkward()
 
 
@@ -50,6 +54,7 @@ def _transform_inputs(
     background = vector.Array(background)
 
     # Combine inputs
+    logger.debug("Embedding...")
     return ak.Array(
         {
             "part_level": part_level,
@@ -114,10 +119,74 @@ def embed_into_thermal_model_data(
     return source_index_identifiers, combined_source.data()
 
 
-if __name__ == "__main__":
+def setup_logging(level: int = logging.DEBUG) -> None:
+    # Basic setup
+    logging.basicConfig(level=level, format="%(asctime)s %(name)s:%(lineno)d %(levelname)s %(message)s")
+    # Quiet down the matplotlib logging
+    logging.getLogger("matplotlib").setLevel(logging.INFO)
+    # For sanity when using IPython
+    logging.getLogger("parso").setLevel(logging.INFO)
+    # Quiet down BinndData copy warnings
+    logging.getLogger("pachyderm.binned_data").setLevel(logging.INFO)
+    # Quiet down numba
+    logging.getLogger("numba").setLevel(logging.INFO)
+
+
+def analysis(jet_R: float = 0.2, min_hybrid_jet_pt: float = 15., min_pythia_jet_pt: float = 5.) -> None:
+    setup_logging(level=logging.INFO)
+    logger.info("Start")
     source_index_identifiers, arrays = embed_into_thermal_model_data(
         pythia_filename=Path("/software/rehlers/dev/mammoth/AnalysisResults.parquet")
     )
+    logger.info("Transform")
     arrays = _transform_inputs(source_index_identifiers=source_index_identifiers, arrays=arrays)
+    logger.info("Find jets")
 
-    import IPython; IPython.embed()
+    #logger.info("Part level start")
+    #t = time.time()
+    #part_level = jet_finding.find_jets(
+    #    particles=arrays["part_level"], algorithm="anti-kt", jet_R=jet_R, min_jet_pt=min_pythia_jet_pt,
+    #    area_settings=jet_finding.AREA_PP,
+    #)
+    #logger.info(f"Done with part level. Time: {time.time() - t}")
+    #import IPython; IPython.embed()
+    #return part_level
+    #t = time.time()
+    #det_level = jet_finding.find_jets(
+    #    particles=arrays["det_level"], algorithm="anti-kt", jet_R=jet_R, min_jet_pt=min_pythia_jet_pt,
+    #)
+    #logger.info(f"Done with det level. Time: {time.time() - t}")
+    #t = time.time()
+    #hybrid = jet_finding.find_jets(
+    #    particles=arrays["hybrid"], algorithm="anti-kt", jet_R=jet_R, min_jet_pt=min_hybrid_jet_pt,
+    #)
+    #logger.info(f"Done with hybrid level. Time: {time.time() - t}")
+    #jets = ak.zip(
+    #    {
+    #        "part_level": part_level,
+    #        "det_level": det_level,
+    #        "hybrid": hybrid,
+    #    },
+    #    depth_limit=1,
+    #)
+
+    jets = ak.zip(
+        {
+            "part_level": jet_finding.find_jets(
+                particles=arrays["part_level"], algorithm="anti-kt", jet_R=jet_R, area_settings=jet_finding.AREA_PP, min_jet_pt=min_pythia_jet_pt,
+            ),
+            "det_level": jet_finding.find_jets(
+                particles=arrays["det_level"], algorithm="anti-kt", jet_R=jet_R, area_settings=jet_finding.AREA_PP, min_jet_pt=min_pythia_jet_pt,
+            ),
+            "hybrid": jet_finding.find_jets(
+                particles=arrays["hybrid"], algorithm="anti-kt", jet_R=jet_R, area_settings=jet_finding.AREA_AA, min_jet_pt=min_hybrid_jet_pt,
+            ),
+        },
+        depth_limit=1,
+    )
+
+    #import IPython; IPython.embed()
+
+
+if __name__ == "__main__":
+    analysis()
