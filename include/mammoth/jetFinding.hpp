@@ -167,11 +167,12 @@ OutputWrapper<T> findJets(
   // Convert column vector input to pseudo jets.
   auto particlePseudoJets = vectorsToPseudoJets(columnFourVectors);
 
-  // TEMP
+  // Notify about the settings for the jet finding.
+  // NOTE: This can be removed eventually. For now (July 2021), it wll be routed to debug level
+  //       so we can be 100% sure about what is being calculated.
   std::cout << std::boolalpha << "Settings:\n"
     << "\tBackground subtraction: " << backgroundSubtraction << "\n"
     << "\tConstituent subtraction: " << static_cast<bool>(constituentSubtraction) << "\n";
-  // ENDTEMP
 
   // General settings
   double etaMin = std::get<0>(etaRange);

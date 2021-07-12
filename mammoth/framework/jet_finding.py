@@ -22,14 +22,42 @@ def find_jets(particles: ak.Array, jet_R: float,
               constituent_subtraction: Optional[ConstituentSubtractionSettings] = None,
               ) -> ak.Array:
     # Validation
+    # Without this, we may have argument mismatches.
     min_jet_pt = float(min_jet_pt)
 
-    #counts = ak.num(particles, axis=1)
-    #flattened_particles = ak.flatten(particles)
-    #sum_counts = np.cumsum(np.asarray(counts))
+    # Keep track of the event transitions.
+    counts = ak.num(particles, axis=1)
+    # To use for indexing, we need to keep track of the cumulative sum. That way, we can
+    # slice using these indices.
+    sum_counts = np.cumsum(np.asarray(counts))
+    # However, to use as slices, we need one more entry than the number of events. We
+    # account for this by inserting 0 at the beginning since the first indices starts at 0.
+    sum_counts = np.insert(sum_counts, 0, 0)
 
-    #jets_offsets = []
+    # Validate that there is at least one particle per event
+    if np.any(sum_counts[1:] == sum_counts[:-1]):
+        raise ValueError("There are some events with zero particles, which is going to mess up the alignment. Check the input!")
+
+    # Now, deal with the particles themselves.
+    # This will flatten the awkward array contents while keeping the record names.
+    flattened_particles = ak.flatten(particles, axis=1)
+    # We only want vector to calculate the components once (the input components may not
+    # actually be px, py, pz, and E), so calculate them now, and view them as numpy arrays
+    # so we can pass them directly into our function.
+    # NOTE: To avoid argument mismatches when calling to the c++, we view as float64 (which
+    #       will be converted to a double). As of July 2021, tests seem to indicate that it's =
+    #       not making the float32 -> float conversion properly.
+    px = np.asarray(flattened_particles.px, dtype=np.float64)
+    py = np.asarray(flattened_particles.py, dtype=np.float64)
+    pz = np.asarray(flattened_particles.pz, dtype=np.float64)
+    E = np.asarray(flattened_particles.E, dtype=np.float64)
+
     #offsets = []
+    # Keep track of the jet four vector components. Although this will have to be converted later,
+    # it seems that this is good enough enough to start.
+    # NOTE: If this gets too slow, we can do the jet finding over multiple events in c++ like what
+    #       is done in the new fj bindings. I skip this for now because my existing code seems to 
+    #       be good enough.
     jets: Dict[str, List[np.ndarray]] = {
         "px": [],
         "py": [],
@@ -39,21 +67,13 @@ def find_jets(particles: ak.Array, jet_R: float,
     constituent_indices = []
     #subtracted_constituents = []
     #subtracted_to_unsubtracted_indices = []
-    #for lower, upper in zip(sum_counts[:-1], sum_counts[1:]):
-    for event_particles in particles:
-        # Skip if there are somehow no particles.
-        #if lower == upper:
-        #    continue
-
+    for lower, upper in zip(sum_counts[:-1], sum_counts[1:]):
+        # Run the actual jet finding.
         res = mammoth._ext.find_jets(
-            #px=flattened_particles[lower:upper].px,
-            #py=flattened_particles[lower:upper].py,
-            #pz=flattened_particles[lower:upper].pz,
-            #E=flattened_particles[lower:upper].E,
-            px=np.array(event_particles.px, dtype=np.float64),
-            py=np.array(event_particles.py, dtype=np.float64),
-            pz=np.array(event_particles.pz, dtype=np.float64),
-            E=np.array(event_particles.E, dtype=np.float64),
+            px=px[lower:upper],
+            py=py[lower:upper],
+            pz=pz[lower:upper],
+            E=E[lower:upper],
             jet_R=jet_R,
             jet_algorithm=algorithm,
             eta_range=eta_range,
@@ -62,9 +82,6 @@ def find_jets(particles: ak.Array, jet_R: float,
             constituent_subtraction=constituent_subtraction,
         )
 
-        # Determine the offsets for jets immediately
-        #outputs.append(res)
-        #jets_offsets.append(len(res[0]))
         temp_jets = res.jets
         jets["px"].append(temp_jets[0])
         jets["py"].append(temp_jets[1])
