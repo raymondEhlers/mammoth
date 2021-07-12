@@ -112,7 +112,7 @@ class JetFindingLoggingStdout : public py::scoped_ostream_redirect {
 class JetFindingLoggingStderr : public py::scoped_ostream_redirect {
   public:
     JetFindingLoggingStderr(): py::scoped_ostream_redirect(
-        std::cout,                               // std::ostream&
+        std::cerr,                               // std::ostream&
         py::module_::import("mammoth.src.logging").attr("jet_finding_logger_stderr") // Python output
     ) {}
 };
