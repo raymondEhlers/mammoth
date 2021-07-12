@@ -7,12 +7,28 @@ from typing import Dict, List, Optional, Tuple
 
 import awkward as ak
 import numpy as np
+import numpy.typing as npt
 import vector
 
 import mammoth._ext
 from mammoth._ext import ConstituentSubtractionSettings
 
 vector.register_awkward()
+
+def _expand_array_for_applying_constituent_indices(array_to_expand: ak.Array, array_with_constituent_indices: ak.Array) -> ak.Array:
+    # We need to duplicate the array_to_expand so we can project along it with constituent indices.
+    # Basically, we'll duplicate the particles as many times as there are constituents by selecting
+    # the first constituent that is promoted by np.newaxis (namely, the constituent that is there).
+    # It's not the most intuitive operation, but it seems to work.
+    constituents_shape = ak.num(array_with_constituent_indices, axis=1)
+    duplicate_mask = ak.unflatten(
+        np.zeros(np.sum(constituents_shape), np.int64),
+        constituents_shape
+    )
+    duplicated_elements = array_to_expand[:, np.newaxis][duplicate_mask]
+    # Once we have the duplicated input particles, we can finally retrieve the output constituents.
+    return duplicated_elements[array_with_constituent_indices]
+
 
 def find_jets(particles: ak.Array, jet_R: float,
               algorithm: str = "anti-kt",
@@ -52,21 +68,25 @@ def find_jets(particles: ak.Array, jet_R: float,
     pz = np.asarray(flattened_particles.pz, dtype=np.float64)
     E = np.asarray(flattened_particles.E, dtype=np.float64)
 
-    #offsets = []
     # Keep track of the jet four vector components. Although this will have to be converted later,
     # it seems that this is good enough enough to start.
     # NOTE: If this gets too slow, we can do the jet finding over multiple events in c++ like what
-    #       is done in the new fj bindings. I skip this for now because my existing code seems to 
+    #       is done in the new fj bindings. I skip this for now because my existing code seems to
     #       be good enough.
-    jets: Dict[str, List[np.ndarray]] = {
+    jets: Dict[str, List[npt.NDArray[np.float32 | np.float64]]] = {
         "px": [],
         "py": [],
         "pz": [],
         "E": [],
     }
     constituent_indices = []
-    #subtracted_constituents = []
-    #subtracted_to_unsubtracted_indices = []
+    subtracted_constituents: Dict[str, List[npt.NDArray[np.float32 | np.float64]]] = {
+        "px": [],
+        "py": [],
+        "pz": [],
+        "E": [],
+    }
+    subtracted_to_unsubtracted_indices = []
     for lower, upper in zip(sum_counts[:-1], sum_counts[1:]):
         # Run the actual jet finding.
         res = mammoth._ext.find_jets(
@@ -88,51 +108,117 @@ def find_jets(particles: ak.Array, jet_R: float,
         jets["pz"].append(temp_jets[2])
         jets["E"].append(temp_jets[3])
         constituent_indices.append(res.constituent_indices)
-        #if len(res) == 3:
-        #    # NOTE: Here, constituent_indices is the _subtracted_ constituent indices.
-        #    subtracted_constituents.append(res[2][0])
-        #    subtracted_to_unsubtracted_indices.append(res[2][1])
-        #    #jetsArray, constituent_indices, (subtracted_constituents, subtracted_to_unsubtracted_indices) = res
+        subtracted_info = res.subtracted_info
+        if subtracted_info:
+            subtracted_constituents["px"].append(subtracted_info[0][0])
+            subtracted_constituents["py"].append(subtracted_info[0][1])
+            subtracted_constituents["pz"].append(subtracted_info[0][2])
+            subtracted_constituents["E"].append(subtracted_info[0][3])
+            subtracted_to_unsubtracted_indices.append(subtracted_info[1])
 
-    # Determine constituent indices
+        # Temp to end early
+        if lower > 1000:
+            break
+
+    # To create the output, we first start with the constituents.
+    # If we have subtracted constituents, we need to handle them very carefully.
+    if subtracted_to_unsubtracted_indices:
+        # If we have subtracted constituents, the indices that were returned reference
+        # the subtracted constituents.
+        particles_for_constistuents = ak.Array(subtracted_constituents)
+    else:
+        particles_for_constistuents = particles
+
+    # Determine constituents from constituent indices
+    # NOTE: This follows the example in the scikit-hep fastjet bindings.
+    # First, we convert the indices into an awkward array to make the next operations simpler.
+    # NOTE: This requires a copy.
     output_constituent_indices = ak.Array(constituent_indices)
-    # Following the example
-    constituents_shape = ak.num(output_constituent_indices, axis=1)
-    # Duplicate constituents so we can project along them
-    duplicate_mask = ak.unflatten(np.zeros(np.sum(constituents_shape), np.int64), constituents_shape)
-    duplicated_particles = particles[:, np.newaxis][duplicate_mask]
-    output_constituents = duplicated_particles[output_constituent_indices]
 
-    #outputs_to_inputs = self.constituent_index(min_pt)
-    #shape = ak.num(outputs_to_inputs)
-    #total = np.sum(shape)
-    #duplicate = ak.unflatten(np.zeros(total, np.int64), shape)
-    #prepared = self.data[:, np.newaxis][duplicate]
-    #return prepared[outputs_to_inputs]
-    #output_constituents = ak.Array(
-    #    ak.layout.ListOffsetArray64(
-    #        ak.layout.Index64(output_constituent_indices.layout),
-    #        particles.layout,
-    #        #ak.layout.RecordArray(
-    #        #    [
-    #        #        ak.layout.NumpyArray(array.px),
-    #        #        ak.layout.NumpyArray(array.py),
-    #        #        ak.layout.NumpyArray(array.pz),
-    #        #        ak.layout.NumpyArray(array.E),
-    #        #    ],
-    #        #    ["px", "py", "pz", "E"],
-    #        #),
-    #    )
+    output_constituents = _expand_array_for_applying_constituent_indices(
+        array_to_expand=particles_for_constistuents,
+        array_with_constituent_indices=output_constituent_indices,
+    )
+    ## We need to duplicate the constituents so we can project along them
+    ## Basically, we'll duplicate the particles as many times as there are constituents by selecting
+    ## the first constituent that is promoted by np.newaxis (namely, the constituent that is there).
+    ## It's not the most intuitive operation, but it seems to work.
+    #constituents_shape = ak.num(output_constituent_indices, axis=1)
+    #duplicate_mask = ak.unflatten(
+    #    np.zeros(np.sum(constituents_shape), np.int64),
+    #    constituents_shape
     #)
+    #duplicated_particles = particles_for_constistuents[:, np.newaxis][duplicate_mask]
+    ## Once we have the duplicated input particles, we can finally retrieve the output constituents.
+    #output_constituents = duplicated_particles[output_constituent_indices]
+    # Add their constituent indices to the array so we can keep track of where they came from
+    # NOTE: I'm not entirely convinced that this is necessary...
+    output_constituents = ak.zip(
+        {
+            **dict(zip(ak.fields(output_constituents), ak.unzip(output_constituents))),
+            "index": output_constituent_indices,
+        },
+    )
+
+    # Now, handle the subtracted constituents if they exist.
+    # NOTE: We don't need to play the same game for the subtracted constituents because they are
+    #       returned as four vectors.
+    #       However, we add the subtracted-to-unsubtracted index map
+    if subtracted_to_unsubtracted_indices:
+        # TODO: Merge with up above.
+        #output_constituents = ak.zip(
+        #    {
+        #        **dict(zip(ak.fields(output_constituents), ak.unzip(output_constituents))),
+        #        "unsubtracted_constituent_indices": ak.Array(subtracted_to_unsubtracted_indices),
+        #    },
+        #)
+        expanded_subtracted_to_unsbtracted_indices = _expand_array_for_applying_constituent_indices(
+            array_to_expand=ak.Array(subtracted_to_unsubtracted_indices),
+            array_with_constituent_indices=output_constituents["index"],
+        )
+        output_constituents = ak.zip(
+            {
+                **dict(zip(ak.fields(output_constituents), ak.unzip(output_constituents))),
+                "unsubtracted_index": expanded_subtracted_to_unsbtracted_indices,
+            },
+        )
+
+        # We have subtracted constituents, so we need to convert them
+        #output_subtracted_constituents = ak.Array(subtracted_constituents)
+        #output_subtracted_constituents = ak.zip(
+        #    {
+        #        **dict(zip(ak.fields(output_subtracted_constituents), ak.unzip(output_subtracted_constituents))),
+        #        # NOTE: We also need to convert the subtracted-to-unsubtracted index map so that
+        #        #       it will zip properly.
+        #        "indices": subtracted_to_unsubtracted_indices,
+        #    },
+        #)
 
     # Make an output based on this information...
-    output_jets = ak.zip({
+    output_kwargs = {
         "px": jets["px"],
         "py": jets["py"],
         "pz": jets["pz"],
         "E": jets["E"],
         "constituents": output_constituents,
-    }, with_name="Momentum4D", depth_limit=2)
+    }
+    # Add subtracted constituents to the output when appropriate.
+    #if subtracted_to_unsubtracted_indices:
+    #    output_kwargs["subtracted_constituents"] = output_subtracted_constituents
+
+    import IPython; IPython.embed()
+
+    # Finally, construct the output
+    try:
+        output_jets = ak.zip(
+            output_kwargs,
+            with_name="Momentum4D",
+            # Limit of 2 is based on: 1 for events + 1 for jets
+            depth_limit=2,
+        )
+    except Exception as e:
+        print(e)
+        import IPython; IPython.embed()
     #outputJets = ak.Array([output.jets for output in outputs], with_name="Momentum4D")
     #jets = ak.Array(
     #    ak.layout.ListOffsetArray64(
