@@ -11,9 +11,13 @@ import numpy.typing as npt
 import vector
 
 import mammoth._ext
-from mammoth._ext import ConstituentSubtractionSettings
+from mammoth._ext import AreaSettings, ConstituentSubtractionSettings
 
 vector.register_awkward()
+
+AREA_PP = AreaSettings("active_area", 0.01)
+AREA_AA = AreaSettings("active_area", 0.005)
+AREA_SUBSTRUCTURE = AreaSettings("passive_area", 0.05)
 
 def _expand_array_for_applying_constituent_indices(array_to_expand: ak.Array, constituent_indices: ak.Array) -> ak.Array:
     """Duplicate array for applying constituent indices.
@@ -53,6 +57,7 @@ def _expand_array_for_applying_constituent_indices(array_to_expand: ak.Array, co
 
 def find_jets(particles: ak.Array, jet_R: float,
               algorithm: str = "anti-kt",
+              area_settings: Optional[AreaSettings] = None,
               eta_range: Tuple[float, float] = (-0.9, 0.9),
               min_jet_pt: float = 1.0,
               background_subtraction: bool = False,
@@ -64,6 +69,8 @@ def find_jets(particles: ak.Array, jet_R: float,
     # Validation
     # Without this, we may have argument mismatches.
     min_jet_pt = float(min_jet_pt)
+    if area_settings is None:
+        area_settings = AREA_AA
 
     # Keep track of the event transitions.
     counts = ak.num(particles, axis=1)
@@ -120,6 +127,7 @@ def find_jets(particles: ak.Array, jet_R: float,
             E=E[lower:upper],
             jet_R=jet_R,
             jet_algorithm=algorithm,
+            area_settings=area_settings,
             eta_range=eta_range,
             min_jet_pt=min_jet_pt,
             background_subtraction=background_subtraction,

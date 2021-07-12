@@ -1,3 +1,5 @@
+#include <string>
+
 #include <fastjet/PseudoJet.hh>
 #include <fastjet/ClusterSequence.hh>
 #include <fastjet/ClusterSequenceArea.hh>
@@ -29,7 +31,20 @@ struct OutputWrapper {
 /**
  * @brief Constituent subtraction settings
  *
- * Just a simple container
+ * Just a simple container for area related settings
+ */
+struct AreaSettings {
+  std::string areaType{"active_area"};
+  double ghostArea{0.005};
+};
+
+/**
+ * @brief Constituent subtraction settings
+ *
+ * Just a simple container for constituent subtraction related settings.
+ *
+ * @param rMax Delta R max parameter
+ * @param alpha Alpha parameter
  */
 struct ConstituentSubtractionSettings {
   double rMax{0.25};
@@ -98,6 +113,7 @@ OutputWrapper<T> findJets(
   FourVectorTuple<T> & columnFourVectors,
   double jetR,
   std::string jetAlgorithmStr,
+  AreaSettings areaSettings,
   std::tuple<double, double> etaRange = std::make_tuple(-0.9, 0.9),
   double minJetPt = 1,
   bool backgroundSubtraction = false,
@@ -148,6 +164,7 @@ OutputWrapper<T> findJets(
   FourVectorTuple<T> & columnFourVectors,
   double jetR,
   std::string jetAlgorithmStr,
+  AreaSettings areaSettings,
   std::tuple<double, double> etaRange,
   double minJetPt,
   bool backgroundSubtraction,
@@ -161,9 +178,16 @@ OutputWrapper<T> findJets(
     {"kt", fastjet::JetAlgorithm::kt_algorithm},
     {"CA", fastjet::JetAlgorithm::cambridge_algorithm},
   };
-
   // Main jet algorithm
   fastjet::JetAlgorithm jetAlgorithm(jetAlgorithms.at(jetAlgorithmStr));
+  // Area type
+  std::map<std::string, fastjet::AreaType> areaTypes = {
+    {"active_area", fastjet::AreaType::active_area},
+    {"passive_area", fastjet::AreaType::passive_area},
+  };
+  // Main Area type
+  fastjet::AreaType areaType(areaTypes.at(areaSettings.areaType));
+
   // Convert column vector input to pseudo jets.
   auto particlePseudoJets = vectorsToPseudoJets(columnFourVectors);
 
@@ -247,10 +271,9 @@ OutputWrapper<T> findJets(
   double jetPhiMax = 2 * M_PI;
   // Fastjet settings
   // NOTE: Jet algorithm defined at the beginning
+  // NOTE: Jet area type defined at the beginning
   fastjet::RecombinationScheme recombinationScheme(fastjet::E_scheme);
   fastjet::Strategy strategy(fastjet::Best);
-  fastjet::AreaType areaType(fastjet::active_area);
-  //fastjet::AreaType areaType(fastjet::active_area_explicit_ghosts);
   // Derived fastjet settings
   fastjet::JetDefinition jetDefinition(jetAlgorithm, jetR, recombinationScheme, strategy);
   fastjet::AreaDefinition areaDefinition(areaType, ghostAreaSpec);
