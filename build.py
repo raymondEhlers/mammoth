@@ -109,7 +109,7 @@ def build(setup_kwargs: Mapping[str, Any]) -> None:
     distribution.package_dir = {"": "mammoth"}
 
     # More or less directly from https://github.com/python-poetry/poetry/issues/2740
-    cmd = CMakeBuild(distribution)
+    cmd = CMakeBuild(distribution, debug=True)
     cmd.ensure_finalized()
     cmd.run()
 

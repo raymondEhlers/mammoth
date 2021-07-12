@@ -23,6 +23,8 @@ endif()
 # Path to additonal modules
 set(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake")
 
+message(STATUS "Build type: ${CMAKE_BUILD_TYPE}")
+
 # pybind11 from PyPI
 #execute_process(
 #  COMMAND
