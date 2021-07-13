@@ -39,7 +39,7 @@ class Source(Protocol):
     metadata: MutableMapping[str, Any]
 
     def __len__(self) -> int:
-        """ Number of entries in the source. """
+        """Number of entries in the source."""
         ...
 
     def data(self) -> ak.Array:
@@ -50,10 +50,10 @@ class Source(Protocol):
         """
         ...
 
-class SourceWithChunks(Source, Protocol):
-    """A source that operates in chunks.
 
-    """
+class SourceWithChunks(Source, Protocol):
+    """A source that operates in chunks."""
+
     chunk_size: int
 
 
@@ -75,9 +75,7 @@ class UprootSource:
     _filename: Path = attr.ib(converter=Path)
     _tree_name: str = attr.ib()
     _columns: Sequence[str] = attr.ib(factory=list)
-    _entry_range: utils.Range = attr.ib(
-        converter=_convert_range, default=utils.Range(None, None)
-    )
+    _entry_range: utils.Range = attr.ib(converter=_convert_range, default=utils.Range(None, None))
     metadata: MutableMapping[str, Any] = attr.ib(factory=dict)
 
     def __len__(self) -> int:
@@ -105,17 +103,11 @@ class UprootSource:
                 )
 
             # Add metadata
-            self.metadata["entry_start"] = (
-                self._entry_range.min if self._entry_range.min is not None else 0
-            )
+            self.metadata["entry_start"] = self._entry_range.min if self._entry_range.min is not None else 0
             self.metadata["entry_stop"] = (
-                self._entry_range.max
-                if self._entry_range.max is not None
-                else tree.num_entries
+                self._entry_range.max if self._entry_range.max is not None else tree.num_entries
             )
-            self.metadata["n_entries"] = (
-                self.metadata["entry_stop"] - self.metadata["entry_start"]
-            )
+            self.metadata["n_entries"] = self.metadata["entry_stop"] - self.metadata["entry_start"]
 
             return tree.arrays(**reading_kwargs)
 
@@ -182,9 +174,7 @@ class ParquetSource:
         # Extract metadata
         self.metadata["entry_start"] = 0
         self.metadata["entry_stop"] = len(arrays)
-        self.metadata["n_entries"] = (
-            self.metadata["entry_stop"] - self.metadata["entry_start"]
-        )
+        self.metadata["n_entries"] = self.metadata["entry_stop"] - self.metadata["entry_start"]
 
         return arrays
 
@@ -346,6 +336,7 @@ class ChunkSource:
                 remaining_data = _data[remaining_n_events:]
                 yield _data[:remaining_n_events]
 
+
 def _no_overlapping_keys(
     instance: "MultipleSources",
     attribute: attr.Attribute[Mapping[str, int]],
@@ -370,13 +361,9 @@ def _contains_signal_and_background(
         if "background" in k:
             found_background = True
     if not found_signal:
-        raise ValueError(
-            f"Must contain at least one signal source. Found: {list(value.keys())}."
-        )
+        raise ValueError(f"Must contain at least one signal source. Found: {list(value.keys())}.")
     if not found_background:
-        raise ValueError(
-            f"Must contain at least one background source. Found: {list(value.keys())}."
-        )
+        raise ValueError(f"Must contain at least one background source. Found: {list(value.keys())}.")
 
 
 def _has_offset_per_source(
@@ -422,7 +409,7 @@ class MultipleSources:
     def data(self) -> ak.Array:
         # Grab the events from the sources
         fixed_sized_data = {k: v.data() for k, v in self._fixed_size_sources.items()}
-        #source_data = {k: v.data() for k, v in self._sources.items()}
+        # source_data = {k: v.data() for k, v in self._sources.items()}
 
         # Cross check that we have the right sizes for all data sources
         lengths = [len(v) for v in fixed_sized_data.values()]
@@ -433,10 +420,10 @@ class MultipleSources:
         for k, v in fixed_sized_data.items():
             # Need a way to get a column that's properly formatted, so we take a known good one,
             # and then set the value as appropriate.
-            #v["source_ID"] = ak.values_astype(
+            # v["source_ID"] = ak.values_astype(
             #    v[self._particles_columns[0]] * 0 + self._source_index_identifiers[k],
             #    np.int16,
-            #)
+            # )
             pass
 
         for v in self._chunked_sources.values():

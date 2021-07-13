@@ -25,11 +25,11 @@ def _lexsort_for_groupby(array: ak.Array, columns: Sequence[Union[str, int]]) ->
     return array[sort]
 
 
-#@nb.njit
+# @nb.njit
 def _run_lengths_for_multiple_columns(array: ak.Array, columns: Sequence[Union[str, int]]) -> nb.typed.List:
     _previous_main_value = -1
     _previous_secondary_value = -1
-    #previous_values = nb.typed.List()
+    # previous_values = nb.typed.List()
     run_lengths = nb.typed.List()
     current_run_length = 0
     for val in array:
@@ -44,7 +44,7 @@ def _run_lengths_for_multiple_columns(array: ak.Array, columns: Sequence[Union[s
 
 
 def group_by(array: ak.Array, by: Sequence[Union[str, int]]) -> ak.Array:
-    """ Group by for awkward arrays.
+    """Group by for awkward arrays.
 
     Args:
         array: Array to be grouped. Must be convertable to numpy arrays.
@@ -64,13 +64,9 @@ def group_by(array: ak.Array, by: Sequence[Union[str, int]]) -> ak.Array:
 
     # Now, we need to combine the run lengths from the different columns. We need to split
     # every time any of them change.
-    run_lengths = [
-        ak.run_lengths(sorted_array[:, k]) for k in by
-    ]
+    run_lengths = [ak.run_lengths(sorted_array[:, k]) for k in by]
     # We can match them up more easily by using the starting index of each run.
-    run_starts = [
-        np.cumsum(np.asarray(l)) for l in run_lengths
-    ]
+    run_starts = [np.cumsum(np.asarray(l)) for l in run_lengths]
     # Combine all of the indices together into one array. Note that this isn't unique.
     combined = np.concatenate(run_starts)  # type: ignore
     # TODO: Unique properly...
@@ -79,15 +75,15 @@ def group_by(array: ak.Array, by: Sequence[Union[str, int]]) -> ak.Array:
 
     run_length = np.zeros(len(combined), dtype=np.int64)
     run_length[0] = combined[0]
-    #run_length[1:] = combined[1:] - combined[:-1]
+    # run_length[1:] = combined[1:] - combined[:-1]
     run_length[1:] = np.diff(combined)  # type: ignore
 
-    #import IPython; IPython.embed()
+    # import IPython; IPython.embed()
 
     # And then construct the array
     return ak.unflatten(
         # Somehow, these seem to be equivalent, even though they shouldn't be...
-        #sorted_array, ak.run_lengths(sorted_array[:, by[-1]])
-        sorted_array, run_length,
+        # sorted_array, ak.run_lengths(sorted_array[:, by[-1]])
+        sorted_array,
+        run_length,
     )
-

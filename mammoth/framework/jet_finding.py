@@ -23,8 +23,11 @@ AREA_PP = AreaSettings("active_area", 0.01)
 AREA_AA = AreaSettings("active_area", 0.005)
 AREA_SUBSTRUCTURE = AreaSettings("passive_area", 0.05)
 
+
 @nb.njit  # type: ignore
-def _jet_matching_geometrical_impl(jets_first: ak.Array, jets_second: ak.Array, n_jets_first: int, max_matching_distance: float) -> npt.NDArray[np.int64]:
+def _jet_matching_geometrical_impl(
+    jets_first: ak.Array, jets_second: ak.Array, n_jets_first: int, max_matching_distance: float
+) -> npt.NDArray[np.int64]:
     """Implementation of geometrical jet matching.
 
     Args:
@@ -69,7 +72,9 @@ def _jet_matching_geometrical_impl(jets_first: ak.Array, jets_second: ak.Array, 
 
 
 @nb.njit  # type: ignore
-def _jet_matching(jets_base: ak.Array, jets_tag: ak.Array, max_matching_distance: float) -> Tuple[npt.NDArray[np.int64], npt.NDArray[np.int64]]:
+def _jet_matching(
+    jets_base: ak.Array, jets_tag: ak.Array, max_matching_distance: float
+) -> Tuple[npt.NDArray[np.int64], npt.NDArray[np.int64]]:
     """Main jet matching implementation in numba.
 
     Args:
@@ -102,7 +107,10 @@ def _jet_matching(jets_base: ak.Array, jets_tag: ak.Array, max_matching_distance
 
     # Perform the actual matching
     event_base_matching_indices = _jet_matching_geometrical_impl(
-        jets_first=jets_base, jets_second=jets_tag, n_jets_first=n_jets_base, max_matching_distance=max_matching_distance
+        jets_first=jets_base,
+        jets_second=jets_tag,
+        n_jets_first=n_jets_base,
+        max_matching_distance=max_matching_distance,
     )
     event_tag_matching_indices = _jet_matching_geometrical_impl(
         jets_first=jets_tag, jets_second=jets_base, n_jets_first=n_jets_tag, max_matching_distance=max_matching_distance
@@ -129,7 +137,11 @@ def _jet_matching(jets_base: ak.Array, jets_tag: ak.Array, max_matching_distance
         for _ in range(0, count_base):
             # print(f"{local_counter=}")
             # print(f"{event_base_matching_indices[i]=}")
-            if event_base_matching_indices[i] > -1 and event_base_matching_indices[i] > -1 and i == event_tag_matching_indices[event_base_matching_indices[i]]:
+            if (
+                event_base_matching_indices[i] > -1
+                and event_base_matching_indices[i] > -1
+                and i == event_tag_matching_indices[event_base_matching_indices[i]]
+            ):
                 # We found a true match! Store the indices.
                 # print(f"Found match! {i=}, {event_offset_base=}, {event_offset_tag=}, {event_base_matching_indices[i]=}, {event_tag_matching_indices[event_base_matching_indices[i]]=}")
                 # NOTE: We need to correct the indices for the array offsets. This ensures
@@ -144,19 +156,25 @@ def _jet_matching(jets_base: ak.Array, jets_tag: ak.Array, max_matching_distance
 
 def jet_matching(jets_base: ak.Array, jets_tag: ak.Array, max_matching_distance: float) -> ak.Array:
     # TODO: Fully Wrap the results in and out with ak.zip
-    base_to_tag_matching_np, tag_to_base_matching_np = _jet_matching(jets_base=jets_base, jets_tag=jets_tag, max_matching_distance=max_matching_distance)
+    base_to_tag_matching_np, tag_to_base_matching_np = _jet_matching(
+        jets_base=jets_base, jets_tag=jets_tag, max_matching_distance=max_matching_distance
+    )
 
     # Add back event structure.
     base_to_tag_matching = ak.unflatten(base_to_tag_matching_np, ak.num(jets_base, axis=1))
     tag_to_base_matching = ak.unflatten(tag_to_base_matching_np, ak.num(jets_tag, axis=1))
 
-    logger.debug(f"base_to_tag_matching_np: {base_to_tag_matching_np}, tag_to_base_matching_np: {tag_to_base_matching_np}")
+    logger.debug(
+        f"base_to_tag_matching_np: {base_to_tag_matching_np}, tag_to_base_matching_np: {tag_to_base_matching_np}"
+    )
     logger.debug(f"base_to_tag_matching: {base_to_tag_matching}, tag_to_base_matching: {tag_to_base_matching}")
 
     return base_to_tag_matching, tag_to_base_matching
 
 
-def _expand_array_for_applying_constituent_indices(array_to_expand: ak.Array, constituent_indices: ak.Array) -> ak.Array:
+def _expand_array_for_applying_constituent_indices(
+    array_to_expand: ak.Array, constituent_indices: ak.Array
+) -> ak.Array:
     """Duplicate array for applying constituent indices.
 
     We end up with doubly-jagged constituent indices, but singly-jagged arrays (`array_to_expand`).
@@ -183,27 +201,24 @@ def _expand_array_for_applying_constituent_indices(array_to_expand: ak.Array, co
     # NOTE: I _think_ awkward is not making a _ton_ of copies, but just indexing. If so, this
     #       should be reasonably efficient.
     constituents_shape = ak.num(constituent_indices, axis=1)
-    duplication_mask = ak.unflatten(
-        np.zeros(np.sum(constituents_shape), np.int64),
-        constituents_shape
-    )
+    duplication_mask = ak.unflatten(np.zeros(np.sum(constituents_shape), np.int64), constituents_shape)
     duplicated_elements = array_to_expand[:, np.newaxis][duplication_mask]
     # Once we have the duplicated array elements, we can finally retrieve the elements which
     # are indexed by the constituent indices.
     return duplicated_elements[constituent_indices]
 
 
-def find_jets(particles: ak.Array, jet_R: float,
-              algorithm: str = "anti-kt",
-              area_settings: Optional[AreaSettings] = None,
-              eta_range: Tuple[float, float] = (-0.9, 0.9),
-              min_jet_pt: float = 1.0,
-              background_subtraction: bool = False,
-              constituent_subtraction: Optional[ConstituentSubtractionSettings] = None,
-              ) -> ak.Array:
-    """Main jet finding interface.
-
-    """
+def find_jets(
+    particles: ak.Array,
+    jet_R: float,
+    algorithm: str = "anti-kt",
+    area_settings: Optional[AreaSettings] = None,
+    eta_range: Tuple[float, float] = (-0.9, 0.9),
+    min_jet_pt: float = 1.0,
+    background_subtraction: bool = False,
+    constituent_subtraction: Optional[ConstituentSubtractionSettings] = None,
+) -> ak.Array:
+    """Main jet finding interface."""
     # Validation
     # Without this, we may have argument mismatches.
     min_jet_pt = float(min_jet_pt)
@@ -221,7 +236,9 @@ def find_jets(particles: ak.Array, jet_R: float,
 
     # Validate that there is at least one particle per event
     if np.any(sum_counts[1:] == sum_counts[:-1]):
-        raise ValueError("There are some events with zero particles, which is going to mess up the alignment. Check the input!")
+        raise ValueError(
+            "There are some events with zero particles, which is going to mess up the alignment. Check the input!"
+        )
 
     # Now, deal with the particles themselves.
     # This will flatten the awkward array contents while keeping the record names.
@@ -348,4 +365,3 @@ def find_jets(particles: ak.Array, jet_R: float,
     )
 
     return output_jets
-

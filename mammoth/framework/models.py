@@ -35,7 +35,9 @@ def inverse_sample_decorator(
     return wrapper
 
 
-def x_exp(x: Union[float, npt.NDArray[Union[np.float32, np.float64]]], scale: float) -> npt.NDArray[Union[np.float32, np.float64]]:
+def x_exp(
+    x: Union[float, npt.NDArray[Union[np.float32, np.float64]]], scale: float
+) -> npt.NDArray[Union[np.float32, np.float64]]:
     return x * np.exp(-x / scale)
 
 
