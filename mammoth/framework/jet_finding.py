@@ -4,7 +4,7 @@
 """
 
 import logging
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple, Union
 
 import awkward as ak
 import numba as nb
@@ -259,14 +259,14 @@ def find_jets(
     # NOTE: If this gets too slow, we can do the jet finding over multiple events in c++ like what
     #       is done in the new fj bindings. I skip this for now because my existing code seems to
     #       be good enough.
-    jets: Dict[str, List[npt.NDArray[np.float32 | np.float64]]] = {
+    jets: Dict[str, List[npt.NDArray[Union[np.float32, np.float64]]]] = {
         "px": [],
         "py": [],
         "pz": [],
         "E": [],
     }
     constituent_indices = []
-    subtracted_constituents: Dict[str, List[npt.NDArray[np.float32 | np.float64]]] = {
+    subtracted_constituents: Dict[str, List[npt.NDArray[Union[np.float32, np.float64]]]] = {
         "px": [],
         "py": [],
         "pz": [],

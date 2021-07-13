@@ -1,4 +1,5 @@
 #include <string>
+#include <utility>
 
 #include <fastjet/PseudoJet.hh>
 #include <fastjet/ClusterSequence.hh>
@@ -9,6 +10,31 @@
 #include <fastjet/tools/JetMedianBackgroundEstimator.hh>
 #include <fastjet/tools/Subtractor.hh>
 #include <fastjet/contrib/ConstituentSubtractor.hh>
+
+// operator<< has to be forward declared carefully to stay in the global namespace so that it works with CINT.
+// For generally how to keep the operator in the global namespace, See: https://stackoverflow.com/a/38801633
+// NOTE: This probably isn't necessary for mammoth, but I'm copying my code from AliPhysics, and trying to modify
+//       it as little as possible. So since this doesn't cause an issue, I will leave it as is.
+namespace mammoth {
+namespace SubstructureTree {
+  class Subjets;
+  class JetSplittings;
+  class JetConstituents;
+  class JetSubstructureSplittings;
+}
+}
+std::ostream& operator<<(std::ostream& in, const mammoth::SubstructureTree::Subjets& myTask);
+std::ostream& operator<<(std::ostream& in, const mammoth::SubstructureTree::JetSplittings& myTask);
+std::ostream& operator<<(std::ostream& in, const mammoth::SubstructureTree::JetConstituents& myTask);
+std::ostream& operator<<(std::ostream& in, const mammoth::SubstructureTree::JetSubstructureSplittings& myTask);
+void swap(mammoth::SubstructureTree::Subjets& first,
+     mammoth::SubstructureTree::Subjets& second);
+void swap(mammoth::SubstructureTree::JetSplittings& first,
+     mammoth::SubstructureTree::JetSplittings& second);
+void swap(mammoth::SubstructureTree::JetConstituents& first,
+     mammoth::SubstructureTree::JetConstituents& second);
+void swap(mammoth::SubstructureTree::JetSubstructureSplittings& first,
+     mammoth::SubstructureTree::JetSubstructureSplittings& second);
 
 namespace mammoth {
 
@@ -98,26 +124,221 @@ std::vector<unsigned int> updateSubtractedConstituentIndices(
 );
 
 /**
- * @brief Implementatino of main jet finder.
- *
- * @tparam T Input data type (usually float or double)
- * @param columnFourVectors Column four vectors, with the columns ordered ["px", "py", "pz", "E"]
- * @param jetR jet resolution parameter
- * @param jetAlgorithmStr jet alogrithm
- * @param etaRange Eta range. Tuple of min and max
- * @param minJetPt Minimum jet pt.
- * @return OutputWrapper<T> Output from jet finding.
- */
+  * @brief Implementatino of main jet finder.
+  *
+  * @tparam T Input data type (usually float or double)
+  * @param columnFourVectors Column four vectors, with the columns ordered ["px", "py", "pz", "E"]
+  * @param jetR jet resolution parameter
+  * @param jetAlgorithmStr jet alogrithm
+  * @param areaSettings Area settings
+  * @param etaRange Eta range. Tuple of min and max. Default: (-0.9, 0.9)
+  * @param minJetPt Minimum jet pt. Default: 1.
+  * @param backgroundSubtraction If true, enable rho background subtraction
+  * @param constituentSubtraction If provided, configure constituent subtraction according to given settings.
+  * @return OutputWrapper<T> Output from jet finding.
+  */
 template<typename T>
 OutputWrapper<T> findJets(
   FourVectorTuple<T> & columnFourVectors,
   double jetR,
   std::string jetAlgorithmStr,
   AreaSettings areaSettings,
-  std::tuple<double, double> etaRange = std::make_tuple(-0.9, 0.9),
+  std::tuple<double, double> etaRange = {-0.9, 0.9},
   double minJetPt = 1,
   bool backgroundSubtraction = false,
   std::optional<ConstituentSubtractionSettings> constituentSubtraction = std::nullopt
+);
+
+namespace SubstructureTree {
+
+/**
+ * @class Subjets
+ * @brief Subjets of a jet.
+ *
+ * Store the subjets as determined by declustering a jet.
+ *
+ * @author Raymond Ehlers <raymond.ehlers@cern.ch>, ORNL
+ * @date 9 Feb 2020
+ */
+class Subjets {
+ public:
+  Subjets();
+  // Additional constructors
+  Subjets(const Subjets & other);
+  Subjets& operator=(Subjets other);
+  friend void ::swap(Subjets & first, Subjets & second);
+  // Avoid implementing move since c++11 is not allowed in the header
+  virtual ~Subjets() {}
+
+  /// Reset the properties for the next filling of the tree.
+  bool Clear();
+
+  // Getters and setters
+  void AddSubjet(const unsigned short splittingNodeIndex, const bool partOfIterativeSplitting,
+          const std::vector<unsigned short>& constituentIndices);
+  std::tuple<unsigned short, bool, const std::vector<unsigned short>> GetSubjet(int i) const;
+
+  // Printing
+  std::string toString() const;
+  friend std::ostream & ::operator<<(std::ostream &in, const Subjets &myTask);
+  std::ostream & Print(std::ostream &in) const;
+
+ protected:
+  std::vector<unsigned short> fSplittingNodeIndex;        ///<  Index of the parent splitting node.
+  std::vector<bool> fPartOfIterativeSplitting;            ///<  True if the splitting is follow an iterative splitting.
+  std::vector<std::vector<unsigned short>> fConstituentIndices;        ///<  Constituent jet indices (ie. indexed by the stored jet constituents, not the global index).
+};
+
+/**
+ * @class JetSplittings
+ * @brief Properties of jet splittings.
+ *
+ * Store the properties of jet splittings determined by declustering a jet.
+ *
+ * @author Raymond Ehlers <raymond.ehlers@cern.ch>, ORNL
+ * @date 9 Feb 2020
+ */
+class JetSplittings {
+ public:
+  JetSplittings();
+  // Additional constructors
+  JetSplittings(const JetSplittings & other);
+  JetSplittings& operator=(JetSplittings other);
+  friend void ::swap(JetSplittings & first, JetSplittings & second);
+  // Avoid implementing move since c++11 is not allowed in the header
+  virtual ~JetSplittings() {}
+
+  /// Reset the properties for the next filling of the tree.
+  bool Clear();
+
+  // Getters and setters
+  void AddSplitting(float kt, float deltaR, float z, short parentIndex);
+  std::tuple<float, float, float, short> GetSplitting(int i) const;
+  unsigned int GetNumberOfSplittings() const { return fKt.size(); }
+
+  // Printing
+  std::string toString() const;
+  friend std::ostream & ::operator<<(std::ostream &in, const JetSplittings &myTask);
+  std::ostream & Print(std::ostream &in) const;
+
+ protected:
+  std::vector<float> fKt;             ///<  kT between the subjets.
+  std::vector<float> fDeltaR;         ///<  Delta R between the subjets.
+  std::vector<float> fZ;              ///<  Momentum sharing of the splitting.
+  std::vector<short> fParentIndex;    ///<  Index of the parent splitting.
+};
+
+/**
+ * @class JetConstituents
+ * @brief Jet constituents.
+ *
+ * Store the constituents associated with a jet.
+ *
+ * @author Raymond Ehlers <raymond.ehlers@cern.ch>, ORNL
+ * @date 9 Feb 2020
+ */
+class JetConstituents
+{
+ public:
+  JetConstituents();
+  // Additional constructors
+  JetConstituents(const JetConstituents & other);
+  JetConstituents& operator=(JetConstituents other);
+  friend void ::swap(JetConstituents & first, JetConstituents & second);
+  // Avoid implementing move since c++11 is not allowed in the header
+  virtual ~JetConstituents() {}
+
+  /// Reset the properties for the next filling of the tree.
+  bool Clear();
+
+  // Getters and setters
+  void AddJetConstituent(const AliVParticle* part, const int & id);
+  std::tuple<float, float, float, int> GetJetConstituent(int i) const;
+  static const int GetGlobalIndexOffset() { return fgkGlobalIndexOffset; }
+
+  // Printing
+  std::string toString() const;
+  friend std::ostream & ::operator<<(std::ostream &in, const JetConstituents &myTask);
+  std::ostream & Print(std::ostream &in) const;
+
+ protected:
+  static const int fgkGlobalIndexOffset;  ///<  Offset for GlobalIndex values in the ID to ensure it never conflicts with the label.
+
+  std::vector<float> fPt;                 ///<  Jet constituent pt
+  std::vector<float> fEta;                ///<  Jet constituent eta
+  std::vector<float> fPhi;                ///<  Jet constituent phi
+  std::vector<int> fID;                   ///<  Jet constituent identifier. MC label (via GetLabel()) or global index (with offset defined above).
+};
+
+/**
+ * @class JetSubstructureSplittings
+ * @brief Jet substructure splittings.
+ *
+ * Jet substructure splitting properties. There is sufficient information to calculate any
+ * additional splitting properties.
+ *
+ * @author Raymond Ehlers <raymond.ehlers@cern.ch>, ORNL
+ * @date 9 Feb 2020
+ */
+class JetSubstructureSplittings {
+ public:
+  JetSubstructureSplittings();
+  // Additional constructors
+  JetSubstructureSplittings(const JetSubstructureSplittings & other);
+  JetSubstructureSplittings& operator=(JetSubstructureSplittings other);
+  friend void ::swap(JetSubstructureSplittings & first, JetSubstructureSplittings & second);
+  // Avoid implementing move since c++11 is not allowed in the header
+  virtual ~JetSubstructureSplittings() {}
+
+  /// Reset the properties for the next filling of the tree.
+  bool Clear();
+
+  // Setters
+  void SetJetPt(float pt) { fJetPt = pt; }
+  void AddJetConstituent(const AliVParticle* part, const int & id);
+  void AddSplitting(float kt, float deltaR, float z, short parentIndex);
+  void AddSubjet(const unsigned short splittingNodeIndex, const bool partOfIterativeSplitting,
+          const std::vector<unsigned short>& constituentIndices);
+  // Getters
+  float GetJetPt() { return fJetPt; }
+  std::tuple<float, float, float, int> GetJetConstituent(int i) const;
+  std::tuple<float, float, float, short> GetSplitting(int i) const;
+  std::tuple<unsigned short, bool, const std::vector<unsigned short>> GetSubjet(int i) const;
+  unsigned int GetNumberOfSplittings() { return fJetSplittings.GetNumberOfSplittings(); }
+
+  // Printing
+  std::string toString() const;
+  friend std::ostream & ::operator<<(std::ostream &in, const JetSubstructureSplittings &myTask);
+  std::ostream & Print(std::ostream &in) const;
+
+ private:
+  // Jet properties
+  float fJetPt;                                           ///<  Jet pt.
+  SubstructureTree::JetConstituents fJetConstituents;     ///<  Jet constituents
+  SubstructureTree::JetSplittings fJetSplittings;         ///<  Jet splittings.
+  SubstructureTree::Subjets fSubjets;                     ///<  Subjets within the jet.
+};
+
+} /* namespace SubstructureTree */
+
+/**
+  * @brief Implementation of jet reclustering
+  *
+  * @tparam T Input data type (usually float or double)
+  * @param columnFourVectors Column four vectors, with the columns ordered ["px", "py", "pz", "E"]
+  * @param jetR jet resolution parameter. Default: 1.
+  * @param jetAlgorithmStr jet alogrithm. Default: "CA".
+  * @param areaSettings Area settings. Default: None.
+  * @param etaRange Eta range. Tuple of min and max. Default: (-1, 1)
+  * @return OutputWrapper<T> Output from reclustering
+  */
+template<typename T>
+OutputWrapper<T> jetReclustering(
+  FourVectorTuple<T> & columnFourVectors,
+  double jetR = 1,
+  std::string jetAlgorithmStr = "CA",
+  std::optional<AreaSettings> areaSettings = std::nullopt,
+  std::tuple<double, double> etaRange = {-1, 1}
 );
 
 /********************
@@ -159,6 +380,27 @@ FourVectorTuple<T> pseudoJetsToVectors(
   return std::make_tuple(px, py, pz, E);
 }
 
+fastjet::JetAlgorithm getJetAlgorithm(std::string jetAlgorithmStr)
+{
+  // Jet algorithm name
+  std::map<std::string, fastjet::JetAlgorithm> jetAlgorithms = {
+    {"anti-kt", fastjet::JetAlgorithm::antikt_algorithm},
+    {"kt", fastjet::JetAlgorithm::kt_algorithm},
+    {"CA", fastjet::JetAlgorithm::cambridge_algorithm},
+  };
+  return jetAlgorithms.at(jetAlgorithmStr);
+}
+
+fastjet::AreaType getAreaType(const AreaSettings & areaSettings)
+{
+  // Area type
+  std::map<std::string, fastjet::AreaType> areaTypes = {
+    {"active_area", fastjet::AreaType::active_area},
+    {"passive_area", fastjet::AreaType::passive_area},
+  };
+  return areaTypes.at(areaSettings.areaType);
+}
+
 template<typename T>
 OutputWrapper<T> findJets(
   FourVectorTuple<T> & columnFourVectors,
@@ -172,21 +414,10 @@ OutputWrapper<T> findJets(
 )
 {
   // Validation
-  // Jet algorithm name
-  std::map<std::string, fastjet::JetAlgorithm> jetAlgorithms = {
-    {"anti-kt", fastjet::JetAlgorithm::antikt_algorithm},
-    {"kt", fastjet::JetAlgorithm::kt_algorithm},
-    {"CA", fastjet::JetAlgorithm::cambridge_algorithm},
-  };
   // Main jet algorithm
-  fastjet::JetAlgorithm jetAlgorithm(jetAlgorithms.at(jetAlgorithmStr));
-  // Area type
-  std::map<std::string, fastjet::AreaType> areaTypes = {
-    {"active_area", fastjet::AreaType::active_area},
-    {"passive_area", fastjet::AreaType::passive_area},
-  };
+  fastjet::JetAlgorithm jetAlgorithm = getJetAlgorithm(jetAlgorithmStr);
   // Main Area type
-  fastjet::AreaType areaType(areaTypes.at(areaSettings.areaType));
+  fastjet::AreaType areaType = getAreaType(areaSettings);
 
   // Convert column vector input to pseudo jets.
   auto particlePseudoJets = vectorsToPseudoJets(columnFourVectors);
@@ -195,6 +426,7 @@ OutputWrapper<T> findJets(
   // NOTE: This can be removed eventually. For now (July 2021), it wll be routed to debug level
   //       so we can be 100% sure about what is being calculated.
   std::cout << std::boolalpha << "Settings:\n"
+    << "\tGhost area: " << areaSettings.ghostArea << "\n"
     << "\tBackground subtraction: " << backgroundSubtraction << "\n"
     << "\tConstituent subtraction: " << static_cast<bool>(constituentSubtraction) << "\n";
 
@@ -204,12 +436,11 @@ OutputWrapper<T> findJets(
   // Ghost settings
   double ghostEtaMin = etaMin;
   double ghostEtaMax = etaMax;
-  double ghostArea = 0.005;
   int ghostRepeatN = 1;
   double ghostktMean = 1e-100;
   double gridScatter = 1.0;
   double ktScatter = 0.1;
-  fastjet::GhostedAreaSpec ghostAreaSpec(ghostEtaMax, ghostRepeatN, ghostArea, gridScatter, ktScatter, ghostktMean);
+  fastjet::GhostedAreaSpec ghostAreaSpec(ghostEtaMax, ghostRepeatN, areaSettings.ghostArea, gridScatter, ktScatter, ghostktMean);
 
   // Background settings
   // We need to define these basic settings for both rho subtraction and constituent subtraction.
@@ -223,10 +454,10 @@ OutputWrapper<T> findJets(
     double backgroundJetPhiMin = 0;
     double backgroundJetPhiMax = 2 * M_PI;
     // Fastjet background settings
-    fastjet::JetAlgorithm backgroundJetAlgorithm(fastjet::kt_algorithm);
-    fastjet::RecombinationScheme backgroundRecombinationScheme(fastjet::E_scheme);
-    fastjet::Strategy backgroundStrategy(fastjet::Best);
-    fastjet::AreaType backgroundAreaType(fastjet::active_area);
+    fastjet::JetAlgorithm backgroundJetAlgorithm(fastjet::JetAlgorithm::kt_algorithm);
+    fastjet::RecombinationScheme backgroundRecombinationScheme(fastjet::RecombinationScheme::E_scheme);
+    fastjet::Strategy backgroundStrategy(fastjet::Strategy::Best);
+    fastjet::AreaType backgroundAreaType(fastjet::AreaType::active_area);
     // Derived fastjet settings
     fastjet::JetDefinition backgroundJetDefinition(backgroundJetAlgorithm, backgroundJetR, backgroundRecombinationScheme, backgroundStrategy);
     fastjet::AreaDefinition backgroundAreaDefinition(backgroundAreaType, ghostAreaSpec);
@@ -245,7 +476,7 @@ OutputWrapper<T> findJets(
       constituentSubtractor->set_distance_type(fastjet::contrib::ConstituentSubtractor::deltaR);
       constituentSubtractor->set_max_distance(constituentSubtraction->rMax);
       constituentSubtractor->set_alpha(constituentSubtraction->alpha);
-      constituentSubtractor->set_ghost_area(ghostArea);
+      constituentSubtractor->set_ghost_area(areaSettings.ghostArea);
       constituentSubtractor->set_max_eta(backgroundJetEtaMax);
       constituentSubtractor->set_background_estimator(backgroundEstimator.get());
     }
@@ -272,8 +503,8 @@ OutputWrapper<T> findJets(
   // Fastjet settings
   // NOTE: Jet algorithm defined at the beginning
   // NOTE: Jet area type defined at the beginning
-  fastjet::RecombinationScheme recombinationScheme(fastjet::E_scheme);
-  fastjet::Strategy strategy(fastjet::Best);
+  fastjet::RecombinationScheme recombinationScheme(fastjet::RecombinationScheme::E_scheme);
+  fastjet::Strategy strategy(fastjet::Strategy::Best);
   // Derived fastjet settings
   fastjet::JetDefinition jetDefinition(jetAlgorithm, jetR, recombinationScheme, strategy);
   fastjet::AreaDefinition areaDefinition(areaType, ghostAreaSpec);
@@ -312,6 +543,56 @@ OutputWrapper<T> findJets(
     };
   }
   return OutputWrapper<T>{numpyJets, constituentIndices, {}};
+}
+
+template<typename T>
+OutputWrapper<T> jetReclustering(
+  FourVectorTuple<T> & columnFourVectors,
+  double jetR,
+  std::string jetAlgorithmStr,
+  std::optional<AreaSettings> areaSettings,
+  std::tuple<double, double> etaRange
+)
+{
+  // Jet algorithm
+  fastjet::JetAlgorithm jetAlgorithm = getJetAlgorithm(jetAlgorithmStr);
+  fastjet::RecombinationScheme recombinationScheme(fastjet::RecombinationScheme::E_scheme);
+  fastjet::Strategy strategy(fastjet::Strategy::Best);
+  fastjet::JetDefinition jetDefinition(jetAlgorithm, jetR, recombinationScheme, strategy);
+  // For area calculation (when desired)
+  // Area type
+  std::unique_ptr<fastjet::AreaType> areaType = nullptr;
+  std::unique_ptr<fastjet::GhostedAreaSpec> ghostSpec = nullptr;
+  std::unique_ptr<fastjet::AreaDefinition> areaDefinition = nullptr;
+  if (areaSettings) {
+    double etaMax = std::get<1>(etaRange);
+    int ghostRepeatN = 1;
+    areaType = std::make_unique<fastjet::AreaType>(getAreaType(*areaSettings));
+    //fastjet::GhostedAreaSpec ghost_spec(1, 1, 0.05);
+    //fastjet::AreaDefinition areaDef(areaType, ghost_spec);
+    ghostSpec = std::make_unique<fastjet::GhostedAreaSpec>(etaMax, ghostRepeatN, areaSettings->ghostArea);
+    areaDefinition = std::make_unique<fastjet::AreaDefinition>(areaType, ghostSpec);
+  }
+
+  // Convert column vector input to pseudo jets.
+  auto particlePseudoJets = vectorsToPseudoJets(columnFourVectors);
+
+  // If we use the area definition, we need to create a ClusterSequenceArea.
+  // NOTE: The CS has to stay in scope while we explore the splitting history.
+  std::unique_ptr<fastjet::ClusterSequence> cs = nullptr;
+  if (areaDefinition) {
+    cs = std::make_unique<fastjet::ClusterSequenceArea>(particlePseudoJets, jetDefinition, areaDefinition);
+  }
+  else {
+    cs = std::make_unique<fastjet::ClusterSequence>(particlePseudoJets, jetDefinition);
+  }
+  std::vector<fastjet::PseudoJet> outputJets = cs->inclusive_jets(0);
+
+  fastjet::PseudoJet jj;
+  jj = outputJets[0];
+
+  // TODO: Use the declustering results...
+  ExtractJetSplittings(jj);
 }
 
 }
