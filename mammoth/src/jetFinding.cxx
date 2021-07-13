@@ -32,7 +32,7 @@ std::vector<unsigned int> updateSubtractedConstituentIndices(
 }
 
 
-namespace SubstructureTree
+namespace JetSubstructure
 {
 
 /**
@@ -320,10 +320,10 @@ std::ostream& JetSubstructureSplittings::Print(std::ostream& in) const
   return in;
 }
 
-} /* namespace SubstructureTree */
+} /* namespace JetSubstructure */
 
 void ExtractJetSplittings(
-  SubstructureTree::JetSubstructureSplittings & jetSplittings,
+  JetSubstructure::JetSubstructureSplittings & jetSplittings,
   fastjet::PseudoJet & inputJet,
   int splittingNodeIndex,
   bool followingIterativeSplitting,
@@ -377,13 +377,13 @@ void ExtractJetSplittings(
  */
 
 /**
- * Implementation of the output stream operator for SubstructureTree::Subjets. Printing
+ * Implementation of the output stream operator for JetSubstructure::Subjets. Printing
  * basic task information provided by function toString
  * @param in output stream
  * @param myTask Task which will be printed
  * @return Reference to the output stream
  */
-std::ostream& operator<<(std::ostream& in, const mammoth::SubstructureTree::Subjets& myTask)
+std::ostream& operator<<(std::ostream& in, const mammoth::JetSubstructure::Subjets& myTask)
 {
   std::ostream& result = myTask.Print(in);
   return result;
@@ -392,8 +392,8 @@ std::ostream& operator<<(std::ostream& in, const mammoth::SubstructureTree::Subj
 /**
  * Swap function. Created using guide described here: https://stackoverflow.com/a/3279550.
  */
-void swap(mammoth::SubstructureTree::Subjets& first,
-     mammoth::SubstructureTree::Subjets& second)
+void swap(mammoth::JetSubstructure::Subjets& first,
+     mammoth::JetSubstructure::Subjets& second)
 {
   using std::swap;
 
@@ -408,13 +408,13 @@ void swap(mammoth::SubstructureTree::Subjets& first,
  */
 
 /**
- * Implementation of the output stream operator for SubstructureTree::JetSplittings. Printing
+ * Implementation of the output stream operator for JetSubstructure::JetSplittings. Printing
  * basic task information provided by function toString
  * @param in output stream
  * @param myTask Task which will be printed
  * @return Reference to the output stream
  */
-std::ostream& operator<<(std::ostream& in, const mammoth::SubstructureTree::JetSplittings& myTask)
+std::ostream& operator<<(std::ostream& in, const mammoth::JetSubstructure::JetSplittings& myTask)
 {
   std::ostream& result = myTask.Print(in);
   return result;
@@ -423,8 +423,8 @@ std::ostream& operator<<(std::ostream& in, const mammoth::SubstructureTree::JetS
 /**
  * Swap function. Created using guide described here: https://stackoverflow.com/a/3279550.
  */
-void swap(mammoth::SubstructureTree::JetSplittings& first,
-     mammoth::SubstructureTree::JetSplittings& second)
+void swap(mammoth::JetSubstructure::JetSplittings& first,
+     mammoth::JetSubstructure::JetSplittings& second)
 {
   using std::swap;
 
@@ -446,7 +446,7 @@ void swap(mammoth::SubstructureTree::JetSplittings& first,
  * @param myTask Task which will be printed
  * @return Reference to the output stream
  */
-std::ostream& operator<<(std::ostream& in, const mammoth::SubstructureTree::JetSubstructureSplittings& myTask)
+std::ostream& operator<<(std::ostream& in, const mammoth::JetSubstructure::JetSubstructureSplittings& myTask)
 {
   std::ostream& result = myTask.Print(in);
   return result;
@@ -455,8 +455,8 @@ std::ostream& operator<<(std::ostream& in, const mammoth::SubstructureTree::JetS
 /**
  * Swap function. Created using guide described here: https://stackoverflow.com/a/3279550.
  */
-void swap(mammoth::SubstructureTree::JetSubstructureSplittings& first,
-     mammoth::SubstructureTree::JetSubstructureSplittings& second)
+void swap(mammoth::JetSubstructure::JetSubstructureSplittings& first,
+     mammoth::JetSubstructure::JetSubstructureSplittings& second)
 {
   using std::swap;
 

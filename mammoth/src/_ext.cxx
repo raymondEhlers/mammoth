@@ -94,14 +94,14 @@ mammoth::OutputWrapper<T> findJets(
 }
 
 template <typename T>
-mammoth::SubstructureTree::JetSubstructureSplittings reclusterJet(
+mammoth::JetSubstructure::JetSubstructureSplittings reclusterJet(
   const py::array_t<T, py::array::c_style | py::array::forcecast> & pxIn,
   const py::array_t<T, py::array::c_style | py::array::forcecast> & pyIn,
   const py::array_t<T, py::array::c_style | py::array::forcecast> & pzIn,
   const py::array_t<T, py::array::c_style | py::array::forcecast> & EIn,
   double jetR,
   std::string jetAlgorithm,
-  mammoth::AreaSettings areaSettings,
+  std::optional<mammoth::AreaSettings> areaSettings,
   std::tuple<double, double> etaRange,
   bool storeRecursiveSplittings
 )
@@ -163,34 +163,35 @@ PYBIND11_MODULE(_ext, m) {
 
 
   // Wrapper for reclustered jet outputs
-  py::class_<mammoth::SubstructureTree::ColumnarSplittings>(m, "ColumnarSplittings", "Columnar splittings output")
-    .def_readonly("kt", &mammoth::SubstructureTree::ColumnarSplittings::kt)
-    .def_readonly("delta_R", &mammoth::SubstructureTree::ColumnarSplittings::deltaR)
-    .def_readonly("z", &mammoth::SubstructureTree::ColumnarSplittings::z)
-    .def_readonly("parent_index", &mammoth::SubstructureTree::ColumnarSplittings::parentIndex)
+  py::class_<mammoth::JetSubstructure::ColumnarSplittings>(m, "ColumnarSplittings", "Columnar splittings output")
+    .def_readonly("kt", &mammoth::JetSubstructure::ColumnarSplittings::kt)
+    .def_readonly("delta_R", &mammoth::JetSubstructure::ColumnarSplittings::deltaR)
+    .def_readonly("z", &mammoth::JetSubstructure::ColumnarSplittings::z)
+    .def_readonly("parent_index", &mammoth::JetSubstructure::ColumnarSplittings::parentIndex)
   ;
-  py::class_<mammoth::SubstructureTree::ColumnarSubjets>(m, "ColumnarSubjest", "Columnar splittings output")
-    .def_readonly("splitting_node_index", &mammoth::SubstructureTree::ColumnarSubjets::splittingNodeIndex)
-    .def_readonly("part_of_iterative_splitting", &mammoth::SubstructureTree::ColumnarSubjets::partOfIterativeSplitting)
-    .def_readonly("constituent_indices", &mammoth::SubstructureTree::ColumnarSubjets::constituentIndices)
+  py::class_<mammoth::JetSubstructure::ColumnarSubjets>(m, "ColumnarSubjest", "Columnar splittings output")
+    .def_readonly("splitting_node_index", &mammoth::JetSubstructure::ColumnarSubjets::splittingNodeIndex)
+    .def_readonly("part_of_iterative_splitting", &mammoth::JetSubstructure::ColumnarSubjets::partOfIterativeSplitting)
+    .def_readonly("constituent_indices", &mammoth::JetSubstructure::ColumnarSubjets::constituentIndices)
   ;
 
-  py::class_<mammoth::SubstructureTree::JetSubstructureSplittings>(m, "JetSubstructureSplittings", "Jet substructure splittings")
-    //.def("splittings", [](mammoth::SubstructureTree::JetSubstructureSplittings & substructure) -> mammoth::SubstructureTree::ColumnarSplittings {
+  py::class_<mammoth::JetSubstructure::JetSubstructureSplittings>(m, "JetSubstructureSplittings", "Jet substructure splittings")
+    //.def("splittings", [](mammoth::JetSubstructure::JetSubstructureSplittings & substructure) -> mammoth::JetSubstructure::ColumnarSplittings {
     //  auto && [kt, deltaR, z, parentIndex ] = substructure.GetSplittings().GetSplittings();
-    //  return mammoth::SubstructureTree::ColumnarSplittings{kt, deltaR, z, parentIndex};
+    //  return mammoth::JetSubstructure::ColumnarSplittings{kt, deltaR, z, parentIndex};
     //})
-    //.def("subjets", [](mammoth::SubstructureTree::JetSubstructureSplittings & substructure) -> mammoth::SubstructureTree::ColumnarSubjets {
+    //.def("subjets", [](mammoth::JetSubstructure::JetSubstructureSplittings & substructure) -> mammoth::JetSubstructure::ColumnarSubjets {
     //  auto && [splittingNodeIndex, partOfIterativeSplitting, constituentIndices] = substructure.GetSubjets().GetSubjets();
-    //  return mammoth::SubstructureTree::ColumnarSubjets{splittingNodeIndex, partOfIterativeSplitting, constituentIndices};
+    //  return mammoth::JetSubstructure::ColumnarSubjets{splittingNodeIndex, partOfIterativeSplitting, constituentIndices};
     //})
-    .def("splittings", [](mammoth::SubstructureTree::JetSubstructureSplittings & substructure) -> mammoth::SubstructureTree::ColumnarSplittings {
+    .def("splittings", [](mammoth::JetSubstructure::JetSubstructureSplittings & substructure) -> mammoth::JetSubstructure::ColumnarSplittings {
       return substructure.GetSplittings().GetSplittings();
     })
-    .def("subjets", [](mammoth::SubstructureTree::JetSubstructureSplittings & substructure) -> mammoth::SubstructureTree::ColumnarSubjets {
+    .def("subjets", [](mammoth::JetSubstructure::JetSubstructureSplittings & substructure) -> mammoth::JetSubstructure::ColumnarSubjets {
       return substructure.GetSubjets().GetSubjets();
     })
   ;
 
-  m.def("recluster_jet", &reclusterJet<double>, "px"_a, "py"_a, "pz"_a, "E"_a, "jet_R"_a = 1, "jet_algorithm"_a = "CA", "area_settings"_a = std::nullopt, "eta_range"_a = std::make_tuple(-1, 1), "store_recursive_splittings"_a = true, "Recluster the given jet", py::call_guard<JetFindingLoggingStdout, JetFindingLoggingStderr>());
+  m.def("recluster_jet", &reclusterJet<float>, "px"_a, "py"_a, "pz"_a, "E"_a, "jet_R"_a = 1.0, "jet_algorithm"_a = "CA", "area_settings"_a = std::nullopt, "eta_range"_a = std::make_tuple(-1, 1), "store_recursive_splittings"_a = true, "Recluster the given jet", py::call_guard<JetFindingLoggingStdout, JetFindingLoggingStderr>());
+  m.def("recluster_jet", &reclusterJet<double>, "px"_a, "py"_a, "pz"_a, "E"_a, "jet_R"_a = 1.0, "jet_algorithm"_a = "CA", "area_settings"_a = std::nullopt, "eta_range"_a = std::make_tuple(-1, 1), "store_recursive_splittings"_a = true, "Recluster the given jet", py::call_guard<JetFindingLoggingStdout, JetFindingLoggingStderr>());
 }

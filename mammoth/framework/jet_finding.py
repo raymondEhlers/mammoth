@@ -4,7 +4,7 @@
 """
 
 import logging
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 import awkward as ak
 import numba as nb
@@ -332,6 +332,7 @@ def find_jets(
             **dict(zip(ak.fields(output_constituents), ak.unzip(output_constituents))),
             "index": output_constituent_indices,
         },
+        with_name="Momentum4D",
     )
 
     # Now, handle the subtracted constituents if they exist.
@@ -348,6 +349,7 @@ def find_jets(
                 **dict(zip(ak.fields(output_constituents), ak.unzip(output_constituents))),
                 "unsubtracted_index": expanded_subtracted_to_unsbtracted_indices,
             },
+            with_name="Momentum4D",
         )
 
     # Finally, construct the output
@@ -365,3 +367,81 @@ def find_jets(
     )
 
     return output_jets
+
+def _splittings_output() -> Dict[str, List[Any]]:
+    return {
+        "kt": [],
+        "delta_R": [],
+        "z": [],
+        "parent_index": [],
+    }
+
+
+def _subjets_output() -> Dict[str, List[Any]]:
+    return {
+        "splitting_node_index": [],
+        "part_of_iterative_splitting": [],
+        "constituent_indices": [],
+    }
+
+
+def recluster_jets(jets: ak.Array) -> ak.Array:
+
+    # We only want vector to calculate the components once (the input components may not
+    # actually be px, py, pz, and E), so calculate them now. In contrast to find_jets, we
+    # keep the structure because it's not quite as straightforward to take slices in this case.
+    #px = jets.constituents.px
+    #py = jets.constituents.py
+    #pz = jets.constituents.pz
+    #E = jets.constituents.E
+
+    #for jet, constituent_px, constituent_py, constituent_pz, constituent_E in zip(jets, px, py, pz, E):
+    event_splittings = _splittings_output()
+    event_subjets = _subjets_output()
+    for event in jets:
+        jets_splittings = _splittings_output()
+        jets_subjets = _subjets_output()
+        for j in event:
+            res = mammoth._ext.recluster_jet(
+                #px=np.asarray(constituent_px, dtype=np.float64),
+                #py=np.asarray(constituent_py, dtype=np.float64),
+                #pz=np.asarray(constituent_pz, dtype=np.float64),
+                #E=np.asarray(constituent_E, dtype=np.float64),
+                px=np.asarray(j.constituents.px, dtype=np.float64),
+                py=np.asarray(j.constituents.py, dtype=np.float64),
+                pz=np.asarray(j.constituents.pz, dtype=np.float64),
+                E=np.asarray(j.constituents.E, dtype=np.float64),
+                jet_R=1.0,
+                #area_settings=area_settings,
+                #eta_range=eta_range,
+            )
+            _temp_splittings = res.splittings()
+            _temp_subjets = res.subjets()
+            jets_splittings["kt"].append(_temp_splittings.kt)
+            jets_splittings["delta_R"].append(_temp_splittings.delta_R)
+            jets_splittings["z"].append(_temp_splittings.z)
+            jets_splittings["parent_index"].append(_temp_splittings.parent_index)
+            jets_subjets["splitting_node_index"].append(_temp_subjets.splitting_node_index)
+            jets_subjets["part_of_iterative_splitting"].append(_temp_subjets.part_of_iterative_splitting)
+            jets_subjets["constituent_indices"].append(_temp_subjets.constituent_indices)
+
+        # Now, move to the overall output objects.
+        for k in event_splittings:
+            event_splittings[k].append(jets_splittings[k])
+        for k in event_subjets:
+            event_subjets[k].append(jets_subjets[k])
+
+    return ak.zip(
+        {
+            "jet_splittings": ak.zip(
+                event_splittings
+            ),
+            "subjets": ak.zip(
+                event_subjets,
+                # zip over events, jets, and subjets (but can't go all the way due to the constituent indices)
+                depth_limit=3,
+            )
+        },
+        depth_limit=2
+    )
+

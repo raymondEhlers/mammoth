@@ -16,21 +16,21 @@
 // NOTE: This probably isn't necessary for mammoth, but I'm copying my code from AliPhysics, and trying to modify
 //       it as little as possible. So since this doesn't cause an issue, I will leave it as is.
 namespace mammoth {
-namespace SubstructureTree {
+namespace JetSubstructure {
   class Subjets;
   class JetSplittings;
   class JetSubstructureSplittings;
 }
 }
-std::ostream& operator<<(std::ostream& in, const mammoth::SubstructureTree::Subjets& myTask);
-std::ostream& operator<<(std::ostream& in, const mammoth::SubstructureTree::JetSplittings& myTask);
-std::ostream& operator<<(std::ostream& in, const mammoth::SubstructureTree::JetSubstructureSplittings& myTask);
-void swap(mammoth::SubstructureTree::Subjets& first,
-     mammoth::SubstructureTree::Subjets& second);
-void swap(mammoth::SubstructureTree::JetSplittings& first,
-     mammoth::SubstructureTree::JetSplittings& second);
-void swap(mammoth::SubstructureTree::JetSubstructureSplittings& first,
-     mammoth::SubstructureTree::JetSubstructureSplittings& second);
+std::ostream& operator<<(std::ostream& in, const mammoth::JetSubstructure::Subjets& myTask);
+std::ostream& operator<<(std::ostream& in, const mammoth::JetSubstructure::JetSplittings& myTask);
+std::ostream& operator<<(std::ostream& in, const mammoth::JetSubstructure::JetSubstructureSplittings& myTask);
+void swap(mammoth::JetSubstructure::Subjets& first,
+     mammoth::JetSubstructure::Subjets& second);
+void swap(mammoth::JetSubstructure::JetSplittings& first,
+     mammoth::JetSubstructure::JetSplittings& second);
+void swap(mammoth::JetSubstructure::JetSubstructureSplittings& first,
+     mammoth::JetSubstructure::JetSubstructureSplittings& second);
 
 namespace mammoth {
 
@@ -145,9 +145,17 @@ OutputWrapper<T> findJets(
   std::optional<ConstituentSubtractionSettings> constituentSubtraction = std::nullopt
 );
 
-/// 
-namespace SubstructureTree {
+/// Functionality related to jet substructure
+/// Much of it is based on code that I originally wrote for AliPhysics
+/// (namely, AliAnalysisTaskJetDynamicalGrooming.{cxx,h})
+namespace JetSubstructure {
 
+/**
+ * @class ColumnarSubjets
+ * @brief Columnar subjets
+ *
+ * Container for columnar subjets info. It's mainly for convenience in moving over to python.
+ */
 struct ColumnarSubjets {
   std::vector<unsigned short> splittingNodeIndex;                     ///<  Index of the parent splitting node.
   std::vector<bool> partOfIterativeSplitting;                         ///<  True if the splitting is follow an iterative splitting.
@@ -194,6 +202,12 @@ class Subjets {
   std::vector<std::vector<unsigned short>> fConstituentIndices;        ///<  Constituent jet indices (ie. indexed by the stored jet constituents, not the global index).
 };
 
+/**
+ * @class ColumnarSplittings
+ * @brief Columnar jet splittings
+ *
+ * Container for columnar jet splitings info. It's mainly for convenience in moving over to python.
+ */
 struct ColumnarSplittings {
   std::vector<float> kt;             ///<  kT between the subjets.
   std::vector<float> deltaR;         ///<  Delta R between the subjets.
@@ -272,8 +286,8 @@ class JetSubstructureSplittings {
   std::tuple<float, float, float, short> GetSplitting(int i) const;
   std::tuple<unsigned short, bool, const std::vector<unsigned short>> GetSubjet(int i) const;
   unsigned int GetNumberOfSplittings() { return fJetSplittings.GetNumberOfSplittings(); }
-  SubstructureTree::JetSplittings & GetSplittings() { return fJetSplittings; }
-  SubstructureTree::Subjets & GetSubjets() { return fSubjets; }
+  JetSubstructure::JetSplittings & GetSplittings() { return fJetSplittings; }
+  JetSubstructure::Subjets & GetSubjets() { return fSubjets; }
 
   // Printing
   std::string toString() const;
@@ -282,11 +296,11 @@ class JetSubstructureSplittings {
 
  private:
   // Jet properties
-  SubstructureTree::JetSplittings fJetSplittings;         ///<  Jet splittings.
-  SubstructureTree::Subjets fSubjets;                     ///<  Subjets within the jet.
+  JetSubstructure::JetSplittings fJetSplittings;         ///<  Jet splittings.
+  JetSubstructure::Subjets fSubjets;                     ///<  Subjets within the jet.
 };
 
-} /* namespace SubstructureTree */
+} /* namespace JetSubstructure */
 
 /**
  * @brief Extract jet splittings recursively.
@@ -298,7 +312,7 @@ class JetSubstructureSplittings {
  * @param storeRecursiveSplittings If true, store recursive splittings (in addition to iterative splittings).
  */
 void ExtractJetSplittings(
-  SubstructureTree::JetSubstructureSplittings & jetSplittings,
+  JetSubstructure::JetSubstructureSplittings & jetSplittings,
   fastjet::PseudoJet & inputJet,
   int splittingNodeIndex,
   bool followingIterativeSplitting,
@@ -317,9 +331,9 @@ void ExtractJetSplittings(
   * @return Jet substructure splittings container
   */
 template<typename T>
-SubstructureTree::JetSubstructureSplittings jetReclustering(
+JetSubstructure::JetSubstructureSplittings jetReclustering(
   FourVectorTuple<T> & columnFourVectors,
-  double jetR = 1,
+  double jetR = 1.0,
   std::string jetAlgorithmStr = "CA",
   std::optional<AreaSettings> areaSettings = std::nullopt,
   std::tuple<double, double> etaRange = {-1, 1},
@@ -531,7 +545,7 @@ OutputWrapper<T> findJets(
 }
 
 template<typename T>
-SubstructureTree::JetSubstructureSplittings jetReclustering(
+JetSubstructure::JetSubstructureSplittings jetReclustering(
   FourVectorTuple<T> & columnFourVectors,
   double jetR,
   std::string jetAlgorithmStr,
@@ -578,7 +592,7 @@ SubstructureTree::JetSubstructureSplittings jetReclustering(
   jj = outputJets[0];
 
   // Store the jet splittings.
-  SubstructureTree::JetSubstructureSplittings jetSplittings;
+  JetSubstructure::JetSubstructureSplittings jetSplittings;
   int splittingNodeIndex = -1;
   ExtractJetSplittings(jetSplittings, jj, splittingNodeIndex, true, storeRecursiveSplittings);
 
