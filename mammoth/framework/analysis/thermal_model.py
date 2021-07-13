@@ -185,7 +185,15 @@ def analysis(jet_R: float = 0.2, min_hybrid_jet_pt: float = 15., min_pythia_jet_
         depth_limit=1,
     )
 
-    #import IPython; IPython.embed()
+    jets["part_level", "matching"], jets["det_level", "matching"] = jet_finding.jet_matching(
+        jets_base=jets["part_level"], jets_tag=jets["det_level"], max_matching_distance=0.4,
+    )
+    # Semi-validated result:
+    # det <-> part for the thermal model looks like:
+    # part: ([[0, 3, 1, 2, 4, 5], [0, 1, -1], [], [0], [1, 0, -1]],
+    # det:   [[0, 2, 3, 1, 4, 5], [0, 1], [], [0], [1, 0]])
+
+    import IPython; IPython.embed()
 
 
 if __name__ == "__main__":

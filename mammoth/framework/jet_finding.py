@@ -1,8 +1,9 @@
-""" Jet finding interface.
+""" Jet finding functionality.
 
 .. codeauthor:: Raymond Ehlers <raymond.ehlers@cern.ch>, ORNL
 """
 
+import logging
 from typing import Dict, List, Optional, Tuple
 
 import awkward as ak
@@ -14,20 +15,37 @@ import vector
 import mammoth._ext
 from mammoth._ext import AreaSettings, ConstituentSubtractionSettings
 
+logger = logging.getLogger(__name__)
+
 vector.register_awkward()
 
 AREA_PP = AreaSettings("active_area", 0.01)
 AREA_AA = AreaSettings("active_area", 0.005)
 AREA_SUBSTRUCTURE = AreaSettings("passive_area", 0.05)
 
-#@nb.njit
-def _jet_matching_impl(jets_first: ak.Array, jets_second: ak.Array, n_jets_first: int) -> npt.NDArray[np.int64]:
-    # TODO: Max index
+@nb.njit
+def _jet_matching_geometrical_impl(jets_first: ak.Array, jets_second: ak.Array, n_jets_first: int, max_matching_distance: float) -> npt.NDArray[np.int64]:
+    """Implementation of geometrical jet matching.
+
+    Args:
+        jets_first: The first jet collection, which we iterate over first. Indices are stored according
+            to this collection, pointing to the `jets_second` collection.
+        jets_second: The second jet collection, which we iterate over first. The stored indices
+            point to entries in this collection.
+        n_jets_first: Total number of jets in the first collection (summed over all events).
+        max_matching_distance: Maximum matching distance.
+
+    Returns:
+        Indices matching from jets in jets_first to jets in jets_second. Note that it has no event structure,
+            which must be applied separately.
+    """
+    # Setup for storing the indices
     matching_indices = -1 * np.ones(n_jets_first, dtype=np.int64)
 
     # We need global indices, so we keep track of them externally.
     jet_index_base = 0
     jet_index_tag = 0
+    # Implement simple geometrical matching.
     for event_base, event_tag in zip(jets_first, jets_second):
         for jet_base in event_base:
             j = jet_index_tag
@@ -35,43 +53,41 @@ def _jet_matching_impl(jets_first: ak.Array, jets_second: ak.Array, n_jets_first
             closest_tag_jet = -1
             for jet_tag in event_tag:
                 delta_R = jet_base.deltaR(jet_tag)
-                if delta_R < closest_tag_jet_distance:
+                if delta_R < closest_tag_jet_distance and delta_R < max_matching_distance:
                     closest_tag_jet = j
                     closest_tag_jet_distance = delta_R
                 j += 1
 
-            print(f"Storing closest_tag_jet: {closest_tag_jet} with distance {closest_tag_jet_distance}")
+            # print(f"Storing closest_tag_jet: {closest_tag_jet} with distance {closest_tag_jet_distance}")
             matching_indices[jet_index_base] = closest_tag_jet
             jet_index_base += 1
 
-        print(f"Right before increment jet_index_tag: {jet_index_tag}")
+        # print(f"Right before increment jet_index_tag: {jet_index_tag}")
         jet_index_tag += len(event_tag)
 
     return matching_indices
 
 
-#@nb.njit
-def _jet_matching(jets_base: ak.Array, jets_tag: ak.Array) -> Tuple[npt.NDArray[np.int64], npt.NDArray[np.int64]]:
+@nb.njit
+def _jet_matching(jets_base: ak.Array, jets_tag: ak.Array, max_matching_distance: float) -> Tuple[npt.NDArray[np.int64], npt.NDArray[np.int64]]:
     """Main jet matching implementation in numba.
 
     """
     # First, setup for the base jets
-    n_jets_base = 0
     counts_base = np.zeros(len(jets_base), dtype=np.int64)
     for i, events_base in enumerate(jets_base):
-        n_jets_base += len(events_base)
         counts_base[i] = len(events_base)
+    n_jets_base = np.sum(counts_base)
     # We need the index where each event starts, which is known as the starts in awkward.
     # Since we want to start at 0, we define a new array, and then store the cumulative sum
     # in the rest of the array.
     starts_base = np.zeros(len(jets_base) + 1, dtype=np.int64)
     starts_base[1:] = np.cumsum(counts_base)
     # Now, the same setup for the tag jets
-    n_jets_tag = 0
     counts_tag = np.zeros(len(jets_tag), dtype=np.int64)
     for i, events_tag in enumerate(jets_tag):
-        n_jets_tag += len(events_tag)
         counts_tag[i] = len(events_tag)
+    n_jets_tag = np.sum(counts_tag)
     # We need the index where each event starts, which is known as the starts in awkward.
     # Since we want to start at 0, we define a new array, and then store the cumulative sum
     # in the rest of the array.
@@ -79,8 +95,12 @@ def _jet_matching(jets_base: ak.Array, jets_tag: ak.Array) -> Tuple[npt.NDArray[
     starts_tag[1:] = np.cumsum(counts_tag)
 
     # Perform the actual matching
-    event_base_matching_indices = _jet_matching_impl(jets_base, jets_tag, n_jets_base)
-    event_tag_matching_indices = _jet_matching_impl(jets_tag, jets_base, n_jets_tag)
+    event_base_matching_indices = _jet_matching_geometrical_impl(
+        jets_first=jets_base, jets_second=jets_tag, n_jets_first=n_jets_base, max_matching_distance=max_matching_distance
+    )
+    event_tag_matching_indices = _jet_matching_geometrical_impl(
+        jets_first=jets_tag, jets_second=jets_base, n_jets_first=n_jets_tag, max_matching_distance=max_matching_distance
+    )
 
     # Now, we'll check for true matches, which are pairs where the base jet is the
     # closest to the tag jet and vice versa
@@ -90,24 +110,25 @@ def _jet_matching(jets_base: ak.Array, jets_tag: ak.Array) -> Tuple[npt.NDArray[
     #       a little simpler.
     matching_output_base = -1 * np.ones(n_jets_base, dtype=np.int64)
     matching_output_tag = -1 * np.ones(n_jets_tag, dtype=np.int64)
-    # We only have to keep track of the global index for the base jets. The tag jet
-    # indices will come from the base jets (we just have to keep track of the offsets).
+    # i is the global index for base jets. We only need to keep track of this to index
+    # the numpy matching arays for above. The tag jet indices will come from the base
+    # jets (we just have to keep track of the base and tag offsets).
     i = 0
-    #for event_offset_base, event_offset_tag, event_base in zip(starts_base, starts_tag, jets_base):
+    # We don't care about the last offset (it's just the total number of jets), so we skip it
+    # here in order to match with the length of the base counts.
+    # NOTE: I guess this kind of reimplements broadcast_arrays. But okay, it seems to be fine.
     for event_offset_base, event_offset_tag, count_base in zip(starts_base[:-1], starts_tag[:-1], counts_base):
-        print(f"{i=}")
-        # We don't actually care about the jets themselves here, but it's a conveneint
-        # way to get the right even structure.
-        #for jet_base in event_base:
-        for local_counter in range(0, count_base):
-            print(f"{local_counter=}")
-            print(f"{event_base_matching_indices[i]=}")
-            #print(f"{event_tag_matching_indices[i]=}")
+        # print(f"{i=}")
+        # We don't care about this counter, we just need to iterate this many times.
+        for _ in range(0, count_base):
+            # print(f"{local_counter=}")
+            # print(f"{event_base_matching_indices[i]=}")
             if event_base_matching_indices[i] > -1 and event_base_matching_indices[i] > -1 and i == event_tag_matching_indices[event_base_matching_indices[i]]:
-                print(f"Found match! {i=}, {event_offset_base=}, {event_offset_tag=}, {event_base_matching_indices[i]=}, {event_tag_matching_indices[event_base_matching_indices[i]]=}")
-                # Match
-                #matching_output_base[i - event_offset_base] = event_base_matching_indices[i] - event_offset_tag
-                #matching_output_tag[event_base_matching_indices[i] - event_offset_tag] = i - event_offset_base
+                # We found a true match! Store the indices.
+                # print(f"Found match! {i=}, {event_offset_base=}, {event_offset_tag=}, {event_base_matching_indices[i]=}, {event_tag_matching_indices[event_base_matching_indices[i]]=}")
+                # NOTE: We need to correct the indices for the array offsets. This ensures
+                #       that we will have meaningful indices when we add back the event
+                #       structure after this function.
                 matching_output_base[i] = event_base_matching_indices[i] - event_offset_tag
                 matching_output_tag[event_base_matching_indices[i]] = i - event_offset_base
             i += 1
@@ -115,21 +136,18 @@ def _jet_matching(jets_base: ak.Array, jets_tag: ak.Array) -> Tuple[npt.NDArray[
     return matching_output_base, matching_output_tag
 
 
-def jet_matching(arrays: ak.Array, jets_base_name: str, jets_tag_name: str) -> ak.Array:
+def jet_matching(jets_base: ak.Array, jets_tag: ak.Array, max_matching_distance: float) -> ak.Array:
     # TODO: Fully Wrap the results in and out with ak.zip
-    # TODO: Fix part, det_level names to make them generic.
-
-    part_to_det_level_matching, det_to_part_level_matching = _jet_matching(jets_base=arrays[jets_base_name], jets_tag=arrays[jets_tag_name])
+    base_to_tag_matching_np, tag_to_base_matching_np = _jet_matching(jets_base=jets_base, jets_tag=jets_tag, max_matching_distance=max_matching_distance)
 
     # Add back event structure.
-    part_to_det_level_matching = ak.unflatten(part_to_det_level_matching, ak.num(arrays[jets_base_name], axis=1))
-    det_to_part_level_matching = ak.unflatten(det_to_part_level_matching, ak.num(arrays[jets_tag_name], axis=1))
+    base_to_tag_matching = ak.unflatten(base_to_tag_matching_np, ak.num(jets_base, axis=1))
+    tag_to_base_matching = ak.unflatten(tag_to_base_matching_np, ak.num(jets_tag, axis=1))
 
-    # det <-> part for the thermal model looks like:
-    # part: ([[0, 3, 1, 2, 4, 5], [0, 1, -1], [], [0], [1, 0, -1]],
-    # det:   [[0, 2, 3, 1, 4, 5], [0, 1], [], [0], [1, 0]])
+    logger.debug(f"base_to_tag_matching_np: {base_to_tag_matching_np}, tag_to_base_matching_np: {tag_to_base_matching_np}")
+    logger.debug(f"base_to_tag_matching: {base_to_tag_matching}, tag_to_base_matching: {tag_to_base_matching}")
 
-    return part_to_det_level_matching, det_to_part_level_matching
+    return base_to_tag_matching, tag_to_base_matching
 
 
 def _expand_array_for_applying_constituent_indices(array_to_expand: ak.Array, constituent_indices: ak.Array) -> ak.Array:
