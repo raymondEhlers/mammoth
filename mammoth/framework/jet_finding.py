@@ -52,38 +52,55 @@ def _jet_matching_impl(jets_first: ak.Array, jets_second: ak.Array, n_jets_first
 
 #@nb.njit
 def _jet_matching(jets_base: ak.Array, jets_tag: ak.Array) -> Tuple[npt.NDArray[np.int64], npt.NDArray[np.int64]]:
-    # Base
+    """Main jet matching implementation in numba.
+
+    """
+    # First, setup for the base jets
     n_jets_base = 0
     counts_base = np.zeros(len(jets_base), dtype=np.int64)
     for i, events_base in enumerate(jets_base):
         n_jets_base += len(events_base)
         counts_base[i] = len(events_base)
-    # Since we want to start at 0, we define a new array, and then assign to it with cumsum
+    # We need the index where each event starts, which is known as the starts in awkward.
+    # Since we want to start at 0, we define a new array, and then store the cumulative sum
+    # in the rest of the array.
     starts_base = np.zeros(len(jets_base) + 1, dtype=np.int64)
     starts_base[1:] = np.cumsum(counts_base)
-    # Tag
+    # Now, the same setup for the tag jets
     n_jets_tag = 0
     counts_tag = np.zeros(len(jets_tag), dtype=np.int64)
     for i, events_tag in enumerate(jets_tag):
         n_jets_tag += len(events_tag)
         counts_tag[i] = len(events_tag)
-    # Since we want to start at 0, we define a new array, and then assign to it with cumsum
+    # We need the index where each event starts, which is known as the starts in awkward.
+    # Since we want to start at 0, we define a new array, and then store the cumulative sum
+    # in the rest of the array.
     starts_tag = np.zeros(len(jets_tag) + 1, dtype=np.int64)
     starts_tag[1:] = np.cumsum(counts_tag)
 
-    # Perform matching
+    # Perform the actual matching
     event_base_matching_indices = _jet_matching_impl(jets_base, jets_tag, n_jets_base)
     event_tag_matching_indices = _jet_matching_impl(jets_tag, jets_base, n_jets_tag)
 
-    # Check if the matching is one-to-one, going event-by-event
-    #for base_lower, base_upper in zip(counts_base[:-1], counts_base[1:]):
-    #    for jet_base in ...
+    # Now, we'll check for true matches, which are pairs where the base jet is the
+    # closest to the tag jet and vice versa
+    # NOTE: The numpy arrays are not event-by-event, but the jets are, so we need
+    #       to keep careful track of the offsets. Awkward arrays would be nice here,
+    #       but we would have to pass around a couple of array builders, so this was
+    #       a little simpler.
     matching_output_base = -1 * np.ones(n_jets_base, dtype=np.int64)
     matching_output_tag = -1 * np.ones(n_jets_tag, dtype=np.int64)
+    # We only have to keep track of the global index for the base jets. The tag jet
+    # indices will come from the base jets (we just have to keep track of the offsets).
     i = 0
-    for event_offset_base, event_offset_tag, event_base, event_tag in zip(starts_base, starts_tag, jets_base, jets_tag):
+    #for event_offset_base, event_offset_tag, event_base in zip(starts_base, starts_tag, jets_base):
+    for event_offset_base, event_offset_tag, count_base in zip(starts_base[:-1], starts_tag[:-1], counts_base):
         print(f"{i=}")
-        for jet_base in event_base:
+        # We don't actually care about the jets themselves here, but it's a conveneint
+        # way to get the right even structure.
+        #for jet_base in event_base:
+        for local_counter in range(0, count_base):
+            print(f"{local_counter=}")
             print(f"{event_base_matching_indices[i]=}")
             #print(f"{event_tag_matching_indices[i]=}")
             if event_base_matching_indices[i] > -1 and event_base_matching_indices[i] > -1 and i == event_tag_matching_indices[event_base_matching_indices[i]]:
@@ -107,6 +124,10 @@ def jet_matching(arrays: ak.Array, jets_base_name: str, jets_tag_name: str) -> a
     # Add back event structure.
     part_to_det_level_matching = ak.unflatten(part_to_det_level_matching, ak.num(arrays[jets_base_name], axis=1))
     det_to_part_level_matching = ak.unflatten(det_to_part_level_matching, ak.num(arrays[jets_tag_name], axis=1))
+
+    # det <-> part for the thermal model looks like:
+    # part: ([[0, 3, 1, 2, 4, 5], [0, 1, -1], [], [0], [1, 0, -1]],
+    # det:   [[0, 2, 3, 1, 4, 5], [0, 1], [], [0], [1, 0]])
 
     return part_to_det_level_matching, det_to_part_level_matching
 
