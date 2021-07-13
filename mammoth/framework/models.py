@@ -2,12 +2,13 @@ import functools
 from typing import Any, Callable, Union
 
 import numpy as np
+import numpy.typing as npt
 from scipy.interpolate import interp1d
 
 
 def inverse_sample_decorator(
-    distribution: Callable[..., Union[np.ndarray, float]]
-) -> Callable[..., Union[float, np.ndarray]]:
+    distribution: Callable[..., Union[npt.NDArray[Union[np.float32, np.float64]], float]]
+) -> Callable[..., Union[float, npt.NDArray[Union[np.float32, np.float64]]]]:
     """Decorator to perform inverse transform sampling.
 
     Based on: https://stackoverflow.com/a/64288861/12907985
@@ -20,7 +21,7 @@ def inverse_sample_decorator(
         x_max: float,
         n_distribution_samples: int = 100_000,
         **kwargs: Any,
-    ) -> Union[np.ndarray, float]:
+    ) -> Union[npt.NDArray[Union[np.float32, np.float64]], float]:
         # Validation
         x = np.linspace(x_min, x_max, int(n_distribution_samples))
         cumulative = np.cumsum(distribution(x, **kwargs))
@@ -34,8 +35,8 @@ def inverse_sample_decorator(
     return wrapper
 
 
-def x_exp(x: Union[float, np.ndarray], scale: float) -> np.ndarray:
-    return x * np.exp(-x / scale)  # type: ignore
+def x_exp(x: Union[float, npt.NDArray[Union[np.float32, np.float64]]], scale: float) -> npt.NDArray[Union[np.float32, np.float64]]:
+    return x * np.exp(-x / scale)
 
 
 sample_x_exp = inverse_sample_decorator(x_exp)

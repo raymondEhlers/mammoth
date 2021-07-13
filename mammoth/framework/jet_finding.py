@@ -23,7 +23,7 @@ AREA_PP = AreaSettings("active_area", 0.01)
 AREA_AA = AreaSettings("active_area", 0.005)
 AREA_SUBSTRUCTURE = AreaSettings("passive_area", 0.05)
 
-@nb.njit
+@nb.njit  # type: ignore
 def _jet_matching_geometrical_impl(jets_first: ak.Array, jets_second: ak.Array, n_jets_first: int, max_matching_distance: float) -> npt.NDArray[np.int64]:
     """Implementation of geometrical jet matching.
 
@@ -68,10 +68,16 @@ def _jet_matching_geometrical_impl(jets_first: ak.Array, jets_second: ak.Array, 
     return matching_indices
 
 
-@nb.njit
+@nb.njit  # type: ignore
 def _jet_matching(jets_base: ak.Array, jets_tag: ak.Array, max_matching_distance: float) -> Tuple[npt.NDArray[np.int64], npt.NDArray[np.int64]]:
     """Main jet matching implementation in numba.
 
+    Args:
+        jets_base: Base jet collection to match, in an event structure.
+        jets_tag: Tag jet collection to match, in an event structure.
+        max_matching_distance: Maximum matching distance.
+    Returns:
+        base -> tag matching indices, tag -> base matching indices
     """
     # First, setup for the base jets
     counts_base = np.zeros(len(jets_base), dtype=np.int64)
@@ -211,7 +217,7 @@ def find_jets(particles: ak.Array, jet_R: float,
     sum_counts = np.cumsum(np.asarray(counts))
     # However, to use as slices, we need one more entry than the number of events. We
     # account for this by inserting 0 at the beginning since the first indices starts at 0.
-    sum_counts = np.insert(sum_counts, 0, 0)
+    sum_counts = np.insert(sum_counts, 0, 0)  # type: ignore
 
     # Validate that there is at least one particle per event
     if np.any(sum_counts[1:] == sum_counts[:-1]):

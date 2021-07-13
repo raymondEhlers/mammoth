@@ -7,6 +7,11 @@ _T = TypeVar("_T")
 
 ArrayLike = Union[np.ndarray, List[_T]]
 
+class AreaSettings:
+    area_type: str
+    ghost_area: float
+    def __init__(self, area_type: str = ..., ghost_area: float = ...) -> None: ... # noqa: E704
+
 class ConstituentSubtractionSettings:
     alpha: float
     r_max: float
@@ -21,4 +26,4 @@ class OutputWrapper:
     @property
     def subtracted_info(self) -> Optional[Tuple[Tuple[ArrayLike[float], ArrayLike[float], ArrayLike[float], ArrayLike[float]], ArrayLike[int]]]: ...  # noqa: E704
 
-def find_jets(px: ArrayLike[float], py: ArrayLike[float], pz: ArrayLike[float], E: ArrayLike[float], jet_R: float, jet_algorithm: str = ..., eta_range: Tuple[float, float] = ..., min_jet_pt: float = ..., background_subtraction: bool = ..., constituent_subtraction: Optional[ConstituentSubtractionSettings] = ...) -> ak.Array: ...  # noqa: E704
+def find_jets(px: ArrayLike[float], py: ArrayLike[float], pz: ArrayLike[float], E: ArrayLike[float], jet_R: float, jet_algorithm: str = ..., area_settings: AreaSettings = ..., eta_range: Tuple[float, float] = ..., min_jet_pt: float = ..., background_subtraction: bool = ..., constituent_subtraction: Optional[ConstituentSubtractionSettings] = ...) -> ak.Array: ...  # noqa: E704

@@ -21,7 +21,7 @@ class Range:
 
 def _lexsort_for_groupby(array: ak.Array, columns: Sequence[Union[str, int]]) -> ak.Array:
     """Sort for groupby."""
-    sort = np.lexsort(tuple(np.asarray(array[:, col]) for col in reversed(columns)))
+    sort = np.lexsort(tuple(np.asarray(array[:, col]) for col in reversed(columns)))  # type: ignore
     return array[sort]
 
 
@@ -72,15 +72,15 @@ def group_by(array: ak.Array, by: Sequence[Union[str, int]]) -> ak.Array:
         np.cumsum(np.asarray(l)) for l in run_lengths
     ]
     # Combine all of the indices together into one array. Note that this isn't unique.
-    combined = np.concatenate(run_starts)
+    combined = np.concatenate(run_starts)  # type: ignore
     # TODO: Unique properly...
     # See: https://stackoverflow.com/a/12427633/12907985
-    combined = np.unique(combined)
+    combined = np.unique(combined)  # type: ignore
 
     run_length = np.zeros(len(combined), dtype=np.int64)
     run_length[0] = combined[0]
     #run_length[1:] = combined[1:] - combined[:-1]
-    run_length[1:] = np.diff(combined)
+    run_length[1:] = np.diff(combined)  # type: ignore
 
     #import IPython; IPython.embed()
 

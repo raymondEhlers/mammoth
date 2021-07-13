@@ -3,7 +3,7 @@
 .. codeauthor:: Raymond Ehlers <raymond.ehlers@cern.ch>, ORNL
 """
 
-from typing import Any
+from typing import Any, List
 
 class StreamLogger:
     """Logger that can be used in place of a stream.
@@ -13,7 +13,7 @@ class StreamLogger:
     def __init__(self, logger: Any, level: int):
         self.logger = logger
         self.log_level = level
-        self.buf = []
+        self.buf: List[str] = []
 
     def write(self, msg: str) -> None:
         if msg.endswith('\n'):
