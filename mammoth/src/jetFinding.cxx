@@ -219,104 +219,6 @@ std::ostream& JetSplittings::Print(std::ostream& in) const
 }
 
 /**
- * Jet constituents.
- */
-// Constant shift to be applied to storing the global index. This ensures that the value is
-// large enough that we're never going to overlap with the MCLabel. It also needs to be large
-// enough such that we'll never overlap with values from the index map. 2000000 allows for 20
-// collections, which should be more than enough.
-const int JetConstituents::fgkGlobalIndexOffset = 2000000;
-
-/**
- * Default constructor.
- */
-JetConstituents::JetConstituents():
-  fPt{},
-  fEta{},
-  fPhi{},
-  fID{}
-{
-  // Nothing more to be done.
-}
-
-/**
- * Copy constructor
- */
-JetConstituents::JetConstituents(const JetConstituents& other)
- : fPt{other.fPt},
-  fEta{other.fEta},
-  fPhi{other.fPhi},
-  fID{other.fID}
-{
-  // Nothing more to be done.
-}
-
-/**
- * Assignment operator. Note that we pass by _value_, so a copy is created and it is
- * fine to swap the values with the created object!
- */
-JetConstituents& JetConstituents::operator=(JetConstituents other)
-{
-  swap(*this, other);
-  return *this;
-}
-
-bool JetConstituents::Clear()
-{
-  fPt.clear();
-  fEta.clear();
-  fPhi.clear();
-  fID.clear();
-  return true;
-}
-
-void JetConstituents::AddJetConstituent(const AliVParticle * part, const int & id)
-{
-  fPt.emplace_back(part->Pt());
-  fEta.emplace_back(part->Eta());
-  fPhi.emplace_back(part->Phi());
-  // NOTE: We don't use the user_index() here because we need to use that for indexing the
-  //       constituents that are contained in each subjet.
-  fID.emplace_back(id);
-}
-
-std::tuple<float, float, float, int> JetConstituents::GetJetConstituent(int i) const
-{
-  return std::make_tuple(fPt.at(i), fEta.at(i), fPhi.at(i), fID.at(i));
-}
-
-/**
- * Prints information about the task.
- *
- * @return std::string containing information about the task.
- */
-std::string JetConstituents::toString() const
-{
-  std::stringstream tempSS;
-  tempSS << std::boolalpha;
-  tempSS << "Jet constituents:\n";
-  for (std::size_t i = 0; i < fPt.size(); i++)
-  {
-    tempSS << "#" << (i + 1) << ": pt = " << fPt.at(i)
-        << ", eta = " << fEta.at(i) << ", phi = " << fPhi.at(i)
-        << ", ID = " << fID.at(i) << "\n";
-  }
-  return tempSS.str();
-}
-
-/**
- * Print task information on an output stream using the string representation provided by
- * JetConstituents::toString. Used by operator<<
- * @param in output stream stream
- * @return reference to the output stream
- */
-std::ostream& JetConstituents::Print(std::ostream& in) const
-{
-  in << toString();
-  return in;
-}
-
-/**
  * Jet substructure splittings container.
  */
 
@@ -324,8 +226,6 @@ std::ostream& JetConstituents::Print(std::ostream& in) const
  * Default constructor.
  */
 JetSubstructureSplittings::JetSubstructureSplittings():
-  fJetPt{0},
-  fJetConstituents{},
   fJetSplittings{},
   fSubjets{}
 {
@@ -337,9 +237,7 @@ JetSubstructureSplittings::JetSubstructureSplittings():
  */
 JetSubstructureSplittings::JetSubstructureSplittings(
  const JetSubstructureSplittings& other)
- : fJetPt{other.fJetPt},
-  fJetConstituents{other.fJetConstituents},
-  fJetSplittings{other.fJetSplittings},
+ : fJetSplittings{other.fJetSplittings},
   fSubjets{other.fSubjets}
 {
 }
@@ -357,21 +255,9 @@ JetSubstructureSplittings& JetSubstructureSplittings::operator=(
 
 bool JetSubstructureSplittings::Clear()
 {
-  fJetPt = 0;
-  fJetConstituents.Clear();
   fJetSplittings.Clear();
   fSubjets.Clear();
   return true;
-}
-
-/**
- * Add a jet constituent to the object.
- *
- * @param[in] part Constituent to be added.
- */
-void JetSubstructureSplittings::AddJetConstituent(const AliVParticle * part, const int & id)
-{
-  fJetConstituents.AddJetConstituent(part, id);
 }
 
 /**
@@ -397,11 +283,6 @@ void JetSubstructureSplittings::AddSubjet(const unsigned short splittingNodeInde
   return fSubjets.AddSubjet(splittingNodeIndex, partOfIterativeSplitting, constituentIndices);
 }
 
-std::tuple<float, float, float, int> JetSubstructureSplittings::GetJetConstituent(int i) const
-{
-  return fJetConstituents.GetJetConstituent(i);
-}
-
 std::tuple<float, float, float, short> JetSubstructureSplittings::GetSplitting(int i) const
 {
   return fJetSplittings.GetSplitting(i);
@@ -422,10 +303,8 @@ std::string JetSubstructureSplittings::toString() const
   std::stringstream tempSS;
   tempSS << std::boolalpha;
   tempSS << "Splitting information: ";
-  tempSS << "Jet pt = " << fJetPt << "\n";
   tempSS << fSubjets;
   tempSS << fJetSplittings;
-  tempSS << fJetConstituents;
   return tempSS.str();
 }
 
@@ -447,7 +326,8 @@ void ExtractJetSplittings(
   SubstructureTree::JetSubstructureSplittings & jetSplittings,
   fastjet::PseudoJet & inputJet,
   int splittingNodeIndex,
-  bool followingIterativeSplitting
+  bool followingIterativeSplitting,
+  const bool storeRecursiveSplittings
 )
 {
     fastjet::PseudoJet j1;
@@ -484,9 +364,9 @@ void ExtractJetSplittings(
     jetSplittings.AddSubjet(splittingNodeIndex, false, j2ConstituentIndices);
 
     // Recurse as necessary to get the rest of the splittings.
-    ExtractJetSplittings(jetSplittings, j1, splittingNodeIndex, followingIterativeSplitting);
-    if (fStoreRecursiveSplittings == true) {
-        ExtractJetSplittings(jetSplittings, j2, splittingNodeIndex, false);
+    ExtractJetSplittings(jetSplittings, j1, splittingNodeIndex, followingIterativeSplitting, storeRecursiveSplittings);
+    if (storeRecursiveSplittings == true) {
+        ExtractJetSplittings(jetSplittings, j2, splittingNodeIndex, false, storeRecursiveSplittings);
     }
 }
 
@@ -556,38 +436,6 @@ void swap(mammoth::SubstructureTree::JetSplittings& first,
 }
 
 /**
- * JetConstituents
- */
-
-/**
- * Implementation of the output stream operator for SubstructureTree::JetConstituents. Printing
- * basic task information provided by function toString
- * @param in output stream
- * @param myTask Task which will be printed
- * @return Reference to the output stream
- */
-std::ostream& operator<<(std::ostream& in, const mammoth::SubstructureTree::JetConstituents& myTask)
-{
-  std::ostream& result = myTask.Print(in);
-  return result;
-}
-
-/**
- * Swap function. Created using guide described here: https://stackoverflow.com/a/3279550.
- */
-void swap(mammoth::SubstructureTree::JetConstituents& first,
-     mammoth::SubstructureTree::JetConstituents& second)
-{
-  using std::swap;
-
-  // Same ordering as in the constructors (for consistency)
-  swap(first.fPt, second.fPt);
-  swap(first.fEta, second.fEta);
-  swap(first.fPhi, second.fPhi);
-  swap(first.fID, second.fID);
-}
-
-/**
  * Jet substructure splittings
  */
 
@@ -613,8 +461,6 @@ void swap(mammoth::SubstructureTree::JetSubstructureSplittings& first,
   using std::swap;
 
   // Same ordering as in the constructors (for consistency)
-  swap(first.fJetPt, second.fJetPt);
-  swap(first.fJetConstituents, second.fJetConstituents);
   swap(first.fJetSplittings, second.fJetSplittings);
   swap(first.fSubjets, second.fSubjets);
 }

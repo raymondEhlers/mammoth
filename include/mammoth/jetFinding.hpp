@@ -19,20 +19,16 @@ namespace mammoth {
 namespace SubstructureTree {
   class Subjets;
   class JetSplittings;
-  class JetConstituents;
   class JetSubstructureSplittings;
 }
 }
 std::ostream& operator<<(std::ostream& in, const mammoth::SubstructureTree::Subjets& myTask);
 std::ostream& operator<<(std::ostream& in, const mammoth::SubstructureTree::JetSplittings& myTask);
-std::ostream& operator<<(std::ostream& in, const mammoth::SubstructureTree::JetConstituents& myTask);
 std::ostream& operator<<(std::ostream& in, const mammoth::SubstructureTree::JetSubstructureSplittings& myTask);
 void swap(mammoth::SubstructureTree::Subjets& first,
      mammoth::SubstructureTree::Subjets& second);
 void swap(mammoth::SubstructureTree::JetSplittings& first,
      mammoth::SubstructureTree::JetSplittings& second);
-void swap(mammoth::SubstructureTree::JetConstituents& first,
-     mammoth::SubstructureTree::JetConstituents& second);
 void swap(mammoth::SubstructureTree::JetSubstructureSplittings& first,
      mammoth::SubstructureTree::JetSubstructureSplittings& second);
 
@@ -149,7 +145,14 @@ OutputWrapper<T> findJets(
   std::optional<ConstituentSubtractionSettings> constituentSubtraction = std::nullopt
 );
 
+/// 
 namespace SubstructureTree {
+
+struct ColumnarSubjets {
+  std::vector<unsigned short> splittingNodeIndex;                     ///<  Index of the parent splitting node.
+  std::vector<bool> partOfIterativeSplitting;                         ///<  True if the splitting is follow an iterative splitting.
+  std::vector<std::vector<unsigned short>> constituentIndices;        ///<  Constituent jet indices (ie. indexed by the stored jet constituents, not the global index).
+};
 
 /**
  * @class Subjets
@@ -177,6 +180,8 @@ class Subjets {
   void AddSubjet(const unsigned short splittingNodeIndex, const bool partOfIterativeSplitting,
           const std::vector<unsigned short>& constituentIndices);
   std::tuple<unsigned short, bool, const std::vector<unsigned short>> GetSubjet(int i) const;
+  ColumnarSubjets GetSubjets() { return std::move(ColumnarSubjets{fSplittingNodeIndex, fPartOfIterativeSplitting, fConstituentIndices}); }
+  //std::tuple<std::vector<unsigned short> &, std::vector<bool> &, std::vector<std::vector<unsigned short>> &> GetSubjets() { return ; }
 
   // Printing
   std::string toString() const;
@@ -187,6 +192,13 @@ class Subjets {
   std::vector<unsigned short> fSplittingNodeIndex;        ///<  Index of the parent splitting node.
   std::vector<bool> fPartOfIterativeSplitting;            ///<  True if the splitting is follow an iterative splitting.
   std::vector<std::vector<unsigned short>> fConstituentIndices;        ///<  Constituent jet indices (ie. indexed by the stored jet constituents, not the global index).
+};
+
+struct ColumnarSplittings {
+  std::vector<float> kt;             ///<  kT between the subjets.
+  std::vector<float> deltaR;         ///<  Delta R between the subjets.
+  std::vector<float> z;              ///<  Momentum sharing of the splitting.
+  std::vector<short> parentIndex;    ///<  Index of the parent splitting.
 };
 
 /**
@@ -215,6 +227,8 @@ class JetSplittings {
   void AddSplitting(float kt, float deltaR, float z, short parentIndex);
   std::tuple<float, float, float, short> GetSplitting(int i) const;
   unsigned int GetNumberOfSplittings() const { return fKt.size(); }
+  ColumnarSplittings GetSplittings() { return std::move(ColumnarSplittings{fKt, fDeltaR, fZ, fParentIndex}); }
+  //std::tuple<std::vector<float> &, std::vector<float> &, std::vector<float> &, std::vector<short> &> GetSplittings() { return {fKt, fDeltaR, fZ, fParentIndex}; }
 
   // Printing
   std::string toString() const;
@@ -226,48 +240,6 @@ class JetSplittings {
   std::vector<float> fDeltaR;         ///<  Delta R between the subjets.
   std::vector<float> fZ;              ///<  Momentum sharing of the splitting.
   std::vector<short> fParentIndex;    ///<  Index of the parent splitting.
-};
-
-/**
- * @class JetConstituents
- * @brief Jet constituents.
- *
- * Store the constituents associated with a jet.
- *
- * @author Raymond Ehlers <raymond.ehlers@cern.ch>, ORNL
- * @date 9 Feb 2020
- */
-class JetConstituents
-{
- public:
-  JetConstituents();
-  // Additional constructors
-  JetConstituents(const JetConstituents & other);
-  JetConstituents& operator=(JetConstituents other);
-  friend void ::swap(JetConstituents & first, JetConstituents & second);
-  // Avoid implementing move since c++11 is not allowed in the header
-  virtual ~JetConstituents() {}
-
-  /// Reset the properties for the next filling of the tree.
-  bool Clear();
-
-  // Getters and setters
-  void AddJetConstituent(const AliVParticle* part, const int & id);
-  std::tuple<float, float, float, int> GetJetConstituent(int i) const;
-  static const int GetGlobalIndexOffset() { return fgkGlobalIndexOffset; }
-
-  // Printing
-  std::string toString() const;
-  friend std::ostream & ::operator<<(std::ostream &in, const JetConstituents &myTask);
-  std::ostream & Print(std::ostream &in) const;
-
- protected:
-  static const int fgkGlobalIndexOffset;  ///<  Offset for GlobalIndex values in the ID to ensure it never conflicts with the label.
-
-  std::vector<float> fPt;                 ///<  Jet constituent pt
-  std::vector<float> fEta;                ///<  Jet constituent eta
-  std::vector<float> fPhi;                ///<  Jet constituent phi
-  std::vector<int> fID;                   ///<  Jet constituent identifier. MC label (via GetLabel()) or global index (with offset defined above).
 };
 
 /**
@@ -287,24 +259,21 @@ class JetSubstructureSplittings {
   JetSubstructureSplittings(const JetSubstructureSplittings & other);
   JetSubstructureSplittings& operator=(JetSubstructureSplittings other);
   friend void ::swap(JetSubstructureSplittings & first, JetSubstructureSplittings & second);
-  // Avoid implementing move since c++11 is not allowed in the header
   virtual ~JetSubstructureSplittings() {}
 
   /// Reset the properties for the next filling of the tree.
   bool Clear();
 
   // Setters
-  void SetJetPt(float pt) { fJetPt = pt; }
-  void AddJetConstituent(const AliVParticle* part, const int & id);
   void AddSplitting(float kt, float deltaR, float z, short parentIndex);
   void AddSubjet(const unsigned short splittingNodeIndex, const bool partOfIterativeSplitting,
           const std::vector<unsigned short>& constituentIndices);
   // Getters
-  float GetJetPt() { return fJetPt; }
-  std::tuple<float, float, float, int> GetJetConstituent(int i) const;
   std::tuple<float, float, float, short> GetSplitting(int i) const;
   std::tuple<unsigned short, bool, const std::vector<unsigned short>> GetSubjet(int i) const;
   unsigned int GetNumberOfSplittings() { return fJetSplittings.GetNumberOfSplittings(); }
+  SubstructureTree::JetSplittings & GetSplittings() { return fJetSplittings; }
+  SubstructureTree::Subjets & GetSubjets() { return fSubjets; }
 
   // Printing
   std::string toString() const;
@@ -313,13 +282,28 @@ class JetSubstructureSplittings {
 
  private:
   // Jet properties
-  float fJetPt;                                           ///<  Jet pt.
-  SubstructureTree::JetConstituents fJetConstituents;     ///<  Jet constituents
   SubstructureTree::JetSplittings fJetSplittings;         ///<  Jet splittings.
   SubstructureTree::Subjets fSubjets;                     ///<  Subjets within the jet.
 };
 
 } /* namespace SubstructureTree */
+
+/**
+ * @brief Extract jet splittings recursively.
+ * 
+ * @param jetSplittings Container for storing the jet splittings. We pass as an argument so we can update recursively.
+ * @param inputJet Reclustered jet (may be one of the subjets).
+ * @param splittingNodeIndex Index for the splitting node.
+ * @param followingIterativeSplitting If true, we're following an iterative splitting.
+ * @param storeRecursiveSplittings If true, store recursive splittings (in addition to iterative splittings).
+ */
+void ExtractJetSplittings(
+  SubstructureTree::JetSubstructureSplittings & jetSplittings,
+  fastjet::PseudoJet & inputJet,
+  int splittingNodeIndex,
+  bool followingIterativeSplitting,
+  const bool storeRecursiveSplittings
+);
 
 /**
   * @brief Implementation of jet reclustering
@@ -330,15 +314,16 @@ class JetSubstructureSplittings {
   * @param jetAlgorithmStr jet alogrithm. Default: "CA".
   * @param areaSettings Area settings. Default: None.
   * @param etaRange Eta range. Tuple of min and max. Default: (-1, 1)
-  * @return OutputWrapper<T> Output from reclustering
+  * @return Jet substructure splittings container
   */
 template<typename T>
-OutputWrapper<T> jetReclustering(
+SubstructureTree::JetSubstructureSplittings jetReclustering(
   FourVectorTuple<T> & columnFourVectors,
   double jetR = 1,
   std::string jetAlgorithmStr = "CA",
   std::optional<AreaSettings> areaSettings = std::nullopt,
-  std::tuple<double, double> etaRange = {-1, 1}
+  std::tuple<double, double> etaRange = {-1, 1},
+  bool storeRecursiveSplittings = true
 );
 
 /********************
@@ -546,12 +531,13 @@ OutputWrapper<T> findJets(
 }
 
 template<typename T>
-OutputWrapper<T> jetReclustering(
+SubstructureTree::JetSubstructureSplittings jetReclustering(
   FourVectorTuple<T> & columnFourVectors,
   double jetR,
   std::string jetAlgorithmStr,
   std::optional<AreaSettings> areaSettings,
-  std::tuple<double, double> etaRange
+  std::tuple<double, double> etaRange,
+  bool storeRecursiveSplittings
 )
 {
   // Jet algorithm
@@ -571,7 +557,7 @@ OutputWrapper<T> jetReclustering(
     //fastjet::GhostedAreaSpec ghost_spec(1, 1, 0.05);
     //fastjet::AreaDefinition areaDef(areaType, ghost_spec);
     ghostSpec = std::make_unique<fastjet::GhostedAreaSpec>(etaMax, ghostRepeatN, areaSettings->ghostArea);
-    areaDefinition = std::make_unique<fastjet::AreaDefinition>(areaType, ghostSpec);
+    areaDefinition = std::make_unique<fastjet::AreaDefinition>(*areaType, *ghostSpec);
   }
 
   // Convert column vector input to pseudo jets.
@@ -581,7 +567,7 @@ OutputWrapper<T> jetReclustering(
   // NOTE: The CS has to stay in scope while we explore the splitting history.
   std::unique_ptr<fastjet::ClusterSequence> cs = nullptr;
   if (areaDefinition) {
-    cs = std::make_unique<fastjet::ClusterSequenceArea>(particlePseudoJets, jetDefinition, areaDefinition);
+    cs = std::make_unique<fastjet::ClusterSequenceArea>(particlePseudoJets, jetDefinition, *areaDefinition);
   }
   else {
     cs = std::make_unique<fastjet::ClusterSequence>(particlePseudoJets, jetDefinition);
@@ -591,8 +577,12 @@ OutputWrapper<T> jetReclustering(
   fastjet::PseudoJet jj;
   jj = outputJets[0];
 
-  // TODO: Use the declustering results...
-  ExtractJetSplittings(jj);
+  // Store the jet splittings.
+  SubstructureTree::JetSubstructureSplittings jetSplittings;
+  int splittingNodeIndex = -1;
+  ExtractJetSplittings(jetSplittings, jj, splittingNodeIndex, true, storeRecursiveSplittings);
+
+  return std::move(jetSplittings);
 }
 
 }
