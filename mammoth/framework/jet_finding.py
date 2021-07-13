@@ -159,11 +159,12 @@ def _expand_array_for_applying_constituent_indices(array_to_expand: ak.Array, co
     singly-jagged array entries, and then applying the constituent indices to that newly expanded
     array to extract the values.
 
-
     Args:
         array_to_expand: Singly-jagged array where we want to apply the constituent indices.
         constituent_indices: Doubly-jagged constituent indices which are to index the
             `array_to_expand`.
+    Returns:
+        constituent indices applied to the array to expand (e.g. constituents from input particles).
     """
     # Further details on the strategy:
     #
