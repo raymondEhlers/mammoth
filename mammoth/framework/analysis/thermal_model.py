@@ -192,12 +192,22 @@ def analysis(jet_R: float = 0.2, min_hybrid_jet_pt: float = 15.0, min_pythia_jet
                 jet_R=jet_R,
                 area_settings=jet_finding.AREA_AA,
                 min_jet_pt=min_hybrid_jet_pt,
+                background_subtraction=True,
+                # TODO: The min jet pt cut should be applied _after_ subtraction...
+                #       Although I guess it also doesn't hurt to apply it before, since
+                #       the subtraction always will lower the overall jet pt.
+                # TODO: Apply the selector
             ),
         },
         depth_limit=1,
     )
 
     logger.info("Matching jets")
+    jets["det_level", "matching"], jets["hybrid", "matching"] = jet_finding.jet_matching(
+        jets_base=jets["det_level"],
+        jets_tag=jets["hybrid"],
+        max_matching_distance=0.4,
+    )
     jets["part_level", "matching"], jets["det_level", "matching"] = jet_finding.jet_matching(
         jets_base=jets["part_level"],
         jets_tag=jets["det_level"],
@@ -208,14 +218,17 @@ def analysis(jet_R: float = 0.2, min_hybrid_jet_pt: float = 15.0, min_pythia_jet
     # part: ([[0, 3, 1, 2, 4, 5], [0, 1, -1], [], [0], [1, 0, -1]],
     # det:   [[0, 2, 3, 1, 4, 5], [0, 1], [], [0], [1, 0]])
 
+    # TODO: Use matching info!
+
     logger.info("Reclustering jets...")
-    jets["part_level", "reclustering"] = jet_finding.recluster_jets(
-        jets=jets["part_level"]
-    )
+    for level in ["part_level", "det_level", "hybrid"]:
+        logger.info(f"Reclustering {level}")
+        jets[level, "reclustering"] = jet_finding.recluster_jets(
+            jets=jets[level]
+        )
+    logger.info("Done with reclustering")
 
-    import IPython
-
-    IPython.embed()
+    #import IPython; IPython.embed()
 
 
 if __name__ == "__main__":
