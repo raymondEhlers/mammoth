@@ -304,7 +304,7 @@ class JetSubstructureSplittings {
 
 /**
  * @brief Extract jet splittings recursively.
- * 
+ *
  * @param jetSplittings Container for storing the jet splittings. We pass as an argument so we can update recursively.
  * @param inputJet Reclustered jet (may be one of the subjets).
  * @param splittingNodeIndex Index for the splitting node.
@@ -456,10 +456,16 @@ OutputWrapper<T> findJets(
     fastjet::JetAlgorithm backgroundJetAlgorithm(fastjet::JetAlgorithm::kt_algorithm);
     fastjet::RecombinationScheme backgroundRecombinationScheme(fastjet::RecombinationScheme::E_scheme);
     fastjet::Strategy backgroundStrategy(fastjet::Strategy::Best);
-    fastjet::AreaType backgroundAreaType(fastjet::AreaType::active_area);
+    // NOTE: Must include the explicit ghosts - otherwise, excluding the 2 hardest jets won't work!
+    //       As described in footnote 27 in the fastjet 3.4 manual:
+    //       "If you use non-geometric selectors such as [n hardest] in determining [rho], the area must
+    //       have explicit ghosts in order to simplify the determination of the empty area. If it does
+    //       not, an error will be thrown"
+    fastjet::AreaType backgroundAreaType(fastjet::AreaType::active_area_explicit_ghosts);
     // Derived fastjet settings
     fastjet::JetDefinition backgroundJetDefinition(backgroundJetAlgorithm, backgroundJetR, backgroundRecombinationScheme, backgroundStrategy);
     fastjet::AreaDefinition backgroundAreaDefinition(backgroundAreaType, ghostAreaSpec);
+    // NOTE: This applies eta cuts, hi cuts, and removes the two hardest jets (as is standard for rho).
     fastjet::Selector selRho = fastjet::SelectorRapRange(backgroundJetEtaMin, backgroundJetEtaMax) && fastjet::SelectorPhiRange(backgroundJetPhiMin, backgroundJetPhiMax) && !fastjet::SelectorNHardest(2);
 
     // Finally, define the background estimator
@@ -478,6 +484,7 @@ OutputWrapper<T> findJets(
       constituentSubtractor->set_ghost_area(areaSettings.ghostArea);
       constituentSubtractor->set_max_eta(backgroundJetEtaMax);
       constituentSubtractor->set_background_estimator(backgroundEstimator.get());
+      // TODO: Anything about rhom? I think it's handled...
     }
   }
 
@@ -492,7 +499,6 @@ OutputWrapper<T> findJets(
 
   // Signal jet settings
   // Again, these should all be settable, but I wanted to keep the signature simple, so I just define them here with some reasonable(ish) defaults.
-  double jetPtMin = 0;
   double jetPtMax = 1000;
   // Would often set as abs(eta - R), but should be configurable.
   double jetEtaMin = etaMin + jetR;
@@ -507,7 +513,7 @@ OutputWrapper<T> findJets(
   // Derived fastjet settings
   fastjet::JetDefinition jetDefinition(jetAlgorithm, jetR, recombinationScheme, strategy);
   fastjet::AreaDefinition areaDefinition(areaType, ghostAreaSpec);
-  fastjet::Selector selJets = fastjet::SelectorPtRange(jetPtMin, jetPtMax) && fastjet::SelectorEtaRange(jetEtaMin, jetEtaMax) && fastjet::SelectorPhiRange(jetPhiMin, jetPhiMax);
+  fastjet::Selector selectJets = fastjet::SelectorPtRange(minJetPt, jetPtMax) && fastjet::SelectorEtaRange(jetEtaMin, jetEtaMax) && fastjet::SelectorPhiRange(jetPhiMin, jetPhiMax);
 
   // For constituent subtraction, we perform event-wise subtraction on the input particles
   std::vector<unsigned int> subtractedToUnsubtractedIndices;
@@ -523,6 +529,11 @@ OutputWrapper<T> findJets(
   if (backgroundSubtraction) {
     jets = (*subtractor)(jets);
   }
+  // Apply the jet selector after all subtraction is completed.
+  // NOTE: It's okay that we already applied the min jet pt cut above because any additional
+  //       subtraction will just remove more jets (ie. the first cut is _less_ restrictive
+  //       than the second)
+  jets = selectJets(jets);
 
   // It's also not uncommon to apply a sorting by E or pt.
   jets = fastjet::sorted_by_pt(jets);
