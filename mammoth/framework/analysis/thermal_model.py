@@ -106,6 +106,10 @@ def embed_into_thermal_model_data(
         chunk_size=-1,
         n_particles_per_event_mean=2500,
         n_particles_per_event_sigma=500,
+        # TEMP: Make smaller to speed up
+        #n_particles_per_event_mean=100,
+        #n_particles_per_event_sigma=5,
+        # ENDTEMP
         pt_exponential_scale=0.4,
     )
 
@@ -142,9 +146,12 @@ def analysis(jet_R: float = 0.2, min_hybrid_jet_pt: float = 15.0, min_pythia_jet
     arrays = _transform_inputs(source_index_identifiers=source_index_identifiers, arrays=arrays)
     logger.info("Find jets")
 
-    #logger.info("Part level start")
-    #t = time.time()
-    #part_level = jet_finding.find_jets(
+    # TEMP: Reduce number of events to speed calculations
+    #arrays = arrays[:500]
+
+    # logger.info("Part level start")
+    # t = time.time()
+    # part_level = jet_finding.find_jets(
     #    particles=arrays["part_level"], algorithm="anti-kt", jet_R=jet_R, min_jet_pt=min_pythia_jet_pt,
     #    area_settings=jet_finding.AREA_PP,
     # )
@@ -193,10 +200,7 @@ def analysis(jet_R: float = 0.2, min_hybrid_jet_pt: float = 15.0, min_pythia_jet
                 area_settings=jet_finding.AREA_AA,
                 min_jet_pt=min_hybrid_jet_pt,
                 background_subtraction=True,
-                # TODO: The min jet pt cut should be applied _after_ subtraction...
-                #       Although I guess it also doesn't hurt to apply it before, since
-                #       the subtraction always will lower the overall jet pt.
-                # TODO: Apply the selector
+                # TODO: Switch to constituent subtraction after performance tests...
             ),
         },
         depth_limit=1,

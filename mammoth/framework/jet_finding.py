@@ -155,7 +155,6 @@ def _jet_matching(
 
 
 def jet_matching(jets_base: ak.Array, jets_tag: ak.Array, max_matching_distance: float) -> ak.Array:
-    # TODO: Fully Wrap the results in and out with ak.zip
     base_to_tag_matching_np, tag_to_base_matching_np = _jet_matching(
         jets_base=jets_base, jets_tag=jets_tag, max_matching_distance=max_matching_distance
     )
@@ -164,6 +163,7 @@ def jet_matching(jets_base: ak.Array, jets_tag: ak.Array, max_matching_distance:
     base_to_tag_matching = ak.unflatten(base_to_tag_matching_np, ak.num(jets_base, axis=1))
     tag_to_base_matching = ak.unflatten(tag_to_base_matching_np, ak.num(jets_tag, axis=1))
 
+    # TODO: Probably best to remove these printouts when done debugging...
     logger.debug(
         f"base_to_tag_matching_np: {base_to_tag_matching_np}, tag_to_base_matching_np: {tag_to_base_matching_np}"
     )
