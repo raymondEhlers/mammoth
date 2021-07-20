@@ -208,6 +208,14 @@ def _expand_array_for_applying_constituent_indices(
     return duplicated_elements[constituent_indices]
 
 
+def area_percentage(percentage: float, jet_R: float) -> float:
+    """Calculate jet R area percentage (for cuts)."""
+    # Validation
+    if percentage < 1:
+        raise ValueError(f"Did you pass a fraction? Passed {percentage}. Check it!")
+    return percentage / 100.0 * np.pi * jet_R * jet_R
+
+
 def find_jets(
     particles: ak.Array,
     jet_R: float,
@@ -264,6 +272,7 @@ def find_jets(
         "py": [],
         "pz": [],
         "E": [],
+        "area": [],
     }
     constituent_indices = []
     subtracted_constituents: Dict[str, List[npt.NDArray[Union[np.float32, np.float64]]]] = {
@@ -294,6 +303,7 @@ def find_jets(
         jets["py"].append(temp_jets[1])
         jets["pz"].append(temp_jets[2])
         jets["E"].append(temp_jets[3])
+        jets["area"].append(res.jets_area)
         constituent_indices.append(res.constituent_indices)
         subtracted_info = res.subtracted_info
         if subtracted_info:
@@ -359,6 +369,7 @@ def find_jets(
             "py": jets["py"],
             "pz": jets["pz"],
             "E": jets["E"],
+            "area": jets["area"],
             "constituents": output_constituents,
         },
         with_name="Momentum4D",
