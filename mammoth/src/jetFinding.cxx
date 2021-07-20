@@ -2,6 +2,18 @@
 
 namespace mammoth {
 
+std::vector<float> extractJetsArea(
+  const std::vector<fastjet::PseudoJet> & jets
+)
+{
+  std::size_t nJets = jets.size();
+  std::vector<float> jetsArea(nJets);
+  for (std::size_t i = 0; i < nJets; ++i) {
+    jetsArea.at(i) = jets.at(i).area();
+  }
+  return jetsArea;
+}
+
 std::vector<std::vector<unsigned int>> constituentIndicesFromJets(
   const std::vector<fastjet::PseudoJet> & jets
 )

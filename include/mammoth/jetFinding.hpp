@@ -47,6 +47,7 @@ template<typename T>
 struct OutputWrapper {
   FourVectorTuple<T> jets;
   std::vector<std::vector<unsigned int>> constituent_indices;
+  std::vector<float> jetsArea;
   std::optional<std::tuple<FourVectorTuple<T>, std::vector<unsigned int>>> subtracted;
 };
 
@@ -95,6 +96,18 @@ std::vector<fastjet::PseudoJet> vectorsToPseudoJets(
 template<typename T>
 FourVectorTuple<T> pseudoJetsToVectors(
     const std::vector<fastjet::PseudoJet> & jets
+);
+
+/**
+ * @brief Extract jet area for given jets.
+ *
+ * Recall that the cluster sequence must still exist when extracting the jet area.
+ *
+ * @param jets Jets to grab the area.
+ * @return std::vector<float> Jet area for the given jets.
+ */
+std::vector<float> extractJetsArea(
+  const std::vector<fastjet::PseudoJet> & jets
 );
 
 /**
@@ -546,6 +559,7 @@ OutputWrapper<T> findJets(
   // First, we need to extract the constituents.
   //auto & [px, py, pz, E] = pseudoJetsToNumpy(jets);
   auto numpyJets = pseudoJetsToVectors<T>(jets);
+  auto columnarJetsArea = extractJetsArea(jets);
 
   // Then, we convert the jets themselves into vectors to return.
   auto constituentIndices = constituentIndicesFromJets(jets);
@@ -553,10 +567,10 @@ OutputWrapper<T> findJets(
   if (constituentSubtraction) {
     // NOTE: particlePseudoJets are actually the subtracted constituents now.
     return OutputWrapper<T>{
-      numpyJets, constituentIndices, std::make_tuple(pseudoJetsToVectors<T>(particlePseudoJets), subtractedToUnsubtractedIndices)
+      numpyJets, constituentIndices, columnarJetsArea, std::make_tuple(pseudoJetsToVectors<T>(particlePseudoJets), subtractedToUnsubtractedIndices)
     };
   }
-  return OutputWrapper<T>{numpyJets, constituentIndices, {}};
+  return OutputWrapper<T>{numpyJets, constituentIndices, columnarJetsArea, {}};
 }
 
 template<typename T>
