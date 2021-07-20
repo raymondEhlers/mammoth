@@ -397,31 +397,16 @@ def _subjets_output() -> Dict[str, List[Any]]:
 
 
 @nb.njit  # type: ignore
-def _determine_offsets(counts_jets: npt.NDArray[np.int64], offsets_constituents: npt.NDArray[np.int64], output: ak.ArrayBuilder) -> ak.Array:
-    # TODO: I've got to imagine there's a better way to do this. But I don't see it at the
-    #       moment, so we'll take this as good enough.
-    start_offset = 0
-    for n_counts in counts_jets:
-        output.begin_list()
-        if n_counts > 0:
-            for i in range(0 + start_offset, n_counts + 1 + start_offset):
-                output.append(offsets_constituents[i])
-        output.end_list()
-        start_offset += n_counts
-    return output
-
-
 def recluster_jets(jets: ak.Array) -> ak.Array:
     # To iterate over the constituents in an efficient manner, we need to flatten them and
     # their four-momenta. To make this more manageable, we want to determine the constituent
-    # indices, and then build those up into doubly-jagged arrays and iterate over those.
-    # Those doubly-jagged arrays then provide the slice indices for selecting the flattened
-    # constituents.
-    # First, event (ie. number of jets per event) level info
-    offsets_jets = np.insert(np.cumsum(np.asarray(ak.num(jets, axis=1))), 0, 0)  # type: ignore
-    counts_jets = np.diff(offsets_jets)  # type: ignore
-
-    # Now, account for constituents
+    # start and stop indices, and then build those up into doubly-jagged arrays and iterate
+    # over those. Those doubly-jagged arrays then provide the slice indices for selecting
+    # the flattened constituents.
+    # First, we need to get the starts and stops. We'll do this via:
+    # number -> offsets -> starts and stops.
+    # NOTE: axis=2 is really the key to making this work nicely. It provides the number of
+    #       constituents, and crucially, they're in the right jagged form.
     num_constituents = ak.num(jets.constituents, axis=2)
     # Convert to offsets
     offsets_constituents = np.cumsum(np.asarray(ak.flatten(num_constituents, axis=1)))
@@ -436,9 +421,6 @@ def recluster_jets(jets: ak.Array) -> ak.Array:
         ak.num(num_constituents, axis=1)
     )
 
-    # Take the offsets and put them into a doubly-jagged array.
-    constituent_slice_indices_in_events = _determine_offsets(counts_jets, offsets_constituents, ak.ArrayBuilder()).snapshot()
-
     # Now, setup the constituents themselves.
     # It would be nice to flatten them and then assign the components like for standard jet
     # finding, but since we have to flatten with `None` to deals with the multiple levels,
@@ -448,7 +430,7 @@ def recluster_jets(jets: ak.Array) -> ak.Array:
     # actually be px, py, pz, and E), so calculate them now, and view them as numpy arrays
     # so we can pass them directly into our function.
     # NOTE: To avoid argument mismatches when calling to the c++, we view as float64 (which
-    #       will be converted to a double). As of July 2021, tests seem to indicate that it's =
+    #       will be converted to a double). As of July 2021, tests seem to suggest that it's =
     #       not making the float32 -> float conversion properly.
     px = np.asarray(ak.flatten(jets.constituents.px, axis=None), dtype=np.float64)
     py = np.asarray(ak.flatten(jets.constituents.py, axis=None), dtype=np.float64)
@@ -457,13 +439,6 @@ def recluster_jets(jets: ak.Array) -> ak.Array:
 
     # import IPython; IPython.embed()
 
-    for starts, stops, constituent_slice_indices in zip(starts_constituents, stops_constituents, constituent_slice_indices_in_events):
-        assert len(starts) == len(stops), "start, stop length mismatch"
-        assert len(constituent_slice_indices) == 0 or (len(constituent_slice_indices)-1 == len(starts) and len(constituent_slice_indices)-1 == len(stops)), f"constituent_slice_index size mismatch, len: {len(constituent_slice_indices)}, starts: {len(starts)}, stops: {len(stops)}"
-        new_constituent_slice_indices = list(starts) + ([stops[-1]] if len(stops) else [])
-        assert ak.all(ak.Array(constituent_slice_indices) == ak.Array(new_constituent_slice_indices)), "Nope"
-
-    #for jet, constituent_px, constituent_py, constituent_pz, constituent_E in zip(jets, px, py, pz, E):
     event_splittings = _splittings_output()
     event_subjets = _subjets_output()
     for starts, stops in zip(starts_constituents, stops_constituents):
