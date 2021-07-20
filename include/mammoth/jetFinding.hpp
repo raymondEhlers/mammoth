@@ -448,8 +448,9 @@ OutputWrapper<T> findJets(
   std::shared_ptr<fastjet::contrib::ConstituentSubtractor> constituentSubtractor = nullptr;
   if (backgroundSubtraction || constituentSubtraction) {
     double backgroundJetR = 0.2;
-    double backgroundJetEtaMin = etaMin;
-    double backgroundJetEtaMax = etaMax;
+    // Use fiducial cut for jet background.
+    double backgroundJetEtaMin = etaMin + backgroundJetR;
+    double backgroundJetEtaMax = etaMax - backgroundJetR;
     double backgroundJetPhiMin = 0;
     double backgroundJetPhiMax = 2 * M_PI;
     // Fastjet background settings
