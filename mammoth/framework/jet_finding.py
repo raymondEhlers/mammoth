@@ -396,7 +396,7 @@ def _subjets_output() -> Dict[str, List[Any]]:
     }
 
 
-@nb.njit
+@nb.njit  # type: ignore
 def _determine_offsets(counts_jets: npt.NDArray[np.int64], offsets_constituents: npt.NDArray[np.int64], output: ak.ArrayBuilder) -> ak.Array:
     # TODO: I've got to imagine there's a better way to do this. But I don't see it at the
     #       moment, so we'll take this as good enough.
@@ -417,9 +417,24 @@ def recluster_jets(jets: ak.Array) -> ak.Array:
     # indices, and then build those up into doubly-jagged arrays and iterate over those.
     # Those doubly-jagged arrays then provide the slice indices for selecting the flattened
     # constituents.
-    offsets_jets = np.insert(np.cumsum(np.asarray(ak.num(jets, axis=1))), 0, 0)
-    counts_jets = np.diff(offsets_jets)
-    offsets_constituents = np.asarray(jets.constituents.layout.content.offsets)
+    # First, event (ie. number of jets per event) level info
+    offsets_jets = np.insert(np.cumsum(np.asarray(ak.num(jets, axis=1))), 0, 0)  # type: ignore
+    counts_jets = np.diff(offsets_jets)  # type: ignore
+
+    # Now, account for constituents
+    num_constituents = ak.num(jets.constituents, axis=2)
+    # Convert to offsets
+    offsets_constituents = np.cumsum(np.asarray(ak.flatten(num_constituents, axis=1)))
+    offsets_constituents = np.insert(offsets_constituents, 0, 0)  # type: ignore
+    # Then into starts and stops
+    starts_constituents = ak.unflatten(
+        offsets_constituents[:-1],
+        ak.num(num_constituents, axis=1)
+    )
+    stops_constituents = ak.unflatten(
+        offsets_constituents[1:],
+        ak.num(num_constituents, axis=1)
+    )
 
     # Take the offsets and put them into a doubly-jagged array.
     constituent_slice_indices_in_events = _determine_offsets(counts_jets, offsets_constituents, ak.ArrayBuilder()).snapshot()
@@ -440,45 +455,39 @@ def recluster_jets(jets: ak.Array) -> ak.Array:
     pz = np.asarray(ak.flatten(jets.constituents.pz, axis=None), dtype=np.float64)
     E = np.asarray(ak.flatten(jets.constituents.E, axis=None), dtype=np.float64)
 
+    # import IPython; IPython.embed()
+
+    for starts, stops, constituent_slice_indices in zip(starts_constituents, stops_constituents, constituent_slice_indices_in_events):
+        assert len(starts) == len(stops), "start, stop length mismatch"
+        assert len(constituent_slice_indices) == 0 or (len(constituent_slice_indices)-1 == len(starts) and len(constituent_slice_indices)-1 == len(stops)), f"constituent_slice_index size mismatch, len: {len(constituent_slice_indices)}, starts: {len(starts)}, stops: {len(stops)}"
+        new_constituent_slice_indices = list(starts) + ([stops[-1]] if len(stops) else [])
+        assert ak.all(ak.Array(constituent_slice_indices) == ak.Array(new_constituent_slice_indices)), "Nope"
+
     #for jet, constituent_px, constituent_py, constituent_pz, constituent_E in zip(jets, px, py, pz, E):
     event_splittings = _splittings_output()
     event_subjets = _subjets_output()
-    for constituent_slice_indices in constituent_slice_indices_in_events:
-    #for event in jets:
+    for starts, stops in zip(starts_constituents, stops_constituents):
         jets_splittings = _splittings_output()
         jets_subjets = _subjets_output()
-        # Need at least two entries to form lower and upper bounds
-        if len(constituent_slice_indices) > 1:
-            #for j in event:
-            for lower, upper in zip(constituent_slice_indices[:-1], constituent_slice_indices[1:]):
-                res = mammoth._ext.recluster_jet(
-                    px=px[lower:upper],
-                    py=py[lower:upper],
-                    pz=pz[lower:upper],
-                    E=E[lower:upper],
-                    #px=np.asarray(constituent_px, dtype=np.float64),
-                    #py=np.asarray(constituent_py, dtype=np.float64),
-                    #pz=np.asarray(constituent_pz, dtype=np.float64),
-                    #E=np.asarray(constituent_E, dtype=np.float64),
-                    #px=np.asarray(j.constituents.px, dtype=np.float64),
-                    #py=np.asarray(j.constituents.py, dtype=np.float64),
-                    #pz=np.asarray(j.constituents.pz, dtype=np.float64),
-                    #E=np.asarray(j.constituents.E, dtype=np.float64),
-                    jet_R=1.0,
-                    #area_settings=area_settings,
-                    #eta_range=eta_range,
-                )
-                _temp_splittings = res.splittings()
-                _temp_subjets = res.subjets()
-                jets_splittings["kt"].append(_temp_splittings.kt)
-                jets_splittings["delta_R"].append(_temp_splittings.delta_R)
-                jets_splittings["z"].append(_temp_splittings.z)
-                jets_splittings["parent_index"].append(_temp_splittings.parent_index)
-                jets_subjets["splitting_node_index"].append(_temp_subjets.splitting_node_index)
-                jets_subjets["part_of_iterative_splitting"].append(_temp_subjets.part_of_iterative_splitting)
-                jets_subjets["constituent_indices"].append(_temp_subjets.constituent_indices)
-        elif len(constituent_slice_indices) == 1:
-            raise ValueError(f"Only one constituent slice index. Wat? {constituent_slice_indices}")
+        for lower, upper in zip(starts, stops):
+            res = mammoth._ext.recluster_jet(
+                px=px[lower:upper],
+                py=py[lower:upper],
+                pz=pz[lower:upper],
+                E=E[lower:upper],
+                jet_R=1.0,
+                #area_settings=area_settings,
+                #eta_range=eta_range,
+            )
+            _temp_splittings = res.splittings()
+            _temp_subjets = res.subjets()
+            jets_splittings["kt"].append(_temp_splittings.kt)
+            jets_splittings["delta_R"].append(_temp_splittings.delta_R)
+            jets_splittings["z"].append(_temp_splittings.z)
+            jets_splittings["parent_index"].append(_temp_splittings.parent_index)
+            jets_subjets["splitting_node_index"].append(_temp_subjets.splitting_node_index)
+            jets_subjets["part_of_iterative_splitting"].append(_temp_subjets.part_of_iterative_splitting)
+            jets_subjets["constituent_indices"].append(_temp_subjets.constituent_indices)
 
         # Now, move to the overall output objects.
         # NOTE: We want to fill this even if we didn't perform any reclustering to ensure that
