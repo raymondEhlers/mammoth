@@ -138,14 +138,32 @@ class JetFindingLoggingStderr : public py::scoped_ostream_redirect {
     ) {}
 };
 
+/**
+ * @brief Wrap the output wrapper with pybind11
+ *
+ * Based on the idea here: https://stackoverflow.com/a/47749076/12907985
+ *
+ * @tparam T Type to specialize for the output wrapper
+ * @param m pybind11 module
+ * @param typestr Name of the string, captialized by convention.
+ */
+template<typename T>
+void wrapOutputWrapper(py::module & m, const std::string & typestr)
+{
+  using Class = mammoth::OutputWrapper<T>;
+  std::string pythonClassName = "OutputWrapper" + typestr;
+  py::class_<Class>(m, pythonClassName.c_str(), "Output wrapper")
+    .def_readonly("jets", &Class::jets)
+    .def_readonly("constituent_indices", &Class::constituent_indices)
+    .def_readonly("jets_area", &Class::jetsArea)
+    .def_readonly("subtracted_info", &Class::subtracted)
+  ;
+}
 
 PYBIND11_MODULE(_ext, m) {
   // Output wrapper. Just providing access to the fields.
-  py::class_<mammoth::OutputWrapper<double>>(m, "OutputWrapper", "Output wrapper")
-    .def_readonly("jets", &mammoth::OutputWrapper<double>::jets)
-    .def_readonly("constituent_indices", &mammoth::OutputWrapper<double>::constituent_indices)
-    .def_readonly("subtracted_info", &mammoth::OutputWrapper<double>::subtracted)
-  ;
+  wrapOutputWrapper<double>(m, "Double");
+  wrapOutputWrapper<float>(m, "Float");
   // Wrapper for area settings
   py::class_<mammoth::AreaSettings>(m, "AreaSettings", "Settings related to jet finding area")
     .def(py::init<std::string, double>(), "area_type"_a = "active_area", "ghost_area"_a = 0.005)
@@ -160,7 +178,6 @@ PYBIND11_MODULE(_ext, m) {
   ;
   m.def("find_jets", &findJets<float>, "px"_a, "py"_a, "pz"_a, "E"_a, "jet_R"_a, "jet_algorithm"_a, "area_settings"_a, "eta_range"_a = std::make_tuple(-0.9, 0.9), "min_jet_pt"_a = 1., "background_subtraction"_a = false, "constituent_subtraction"_a = std::nullopt, "Jet finding function", py::call_guard<JetFindingLoggingStdout, JetFindingLoggingStderr>());
   m.def("find_jets", &findJets<double>, "px"_a, "py"_a, "pz"_a, "E"_a, "jet_R"_a, "jet_algorithm"_a, "area_settings"_a, "eta_range"_a = std::make_tuple(-0.9, 0.9), "min_jet_pt"_a = 1., "background_subtraction"_a = false,"constituent_subtraction"_a = std::nullopt, "Jet finding function", py::call_guard<JetFindingLoggingStdout, JetFindingLoggingStderr>());
-
 
   // Wrapper for reclustered jet outputs
   py::class_<mammoth::JetSubstructure::ColumnarSplittings>(m, "ColumnarSplittings", "Columnar splittings output")
