@@ -467,7 +467,8 @@ OutputWrapper<T> findJets(
     fastjet::JetDefinition backgroundJetDefinition(backgroundJetAlgorithm, backgroundJetR, backgroundRecombinationScheme, backgroundStrategy);
     fastjet::AreaDefinition backgroundAreaDefinition(backgroundAreaType, ghostAreaSpec);
     // NOTE: This applies eta cuts, hi cuts, and removes the two hardest jets (as is standard for rho).
-    fastjet::Selector selRho = fastjet::SelectorRapRange(backgroundJetEtaMin, backgroundJetEtaMax) && fastjet::SelectorPhiRange(backgroundJetPhiMin, backgroundJetPhiMax) && !fastjet::SelectorNHardest(2);
+    // NOTE: We want to apply the two hardest removal _after_ the acceptance cuts, so we use "*"
+    fastjet::Selector selRho = (fastjet::SelectorRapRange(backgroundJetEtaMin, backgroundJetEtaMax) && fastjet::SelectorPhiRange(backgroundJetPhiMin, backgroundJetPhiMax)) * !fastjet::SelectorNHardest(2);
 
     // Finally, define the background estimator
     // This is needed for all background subtraction cases.
@@ -486,6 +487,8 @@ OutputWrapper<T> findJets(
       constituentSubtractor->set_max_eta(backgroundJetEtaMax);
       constituentSubtractor->set_background_estimator(backgroundEstimator.get());
       // TODO: Anything about rhom? I think it's handled...
+      //       According to the manual, it's automatically calculated by the backgroundEstimator.
+      //       The remaining question is whether we need to do anything else for the CS to actually use it.
     }
   }
 
