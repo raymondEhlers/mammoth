@@ -26,7 +26,7 @@ std::vector<std::vector<unsigned int>> constituentIndicesFromJets(
     }
     indices.emplace_back(constituentIndicesInJet);
   }
-  return std::move(indices);
+  return indices;
 }
 
 std::vector<unsigned int> updateSubtractedConstituentIndices(
@@ -40,7 +40,7 @@ std::vector<unsigned int> updateSubtractedConstituentIndices(
     pseudoJets[i].set_user_index(i);
   }
 
-  return std::move(subtractedToUnsubtractedIndices);
+  return subtractedToUnsubtractedIndices;
 }
 
 

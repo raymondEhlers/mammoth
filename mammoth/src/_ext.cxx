@@ -42,11 +42,11 @@ mammoth::FourVectorTuple<T> numpyToColumnFourVector(
   auto pz = pzIn.data();
   auto E = EIn.data();
   // This defines our numpy array shape.
-  int nParticles = infoPx.shape[0];
+  unsigned int nParticles = infoPx.shape[0];
 
   // Convert the arrays
   std::vector<T> pxOut(nParticles), pyOut(nParticles), pzOut(nParticles), EOut(nParticles);
-  for (size_t i = 0; i < nParticles; ++i) {
+  for (std::size_t i = 0; i < nParticles; ++i) {
     // NOTE: Don't emplace back - the size is set above.
     pxOut[i] = px[i];
     pyOut[i] = py[i];
