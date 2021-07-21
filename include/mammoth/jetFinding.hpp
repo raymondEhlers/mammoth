@@ -486,6 +486,11 @@ OutputWrapper<T> findJets(
     // NOTE: This applies eta cuts, hi cuts, and removes the two hardest jets (as is standard for rho).
     // NOTE: We want to apply the two hardest removal _after_ the acceptance cuts, so we use "*"
     fastjet::Selector selRho = (fastjet::SelectorRapRange(backgroundJetEtaMin, backgroundJetEtaMax) && fastjet::SelectorPhiRange(backgroundJetPhiMin, backgroundJetPhiMax)) * !fastjet::SelectorNHardest(2);
+    // NOTE: We don't remove jets with tracks > 100 GeV here because it would require copying all of
+    //       the input particles (which could have a measureable performance impact) for what I expect
+    //       is quite a small impact. I think it will be small because we're concerned with the median
+    //       and we exclude the two leading. So unless there are many fake tracks in a single event,
+    //       it's unlikely to have a meaningful effect on the median.
 
     // Finally, define the background estimator
     // This is needed for all background subtraction cases.

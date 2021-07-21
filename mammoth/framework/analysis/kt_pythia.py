@@ -127,9 +127,6 @@ def analysis(jet_R: float = 0.4, min_pythia_jet_pt: float = 20.0) -> None:
         depth_limit=1,
     )
 
-    # TODO: Remove jets with constituents with pt > 100 GeV for background.
-    #       May need to compromise here to make this work.
-
     # Apply jet level cuts.
     # **************
     # Remove detector level jets with constituents with pt > 100 GeV
