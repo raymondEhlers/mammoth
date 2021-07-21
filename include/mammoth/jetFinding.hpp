@@ -487,7 +487,7 @@ OutputWrapper<T> findJets(
     // NOTE: We want to apply the two hardest removal _after_ the acceptance cuts, so we use "*"
     fastjet::Selector selRho = (fastjet::SelectorRapRange(backgroundJetEtaMin, backgroundJetEtaMax) && fastjet::SelectorPhiRange(backgroundJetPhiMin, backgroundJetPhiMax)) * !fastjet::SelectorNHardest(2);
     // NOTE: We don't remove jets with tracks > 100 GeV here because it would require copying all of
-    //       the input particles (which could have a measureable performance impact) for what I expect
+    //       the input particles (which could have a measurable performance impact) for what I expect
     //       is quite a small impact. I think it will be small because we're concerned with the median
     //       and we exclude the two leading. So unless there are many fake tracks in a single event,
     //       it's unlikely to have a meaningful effect on the median.
@@ -499,6 +499,9 @@ OutputWrapper<T> findJets(
     // Setup the background estimator to be able to make the estimation.
     backgroundEstimator->set_particles(particlePseudoJets);
 
+    // NOTE: The background estimator calculates rho_m, but it's not used by default in the standard
+    //       subtractor, so we explicitly enable it below (CS is a whole separate topic)
+
     // Specific setup for event-wise constituent subtraction
     if (constituentSubtraction) {
       constituentSubtractor = std::make_shared<fastjet::contrib::ConstituentSubtractor>(backgroundEstimator.get());
@@ -508,9 +511,10 @@ OutputWrapper<T> findJets(
       constituentSubtractor->set_ghost_area(areaSettings.ghostArea);
       constituentSubtractor->set_max_eta(backgroundJetEtaMax);
       constituentSubtractor->set_background_estimator(backgroundEstimator.get());
-      // TODO: Anything about rhom? I think it's handled...
-      //       According to the manual, it's automatically calculated by the backgroundEstimator.
-      //       The remaining question is whether we need to do anything else for the CS to actually use it.
+      // Use the same estimator for rho_m (by default, I think it won't be used, but better to
+      // provide it in case we change our mind later).
+      // NOTE: This needs to be set after setting the background estimator.
+      constituentSubtractor->set_common_bge_for_rho_and_rhom();
     }
   }
 
@@ -521,6 +525,12 @@ OutputWrapper<T> findJets(
   // Now, set it up as necessary.
   if (backgroundSubtraction) {
     subtractor = std::make_shared<fastjet::Subtractor>(backgroundEstimator.get());
+    // Use rho_m from the estimator.
+    subtractor->set_use_rho_m(true);
+    // Handle negative masses by adjusting the 4-vector to maintain the pt and phi, which leaves
+    // the rapidity the same as the unsubtracted jet. The fj manual describes this as "a sensible
+    // behavior" for most applications, so good enough for us.
+    subtractor->set_safe_mass(true);
   }
 
   // Signal jet settings
