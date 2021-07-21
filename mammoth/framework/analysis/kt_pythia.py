@@ -151,12 +151,20 @@ def analysis(jet_R: float = 0.4, min_pythia_jet_pt: float = 20.0) -> None:
         jets_tag=jets["det_level"],
         max_matching_distance=0.4,
     )
-    # Semi-validated result:
-    # det <-> part for the thermal model looks like:
-    # part: ([[0, 3, 1, 2, 4, 5], [0, 1, -1], [], [0], [1, 0, -1]],
-    # det:   [[0, 2, 3, 1, 4, 5], [0, 1], [], [0], [1, 0]])
 
-    # TODO: Use matching info!
+    # Now, use matching info
+    # First, require that there are jets in an event. If there are jets, and require that there
+    # is a valid match.
+    # NOTE: These can't be combined into one mask because they operate at different levels: events and jets
+    logger.info("Using matching info")
+    jets_present_mask = (ak.num(jets["part_level"], axis=1) > 0) & (ak.num(jets["det_level"], axis=1) > 0)
+    jets = jets[jets_present_mask]
+    # Now, onto the individual jet collections
+    # Require valid matched jet indices.
+    part_level_matched_jets_mask = jets["part_level"]["matching"] > -1
+    jets["part_level"] = jets["part_level"][part_level_matched_jets_mask]
+    det_level_matched_jets_mask = jets["det_level"]["matching"] > -1
+    jets["det_level"] = jets["det_level"][det_level_matched_jets_mask]
 
     logger.info("Reclustering jets...")
     for level in ["part_level", "det_level"]:
