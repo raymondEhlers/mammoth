@@ -127,23 +127,33 @@ def analysis(jet_R: float = 0.4, min_pythia_jet_pt: float = 20.0) -> None:
         depth_limit=1,
     )
 
-    # Remove jets with constituents with pt > 100 GeV.
-    # Need to do it after jet finding to avoid z bias.
-    # TODO: Apply to part level too?
+    # TODO: Remove jets with constituents with pt > 100 GeV for background.
+    #       May need to compromise here to make this work.
 
-    # Cuts to add:
-    # - [x] Background sub should also be TPCfiducial (done in c++)
-    # - [x] min area of 0.6 * pi * R^2
-
-    # Apply area cut, requiring at least 60% of possible area.
+    # Apply jet level cuts.
+    # **************
+    # Remove detector level jets with constituents with pt > 100 GeV
+    # Those tracks are almost certainly fake at detector level.
+    # NOTE: We skip at part level because it doesn't share these detector effects.
+    # NOTE: We need to do it after jet finding to avoid a z bias.
+    # **************
+    det_level_max_track_pt_cut = ~ak.any(jets["det_level"].constituents.pt > 100, axis=-1)
+    # **************
+    # Apply area cut
+    # Requires at least 60% of possible area.
+    # **************
     min_area = jet_finding.area_percentage(60, jet_R),
-    # NOTE: This breaks the reclustering... Why? Must be something about the masking and layout...
     part_level_min_area_mask = jets["part_level", "area"] > min_area
-    jets["part_level"] = jets["part_level"][part_level_min_area_mask]
     det_level_min_area_mask = jets["det_level", "area"] > min_area
-    jets["det_level"] = jets["det_level"][det_level_min_area_mask]
 
-    #import IPython; IPython.embed()
+    # Apply the cuts
+    jets["part_level"] = jets["part_level"][
+        part_level_min_area_mask
+    ]
+    jets["det_level"] = jets["det_level"][
+        det_level_max_track_pt_cut
+        & det_level_min_area_mask
+    ]
 
     logger.info("Matching jets")
     jets["part_level", "matching"], jets["det_level", "matching"] = jet_finding.jet_matching(
