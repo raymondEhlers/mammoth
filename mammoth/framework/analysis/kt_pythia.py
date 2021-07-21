@@ -166,12 +166,25 @@ def analysis(jet_R: float = 0.4, min_pythia_jet_pt: float = 20.0) -> None:
     logger.info("Using matching info")
     jets_present_mask = (ak.num(jets["part_level"], axis=1) > 0) & (ak.num(jets["det_level"], axis=1) > 0)
     jets = jets[jets_present_mask]
+
     # Now, onto the individual jet collections
-    # Require valid matched jet indices.
-    part_level_matched_jets_mask = jets["part_level"]["matching"] > -1
-    jets["part_level"] = jets["part_level"][part_level_matched_jets_mask]
+    # We want to require valid matched jet indices. The strategy here is to lead via the detector
+    # level jets. The procedure is as follows:
+    #
+    # 1. Identify all of the detector level jets with valid matches.
+    # 2. Apply that mask to the detector level jets.
+    # 3. Use the matching indices from the detector level jets to index the particle level jets.
+    # 4. We should be done and ready to flatten. Note that the matching indices will refer to
+    #    the original arrays, not the masked ones. In principle, this should be updated, but
+    #    I'm unsure if they'll be used again, so we wait to update them until it's clear that
+    #    it's required.
+    #
+    # The other benefit to this approach is that it should reorder the particle level matches
+    # to be the same shape as the detector level jets, so in principle they are paired together.
+    # TODO: Check this is truly the case.
     det_level_matched_jets_mask = jets["det_level"]["matching"] > -1
     jets["det_level"] = jets["det_level"][det_level_matched_jets_mask]
+    jets["part_level"] = jets["part_level"][jets["det_level", "matching"]]
 
     logger.info("Reclustering jets...")
     for level in ["part_level", "det_level"]:
@@ -180,6 +193,22 @@ def analysis(jet_R: float = 0.4, min_pythia_jet_pt: float = 20.0) -> None:
             jets=jets[level]
         )
     logger.info("Done with reclustering")
+
+    # Next step for using existing skimming:
+    # Flatten from events -> jets
+    # NOTE: Apparently it's takes issues with flattening the jets directly, so we have to do it
+    #       separately for the different collections and then zip them together. This should keep
+    #       matching together as appropriate.
+    jets = ak.zip(
+        {
+            k: ak.flatten(v, axis=1)
+            for k, v in zip(ak.fields(jets), ak.unzip(jets))
+        },
+        depth_limit=1,
+    )
+
+    # Now, the final transformation into a form that can be used to skim into a flat tree.
+    ...
 
     import IPython; IPython.embed()
 
