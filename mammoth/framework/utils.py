@@ -78,8 +78,6 @@ def group_by(array: ak.Array, by: Sequence[Union[str, int]]) -> ak.Array:
     # run_length[1:] = combined[1:] - combined[:-1]
     run_length[1:] = np.diff(combined)  # type: ignore
 
-    # import IPython; IPython.embed()
-
     # And then construct the array
     return ak.unflatten(
         # Somehow, these seem to be equivalent, even though they shouldn't be...
