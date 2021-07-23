@@ -16,7 +16,7 @@ uproot = "^4.0.11"
 numpy = "^1.21.0"
 pyarrow = "^4"
 #pyfastjet = {path = "external/pyfastjet"}
-pachyderm = {path = "external/pachyderm"}
+pachyderm = {path = "external/pachyderm", develop = true}
 pandas = "^1.3.0"
 particle = "^0.15.1"
 numba = "^0.53.1"
