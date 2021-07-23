@@ -88,17 +88,26 @@ def setup_logging(level: int = logging.DEBUG) -> None:
     logging.getLogger("numba").setLevel(logging.INFO)
 
 
-def analysis(jet_R: float = 0.4, min_pythia_jet_pt: float = 20.0) -> None:
-    setup_logging(level=logging.INFO)
+def analysis(pythia_filename: Path, jet_R: float, min_pythia_jet_pt: float) -> ak.Array:
     logger.info("Start")
     arrays = load_data(
-        pythia_filename=Path("/software/rehlers/dev/mammoth/projects/framework/pythia/AnalysisResults.parquet")
+        pythia_filename=pythia_filename
     )
     logger.info("Transform")
     arrays = _transform_inputs(arrays=arrays)
 
+    # Event selection
+    arrays = arrays[
+        (arrays["is_ev_rej"] == 0)
+        & (np.abs(arrays["z_vtx_reco"]) < 10)
+    ]
+
     # Track cuts
     logger.info("Track level cuts")
+    # Particle level track cuts:
+    # - min: 150 MeV (from the EMCal container)
+    part_track_pt_mask = (arrays["part_level"].pt >= 0.150)
+    arrays["part_level"] = arrays["part_level"][part_track_pt_mask]
     # Detector level track cuts:
     # - min: 150 MeV
     # NOTE: Since the HF Tree uses track containers, the min is usually applied by default
@@ -114,7 +123,9 @@ def analysis(jet_R: float = 0.4, min_pythia_jet_pt: float = 20.0) -> None:
                 algorithm="anti-kt",
                 jet_R=jet_R,
                 area_settings=jet_finding.AREA_PP,
-                min_jet_pt=min_pythia_jet_pt,
+                # NOTE: We only want the minimum pt to apply to the detector level.
+                #       Otherwise, we'll bias our particle level jets.
+                min_jet_pt=1,
             ),
             "det_level": jet_finding.find_jets(
                 particles=arrays["det_level"],
@@ -142,6 +153,11 @@ def analysis(jet_R: float = 0.4, min_pythia_jet_pt: float = 20.0) -> None:
     min_area = jet_finding.area_percentage(60, jet_R),
     part_level_min_area_mask = jets["part_level", "area"] > min_area
     det_level_min_area_mask = jets["det_level", "area"] > min_area
+    # *************
+    # Require more than one constituent at detector level if we're not in PbPb
+    # Matches a cut in AliAnalysisTaskJetDynamicalGrooming
+    # *************
+    det_level_min_n_constituents_mask = ak.num(jets["det_level", "constituents"], axis = 2) > 1
 
     # Apply the cuts
     jets["part_level"] = jets["part_level"][
@@ -150,13 +166,14 @@ def analysis(jet_R: float = 0.4, min_pythia_jet_pt: float = 20.0) -> None:
     jets["det_level"] = jets["det_level"][
         det_level_max_track_pt_cut
         & det_level_min_area_mask
+        & det_level_min_n_constituents_mask
     ]
 
     logger.info("Matching jets")
     jets["part_level", "matching"], jets["det_level", "matching"] = jet_finding.jet_matching(
         jets_base=jets["part_level"],
         jets_tag=jets["det_level"],
-        max_matching_distance=0.4,
+        max_matching_distance=0.3,
     )
 
     # Now, use matching info
@@ -194,6 +211,8 @@ def analysis(jet_R: float = 0.4, min_pythia_jet_pt: float = 20.0) -> None:
         )
     logger.info("Done with reclustering")
 
+    logger.warning(f"n events: {len(jets)}")
+
     # Next step for using existing skimming:
     # Flatten from events -> jets
     # NOTE: Apparently it's takes issues with flattening the jets directly, so we have to do it
@@ -208,10 +227,13 @@ def analysis(jet_R: float = 0.4, min_pythia_jet_pt: float = 20.0) -> None:
     )
 
     # Now, the final transformation into a form that can be used to skim into a flat tree.
-    ...
-
-    import IPython; IPython.embed()
+    return jets
 
 
 if __name__ == "__main__":
-    analysis()
+    setup_logging(level=logging.INFO)
+    jets = analysis(pythia_filename=Path("/software/rehlers/dev/mammoth/projects/framework/pythia/AnalysisResults.parquet"), jet_R=0.4, min_pythia_jet_pt = 20)
+
+    import IPython
+
+    IPython.embed()
