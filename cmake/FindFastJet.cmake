@@ -25,7 +25,8 @@ string(TOLOWER "${PKGNAME}-config" PKGCONFIG)
 find_program(${PKGNAME}_CONFIG
              NAMES ${PKGCONFIG}
              PATHS $ENV{${PKGENVNAME}}
-             $ENV{PWD}/external/install/fastjet/bin
+             #$ENV{PWD}/external/install/fastjet/bin
+             ${CMAKE_CURRENT_SOURCE_DIR}/external/install/fastjet/bin
              )
 mark_as_advanced(${PKGNAME}_CONFIG)
 
