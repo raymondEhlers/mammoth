@@ -71,7 +71,7 @@ struct AreaSettings {
  */
 struct ConstituentSubtractionSettings {
   double rMax{0.25};
-  double alpha{1.0};
+  double alpha{0.0};
 };
 
 /**
@@ -515,6 +515,11 @@ OutputWrapper<T> findJets(
       // provide it in case we change our mind later).
       // NOTE: This needs to be set after setting the background estimator.
       constituentSubtractor->set_common_bge_for_rho_and_rhom();
+      // Apparently this is new and now required for event-wise CS.
+      // From some tests, consittuent subtraction gives some crazy results if it's not called!
+      // NOTE: ALICE gets away with skipping this because we have the old call for event-wise
+      //       subtraction where we pass the max rapidity. But better if we use the newer version.
+      constituentSubtractor->initialize();
     }
   }
 
