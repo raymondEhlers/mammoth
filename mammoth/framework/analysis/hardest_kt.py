@@ -197,7 +197,6 @@ def analysis_data(collision_system: str,
         additional_kwargs["constituent_subtraction"] = jet_finding.ConstituentSubtractionSettings(
             r_max=0.25,
         )
-        logger.info(f"additional_kwargs: {additional_kwargs}")
     jets = ak.zip(
         {
             particle_column_name: jet_finding.find_jets(

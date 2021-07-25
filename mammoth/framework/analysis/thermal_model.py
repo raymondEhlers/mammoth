@@ -138,8 +138,7 @@ def analysis(jet_R: float = 0.2, min_hybrid_jet_pt: float = 15.0, min_pythia_jet
                 jet_R=jet_R,
                 area_settings=jet_finding.AREA_AA,
                 min_jet_pt=min_hybrid_jet_pt,
-                background_subtraction=True,
-                # TODO: Switch to constituent subtraction after performance tests...
+                constituent_subtraction=jet_finding.ConstituentSubtractionSettings(r_max=0.25)
             ),
         },
         depth_limit=1,
