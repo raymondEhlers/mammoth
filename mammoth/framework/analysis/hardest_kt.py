@@ -29,9 +29,9 @@ def load_MC(filename: Path) -> ak.Array:
     logger.info("Transforming MC")
     return transform.mc(arrays=arrays)
 
-def analysis_MC(input_arrays: ak.Array, jet_R: float, min_pythia_jet_pt: float) -> ak.Array:
+def analysis_MC(arrays: ak.Array, jet_R: float, min_jet_pt: Mapping[str, float]) -> ak.Array:
     # Event selection
-    arrays = input_arrays[
+    arrays = arrays[
         (arrays["is_ev_rej"] == 0)
         & (np.abs(arrays["z_vtx_reco"]) < 10)
     ]
@@ -59,14 +59,14 @@ def analysis_MC(input_arrays: ak.Array, jet_R: float, min_pythia_jet_pt: float) 
                 area_settings=jet_finding.AREA_PP,
                 # NOTE: We only want the minimum pt to apply to the detector level.
                 #       Otherwise, we'll bias our particle level jets.
-                min_jet_pt=1,
+                min_jet_pt=min_jet_pt.get("part_level", 1),
             ),
             "det_level": jet_finding.find_jets(
                 particles=arrays["det_level"],
                 algorithm="anti-kt",
                 jet_R=jet_R,
                 area_settings=jet_finding.AREA_PP,
-                min_jet_pt=min_pythia_jet_pt,
+                min_jet_pt=min_jet_pt["det_level"],
             ),
         },
         depth_limit=1,
@@ -160,6 +160,7 @@ def analysis_MC(input_arrays: ak.Array, jet_R: float, min_pythia_jet_pt: float) 
 
 def load_data(
     filename: Path,
+    rename_prefix: Mapping[str, str],
 ) -> ak.Array:
     logger.info("Loading data")
     source = sources.ParquetSource(
@@ -167,15 +168,15 @@ def load_data(
     )
     arrays = source.data()
     logger.info("Transforming data")
-    return transform.data(arrays=arrays)
+    return transform.data(arrays=arrays, rename_prefix=rename_prefix)
 
 
 def analysis_data(collision_system: str,
-                  input_arrays: ak.Array,
+                  arrays: ak.Array,
                   jet_R: float, min_jet_pt: float, particle_column_name: str = "data") -> ak.Array:
     logger.info("Start analyzing")
     # Event selection
-    arrays = input_arrays[
+    arrays = arrays[
         (arrays["is_ev_rej"] == 0)
         & (np.abs(arrays["z_vtx_reco"]) < 10)
     ]
@@ -189,7 +190,14 @@ def analysis_data(collision_system: str,
 
     # Jet finding
     logger.info("Find jets")
-    area_settings = jet_finding.AREA_AA if collision_system in ["PbPb", "embedPythia"] else jet_finding.AREA_PP
+    area_settings = jet_finding.AREA_PP
+    additional_kwargs = {}
+    if collision_system in ["PbPb", "embedPythia"]:
+        area_settings = jet_finding.AREA_AA
+        additional_kwargs["constituent_subtraction"] = jet_finding.ConstituentSubtractionSettings(
+            r_max=0.25,
+        )
+        logger.info(f"additional_kwargs: {additional_kwargs}")
     jets = ak.zip(
         {
             particle_column_name: jet_finding.find_jets(
@@ -198,6 +206,7 @@ def analysis_data(collision_system: str,
                 jet_R=jet_R,
                 area_settings=area_settings,
                 min_jet_pt=min_jet_pt,
+                **additional_kwargs,
             ),
         },
         depth_limit=1,
@@ -225,6 +234,11 @@ def analysis_data(collision_system: str,
 
     # Apply the cuts
     jets[particle_column_name] = jets[particle_column_name][mask]
+
+    # Check for any jets. If there are none, we probably want to bail out.
+    # We need some variable to avoid flattening into a record, so select px arbitrarily.
+    if len(ak.flatten(jets[particle_column_name].px, axis=None)) == 0:
+        raise ValueError(f"No jets left for {particle_column_name}. Are your settings correct?")
 
     logger.info(f"Reclustering {particle_column_name} jets...")
     jets[particle_column_name, "reclustering"] = jet_finding.recluster_jets(
@@ -274,10 +288,10 @@ def load_embedding(signal_filename: Path, background_filename) -> Tuple[Dict[str
     return source_index_identifiers, transform.embedding(arrays=combined_source.data(), source_index_identifiers=source_index_identifiers)
 
 
-def analysis_embedding(input_arrays: ak.Array, jet_R: float,
+def analysis_embedding(arrays: ak.Array, jet_R: float,
                        min_jet_pt: Mapping[str, float]) -> ak.Array:
     # Event selection
-    arrays = input_arrays[
+    arrays = arrays[
         (arrays["is_ev_rej"] == 0)
         & (np.abs(arrays["z_vtx_reco"]) < 10)
     ]
@@ -440,7 +454,30 @@ def setup_logging(level: int = logging.DEBUG) -> None:
 
 if __name__ == "__main__":
     setup_logging(level=logging.INFO)
-    jets = analysis_MC(pythia_filename=Path("/software/rehlers/dev/mammoth/projects/framework/pythia/AnalysisResults.parquet"), jet_R=0.4, min_pythia_jet_pt = 20)
+    # jets = analysis_MC(
+    #     arrays=load_MC(filename=Path("/software/rehlers/dev/mammoth/projects/framework/pythia/AnalysisResults.parquet")),
+    #     jet_R=0.4,
+    #     min_jet_pt={
+    #         "det_level": 20,
+    #     },
+    # )
+    # Some tests:
+    # pp: needs min_jet_pt = 5 to have any jets
+    #collision_system = "pp"
+    # pythia: Can test both "part_level" and "det_level" in the rename map.
+    #collision_system = "pythia"
+    # PbPb:
+    collision_system = "PbPb"
+    jets = analysis_data(
+        collision_system=collision_system,
+        arrays=load_data(
+            filename=Path(f"/software/rehlers/dev/mammoth/projects/framework/{collision_system}/AnalysisResults.parquet"),
+            #rename_prefix={"data": "det_level"},
+            rename_prefix={"data": "data"},
+        ),
+        jet_R=0.4,
+        min_jet_pt=20,
+    )
 
     import IPython
 
