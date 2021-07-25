@@ -3,7 +3,6 @@
 .. codeauthor:: Raymond Ehlers <raymond.ehlers@cern.ch>, ORNL
 """
 
-import time
 from pathlib import Path
 
 import awkward as ak
@@ -318,23 +317,28 @@ def write_to_parquet(arrays: ak.Array, filename: Path, collision_system: str) ->
 
 if __name__ == "__main__":
     # arrays = hf_tree_to_awkward(filename=Path("/software/rehlers/dev/substructure/trains/pythia/568/AnalysisResults.20g4.001.root"))
-    #for collision_system in ["pythia"]:
+    # for collision_system in ["pythia"]:
     for collision_system in ["pp", "pythia", "PbPb"]:
         print(f"Converting collision system {collision_system}")
         if collision_system == "pythia":
             arrays = hf_tree_to_awkward_MC(
-                filename=Path(f"/software/rehlers/dev/mammoth/projects/framework/{collision_system}/AnalysisResults.root"),
+                filename=Path(
+                    f"/software/rehlers/dev/mammoth/projects/framework/{collision_system}/AnalysisResults.root"
+                ),
                 collision_system=collision_system,
             )
         else:
             arrays = hf_tree_to_awkward_data(
-                filename=Path(f"/software/rehlers/dev/mammoth/projects/framework/{collision_system}/AnalysisResults.root"),
+                filename=Path(
+                    f"/software/rehlers/dev/mammoth/projects/framework/{collision_system}/AnalysisResults.root"
+                ),
                 collision_system=collision_system,
             )
 
         write_to_parquet(
             arrays=arrays,
-            filename=Path(f"/software/rehlers/dev/mammoth/projects/framework/{collision_system}/AnalysisResults.parquet"),
+            filename=Path(
+                f"/software/rehlers/dev/mammoth/projects/framework/{collision_system}/AnalysisResults.parquet"
+            ),
             collision_system=collision_system,
         )
-

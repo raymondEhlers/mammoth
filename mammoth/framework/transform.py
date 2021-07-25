@@ -22,6 +22,7 @@ _default_particle_columns = {
     "index": np.int64,
 }
 
+
 def data(
     arrays: ak.Array,
     rename_prefix: Mapping[str, str] = None,
@@ -46,15 +47,10 @@ def data(
         particle_columns = _default_particle_columns
     # Validation
     if rename_prefix is None:
-        rename_prefix = {
-            "data": "data"
-        }
+        rename_prefix = {"data": "data"}
     _prefixes = list(rename_prefix.keys())
     if isinstance(mass_hypothesis, float):
-        mass_hypotheses = {
-            p : mass_hypothesis
-            for p in _prefixes
-        }
+        mass_hypotheses = {p: mass_hypothesis for p in _prefixes}
     else:
         mass_hypotheses = mass_hypothesis
 
@@ -74,11 +70,7 @@ def data(
         {
             "data": data,
             # Include the rest of the non particle related fields (ie. event level info)
-            **{
-                k: v
-                for k, v in zip(ak.fields(arrays), ak.unzip(arrays))
-                if k not in _prefixes
-            },
+            **{k: v for k, v in zip(ak.fields(arrays), ak.unzip(arrays)) if k not in _prefixes},
         }
     )
 
@@ -113,10 +105,7 @@ def mc(
         }
     _prefixes = list(rename_prefix.keys())
     if isinstance(mass_hypothesis, float):
-        mass_hypotheses = {
-            p : mass_hypothesis
-            for p in _prefixes
-        }
+        mass_hypotheses = {p: mass_hypothesis for p in _prefixes}
     else:
         mass_hypotheses = mass_hypothesis
 
@@ -142,11 +131,7 @@ def mc(
             "part_level": part_level,
             "det_level": det_level,
             # Include the rest of the non particle related fields (ie. event level info)
-            **{
-                k: v
-                for k, v in zip(ak.fields(arrays), ak.unzip(arrays))
-                if k not in _prefixes
-            },
+            **{k: v for k, v in zip(ak.fields(arrays), ak.unzip(arrays)) if k not in _prefixes},
         }
     )
 
@@ -178,10 +163,7 @@ def embedding(
     # Validation
     _mass_hypothesis_prefixes = ["part_level", "det_level", "background"]
     if isinstance(mass_hypothesis, float):
-        mass_hypotheses = {
-            p : mass_hypothesis
-            for p in _mass_hypothesis_prefixes
-        }
+        mass_hypotheses = {p: mass_hypothesis for p in _mass_hypothesis_prefixes}
     else:
         mass_hypotheses = mass_hypothesis
 
@@ -241,4 +223,3 @@ def embedding(
             },
         }
     )
-

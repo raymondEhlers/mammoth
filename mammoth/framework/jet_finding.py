@@ -233,7 +233,7 @@ def find_jets(
     if area_settings is None:
         area_settings = AREA_AA
     if background_subtraction and constituent_subtraction:
-        raise ValueError(f"Enabled background subtraction and constituent subtraction together. This isn't compatible. Please disable one.")
+        raise ValueError("Enabled background subtraction and constituent subtraction together. This isn't compatible. Please disable one.")
 
     # Keep track of the event transitions.
     counts = ak.num(particles, axis=1)

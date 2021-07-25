@@ -20,8 +20,6 @@ logger = logging.getLogger(__name__)
 vector.register_awkward()
 
 
-
-
 def embed_into_thermal_model_data(
     pythia_filename: Path,
 ) -> Tuple[Dict[str, int], ak.Array]:
@@ -39,8 +37,8 @@ def embed_into_thermal_model_data(
         n_particles_per_event_mean=2500,
         n_particles_per_event_sigma=500,
         # TEMP: Make smaller to speed up
-        #n_particles_per_event_mean=100,
-        #n_particles_per_event_sigma=5,
+        # n_particles_per_event_mean=100,
+        # n_particles_per_event_sigma=5,
         # ENDTEMP
         pt_exponential_scale=0.4,
     )
@@ -76,17 +74,18 @@ def analysis(jet_R: float = 0.2, min_hybrid_jet_pt: float = 15.0, min_pythia_jet
     )
     logger.info("Transform")
     arrays = transform.embedding(
-        arrays=arrays, source_index_identifiers=source_index_identifiers,
+        arrays=arrays,
+        source_index_identifiers=source_index_identifiers,
         mass_hypothesis={
             "part_level": 0.139,
             "det_level": 0.139,
             "background": 0.0,
-        }
+        },
     )
     logger.info("Find jets")
 
     # TEMP: Reduce number of events to speed calculations
-    #arrays = arrays[:500]
+    # arrays = arrays[:500]
 
     # logger.info("Part level start")
     # t = time.time()
@@ -138,7 +137,7 @@ def analysis(jet_R: float = 0.2, min_hybrid_jet_pt: float = 15.0, min_pythia_jet
                 jet_R=jet_R,
                 area_settings=jet_finding.AREA_AA,
                 min_jet_pt=min_hybrid_jet_pt,
-                constituent_subtraction=jet_finding.ConstituentSubtractionSettings(r_max=0.25)
+                constituent_subtraction=jet_finding.ConstituentSubtractionSettings(r_max=0.25),
             ),
         },
         depth_limit=1,
@@ -165,12 +164,10 @@ def analysis(jet_R: float = 0.2, min_hybrid_jet_pt: float = 15.0, min_pythia_jet
     logger.info("Reclustering jets...")
     for level in ["part_level", "det_level", "hybrid"]:
         logger.info(f"Reclustering {level}")
-        jets[level, "reclustering"] = jet_finding.recluster_jets(
-            jets=jets[level]
-        )
+        jets[level, "reclustering"] = jet_finding.recluster_jets(jets=jets[level])
     logger.info("Done with reclustering")
 
-    #import IPython; IPython.embed()
+    # import IPython; IPython.embed()
 
 
 if __name__ == "__main__":

@@ -4,13 +4,11 @@
 """
 
 import logging
-import time
 from pathlib import Path
-from typing import Dict, Mapping, Optional, Tuple
+from typing import Any, Dict, Mapping, Tuple
 
 import awkward as ak
 import numpy as np
-import numpy.typing as npt
 import vector
 
 from mammoth.framework import jet_finding, sources, transform
@@ -29,23 +27,21 @@ def load_MC(filename: Path) -> ak.Array:
     logger.info("Transforming MC")
     return transform.mc(arrays=arrays)
 
+
 def analysis_MC(arrays: ak.Array, jet_R: float, min_jet_pt: Mapping[str, float]) -> ak.Array:
     # Event selection
-    arrays = arrays[
-        (arrays["is_ev_rej"] == 0)
-        & (np.abs(arrays["z_vtx_reco"]) < 10)
-    ]
+    arrays = arrays[(arrays["is_ev_rej"] == 0) & (np.abs(arrays["z_vtx_reco"]) < 10)]
 
     # Track cuts
     logger.info("Track level cuts")
     # Particle level track cuts:
     # - min: 150 MeV (from the EMCal container)
-    part_track_pt_mask = (arrays["part_level"].pt >= 0.150)
+    part_track_pt_mask = arrays["part_level"].pt >= 0.150
     arrays["part_level"] = arrays["part_level"][part_track_pt_mask]
     # Detector level track cuts:
     # - min: 150 MeV
     # NOTE: Since the HF Tree uses track containers, the min is usually applied by default
-    det_track_pt_mask = (arrays["det_level"].pt >= 0.150)
+    det_track_pt_mask = arrays["det_level"].pt >= 0.150
     arrays["det_level"] = arrays["det_level"][det_track_pt_mask]
 
     # Jet finding
@@ -84,14 +80,14 @@ def analysis_MC(arrays: ak.Array, jet_R: float, min_jet_pt: Mapping[str, float])
     # Apply area cut
     # Requires at least 60% of possible area.
     # **************
-    min_area = jet_finding.area_percentage(60, jet_R),
+    min_area = (jet_finding.area_percentage(60, jet_R),)
     part_level_mask = jets["part_level", "area"] > min_area
     det_level_mask = det_level_mask & (jets["det_level", "area"] > min_area)
     # *************
     # Require more than one constituent at detector level if we're not in PbPb
     # Matches a cut in AliAnalysisTaskJetDynamicalGrooming
     # *************
-    det_level_mask = det_level_mask & (ak.num(jets["det_level", "constituents"], axis = 2) > 1)
+    det_level_mask = det_level_mask & (ak.num(jets["det_level", "constituents"], axis=2) > 1)
 
     # Apply the cuts
     jets["part_level"] = jets["part_level"][part_level_mask]
@@ -134,9 +130,7 @@ def analysis_MC(arrays: ak.Array, jet_R: float, min_jet_pt: Mapping[str, float])
     logger.info("Reclustering jets...")
     for level in ["part_level", "det_level"]:
         logger.info(f"Reclustering {level}")
-        jets[level, "reclustering"] = jet_finding.recluster_jets(
-            jets=jets[level]
-        )
+        jets[level, "reclustering"] = jet_finding.recluster_jets(jets=jets[level])
     logger.info("Done with reclustering")
 
     logger.warning(f"n events: {len(jets)}")
@@ -147,10 +141,7 @@ def analysis_MC(arrays: ak.Array, jet_R: float, min_jet_pt: Mapping[str, float])
     #       separately for the different collections and then zip them together. This should keep
     #       matching together as appropriate.
     jets = ak.zip(
-        {
-            k: ak.flatten(v, axis=1)
-            for k, v in zip(ak.fields(jets), ak.unzip(jets))
-        },
+        {k: ak.flatten(v, axis=1) for k, v in zip(ak.fields(jets), ak.unzip(jets))},
         depth_limit=1,
     )
 
@@ -171,27 +162,24 @@ def load_data(
     return transform.data(arrays=arrays, rename_prefix=rename_prefix)
 
 
-def analysis_data(collision_system: str,
-                  arrays: ak.Array,
-                  jet_R: float, min_jet_pt: float, particle_column_name: str = "data") -> ak.Array:
+def analysis_data(
+    collision_system: str, arrays: ak.Array, jet_R: float, min_jet_pt: float, particle_column_name: str = "data"
+) -> ak.Array:
     logger.info("Start analyzing")
     # Event selection
-    arrays = arrays[
-        (arrays["is_ev_rej"] == 0)
-        & (np.abs(arrays["z_vtx_reco"]) < 10)
-    ]
+    arrays = arrays[(arrays["is_ev_rej"] == 0) & (np.abs(arrays["z_vtx_reco"]) < 10)]
 
     # Track cuts
     logger.info("Track level cuts")
     # Data track cuts:
     # - min: 150 MeV (from the EMCal container)
-    data_track_pt_mask = (arrays[particle_column_name].pt >= 0.150)
+    data_track_pt_mask = arrays[particle_column_name].pt >= 0.150
     arrays[particle_column_name] = arrays[particle_column_name][data_track_pt_mask]
 
     # Jet finding
     logger.info("Find jets")
     area_settings = jet_finding.AREA_PP
-    additional_kwargs = {}
+    additional_kwargs: Dict[str, Any] = {}
     if collision_system in ["PbPb", "embedPythia"]:
         area_settings = jet_finding.AREA_AA
         additional_kwargs["constituent_subtraction"] = jet_finding.ConstituentSubtractionSettings(
@@ -222,14 +210,14 @@ def analysis_data(collision_system: str,
     # Apply area cut
     # Requires at least 60% of possible area.
     # **************
-    min_area = jet_finding.area_percentage(60, jet_R),
+    min_area = (jet_finding.area_percentage(60, jet_R),)
     mask = mask & (jets[particle_column_name, "area"] > min_area)
     # *************
     # Require more than one constituent at detector level if we're not in PbPb
     # Matches a cut in AliAnalysisTaskJetDynamicalGrooming
     # *************
     if collision_system not in ["PbPb", "embedPythia"]:
-        mask = mask & (ak.num(jets[particle_column_name].constituents, axis = 2) > 1)
+        mask = mask & (ak.num(jets[particle_column_name].constituents, axis=2) > 1)
 
     # Apply the cuts
     jets[particle_column_name] = jets[particle_column_name][mask]
@@ -240,9 +228,7 @@ def analysis_data(collision_system: str,
         raise ValueError(f"No jets left for {particle_column_name}. Are your settings correct?")
 
     logger.info(f"Reclustering {particle_column_name} jets...")
-    jets[particle_column_name, "reclustering"] = jet_finding.recluster_jets(
-        jets=jets[particle_column_name]
-    )
+    jets[particle_column_name, "reclustering"] = jet_finding.recluster_jets(jets=jets[particle_column_name])
     logger.info("Done with reclustering")
 
     # Next step for using existing skimming:
@@ -251,10 +237,7 @@ def analysis_data(collision_system: str,
     #       separately for the different collections and then zip them together. This should keep
     #       matching together as appropriate.
     jets = ak.zip(
-        {
-            k: ak.flatten(v, axis=1)
-            for k, v in zip(ak.fields(jets), ak.unzip(jets))
-        },
+        {k: ak.flatten(v, axis=1) for k, v in zip(ak.fields(jets), ak.unzip(jets))},
         depth_limit=1,
     )
 
@@ -262,7 +245,7 @@ def analysis_data(collision_system: str,
     return jets
 
 
-def load_embedding(signal_filename: Path, background_filename) -> Tuple[Dict[str, int], ak.Array]:
+def load_embedding(signal_filename: Path, background_filename: Path) -> Tuple[Dict[str, int], ak.Array]:
     # Setup
     logger.info("Loading embedded data")
     source_index_identifiers = {"signal": 0, "background": 100_000}
@@ -284,32 +267,30 @@ def load_embedding(signal_filename: Path, background_filename) -> Tuple[Dict[str
     )
 
     logger.info("Transforming embedded")
-    return source_index_identifiers, transform.embedding(arrays=combined_source.data(), source_index_identifiers=source_index_identifiers)
+    return source_index_identifiers, transform.embedding(
+        arrays=combined_source.data(), source_index_identifiers=source_index_identifiers
+    )
 
 
-def analysis_embedding(arrays: ak.Array, jet_R: float,
-                       min_jet_pt: Mapping[str, float]) -> ak.Array:
+def analysis_embedding(arrays: ak.Array, jet_R: float, min_jet_pt: Mapping[str, float]) -> ak.Array:
     # Event selection
-    arrays = arrays[
-        (arrays["is_ev_rej"] == 0)
-        & (np.abs(arrays["z_vtx_reco"]) < 10)
-    ]
+    arrays = arrays[(arrays["is_ev_rej"] == 0) & (np.abs(arrays["z_vtx_reco"]) < 10)]
 
     # Track cuts
     logger.info("Track level cuts")
     # Particle level track cuts:
     # - min: 150 MeV (from the EMCal container)
-    part_track_pt_mask = (arrays["part_level"].pt >= 0.150)
+    part_track_pt_mask = arrays["part_level"].pt >= 0.150
     arrays["part_level"] = arrays["part_level"][part_track_pt_mask]
     # Detector level track cuts:
     # - min: 150 MeV
     # NOTE: Since the HF Tree uses track containers, the min is usually applied by default
-    det_track_pt_mask = (arrays["det_level"].pt >= 0.150)
+    det_track_pt_mask = arrays["det_level"].pt >= 0.150
     arrays["det_level"] = arrays["det_level"][det_track_pt_mask]
     # Hybrid level track cuts:
     # - min: 150 MeV
     # NOTE: Since the HF Tree uses track containers, the min is usually applied by default
-    hybrid_track_pt_mask = (arrays["hybrid"].pt >= 0.150)
+    hybrid_track_pt_mask = arrays["hybrid"].pt >= 0.150
     arrays["hybrid"] = arrays["hybrid"][hybrid_track_pt_mask]
 
     # Jet finding
@@ -330,7 +311,7 @@ def analysis_embedding(arrays: ak.Array, jet_R: float,
                 algorithm="anti-kt",
                 jet_R=jet_R,
                 area_settings=jet_finding.AREA_PP,
-                min_jet_pt=min_jet_pt.get("det_level", 5.),
+                min_jet_pt=min_jet_pt.get("det_level", 5.0),
             ),
             "hybrid": jet_finding.find_jets(
                 particles=arrays["hybrid"],
@@ -340,7 +321,7 @@ def analysis_embedding(arrays: ak.Array, jet_R: float,
                 min_jet_pt=min_jet_pt["hybrid"],
                 constituent_subtraction=jet_finding.ConstituentSubtractionSettings(
                     r_max=0.25,
-                )
+                ),
             ),
         },
         depth_limit=1,
@@ -359,7 +340,7 @@ def analysis_embedding(arrays: ak.Array, jet_R: float,
     # Apply area cut
     # Requires at least 60% of possible area.
     # **************
-    min_area = jet_finding.area_percentage(60, jet_R),
+    min_area = (jet_finding.area_percentage(60, jet_R),)
     part_level_mask = jets["part_level", "area"] > min_area
     det_level_mask = det_level_mask & (jets["det_level", "area"] > min_area)
     hybrid_mask = hybrid_mask & (jets["hybrid", "area"] > min_area)
@@ -386,7 +367,11 @@ def analysis_embedding(arrays: ak.Array, jet_R: float,
     # is a valid match.
     # NOTE: These can't be combined into one mask because they operate at different levels: events and jets
     logger.info("Using matching info")
-    jets_present_mask = (ak.num(jets["part_level"], axis=1) > 0) & (ak.num(jets["det_level"], axis=1) > 0) & (ak.num(jets["hybrid"], axis=1) > 0)
+    jets_present_mask = (
+        (ak.num(jets["part_level"], axis=1) > 0)
+        & (ak.num(jets["det_level"], axis=1) > 0)
+        & (ak.num(jets["hybrid"], axis=1) > 0)
+    )
     jets = jets[jets_present_mask]
 
     # Now, onto the individual jet collections
@@ -414,9 +399,7 @@ def analysis_embedding(arrays: ak.Array, jet_R: float,
     logger.info("Reclustering jets...")
     for level in ["hybrid", "det_level", "part_level"]:
         logger.info(f"Reclustering {level}")
-        jets[level, "reclustering"] = jet_finding.recluster_jets(
-            jets=jets[level]
-        )
+        jets[level, "reclustering"] = jet_finding.recluster_jets(jets=jets[level])
     logger.info("Done with reclustering")
 
     logger.warning(f"n events: {len(jets)}")
@@ -427,10 +410,7 @@ def analysis_embedding(arrays: ak.Array, jet_R: float,
     #       separately for the different collections and then zip them together. This should keep
     #       matching together as appropriate.
     jets = ak.zip(
-        {
-            k: ak.flatten(v, axis=1)
-            for k, v in zip(ak.fields(jets), ak.unzip(jets))
-        },
+        {k: ak.flatten(v, axis=1) for k, v in zip(ak.fields(jets), ak.unzip(jets))},
         depth_limit=1,
     )
 
@@ -462,16 +442,18 @@ if __name__ == "__main__":
     # )
     # Some tests:
     # pp: needs min_jet_pt = 5 to have any jets
-    #collision_system = "pp"
+    # collision_system = "pp"
     # pythia: Can test both "part_level" and "det_level" in the rename map.
-    #collision_system = "pythia"
+    # collision_system = "pythia"
     # PbPb:
     collision_system = "PbPb"
     jets = analysis_data(
         collision_system=collision_system,
         arrays=load_data(
-            filename=Path(f"/software/rehlers/dev/mammoth/projects/framework/{collision_system}/AnalysisResults.parquet"),
-            #rename_prefix={"data": "det_level"},
+            filename=Path(
+                f"/software/rehlers/dev/mammoth/projects/framework/{collision_system}/AnalysisResults.parquet"
+            ),
+            # rename_prefix={"data": "det_level"},
             rename_prefix={"data": "data"},
         ),
         jet_R=0.4,
