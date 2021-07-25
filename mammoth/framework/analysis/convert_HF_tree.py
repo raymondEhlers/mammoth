@@ -259,7 +259,7 @@ def hf_tree_to_awkward_data(
     # would be required, but apparently not.
     return ak.Array(
         {
-            "det_level": ak.zip(
+            "data": ak.zip(
                 dict(
                     zip(
                         list(_standardized_particle_names.values()),
@@ -318,7 +318,9 @@ def write_to_parquet(arrays: ak.Array, filename: Path, collision_system: str) ->
 
 if __name__ == "__main__":
     # arrays = hf_tree_to_awkward(filename=Path("/software/rehlers/dev/substructure/trains/pythia/568/AnalysisResults.20g4.001.root"))
+    #for collision_system in ["pythia"]:
     for collision_system in ["pp", "pythia", "PbPb"]:
+        print(f"Converting collision system {collision_system}")
         if collision_system == "pythia":
             arrays = hf_tree_to_awkward_MC(
                 filename=Path(f"/software/rehlers/dev/mammoth/projects/framework/{collision_system}/AnalysisResults.root"),

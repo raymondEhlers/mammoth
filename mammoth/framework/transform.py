@@ -24,9 +24,7 @@ _default_particle_columns = {
 
 def data(
     arrays: ak.Array,
-    rename_prefix: Mapping[str, str] = {
-        "data": "data"
-    },
+    rename_prefix: Mapping[str, str] = None,
     mass_hypothesis: Union[float, Mapping[str, float]] = 0.139,
     particle_columns: Optional[Mapping[str, npt.DTypeLike]] = None,
 ) -> ak.Array:
@@ -47,6 +45,10 @@ def data(
     if not particle_columns:
         particle_columns = _default_particle_columns
     # Validation
+    if rename_prefix is None:
+        rename_prefix = {
+            "data": "data"
+        }
     _prefixes = list(rename_prefix.keys())
     if isinstance(mass_hypothesis, float):
         mass_hypotheses = {
@@ -83,10 +85,7 @@ def data(
 
 def mc(
     arrays: ak.Array,
-    rename_prefix: Mapping[str, str] = {
-        "part_level": "part_level",
-        "det_level": "det_level",
-    },
+    rename_prefix: Mapping[str, str] = None,
     mass_hypothesis: Union[float, Mapping[str, float]] = 0.139,
     particle_columns: Optional[Mapping[str, npt.DTypeLike]] = None,
 ) -> ak.Array:
@@ -107,6 +106,11 @@ def mc(
     if not particle_columns:
         particle_columns = _default_particle_columns
     # Validation
+    if rename_prefix is None:
+        rename_prefix = {
+            "part_level": "part_level",
+            "det_level": "det_level",
+        }
     _prefixes = list(rename_prefix.keys())
     if isinstance(mass_hypothesis, float):
         mass_hypotheses = {
