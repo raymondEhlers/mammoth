@@ -182,7 +182,7 @@ def embedding(
     if "m" not in ak.fields(part_level):
         part_level["m"] = part_level["pt"] * 0 + mass_hypotheses["part_level"]
     part_level = vector.Array(part_level)
-    background = arrays["background"]
+    background = arrays["background"]["data"]
     background["index"] = ak.local_index(background) + source_index_identifiers["background"]
     if "m" not in ak.fields(background):
         background["m"] = background["pt"] * 0 + mass_hypotheses["background"]

@@ -259,7 +259,9 @@ class ThermalModelExponential:
         pz = pt * np.sinh(eta)
 
         # Finally, add the particle structure at the end.
-        return ak.unflatten(
+        # NOTE: We return it wrapped in the "data" key because the framework
+        #       expects that every source has some kind of particle column name.
+        return ak.Array({"data": ak.unflatten(
             ak.Array(
                 {
                     "px": pt * np.cos(phi),
@@ -269,7 +271,7 @@ class ThermalModelExponential:
                 }
             ),
             counts=n_particles_per_event,
-        )
+        )})
 
 
 def _sources_to_list(sources: Union[Source, Sequence[Source]]) -> Sequence[Source]:
