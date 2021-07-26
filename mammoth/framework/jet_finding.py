@@ -125,7 +125,7 @@ def _jet_matching(
     matching_output_base = -1 * np.ones(n_jets_base, dtype=np.int64)
     matching_output_tag = -1 * np.ones(n_jets_tag, dtype=np.int64)
     # i is the global index for base jets. We only need to keep track of this to index
-    # the numpy matching arays for above. The tag jet indices will come from the base
+    # the numpy matching arrays from above. The tag jet indices will come from the base
     # jets (we just have to keep track of the base and tag offsets).
     i = 0
     # We don't care about the last offset (it's just the total number of jets), so we skip it
