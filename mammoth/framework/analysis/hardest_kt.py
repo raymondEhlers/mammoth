@@ -272,9 +272,10 @@ def load_embedding(signal_filename: Path, background_filename: Path) -> Tuple[Di
     )
 
 
-def analysis_embedding(arrays: ak.Array, jet_R: float, min_jet_pt: Mapping[str, float]) -> ak.Array:
+def analysis_embedding(source_index_identifiers: Mapping[str, int], arrays: ak.Array, jet_R: float, min_jet_pt: Mapping[str, float]) -> ak.Array:
     # Event selection
     arrays = arrays[(arrays["is_ev_rej"] == 0) & (np.abs(arrays["z_vtx_reco"]) < 10)]
+    # TODO: Ensure event selection applies to be the signal and the background.
 
     # Track cuts
     logger.info("Track level cuts")
@@ -389,12 +390,26 @@ def analysis_embedding(arrays: ak.Array, jet_R: float, min_jet_pt: Mapping[str, 
     # The other benefit to this approach is that it should reorder the particle level matches
     # to be the same shape as the detector level jets, so in principle they are paired together.
     # TODO: Check this is truly the case.
-    # TODO: I'm not sure this will work properly for the hybrid case. It definitely needs to be confirmed.
-    hybrid_matched_jets_mask = jets["hybrid"]["matching"] > -1
-    hybrid_and_det_level_matched_jets_mask = hybrid_matched_jets_mask & (jets["det_level"]["matching"] > -1)
-    jets["hybrid"] = jets["hybrid"][hybrid_matched_jets_mask]
-    jets["det_level"] = jets["det_level"][hybrid_and_det_level_matched_jets_mask]
-    jets["part_level"] = jets["part_level"][hybrid_and_det_level_matched_jets_mask]
+    hybrid_to_det_level_valid_matches = jets["hybrid", "matching"] > -1
+    det_to_part_level_valid_matches = jets["det_level", "matching"] > -1
+    hybrid_to_det_level_including_det_to_part_level_valid_matches = det_to_part_level_valid_matches[jets["hybrid", "matching"][hybrid_to_det_level_valid_matches]]
+    # First, restrict the hybrid level, requiring hybrid to det_level valid matches and
+    # det_level to part_level valid matches.
+    jets["hybrid"] = jets["hybrid"][hybrid_to_det_level_valid_matches][hybrid_to_det_level_including_det_to_part_level_valid_matches]
+    # Next, restrict the det_level. Since we've restricted the hybrid to only valid matches, we should be able
+    # to directly apply the masking indices.
+    jets["det_level"] = jets["det_level"][jets["hybrid", "matching"]]
+    # Same reasoning here.
+    jets["part_level"] = jets["part_level"][jets["det_level", "matching"]]
+
+    # After all of these gymnastics, we may not have jets at all levels, so require there to a jet of each type.
+    # In principle, we've done this twice now, but logically this seems to be clearest.
+    jets_present_mask = (
+        (ak.num(jets["part_level"], axis=1) > 0)
+        & (ak.num(jets["det_level"], axis=1) > 0)
+        & (ak.num(jets["hybrid"], axis=1) > 0)
+    )
+    jets = jets[jets_present_mask]
 
     logger.info("Reclustering jets...")
     for level in ["hybrid", "det_level", "part_level"]:
@@ -433,6 +448,32 @@ def setup_logging(level: int = logging.DEBUG) -> None:
 
 if __name__ == "__main__":
     setup_logging(level=logging.INFO)
+
+    # Some tests:
+    #######
+    # Data:
+    ######
+    # pp: needs min_jet_pt = 5 to have any jets
+    # collision_system = "pp"
+    # pythia: Can test both "part_level" and "det_level" in the rename map.
+    # collision_system = "pythia"
+    # PbPb:
+    # collision_system = "PbPb"
+    # jets = analysis_data(
+    #     collision_system=collision_system,
+    #     arrays=load_data(
+    #         filename=Path(
+    #             f"/software/rehlers/dev/mammoth/projects/framework/{collision_system}/AnalysisResults.parquet"
+    #         ),
+    #         # rename_prefix={"data": "det_level"},
+    #         rename_prefix={"data": "data"},
+    #     ),
+    #     jet_R=0.4,
+    #     min_jet_pt=20,
+    # )
+    ######
+    # MC
+    ######
     # jets = analysis_MC(
     #     arrays=load_MC(filename=Path("/software/rehlers/dev/mammoth/projects/framework/pythia/AnalysisResults.parquet")),
     #     jet_R=0.4,
@@ -440,24 +481,20 @@ if __name__ == "__main__":
     #         "det_level": 20,
     #     },
     # )
-    # Some tests:
-    # pp: needs min_jet_pt = 5 to have any jets
-    # collision_system = "pp"
-    # pythia: Can test both "part_level" and "det_level" in the rename map.
-    # collision_system = "pythia"
-    # PbPb:
-    collision_system = "PbPb"
-    jets = analysis_data(
-        collision_system=collision_system,
-        arrays=load_data(
-            filename=Path(
-                f"/software/rehlers/dev/mammoth/projects/framework/{collision_system}/AnalysisResults.parquet"
-            ),
-            # rename_prefix={"data": "det_level"},
-            rename_prefix={"data": "data"},
+    ###########
+    # Embedding
+    ###########
+    jets = analysis_embedding(
+        *load_embedding(
+            signal_filename=Path("/software/rehlers/dev/mammoth/projects/framework/pythia/AnalysisResults.parquet"),
+            background_filename=Path("/software/rehlers/dev/mammoth/projects/framework/PbPb/AnalysisResults.parquet"),
         ),
         jet_R=0.4,
-        min_jet_pt=20,
+        min_jet_pt={
+            "hybrid": 20,
+            "det_level": 1,
+            "part_level": 1,
+        },
     )
 
     import IPython
