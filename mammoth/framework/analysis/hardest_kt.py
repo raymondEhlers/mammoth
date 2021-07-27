@@ -167,7 +167,9 @@ def analysis_data(
 ) -> ak.Array:
     logger.info("Start analyzing")
     # Event selection
+    logger.warning(f"pre event sel n events: {len(arrays)}")
     arrays = arrays[(arrays["is_ev_rej"] == 0) & (np.abs(arrays["z_vtx_reco"]) < 10)]
+    logger.warning(f"post event sel n events: {len(arrays)}")
 
     # Track cuts
     logger.info("Track level cuts")
@@ -230,6 +232,7 @@ def analysis_data(
     logger.info(f"Reclustering {particle_column_name} jets...")
     jets[particle_column_name, "reclustering"] = jet_finding.recluster_jets(jets=jets[particle_column_name])
     logger.info("Done with reclustering")
+    logger.warning(f"n events: {len(jets)}")
 
     # Next step for using existing skimming:
     # Flatten from events -> jets
@@ -267,8 +270,13 @@ def load_embedding(signal_filename: Path, background_filename: Path) -> Tuple[Di
     )
 
     logger.info("Transforming embedded")
+    arrays = combined_source.data()
+    # Apply background event selection
+    # We have to apply this here because we don't keep track of the background associated quantities.
+    background_event_selection = (arrays["background", "is_ev_rej"] == 0) & (np.abs(arrays["background", "z_vtx_reco"]) < 10)
+    arrays = arrays[background_event_selection]
     return source_index_identifiers, transform.embedding(
-        arrays=combined_source.data(), source_index_identifiers=source_index_identifiers
+        arrays=arrays, source_index_identifiers=source_index_identifiers
     )
 
 
