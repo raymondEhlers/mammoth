@@ -435,7 +435,7 @@ OutputWrapper<T> findJets(
   auto particlePseudoJets = vectorsToPseudoJets(columnFourVectors);
 
   // Notify about the settings for the jet finding.
-  // NOTE: This can be removed eventually. For now (July 2021), it wll be routed to debug level
+  // NOTE: This can be removed eventually. For now (July 2021), it will be routed to debug level
   //       so we can be 100% sure about what is being calculated.
   std::cout << std::boolalpha
     << "Cuts:\n"
@@ -485,7 +485,7 @@ OutputWrapper<T> findJets(
     fastjet::AreaDefinition backgroundAreaDefinition(backgroundAreaType, ghostAreaSpec);
     // NOTE: This applies eta cuts, hi cuts, and removes the two hardest jets (as is standard for rho).
     // NOTE: We want to apply the two hardest removal _after_ the acceptance cuts, so we use "*"
-    fastjet::Selector selRho = (fastjet::SelectorRapRange(backgroundJetEtaMin, backgroundJetEtaMax) && fastjet::SelectorPhiRange(backgroundJetPhiMin, backgroundJetPhiMax)) * !fastjet::SelectorNHardest(2);
+    fastjet::Selector selRho = (fastjet::SelectorEtaRange(backgroundJetEtaMin, backgroundJetEtaMax) && fastjet::SelectorPhiRange(backgroundJetPhiMin, backgroundJetPhiMax)) * !fastjet::SelectorNHardest(2);
     // NOTE: We don't remove jets with tracks > 100 GeV here because it would require copying all of
     //       the input particles (which could have a measurable performance impact) for what I expect
     //       is quite a small impact. I think it will be small because we're concerned with the median
@@ -516,7 +516,7 @@ OutputWrapper<T> findJets(
       // NOTE: This needs to be set after setting the background estimator.
       constituentSubtractor->set_common_bge_for_rho_and_rhom();
       // Apparently this is new and now required for event-wise CS.
-      // From some tests, consittuent subtraction gives some crazy results if it's not called!
+      // From some tests, constituent subtraction gives some crazy results if it's not called!
       // NOTE: ALICE gets away with skipping this because we have the old call for event-wise
       //       subtraction where we pass the max rapidity. But better if we use the newer version.
       constituentSubtractor->initialize();
