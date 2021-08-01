@@ -408,6 +408,7 @@ fastjet::AreaType getAreaType(const AreaSettings & areaSettings)
   // Area type
   std::map<std::string, fastjet::AreaType> areaTypes = {
     {"active_area", fastjet::AreaType::active_area},
+    {"active_area_explicit_ghosts", fastjet::AreaType::active_area_explicit_ghosts},
     {"passive_area", fastjet::AreaType::passive_area},
   };
   return areaTypes.at(areaSettings.areaType);
@@ -451,11 +452,12 @@ OutputWrapper<T> findJets(
   // Ghost settings
   // ghost eta edges are expected to be symmetric, so we don't actually need the min
   //double ghostEtaMin = etaMin;
-  double ghostEtaMax = etaMax;
+  // TODO: This seems wayyyyyyy to sensitive to this value.
+  double ghostEtaMax = 1.5;
   int ghostRepeatN = 1;
-  double ghostktMean = 1e-100;
   double gridScatter = 1.0;
   double ktScatter = 0.1;
+  double ghostktMean = 1e-100;
   fastjet::GhostedAreaSpec ghostAreaSpec(ghostEtaMax, ghostRepeatN, areaSettings.ghostArea, gridScatter, ktScatter, ghostktMean);
 
   // Background settings
@@ -468,8 +470,8 @@ OutputWrapper<T> findJets(
     // Use fiducial cut for jet background.
     double backgroundJetEtaMin = etaMin + backgroundJetR;
     double backgroundJetEtaMax = etaMax - backgroundJetR;
-    double backgroundJetPhiMin = 0;
-    double backgroundJetPhiMax = 2 * M_PI;
+    //double backgroundJetPhiMin = 0;
+    //double backgroundJetPhiMax = 2 * M_PI;
     // Fastjet background settings
     fastjet::JetAlgorithm backgroundJetAlgorithm(fastjet::JetAlgorithm::kt_algorithm);
     fastjet::RecombinationScheme backgroundRecombinationScheme(fastjet::RecombinationScheme::E_scheme);
@@ -492,7 +494,7 @@ OutputWrapper<T> findJets(
     //   Removing them includes more jets (because the median background is smaller)
     // - Since we're using explicit ghosts, we could consider removing ghost only jets with !SelectorIsPureGhost().
     //   Currently, this seems pretty aggressive, but perhaps it makes sense given that the ALICE example doesn't include them.
-    fastjet::Selector selRho = !fastjet::SelectorIsPureGhost() * !fastjet::SelectorNHardest(2) * fastjet::SelectorEtaRange(backgroundJetEtaMin, backgroundJetEtaMax) * fastjet::SelectorPhiRange(backgroundJetPhiMin, backgroundJetPhiMax);
+    fastjet::Selector selRho = !fastjet::SelectorIsPureGhost() * !fastjet::SelectorNHardest(2) * fastjet::SelectorEtaRange(backgroundJetEtaMin, backgroundJetEtaMax); //* fastjet::SelectorPhiRange(backgroundJetPhiMin, backgroundJetPhiMax);
     //fastjet::Selector selRho = !fastjet::SelectorNHardest(2) * fastjet::SelectorEtaRange(backgroundJetEtaMin, backgroundJetEtaMax) * fastjet::SelectorPhiRange(backgroundJetPhiMin, backgroundJetPhiMax);
 
     //fastjet::Selector selRho = (fastjet::SelectorEtaRange(backgroundJetEtaMin, backgroundJetEtaMax) && fastjet::SelectorPhiRange(backgroundJetPhiMin, backgroundJetPhiMax)) * !fastjet::SelectorNHardest(2);
@@ -529,7 +531,10 @@ OutputWrapper<T> findJets(
       // ALICE doesn't appear to set this value, so we skip it here and use the default of 0.01
       //constituentSubtractor->set_ghost_area(areaSettings.ghostArea);
       // Since this is event wise, this should be the track eta, not the fiducial eta
-      constituentSubtractor->set_max_eta(etaMax);
+      // TEMP
+      //constituentSubtractor->set_max_eta(etaMax);
+      constituentSubtractor->set_max_eta(1.0);
+      // ENDTEMP
       constituentSubtractor->set_background_estimator(backgroundEstimator.get());
       // Use the same estimator for rho_m (by default, I think it won't be used, but better to
       // provide it in case we change our mind later).
@@ -564,8 +569,8 @@ OutputWrapper<T> findJets(
   // Would often set as abs(eta - R), but should be configurable.
   double jetEtaMin = etaMin + jetR;
   double jetEtaMax = etaMax - jetR;
-  double jetPhiMin = 0;
-  double jetPhiMax = 2 * M_PI;
+  //double jetPhiMin = 0;
+  //double jetPhiMax = 2 * M_PI;
   // Fastjet settings
   // NOTE: Jet algorithm defined at the beginning
   // NOTE: Jet area type defined at the beginning
@@ -574,7 +579,7 @@ OutputWrapper<T> findJets(
   // Derived fastjet settings
   fastjet::JetDefinition jetDefinition(jetAlgorithm, jetR, recombinationScheme, strategy);
   fastjet::AreaDefinition areaDefinition(areaType, ghostAreaSpec);
-  fastjet::Selector selectJets = fastjet::SelectorPtRange(minJetPt, jetPtMax) && fastjet::SelectorEtaRange(jetEtaMin, jetEtaMax) && fastjet::SelectorPhiRange(jetPhiMin, jetPhiMax);
+  fastjet::Selector selectJets = !fastjet::SelectorIsPureGhost() * (fastjet::SelectorPtRange(minJetPt, jetPtMax) && fastjet::SelectorEtaRange(jetEtaMin, jetEtaMax)); //&& fastjet::SelectorPhiRange(jetPhiMin, jetPhiMax);
 
   // For constituent subtraction, we perform event-wise subtraction on the input particles
   std::vector<unsigned int> subtractedToUnsubtractedIndices;
