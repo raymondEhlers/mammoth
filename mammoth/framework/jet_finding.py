@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 vector.register_awkward()
 
 AREA_PP = AreaSettings("active_area", 0.01)
-AREA_AA = AreaSettings("active_area", 0.005)
+AREA_AA = AreaSettings("active_area_explicit_ghosts", 0.005)
 AREA_SUBSTRUCTURE = AreaSettings("passive_area", 0.05)
 
 

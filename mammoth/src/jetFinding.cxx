@@ -22,7 +22,10 @@ std::vector<std::vector<unsigned int>> constituentIndicesFromJets(
   for (auto jet : jets) {
     std::vector<unsigned int> constituentIndicesInJet;
     for (auto constituent : jet.constituents()) {
-      constituentIndicesInJet.push_back(constituent.user_index());
+      // We want to avoid ghosts, which have index -1
+      if (constituent.user_index() != -1) {
+        constituentIndicesInJet.push_back(constituent.user_index());
+      }
     }
     indices.emplace_back(constituentIndicesInJet);
   }
