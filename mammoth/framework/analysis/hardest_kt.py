@@ -168,13 +168,18 @@ def analysis_data(
     logger.info("Start analyzing")
     # Event selection
     logger.warning(f"pre event sel n events: {len(arrays)}")
-    arrays = arrays[(arrays["is_ev_rej"] == 0) & (np.abs(arrays["z_vtx_reco"]) < 10)]
+    event_level_mask = np.ones(len(arrays)) > 0
+    if "is_ev_rej" in ak.fields(arrays):
+        event_level_mask = event_level_mask & (arrays["is_ev_rej"] == 0)
+    if "z_vtx_reco" in ak.fields(arrays):
+        event_level_mask = event_level_mask & (np.abs(arrays["z_vtx_reco"]) < 10)
+    arrays = arrays[event_level_mask]
     logger.warning(f"post event sel n events: {len(arrays)}")
 
     # Track cuts
     logger.info("Track level cuts")
     # Data track cuts:
-    # - min: 150 MeV (from the EMCal container)
+    # - min: 150 MeV (default from the EMCal container)
     data_track_pt_mask = arrays[particle_column_name].pt >= 0.150
     arrays[particle_column_name] = arrays[particle_column_name][data_track_pt_mask]
 
@@ -208,12 +213,15 @@ def analysis_data(
     # NOTE: We need to do it after jet finding to avoid a z bias.
     # **************
     mask = ~ak.any(jets[particle_column_name].constituents.pt > 100, axis=-1)
+    logger.warning(f"max track constituent max accepted: {np.count_nonzero(np.asarray(ak.flatten(mask == True, axis=None)))}")
     # **************
     # Apply area cut
     # Requires at least 60% of possible area.
     # **************
     min_area = (jet_finding.area_percentage(60, jet_R),)
+    #logger.warning(f"min area: {np.count_nonzero(np.asarray(ak.flatten((jets[particle_column_name, 'area'] > min_area) == True, axis=None)))}")
     mask = mask & (jets[particle_column_name, "area"] > min_area)
+    logger.warning(f"add area cut accepted: {np.count_nonzero(np.asarray(ak.flatten(mask == True, axis=None)))}")
     # *************
     # Require more than one constituent at detector level if we're not in PbPb
     # Matches a cut in AliAnalysisTaskJetDynamicalGrooming
@@ -243,6 +251,8 @@ def analysis_data(
         {k: ak.flatten(v, axis=1) for k, v in zip(ak.fields(jets), ak.unzip(jets))},
         depth_limit=1,
     )
+
+    logger.warning(f"n jets: {len(jets)}")
 
     # Now, the final transformation into a form that can be used to skim into a flat tree.
     return jets
