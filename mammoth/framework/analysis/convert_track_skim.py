@@ -51,8 +51,8 @@ def track_skim_to_awkward(
     ).data()
 
     # NOTE: If there are no accepted tracks, we don't both storing the event.
-    #       However, we attempt to preclude this at the AnalysisTask level by not filling events where therew
-    #       are no accepted tracks in the first collection.
+    #       However, we attempt to preclude this at the AnalysisTask level by not filling events
+    #       where there are no accepted tracks in the first collection.
 
     # NOTE: The return values are formatted in this manner to avoid unnecessary copies of the data.
     particle_data_columns = [c for c in particle_columns if "particle_data" in c]
@@ -171,6 +171,10 @@ def write_to_parquet(arrays: ak.Array, filename: Path, collision_system: str) ->
             "part_level.list.item.phi",
         ]
 
+    # NOTE: If there are issues about reading the files due to arrays being too short, check that
+    #       there are no empty events. Empty events apparently cause issues for byte stream split
+    #       encoding: https://issues.apache.org/jira/browse/ARROW-13024
+    #       Unfortunately, this won't become clear until reading is attempted.
     ak.to_parquet(
         array=arrays,
         where=filename,
