@@ -50,6 +50,10 @@ def track_skim_to_awkward(
         columns=event_level_columns + particle_columns,
     ).data()
 
+    # NOTE: If there are no accepted tracks, we don't both storing the event.
+    #       However, we attempt to preclude this at the AnalysisTask level by not filling events where therew
+    #       are no accepted tracks in the first collection.
+
     # NOTE: The return values are formatted in this manner to avoid unnecessary copies of the data.
     particle_data_columns = [c for c in particle_columns if "particle_data" in c]
     if collision_system == "pythia":
