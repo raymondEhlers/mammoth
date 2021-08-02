@@ -30,7 +30,12 @@ def load_MC(filename: Path) -> ak.Array:
 
 def analysis_MC(arrays: ak.Array, jet_R: float, min_jet_pt: Mapping[str, float]) -> ak.Array:
     # Event selection
-    arrays = arrays[(arrays["is_ev_rej"] == 0) & (np.abs(arrays["z_vtx_reco"]) < 10)]
+    event_level_mask = np.ones(len(arrays)) > 0
+    if "is_ev_rej" in ak.fields(arrays):
+        event_level_mask = event_level_mask & (arrays["is_ev_rej"] == 0)
+    if "z_vtx_reco" in ak.fields(arrays):
+        event_level_mask = event_level_mask & (np.abs(arrays["z_vtx_reco"]) < 10)
+    arrays = arrays[event_level_mask]
 
     # Track cuts
     logger.info("Track level cuts")
