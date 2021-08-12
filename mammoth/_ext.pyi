@@ -1,29 +1,70 @@
-from typing import Any, List, Optional, Tuple, TypeVar, Union
+from typing import List, Optional, Tuple, TypeVar, Union, overload
 
-import awkward as ak
 import numpy as np
-
-_T = TypeVar("_T")
-
-ArrayLike = Union[np.ndarray, List[_T]]
+import numpy.typing as npt
 
 class AreaSettings:
     area_type: str
     ghost_area: float
-    def __init__(self, area_type: str = ..., ghost_area: float = ...) -> None: ... # noqa: E704
+    def __init__(self, area_type: str = ..., ghost_area: float = ...) -> None: ...
+
+class ColumnarSplittings:
+    def __init__(self, *args, **kwargs) -> None: ...  # type: ignore
+    @property
+    def delta_R(self) -> npt.NDArray[np.float32]: ...
+    @property
+    def kt(self) -> npt.NDArray[np.float32]: ...
+    @property
+    def parent_index(self) -> npt.NDArray[np.float32]: ...
+    @property
+    def z(self) -> npt.NDArray[np.float32]: ...
+
+class ColumnarSubjest:
+    def __init__(self, *args, **kwargs) -> None: ...  # type: ignore
+    @property
+    def constituent_indices(self) -> List[List[int]]: ...
+    @property
+    def part_of_iterative_splitting(self) -> npt.NDArray[np.bool_]: ...
+    @property
+    def splitting_node_index(self) -> npt.NDArray[np.int64]: ...
 
 class ConstituentSubtractionSettings:
     alpha: float
     r_max: float
-    def __init__(self, r_max: float = ..., alpha: float = ...) -> None: ...  # noqa: E704
+    def __init__(self, r_max: float = ..., alpha: float = ...) -> None: ...
 
-class OutputWrapper:
-    def __init__(self, *args: Any, **kwargs: Any) -> None: ...  # noqa: E704
-    @property
-    def constituent_indices(self) -> ArrayLike[ArrayLike[int]]: ...  # noqa: E704
-    @property
-    def jets(self) -> Tuple[ArrayLike[float], ArrayLike[float], ArrayLike[float], ArrayLike[float]]: ...  # noqa: E704
-    @property
-    def subtracted_info(self) -> Optional[Tuple[Tuple[ArrayLike[float], ArrayLike[float], ArrayLike[float], ArrayLike[float]], ArrayLike[int]]]: ...  # noqa: E704
+class JetSubstructureSplittings:
+    def __init__(self, *args, **kwargs) -> None: ...  # type: ignore
+    def splittings(self) -> ColumnarSplittings: ...
+    def subjets(self) -> ColumnarSubjest: ...
 
-def find_jets(px: ArrayLike[float], py: ArrayLike[float], pz: ArrayLike[float], E: ArrayLike[float], jet_R: float, jet_algorithm: str = ..., area_settings: AreaSettings = ..., eta_range: Tuple[float, float] = ..., min_jet_pt: float = ..., background_subtraction: bool = ..., constituent_subtraction: Optional[ConstituentSubtractionSettings] = ...) -> ak.Array: ...  # noqa: E704
+class OutputWrapperDouble:
+    def __init__(self, *args, **kwargs) -> None: ...  # type: ignore
+    @property
+    def constituent_indices(self) -> List[List[int]]: ...
+    @property
+    def jets(self) -> Tuple[npt.NDArray[np.float64],npt.NDArray[np.float64],npt.NDArray[np.float64],npt.NDArray[np.float64]]: ...
+    @property
+    def jets_area(self) -> npt.NDArray[np.float64]: ...
+    @property
+    def subtracted_info(self) -> Optional[Tuple[Tuple[npt.NDArray[np.float64],npt.NDArray[np.float64],npt.NDArray[np.float64],npt.NDArray[np.float64]],npt.NDArray[np.int64]]]: ...
+
+class OutputWrapperFloat:
+    def __init__(self, *args, **kwargs) -> None: ...  # type: ignore
+    @property
+    def constituent_indices(self) -> List[List[int]]: ...
+    @property
+    def jets(self) -> Tuple[npt.NDArray[np.float32],npt.NDArray[np.float32],npt.NDArray[np.float32],npt.NDArray[np.float32]]: ...
+    @property
+    def jets_area(self) -> npt.NDArray[np.float32]: ...
+    @property
+    def subtracted_info(self) -> Optional[Tuple[Tuple[npt.NDArray[np.float32],npt.NDArray[np.float32],npt.NDArray[np.float32],npt.NDArray[np.float32]],npt.NDArray[np.int64]]]: ...
+
+@overload
+def find_jets(px: npt.NDArray[np.float32], py: npt.NDArray[np.float32], pz: npt.NDArray[np.float32], E: npt.NDArray[np.float32], jet_R: float, jet_algorithm: str, area_settings: AreaSettings, eta_range: Tuple[float,float] = ..., min_jet_pt: float = ..., background_subtraction: bool = ..., constituent_subtraction: Optional[ConstituentSubtractionSettings] = ...) -> OutputWrapperFloat: ...  # type: ignore
+@overload
+def find_jets(px: npt.NDArray[np.float64], py: npt.NDArray[np.float64], pz: npt.NDArray[np.float64], E: npt.NDArray[np.float64], jet_R: float, jet_algorithm: str, area_settings: AreaSettings, eta_range: Tuple[float,float] = ..., min_jet_pt: float = ..., background_subtraction: bool = ..., constituent_subtraction: Optional[ConstituentSubtractionSettings] = ...) -> OutputWrapperDouble: ...
+@overload
+def recluster_jet(px: npt.NDArray[np.float32], py: npt.NDArray[np.float32], pz: npt.NDArray[np.float32], E: npt.NDArray[np.float32], jet_R: float = ..., jet_algorithm: str = ..., area_settings: Optional[AreaSettings] = ..., eta_range: Tuple[float,float] = ..., store_recursive_splittings: bool = ...) -> JetSubstructureSplittings: ...
+@overload
+def recluster_jet(px: npt.NDArray[np.float64], py: npt.NDArray[np.float64], pz: npt.NDArray[np.float64], E: npt.NDArray[np.float64], jet_R: float = ..., jet_algorithm: str = ..., area_settings: Optional[AreaSettings] = ..., eta_range: Tuple[float,float] = ..., store_recursive_splittings: bool = ...) -> JetSubstructureSplittings: ...
