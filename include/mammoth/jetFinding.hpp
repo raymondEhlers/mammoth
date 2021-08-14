@@ -453,7 +453,8 @@ OutputWrapper<T> findJets(
   // ghost eta edges are expected to be symmetric, so we don't actually need the min
   //double ghostEtaMin = etaMin;
   // TODO: This seems wayyyyyyy to sensitive to this value.
-  double ghostEtaMax = 1.5;
+  // Use the ALICE value for now.
+  double ghostEtaMax = 1.0;
   int ghostRepeatN = 1;
   double gridScatter = 1.0;
   double ktScatter = 0.1;
@@ -531,10 +532,7 @@ OutputWrapper<T> findJets(
       // ALICE doesn't appear to set this value, so we skip it here and use the default of 0.01
       //constituentSubtractor->set_ghost_area(areaSettings.ghostArea);
       // Since this is event wise, this should be the track eta, not the fiducial eta
-      // TEMP
-      //constituentSubtractor->set_max_eta(etaMax);
-      constituentSubtractor->set_max_eta(1.0);
-      // ENDTEMP
+      constituentSubtractor->set_max_eta(etaMax);
       constituentSubtractor->set_background_estimator(backgroundEstimator.get());
       // Use the same estimator for rho_m (by default, I think it won't be used, but better to
       // provide it in case we change our mind later).
