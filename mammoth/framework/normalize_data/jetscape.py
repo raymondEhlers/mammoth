@@ -27,11 +27,13 @@ class ReachedEndOfFileException(Exception):
     We have a separate exception so we can pass additional information
     about the context if desired.
     """
+
     ...
 
 
 class ReachedXSecAtEndOfFileException(ReachedEndOfFileException):
     """Indicates that we've hit the cross section in the last line of the file."""
+
     ...
 
 
@@ -50,7 +52,7 @@ class HeaderInfo:
 
 
 def _retrieve_last_line_of_file(f: typing.TextIO, read_chunk_size: int = 100) -> str:
-    """ Retrieve the last line of the file.
+    """Retrieve the last line of the file.
 
     From: https://stackoverflow.com/a/7167316/12907985
 
@@ -82,17 +84,17 @@ def _retrieve_last_line_of_file(f: typing.TextIO, read_chunk_size: int = 100) ->
             # The whole file is one big line
             return last_line
 
-        if not last_line and chunk.endswith('\n'):
+        if not last_line and chunk.endswith("\n"):
             # Ignore the trailing newline at the end of the file (but include it
             # in the output).
-            last_line = '\n'
+            last_line = "\n"
             chunk = chunk[:-1]
 
-        nl_pos = chunk.rfind('\n')
+        nl_pos = chunk.rfind("\n")
         # What's being searched for will have to be modified if you are searching
         # files with non-unix line endings.
 
-        last_line = chunk[nl_pos + 1:] + last_line
+        last_line = chunk[nl_pos + 1 :] + last_line  # noqa: E203
 
         if nl_pos == -1:
             # The whole chunk is part of the last line.
@@ -114,8 +116,8 @@ def _parse_cross_section(line: str) -> CrossSection:
         #
         # I _think_ the units are mb^-1
         info = CrossSection(
-            value=float(values[2]),     # Cross section
-            error=float(values[4]),     # Cross section error
+            value=float(values[2]),  # Cross section
+            error=float(values[4]),  # Cross section error
         )
     else:
         raise ValueError(f"Parsing of comment line failed: {values}")
@@ -124,7 +126,7 @@ def _parse_cross_section(line: str) -> CrossSection:
 
 
 def _extract_x_sec_and_error(f: typing.TextIO, read_chunk_size: int = 100) -> Optional[CrossSection]:
-    """ Extract cross section and error from the end of the file.
+    """Extract cross section and error from the end of the file.
 
     Args:
         f: File-like object.
@@ -141,7 +143,7 @@ def _extract_x_sec_and_error(f: typing.TextIO, read_chunk_size: int = 100) -> Op
     # logger.debug(f"last line: {last_line}")
     if last_line.startswith("#\tsigmaGen"):
         # logger.debug("Parsing xsec")
-        return _parse_cross_section(line = last_line)
+        return _parse_cross_section(line=last_line)
 
     return None
 
@@ -178,10 +180,10 @@ def _parse_header_line_format_unspecified(line: str) -> HeaderInfo:
         # NOTE: Everything after the "|" is just documentation for the particle entries stored below.
         #
         info = HeaderInfo(
-            event_number=int(values[2]),            # Event number
-            event_plane_angle=float(values[6]),     # EP angle
-            n_particles=int(values[8]),             # Number of particles
-            event_weight=float(values[4]),          # Event weight
+            event_number=int(values[2]),  # Event number
+            event_plane_angle=float(values[6]),  # EP angle
+            n_particles=int(values[8]),  # Number of particles
+            event_weight=float(values[4]),  # Event weight
         )
     elif len(values) == 9 and "Event" in values[2]:
         ##########################
@@ -199,9 +201,9 @@ def _parse_header_line_format_unspecified(line: str) -> HeaderInfo:
         #   2: Event number, of the from "EventNNNNID". Can be parsed as val[5:-2] to generically extract `NNNN`. int.
         #   3: Number of particles. int.
         info = HeaderInfo(
-            event_number=int(values[2][5:-2]),      # Event number
-            event_plane_angle=float(values[1]),     # EP angle
-            n_particles=int(values[3]),             # Number of particles
+            event_number=int(values[2][5:-2]),  # Event number
+            event_plane_angle=float(values[1]),  # EP angle
+            n_particles=int(values[3]),  # Number of particles
         )
     elif len(values) == 5 and values[1] == "sigmaGen":
         # If we've hit the cross section, and we're not doing the initial extraction of the cross
@@ -245,10 +247,10 @@ def _parse_header_line_format_v2(line: str) -> HeaderInfo:
         #  0 1     2 3      4        5       6         7         8
         #
         info = HeaderInfo(
-            event_number=int(values[2]),            # Event number
-            event_plane_angle=float(values[6]),     # EP angle
-            n_particles=int(values[8]),             # Number of particles
-            event_weight=float(values[4]),          # Event weight
+            event_number=int(values[2]),  # Event number
+            event_plane_angle=float(values[6]),  # EP angle
+            n_particles=int(values[8]),  # Number of particles
+            event_weight=float(values[4]),  # Event weight
         )
     elif len(values) == 5 and values[1] == "sigmaGen":
         # If we've hit the cross section, and we're not doing the initial extraction of the cross
@@ -298,12 +300,13 @@ def _parse_event(f: Iterator[str], parse_header_line: Callable[[str], HeaderInfo
 
 class ChunkNotReadyException(Exception):
     """Indicate that the chunk hasn't been parsed yet, and therefore is not ready."""
+
     ...
 
 
 @attr.s
 class ChunkGenerator:
-    """ Generator a chunk of the file.
+    """Generator a chunk of the file.
 
     Args:
         g: Iterator over the input file.
@@ -312,6 +315,7 @@ class ChunkGenerator:
         file_format_version: File format version. Default: -1, which corresponds to before the format
             was defined, and it will try it's best to guess the format.
     """
+
     g: Iterator[str] = attr.ib()
     _events_per_chunk: int = attr.ib()
     cross_section: Optional[CrossSection] = attr.ib(default=None)
@@ -353,17 +357,13 @@ class ChunkGenerator:
 
     def n_particles_per_event(self) -> npt.NDArray[np.int64]:
         self._require_chunk_ready()
-        return np.array([
-            header.n_particles for header in self._headers
-        ])
+        return np.array([header.n_particles for header in self._headers])
 
     def event_split_index(self) -> npt.NDArray[np.int64]:
         self._require_chunk_ready()
         # NOTE: We skip the last header due to the way that np.split works.
         #       It will go from the last index to the end of the array.
-        return np.cumsum([  # type: ignore
-            header.n_particles for header in self._headers
-        ])[:-1]
+        return np.cumsum([header.n_particles for header in self._headers])[:-1]  # type: ignore
 
     @property
     def incomplete_chunk(self) -> bool:
@@ -385,9 +385,7 @@ class ChunkGenerator:
                 #       up the _parse_event function, but I find condensing it into a single function
                 #       to be more straightforward from a user perspective.
                 # First, get the header. We know this first line must be a header
-                self._headers.append(
-                    next(event_iter)  # type: ignore
-                )
+                self._headers.append(next(event_iter))  # type: ignore
                 # Then we yield the rest of the particles in the event
                 yield from event_iter  # type: ignore
             except (ReachedEndOfFileException, ReachedXSecAtEndOfFileException):
@@ -401,7 +399,7 @@ class ChunkGenerator:
 
 
 def read_events_in_chunks(filename: Path, events_per_chunk: int = int(1e5)) -> Iterator[ChunkGenerator]:
-    """ Read events in chunks from stored JETSCAPE FinalState* ASCII files.
+    """Read events in chunks from stored JETSCAPE FinalState* ASCII files.
 
     This provides access to the lines of the file itself, but it is up to the user to parse each line.
     Consequently, many useful features are implemented on top of it. Users are encouraged to use those
@@ -423,7 +421,7 @@ def read_events_in_chunks(filename: Path, events_per_chunk: int = int(1e5)) -> I
 
         # Define an iterator so we can increment it in different locations in the code.
         # Fine to use if it the entire file fits in memory.
-        #read_lines = iter(f.readlines())
+        # read_lines = iter(f.readlines())
         # Use this if the file doesn't fit in memory (fairly likely for these type of files)
         read_lines = iter(f)
 
@@ -461,7 +459,7 @@ def read_events_in_chunks(filename: Path, events_per_chunk: int = int(1e5)) -> I
 
 
 class FileLikeGenerator:
-    """ Wrapper class to make a generator look like a file.
+    """Wrapper class to make a generator look like a file.
 
     Pandas requires passing a filename or a file-like object, but we handle the generator externally
     so we can find each chunk boundary, parse the headers, etc. Consequently, we need to make this
@@ -472,23 +470,24 @@ class FileLikeGenerator:
     Args:
         g: Generator to be wrapped.
     """
+
     def __init__(self, g: Iterator[str]):
         self.g = g
 
     def read(self, n: int = 0) -> Any:
-        """ Read method is required by pandas. """
+        """Read method is required by pandas."""
         try:
             return next(self.g)
         except StopIteration:
-            return ''
+            return ""
 
     def __iter__(self) -> Iterator[str]:
-        """ Iteration is required by pandas. """
+        """Iteration is required by pandas."""
         return self.g
 
 
 def _parse_with_pandas(chunk_generator: Iterator[str]) -> npt.NDArray[Any]:
-    """ Parse the lines with `pandas.read_csv`
+    """Parse the lines with `pandas.read_csv`
 
     `read_csv` uses a compiled c parser. As of 6 October 2020, it is tested to be the fastest option.
 
@@ -526,7 +525,7 @@ def _parse_with_pandas(chunk_generator: Iterator[str]) -> npt.NDArray[Any]:
 
 
 def _parse_with_python(chunk_generator: Iterator[str]) -> npt.NDArray[Any]:
-    """ Parse the lines with python.
+    """Parse the lines with python.
 
     We have this as an option because np.loadtxt is surprisingly slow.
 
@@ -543,7 +542,7 @@ def _parse_with_python(chunk_generator: Iterator[str]) -> npt.NDArray[Any]:
 
 
 def _parse_with_numpy(chunk_generator: Iterator[str]) -> npt.NDArray[Any]:
-    """ Parse the lines with numpy.
+    """Parse the lines with numpy.
 
     Unfortunately, this option is surprisingly, presumably because it has so many options.
     Pure python appears to be about 2x faster. So we keep this as an option for the future,
@@ -558,7 +557,7 @@ def _parse_with_numpy(chunk_generator: Iterator[str]) -> npt.NDArray[Any]:
 
 
 def read(filename: Union[Path, str], events_per_chunk: int, parser: str = "pandas") -> Iterator[ak.Array]:
-    """ Read a JETSCAPE FinalState{Hadrons,Partons} ASCII output file in chunks.
+    """Read a JETSCAPE FinalState{Hadrons,Partons} ASCII output file in chunks.
 
     This is the primary user function. We read in chunks to keep the memory usage manageable.
 
@@ -602,25 +601,25 @@ def read(filename: Union[Path, str], events_per_chunk: int, parser: str = "panda
             break
 
         # Now, convert into the awkward array structure.
-        array_with_events = ak.unflatten(
-            ak.Array(res), chunk_generator.n_particles_per_event()
-        )
+        array_with_events = ak.unflatten(ak.Array(res), chunk_generator.n_particles_per_event())
 
         # Cross checks.
         # Length check that we have as many events as expected based on the number of headers.
         # logger.debug(f"ak.num: {ak.num(array_with_events, axis = 0)}, len headers: {len(chunk_generator.headers)}")
-        assert (ak.num(array_with_events, axis = 0) == len(chunk_generator.headers))
+        assert ak.num(array_with_events, axis=0) == len(chunk_generator.headers)
         # Check that n particles agree
         n_particles_from_header = np.array([header.n_particles for header in chunk_generator.headers])
         # logger.info(f"n_particles from headers: {n_particles_from_header}")
         # logger.info(f"n_particles from array: {ak.num(array_with_events, axis = 1)}")
-        assert (np.asarray(ak.num(array_with_events, axis = 1)) == n_particles_from_header).all()
+        assert (np.asarray(ak.num(array_with_events, axis=1)) == n_particles_from_header).all()
         # State of the chunk
         # logger.debug(f"Reached end of file: {chunk_generator.reached_end_of_file}")
         # logger.debug(f"Incomplete chunk: {chunk_generator.incomplete_chunk}")
         # Let the use know so they're not surprised.
         if chunk_generator.incomplete_chunk:
-            logger.warning(f"Requested {chunk_generator.events_per_chunk} events, but only {chunk_generator.events_contained_in_chunk} are available because we hit the end of the file.")
+            logger.warning(
+                f"Requested {chunk_generator.events_per_chunk} events, but only {chunk_generator.events_contained_in_chunk} are available because we hit the end of the file."
+            )
 
         # Header info
         header_level_info = {
@@ -628,14 +627,20 @@ def read(filename: Union[Path, str], events_per_chunk: int, parser: str = "panda
             "event_ID": np.array([header.event_number for header in chunk_generator.headers], np.uint16),
         }
         if chunk_generator.headers[0].event_weight > -1:
-            header_level_info["event_weight"] = np.array([header.event_weight for header in chunk_generator.headers], np.float32)
+            header_level_info["event_weight"] = np.array(
+                [header.event_weight for header in chunk_generator.headers], np.float32
+            )
 
         # Cross section info
         if chunk_generator.cross_section:
             # Even though this is a dataset level quantity, we need to match the structure in order to zip them together for storage.
             # Since we're repeating the value, hopefully this will be compressed effectively.
-            header_level_info["cross_section"] = np.full_like(header_level_info["event_plane_angle"], chunk_generator.cross_section.value)
-            header_level_info["cross_section_error"] = np.full_like(header_level_info["event_plane_angle"], chunk_generator.cross_section.error)
+            header_level_info["cross_section"] = np.full_like(
+                header_level_info["event_plane_angle"], chunk_generator.cross_section.value
+            )
+            header_level_info["cross_section_error"] = np.full_like(
+                header_level_info["event_plane_angle"], chunk_generator.cross_section.error
+            )
 
         # Assemble all of the information in a single awkward array and pass it on.
         yield ak.zip(
@@ -664,17 +669,20 @@ def read(filename: Union[Path, str], events_per_chunk: int, parser: str = "panda
 def full_events_to_only_necessary_columns_E_px_py_pz(arrays: ak.Array) -> ak.Array:
     columns_to_drop = ["eta", "phi"]
     columns_to_keep = [field for field in ak.fields(arrays) if field not in columns_to_drop]
-    return ak.zip(
-        {
-            column: arrays[column] for column in columns_to_keep
-        }, depth_limit=1
-    )
+    return ak.zip({column: arrays[column] for column in columns_to_keep}, depth_limit=1)
 
 
-def parse_to_parquet(base_output_filename: Union[Path, str], store_only_necessary_columns: bool,
-                     input_filename: Union[Path, str], events_per_chunk: int, parser: str = "pandas",
-                     max_chunks: int = -1, compression: str = "zstd", compression_level: Optional[int] = None) -> None:
-    """ Parse the JETSCAPE ASCII and convert it to parquet, (potentially) storing only the minimum necessary columns.
+def parse_to_parquet(
+    base_output_filename: Union[Path, str],
+    store_only_necessary_columns: bool,
+    input_filename: Union[Path, str],
+    events_per_chunk: int,
+    parser: str = "pandas",
+    max_chunks: int = -1,
+    compression: str = "zstd",
+    compression_level: Optional[int] = None,
+) -> None:
+    """Parse the JETSCAPE ASCII and convert it to parquet, (potentially) storing only the minimum necessary columns.
 
     Args:
         base_output_filename: Basic output filename. Should include the entire path.
@@ -694,7 +702,16 @@ def parse_to_parquet(base_output_filename: Union[Path, str], store_only_necessar
     # Setup the base output directory
     base_output_filename.parent.mkdir(parents=True, exist_ok=True)
     # We will check which fields actually exist when writing.
-    possible_fields_containing_floats = ["event_plane_angle", "event_weight", "cross_section", "cross_section_error", "px", "py", "pz", "E"]
+    possible_fields_containing_floats = [
+        "event_plane_angle",
+        "event_weight",
+        "cross_section",
+        "cross_section_error",
+        "px",
+        "py",
+        "pz",
+        "E",
+    ]
 
     for i, arrays in enumerate(read(filename=input_filename, events_per_chunk=events_per_chunk, parser=parser)):
         # Reduce to the minimum required data.
@@ -705,10 +722,7 @@ def parse_to_parquet(base_output_filename: Union[Path, str], store_only_necessar
             # As of April 2021, I'm not certainly this is truly required anymore, but it may be needed for
             # parquet writing to be successful (apparently parquet couldn't handle lists of structs sometime
             # in 2020. The status in April 2021 is unclear, but not worth digging into now).
-            arrays = ak.zip(
-                dict(zip(ak.fields(arrays), ak.unzip(arrays))),
-                depth_limit = 1
-            )
+            arrays = ak.zip(dict(zip(ak.fields(arrays), ak.unzip(arrays))), depth_limit=1)
 
         # If converting in chunks, add an index to the output file so the chunks don't overwrite each other.
         if events_per_chunk > 0:
@@ -731,12 +745,14 @@ def parse_to_parquet(base_output_filename: Union[Path, str], store_only_necessar
         # Parquet with zlib seems to do about the same as ascii tar.gz when we drop unneeded columns.
         # And it should load much faster!
         ak.to_parquet(
-            arrays, output_filename,
-            compression=compression, compression_level=compression_level,
+            arrays,
+            output_filename,
+            compression=compression,
+            compression_level=compression_level,
             explode_records=False,
             # Additional parquet options are based on https://stackoverflow.com/a/66854439/12907985
-            #use_dictionary=True,
-            #use_byte_stream_split=True,
+            # use_dictionary=True,
+            # use_byte_stream_split=True,
             use_dictionary=dict_fields,
             use_byte_stream_split=byte_stream_fields,
         )
@@ -747,7 +763,7 @@ def parse_to_parquet(base_output_filename: Union[Path, str], store_only_necessar
 
 
 if __name__ == "__main__":
-    #read(filename="final_state_hadrons.dat", events_per_chunk=-1, base_output_filename="skim/jetscape.parquet")
+    # read(filename="final_state_hadrons.dat", events_per_chunk=-1, base_output_filename="skim/jetscape.parquet")
     for pt_hat_range in ["7_9", "20_25", "50_55", "100_110", "250_260", "500_550", "900_1000"]:
         print(f"Processing pt hat range: {pt_hat_range}")
         directory_name = "OutputFile_Type5_qhatA10_B0_5020_PbPb_0-10_0.30_2.0_1"
@@ -757,5 +773,5 @@ if __name__ == "__main__":
             store_only_necessary_columns=True,
             input_filename=f"/alf/data/rehlers/jetscape/osiris/AAPaperData/MATTER_LBT_RunningAlphaS_Q2qhat/{directory_name}/{filename}_test.out",
             events_per_chunk=20,
-            #max_chunks=3,
+            # max_chunks=3,
         )
