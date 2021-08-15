@@ -252,7 +252,7 @@ def determine_masses_from_events(events: ak.Array) -> ak.Array:
     return _determine_mass_from_PDG(events=events, builder=ak.ArrayBuilder(), pdg_id_to_mass=pdg_id_to_mass).snapshot()
 
 
-def build_PID_selection_mask(particles: ak.Array, absolute_pids: Optional[Sequence[int]] = None, single_pids: Optional[Sequence[int]] = None):
+def build_PID_selection_mask(particles: ak.Array, absolute_pids: Optional[Sequence[int]] = None, single_pids: Optional[Sequence[int]] = None) -> ak.Array:
     """Build selection for particles based on particle ID.
 
     Args:
@@ -275,6 +275,5 @@ def build_PID_selection_mask(particles: ak.Array, absolute_pids: Optional[Sequen
     pid_cuts.extend([
         particles["particle_ID"] == pid for pid in single_pids
     ])
-    return functools.reduce(operator.and_, pid_cuts)
-
-
+    # We want an or here - if the particle is any of the PIDs, we want to keep it
+    return functools.reduce(operator.or_, pid_cuts)
