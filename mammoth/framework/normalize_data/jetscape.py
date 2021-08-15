@@ -433,7 +433,7 @@ def read_events_in_chunks(filename: Path, events_per_chunk: int = int(1e5)) -> I
             # 1: is to remove the "v" in the version
             file_format_version = int(first_line_split[2][1:])
         else:
-            # We need to move back to the beginning of the file, so we just burned through
+            # We need to move back to the beginning of the file, since we just burned through
             # a meaningful line (which almost certianly contains an event header).
             # NOTE: My initial version of two separate iterators doesn't work because it appears
             #       that you cannot do so for a file (which I suppose I can make sense of because
@@ -648,28 +648,49 @@ def read(filename: Union[Path, str], events_per_chunk: int, parser: str = "panda
                 # Header level info
                 **header_level_info,
                 # Particle level info
-                "particle_ID": ak.values_astype(array_with_events[:, :, 1], np.int32),
-                # We're only considering final state hadrons or partons, so status codes are limited to a few values.
-                # -1 are holes, while >= 0 are signal particles (includes both the jet signal and the recoils).
-                # So we can't differentiate the recoil from the signal.
-                "status": ak.values_astype(array_with_events[:, :, 2], np.int8),
-                "E": ak.values_astype(array_with_events[:, :, 3], np.float32),
-                "px": ak.values_astype(array_with_events[:, :, 4], np.float32),
-                "py": ak.values_astype(array_with_events[:, :, 5], np.float32),
-                "pz": ak.values_astype(array_with_events[:, :, 6], np.float32),
-                # We could skip eta and phi since we can always recalculate them. However, since we've already parsed
-                # them, we may as well pass them along.:w
-                "eta": ak.values_astype(array_with_events[:, :, 7], np.float32),
-                "phi": ak.values_astype(array_with_events[:, :, 8], np.float32),
+                # As I've learned from experience, it's much more convenient to store the particles in separate columns.
+                # Trying to fit them in alongside the event level info makes life far more difficult.
+                "particles": ak.zip(
+                    {
+                    "particle_ID": ak.values_astype(array_with_events[:, :, 1], np.int32),
+                    # We're only considering final state hadrons or partons, so status codes are limited to a few values.
+                    # -1 are holes, while >= 0 are signal particles (includes both the jet signal and the recoils).
+                    # So we can't differentiate the recoil from the signal.
+                    "status": ak.values_astype(array_with_events[:, :, 2], np.int8),
+                    "E": ak.values_astype(array_with_events[:, :, 3], np.float32),
+                    "px": ak.values_astype(array_with_events[:, :, 4], np.float32),
+                    "py": ak.values_astype(array_with_events[:, :, 5], np.float32),
+                    "pz": ak.values_astype(array_with_events[:, :, 6], np.float32),
+                    # We could skip eta and phi since we can always recalculate them. However, since we've already parsed
+                    # them, we may as well pass them along.
+                    "eta": ak.values_astype(array_with_events[:, :, 7], np.float32),
+                    "phi": ak.values_astype(array_with_events[:, :, 8], np.float32),
+                    }
+                ),
             },
             depth_limit=1,
         )
 
 
 def full_events_to_only_necessary_columns_E_px_py_pz(arrays: ak.Array) -> ak.Array:
+    """Reduce the number of columns to store.
+
+    Note:
+        This only drops particle columns because those are the ones that have redundant info.
+        This is fairly specialized, but fine for our purposes here.
+    """
     columns_to_drop = ["eta", "phi"]
-    columns_to_keep = [field for field in ak.fields(arrays) if field not in columns_to_drop]
-    return ak.zip({column: arrays[column] for column in columns_to_keep}, depth_limit=1)
+    return ak.zip(
+        {
+            **{k: v for k, v in zip(ak.fields(arrays), ak.unzip(arrays)) if k != "particles"},
+            "particles": ak.zip(
+                {
+                    name: arrays["particles", name] for name in ak.fields(arrays["particles"]) if name not in columns_to_drop
+                }
+            ),
+        },
+        depth_limit=1,
+    )
 
 
 def parse_to_parquet(
@@ -702,15 +723,11 @@ def parse_to_parquet(
     # Setup the base output directory
     base_output_filename.parent.mkdir(parents=True, exist_ok=True)
     # We will check which fields actually exist when writing.
-    possible_fields_containing_floats = [
+    possible_event_level_fields_containing_floats = [
         "event_plane_angle",
         "event_weight",
         "cross_section",
         "cross_section_error",
-        "px",
-        "py",
-        "pz",
-        "E",
     ]
 
     for i, arrays in enumerate(read(filename=input_filename, events_per_chunk=events_per_chunk, parser=parser)):
@@ -737,8 +754,14 @@ def parse_to_parquet(
         # by use_dictionary. Apparently it can't handle this automatically, we so we have to define it
         # ourselves. This is a bit brittle if fields change, but they don't change so often, and
         # it's simpler than parsing field types, so it should be fine for now.
-        byte_stream_fields = [field for field in ak.fields(arrays) if field in possible_fields_containing_floats]
-        dict_fields = [field for field in ak.fields(arrays) if field not in possible_fields_containing_floats]
+        dict_fields = [field for field in ak.fields(arrays) if field not in possible_event_level_fields_containing_floats]
+        dict_fields.extend(
+            # Add particle fields which contain ints
+            [
+                "particles.list.item.particle_ID",
+                "particles.list.item.status",
+            ]
+        )
         # logger.debug(f"dict_fields: {dict_fields}")
         # logger.debug(f"byte_stream_fields: {byte_stream_fields}")
 
@@ -751,10 +774,9 @@ def parse_to_parquet(
             compression_level=compression_level,
             explode_records=False,
             # Additional parquet options are based on https://stackoverflow.com/a/66854439/12907985
-            # use_dictionary=True,
-            # use_byte_stream_split=True,
+            # Default to byte stream split, skipping those which are specified to use dictionary encoding
             use_dictionary=dict_fields,
-            use_byte_stream_split=byte_stream_fields,
+            use_byte_stream_split=True,
         )
 
         # Break now so we don't have to read the next chunk.
@@ -762,16 +784,99 @@ def parse_to_parquet(
             break
 
 
+def find_production_pt_hat_bins_in_filenames(output_files_dir: Path, output_filename_template: str) -> List[str]:
+    output_filenames = sorted(output_files_dir.glob(f"{output_filename_template}*"))
+
+    pt_hat_bins = []
+    for output_filename in output_filenames:
+        # Extract pt hard bin
+        pt_hat_bins.append(output_filename.name.replace(output_filename_template, "").replace(".out", ""))
+    return sorted(pt_hat_bins)
+
+
 if __name__ == "__main__":
-    # read(filename="final_state_hadrons.dat", events_per_chunk=-1, base_output_filename="skim/jetscape.parquet")
-    for pt_hat_range in ["7_9", "20_25", "50_55", "100_110", "250_260", "500_550", "900_1000"]:
-        print(f"Processing pt hat range: {pt_hat_range}")
+    # Extracted via find_production_pt_hard_bins_in_filename from the 5 TeV pp production
+    # However, we keep them separate here because it's more conveneint than looking up every time
+    # (and requires fewer metadata queries).
+    pt_hat_bins = [
+        '1000_1100',
+        '100_110',
+        '1100_1200',
+        '110_120',
+        '11_13',
+        '1200_1300',
+        '120_130',
+        '1300_1400',
+        '130_140',
+        '13_15',
+        '1400_1500',
+        '140_150',
+        '1500_1600',
+        '150_160',
+        '15_17',
+        '1600_1700',
+        '160_170',
+        '1700_1800',
+        '170_180',
+        '17_20',
+        '1800_1900',
+        '180_190',
+        '1900_2000',
+        '190_200',
+        '1_2',
+        '2000_2200',
+        '200_210',
+        '20_25',
+        '210_220',
+        '2200_2400',
+        '220_230',
+        '230_240',
+        '2400_2510',
+        '240_250',
+        '250_260',
+        '25_30',
+        '260_270',
+        '270_280',
+        '280_290',
+        '290_300',
+        '2_3',
+        '300_350',
+        '30_35',
+        '350_400',
+        '35_40',
+        '3_4',
+        '400_450',
+        '40_45',
+        '450_500',
+        '45_50',
+        '4_5',
+        '500_550',
+        '50_55',
+        '550_600',
+        '55_60',
+        '5_7',
+        '600_700',
+        '60_70',
+        '700_800',
+        '70_80',
+        '7_9',
+        '800_900',
+        '80_90',
+        '900_1000',
+        '90_100',
+        '9_11'
+    ]
+    # for pt_hat_bin in ["7_9"]:
+    for pt_hat_bin in pt_hat_bins:
+        print(f"Processing pt hat range: {pt_hat_bin}")
         directory_name = "OutputFile_Type5_qhatA10_B0_5020_PbPb_0-10_0.30_2.0_1"
-        filename = f"JetscapeHadronListBin{pt_hat_range}"
+        filename = f"JetscapeHadronListBin{pt_hat_bin}"
         parse_to_parquet(
-            base_output_filename=f"skim/{filename}.parquet",
+            base_output_filename=f"/alf/data/rehlers/jetscape/osiris/AAPaperData/5020_PP_Colorless/skim/test/{filename}.parquet",
             store_only_necessary_columns=True,
-            input_filename=f"/alf/data/rehlers/jetscape/osiris/AAPaperData/MATTER_LBT_RunningAlphaS_Q2qhat/{directory_name}/{filename}_test.out",
-            events_per_chunk=20,
-            # max_chunks=3,
+            #input_filename=f"/alf/data/rehlers/jetscape/osiris/AAPaperData/MATTER_LBT_RunningAlphaS_Q2qhat/{directory_name}/{filename}_test.out",
+            input_filename=f"/alf/data/rehlers/jetscape/osiris/AAPaperData/5020_PP_Colorless/{filename}.out",
+            events_per_chunk=50000,
+            #events_per_chunk=50,
+            max_chunks=1,
         )
