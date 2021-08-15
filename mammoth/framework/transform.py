@@ -25,7 +25,7 @@ _default_particle_columns = {
 
 def data(
     arrays: ak.Array,
-    rename_prefix: Mapping[str, str] = None,
+    rename_prefix: Optional[Mapping[str, str]] = None,
     mass_hypothesis: Union[float, Mapping[str, float]] = 0.139,
     particle_columns: Optional[Mapping[str, npt.DTypeLike]] = None,
 ) -> ak.Array:
@@ -52,14 +52,15 @@ def data(
     if isinstance(mass_hypothesis, float):
         mass_hypotheses = {p: mass_hypothesis for p in _prefixes}
     else:
-        mass_hypotheses = mass_hypothesis
+        mass_hypotheses = dict(mass_hypothesis)
 
     # Transform various track collections.
     # 1) Add indices.
     # 2) Complete the four vectors (as necessary).
     data = arrays[rename_prefix["data"]]
     data["index"] = ak.local_index(data)
-    if "m" not in ak.fields(data):
+    # Only add the mass if either mass or energy aren't already present
+    if "m" not in ak.fields(data) and "E" not in ak.fields(data):
         data["m"] = data["pt"] * 0 + mass_hypotheses["data"]
     # NOTE: This is fully equivalent because we registered vector:
     #       >>> data = ak.with_name(data, name="Momentum4D")
@@ -77,7 +78,7 @@ def data(
 
 def mc(
     arrays: ak.Array,
-    rename_prefix: Mapping[str, str] = None,
+    rename_prefix: Optional[Mapping[str, str]] = None,
     mass_hypothesis: Union[float, Mapping[str, float]] = 0.139,
     particle_columns: Optional[Mapping[str, npt.DTypeLike]] = None,
 ) -> ak.Array:
@@ -107,7 +108,7 @@ def mc(
     if isinstance(mass_hypothesis, float):
         mass_hypotheses = {p: mass_hypothesis for p in _prefixes}
     else:
-        mass_hypotheses = mass_hypothesis
+        mass_hypotheses = dict(mass_hypothesis)
 
     # Transform various track collections.
     # 1) Add indices.
@@ -165,7 +166,7 @@ def embedding(
     if isinstance(mass_hypothesis, float):
         mass_hypotheses = {p: mass_hypothesis for p in _mass_hypothesis_prefixes}
     else:
-        mass_hypotheses = mass_hypothesis
+        mass_hypotheses = dict(mass_hypothesis)
 
     # Transform various track collections.
     # 1) Add indices.
