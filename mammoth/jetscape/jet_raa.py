@@ -12,29 +12,12 @@ from typing import Sequence
 import awkward as ak
 import numba as nb
 
-import mammoth.base
+from mammoth import analysis_base
 from mammoth.framework import jet_finding, sources, transform
+from mammoth.jetscape import utils
 
 
 logger = logging.getLogger(__name__)
-
-@nb.njit  # type: ignore
-def subtract_holes_from_jet_pt(jets: ak.Array, particles_holes: ak.Array, jet_R: float, builder: ak.ArrayBuilder) -> ak.ArrayBuilder:
-    """Subtract holes from the jet pt
-    
-    TODO: Centralize this for jetscape, given that each analysis almost certainly needs to do this.
-    """
-    for jets_in_event, holes_in_event in zip(jets, particles_holes):
-        builder.begin_list()
-        for jet in jets_in_event:
-            jet_pt = jet.pt
-            for hole in holes_in_event:
-                if jet.deltaR(hole) < jet_R:
-                    jet_pt -= hole.pt
-            builder.append(jet_pt)
-        builder.end_list()
-
-    return builder
 
 
 def load_data(filename: Path) -> ak.Array:
@@ -64,7 +47,7 @@ def analysis(arrays: ak.Array, jet_R_values: Sequence[float], particle_column_na
     holes_mask = ~signal_particles_mask
     # - Charged particles only for charged-particle jets
     _charged_hadron_PIDs = [11, 13, 211, 321, 2212, 3222, 3112, 3312, 3334]
-    charged_particles_mask = mammoth.base.build_PID_selection_mask(
+    charged_particles_mask = analysis_base.build_PID_selection_mask(
         arrays[particle_column_name], absolute_pids=_charged_hadron_PIDs
     )
 
@@ -95,7 +78,7 @@ def analysis(arrays: ak.Array, jet_R_values: Sequence[float], particle_column_na
     for jet_collection_name, jet_collection in zip(ak.fields(jets), ak.unzip(jets)):
         jet_R_location = jet_collection_name.find("jetR") + 4
         jet_R = float(jet_collection_name[jet_R_location:jet_R_location+3]) / 100
-        jets[jet_collection_name, "pt_subtracted"] = subtract_holes_from_jet_pt(
+        jets[jet_collection_name, "pt_subtracted"] = utils.subtract_holes_from_jet_pt(
             jets=jet_collection,
             particles_holes=particles_holes,
             jet_R=jet_R,
