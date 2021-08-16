@@ -26,6 +26,8 @@ numba = "^0.53.1"
 hist = {version = "^2.1", extras = ["plot"]}
 seaborn = "^0.11.1"
 vector = "^0.8"
+parsl = {git = "https://github.com/Parsl/parsl.git", rev = "9eca2a949471520f161a82cc046397a1d69d939c", extras = ["monitoring"]}
+rich = "^10.7.0"
 
 [tool.poetry.dev-dependencies]
 flake8 = "^3.8.3"
