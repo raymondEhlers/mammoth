@@ -7,17 +7,23 @@
 
 import logging
 from pathlib import Path
-from typing import Sequence
+from typing import Dict, Sequence
 
 import awkward as ak
-import numba as nb
+import attr
 
-from mammoth import analysis_base
+from mammoth import analysis_base, helpers
 from mammoth.framework import jet_finding, sources, transform
 from mammoth.jetscape import utils
 
 
 logger = logging.getLogger(__name__)
+
+
+@attr.s(frozen=True)
+class JetLabel:
+    jet_R: float = attr.ib()
+    label: str = attr.ib()
 
 
 def load_data(filename: Path) -> ak.Array:
@@ -30,7 +36,7 @@ def load_data(filename: Path) -> ak.Array:
     return transform.data(arrays=arrays, rename_prefix={"data": "particles"})
 
 
-def analysis(arrays: ak.Array, jet_R_values: Sequence[float], particle_column_name: str = "data", min_jet_pt: float = 30) -> ak.Array:
+def analysis(arrays: ak.Array, jet_R_values: Sequence[float], particle_column_name: str = "data", min_jet_pt: float = 30) -> Dict[JetLabel, ak.Array]:
     logger.info("Start analyzing")
     # Event selection
     # None for jetscape
@@ -59,79 +65,41 @@ def analysis(arrays: ak.Array, jet_R_values: Sequence[float], particle_column_na
     # Jet finding
     logger.info("Find jets")
     area_settings = jet_finding.AREA_PP
-    jets = ak.zip(
-        {
-            f"{label}_jetR{round(jet_R * 100):03}_{particle_column_name}": jet_finding.find_jets(
-                particles=particles,
-                algorithm="anti-kt",
-                jet_R=jet_R,
-                area_settings=area_settings,
-                min_jet_pt=min_jet_pt,
-            )
-            for jet_R in jet_R_values
-            for particles, label in zip([particles_signal, particles_signal_charged], ["full", "charged"])
-        },
-        depth_limit=1,
-    )
+    jets = {
+        JetLabel(jet_R=jet_R, label=label): jet_finding.find_jets(
+            particles=particles,
+            algorithm="anti-kt",
+            jet_R=jet_R,
+            area_settings=area_settings,
+            min_jet_pt=min_jet_pt,
+        )
+        for jet_R in jet_R_values
+        for particles, label in zip([particles_signal, particles_signal_charged], ["full", "charged"])
+    }
 
     # Calculated the subtracted pt due to the holes.
-    for jet_collection_name, jet_collection in zip(ak.fields(jets), ak.unzip(jets)):
-        jet_R_location = jet_collection_name.find("jetR") + 4
-        jet_R = float(jet_collection_name[jet_R_location:jet_R_location+3]) / 100
-        jets[jet_collection_name, "pt_subtracted"] = utils.subtract_holes_from_jet_pt(
+    for jet_label, jet_collection in jets.items():
+        jets[jet_label]["pt_subtracted"] = utils.subtract_holes_from_jet_pt(
             jets=jet_collection,
             particles_holes=particles_holes,
-            jet_R=jet_R,
+            jet_R=jet_label.jet_R,
             builder=ak.ArrayBuilder(),
         ).snapshot()
 
     # Store the cross section with each jet. This way, we can flatten from events -> jets
-    for jet_collection_name, jet_collection in zip(ak.fields(jets), ak.unzip(jets)):
+    for jet_label, jet_collection in jets.items():
         # Before any jets cuts, add in cross section
-        jets[jet_collection_name, "cross_section"] = arrays["cross_section"]
-        #jets["cross_section"] = 
+        jets[jet_label]["cross_section"] = arrays["cross_section"]
 
     # Apply jet level cuts.
     # None for now
 
     return jets
 
-def ignore() -> ak.Array:
-
-    # Check for any jets. If there are none, we probably want to bail out.
-    # We need some variable to avoid flattening into a record, so select px arbitrarily.
-    if len(ak.flatten(jets[ak.fields(jets)[0]].px, axis=None)) == 0:
-        raise ValueError(f"No jets left for {ak.fields(jets)[0]}. Are your settings correct?")
-
-    import IPython; IPython.embed()
-
-    # Next step for using existing skimming:
-    # Flatten from events -> jets
-    # NOTE: Apparently it's takes issues with flattening the jets directly, so we have to do it
-    #       separately for the different collections and then zip them together. This should keep
-    #       matching together as appropriate.
-    jets = ak.zip(
-        {k: ak.flatten(v, axis=1) for k, v in zip(ak.fields(jets), ak.unzip(jets))},
-        depth_limit=1,
-    )
-
-    logger.warning(f"n jets: {len(jets)}")
-
-    # Now, the final transformation into a form that can be used to skim into a flat tree.
-    return jets
-
 
 if __name__ == "__main__":
     # Basic setup
-    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s:%(lineno)d %(levelname)s %(message)s")
-    # Quiet down the matplotlib logging
-    logging.getLogger("matplotlib").setLevel(logging.INFO)
-    # For sanity when using IPython
-    logging.getLogger("parso").setLevel(logging.INFO)
-    # Quiet down BinndData copy warnings
-    logging.getLogger("pachyderm.binned_data").setLevel(logging.INFO)
-    # Quiet down numba
-    logging.getLogger("numba").setLevel(logging.INFO)
+    helpers.setup_logging(level=logging.INFO)
 
     # Find jets
     jets = analysis(
