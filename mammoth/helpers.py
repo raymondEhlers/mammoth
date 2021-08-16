@@ -113,6 +113,8 @@ def setup_logging(
         for name in logging.root.manager.loggerDict:
             if name.startswith("parsl") or name.startswith("database_monitoring"):
                 logging.getLogger(name).setLevel(logging.WARNING)
+    # For sanity when using IPython
+    logging.getLogger("parso").setLevel(logging.INFO)
 
     # Log the stored up messages.
     for message in stored_messages:
