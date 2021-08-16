@@ -7,10 +7,11 @@
 
 import logging
 from pathlib import Path
-from typing import Dict, Sequence
+from typing import Dict, Mapping, Sequence
 
-import awkward as ak
 import attr
+import awkward as ak
+import hist
 
 from mammoth import analysis_base, helpers
 from mammoth.framework import jet_finding, sources, transform
@@ -24,6 +25,9 @@ logger = logging.getLogger(__name__)
 class JetLabel:
     jet_R: float = attr.ib()
     label: str = attr.ib()
+
+    def __str__(self) -> str:
+        return f"{self.label}_jetR{round(self.jet_R * 100):03}"
 
 
 def load_data(filename: Path) -> ak.Array:
@@ -97,6 +101,19 @@ def analysis(arrays: ak.Array, jet_R_values: Sequence[float], particle_column_na
     return jets
 
 
+def analyze_jets(jets: Mapping[JetLabel, ak.Array]) -> Dict[JetLabel, hist.Hist]:
+    hists = {}
+    for jet_label in jets:
+        hists[jet_label] = hist.Hist(hist.axis.Regular(200, 0, 200), storage=hist.storage.Weight())
+
+    for jet_label, jet_collection in jets.items():
+        hists[jet_label].fill(
+            ak.flatten(jet_collection.pt), weight=ak.flatten(jet_collection.cross_section)
+        )
+
+    return hists
+
+
 if __name__ == "__main__":
     # Basic setup
     helpers.setup_logging(level=logging.INFO)
@@ -109,6 +126,8 @@ if __name__ == "__main__":
         jet_R_values=[0.2, 0.4, 0.6],
         min_jet_pt=3,
     )
+
+    hists = analyze_jets(jets=jets)
 
     import IPython
     
