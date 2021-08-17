@@ -49,24 +49,34 @@ echo "specialSetting=\"$specialSetting\""
 echo "pythia6Settings=\"$pythia6Settings\""
 echo "outDir=\"$outDir\""
 
+# We want a ceiling function so we always have enough nodes.
+# Based on https://stackoverflow.com/a/12536521/12907985
+nNodes=$(((${njobs} + 32 - 1) / 32))
+tasksPerNode=$(((${njobs} + ${nNodes} - 1) / ${nNodes}))
+
 # Now, implement steering script for slurm
+#SBATCH --tasks-per-node=1
 cat > ${slurmJobConfig} <<- _EOF_
+#!/usr/bin/env bash
 #SBATCH -A birthright
 #SBATCH -p burst
-#SBATCH -n $((($nEvents + 1) / $njobs))
+#SBATCH -N $nNodes
+#SBATCH -n $tasksPerNode
 #SBATCH -c 1
 #SBATCH -J eic-fun4all-sim
-#SBATCH --mem=2G
+#SBATCH --mem=3G
 #SBATCH -t 4:00:00
-#SBATCH -o ${logDir}/%A-%a.out
-#SBATCH -e ${logDir}/%A-%a.err
+#SBATCH -o ${logDir}/%A-%a.stdout
+#SBATCH -e ${logDir}/%A-%a.stderr
+
+srun ./run_job_with_singularity.sh $nEvents $particlemomMin $particlemomMax $specialSetting $pythia6Settings $inputFile $outputFile $embed_input_file $skip $initDir/$outDir
 _EOF_
 
 #cat > $condorJobCfg <<- _EOF_
 #Universe     = vanilla
 #Notification = never
 #Initialdir   = $initDir
-#GetEnv       = True
+#GetEnr       = True
 #+Job_Type    = "cas"
 #Executable   = Fun4All_G4_FullDetectorModular.sh
 #_EOF_
@@ -92,5 +102,5 @@ _EOF_
 #     let "ifile+=1";
 #done
 
-echo sbatch -a 1-$njobs $slurmJobConfig
+sbatch -a 1-$njobs $slurmJobConfig
 
