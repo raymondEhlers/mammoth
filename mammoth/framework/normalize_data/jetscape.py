@@ -784,13 +784,13 @@ def parse_to_parquet(
             break
 
 
-def find_production_pt_hat_bins_in_filenames(output_files_dir: Path, output_filename_template: str) -> List[str]:
-    output_filenames = sorted(output_files_dir.glob(f"{output_filename_template}*"))
+def find_production_pt_hat_bins_in_filenames(ascii_output_dir: Path, filename_template: str) -> List[str]:
+    output_filenames = sorted(ascii_output_dir.glob(f"{filename_template}*"))
 
     pt_hat_bins = []
     for output_filename in output_filenames:
         # Extract pt hard bin
-        pt_hat_bins.append(output_filename.name.replace(output_filename_template, "").replace(".out", ""))
+        pt_hat_bins.append(output_filename.name.replace(filename_template, "").replace(".out", ""))
     return sorted(pt_hat_bins)
 
 
