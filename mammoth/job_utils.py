@@ -33,18 +33,11 @@ logger = logging.getLogger(__name__)
 
 
 FACILITIES = Literal[
-    "stampede2",
-    "expanse",
-    "bridges2",
     "local",
     "test_local_rehlers",
-    "test_ORNL",
-]
-
-TASK_TYPE = Literal[
-    "hydro",
-    "jet_energy_loss",
-    "pp",
+    "ORNL_b587_short",
+    "ORNL_b587_long",
+    "ORNL_b587_loginOnly",
 ]
 
 
@@ -158,28 +151,18 @@ class Facility:
 
 # Define the facility configurations.
 _facilities_configs = {
-    "ORNL": Facility(
+    f"ORNL_b587_{queue}": Facility(
         name="b587",
         node_spec=NodeSpec(n_cores=8, memory=64),
-        partition_name="short",
+        partition_name=queue,
         # Allocate full node:
-        target_allocate_n_cores=3,
+        target_allocate_n_cores=9 if queue != "loginOnly" else 6,
         # Allocate by core:
         # target_allocate_n_cores=1,
-        task_configs={
-            "jet_energy_loss": TaskConfig(
-                n_cores_per_task=1,
-            ),
-            # Same as jet_energy_loss
-            "pp": TaskConfig(
-                n_cores_per_task=1,
-            ),
-        },
         launcher=SingleNodeLauncher,
         #node_work_dir=Path("/tmp/parsl/$USER"),
         #storage_work_dir=Path("/alf/data/rehlers/jetscape/work_dir"),
-        #directories_to_mount_in_singularity=[Path("/alf/data"), Path("/software/rehlers"), Path("/tmp/parsl")],
-    ),
+    ) for queue in ["short", "long", "loginOnly"]
 }
 
 
@@ -221,7 +204,7 @@ def _default_parsl_config_kwargs(enable_monitoring: bool = False) -> Dict[str, A
 
 def config(
     facility: FACILITIES,
-    task_type: TASK_TYPE,
+    task_config: TaskConfig,
     n_tasks: int,
     walltime: str,
     enable_monitoring: bool = False,
@@ -233,7 +216,7 @@ def config(
 
     Args:
         facility: Name of facility. Possible values are in `FACILITIES`.
-        task_type: Type of task. Possibles values are in `TASK_TYPE`. Usually, it should be "jet_energy_loss".
+        task_config: Task configuration to be executed.
         n_tasks: Total number of tasks execute.
         walltime: Requested wall time for the job. Short times will (probably) be easier to schedule.
             Format: "hh:mm:ss".
@@ -255,17 +238,12 @@ def config(
     _facility.storage_work_dir.mkdir(parents=True, exist_ok=True)
 
     # Further validation
-    if task_type not in _facility.task_configs:
-        raise ValueError(
-            f"Task type '{task_type}' is not supported by the {_facility.name} facility config. Possible options: {list(_facility.task_configs.keys())}"
-        )
-
     if "test_local" in facility:
         # We need to treat the case of the local facility differently because
         # the provide is different (ie. it's not slurm).
         return _define_local_config(
             n_tasks=n_tasks,
-            task_type=task_type,
+            task_config=task_config,
             facility=_facility,
             walltime=walltime,
             enable_monitoring=enable_monitoring,
@@ -274,7 +252,7 @@ def config(
     else:
         return _define_config(
             n_tasks=n_tasks,
-            task_type=task_type,
+            task_config=task_config,
             facility=_facility,
             walltime=walltime,
             enable_monitoring=enable_monitoring,
@@ -284,7 +262,7 @@ def config(
 
 def _define_config(
     n_tasks: int,
-    task_type: TASK_TYPE,
+    task_config: TaskConfig,
     facility: Facility,
     walltime: str,
     enable_monitoring: bool,
@@ -294,7 +272,7 @@ def _define_config(
 
     Args:
         n_tasks: Number of tasks to be executed.
-        task_type: Type of task to be executed.
+        task_config: Task configuration to be executed.
         facility: Facility configuration.
         walltime: Wall time for the job.
         enable_monitoring: If True, enable parsl monitoring. I am unsure of how this will
@@ -315,7 +293,7 @@ def _define_config(
     # 1. How many cores to request per block
     # 2. How much memory to request per block
     # 3. How many blocks are required to run all tasks.
-    n_cores_required = int(n_tasks * facility.task_configs[task_type].n_cores_per_task)
+    n_cores_required = int(n_tasks * task_config.n_cores_per_task)
     if n_cores_required <= facility.target_allocate_n_cores:
         # Only need a single block
         n_blocks = 1
@@ -331,10 +309,10 @@ def _define_config(
         # Need to make sure that it fits within our core requirements, so round up to the
         # nearest multiple of n_cores_per_task
         n_cores_to_allocate_per_block = n_cores_to_allocate_per_block + (
-            n_cores_to_allocate_per_block % facility.task_configs[task_type].n_cores_per_task
+            n_cores_to_allocate_per_block % task_config.n_cores_per_task
         )
         # Have to additional round because otherwise python will treat this as a float.
-        n_tasks_per_block = round(n_cores_to_allocate_per_block / facility.task_configs[task_type].n_cores_per_task)
+        n_tasks_per_block = round(n_cores_to_allocate_per_block / task_config.n_cores_per_task)
 
         # Cross check
         assert (
@@ -343,7 +321,7 @@ def _define_config(
 
     # Calculate the memory required per block
     # NOTE: type ignore because mypy apparently can't figure out that this is not None, even though the check is right there...
-    memory_to_allocate_per_block = n_tasks_per_block * facility.task_configs[task_type].memory_per_task if facility.task_configs[task_type].memory_per_task else None  # type: ignore
+    memory_to_allocate_per_block = n_tasks_per_block * task_config.memory_per_task if task_config.memory_per_task else None
 
     log_messages.append(
         helpers.LogMessage(
@@ -387,12 +365,11 @@ def _define_config(
             HighThroughputExecutor(
                 label=f"Jetscape_{facility.name}_HTEX",
                 address=address_by_hostname(),
-                cores_per_worker=facility.task_configs[task_type].n_cores_per_task,
+                cores_per_worker=task_config.n_cores_per_task,
                 # cores_per_worker=round(n_cores_per_node / n_workers_per_node),
                 # NOTE: We don't want to set the `max_workers` because we want the number of workers to
                 #       be determined by the number of cores per worker and the cores per node.
                 working_dir=str(facility.node_work_dir),
-                storage_access=[RSyncStaging("localhost")],  # type: ignore
                 provider=SlurmProvider(
                     # This is how many cores and how much memory we'll request per node.
                     cores_per_node=n_cores_to_allocate_per_block,
@@ -428,7 +405,7 @@ def _define_config(
 
 def _define_local_config(
     n_tasks: int,
-    task_type: TASK_TYPE,
+    task_config: TaskConfig,
     facility: Facility,
     walltime: str,
     enable_monitoring: bool,
@@ -448,7 +425,7 @@ def _define_local_config(
 
     Args:
         n_tasks: Number of tasks to be executed.
-        task_type: Type of task to be executed.
+        task_config: Task configuration to be executed.
         facility: Facility configuration.
         walltime: Wall time for the job.
         enable_monitoring: If True, enable parsl monitoring. I am unsure of how this will
@@ -462,7 +439,7 @@ def _define_local_config(
     """
     # Setup
     log_messages: List[helpers.LogMessage] = []
-    n_blocks_exact = (n_tasks * facility.task_configs[task_type].n_cores_per_task) / facility.target_allocate_n_cores
+    n_blocks_exact = (n_tasks * task_config.n_cores_per_task) / facility.target_allocate_n_cores
     n_blocks = math.ceil(n_blocks_exact)
     log_messages.append(
         helpers.LogMessage(
@@ -482,7 +459,7 @@ def _define_local_config(
             HighThroughputExecutor(
                 label=f"Jetscape_{facility.name}_HTEX",
                 address=address_by_hostname(),
-                cores_per_worker=facility.task_configs[task_type].n_cores_per_task,
+                cores_per_worker=task_config.n_cores_per_task,
                 provider=LocalProvider(
                     # One block is one node.
                     nodes_per_block=1,
