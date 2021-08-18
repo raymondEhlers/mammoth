@@ -9,10 +9,15 @@ from typing import Optional, Sequence
 
 import attr
 import rich
+from rich.console import Console
 from rich.logging import RichHandler
 
 
-logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
+
+# We need a consistent console object to set everything up properly
+# (Namely, the logging with the progress bars)
+rich_console = Console()
 
 
 @attr.s
@@ -82,7 +87,7 @@ def setup_logging(
     level: int = logging.INFO,
     stored_messages: Optional[Sequence[LogMessage]] = None,
     aggressively_quiet_parsl_logging: bool = False,
-) -> bool:
+) -> Console:
     """Configure logging.
 
     NOTE:
@@ -103,21 +108,35 @@ def setup_logging(
         stored_messages = []
 
     FORMAT = "%(message)s"
-    logging.basicConfig(level=level, format=FORMAT, datefmt="[%X]", handlers=[RichModuleNameHandler()])
+    #logging.basicConfig(level=level, format=FORMAT, datefmt="[%X]", handlers=[RichModuleNameHandler(console=rich_console, rich_tracebacks=True)])
+    #logging.basicConfig(level=level, format=FORMAT, datefmt="[%X]", handlers=[RichHandler(level=level, console=rich_console)])
+    #logging.basicConfig(level=level, format=FORMAT)
+    #logging.basicConfig(level=level, format="%(asctime)s %(name)s:%(lineno)d %(levelname)s %(message)s")
+    logging.basicConfig(level=level, format="%(asctime)s %(name)s,%(pathname)s:%(lineno)d %(levelname)s %(message)s")
+    # TEST
+    logging.getLogger("").handlers[0].setLevel(level)
+    # ENDTEST
     # Generally, parsl's logger configuration doesn't work for a number of modules because
     # they're not in the parsl namespace, but it's still worth trying to make it quieter.
     logging.getLogger("parsl").setLevel(logging.WARNING)
     # If we need to do more, it's possible, but rather messy. It's stored here for posterity,
     # but would need to be enabled manually.
     if aggressively_quiet_parsl_logging:
+        print(f"handlers: {logging.getLogger().handlers}")
         for name in logging.root.manager.loggerDict:
-            if name.startswith("parsl") or name.startswith("database_monitoring"):
+            print(f"name: {name}")
+            if name.startswith("parsl") or name.startswith("database_monitoring") or name.startswith("database_manager") or name.startswith("interchange"):
+                print(f"Set at warning: {name}, handlers: {logging.getLogger(name).handlers}")
                 logging.getLogger(name).setLevel(logging.WARNING)
     # For sanity when using IPython
     logging.getLogger("parso").setLevel(logging.INFO)
+
+    #logging.getLogger("database_manager").setLevel(logging.CRITICAL)
+    logging.getLogger("database_manager").setLevel(logging.WARNING)
+    logging.getLogger("interchange").setLevel(logging.WARNING)
 
     # Log the stored up messages.
     for message in stored_messages:
         message.log()
 
-    return True
+    return rich_console
