@@ -197,16 +197,18 @@ if __name__ == "__main__":
         enable_monitoring=False,
     )
     import IPython; IPython.embed()
-    rich_console = helpers.setup_logging(level=logging.WARNING, stored_messages=stored_messages, aggressively_quiet_parsl_logging=True)
+    rich_console = helpers.setup_logging(level=logging.WARNING, stored_messages=stored_messages, aggressively_quiet_parsl_logging=False)
     executor = parsl.load(config)
-    parsl.set_stream_logger(level=logging.WARNING)
+    logging.getLogger().setLevel(logging.INFO)
+    logging.getLogger().handlers[0].setLevel(logging.INFO)
+    #parsl.set_stream_logger(level=logging.WARNING)
     logger.info(f"handlers root: {logging.getLogger().handlers}, local: {logger.handlers}")
     #logging.getLogger("database_manager").setLevel(logging.WARNING)
-    for name, v in logging.root.manager.loggerDict.items():
-        if not isinstance(v, logging.PlaceHolder):
-            print(f"name: {name}, handlers: {v.handlers}")
-        else:
-            print(f"Placeholder: {name}")
+    #for name, v in logging.root.manager.loggerDict.items():
+    #    if not isinstance(v, logging.PlaceHolder):
+    #        print(f"name: {name}, handlers: {v.handlers}")
+    #    else:
+    #        print(f"Placeholder: {name}")
     import IPython; IPython.embed()
 
     all_results = setup_convert_jetscape_files(
