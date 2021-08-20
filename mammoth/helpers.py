@@ -64,7 +64,7 @@ class RichModuleNameHandler(RichHandler):
         Returns:
             ConsoleRenderable: Renderable to display log.
         """
-        # STAT modifications
+        # START modifications (originally for STAT)
         path = record.name
         # END modifications
         level = self.get_level_text(record)
@@ -106,19 +106,22 @@ def setup_logging_and_parsl(
     if not stored_messages:
         stored_messages = []
 
-    # First, setup logging at warning level. This will ensure that the parsl loggers
-    # will only log at that level (it's still unclear how they're initialized, but
-    # they seem to inherit this value, and won't change it if the level changes later.
-    # Which is the source of all of the problems).
-    res = setup_logging(level=logging.WARNING)
+    # First, setup logging at critical level. This will ensure that the parsl spamming
+    # loggers # will only log at that level (it's still unclear how they're initialized,
+    # but # they seem to inherit this value, and won't change it if the level changes
+    # later. Which is the source of all of the problems).
+    res = setup_logging(level=logging.CRITICAL)
     if not res:
-        raise RuntimeError("Failed to setup logging. That's unexpected!")
+        raise RuntimeError("Failed to setup logging. Wat?")
 
     # Next, load the parsl config
     dfk = parsl.load(parsl_config)
     # Finally, set the root logger to what we actually wanted in the first place.
     logging.getLogger().setLevel(level)
     logging.getLogger().handlers[0].setLevel(level)
+    # Just in case, try to reset parsl to a reasonable level. It probably won't work,
+    # but it doesn't hurt.
+    logging.getLogger("parsl").setLevel(logging.WARNING)
     # And then log the stored messsages, so they have a chance to emit at the desired level
     for message in stored_messages:
         message.log()
@@ -129,7 +132,6 @@ def setup_logging_and_parsl(
 def setup_logging(
     level: int = logging.INFO,
     stored_messages: Optional[Sequence[LogMessage]] = None,
-    aggressively_quiet_parsl_logging: bool = False,
 ) -> bool:
     """Configure logging.
 
@@ -163,6 +165,7 @@ def setup_logging(
     # Quiet down some loggers for sanity
     # Generally, parsl's logger configuration doesn't work for a number of modules because
     # they're not in the parsl namespace, but it's still worth trying to make it quieter.
+    # NOTE: There appear to be some further issues with parsl logging beyond just this.
     logging.getLogger("parsl").setLevel(logging.WARNING)
     # For sanity when using IPython
     logging.getLogger("parso").setLevel(logging.INFO)

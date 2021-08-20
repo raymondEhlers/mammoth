@@ -65,7 +65,7 @@ def setup_convert_jetscape_files(
     )
 
     results = []
-    for pt_hat_bin in pt_hat_bins[:2]:
+    for pt_hat_bin in pt_hat_bins:
         logger.info(f"Processing pt hat range: {pt_hat_bin}")
 
         input_file = File(
@@ -135,7 +135,7 @@ def _cancel(job: AppFuture) -> None:
         pass
 
 
-def _futures_handler(input_futures: Sequence[AppFuture], timeout: Optional[float] = None) -> Iterable[Any]:
+def _futures_handler(input_futures: Sequence[AppFuture], timeout: Optional[float] = None, running_with_parsl: bool = False) -> Iterable[Any]:
     """Essentially the same as concurrent.futures.as_completed
     but makes sure not to hold references to futures any longer than strictly necessary,
     which is important if the future holds a large result.
@@ -161,13 +161,17 @@ def _futures_handler(input_futures: Sequence[AppFuture], timeout: Optional[float
                         yield done.pop().result()
                     except concurrent.futures.CancelledError:
                         pass
-            except KeyboardInterrupt:
+            except KeyboardInterrupt as e:
                 for job in futures:
                     _cancel(job)
                 running = sum(job.running() for job in futures)
                 logger.warning(
                     f"Early stop: cancelled {len(futures) - running} jobs, will wait for {running} running jobs to complete"
                 )
+                # parsl can't cancel, so we need to break out ourselves
+                # It's most convenient to do this by just reraising the ctrl-c
+                if running_with_parsl:
+                    raise e
     finally:
         running = sum(job.running() for job in futures)
         if running:
@@ -194,25 +198,13 @@ if __name__ == "__main__":
         task_config=task_config,
         n_tasks=n_cores_to_allocate,
         walltime=walltime,
-        enable_monitoring=False,
+        enable_monitoring=True,
     )
     dfk = helpers.setup_logging_and_parsl(
         parsl_config=config,
         level=logging.INFO,
         stored_messages=stored_messages,
     )
-    #rich_console = helpers.setup_logging(level=logging.WARNING, stored_messages=stored_messages, aggressively_quiet_parsl_logging=False)
-    #executor = parsl.load(config)
-    #logging.getLogger().setLevel(logging.INFO)
-    #logging.getLogger().handlers[0].setLevel(logging.INFO)
-    #parsl.set_stream_logger(level=logging.WARNING)
-    logger.info(f"handlers root: {logging.getLogger().handlers}, local: {logger.handlers}")
-    #logging.getLogger("database_manager").setLevel(logging.WARNING)
-    #for name, v in logging.root.manager.loggerDict.items():
-    #    if not isinstance(v, logging.PlaceHolder):
-    #        print(f"name: {name}, handlers: {v.handlers}")
-    #    else:
-    #        print(f"Placeholder: {name}")
 
     all_results = setup_convert_jetscape_files(
         #ascii_output_dir=Path("/alf/data/rehlers/jetscape/osiris/AAPaperData/5020_PP_Colorless/"),
@@ -224,59 +216,25 @@ if __name__ == "__main__":
 
     # Show processing progress
     # Since it returns the outputs, we can actually use this to accumulate results.
-    #gen_results = _futures_handler(all_results)
+    gen_results = _futures_handler(all_results, running_with_parsl=True)
     #gen_results = concurrent.futures.as_completed(all_results)
 
-    logger.warning(f"Warning post gen results")
-    logger.info(f"handlers root: {logging.getLogger().handlers}, local: {logger.handlers}")
-
-    #rich_logger = logging.getLogger("rich")
-
-    # wattttttt? Why does it break here??
-
-    print("About to loop")
-    logger.info("Does this work???")
-    print("After log, pre loop")
-
-    #with Progress(console=helpers.rich_console, refresh_per_second=10) as progress:
-    #    track_results = progress.add_task(total=len(all_results), description="Processing results...")
-    #for r in gen_results:
-    #for a in all_results:
-    #    r = a.result()
-    #    print("printing...")
-    #    print(f"print: {r}")
-    #    logger.info(f"log info: {r}")
-    #    logger.warning(f"log warning: {r}")
-    #    #rich_logger.warning(f"rich log warning: {r}")
-    #    #progress.console.log(f"progress object: {r}")
-    #    logger.warning(f"log warning after: {r}")
-    #    #progress.update(track_results, advance=1)
+    with Progress(console=helpers.rich_console, refresh_per_second=1) as progress:
+        track_results = progress.add_task(total=len(all_results), description="Processing results...")
+        #for a in all_results:
+        for r in gen_results:
+            #r = a.result()
+            logger.info(f"log info: {r}")
 
     # As far as I can tell, jobs will start executing as soon as they can, regardless of
     # asking for the result. By embedded here, we can inspect results, etc in the meantime.
     # NOTE: This may be commented out sometimes when I have long running processes and wil
     #       probably forget to close it.
-    #IPython.start_ipython(user_ns=locals())
-
-    logger.info("Yo1")
-    #rich_logger.info("rich log info after")
-    #rich_logger.warning("rich log warning after")
-    print("after rich logger...")
+    IPython.start_ipython(user_ns=locals())
 
     # In case we close IPython early, wait for all apps to complete
-    print(f"print handlers root: {logging.getLogger().handlers}, local: {logger.handlers}")
-    logger.info(f"log handlers root: {logging.getLogger().handlers}, local: {logger.handlers}")
-    res = [r.result() for r in all_results]
-    print(f"print handlers root: {logging.getLogger().handlers}, local: {logger.handlers}")
-    logger.info(f"log handlers root: {logging.getLogger().handlers}, local: {logger.handlers}")
-    logger.info(res)
-    print(f"print handlers root: {logging.getLogger().handlers}, local: {logger.handlers}")
-    logger.info(f"log handlers root: {logging.getLogger().handlers}, local: {logger.handlers}")
-
-    logger.info("Done")
-    logger.info("Yo")
-
-    IPython.start_ipython(user_ns=locals())
+    #res = [r.result() for r in all_results]
+    #logger.info(res)
 
 
 #if __name__ == "__main__":
