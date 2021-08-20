@@ -8,6 +8,7 @@ from datetime import datetime
 from typing import Optional, Sequence
 
 import attr
+import parsl
 import rich
 from rich.console import Console
 from rich.logging import RichHandler
@@ -16,7 +17,7 @@ from rich.logging import RichHandler
 logger = logging.getLogger(__name__)
 
 # We need a consistent console object to set everything up properly
-# (Namely, the logging with the progress bars)
+# (Namely, the logging with the progress bars), so we define it here.
 rich_console = Console()
 
 
@@ -83,23 +84,64 @@ class RichModuleNameHandler(RichHandler):
         return log_renderable
 
 
+def setup_logging_and_parsl(
+    parsl_config: parsl.Config,
+    level: int = logging.INFO,
+    stored_messages: Optional[Sequence[LogMessage]] = None,
+) -> parsl.DataFlowKernel:
+    """Configure logging and setup the parsl config.
+
+    We need a separate function because otherwise parsl will spam log messages.
+    Here, we use some tricks to keep the messages in check.
+
+    Args:
+        parsl_config: Parsl configuration.
+        level: Logging level. Default: "INFO".
+        stored_messages: Messages stored that we can't log because we had to wait for the parsl
+            initialization. Default: None.
+
+    Returns:
+        The parsl DataFlowKernel created from the config
+    """
+    if not stored_messages:
+        stored_messages = []
+
+    # First, setup logging at warning level. This will ensure that the parsl loggers
+    # will only log at that level (it's still unclear how they're initialized, but
+    # they seem to inherit this value, and won't change it if the level changes later.
+    # Which is the source of all of the problems).
+    res = setup_logging(level=logging.WARNING)
+    if not res:
+        raise RuntimeError("Failed to setup logging. That's unexpected!")
+
+    # Next, load the parsl config
+    dfk = parsl.load(parsl_config)
+    # Finally, set the root logger to what we actually wanted in the first place.
+    logging.getLogger().setLevel(level)
+    logging.getLogger().handlers[0].setLevel(level)
+    # And then log the stored messsages, so they have a chance to emit at the desired level
+    for message in stored_messages:
+        message.log()
+
+    return dfk
+
+
 def setup_logging(
     level: int = logging.INFO,
     stored_messages: Optional[Sequence[LogMessage]] = None,
     aggressively_quiet_parsl_logging: bool = False,
-) -> Console:
+) -> bool:
     """Configure logging.
 
     NOTE:
-        Don't call this before parsl has loaded a config! Otherwise, you'll be inundated with
-        irrelevant log messages. Hopefully this will be fixed in parsl eventually.
+        Don't call this before parsl has loaded a config! Otherwise, you'll be permanently
+        inundated with irrelevant log messages. Hopefully this will be fixed in parsl eventually.
+        Until then, use `setup_logging_and_parsl` instead.
 
     Args:
         level: Logging level. Default: "INFO".
         stored_messages: Messages stored that we can't log because we had to wait for the parsl
             initialization. Default: None.
-        aggressively_quiet_parsl_logging: Aggressively quiet parsl logging. Default: False since
-            it usually isn't required, but kept around in case.
 
     Returns:
         True if logging was set up successfully.
@@ -107,36 +149,26 @@ def setup_logging(
     if not stored_messages:
         stored_messages = []
 
+    # First, setup logging
     FORMAT = "%(message)s"
-    #logging.basicConfig(level=level, format=FORMAT, datefmt="[%X]", handlers=[RichModuleNameHandler(console=rich_console, rich_tracebacks=True)])
-    #logging.basicConfig(level=level, format=FORMAT, datefmt="[%X]", handlers=[RichHandler(level=level, console=rich_console)])
-    #logging.basicConfig(level=level, format=FORMAT)
-    #logging.basicConfig(level=level, format="%(asctime)s %(name)s:%(lineno)d %(levelname)s %(message)s")
-    logging.basicConfig(level=level, format="%(asctime)s %(name)s,%(pathname)s:%(lineno)d %(levelname)s %(message)s")
-    # TEST
-    logging.getLogger("").handlers[0].setLevel(level)
-    # ENDTEST
+    # NOTE: For shutting up parsl, it's import to set the level both in the logging setup
+    #       as well as in the handler.
+    logging.basicConfig(
+        level=level,
+        format=FORMAT,
+        datefmt="[%X]",
+        handlers=[RichModuleNameHandler(level=level, console=rich_console, rich_tracebacks=True)],
+    )
+
+    # Quiet down some loggers for sanity
     # Generally, parsl's logger configuration doesn't work for a number of modules because
     # they're not in the parsl namespace, but it's still worth trying to make it quieter.
     logging.getLogger("parsl").setLevel(logging.WARNING)
-    # If we need to do more, it's possible, but rather messy. It's stored here for posterity,
-    # but would need to be enabled manually.
-    if aggressively_quiet_parsl_logging:
-        print(f"handlers: {logging.getLogger().handlers}")
-        for name in logging.root.manager.loggerDict:
-            print(f"name: {name}")
-            if name.startswith("parsl") or name.startswith("database_monitoring") or name.startswith("database_manager") or name.startswith("interchange"):
-                print(f"Set at warning: {name}, handlers: {logging.getLogger(name).handlers}")
-                logging.getLogger(name).setLevel(logging.WARNING)
     # For sanity when using IPython
     logging.getLogger("parso").setLevel(logging.INFO)
-
-    #logging.getLogger("database_manager").setLevel(logging.CRITICAL)
-    logging.getLogger("database_manager").setLevel(logging.WARNING)
-    logging.getLogger("interchange").setLevel(logging.WARNING)
 
     # Log the stored up messages.
     for message in stored_messages:
         message.log()
 
-    return rich_console
+    return True
