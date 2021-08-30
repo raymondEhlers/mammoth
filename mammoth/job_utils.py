@@ -187,9 +187,6 @@ def _default_parsl_config_kwargs(enable_monitoring: bool = False) -> Dict[str, A
         # This is a balance - if we're too aggressive, then the blocks may be stopped while we still
         # have work remaining. However, if we're not aggressive enough, then we're wasting our allocation.
         max_idletime=20,
-        # TEST
-        initialize_logging=False,
-        # ENDTEST
     )
 
     # Setup
@@ -200,6 +197,8 @@ def _default_parsl_config_kwargs(enable_monitoring: bool = False) -> Dict[str, A
             hub_port=55055,
             monitoring_debug=False,
             resource_monitoring_interval=10,
+            # TODO: Make this settable
+            #workflow_name=name,
         )
 
     return config_kwargs

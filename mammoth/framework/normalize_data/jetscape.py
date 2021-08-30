@@ -601,6 +601,7 @@ def read(filename: Union[Path, str], events_per_chunk: int, parser: str = "panda
             break
 
         # Now, convert into the awkward array structure.
+        # logger.info(f"n_particles_per_event len: {len(chunk_generator.n_particles_per_event())}, array: {chunk_generator.n_particles_per_event()}")
         array_with_events = ak.unflatten(ak.Array(res), chunk_generator.n_particles_per_event())
 
         # Cross checks.
@@ -795,6 +796,9 @@ def find_production_pt_hat_bins_in_filenames(ascii_output_dir: Path, filename_te
 
 
 if __name__ == "__main__":
+    # For convenience
+    from mammoth import helpers
+    helpers.setup_logging(level=logging.INFO)
     # Extracted via find_production_pt_hard_bins_in_filename from the 5 TeV pp production
     # However, we keep them separate here because it's more conveneint than looking up every time
     # (and requires fewer metadata queries).
@@ -866,17 +870,15 @@ if __name__ == "__main__":
         '90_100',
         '9_11'
     ]
-    # for pt_hat_bin in ["7_9"]:
-    for pt_hat_bin in pt_hat_bins:
+    # for pt_hat_bin in pt_hat_bins:
+    for pt_hat_bin in ["45_50"]:
         print(f"Processing pt hat range: {pt_hat_bin}")
-        directory_name = "OutputFile_Type5_qhatA10_B0_5020_PbPb_0-10_0.30_2.0_1"
         filename = f"JetscapeHadronListBin{pt_hat_bin}"
         parse_to_parquet(
-            base_output_filename=f"/alf/data/rehlers/jetscape/osiris/AAPaperData/5020_PP_Colorless/skim/test/{filename}.parquet",
+            input_filename=f"/alf/data/rehlers/jetscape/osiris/AAPaperData/MATTER_LBT_RunningAlphaS_Q2qhat/5020_PbPb_5-10_0.30_2.0_1/{filename}.out",
+            base_output_filename=f"/alf/data/rehlers/jetscape/osiris/AAPaperData/MATTER_LBT_RunningAlphaS_Q2qhat/5020_PbPb_5-10_0.30_2.0_1/skim/test/{filename}.parquet",
             store_only_necessary_columns=True,
-            #input_filename=f"/alf/data/rehlers/jetscape/osiris/AAPaperData/MATTER_LBT_RunningAlphaS_Q2qhat/{directory_name}/{filename}_test.out",
-            input_filename=f"/alf/data/rehlers/jetscape/osiris/AAPaperData/5020_PP_Colorless/{filename}.out",
-            events_per_chunk=50000,
+            events_per_chunk=5000,
             #events_per_chunk=50,
-            max_chunks=1,
+            #max_chunks=1,
         )

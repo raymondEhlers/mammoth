@@ -7,7 +7,7 @@
 
 import logging
 from pathlib import Path
-from typing import Dict, Mapping, Sequence
+from typing import Dict, Mapping, Optional, Sequence
 
 import attr
 import awkward as ak
@@ -40,7 +40,7 @@ def load_data(filename: Path) -> ak.Array:
     return transform.data(arrays=arrays, rename_prefix={"data": "particles"})
 
 
-def analysis(arrays: ak.Array, jet_R_values: Sequence[float], particle_column_name: str = "data", min_jet_pt: float = 30) -> Dict[JetLabel, ak.Array]:
+def find_jets_for_analysis(arrays: ak.Array, jet_R_values: Sequence[float], particle_column_name: str = "data", min_jet_pt: float = 30) -> Dict[JetLabel, ak.Array]:
     logger.info("Start analyzing")
     # Event selection
     # None for jetscape
@@ -114,20 +114,35 @@ def analyze_jets(jets: Mapping[JetLabel, ak.Array]) -> Dict[JetLabel, hist.Hist]
     return hists
 
 
+def run(arrays: ak.Array, min_jet_pt: float = 5, jet_R_values: Optional[Sequence[float]] = None) -> Dict[JetLabel, hist.Hist]:
+    # Validation
+    if jet_R_values is None:
+        jet_R_values = [0.2, 0.4, 0.6]
+
+    # Find jets
+    jets = find_jets_for_analysis(
+        arrays=arrays,
+        jet_R_values=jet_R_values,
+        min_jet_pt=min_jet_pt,
+    )
+
+    # Analyze the jets
+    hists = analyze_jets(jets=jets)
+
+    return hists
+
+
 if __name__ == "__main__":
     # Basic setup
     helpers.setup_logging(level=logging.INFO)
 
-    # Find jets
-    jets = analysis(
+    hists = run(
         arrays=load_data(
             Path(f"/alf/data/rehlers/jetscape/osiris/AAPaperData/5020_PP_Colorless/skim/test/JetscapeHadronListBin7_9_00.parquet")
         ),
-        jet_R_values=[0.2, 0.4, 0.6],
+        # Low for testing
         min_jet_pt=3,
     )
-
-    hists = analyze_jets(jets=jets)
 
     import IPython
     

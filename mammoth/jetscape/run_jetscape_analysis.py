@@ -33,17 +33,17 @@ def convert_jetscape_files(
 
     from mammoth.framework.normalize_data import jetscape
 
-    #try:
-    jetscape.parse_to_parquet(
-        input_filename=Path(inputs[0].filepath),
-        base_output_filename=output_filename_template,
-        store_only_necessary_columns=store_only_necessary_columns,
-        events_per_chunk=events_per_chunk,
-    )
-    # There's no return value for the conversion, so return True by convention
-    status = True, f"success for {inputs[0].filepath}"
-    #except ValueError as e:
-    #    status = False, f"File {inputs[0].filepath} failed with {e}"
+    try:
+        jetscape.parse_to_parquet(
+            input_filename=Path(inputs[0].filepath),
+            base_output_filename=output_filename_template,
+            store_only_necessary_columns=store_only_necessary_columns,
+            events_per_chunk=events_per_chunk,
+        )
+        # There's no return value for the conversion, so return True by convention
+        status = True, f"success for {inputs[0].filepath}"
+    except ValueError as e:
+        status = False, f"File {inputs[0].filepath} failed with {e}"
     return status
 
 
@@ -182,8 +182,7 @@ def _futures_handler(input_futures: Sequence[AppFuture], timeout: Optional[float
             _cancel(futures.pop())
 
 
-#def run() -> None:
-if __name__ == "__main__":
+def run() -> None:
     task_config = job_utils.TaskConfig(n_cores_per_task=1)
     #n_cores_to_allocate = 64
     n_cores_to_allocate = 21
@@ -208,7 +207,7 @@ if __name__ == "__main__":
 
     all_results = setup_convert_jetscape_files(
         #ascii_output_dir=Path("/alf/data/rehlers/jetscape/osiris/AAPaperData/5020_PP_Colorless/"),
-        ascii_output_dir=Path("/alf/data/rehlers/jetscape/osiris/AAPaperData/MATTER_LBT_RunningAlphaS_Q2qhat/5020_PbPb_30-40_0.30_2.0_1"),
+        ascii_output_dir=Path("/alf/data/rehlers/jetscape/osiris/AAPaperData/MATTER_LBT_RunningAlphaS_Q2qhat/5020_PbPb_0-5_0.30_2.0_1"),
         events_per_chunk=5000,
     )
 
@@ -224,18 +223,20 @@ if __name__ == "__main__":
         #for a in all_results:
         for r in gen_results:
             #r = a.result()
-            logger.info(f"log info: {r}")
+            logger.info(f"result: {r}")
+            progress.update(track_results, advance=1)
 
     # As far as I can tell, jobs will start executing as soon as they can, regardless of
     # asking for the result. By embedded here, we can inspect results, etc in the meantime.
     # NOTE: This may be commented out sometimes when I have long running processes and wil
     #       probably forget to close it.
-    IPython.start_ipython(user_ns=locals())
+    #IPython.start_ipython(user_ns=locals())
 
     # In case we close IPython early, wait for all apps to complete
-    #res = [r.result() for r in all_results]
-    #logger.info(res)
+    # Also allows for a summary at the end.
+    res = [r.result() for r in all_results]
+    logger.info(res)
 
 
-#if __name__ == "__main__":
-#    run()
+if __name__ == "__main__":
+    run()
