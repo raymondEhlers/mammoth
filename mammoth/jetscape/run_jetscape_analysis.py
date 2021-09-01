@@ -144,7 +144,7 @@ def setup_RAA_analysis(
     input_files = sorted(parquet_input_dir.glob("*.parquet"), key=lambda p: int(str(p.name).split("_")[0].replace("JetscapeHadronListBin", "")))
 
     # TEMP
-    input_files = input_files[:2]
+    # input_files = input_files[:2]
     # ENDTEMP
 
     results = []
