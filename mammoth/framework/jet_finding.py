@@ -245,9 +245,10 @@ def find_jets(
     sum_counts = np.insert(sum_counts, 0, 0)  # type: ignore
 
     # Validate that there is at least one particle per event
-    if np.any(sum_counts[1:] == sum_counts[:-1]):
+    event_with_no_particles = sum_counts[1:] == sum_counts[:-1]
+    if np.any(event_with_no_particles):
         raise ValueError(
-            "There are some events with zero particles, which is going to mess up the alignment. Check the input!"
+            f"There are some events with zero particles, which is going to mess up the alignment. Check the input! 0s are at {np.where(event_with_no_particles)}"
         )
 
     # Now, deal with the particles themselves.
