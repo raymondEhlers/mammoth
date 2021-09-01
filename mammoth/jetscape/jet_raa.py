@@ -12,6 +12,7 @@ from typing import Dict, Mapping, Optional, Sequence
 import attr
 import awkward as ak
 import hist
+import numpy as np
 
 from mammoth import analysis_base, helpers
 from mammoth.framework import jet_finding, sources, transform
@@ -66,26 +67,45 @@ def find_jets_for_analysis(arrays: ak.Array, jet_R_values: Sequence[float], part
     particles_signal_charged = arrays[particle_column_name][signal_particles_mask & charged_particles_mask]
     particles_holes = arrays[particle_column_name][holes_mask]
 
+    # Finally, require that we have particles for each event
+    # NOTE: We have to do it in a separate mask because the above is masked as the particle level,
+    #       but here we need to mask at the event level. (If you try to mask at the particle, you'll
+    #       end up with empty events)
+    # NOTE: We store the mask because we need to apply it to the holes when we perform the subtraction below
+    event_has_particles_signal = ak.num(particles_signal, axis=1) > 0
+    particles_signal = particles_signal[event_has_particles_signal]
+    event_has_particles_signal_charged = ak.num(particles_signal_charged, axis=1) > 0
+    particles_signal_charged = particles_signal_charged[event_has_particles_signal_charged]
+
     # Jet finding
     logger.info("Find jets")
+    # Always use the pp jet area because we aren't going to do subtraction via fastjet
     area_settings = jet_finding.AREA_PP
-    jets = {
-        JetLabel(jet_R=jet_R, label=label): jet_finding.find_jets(
-            particles=particles,
-            algorithm="anti-kt",
-            jet_R=jet_R,
-            area_settings=area_settings,
-            min_jet_pt=min_jet_pt,
-        )
-        for jet_R in jet_R_values
-        for particles, label in zip([particles_signal, particles_signal_charged], ["full", "charged"])
-    }
+    jets = {}
+    # NOTE: The dict comprehension that was here previously was cute, but it made it harder to
+    #       debug issues, so we use a standard set of for loops here instead
+    for jet_R in jet_R_values:
+        #for particles, label in zip([particles_signal, particles_signal_charged], ["full", "charged"]):
+        for particles, label in zip([particles_signal_charged, particles_signal], ["charged", "full"]):
+            tag = JetLabel(jet_R=jet_R, label=label)
+            logger.info(f"label: {tag}")
+            jets[tag] = jet_finding.find_jets(
+                particles=particles,
+                algorithm="anti-kt",
+                jet_R=jet_R,
+                area_settings=area_settings,
+                min_jet_pt=min_jet_pt,
+            )
 
     # Calculated the subtracted pt due to the holes.
     for jet_label, jet_collection in jets.items():
         jets[jet_label]["pt_subtracted"] = utils.subtract_holes_from_jet_pt(
             jets=jet_collection,
-            particles_holes=particles_holes,
+            # NOTE: There can be different number of events for full vs charged jets, so we need
+            #       to apply the appropriate event mask to the holes
+            particles_holes=particles_holes[
+                event_has_particles_signal_charged if jet_label.label == "charged" else event_has_particles_signal
+            ],
             jet_R=jet_label.jet_R,
             builder=ak.ArrayBuilder(),
         ).snapshot()
@@ -93,7 +113,11 @@ def find_jets_for_analysis(arrays: ak.Array, jet_R_values: Sequence[float], part
     # Store the cross section with each jet. This way, we can flatten from events -> jets
     for jet_label, jet_collection in jets.items():
         # Before any jets cuts, add in cross section
-        jets[jet_label]["cross_section"] = arrays["cross_section"]
+        # NOTE: There can be different number of events for full vs charged jets, so we need
+        #       to apply the appropriate event mask to the holes
+        jets[jet_label]["cross_section"] = arrays["cross_section"][
+                event_has_particles_signal_charged if jet_label.label == "charged" else event_has_particles_signal
+            ]
 
     # Apply jet level cuts.
     # None for now
@@ -101,20 +125,24 @@ def find_jets_for_analysis(arrays: ak.Array, jet_R_values: Sequence[float], part
     return jets
 
 
-def analyze_jets(jets: Mapping[JetLabel, ak.Array]) -> Dict[JetLabel, hist.Hist]:
+def analyze_jets(arrays: ak.Array, jets: Mapping[JetLabel, ak.Array]) -> Dict[str, hist.Hist]:
     hists = {}
+    hists["n_events"] = hist.Hist(hist.axis.Regular(1, -0.5, 0.5))
     for jet_label in jets:
-        hists[jet_label] = hist.Hist(hist.axis.Regular(200, 0, 200), storage=hist.storage.Weight())
+        hists[f"{jet_label}_jet_pt"] = hist.Hist(hist.axis.Regular(200, 0, 200, label="jet_pt"), storage=hist.storage.Weight())
+        hists[f"{jet_label}_n_events"] = hist.Hist(hist.axis.Regular(1, -0.5, 0.5))
 
+    hists["n_events"].fill(0, weight=len(arrays))
     for jet_label, jet_collection in jets.items():
-        hists[jet_label].fill(
+        hists[f"{jet_label}_jet_pt"].fill(
             ak.flatten(jet_collection.pt), weight=ak.flatten(jet_collection.cross_section)
         )
+        hists[f"{jet_label}_n_events"].fill(0, weight=len(jet_collection))
 
     return hists
 
 
-def run(arrays: ak.Array, min_jet_pt: float = 5, jet_R_values: Optional[Sequence[float]] = None) -> Dict[JetLabel, hist.Hist]:
+def run(arrays: ak.Array, min_jet_pt: float = 5, jet_R_values: Optional[Sequence[float]] = None) -> Dict[str, hist.Hist]:
     # Validation
     if jet_R_values is None:
         jet_R_values = [0.2, 0.4, 0.6]
@@ -127,7 +155,7 @@ def run(arrays: ak.Array, min_jet_pt: float = 5, jet_R_values: Optional[Sequence
     )
 
     # Analyze the jets
-    hists = analyze_jets(jets=jets)
+    hists = analyze_jets(arrays=arrays, jets=jets)
 
     return hists
 
@@ -138,7 +166,8 @@ if __name__ == "__main__":
 
     hists = run(
         arrays=load_data(
-            Path(f"/alf/data/rehlers/jetscape/osiris/AAPaperData/5020_PP_Colorless/skim/test/JetscapeHadronListBin7_9_00.parquet")
+            #Path(f"/alf/data/rehlers/jetscape/osiris/AAPaperData/5020_PP_Colorless/skim/test/JetscapeHadronListBin7_9_00.parquet")
+            Path("/alf/data/rehlers/jetscape/osiris/AAPaperData/5020_PP_Colorless/skim/JetscapeHadronListBin270_280_01.parquet")
         ),
         # Low for testing
         min_jet_pt=3,

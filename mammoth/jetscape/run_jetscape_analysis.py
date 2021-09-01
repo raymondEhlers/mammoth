@@ -109,19 +109,58 @@ def run_RAA_analysis(
 
     from mammoth.jetscape import jet_raa
 
-    hists = jet_raa.run(
-        arrays=jet_raa.load_data(
-            Path(inputs[0].filepath)
-        ),
-        jet_R_values=jet_R_values,
-        min_jet_pt=min_jet_pt,
-    )
+    try:
+        hists = jet_raa.run(
+            arrays=jet_raa.load_data(
+                Path(inputs[0].filepath)
+            ),
+            jet_R_values=jet_R_values,
+            min_jet_pt=min_jet_pt,
+        )
+        result = True, f"success for {inputs[0].filepath}", hists
+    except Exception as e:
+        result = False, f"File {inputs[0].filepath} failed with {e}", {}
+    return result
 
-    return hists
 
+def setup_RAA_analysis(
+    parquet_input_dir: Path,
+    jet_R_values: Optional[Sequence[float]] = None,
+    min_jet_pt: float = 5,
+) -> List[AppFuture]:
+    """Setup jet RAA analysis using the converted jetscape outputs.
 
-def setup_RAA_analysis() -> List[AppFuture]:
-    ...
+    Args:
+        parquet_input_dir: Directory containing the converetd parquet files.
+        jet_R_values: Jet R values to analyze. Default: [0.2, 0.4, 0.6]
+        min_jet_pt: Minimum jet pt. Default: 5.
+
+    Returns:
+        Futures containing the output histograms from the analysis.
+    """
+    if jet_R_values is None:
+        jet_R_values = [0.2, 0.4, 0.6]
+    # NOTE: Sort by lower bin edge of the pt hat bin
+    input_files = sorted(parquet_input_dir.glob("*.parquet"), key=lambda p: int(str(p.name).split("_")[0].replace("JetscapeHadronListBin", "")))
+
+    # TEMP
+    input_files = input_files[:2]
+    # ENDTEMP
+
+    results = []
+    for input_file in input_files:
+        logger.info(f"Adding {input_file} for analysis")
+        results.append(
+            run_RAA_analysis(
+                jet_R_values=jet_R_values,
+                min_jet_pt=min_jet_pt,
+                inputs=[
+                    File(str(input_file))
+                ]
+            )
+        )
+
+    return results
 
 
 def _cancel(job: AppFuture) -> None:
@@ -182,55 +221,141 @@ def _futures_handler(input_futures: Sequence[AppFuture], timeout: Optional[float
             _cancel(futures.pop())
 
 
+from typing import Dict
+
+def merge_result(a: Dict[Any, Any], b: Dict[Any, Any]) -> Dict[Any, Any]:
+    """Merge results from jobs together
+
+    By convention, we merge into the first argument.
+    """
+    # Short circuit if nothing to be done
+    if not b and a:
+        logger.info("Returning a since b is None")
+        return a
+    if not a and b:
+        logger.info("Returning b since a is None")
+        return b
+
+    all_keys = set(a) | set(b)
+
+    for k in all_keys:
+        a_value = a.get(k)
+        b_value = b.get(k)
+        # Nothing to be done
+        if a_value and b_value is None:
+            logger.info(f"b_value is None for {k}. Skipping")
+            continue
+        # Just take the b value and move on
+        if a_value is None and b_value:
+            logger.info(f"a_value is None for {k}. Assigning")
+            a[k] = b_value
+            continue
+        # At this point, both a_value and b_value should be not None
+        assert a_value is not None and b_value is not None
+
+        # Reccursve on dict
+        if isinstance(a_value, dict):
+            logger.info(f"Recursing on dict for {k}")
+            a[k] = merge_result(a_value, b_value)
+        else:
+            # Otherwise, merge
+            logger.info(f"Mergng for {k}")
+            a[k] = a_value + b_value
+
+    return a
+
+from typing import BinaryIO
+
+def _write_hists(output_hists: Dict[Any, Any], f: BinaryIO, prefix: str = "") -> bool:
+    for k, v in output_hists.items():
+        if isinstance(v, dict):
+            _write_hists(output_hists=v, f=f, prefix=f"{prefix}_{k}")
+        else:
+            f[str(k)] = v  # type: ignore
+
+    return True
+
+
 def run() -> None:
     task_config = job_utils.TaskConfig(n_cores_per_task=1)
     #n_cores_to_allocate = 64
-    n_cores_to_allocate = 21
-    walltime = "2:00:00"
+    #n_cores_to_allocate = 21
+    n_cores_to_allocate = 2
+    walltime = "24:00:00"
 
     # Basic setup: logging and parsl.
     # NOTE: Parsl's logger setup is broken, so we have to set it up before starting logging. Otherwise,
     #       it's super verbose and a huge pain to turn off. Note that by passing on the storage messages,
     #       we don't actually lose any info.
     config, facility_config, stored_messages = job_utils.config(
-        facility="ORNL_b587_short",
+        facility="ORNL_b587_long",
         task_config=task_config,
         n_tasks=n_cores_to_allocate,
         walltime=walltime,
         enable_monitoring=True,
     )
+    # Keep track of the dfk to keep parsl alive
     dfk = helpers.setup_logging_and_parsl(
         parsl_config=config,
         level=logging.INFO,
         stored_messages=stored_messages,
     )
 
-    all_results = setup_convert_jetscape_files(
-        #ascii_output_dir=Path("/alf/data/rehlers/jetscape/osiris/AAPaperData/5020_PP_Colorless/"),
-        ascii_output_dir=Path("/alf/data/rehlers/jetscape/osiris/AAPaperData/MATTER_LBT_RunningAlphaS_Q2qhat/5020_PbPb_0-5_0.30_2.0_1"),
-        events_per_chunk=5000,
-    )
+    tasks_to_execute = [
+        "analyze_RAA",
+    ]
+
+    all_results = []
+    if "convert" in tasks_to_execute:
+        all_results.extend(
+            setup_convert_jetscape_files(
+                #ascii_output_dir=Path("/alf/data/rehlers/jetscape/osiris/AAPaperData/5020_PP_Colorless/"),
+                ascii_output_dir=Path("/alf/data/rehlers/jetscape/osiris/AAPaperData/MATTER_LBT_RunningAlphaS_Q2qhat/5020_PbPb_0-5_0.30_2.0_1"),
+                events_per_chunk=5000,
+            )
+        )
+    if "analyze_RAA" in tasks_to_execute:
+        all_results.extend(
+            setup_RAA_analysis(
+                parquet_input_dir=Path("/alf/data/rehlers/jetscape/osiris/AAPaperData/5020_PP_Colorless/skim"),
+                min_jet_pt=10,
+            )
+        )
 
     logger.warning(f"Accumulated {len(all_results)} results")
+    logger.info(f"Results: {all_results}")
 
     # Show processing progress
     # Since it returns the outputs, we can actually use this to accumulate results.
     gen_results = _futures_handler(all_results, running_with_parsl=True)
     #gen_results = concurrent.futures.as_completed(all_results)
 
+    output_hists: Dict[Any, Any] = {}
     with Progress(console=helpers.rich_console, refresh_per_second=1) as progress:
         track_results = progress.add_task(total=len(all_results), description="Processing results...")
         #for a in all_results:
-        for r in gen_results:
+        for result in gen_results:
             #r = a.result()
-            logger.info(f"result: {r}")
+            logger.info(f"result: {result}")
+            if result[0] and len(result) == 3 and isinstance(result[2], dict):
+                output_hists = merge_result(output_hists, result[2])
+            logger.info(f"output_hists: {output_hists}")
             progress.update(track_results, advance=1)
+
+    # Save hists to uproot
+    if output_hists:
+        import uproot
+        output_hist_filename = Path("output") / "pp" / "jetscape_RAA.root"
+        output_hist_filename.parent.mkdir(parents=True, exist_ok=True)
+        logger.info(f"Writing output_hists to {output_hist_filename}")
+        with uproot.recreate(output_hist_filename) as f:
+            _write_hists(output_hists=output_hists, f=f)
 
     # As far as I can tell, jobs will start executing as soon as they can, regardless of
     # asking for the result. By embedded here, we can inspect results, etc in the meantime.
     # NOTE: This may be commented out sometimes when I have long running processes and wil
     #       probably forget to close it.
-    #IPython.start_ipython(user_ns=locals())
+    IPython.start_ipython(user_ns=locals())
 
     # In case we close IPython early, wait for all apps to complete
     # Also allows for a summary at the end.
