@@ -2,9 +2,11 @@
 
 # Based on: https://github.com/scikit-hep/pyjet/blob/master/install-fastjet.sh
 
-# TEMP options on the cluster until gcc-10 is the default
-export CC=gcc-10
-export CXX=g++-10
+# If you need to specify CC and CXX (for example, if there are multiple compilers),
+# you can do so here.
+# NOTE: This isn't required on the ORNL cluster anymore
+#export CC=gcc-10
+#export CXX=g++-10
 
 # Setup
 export CXXFLAGS="-std=c++17"
