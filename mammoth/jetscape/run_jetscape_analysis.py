@@ -351,9 +351,8 @@ def run() -> None:
     gen_results = _futures_handler(all_results, running_with_parsl=True)
     #gen_results = concurrent.futures.as_completed(all_results)
 
-    # TODO: Need to re-run since I fixed the pt -> pt_subtracted. However, should also wait to be confident that
-    #       I have the right hists...
-
+    # In order to support writing histograms from multiple systems, we need to index the output histograms
+    # by the collision system + centrality.
     output_hists: Dict[str, Dict[Any, Any]] = {
         k: {} for k in systems_to_process
     }
