@@ -128,16 +128,39 @@ def find_jets_for_analysis(arrays: ak.Array, jet_R_values: Sequence[float], part
 def analyze_jets(arrays: ak.Array, jets: Mapping[JetLabel, ak.Array]) -> Dict[str, hist.Hist]:
     hists = {}
     hists["n_events"] = hist.Hist(hist.axis.Regular(1, -0.5, 0.5))
+    hists["n_events_weighted"] = hist.Hist(hist.axis.Regular(1, -0.5, 0.5))
     for jet_label in jets:
         hists[f"{jet_label}_jet_pt"] = hist.Hist(hist.axis.Regular(200, 0, 200, label="jet_pt"), storage=hist.storage.Weight())
+        # Try a coarser binning to reduce outliers
+        hists[f"{jet_label}_jet_pt_coarse_binned"] = hist.Hist(hist.axis.Regular(40, 0, 200, label="jet_pt"), storage=hist.storage.Weight())
+        # This is assuredly overkill, but it hopefully means that I won't need to mess with it anymore
         hists[f"{jet_label}_n_events"] = hist.Hist(hist.axis.Regular(1, -0.5, 0.5))
+        hists[f"{jet_label}_n_events_weighted"] = hist.Hist(hist.axis.Regular(1, -0.5, 0.5))
+        hists[f"{jet_label}_n_jets"] = hist.Hist(hist.axis.Regular(1, -0.5, 0.5))
+        hists[f"{jet_label}_n_jets_weighted"] = hist.Hist(hist.axis.Regular(1, -0.5, 0.5))
 
     hists["n_events"].fill(0, weight=len(arrays))
+    # Just need it to get the first cross section value. It should be the same for all cases
+    first_jet_label = next(iter(jets))
+    # NOTE: Apparently this can be empty, so we have to retrieve the value carefully
+    first_cross_section = ak.flatten(jets[first_jet_label].cross_section)
+    if len(first_cross_section) == 0:
+        _cross_section_weight_factor = 1
+    else:
+        _cross_section_weight_factor = first_cross_section[0]
+    hists["n_events_weighted"].fill(0, weight=len(arrays) * _cross_section_weight_factor)
     for jet_label, jet_collection in jets.items():
         hists[f"{jet_label}_jet_pt"].fill(
             ak.flatten(jet_collection.pt_subtracted), weight=ak.flatten(jet_collection.cross_section)
         )
+        hists[f"{jet_label}_jet_pt_coarse_binned"].fill(
+            ak.flatten(jet_collection.pt_subtracted), weight=ak.flatten(jet_collection.cross_section)
+        )
         hists[f"{jet_label}_n_events"].fill(0, weight=len(jet_collection))
+        hists[f"{jet_label}_n_events_weighted"].fill(0, weight=len(jet_collection) * _cross_section_weight_factor)
+        hists[f"{jet_label}_n_jets"].fill(0, weight=len(ak.flatten(jet_collection.pt_subtracted)))
+        #hists[f"{jet_label}_n_jets_weighted"].fill(0, weight=len(ak.flatten(jet_collection.pt_subtracted)) * ak.flatten(jet_collection.cross_section)[0])
+        hists[f"{jet_label}_n_jets_weighted"].fill(0, weight=len(ak.flatten(jet_collection.pt_subtracted)) * _cross_section_weight_factor)
 
     return hists
 
@@ -172,6 +195,8 @@ if __name__ == "__main__":
         ),
         # Low for testing
         min_jet_pt=3,
+        # Jet one R for faster testing
+        jet_R_values=[0.4],
     )
 
     import IPython
