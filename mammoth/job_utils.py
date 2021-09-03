@@ -70,6 +70,7 @@ class TaskConfig:
     """Configuration for a single task.
 
     Attributes:
+        name: Name of the task. It will be passed to parsl.
         n_cores_per_task: Number of cores required per task.
         memory_per_task: Memory required per task in GB.
 
@@ -79,6 +80,7 @@ class TaskConfig:
         worth doing if absolutely required.
     """
 
+    name: str = attr.ib()
     n_cores_per_task: int = attr.ib()
     memory_per_task: Optional[int] = attr.ib(default=None)
 
@@ -166,15 +168,13 @@ _facilities_configs = {
 }
 
 
-def _default_parsl_config_kwargs(enable_monitoring: bool = False) -> Dict[str, Any]:
+def _default_parsl_config_kwargs(workflow_name: str, enable_monitoring: bool = True) -> Dict[str, Any]:
     """Default parsl config keyword arguments.
 
     These are shared regardless of the facility.
 
     Args:
-        enable_monitoring: If True, enable parsl monitoring. Default: False. It's False because
-            I am unsure of how this will interact with the particular facilities. Ideally, it
-            should be enabled.
+        enable_monitoring: If True, enable parsl monitoring. Default: True.
 
     Returns:
         Default config keyword arguments.
@@ -197,8 +197,7 @@ def _default_parsl_config_kwargs(enable_monitoring: bool = False) -> Dict[str, A
             hub_port=55055,
             monitoring_debug=False,
             resource_monitoring_interval=10,
-            # TODO: Make this settable
-            #workflow_name=name,
+            workflow_name=workflow_name,
         )
 
     return config_kwargs
@@ -360,7 +359,7 @@ def _define_config(
             n_blocks = request_n_blocks
 
     # Setup
-    config_kwargs = _default_parsl_config_kwargs(enable_monitoring=enable_monitoring)
+    config_kwargs = _default_parsl_config_kwargs(workflow_name=task_config.name, enable_monitoring=enable_monitoring)
 
     config = Config(
         executors=[
@@ -453,7 +452,7 @@ def _define_local_config(
     # NOTE: This ignores the request_n_blocks. For now, it's not worth the effort, since we can easily test on slurm.
 
     # Setup
-    config_kwargs = _default_parsl_config_kwargs(enable_monitoring=enable_monitoring)
+    config_kwargs = _default_parsl_config_kwargs(workflow_name=task_config.name, enable_monitoring=enable_monitoring)
     n_cores = facility.target_allocate_n_cores
 
     local_config = Config(

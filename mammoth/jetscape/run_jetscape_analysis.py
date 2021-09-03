@@ -291,14 +291,14 @@ def run() -> None:
     }
 
     # Job execution parameters
+    task_name = "Jetscape_RAA"
     tasks_to_execute = [
         #"convert",
         "analyze_RAA",
     ]
     systems_to_process = _possible_systems[1:]
-
     # Job execution configuration
-    task_config = job_utils.TaskConfig(n_cores_per_task=1)
+    task_config = job_utils.TaskConfig(name=task_name, n_cores_per_task=1)
     n_cores_to_allocate = 64
     #n_cores_to_allocate = 21
     #n_cores_to_allocate = 2

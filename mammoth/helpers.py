@@ -17,7 +17,7 @@ from rich.logging import RichHandler
 logger = logging.getLogger(__name__)
 
 # We need a consistent console object to set everything up properly
-# (Namely, the logging with the progress bars), so we define it here.
+# (Namely, logging with the progress bars), so we define it here.
 rich_console = Console()
 
 
