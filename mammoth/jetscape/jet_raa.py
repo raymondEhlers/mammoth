@@ -135,7 +135,7 @@ def analyze_jets(arrays: ak.Array, jets: Mapping[JetLabel, ak.Array]) -> Dict[st
     hists["n_events"].fill(0, weight=len(arrays))
     for jet_label, jet_collection in jets.items():
         hists[f"{jet_label}_jet_pt"].fill(
-            ak.flatten(jet_collection.pt), weight=ak.flatten(jet_collection.cross_section)
+            ak.flatten(jet_collection.pt_subtracted), weight=ak.flatten(jet_collection.cross_section)
         )
         hists[f"{jet_label}_n_events"].fill(0, weight=len(jet_collection))
 
@@ -167,7 +167,8 @@ if __name__ == "__main__":
     hists = run(
         arrays=load_data(
             #Path(f"/alf/data/rehlers/jetscape/osiris/AAPaperData/5020_PP_Colorless/skim/test/JetscapeHadronListBin7_9_00.parquet")
-            Path("/alf/data/rehlers/jetscape/osiris/AAPaperData/5020_PP_Colorless/skim/JetscapeHadronListBin270_280_01.parquet")
+            #Path("/alf/data/rehlers/jetscape/osiris/AAPaperData/5020_PP_Colorless/skim/JetscapeHadronListBin270_280_01.parquet")
+            Path("/alf/data/rehlers/jetscape/osiris/AAPaperData/MATTER_LBT_RunningAlphaS_Q2qhat/5020_PbPb_40-50_0.30_2.0_1/skim/JetscapeHadronListBin7_9_01.parquet"),
         ),
         # Low for testing
         min_jet_pt=3,
