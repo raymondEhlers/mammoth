@@ -5,21 +5,23 @@
 
 from __future__ import annotations
 
+import concurrent.futures
 import logging
 import math
 import os.path
 import sys
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import Any, Callable, Dict, Iterable, List, Optional, Sequence, Tuple
 
 import attr
 
+from parsl.addresses import address_by_hostname
 from parsl.config import Config
+from parsl.dataflow.futures import AppFuture
+from parsl.executors import HighThroughputExecutor
 from parsl.providers import LocalProvider, SlurmProvider
 from parsl.launchers import SingleNodeLauncher, SrunLauncher
 from parsl.launchers.launchers import Launcher
-from parsl.executors import HighThroughputExecutor
-from parsl.addresses import address_by_hostname
 from parsl.monitoring.monitoring import MonitoringHub
 
 from mammoth import helpers
@@ -483,3 +485,136 @@ def _define_local_config(
     )
 
     return local_config, facility, log_messages
+
+
+def _cancel_future(job: AppFuture) -> None:
+    """Cancel the given app future
+
+    Taken from `coffea.processor.executor`
+
+    Args:
+        job: AppFuture to try to cancel
+    """
+    try:
+        # NOTE: This is not implemented with parsl AppFutures
+        job.cancel()
+    except NotImplementedError:
+        pass
+
+
+def provide_results_as_completed(input_futures: Sequence[AppFuture], timeout: Optional[float] = None, running_with_parsl: bool = False) -> Iterable[Any]:
+    """Provide results as futures are completed.
+
+    Taken from `coffea.processor.executor`, with small modifications for parsl specific issues
+    around cancelling jobs. Without this change, parsl always seems to hang.
+    Their docs note that it is essentially the same as `concurrent.futures.as_completed`,
+    but it makes sure not to hold references to futures any longer than strictly necessary,
+    which is important if the future holds a large result.
+
+    Args:
+        input_futures: AppFutures which will eventually contain results
+        timeout: Timeout to wait for results be bailing out. Passed directly to
+            `concurrent.futures.wait`. Default: None.
+        running_with_parsl: If True, don't wait for futures to cancel (since that's not
+            implemented in parsl), and just raise the exception. Without this, parsl seems
+            to hang. Default: False.
+    
+    Returns:
+        Iterable containing the results from futures. They are yielded as the futures complete.
+    """
+    futures = set(input_futures)
+    try:
+        while futures:
+            try:
+                done, futures = concurrent.futures.wait(
+                    futures,
+                    timeout=timeout,
+                    return_when=concurrent.futures.FIRST_COMPLETED,
+                )
+                if len(done) == 0:
+                    logger.warning(
+                        f"No finished jobs after {timeout}s, stopping remaining {len(futures)} jobs early"
+                    )
+                    break
+                while done:
+                    try:
+                        yield done.pop().result()
+                    except concurrent.futures.CancelledError:
+                        pass
+            except KeyboardInterrupt as e:
+                for job in futures:
+                    _cancel_future(job)
+                running = sum(job.running() for job in futures)
+                logger.warning(
+                    f"Early stop: cancelled {len(futures) - running} jobs, will wait for {running} running jobs to complete"
+                )
+                # parsl can't cancel, so we need to break out ourselves
+                # It's most convenient to do this by just reraising the ctrl-c
+                if running_with_parsl:
+                    raise e
+    finally:
+        running = sum(job.running() for job in futures)
+        if running:
+            logger.warning(
+                f"Cancelling {running} running jobs (likely due to an exception)"
+            )
+        while futures:
+            _cancel_future(futures.pop())
+
+
+def merge_results(a: Dict[Any, Any], b: Dict[Any, Any]) -> Dict[Any, Any]:
+    """Merge job results togther.
+
+    By convention, we merge into the first dict to try to avoid unnecssary copying.
+
+    Although this should generically work for any object which implements `__add__`,
+    it's geared towards histograms.
+
+    Note:
+        For the first result, it's often convenient to start with a variable containing an
+        empty dict as the argument to a. That way, the merged results will be stored in 
+        a persistent variable.
+
+    Args:
+        a: Job result to be merged into.
+        b: Result to be merged with.
+
+    Returns:
+        Merged histograms
+    """
+    # Short circuit if nothing to be done
+    if not b and a:
+        logger.debug("Returning a since b is None")
+        return a
+    if not a and b:
+        logger.debug("Returning b since a is None")
+        return b
+
+    # Ensure we don't miss anything in either dict
+    all_keys = set(a) | set(b)
+
+    for k in all_keys:
+        a_value = a.get(k)
+        b_value = b.get(k)
+        # Nothing to be done
+        if a_value and b_value is None:
+            logger.debug(f"b_value is None for {k}. Skipping")
+            continue
+        # Just take the b value and move on
+        if a_value is None and b_value:
+            logger.debug(f"a_value is None for {k}. Assigning")
+            a[k] = b_value
+            continue
+        # At this point, both a_value and b_value should be not None
+        assert a_value is not None and b_value is not None
+
+        # Reccursve on dict
+        if isinstance(a_value, dict):
+            logger.debug(f"Recursing on dict for {k}")
+            a[k] = merge_results(a_value, b_value)
+        else:
+            # Otherwise, merge
+            logger.debug(f"Mergng for {k}")
+            a[k] = a_value + b_value
+
+    return a

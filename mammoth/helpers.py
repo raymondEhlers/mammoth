@@ -5,7 +5,7 @@
 
 import logging
 from datetime import datetime
-from typing import Optional, Sequence
+from typing import Any, BinaryIO, Mapping, Optional, Sequence
 
 import attr
 import parsl
@@ -173,5 +173,26 @@ def setup_logging(
     # Log the stored up messages.
     for message in stored_messages:
         message.log()
+
+    return True
+
+def write_hists_to_file(hists: Mapping[Any, Any], f: BinaryIO, prefix: str = "") -> bool:
+    """Recursively write histograms to a given file.
+
+    Args:
+        hists: Hists to be written.
+        f: File to be written to. Usually a file opened with uproot.
+        prefix: Prefix to append to all keys. Default: "". This is rarely set by the user
+            directly. Instead, it's used when recursing to keep track of the path.
+
+    Returns:
+        True if writing was successful.
+    """
+    for k, v in hists.items():
+        if isinstance(v, dict):
+            write_hists_to_file(hists=v, f=f, prefix=f"{prefix}_{k}")
+        else:
+            write_name = str(k) if not prefix else f"{prefix}_{k}"
+            f[write_name] = v  # type: ignore
 
     return True

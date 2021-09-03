@@ -3,10 +3,9 @@
 .. codeauthor:: Raymond Ehlers <raymond.ehlers@cern.ch>, ORNL
 """
 
-import concurrent.futures
 import logging
 from pathlib import Path
-from typing import Any, Iterable, List, Optional, Sequence
+from typing import Any, Dict, List, Optional, Sequence
 
 import IPython
 from parsl.app.app import python_app
@@ -166,118 +165,6 @@ def setup_RAA_analysis(
     return results
 
 
-def _cancel(job: AppFuture) -> None:
-    """
-    Taken directly from: `coffea.processor.executor`
-    """
-    try:
-        # this is not implemented with parsl AppFutures
-        job.cancel()
-    except NotImplementedError:
-        pass
-
-
-def _futures_handler(input_futures: Sequence[AppFuture], timeout: Optional[float] = None, running_with_parsl: bool = False) -> Iterable[Any]:
-    """Essentially the same as concurrent.futures.as_completed
-    but makes sure not to hold references to futures any longer than strictly necessary,
-    which is important if the future holds a large result.
-
-    Taken directly from: `coffea.processor.executor`
-    """
-    futures = set(input_futures)
-    try:
-        while futures:
-            try:
-                done, futures = concurrent.futures.wait(
-                    futures,
-                    timeout=timeout,
-                    return_when=concurrent.futures.FIRST_COMPLETED,
-                )
-                if len(done) == 0:
-                    logger.warning(
-                        f"No finished jobs after {timeout}s, stopping remaining {len(futures)} jobs early"
-                    )
-                    break
-                while done:
-                    try:
-                        yield done.pop().result()
-                    except concurrent.futures.CancelledError:
-                        pass
-            except KeyboardInterrupt as e:
-                for job in futures:
-                    _cancel(job)
-                running = sum(job.running() for job in futures)
-                logger.warning(
-                    f"Early stop: cancelled {len(futures) - running} jobs, will wait for {running} running jobs to complete"
-                )
-                # parsl can't cancel, so we need to break out ourselves
-                # It's most convenient to do this by just reraising the ctrl-c
-                if running_with_parsl:
-                    raise e
-    finally:
-        running = sum(job.running() for job in futures)
-        if running:
-            logger.warning(
-                f"Cancelling {running} running jobs (likely due to an exception)"
-            )
-        while futures:
-            _cancel(futures.pop())
-
-
-from typing import Dict
-
-def merge_result(a: Dict[Any, Any], b: Dict[Any, Any]) -> Dict[Any, Any]:
-    """Merge results from jobs together
-
-    By convention, we merge into the first argument.
-    """
-    # Short circuit if nothing to be done
-    if not b and a:
-        logger.debug("Returning a since b is None")
-        return a
-    if not a and b:
-        logger.debug("Returning b since a is None")
-        return b
-
-    all_keys = set(a) | set(b)
-
-    for k in all_keys:
-        a_value = a.get(k)
-        b_value = b.get(k)
-        # Nothing to be done
-        if a_value and b_value is None:
-            logger.debug(f"b_value is None for {k}. Skipping")
-            continue
-        # Just take the b value and move on
-        if a_value is None and b_value:
-            logger.debug(f"a_value is None for {k}. Assigning")
-            a[k] = b_value
-            continue
-        # At this point, both a_value and b_value should be not None
-        assert a_value is not None and b_value is not None
-
-        # Reccursve on dict
-        if isinstance(a_value, dict):
-            logger.debug(f"Recursing on dict for {k}")
-            a[k] = merge_result(a_value, b_value)
-        else:
-            # Otherwise, merge
-            logger.debug(f"Mergng for {k}")
-            a[k] = a_value + b_value
-
-    return a
-
-from typing import BinaryIO
-
-def _write_hists(output_hists: Dict[Any, Any], f: BinaryIO, prefix: str = "") -> bool:
-    for k, v in output_hists.items():
-        if isinstance(v, dict):
-            _write_hists(output_hists=v, f=f, prefix=f"{prefix}_{k}")
-        else:
-            f[str(k)] = v  # type: ignore
-
-    return True
-
 
 def run() -> None:
     # Basic configuration
@@ -348,8 +235,7 @@ def run() -> None:
 
     # Process the futures, showing processing progress
     # Since it returns the results, we can actually use this to accumulate results.
-    gen_results = _futures_handler(all_results, running_with_parsl=True)
-    #gen_results = concurrent.futures.as_completed(all_results)
+    gen_results = job_utils.provide_results_as_completed(all_results, running_with_parsl=True)
 
     # In order to support writing histograms from multiple systems, we need to index the output histograms
     # by the collision system + centrality.
@@ -365,7 +251,7 @@ def run() -> None:
             if result[0] and len(result) == 4 and isinstance(result[3], dict):
                 k = result[2]
                 logger.info(f"Found result for key {k}")
-                output_hists[k] = merge_result(output_hists[k], result[3])
+                output_hists[k] = job_utils.merge_results(output_hists[k], result[3])
             logger.info(f"output_hists: {output_hists}")
             progress.update(track_results, advance=1)
 
@@ -386,7 +272,7 @@ def run() -> None:
             output_hist_filename.parent.mkdir(parents=True, exist_ok=True)
             logger.info(f"Writing output_hists to {output_hist_filename} for system {system}")
             with uproot.recreate(output_hist_filename) as f:
-                _write_hists(output_hists=hists, f=f)
+                helpers.write_hists_to_file(hists=hists, f=f)
 
     # As far as I can tell, jobs will start executing as soon as they can, regardless of
     # asking for the result. By embedded here, we can inspect results, etc in the meantime.
