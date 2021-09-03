@@ -86,6 +86,7 @@ def analysis(jet_R: float = 0.2, min_hybrid_jet_pt: float = 15.0, min_pythia_jet
 
     # TEMP: Reduce number of events to speed calculations
     # arrays = arrays[:500]
+    # ENDTEMP
 
     # logger.info("Part level start")
     # t = time.time()
