@@ -282,7 +282,9 @@ def run() -> None:
 
     # In case we close IPython early, wait for all apps to complete
     # Also allows for a summary at the end.
-    res = [r.result() for r in all_results]
+    # By taking only the first two, it just tells use the status and a quick message.
+    # Otherwise, we can overwhelm with trying to print large objects
+    res = [r.result()[:2] for r in all_results]
     logger.info(res)
 
 
