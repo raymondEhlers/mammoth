@@ -9,8 +9,6 @@ from pathlib import Path
 from typing import Any, Iterable, List, Optional, Sequence
 
 import IPython
-from attr import attr
-import parsl
 from parsl.app.app import python_app
 from parsl.data_provider.files import File
 from parsl.dataflow.futures import AppFuture
@@ -100,11 +98,13 @@ def setup_convert_jetscape_files(
 
 @python_app  # type: ignore
 def run_RAA_analysis(
+    system: str,
     jet_R_values: Sequence[float],
     min_jet_pt: float,
     inputs: Sequence[File] = [],
     outputs: Sequence[File] = [],
 ) -> AppFuture:
+    import traceback
     from pathlib import Path
 
     from mammoth.jetscape import jet_raa
@@ -117,13 +117,14 @@ def run_RAA_analysis(
             jet_R_values=jet_R_values,
             min_jet_pt=min_jet_pt,
         )
-        result = True, f"success for {inputs[0].filepath}", hists
+        result = True, f"success for {system}, {inputs[0].filepath}", system, hists
     except Exception as e:
-        result = False, f"File {inputs[0].filepath} failed with {e}", {}
+        result = False, f"failure for {system}, {inputs[0].filepath} with: \n{traceback.format_exc()}", system, {}
     return result
 
 
 def setup_RAA_analysis(
+    system: str,
     parquet_input_dir: Path,
     jet_R_values: Optional[Sequence[float]] = None,
     min_jet_pt: float = 5,
@@ -131,6 +132,7 @@ def setup_RAA_analysis(
     """Setup jet RAA analysis using the converted jetscape outputs.
 
     Args:
+        system: Key describing the collision system (eg. `PbPb_00_10`)
         parquet_input_dir: Directory containing the converetd parquet files.
         jet_R_values: Jet R values to analyze. Default: [0.2, 0.4, 0.6]
         min_jet_pt: Minimum jet pt. Default: 5.
@@ -143,7 +145,7 @@ def setup_RAA_analysis(
     # NOTE: Sort by lower bin edge of the pt hat bin
     input_files = sorted(parquet_input_dir.glob("*.parquet"), key=lambda p: int(str(p.name).split("_")[0].replace("JetscapeHadronListBin", "")))
 
-    # TEMP
+    # TEMP for testing
     # input_files = input_files[:2]
     # ENDTEMP
 
@@ -152,6 +154,7 @@ def setup_RAA_analysis(
         logger.info(f"Adding {input_file} for analysis")
         results.append(
             run_RAA_analysis(
+                system=system,
                 jet_R_values=jet_R_values,
                 min_jet_pt=min_jet_pt,
                 inputs=[
@@ -230,10 +233,10 @@ def merge_result(a: Dict[Any, Any], b: Dict[Any, Any]) -> Dict[Any, Any]:
     """
     # Short circuit if nothing to be done
     if not b and a:
-        logger.info("Returning a since b is None")
+        logger.debug("Returning a since b is None")
         return a
     if not a and b:
-        logger.info("Returning b since a is None")
+        logger.debug("Returning b since a is None")
         return b
 
     all_keys = set(a) | set(b)
@@ -243,11 +246,11 @@ def merge_result(a: Dict[Any, Any], b: Dict[Any, Any]) -> Dict[Any, Any]:
         b_value = b.get(k)
         # Nothing to be done
         if a_value and b_value is None:
-            logger.info(f"b_value is None for {k}. Skipping")
+            logger.debug(f"b_value is None for {k}. Skipping")
             continue
         # Just take the b value and move on
         if a_value is None and b_value:
-            logger.info(f"a_value is None for {k}. Assigning")
+            logger.debug(f"a_value is None for {k}. Assigning")
             a[k] = b_value
             continue
         # At this point, both a_value and b_value should be not None
@@ -255,11 +258,11 @@ def merge_result(a: Dict[Any, Any], b: Dict[Any, Any]) -> Dict[Any, Any]:
 
         # Reccursve on dict
         if isinstance(a_value, dict):
-            logger.info(f"Recursing on dict for {k}")
+            logger.debug(f"Recursing on dict for {k}")
             a[k] = merge_result(a_value, b_value)
         else:
             # Otherwise, merge
-            logger.info(f"Mergng for {k}")
+            logger.debug(f"Mergng for {k}")
             a[k] = a_value + b_value
 
     return a
@@ -277,10 +280,28 @@ def _write_hists(output_hists: Dict[Any, Any], f: BinaryIO, prefix: str = "") ->
 
 
 def run() -> None:
+    # Basic configuration
+    _possible_systems = ["pp", "PbPb_00_05", "PbPb_05_10", "PbPb_30_40", "PbPb_40_50"]
+    _system_to_base_path = {
+        "pp": Path("/alf/data/rehlers/jetscape/osiris/AAPaperData/5020_PP_Colorless/"),
+        "PbPb_00_05": Path("/alf/data/rehlers/jetscape/osiris/AAPaperData/MATTER_LBT_RunningAlphaS_Q2qhat/5020_PbPb_0-5_0.30_2.0_1"),
+        "PbPb_05_10": Path("/alf/data/rehlers/jetscape/osiris/AAPaperData/MATTER_LBT_RunningAlphaS_Q2qhat/5020_PbPb_5-10_0.30_2.0_1"),
+        "PbPb_30_40": Path("/alf/data/rehlers/jetscape/osiris/AAPaperData/MATTER_LBT_RunningAlphaS_Q2qhat/5020_PbPb_30-40_0.30_2.0_1"),
+        "PbPb_40_50": Path("/alf/data/rehlers/jetscape/osiris/AAPaperData/MATTER_LBT_RunningAlphaS_Q2qhat/5020_PbPb_40-50_0.30_2.0_1"),
+    }
+
+    # Job execution parameters
+    tasks_to_execute = [
+        #"convert",
+        "analyze_RAA",
+    ]
+    systems_to_process = _possible_systems[1:]
+
+    # Job execution configuration
     task_config = job_utils.TaskConfig(n_cores_per_task=1)
-    #n_cores_to_allocate = 64
+    n_cores_to_allocate = 64
     #n_cores_to_allocate = 21
-    n_cores_to_allocate = 2
+    #n_cores_to_allocate = 2
     walltime = "24:00:00"
 
     # Basic setup: logging and parsl.
@@ -301,55 +322,72 @@ def run() -> None:
         stored_messages=stored_messages,
     )
 
-    tasks_to_execute = [
-        "analyze_RAA",
-    ]
-
     all_results = []
-    if "convert" in tasks_to_execute:
-        all_results.extend(
-            setup_convert_jetscape_files(
-                #ascii_output_dir=Path("/alf/data/rehlers/jetscape/osiris/AAPaperData/5020_PP_Colorless/"),
-                ascii_output_dir=Path("/alf/data/rehlers/jetscape/osiris/AAPaperData/MATTER_LBT_RunningAlphaS_Q2qhat/5020_PbPb_0-5_0.30_2.0_1"),
-                events_per_chunk=5000,
+    for system in systems_to_process:
+        # Setup tasks
+        system_results = []
+        if "convert" in tasks_to_execute:
+            system_results.extend(
+                setup_convert_jetscape_files(
+                    ascii_output_dir=_system_to_base_path[system],
+                    events_per_chunk=5000,
+                )
             )
-        )
-    if "analyze_RAA" in tasks_to_execute:
-        all_results.extend(
-            setup_RAA_analysis(
-                parquet_input_dir=Path("/alf/data/rehlers/jetscape/osiris/AAPaperData/5020_PP_Colorless/skim"),
-                min_jet_pt=10,
+        if "analyze_RAA" in tasks_to_execute:
+            system_results.extend(
+                setup_RAA_analysis(
+                    system=system,
+                    parquet_input_dir=_system_to_base_path[system] / "skim",
+                    min_jet_pt=10,
+                )
             )
-        )
+        all_results.extend(system_results)
+        logger.info(f"Accumulated {len(system_results)} futures for {system}")
 
-    logger.warning(f"Accumulated {len(all_results)} results")
-    logger.info(f"Results: {all_results}")
+    logger.info(f"Accumulated {len(all_results)} total futures")
 
-    # Show processing progress
-    # Since it returns the outputs, we can actually use this to accumulate results.
+    # Process the futures, showing processing progress
+    # Since it returns the results, we can actually use this to accumulate results.
     gen_results = _futures_handler(all_results, running_with_parsl=True)
     #gen_results = concurrent.futures.as_completed(all_results)
 
-    output_hists: Dict[Any, Any] = {}
+    # TODO: Need to re-run since I fixed the pt -> pt_subtracted. However, should also wait to be confident that
+    #       I have the right hists...
+
+    output_hists: Dict[str, Dict[Any, Any]] = {
+        k: {} for k in systems_to_process
+    }
     with Progress(console=helpers.rich_console, refresh_per_second=1) as progress:
         track_results = progress.add_task(total=len(all_results), description="Processing results...")
         #for a in all_results:
         for result in gen_results:
             #r = a.result()
-            logger.info(f"result: {result}")
-            if result[0] and len(result) == 3 and isinstance(result[2], dict):
-                output_hists = merge_result(output_hists, result[2])
+            logger.info(f"result: {result[:2]}")
+            if result[0] and len(result) == 4 and isinstance(result[3], dict):
+                k = result[2]
+                logger.info(f"Found result for key {k}")
+                output_hists[k] = merge_result(output_hists[k], result[3])
             logger.info(f"output_hists: {output_hists}")
             progress.update(track_results, advance=1)
 
     # Save hists to uproot
-    if output_hists:
-        import uproot
-        output_hist_filename = Path("output") / "pp" / "jetscape_RAA.root"
-        output_hist_filename.parent.mkdir(parents=True, exist_ok=True)
-        logger.info(f"Writing output_hists to {output_hist_filename}")
-        with uproot.recreate(output_hist_filename) as f:
-            _write_hists(output_hists=output_hists, f=f)
+    for system, hists in output_hists.items():
+        if hists:
+            import uproot
+            split_system_name = system.split("_")
+            # Either "pp" or "PbPb"
+            collision_system = split_system_name[0]
+            # Additional label for centrality when appropriate
+            # NOTE: If the list is of length 1, it will be empty
+            file_label = "_".join(split_system_name[1:])
+            if file_label:
+                file_label = f"_{file_label}"
+
+            output_hist_filename = Path("output") / collision_system / f"jetscape_RAA{file_label}.root"
+            output_hist_filename.parent.mkdir(parents=True, exist_ok=True)
+            logger.info(f"Writing output_hists to {output_hist_filename} for system {system}")
+            with uproot.recreate(output_hist_filename) as f:
+                _write_hists(output_hists=hists, f=f)
 
     # As far as I can tell, jobs will start executing as soon as they can, regardless of
     # asking for the result. By embedded here, we can inspect results, etc in the meantime.
