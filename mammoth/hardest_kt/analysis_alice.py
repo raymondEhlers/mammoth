@@ -13,18 +13,25 @@ import vector
 
 from mammoth import helpers
 from mammoth.framework import jet_finding, sources, transform
+from mammoth.framework.normalize_data import track_skim
 
 
 logger = logging.getLogger(__name__)
 vector.register_awkward()
 
 
-def load_MC(filename: Path) -> ak.Array:
+def load_MC(filename: Path, collision_system: str) -> ak.Array:
     logger.info("Loading MC")
-    pythia_source = sources.ParquetSource(
-        filename=filename,
-    )
-    arrays = pythia_source.data()
+    if "parquet" not in filename.suffix:
+        arrays = track_skim.track_skim_to_awkward(
+            filename=filename,
+            collision_system=collision_system,
+        )
+    else:
+        pythia_source = sources.ParquetSource(
+            filename=filename,
+        )
+        arrays = pythia_source.data()
     logger.info("Transforming MC")
     return transform.mc(arrays=arrays)
 
@@ -157,19 +164,27 @@ def analysis_MC(arrays: ak.Array, jet_R: float, min_jet_pt: Mapping[str, float])
 
 def load_data(
     filename: Path,
+    collision_system: str,
     rename_prefix: Mapping[str, str],
+    event_activity: str = "",
 ) -> ak.Array:
     logger.info("Loading data")
-    source = sources.ParquetSource(
-        filename=filename,
-    )
-    arrays = source.data()
+    if "parquet" not in filename.suffix:
+        arrays = track_skim.track_skim_to_awkward(
+            filename=filename,
+            collision_system=collision_system,
+        )
+    else:
+        source = sources.ParquetSource(
+            filename=filename,
+        )
+        arrays = source.data()
     logger.info("Transforming data")
     return transform.data(arrays=arrays, rename_prefix=rename_prefix)
 
 
 def analysis_data(
-    collision_system: str, arrays: ak.Array, jet_R: float, min_jet_pt: float, particle_column_name: str = "data"
+    collision_system: str, arrays: ak.Array, jet_R: float, min_jet_pt: float, particle_column_name: str = "data",
 ) -> ak.Array:
     logger.info("Start analyzing")
     # Event selection
@@ -476,6 +491,7 @@ if __name__ == "__main__":
             filename=Path(
                 f"/software/rehlers/dev/mammoth/projects/framework/{collision_system}/AnalysisResults_track_skim.parquet"
             ),
+            collision_system=collision_system,
             rename_prefix={"data": "data"} if collision_system != "pythia" else {"data": "det_level"},
         ),
         jet_R=0.4,
