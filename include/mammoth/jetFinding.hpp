@@ -452,7 +452,7 @@ OutputWrapper<T> findJets(
   // Ghost settings
   // ghost eta edges are expected to be symmetric, so we don't actually need the min
   //double ghostEtaMin = etaMin;
-  // TODO: This seems wayyyyyyy to sensitive to this value.
+  // NOTE: The jets which are found seems to be super sensitive to this value.
   // Use the ALICE value for now.
   double ghostEtaMax = 1.0;
   int ghostRepeatN = 1;
@@ -471,6 +471,7 @@ OutputWrapper<T> findJets(
     // Use fiducial cut for jet background.
     double backgroundJetEtaMin = etaMin + backgroundJetR;
     double backgroundJetEtaMax = etaMax - backgroundJetR;
+    // NOTE: No restriction on phi, since we're focused on charged jets
     //double backgroundJetPhiMin = 0;
     //double backgroundJetPhiMax = 2 * M_PI;
     // Fastjet background settings
@@ -486,41 +487,48 @@ OutputWrapper<T> findJets(
     // Derived fastjet settings
     fastjet::JetDefinition backgroundJetDefinition(backgroundJetAlgorithm, backgroundJetR, backgroundRecombinationScheme, backgroundStrategy);
     fastjet::AreaDefinition backgroundAreaDefinition(backgroundAreaType, ghostAreaSpec);
-    // NOTE: This applies eta cuts, phi cuts, and removes the two hardest jets (as is standard for rho).
-    // NOTE: We want to apply the two hardest removal _after_ the acceptance cuts, so we use "*"
-    //       Be aware that the order of the selectors really matters. It applies the right most first if we use "*"
-    //
-    // Considerations for possible tweaks:
-    // - Including or not including the two hardest can have a big impact on the number of jets that are accepted.
-    //   Removing them includes more jets (because the median background is smaller)
-    // - Since we're using explicit ghosts, we could consider removing ghost only jets with !SelectorIsPureGhost().
-    //   Currently, this seems pretty aggressive, but perhaps it makes sense given that the ALICE example doesn't include them.
-    fastjet::Selector selRho = !fastjet::SelectorIsPureGhost() * !fastjet::SelectorNHardest(2) * fastjet::SelectorEtaRange(backgroundJetEtaMin, backgroundJetEtaMax); //* fastjet::SelectorPhiRange(backgroundJetPhiMin, backgroundJetPhiMax);
-    //fastjet::Selector selRho = !fastjet::SelectorNHardest(2) * fastjet::SelectorEtaRange(backgroundJetEtaMin, backgroundJetEtaMax) * fastjet::SelectorPhiRange(backgroundJetPhiMin, backgroundJetPhiMax);
 
-    //fastjet::Selector selRho = (fastjet::SelectorEtaRange(backgroundJetEtaMin, backgroundJetEtaMax) && fastjet::SelectorPhiRange(backgroundJetPhiMin, backgroundJetPhiMax)) * !fastjet::SelectorNHardest(2);
-    //fastjet::Selector selRho = (fastjet::SelectorEtaRange(backgroundJetEtaMin, backgroundJetEtaMax) && fastjet::SelectorPhiRange(backgroundJetPhiMin, backgroundJetPhiMax));
-    //fastjet::Selector selRho = (fastjet::SelectorRapPhiRange(backgroundJetEtaMin, backgroundJetEtaMax, backgroundJetPhiMin, backgroundJetPhiMax)) * !fastjet::SelectorNHardest(2);
-    //fastjet::Selector selRho = (!fastjet::SelectorNHardest(2)) * fastjet::SelectorEtaRange(backgroundJetEtaMin, backgroundJetEtaMax) * (fastjet::SelectorRapPhiRange(backgroundJetEtaMin, backgroundJetEtaMax, backgroundJetPhiMin, backgroundJetPhiMax));
-    //fastjet::Selector selRho = fastjet::SelectorEtaRange(backgroundJetEtaMin, backgroundJetEtaMax) * fastjet::SelectorPhiRange(backgroundJetPhiMin, backgroundJetPhiMax);
-    //fastjet::Selector selRho = fastjet::SelectorEtaRange(backgroundJetEtaMin, backgroundJetEtaMax) * (fastjet::SelectorRapPhiRange(backgroundJetEtaMin, backgroundJetEtaMax, backgroundJetPhiMin, backgroundJetPhiMax));
-    //fastjet::Selector selRho = (fastjet::SelectorRapPhiRange(backgroundJetEtaMin, backgroundJetEtaMax, backgroundJetPhiMin, backgroundJetPhiMax));
-    //fastjet::Selector selRho = (fastjet::SelectorRapPhiRange(backgroundJetEtaMin, backgroundJetEtaMax, backgroundJetPhiMin, backgroundJetPhiMax));
-    // NOTE: We don't remove jets with tracks > 100 GeV here because it would require copying all of
-    //       the input particles (which could have a measurable performance impact) for what I expect
-    //       is quite a small impact. I think it will be small because we're concerned with the median
-    //       and we exclude the two leading. So unless there are many fake tracks in a single event,
-    //       it's unlikely to have a meaningful effect on the median.
+    // Select jets for calculating the background
+    // As of September 2021, this includes (ordered from top to bottom):
+    // - Fiducial eta selection
+    // - Remove the two hardest jets
+    // - Remove pure ghost jets (since they are included with explicit ghosts)
+
+    // NOTES:
+    // - This is more or less the standard rho procedure
+    // - We want to apply the two hardest removal _after_ the acceptance cuts, so we use "*"
+    //   Be aware that the order of the selectors really matters. It applies the **right** most first if we use "*"
+    //   This is super important! Otherwise, you'll get unexpected selections!
+    // - Including or removing the two hardest can have a big impact on the number of jets that are accepted.
+    //   Removing them includes more jets (because the median background is smaller). We remove them because
+    //   that's what is done in ALICE.
+    // - We skip phi selection since we're looking at charged jets, so we take the full [0, 2pi).
+    //   [0, 2pi) is the standard PseudoJet phi range. If you want it, it should be applied at the right
+    //   most with `* fastjet::SelectorPhiRange(backgroundJetPhiMin, backgroundJetPhiMax)`, or via the combined
+    //   EtaPhi selector (see possible tweaks below).
+    // - We don't remove jets with tracks > 100 GeV here because:
+    //     - It is technically complicated with the current setup because I don't see any way to select
+    //       constituents with a selector.
+    //     - I think it will be a small on the background because we're concerned with the median and we
+    //       exclude the two leading jets. So unless there are many fake tracks in a single event, it's
+    //       unlikely to have a meaningful effect on the median. 
+    //
+    // Some notes for possible tweaks (not saying that they necessarily should be done):
+    // - `GridMedianBackgroundEstimator` may be usable here, and much faster. However, it needs to be validated.
+    // - If one goes back to applying phi cuts, one could use `* fastjet::SelectorRapPhiRange(backgroundJetEtaMin, backgroundJetEtaMax, backgroundJetPhiMin, backgroundJetPhiMax)`
+    //   However, if using this combined selector, be careful about the difference between rapidity and eta!
+    fastjet::Selector selRho = !fastjet::SelectorNHardest(2) * !fastjet::SelectorIsPureGhost() * fastjet::SelectorEtaRange(backgroundJetEtaMin, backgroundJetEtaMax);
 
     // Finally, define the background estimator
     // This is needed for all background subtraction cases.
     backgroundEstimator = std::make_shared<fastjet::JetMedianBackgroundEstimator>(selRho, backgroundJetDefinition, backgroundAreaDefinition);
-    // Ensure rho_m is calculated (should be by default, but just being sure).
+    // Ensure rho_m is calculated (should be by default, but just to be sure).
     // NOTE: The background estimator should calculate rho_m by default, but it's not used by default
-    //       in the standard subtractor, so we explicitly enable it below (CS is a whole separate topic)
+    //       in the standard subtractor, so we explicitly enable it in the next block down
+    //       (CS is handled separately)
     backgroundEstimator->set_compute_rho_m(true);
 
-    // Setup the background estimator to be able to make the estimation.
+    // Setup the input particles for the estimator so we it calculate the background.
     backgroundEstimator->set_particles(particlePseudoJets);
 
     // Specific setup for event-wise constituent subtraction
@@ -529,19 +537,19 @@ OutputWrapper<T> findJets(
       constituentSubtractor->set_distance_type(fastjet::contrib::ConstituentSubtractor::deltaR);
       constituentSubtractor->set_max_distance(constituentSubtraction->rMax);
       constituentSubtractor->set_alpha(constituentSubtraction->alpha);
-      // ALICE doesn't appear to set this value, so we skip it here and use the default of 0.01
+      // ALICE doesn't appear to set the ghost area, so we skip it here and use the default of 0.01
       //constituentSubtractor->set_ghost_area(areaSettings.ghostArea);
-      // Since this is event wise, this should be the track eta, not the fiducial eta
+      // NOTE: Since this is event wise, the max eta should be the track eta, not the fiducial eta
       constituentSubtractor->set_max_eta(etaMax);
       constituentSubtractor->set_background_estimator(backgroundEstimator.get());
-      // Use the same estimator for rho_m (by default, I think it won't be used, but better to
-      // provide it in case we change our mind later).
+      // Use the same estimator for rho_m (by default, I think it won't be used in CS, but better
+      // to provide it in case we change our mind later).
       // NOTE: This needs to be set after setting the background estimator.
       constituentSubtractor->set_common_bge_for_rho_and_rhom();
       // Apparently this is new and now required for event-wise CS.
       // From some tests, constituent subtraction gives some crazy results if it's not called!
       // NOTE: ALICE gets away with skipping this because we have the old call for event-wise
-      //       subtraction where we pass the max rapidity. But better if we use the newer version.
+      //       subtraction where we pass the max rapidity. But better if we use the newer version here.
       constituentSubtractor->initialize();
     }
   }
@@ -567,6 +575,9 @@ OutputWrapper<T> findJets(
   // Would often set as abs(eta - R), but should be configurable.
   double jetEtaMin = etaMin + jetR;
   double jetEtaMax = etaMax - jetR;
+  // Since we're using charged jets over the full acceptance, we don't both with setting the phi range.
+  // NOTE: If we wanted to, we would use combine it with the pt and eta selector below using `&&`.
+  //       eg. `&& fastjet::SelectorPhiRange(jetPhiMin, jetPhiMax);` One could also use the combined RapPhi selector
   //double jetPhiMin = 0;
   //double jetPhiMax = 2 * M_PI;
   // Fastjet settings
@@ -577,7 +588,7 @@ OutputWrapper<T> findJets(
   // Derived fastjet settings
   fastjet::JetDefinition jetDefinition(jetAlgorithm, jetR, recombinationScheme, strategy);
   fastjet::AreaDefinition areaDefinition(areaType, ghostAreaSpec);
-  fastjet::Selector selectJets = !fastjet::SelectorIsPureGhost() * (fastjet::SelectorPtRange(minJetPt, jetPtMax) && fastjet::SelectorEtaRange(jetEtaMin, jetEtaMax)); //&& fastjet::SelectorPhiRange(jetPhiMin, jetPhiMax);
+  fastjet::Selector selectJets = !fastjet::SelectorIsPureGhost() * (fastjet::SelectorPtRange(minJetPt, jetPtMax) && fastjet::SelectorEtaRange(jetEtaMin, jetEtaMax));
 
   // For constituent subtraction, we perform event-wise subtraction on the input particles
   std::vector<unsigned int> subtractedToUnsubtractedIndices;
