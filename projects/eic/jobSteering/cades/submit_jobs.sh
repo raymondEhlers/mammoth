@@ -56,7 +56,7 @@ date
 # Pt hard > 5 for mid rapidity
 #./submitJob.sh 10 -1 -1 ALLSILICON-ETTL-CTTL-INNERTRACKING-ASYM-FTTLS3LC e10p250pTHard5 1
 # Q2 > 20 for forward
-#./submitJob.sh 10 -1 -1 ALLSILICON-ETTL-CTTL-INNERTRACKING-ASYM-FTTLS3LC /gpfs/mnt/gpfs02/eic/rehlersi/code/fun4all_eicmacros/detectors/Modular/config/phpythia6_ep_MinQ2_10.cfg 1
+#./submitJob.sh 10 -1 -1 ALLSILICON-ETTL-CTTL-INNERTRACKING-ASYM-FTTLS3LC /gpfs/mnt/gpfs02/eic/${USER}/code/fun4all_eicmacros/detectors/Modular/config/phpythia6_ep_MinQ2_10.cfg 1
 # First submission
 #./submitJob.sh 1000 -1 -1 EHCAL-ALLSILICON-FTTLS3LC-ETTL-CTTL-INNERTRACKING e10p250MB 250
 
@@ -64,7 +64,7 @@ date
 # Pt hard > 5 for mid rapidity
 #./submitJob.sh 1000 -1 -1 ALLSILICON-ETTL-CTTL-INNERTRACKING-ASYM-FTTLS3LC e10p250pTHard5 250
 # Q2 > 20 for forward
-#./submitJob.sh 1000 -1 -1 ALLSILICON-ETTL-CTTL-INNERTRACKING-ASYM-FTTLS3LC /gpfs/mnt/gpfs02/eic/rehlersi/code/fun4all_eicmacros/detectors/Modular/config/phpythia6_ep_MinQ2_20.cfg 250
-#./create_job.sh 1000 -1 -1 ALLSILICON-ETTL-CTTL-INNERTRACKING-ASYM-FTTLS3LC /lustre/or-scratch/cades-birthright/rehlers/mammoth/projects/eic/config/phpythia6_ep_MinQ2_20.cfg 250
+#./submitJob.sh 1000 -1 -1 ALLSILICON-ETTL-CTTL-INNERTRACKING-ASYM-FTTLS3LC /gpfs/mnt/gpfs02/eic/${USER}/code/fun4all_eicmacros/detectors/Modular/config/phpythia6_ep_MinQ2_20.cfg 250
+#./create_job.sh 1000 -1 -1 ALLSILICON-ETTL-CTTL-INNERTRACKING-ASYM-FTTLS3LC /lustre/or-scratch/cades-birthright/${USER}/mammoth/projects/eic/config/phpythia6_ep_MinQ2_20.cfg 250
 # Test
-./create_job.sh 100 -1 -1 ALLSILICON-ETTL-CTTL-INNERTRACKING-ASYM-FTTLS3LC /lustre/or-scratch/cades-birthright/rehlers/mammoth/projects/eic/config/phpythia6_ep_MinQ2_10.cfg 1
+./create_job.sh 100 -1 -1 ALLSILICON-ETTL-CTTL-INNERTRACKING-ASYM-FTTLS3LC /lustre/or-scratch/cades-birthright/${USER}/mammoth/projects/eic/config/phpythia6_ep_MinQ2_10.cfg 1

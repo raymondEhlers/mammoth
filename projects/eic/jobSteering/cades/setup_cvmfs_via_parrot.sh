@@ -8,4 +8,4 @@ export PARROT_CVMFS_REPO="<default-repositories> \
 export HTTP_PROXY="http://cvmfsproxy1.cades.ornl.gov:3128"
 
 # Add parrot_run to the PATH
-export PATH="/lustre/or-scratch/cades-birthright/rehlers/install/bin/:${PATH}"
+export PATH="/lustre/or-scratch/cades-birthright/${USER}/install/bin/:${PATH}"

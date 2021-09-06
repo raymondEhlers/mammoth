@@ -2,7 +2,7 @@
 
 # NOTE: To use this, you must have access to cvmfs or be inside the singularity container
 
-export ECCE_ROOT="/lustre/or-scratch/cades-birthright/rehlers/ECCE"
+export ECCE_ROOT="/lustre/or-scratch/cades-birthright/${USER}/ECCE"
 export ECCE_MYINSTALL="${ECCE_ROOT}/install"
 
 # Need to setup using the build from updatebuild.sh

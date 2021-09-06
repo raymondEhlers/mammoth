@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-source /lustre/or-scratch/cades-birthright/rehlers/ECCE/jobSteering/setup_env_cades.sh
+source /lustre/or-scratch/cades-birthright/$USER/ECCE/jobSteering/setup_env_cades.sh
 
 cd ${ECCE_ROOT}/fun4all_eicmacros/detectors/Modular
 
