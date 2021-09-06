@@ -11,6 +11,7 @@ import awkward as ak
 import numpy as np
 import vector
 
+from mammoth import helpers
 from mammoth.framework import jet_finding, sources, transform
 
 
@@ -456,21 +457,8 @@ def analysis_embedding(source_index_identifiers: Mapping[str, int], arrays: ak.A
     return jets
 
 
-def setup_logging(level: int = logging.DEBUG) -> None:
-    # Basic setup
-    logging.basicConfig(level=level, format="%(asctime)s %(name)s:%(lineno)d %(levelname)s %(message)s")
-    # Quiet down the matplotlib logging
-    logging.getLogger("matplotlib").setLevel(logging.INFO)
-    # For sanity when using IPython
-    logging.getLogger("parso").setLevel(logging.INFO)
-    # Quiet down BinndData copy warnings
-    logging.getLogger("pachyderm.binned_data").setLevel(logging.INFO)
-    # Quiet down numba
-    logging.getLogger("numba").setLevel(logging.INFO)
-
-
 if __name__ == "__main__":
-    setup_logging(level=logging.INFO)
+    helpers.setup_logging(level=logging.INFO)
 
     # Some tests:
     #######
@@ -481,19 +469,18 @@ if __name__ == "__main__":
     # pythia: Can test both "part_level" and "det_level" in the rename map.
     # collision_system = "pythia"
     # PbPb:
-    # collision_system = "PbPb"
-    # jets = analysis_data(
-    #     collision_system=collision_system,
-    #     arrays=load_data(
-    #         filename=Path(
-    #             f"/software/rehlers/dev/mammoth/projects/framework/{collision_system}/AnalysisResults.parquet"
-    #         ),
-    #         # rename_prefix={"data": "det_level"},
-    #         rename_prefix={"data": "data"},
-    #     ),
-    #     jet_R=0.4,
-    #     min_jet_pt=20,
-    # )
+    collision_system = "PbPb"
+    jets = analysis_data(
+        collision_system=collision_system,
+        arrays=load_data(
+            filename=Path(
+                f"/software/rehlers/dev/mammoth/projects/framework/{collision_system}/AnalysisResults_track_skim.parquet"
+            ),
+            rename_prefix={"data": "data"} if collision_system != "pythia" else {"data": "det_level"},
+        ),
+        jet_R=0.4,
+        min_jet_pt=5 if collision_system == "pp" else 20,
+    )
     ######
     # MC
     ######
@@ -507,18 +494,18 @@ if __name__ == "__main__":
     ###########
     # Embedding
     ###########
-    jets = analysis_embedding(
-        *load_embedding(
-            signal_filename=Path("/software/rehlers/dev/mammoth/projects/framework/pythia/AnalysisResults.parquet"),
-            background_filename=Path("/software/rehlers/dev/mammoth/projects/framework/PbPb/AnalysisResults.parquet"),
-        ),
-        jet_R=0.4,
-        min_jet_pt={
-            "hybrid": 20,
-            "det_level": 1,
-            "part_level": 1,
-        },
-    )
+    # jets = analysis_embedding(
+    #     *load_embedding(
+    #         signal_filename=Path("/software/rehlers/dev/mammoth/projects/framework/pythia/AnalysisResults.parquet"),
+    #         background_filename=Path("/software/rehlers/dev/mammoth/projects/framework/PbPb/AnalysisResults.parquet"),
+    #     ),
+    #     jet_R=0.4,
+    #     min_jet_pt={
+    #         "hybrid": 20,
+    #         "det_level": 1,
+    #         "part_level": 1,
+    #     },
+    # )
 
     import IPython
 
