@@ -160,7 +160,7 @@ _facilities_configs = {
         node_spec=NodeSpec(n_cores=8, memory=64),
         partition_name=queue,
         # Allocate full node:
-        target_allocate_n_cores=9 if queue != "loginOnly" else 6,
+        target_allocate_n_cores=10 if queue != "loginOnly" else 6,
         # Allocate by core:
         # target_allocate_n_cores=1,
         launcher=SingleNodeLauncher,
@@ -518,7 +518,7 @@ def provide_results_as_completed(input_futures: Sequence[AppFuture], timeout: Op
         running_with_parsl: If True, don't wait for futures to cancel (since that's not
             implemented in parsl), and just raise the exception. Without this, parsl seems
             to hang. Default: False.
-    
+
     Returns:
         Iterable containing the results from futures. They are yielded as the futures complete.
     """
@@ -572,7 +572,7 @@ def merge_results(a: Dict[Any, Any], b: Dict[Any, Any]) -> Dict[Any, Any]:
 
     Note:
         For the first result, it's often convenient to start with a variable containing an
-        empty dict as the argument to a. That way, the merged results will be stored in 
+        empty dict as the argument to a. That way, the merged results will be stored in
         a persistent variable.
 
     Args:
