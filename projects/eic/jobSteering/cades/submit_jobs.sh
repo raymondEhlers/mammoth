@@ -67,4 +67,11 @@ date
 #./submitJob.sh 1000 -1 -1 ALLSILICON-ETTL-CTTL-INNERTRACKING-ASYM-FTTLS3LC /gpfs/mnt/gpfs02/eic/${USER}/code/fun4all_eicmacros/detectors/Modular/config/phpythia6_ep_MinQ2_20.cfg 250
 #./create_job.sh 1000 -1 -1 ALLSILICON-ETTL-CTTL-INNERTRACKING-ASYM-FTTLS3LC /lustre/or-scratch/cades-birthright/${USER}/mammoth/projects/eic/config/phpythia6_ep_MinQ2_20.cfg 250
 # Test
-./create_job.sh 100 -1 -1 ALLSILICON-ETTL-CTTL-INNERTRACKING-ASYM-FTTLS3LC /lustre/or-scratch/cades-birthright/${USER}/mammoth/projects/eic/config/phpythia6_ep_MinQ2_10.cfg 1
+#./create_job.sh 100 -1 -1 ALLSILICON-ETTL-CTTL-INNERTRACKING-ASYM-FTTLS3LC PYTHIA8 /lustre/or-scratch/cades-birthright/${USER}/mammoth/projects/eic/config/phpythia6_ep_MinQ2_10.cfg 1
+#./create_job.sh 10 -1 -1 TTLGEO_5 PYTHIA8 /lustre/or-scratch/cades-birthright/${USER}/mammoth/projects/eic/config/Jets_pythia8_ep-10x100-q2-100.cfg FullDetectorModular 1
+#./create_job.sh 10 -1 -1 TTLGEO_5 PYTHIA8 /lustre/or-scratch/cades-birthright/${USER}/mammoth/projects/eic/config/Jets_pythia8_ep-10x100-q2-100.cfg EICDetectorsdfsdf 1
+#./create_job.sh 10 -1 -1 TTLGEO_5 PYTHIA8 /lustre/or-scratch/cades-birthright/${USER}/mammoth/projects/eic/config/Jets_pythia8_ep-10x100-q2-100.cfg EICDetector 1
+
+# Single particle
+
+./create_job.sh 10 -1 -1 TTLGEO_5 PYTHIA8 /lustre/or-scratch/cades-birthright/${USER}/mammoth/projects/eic/config/Jets_pythia8_ep-10x100-q2-100.cfg EICDetector 1

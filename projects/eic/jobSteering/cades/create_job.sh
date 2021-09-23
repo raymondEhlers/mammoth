@@ -2,9 +2,9 @@
 
 date
 
-if [ $# != 6 ]; then
-     echo "This script needs 6 parameters !"
-     echo "Six parameters: nEvents, particlemomMin, particlemomMax, specialSetting, pythia6Settings, and njobs"
+if [ $# != 8 ]; then
+     echo "This script needs 8 parameters !"
+     echo "Parameters: nEvents, particlemomMin, particlemomMax, specialSetting, pythia6Settings, inputFile (usually PYTHIA config), macroName (FullDetectorModular or EICDetector) and njobs"
      exit 0
 fi
 
@@ -13,21 +13,35 @@ particlemomMin=$2
 particlemomMax=$3
 specialSetting=$4
 pythia6Settings="$5"
-njobs="$6"
-inputFile="https://www.phenix.bnl.gov/WWW/publish/phnxbld/sPHENIX/files/sPHENIX_G4Hits_sHijing_9-11fm_00000_00010.root"
+#inputFile="https://www.phenix.bnl.gov/WWW/publish/phnxbld/sPHENIX/files/sPHENIX_G4Hits_sHijing_9-11fm_00000_00010.root"
+inputFile="$6"
+macroName="$7"
+njobs="$8"
 embed_input_file="https://www.phenix.bnl.gov/WWW/publish/phnxbld/sPHENIX/files/sPHENIX_G4Hits_sHijing_9-11fm_00000_00010.root"
 skip=0
+
+# Validation of macro name
+if [[ "$macroName" != "EICDetector" && "$macroName" != "FullDetectorModular" ]];
+then
+    echo "Invalid macro name $macroName. Please check"
+    exit 1
+fi
 
 uniqueID=${specialSetting}_${pythia6Settings}
 
 # If pythia6Settings is a path rather than a setting, take just the filename without the extension
 if [[ "${pythia6Settings}" == /* ]]; then
-     uniqueID="${specialSetting}_$(basename ${pythia6Settings%%.*})"
+    uniqueID="${specialSetting}_$(basename ${pythia6Settings%%.*})"
+fi
+# Alternatively, use the inputFile if "PYTHIA" is in the special string
+# This is for the EICDetector
+if [[ "$macroName" == "EICDetector" && "${pythia6Settings}" == *"PYTHIA"* ]]; then
+    uniqueID="${specialSetting}_$(basename ${inputFile%%.*})"
 fi
 
 # pythia6Settings is empty
 if [ -z $pythia6Settings ]; then
-     uniqueID=${specialSetting}
+    uniqueID=${specialSetting}
 fi
 
 echo "uniqueID: ${uniqueID}"
@@ -64,12 +78,12 @@ cat > ${slurmJobConfig} <<- _EOF_
 #SBATCH -n $tasksPerNode
 #SBATCH -c 1
 #SBATCH -J eic-fun4all-sim
-#SBATCH --mem=3G
+#SBATCH --mem=5G
 #SBATCH -t 4:00:00
 #SBATCH -o ${logDir}/%A-%a.stdout
 #SBATCH -e ${logDir}/%A-%a.stderr
 
-srun ./run_job_with_singularity.sh $nEvents $particlemomMin $particlemomMax $specialSetting $pythia6Settings $inputFile $outputFile $embed_input_file $skip $initDir/$outDir
+srun ./run_job_with_singularity.sh $macroName $nEvents $particlemomMin $particlemomMax $specialSetting $pythia6Settings $inputFile $outputFile $embed_input_file $skip $initDir/$outDir
 _EOF_
 
 #cat > $condorJobCfg <<- _EOF_

@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 
 source /lustre/or-scratch/cades-birthright/$USER/ECCE/jobSteering/setup_env_cades.sh
-export ROOT_INCLUDE_PATH="${ECCE_ROOT}/fun4all_eicmacros/common:${ROOT_INCLUDE_PATH}"
+export ROOT_INCLUDE_PATH="${ECCE_ROOT}/macros/common:${ROOT_INCLUDE_PATH}"
 
-cd ${ECCE_ROOT}/fun4all_eicmacros/detectors/Modular
+cd ${ECCE_ROOT}/macros/detectors/EICDetector
 
 nEvents=$1
 particlemomMin=$2
@@ -34,6 +34,6 @@ echo "skip = $skip"
 echo "outDir = $outDir"
 
 root -l -b <<EOF
-.x Fun4All_G4_FullDetectorModular.C($nEvents, $particlemomMin, $particlemomMax, "$specialSetting", "$pythia6Settings", "$inputFile", "$outputFile", "$embed_input_file", $skip, "$outDir")
+.x Fun4All_G4_EICDetector.C($nEvents, $particlemomMin, $particlemomMax, "$specialSetting", "$pythia6Settings", "$inputFile", "$outputFile", "$embed_input_file", $skip, "$outDir")
 .q
 EOF
