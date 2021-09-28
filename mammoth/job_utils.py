@@ -157,7 +157,7 @@ class Facility:
 _facilities_configs = {
     f"ORNL_b587_{queue}": Facility(
         name="b587",
-        node_spec=NodeSpec(n_cores=8, memory=64),
+        node_spec=NodeSpec(n_cores=10, memory=64),
         partition_name=queue,
         # Allocate full node:
         target_allocate_n_cores=10 if queue != "loginOnly" else 6,

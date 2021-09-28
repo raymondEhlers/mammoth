@@ -7,12 +7,14 @@
 
 import logging
 from pathlib import Path
-from typing import Dict, Mapping, Optional, Sequence
+from typing import Any, Dict, List, Mapping, Optional, Sequence
 
 import attr
 import awkward as ak
 import hist
 import numpy as np
+import numpy.typing as npt
+import uproot
 
 from mammoth import analysis_base, helpers
 from mammoth.framework import jet_finding, sources, transform
@@ -125,7 +127,81 @@ def find_jets_for_analysis(arrays: ak.Array, jet_R_values: Sequence[float], part
     return jets
 
 
+def write_tree(jets: ak.Array, filename: Path) -> bool:
+    # Fields of interest. These shouldn't vary between each jet label
+    fields = {
+        "px": np.float32,
+        "py": np.float32,
+        "pz": np.float32,
+        "E": np.float32,
+        "area": np.float32,
+        "pt_subtracted": np.float32,
+        "cross_section": np.float32,
+    }
+
+    for jet_label in jets:
+        # First, reduce the precision to save some space (and only save the required branches)
+        any_jets = (len(ak.flatten(jets[jet_label])) != 0)
+        arrays = ak.zip({
+            # If there are jets, then take the usual field. If not, take the cross_section
+            # because the type seems to be in tact. This is for sure a hack, but it should get
+            # the job done.
+            k: ak.values_astype(v if any_jets else jets[jet_label]["cross_section"], dtype)
+            for (k, dtype), v in zip(fields.items(), ak.unzip(jets[jet_label][list(fields)]))
+        })
+        # NOTE: We don't want to flatten here because otherwise we lose the overall number of events.
+        #       Plus, this ensures compatiably with the standard analysis.
+
+        # Trying to write an empty file causes problems because the types are undetermined
+        # NOTE: This kind of sucks because we lose the event count by doing this. So instead we use the hack above.
+        # if len(ak.flatten(arrays)) == 0:
+        #     logger.info(f"No jets found for {jet_label} - skipping writing tree to file.")
+        #     import IPython; IPython.embed()
+        #     #continue
+
+        # Name of collection: path / jet_collection / filename
+        # eg: ../jetSkim/charged_jetR040/JetsBin7_9_00.parquet
+        jet_collection_filename = filename.parent / str(jet_label) / filename.name
+        # Ensure the output directory is always available
+        jet_collection_filename.parent.mkdir(parents=True, exist_ok=True)
+
+        logger.info(f"Writing columns: {ak.fields(arrays)}")
+        if filename.suffix == ".parquet":
+            logger.info(f"Writing to parquet file: {jet_collection_filename}")
+            # Everything is floats at the moment, so there are no dictionary encoded fields
+            dict_fields: List[str] = []
+            ak.to_parquet(
+                arrays,
+                jet_collection_filename,
+                compression="zstd",
+                compression_level=None,
+                explode_records=False,
+                # Additional parquet options are based on https://stackoverflow.com/a/66854439/12907985
+                # Default to byte stream split, skipping those which are specified to use dictionary encoding
+                use_dictionary=dict_fields,
+                use_byte_stream_split=True,
+            )
+        else:
+            logger.info(f"Writing to root file: {jet_collection_filename}")
+            # Write with uproot
+            try:
+                with uproot.recreate(jet_collection_filename) as f:
+                    #f["tree"] = arrays if len(ak.flatten(arrays)) > 0 else ak.Array({k: [] * len(arrays) for k in ak.fields(arrays)})
+                    f["tree"] = arrays
+            except Exception as e:
+                logger.exception(e)
+                raise e from ValueError(
+                    f"Jet label: {jet_label}, {arrays.type}, {arrays}"
+                    f"\n{jets[jet_label][list(fields)]}"
+                    f"\n{ak.flatten(jets[jet_label][list(fields)])}"
+                    f"\n{len(ak.flatten(arrays['px']))}"
+                )
+
+    return True
+
+
 def analyze_jets(arrays: ak.Array, jets: Mapping[JetLabel, ak.Array]) -> Dict[str, hist.Hist]:
+    # Define hists
     hists = {}
     hists["n_events"] = hist.Hist(hist.axis.Regular(1, -0.5, 0.5))
     hists["n_events_weighted"] = hist.Hist(hist.axis.Regular(1, -0.5, 0.5))
@@ -139,6 +215,7 @@ def analyze_jets(arrays: ak.Array, jets: Mapping[JetLabel, ak.Array]) -> Dict[st
         hists[f"{jet_label}_n_jets"] = hist.Hist(hist.axis.Regular(1, -0.5, 0.5))
         hists[f"{jet_label}_n_jets_weighted"] = hist.Hist(hist.axis.Regular(1, -0.5, 0.5))
 
+    # Now, fill the hists
     hists["n_events"].fill(0, weight=len(arrays))
     # Just need it to get the first cross section value. It should be the same for all cases
     first_jet_label = next(iter(jets))
@@ -159,13 +236,23 @@ def analyze_jets(arrays: ak.Array, jets: Mapping[JetLabel, ak.Array]) -> Dict[st
         hists[f"{jet_label}_n_events"].fill(0, weight=len(jet_collection))
         hists[f"{jet_label}_n_events_weighted"].fill(0, weight=len(jet_collection) * _cross_section_weight_factor)
         hists[f"{jet_label}_n_jets"].fill(0, weight=len(ak.flatten(jet_collection.pt_subtracted)))
-        #hists[f"{jet_label}_n_jets_weighted"].fill(0, weight=len(ak.flatten(jet_collection.pt_subtracted)) * ak.flatten(jet_collection.cross_section)[0])
         hists[f"{jet_label}_n_jets_weighted"].fill(0, weight=len(ak.flatten(jet_collection.pt_subtracted)) * _cross_section_weight_factor)
 
     return hists
 
 
-def run(arrays: ak.Array, min_jet_pt: float = 5, jet_R_values: Optional[Sequence[float]] = None) -> Dict[str, hist.Hist]:
+def write_hists(hists: Dict[str, hist.Hist], filename: Path) -> bool:
+    filename.parent.mkdir(parents=True, exist_ok=True)
+
+    logger.info(f"Writing hists to {filename}")
+    with uproot.recreate(filename) as f:
+        for k, v in hists.items():
+            f[k] = v
+
+    return True
+
+
+def run(arrays: ak.Array, min_jet_pt: float = 5, jet_R_values: Optional[Sequence[float]] = None, write_jets_filename: Optional[Path] = None, write_hists_filename: Optional[Path] = None) -> Dict[str, hist.Hist]:
     # Validation
     if jet_R_values is None:
         jet_R_values = [0.2, 0.4, 0.6]
@@ -177,8 +264,14 @@ def run(arrays: ak.Array, min_jet_pt: float = 5, jet_R_values: Optional[Sequence
         min_jet_pt=min_jet_pt,
     )
 
+    if write_jets_filename:
+        write_tree(jets=jets, filename=write_jets_filename)
+
     # Analyze the jets
     hists = analyze_jets(arrays=arrays, jets=jets)
+
+    if write_hists_filename:
+        write_hists(hists=hists, filename=write_hists_filename)
 
     return hists
 
@@ -191,14 +284,23 @@ if __name__ == "__main__":
         arrays=load_data(
             #Path(f"/alf/data/rehlers/jetscape/osiris/AAPaperData/5020_PP_Colorless/skim/test/JetscapeHadronListBin7_9_00.parquet")
             #Path("/alf/data/rehlers/jetscape/osiris/AAPaperData/5020_PP_Colorless/skim/JetscapeHadronListBin270_280_01.parquet")
-            Path("/alf/data/rehlers/jetscape/osiris/AAPaperData/MATTER_LBT_RunningAlphaS_Q2qhat/5020_PbPb_40-50_0.30_2.0_1/skim/JetscapeHadronListBin7_9_01.parquet"),
+            #Path("/alf/data/rehlers/jetscape/osiris/AAPaperData/MATTER_LBT_RunningAlphaS_Q2qhat/5020_PbPb_40-50_0.30_2.0_1/skim/JetscapeHadronListBin7_9_01.parquet"),
+            #Path("/alf/data/rehlers/jetscape/osiris/AAPaperData/MATTER_LBT_RunningAlphaS_Q2qhat/5020_PbPb_40-50_0.30_2.0_1/skim/JetscapeHadronListBin270_280_01.parquet"),
+            Path("/alf/data/rehlers/jetscape/osiris/AAPaperData/MATTER_LBT_RunningAlphaS_Q2qhat/5020_PbPb_40-50_0.30_2.0_1/skim/JetscapeHadronListBin1_2_07.parquet"),
         ),
         # Low for testing
-        min_jet_pt=3,
+        min_jet_pt=5,
         # Jet one R for faster testing
-        jet_R_values=[0.4],
+        jet_R_values=[0.2],
+        #write_jets_filename=Path("/alf/data/rehlers/jetscape/osiris/AAPaperData/5020_PP_Colorless/jetRAA/test/jetsSkim/JetsBin270_280_01.parquet"),
+        #write_hists_filename=Path("/alf/data/rehlers/jetscape/osiris/AAPaperData/5020_PP_Colorless/jetRAA/test/hists/hists_Bin270_280_01.root"),
+        #write_jets_filename=Path("/alf/data/rehlers/jetscape/osiris/AAPaperData/MATTER_LBT_RunningAlphaS_Q2qhat/5020_PbPb_40-50_0.30_2.0_1/jetsSkim/JetsBin7_9_01.parquet"),
+        #write_jets_filename=Path("/alf/data/rehlers/jetscape/osiris/AAPaperData/MATTER_LBT_RunningAlphaS_Q2qhat/5020_PbPb_40-50_0.30_2.0_1/jetRAA/test/jetsSkim/JetsBin270_280_01.root"),
+        #write_hists_filename=Path("/alf/data/rehlers/jetscape/osiris/AAPaperData/MATTER_LBT_RunningAlphaS_Q2qhat/5020_PbPb_40-50_0.30_2.0_1/jetRAA/test/hists/hists_Bin270_280_01.root"),
+        write_jets_filename=Path("/alf/data/rehlers/jetscape/osiris/AAPaperData/MATTER_LBT_RunningAlphaS_Q2qhat/5020_PbPb_40-50_0.30_2.0_1/jetRAA/test/jetsSkim/JetsBin1_2_07.root"),
+        write_hists_filename=Path("/alf/data/rehlers/jetscape/osiris/AAPaperData/MATTER_LBT_RunningAlphaS_Q2qhat/5020_PbPb_40-50_0.30_2.0_1/jetRAA/test/hists/hists_Bin1_2_07.root"),
     )
 
     import IPython
-    
+
     IPython.embed()

@@ -4,6 +4,7 @@
 """
 
 import logging
+from mammoth.jetscape.jet_raa import write_hists
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence
 
@@ -100,6 +101,8 @@ def run_RAA_analysis(
     system: str,
     jet_R_values: Sequence[float],
     min_jet_pt: float,
+    write_jets_filename: Optional[Path] = None,
+    write_hists_filename: Optional[Path] = None,
     inputs: Sequence[File] = [],
     outputs: Sequence[File] = [],
 ) -> AppFuture:
@@ -115,6 +118,8 @@ def run_RAA_analysis(
             ),
             jet_R_values=jet_R_values,
             min_jet_pt=min_jet_pt,
+            write_jets_filename=write_jets_filename,
+            write_hists_filename=write_hists_filename,
         )
         result = True, f"success for {system}, {inputs[0].filepath}", system, hists
     except Exception as e:
@@ -127,6 +132,8 @@ def setup_RAA_analysis(
     parquet_input_dir: Path,
     jet_R_values: Optional[Sequence[float]] = None,
     min_jet_pt: float = 5,
+    write_jets_to_tree: bool = False,
+    write_hists_to_file: bool = False,
 ) -> List[AppFuture]:
     """Setup jet RAA analysis using the converted jetscape outputs.
 
@@ -135,6 +142,8 @@ def setup_RAA_analysis(
         parquet_input_dir: Directory containing the converetd parquet files.
         jet_R_values: Jet R values to analyze. Default: [0.2, 0.4, 0.6]
         min_jet_pt: Minimum jet pt. Default: 5.
+        write_jets_to_tree: If true, write jets to a tree.
+        write_hists_to_file: If true, write hists to a file.
 
     Returns:
         Futures containing the output histograms from the analysis.
@@ -150,20 +159,37 @@ def setup_RAA_analysis(
 
     results = []
     for input_file in input_files:
-        logger.info(f"Adding {input_file} for analysis")
+        write_jets_filename: Optional[Path] = None
+        output_files = []
+        if write_jets_to_tree:
+            write_jets_filename = input_file.parent.parent / "jetRAA" / "jetsSkim" / input_file.name.replace("JetscapeHadronList", "Jets").replace("parquet", "root")
+            output_files.extend([
+                File(str(write_jets_filename.parent / f"{jet_type}_jetR{round(jet_R * 100):03}" / write_jets_filename.name))
+                for jet_type in ["charged", "full"]
+                for jet_R in jet_R_values
+            ])
+        write_hists_filename: Optional[Path] = None
+        if write_hists_to_file:
+            write_hists_filename = input_file.parent.parent / "jetRAA" / "hists" / input_file.name.replace("JetscapeHadronList", "hists_").replace("parquet", "root")
+            output_files.append(File(str(write_hists_filename)))
+
+        #logger.info(f"Adding {input_file} for analysis")
+        #logger.info(f"Output files: {output_files}")
         results.append(
             run_RAA_analysis(
                 system=system,
                 jet_R_values=jet_R_values,
                 min_jet_pt=min_jet_pt,
+                write_jets_filename=write_jets_filename,
+                write_hists_filename=write_hists_filename,
                 inputs=[
                     File(str(input_file))
-                ]
+                ],
+                outputs=output_files,
             )
         )
 
     return results
-
 
 
 def run() -> None:
@@ -183,10 +209,11 @@ def run() -> None:
         #"convert",
         "analyze_RAA",
     ]
-    systems_to_process = _possible_systems[1:]
+    #systems_to_process = _possible_systems[1:]
+    systems_to_process = _possible_systems
     # Job execution configuration
     task_config = job_utils.TaskConfig(name=task_name, n_cores_per_task=1)
-    n_cores_to_allocate = 64
+    n_cores_to_allocate = 80
     #n_cores_to_allocate = 21
     #n_cores_to_allocate = 2
     walltime = "24:00:00"
@@ -225,7 +252,9 @@ def run() -> None:
                 setup_RAA_analysis(
                     system=system,
                     parquet_input_dir=_system_to_base_path[system] / "skim",
-                    min_jet_pt=10,
+                    min_jet_pt=5,
+                    write_jets_to_tree=True,
+                    write_hists_to_file=True,
                 )
             )
         all_results.extend(system_results)
@@ -247,12 +276,12 @@ def run() -> None:
         #for a in all_results:
         for result in gen_results:
             #r = a.result()
-            logger.info(f"result: {result[:2]}")
+            #logger.info(f"result: {result[:2]}")
             if result[0] and len(result) == 4 and isinstance(result[3], dict):
                 k = result[2]
-                logger.info(f"Found result for key {k}")
+                logger.info(f"Found result for key {k}. Merging...")
                 output_hists[k] = job_utils.merge_results(output_hists[k], result[3])
-            logger.info(f"output_hists: {output_hists}")
+            #logger.info(f"output_hists: {output_hists}")
             progress.update(track_results, advance=1)
 
     # Save hists to uproot
