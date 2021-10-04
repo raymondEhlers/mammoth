@@ -72,6 +72,29 @@ date
 #./create_job.sh 10 -1 -1 TTLGEO_5 PYTHIA8 /lustre/or-scratch/cades-birthright/${USER}/mammoth/projects/eic/config/Jets_pythia8_ep-10x100-q2-100.cfg EICDetectorsdfsdf 1
 #./create_job.sh 10 -1 -1 TTLGEO_5 PYTHIA8 /lustre/or-scratch/cades-birthright/${USER}/mammoth/projects/eic/config/Jets_pythia8_ep-10x100-q2-100.cfg EICDetector 1
 
-# Single particle
+# optionGeo = 5 (LYSO in central barrel, 1 LGAD layer in FWD+BWD directions
+# Test - short job w/ pions
+#./create_job.sh 10 0.3 20 TTLGEO_5 SimplePion SimplePion EICDetector 1 true
+# Pion
+#./create_job.sh 1000 0.3 20 TTLGEO_5 SimplePion SimplePion EICDetector 100 true
+# Electron
+#./create_job.sh 1000 0.3 20 TTLGEO_5 SimpleElectron SimpleElectron EICDetector 100 true
+# PYTHIA6 MB
+#./create_job.sh 1000 -1 -1 TTLGEO_5 PYTHIA6 /lustre/or-scratch/cades-birthright/${USER}/mammoth/projects/eic/config/phpythia6_ep.cfg EICDetector 100 true
+# PYTHIA6 Q2 > 10
+#./create_job.sh 1000 -1 -1 TTLGEO_5 PYTHIA6 /lustre/or-scratch/cades-birthright/${USER}/mammoth/projects/eic/config/phpythia6_ep_MinQ2_10.cfg EICDetector 100 true
 
-./create_job.sh 10 -1 -1 TTLGEO_5 PYTHIA8 /lustre/or-scratch/cades-birthright/${USER}/mammoth/projects/eic/config/Jets_pythia8_ep-10x100-q2-100.cfg EICDetector 1
+# optionGeo = 6 (LYSO in central barrel, 1 LGAD layer in FWD+BWD directions
+# Test - short job w/ pions
+#./create_job.sh 10 0.3 20 TTLGEO_6 SimplePion SimplePion EICDetector 1 true
+# Pion
+./create_job.sh 1000 0.3 20 TTLGEO_6 SimplePion SimplePion EICDetector 100 true
+# Electron
+#./create_job.sh 1000 0.3 20 TTLGEO_6 SimpleElectron SimpleElectron EICDetector 100 true
+# PYTHIA6 MB
+#./create_job.sh 1000 -1 -1 TTLGEO_6 PYTHIA6 /lustre/or-scratch/cades-birthright/${USER}/mammoth/projects/eic/config/phpythia6_ep.cfg EICDetector 100 true
+# PYTHIA6 Q2 > 10
+#./create_job.sh 1000 -1 -1 TTLGEO_6 PYTHIA6 /lustre/or-scratch/cades-birthright/${USER}/mammoth/projects/eic/config/phpythia6_ep_MinQ2_10.cfg EICDetector 100 true
+
+# PYTHIA8 Q2 > 100
+#./create_job.sh 1000 -1 -1 TTLGEO_5 PYTHIA8 /lustre/or-scratch/cades-birthright/${USER}/mammoth/projects/eic/config/Jets_pythia8_ep-10x100-q2-100.cfg EICDetector 10 true

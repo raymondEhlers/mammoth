@@ -2,9 +2,9 @@
 
 date
 
-if [ $# != 8 ]; then
-     echo "This script needs 8 parameters !"
-     echo "Parameters: nEvents, particlemomMin, particlemomMax, specialSetting, pythia6Settings, inputFile (usually PYTHIA config), macroName (FullDetectorModular or EICDetector) and njobs"
+if [ $# != 9 ]; then
+     echo "This script needs 9 parameters !"
+     echo "Parameters: nEvents, particlemomMin, particlemomMax, specialSetting, pythia6Settings, inputFile (usually PYTHIA config), macroName (FullDetectorModular or EICDetector), njobs, cleanPreviousSimulations"
      exit 0
 fi
 
@@ -17,6 +17,7 @@ pythia6Settings="$5"
 inputFile="$6"
 macroName="$7"
 njobs="$8"
+cleanPreviousSimulations="$9"
 embed_input_file="https://www.phenix.bnl.gov/WWW/publish/phnxbld/sPHENIX/files/sPHENIX_G4Hits_sHijing_9-11fm_00000_00010.root"
 skip=0
 
@@ -52,7 +53,21 @@ outDir="$outputDir/output_$uniqueID"
 logDir="$outputDir/log_$uniqueID"
 
 mkdir -p $outDir $logDir
-rm -rf $outDir/* $logDir/*
+
+# Determine which index to start the job index from
+startingIndex=1
+if [[ "${cleanPreviousSimulations}" == true ]];
+then
+    echo "Removing previous simulations results for \"${uniqueID}\""
+    rm -rf $outDir/* $logDir/*
+else
+    startingIndex=$(ls ${outDir}/ | sort | tail -n 1 | cut -d '_' -f2)
+    # Force bash to treat this as an integer (it could be treated as octal if it has a leading 0)
+    startingIndex=$((10#$startingIndex))
+    # We want to take the next index, so we increment one further
+    startingIndex=$((startingIndex + 1))
+fi
+echo "Starting index: ${startingIndex}"
 
 slurmJobConfig="$initDir/$outputDir/slurmJob_${uniqueID}.sbatch"
 
@@ -74,16 +89,16 @@ cat > ${slurmJobConfig} <<- _EOF_
 #!/usr/bin/env bash
 #SBATCH -A birthright
 #SBATCH -p burst
-#SBATCH -N $nNodes
-#SBATCH -n $tasksPerNode
+#SBATCH -N 1
+#SBATCH -n 1
 #SBATCH -c 1
 #SBATCH -J eic-fun4all-sim
-#SBATCH --mem=5G
+#SBATCH --mem=4G
 #SBATCH -t 4:00:00
 #SBATCH -o ${logDir}/%A-%a.stdout
 #SBATCH -e ${logDir}/%A-%a.stderr
 
-srun ./run_job_with_singularity.sh $macroName $nEvents $particlemomMin $particlemomMax $specialSetting $pythia6Settings $inputFile $outputFile $embed_input_file $skip $initDir/$outDir
+./run_job_with_singularity.sh $macroName $nEvents $particlemomMin $particlemomMax $specialSetting $pythia6Settings $inputFile $embed_input_file $skip $initDir/$outDir
 _EOF_
 
 #cat > $condorJobCfg <<- _EOF_
@@ -116,5 +131,7 @@ _EOF_
 #     let "ifile+=1";
 #done
 
-sbatch -a 1-$njobs $slurmJobConfig
+#sbatch -a 1-$njobs $slurmJobConfig
+# -1 for the upper edge because it's inclusive
+sbatch -a ${startingIndex}-$((${startingIndex} + ${njobs} - 1)) $slurmJobConfig
 
