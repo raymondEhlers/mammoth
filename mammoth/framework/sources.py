@@ -423,7 +423,7 @@ class MultipleSources:
 
     def data(self) -> ak.Array:
         # Grab the events from the sources
-        fixed_sized_data = {k: v.data() for k, v in self._fixed_size_sources.items()}
+        fixed_sized_data = {k: v if isinstance(v, ak.Array) else v.data() for k, v in self._fixed_size_sources.items()}
         # source_data = {k: v.data() for k, v in self._sources.items()}
 
         # Cross check that we have the right sizes for all data sources
@@ -513,18 +513,3 @@ class MultipleSources:
 #
 #        # TODO: This isn't right. What about part vs det vs hybrid level, for example?
 #        yield event_info, particles
-
-
-@attr.s
-class EmbeddedSourceTransform:
-    """Transform an embedded source"""
-
-    def transform(self, input: ak.Array) -> ak.Array:
-        particles = ak.Array(
-            {
-                "true": input[[]],
-                "det_level": input[[]],
-                "hybrid": input[[]],
-            }
-        )
-        return particles
