@@ -136,6 +136,10 @@ def analysis_MC(arrays: ak.Array, jet_R: float, min_jet_pt: Mapping[str, float])
     # The other benefit to this approach is that it should reorder the particle level matches
     # to be the same shape as the detector level jets, so in principle they are paired together.
     # TODO: Check this is truly the case.
+    # Semi-validated result for det <-> part w/ thermal model:
+    # det <-> part for the thermal model looks like:
+    # part: ([[0, 3, 1, 2, 4, 5], [0, 1, -1], [], [0], [1, 0, -1]],
+    # det:   [[0, 2, 3, 1, 4, 5], [0, 1], [], [0], [1, 0]])
     det_level_matched_jets_mask = jets["det_level"]["matching"] > -1
     jets["det_level"] = jets["det_level"][det_level_matched_jets_mask]
     jets["part_level"] = jets["part_level"][jets["det_level", "matching"]]
@@ -166,7 +170,6 @@ def load_data(
     filename: Path,
     collision_system: str,
     rename_prefix: Mapping[str, str],
-    event_activity: str = "",
 ) -> ak.Array:
     logger.info("Loading data")
     if "parquet" not in filename.suffix:
@@ -311,10 +314,75 @@ def load_embedding(signal_filename: Path, background_filename: Path) -> Tuple[Di
     )
 
 
-def analysis_embedding(source_index_identifiers: Mapping[str, int], arrays: ak.Array, jet_R: float, min_jet_pt: Mapping[str, float]) -> ak.Array:
+def load_thermal_model(
+    signal_filename: Path,
+    thermal_model_parameters: sources.ThermalModelParameters,
+) -> Tuple[Dict[str, int], ak.Array]:
+    # Setup
+    source_index_identifiers = {"signal": 0, "background": 100_000}
+
+    # Signal
+    if "parquet" not in signal_filename.suffix:
+        pythia_arrays = track_skim.track_skim_to_awkward(
+            filename=signal_filename,
+            collision_system="pythia",
+        )
+    else:
+        source = sources.ParquetSource(
+            filename=signal_filename,
+        )
+        pythia_arrays = source.data()
+    # Background
+    thermal_source = sources.ThermalModelExponential(
+        # Chunk sizee will be set when combining the sources.
+        chunk_size=-1,
+        thermal_model_parameters=thermal_model_parameters,
+    )
+
+    # Now, just zip them together, effectively.
+    combined_source = sources.MultipleSources(
+        fixed_size_sources={"signal": pythia_arrays},
+        chunked_sources={"background": thermal_source},
+        source_index_identifiers=source_index_identifiers,
+    )
+
+    arrays = combined_source.data()
+    signal_fields = ak.fields(arrays["signal"])
+    # Empty mask
+    # TODO: Confirm that this masks as expected...
+    #mask = arrays["signal"][signal_fields[0]] * 0 >= 0
+    mask = np.ones(len(arrays)) > 0
+    # NOTE: We can apply the signal selections in the analysis task below
+    # TODO: Refactor
+    #if "is_ev_rej" in signal_fields:
+    #    mask = mask & (arrays["signal", "is_ev_rej"] == 0)
+    #if "z_vtx_reco" in signal_fields:
+    #    mask = mask & (np.abs(arrays["signal", "z_vtx_reco"]) < 10)
+
+    # Not necessary since there's no event selection for the thermal model
+    background_fields = ak.fields(arrays["background"])
+    if "is_ev_rej" in background_fields:
+        mask = mask & (arrays["background", "is_ev_rej"] == 0)
+    if "z_vtx_reco" in background_fields:
+        mask = mask & (np.abs(arrays["background", "z_vtx_reco"]) < 10)
+
+    arrays = arrays[mask]
+
+    return source_index_identifiers, transform.embedding(
+        arrays=arrays, source_index_identifiers=source_index_identifiers
+    )
+
+
+def analysis_embedding(source_index_identifiers: Mapping[str, int], arrays: ak.Array, jet_R: float, min_jet_pt: Mapping[str, float], r_max: float = 0.25) -> ak.Array:
     # Event selection
-    arrays = arrays[(arrays["is_ev_rej"] == 0) & (np.abs(arrays["z_vtx_reco"]) < 10)]
+    # This would apply to the signal events, because this is what we propagate from the embedding transform
     # TODO: Ensure event selection applies to be the signal and the background.
+    event_level_mask = np.ones(len(arrays)) > 0
+    if "is_ev_rej" in ak.fields(arrays):
+        event_level_mask = event_level_mask & (arrays["is_ev_rej"] == 0)
+    if "z_vtx_reco" in ak.fields(arrays):
+        event_level_mask = event_level_mask & (np.abs(arrays["z_vtx_reco"]) < 10)
+    arrays = arrays[event_level_mask]
 
     # Track cuts
     logger.info("Track level cuts")
@@ -360,7 +428,7 @@ def analysis_embedding(source_index_identifiers: Mapping[str, int], arrays: ak.A
                 area_settings=jet_finding.AREA_AA,
                 min_jet_pt=min_jet_pt["hybrid"],
                 constituent_subtraction=jet_finding.ConstituentSubtractionSettings(
-                    r_max=0.25,
+                    r_max=r_max,
                 ),
             ),
         },
@@ -450,11 +518,14 @@ def analysis_embedding(source_index_identifiers: Mapping[str, int], arrays: ak.A
     )
     jets = jets[jets_present_mask]
 
-    logger.info("Reclustering jets...")
-    for level in ["hybrid", "det_level", "part_level"]:
-        logger.info(f"Reclustering {level}")
-        jets[level, "reclustering"] = jet_finding.recluster_jets(jets=jets[level])
-    logger.info("Done with reclustering")
+    if len(jets) == 0:
+        logger.warning("No jets left for reclustering. Skipping reclustering...")
+    else:
+        logger.info("Reclustering jets...")
+        for level in ["hybrid", "det_level", "part_level"]:
+            logger.info(f"Reclustering {level}")
+            jets[level, "reclustering"] = jet_finding.recluster_jets(jets=jets[level])
+        logger.info("Done with reclustering")
 
     logger.warning(f"n events: {len(jets)}")
 
@@ -484,19 +555,19 @@ if __name__ == "__main__":
     # pythia: Can test both "part_level" and "det_level" in the rename map.
     # collision_system = "pythia"
     # PbPb:
-    collision_system = "PbPb"
-    jets = analysis_data(
-        collision_system=collision_system,
-        arrays=load_data(
-            filename=Path(
-                f"/software/rehlers/dev/mammoth/projects/framework/{collision_system}/AnalysisResults_track_skim.parquet"
-            ),
-            collision_system=collision_system,
-            rename_prefix={"data": "data"} if collision_system != "pythia" else {"data": "det_level"},
-        ),
-        jet_R=0.4,
-        min_jet_pt=5 if collision_system == "pp" else 20,
-    )
+    # collision_system = "PbPb"
+    # jets = analysis_data(
+    #     collision_system=collision_system,
+    #     arrays=load_data(
+    #         filename=Path(
+    #             f"/software/rehlers/dev/mammoth/projects/framework/{collision_system}/AnalysisResults_track_skim.parquet"
+    #         ),
+    #         collision_system=collision_system,
+    #         rename_prefix={"data": "data"} if collision_system != "pythia" else {"data": "det_level"},
+    #     ),
+    #     jet_R=0.4,
+    #     min_jet_pt=5 if collision_system == "pp" else 20,
+    # )
     ######
     # MC
     ######
@@ -522,6 +593,22 @@ if __name__ == "__main__":
     #         "part_level": 1,
     #     },
     # )
+    ###############
+    # Thermal model
+    ###############
+    jets = analysis_embedding(
+        *load_thermal_model(
+            signal_filename=Path("/software/rehlers/dev/substructure/trains/pythia/641/run_by_run/LHC20g4/295612/1/AnalysisResults.20g4.001.root"),
+            thermal_model_parameters=sources.THERMAL_MODEL_SETTINGS["central"],
+        ),
+        jet_R=0.2,
+        min_jet_pt={
+            "hybrid": 20,
+            #"det_level": 1,
+            #"part_level": 1,
+        },
+        r_max=0.25,
+    )
 
     import IPython
 
