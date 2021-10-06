@@ -400,6 +400,10 @@ def _subjets_output() -> Dict[str, List[Any]]:
 
 
 def recluster_jets(jets: ak.Array) -> ak.Array:
+    # Validation. There must be jets
+    if len(jets) == 0:
+        raise ValueError("No jets present for reclustering!")
+
     # To iterate over the constituents in an efficient manner, we need to flatten them and
     # their four-momenta. To make this more manageable, we want to determine the constituent
     # start and stop indices, and then build those up into doubly-jagged arrays and iterate
