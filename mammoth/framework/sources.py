@@ -203,6 +203,19 @@ class PythiaSource:
 
 
 @attr.s
+class ThermalModelParameters:
+    mean: float = attr.ib()
+    sigma: float = attr.ib()
+    pt_exponential_scale: float = attr.ib(default=0.4)
+
+
+THERMAL_MODEL_SETTINGS = {
+    "central": ThermalModelParameters(mean=2500, sigma=500),
+    "semi_central": ThermalModelParameters(mean=1000, sigma=40),
+}
+
+
+@attr.s
 class ThermalModelExponential:
     """Thermal background model from Leticia
 
@@ -220,9 +233,7 @@ class ThermalModelExponential:
     """
 
     chunk_size: int = attr.ib()
-    n_particles_per_event_mean: float = attr.ib()
-    n_particles_per_event_sigma: float = attr.ib()
-    pt_exponential_scale: float = attr.ib(default=0.4)
+    thermal_model_parameters: ThermalModelParameters = attr.ib()
     metadata: MutableMapping[str, Any] = attr.ib(factory=dict)
 
     def __len__(self) -> int:
@@ -237,8 +248,8 @@ class ThermalModelExponential:
         # NOTE: We round to integers because the number of particles must of course be an int.
         n_particles_per_event = np.rint(
             rng.normal(
-                loc=self.n_particles_per_event_mean,
-                scale=self.n_particles_per_event_sigma,
+                loc=self.thermal_model_parameters.mean,
+                scale=self.thermal_model_parameters.sigma,
                 size=self.chunk_size,
             ),
         ).astype(np.int32)
@@ -248,11 +259,13 @@ class ThermalModelExponential:
         # Sample the distributions.
         pt = models.sample_x_exp(
             n_samples=total_n_samples,
-            scale=self.pt_exponential_scale,
+            scale=self.thermal_model_parameters.pt_exponential_scale,
             x_min=0,
             x_max=400,
         )
-        eta = rng.uniform(low=-1, high=1, size=total_n_samples)
+        #eta = rng.uniform(low=-1, high=1, size=total_n_samples)
+        # We want to match the ALICE TPC acceptance
+        eta = rng.uniform(low=-0.9, high=0.9, size=total_n_samples)
         phi = rng.uniform(low=-np.pi, high=np.pi, size=total_n_samples)
 
         # Need this as an intermediary, so calculate it first
