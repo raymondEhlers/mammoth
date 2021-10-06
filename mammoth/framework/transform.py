@@ -115,14 +115,14 @@ def mc(
     # 2) Complete the four vectors (as necessary).
     det_level = arrays[rename_prefix["det_level"]]
     det_level["index"] = ak.local_index(det_level)
-    if "m" not in ak.fields(det_level):
+    if "m" not in ak.fields(det_level) and "E" not in ak.fields(det_level):
         det_level["m"] = det_level["pt"] * 0 + mass_hypotheses["det_level"]
     # NOTE: This is fully equivalent because we registered vector:
     #       >>> det_level = ak.with_name(det_level, name="Momentum4D")
     det_level = vector.Array(det_level)
     part_level = arrays[rename_prefix["part_level"]]
     part_level["index"] = ak.local_index(part_level)
-    if "m" not in ak.fields(part_level):
+    if "m" not in ak.fields(part_level) and "E" not in ak.fields(part_level):
         part_level["m"] = part_level["pt"] * 0 + mass_hypotheses["part_level"]
     part_level = vector.Array(part_level)
 
@@ -173,19 +173,19 @@ def embedding(
     # 2) Complete the four vectors (as necessary).
     det_level = arrays["signal"]["det_level"]
     det_level["index"] = ak.local_index(det_level) + source_index_identifiers["signal"]
-    if "m" not in ak.fields(det_level):
+    if "m" not in ak.fields(det_level) and "E" not in ak.fields(det_level):
         det_level["m"] = det_level["pt"] * 0 + mass_hypotheses["det_level"]
     # NOTE: This is fully equivalent because we registered vector:
     #       >>> det_level = ak.with_name(det_level, name="Momentum4D")
     det_level = vector.Array(det_level)
     part_level = arrays["signal"]["part_level"]
     part_level["index"] = ak.local_index(part_level) + source_index_identifiers["signal"]
-    if "m" not in ak.fields(part_level):
+    if "m" not in ak.fields(part_level) and "E" not in ak.fields(part_level):
         part_level["m"] = part_level["pt"] * 0 + mass_hypotheses["part_level"]
     part_level = vector.Array(part_level)
     background = arrays["background"]["data"]
     background["index"] = ak.local_index(background) + source_index_identifiers["background"]
-    if "m" not in ak.fields(background):
+    if "m" not in ak.fields(background) and "E" not in ak.fields(background):
         background["m"] = background["pt"] * 0 + mass_hypotheses["background"]
     background = vector.Array(background)
 
