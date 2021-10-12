@@ -212,6 +212,7 @@ def config(
     walltime: str,
     enable_monitoring: bool = False,
     request_n_blocks: Optional[int] = None,
+    additional_worker_init_script: str = "",
 ) -> Tuple[Config, Facility, List[helpers.LogMessage]]:
     """Retrieve the appropriate parsl configuration for a facility and task.
 
@@ -228,6 +229,7 @@ def config(
         request_n_blocks: Explicitly request n_blocks instead of the calculated number. This
             value is still validated and won't be blindly accepted. Default: None, which will
             use the calculated number of blocks.
+        additional_worker_init_script: Additional script for initializing the worker. Default: ""
 
     Returns:
         Tuple of: A parsl configuration for the facility - allocating enough blocks to immediately
@@ -251,6 +253,7 @@ def config(
             walltime=walltime,
             enable_monitoring=enable_monitoring,
             request_n_blocks=request_n_blocks,
+            additional_worker_init_script=additional_worker_init_script,
         )
     else:
         return _define_config(
@@ -260,6 +263,7 @@ def config(
             walltime=walltime,
             enable_monitoring=enable_monitoring,
             request_n_blocks=request_n_blocks,
+            additional_worker_init_script=additional_worker_init_script,
         )
 
 
@@ -270,6 +274,7 @@ def _define_config(
     walltime: str,
     enable_monitoring: bool,
     request_n_blocks: Optional[int] = None,
+    additional_worker_init_script: str = "",
 ) -> Tuple[Config, Facility, List[helpers.LogMessage]]:
     """Define the parsl config based on the facility and task.
 
@@ -283,6 +288,7 @@ def _define_config(
         request_n_blocks: Explicitly request n_blocks instead of the calculated number. This
             value is still validated and won't be blindly accepted. Default: None, which will
             use the calculated number of blocks.
+        additional_worker_init_script: Additional script for initializing the worker. Default: ""
 
     Returns:
         Tuple of: A parsl configuration for the facility - allocating enough blocks to immediately
@@ -391,7 +397,7 @@ def _define_config(
                     scheduler_options="""""",
                     # Command to be run before starting a worker, such as:
                     # 'module load Anaconda; source activate parsl_env'.
-                    worker_init=facility.worker_init_script,
+                    worker_init=f"{facility.worker_init_script}; {additional_worker_init_script}" if facility.worker_init_script else additional_worker_init_script,
                     launcher=facility.launcher(),
                     walltime=walltime,
                     # If we're allocating full nodes, then we should request exclusivity.
@@ -413,6 +419,7 @@ def _define_local_config(
     walltime: str,
     enable_monitoring: bool,
     request_n_blocks: Optional[int] = None,
+    additional_worker_init_script: str = "",
 ) -> Tuple[Config, Facility, List[helpers.LogMessage]]:
     """Local parsl configuration via process pool.
 
@@ -436,6 +443,7 @@ def _define_local_config(
         request_n_blocks: Explicitly request n_blocks instead of the calculated number. This
             value is still validated and won't be blindly accepted. Default: None, which will
             use the calculated number of blocks.
+        additional_worker_init_script: Additional script for initializing the worker. Default: ""
     Returns:
         Tuple of: A parsl configuration for the facility - allocating enough blocks to immediately
             execute all tasks, facility config, stored log messages.
@@ -475,7 +483,7 @@ def _define_local_config(
                     # NOTE: We need at least one block, so if set to just one core, n-1 would break.
                     #       Consequently, we require at least one initial block.
                     init_blocks=max(n_cores - 1, 1),
-                    worker_init=facility.worker_init_script,
+                    worker_init=f"{facility.worker_init_script}; {additional_worker_init_script}",
                     launcher=facility.launcher(),
                     walltime=walltime,
                 ),
