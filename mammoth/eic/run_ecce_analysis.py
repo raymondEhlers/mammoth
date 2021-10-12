@@ -4,8 +4,9 @@
 """
 
 import logging
+import itertools
 from pathlib import Path
-from typing import Any, Dict, List, Mapping, Sequence, Union
+from typing import Any, Dict, Iterable, List, Mapping, Protocol, Sequence, Union
 
 import attr
 import IPython
@@ -20,6 +21,21 @@ from rich.progress import Progress
 logger = logging.getLogger(__name__)
 
 
+def iterate_in_chunks(n: int, iterable: Iterable[Any]) -> Iterable[Any]:
+    """Iterate in chunks of n
+
+    From: https://stackoverflow.com/a/8998040/12907985
+    """
+    it = iter(iterable)
+    while True:
+        chunk_it = itertools.islice(it, n)
+        try:
+            first_el = next(chunk_it)
+        except StopIteration:
+            return
+        yield itertools.chain((first_el,), chunk_it)
+
+
 @attr.s
 class Dataset:
     data: Path = attr.ib()
@@ -27,7 +43,33 @@ class Dataset:
 
 
 @attr.s
-class DatasetSpec:
+class DatasetSpec(Protocol):
+    site: str = attr.ib()
+    label: str = attr.ib()
+
+    @property
+    def identifier(self) -> str:
+        return ""
+
+    def __str__(self) -> str:
+        s = f"{self.site}-{self.identifier}"
+        if self.label:
+            s += f"-{self.label}"
+        return s
+
+
+@attr.s
+class DatasetSpecSingleParticle(DatasetSpec):
+    particle: str = attr.ib()
+    momentum_selection: List[float] = attr.ib()
+
+    @property
+    def identifier(self) -> str:
+        return f"single{self.particle.capitalize()}-p-{self.momentum_selection[0]:g}-to-{self.momentum_selection[1]:g}"
+
+
+@attr.s
+class DatasetSpecPythia(DatasetSpec):
     generator: str = attr.ib()
     electron_beam_energy: int = attr.ib()
     proton_beam_energy: int = attr.ib()
@@ -41,7 +83,8 @@ class DatasetSpec:
             return f"q2-{self._q2_selection[0]}"
         return ""
 
-    def __str__(self) -> str:
+    @property
+    def identifier(self) -> str:
         return f"{self.generator}-{self.electron_beam_energy}x{self.proton_beam_energy}-{self.q2}"
 
 
@@ -67,34 +110,38 @@ def run_ecce_afterburner(
     stderr: str = parsl.AUTO_LOGNAME,
 ) -> AppFuture:
     import traceback
+    import tempfile
     from pathlib import Path
 
     from mammoth.eic import ecce_afterburner
 
-    try:
-        result = ecce_afterburner.run_afterburner(
-            tree_processing_code_directory=tree_processing_code_directory,
-            input_file=Path(inputs[0]),
-            geometry_file=Path(inputs[1]),
-            output_identifier=output_identifier,
-            do_reclustering=do_reclustering,
-            do_jet_finding=do_jet_finding,
-            has_timing=has_timing,
-            is_all_silicon=is_all_silicon,
-            max_n_events=max_n_events,
-            verbosity=verbosity,
-            do_calibration=do_calibration,
-            primary_track_source=primary_track_source,
-            jet_algorithm=jet_algorithm,
-            jet_R_parameters=jet_R_parameters,
-            max_track_pt_in_jet=max_track_pt_in_jet,
-            output_dir=output_dir,
-        )
-    except Exception:
-        result = (
-            False,
-            f"failure for {inputs[0]}, identifier {output_identifier} with: \n{traceback.format_exc()}",
-        )
+    with tempfile.NamedTemporaryFile("w") as f:
+        f.write("\n".join([input_file.filepath for input_file in inputs[:-1]]))
+
+        try:
+            result = ecce_afterburner.run_afterburner(
+                tree_processing_code_directory=tree_processing_code_directory,
+                input_file=Path(inputs[0]) if len(inputs) == 2 else Path(f.name),
+                geometry_file=Path(inputs[-1]),
+                output_identifier=output_identifier,
+                do_reclustering=do_reclustering,
+                do_jet_finding=do_jet_finding,
+                has_timing=has_timing,
+                is_all_silicon=is_all_silicon,
+                max_n_events=max_n_events,
+                verbosity=verbosity,
+                do_calibration=do_calibration,
+                primary_track_source=primary_track_source,
+                jet_algorithm=jet_algorithm,
+                jet_R_parameters=jet_R_parameters,
+                max_track_pt_in_jet=max_track_pt_in_jet,
+                output_dir=output_dir,
+            )
+        except Exception:
+            result = (
+                False,
+                f"failure for {inputs[0]}, identifier {output_identifier} with: \n{traceback.format_exc()}",
+            )
     return result
 
 
@@ -105,6 +152,7 @@ def setup_ecce_afterburner(
     jet_algorithm: str,
     tree_processing_code_directory: Path,
     output_dir: Path,
+    n_files_per_job: int = 10,
 ) -> Sequence[AppFuture]:
     # Validate that the processing code is available.
     tree_processing_entry_point = tree_processing_code_directory / "treeProcessing.C"
@@ -115,24 +163,26 @@ def setup_ecce_afterburner(
     input_files = sorted(dataset.data.glob("*.root"))
 
     # TEMP for testing
-    input_files = input_files[:1]
+    #input_files = input_files[:1]
     # ENDTEMP
 
     futures = []
-    for index, input_file in enumerate(input_files):
-        logger.info(f"Adding {index}: {input_file}")
+    for index, input_files in enumerate(iterate_in_chunks(n_files_per_job, input_files)):
+        input_files_list = list(input_files)
+        logger.info(f"Adding {index}: {input_files_list}")
 
-        output_identifier = f"{str(dataset_spec)}_{index:03}"
+        output_identifier = f"{str(dataset_spec)}/{index:03}"
         futures.append(
             run_ecce_afterburner(
                 tree_processing_code_directory=tree_processing_code_directory,
                 output_identifier=output_identifier,
                 output_dir=output_dir,
+                do_jet_finding=(jet_algorithm != ""),
                 jet_algorithm=jet_algorithm,
                 jet_R_parameters=jet_R_parameters,
-                max_n_events=2,
+                #max_n_events=2,
                 inputs=[
-                    File(str(input_file)),
+                    *[File(str(input_file)) for input_file in input_files_list],
                     File(str(dataset.geometry)),
                 ],
                 outputs=[
@@ -149,10 +199,41 @@ def run() -> None:
     afterburner_dir = Path("/software/rehlers/dev/eic/analysis_software_EIC")
     output_dir = Path("/alf/data/rehlers/eic/afterburner")
     jet_R_parameters = [0.3, 0.5, 0.8, 1.0]
-    jet_algorithm = "anti-kt"
+    #jet_algorithm = "anti-kt"
+    jet_algorithm = ""
     # Dataset selection
     datasets_to_process = [
-        DatasetSpec(generator="pythia6", electron_beam_energy=18, proton_beam_energy=275, q2_selection=[1, 100])
+        #DatasetSpecPythia(
+        #    site="production",
+        #    generator="pythia6",
+        #    electron_beam_energy=18, proton_beam_energy=275,
+        #    q2_selection=[1, 100],
+        #    label="",
+        #),
+        DatasetSpecSingleParticle(
+            site="cades",
+            particle="electron",
+            momentum_selection=[0.3, 20],
+            label="geoOption5",
+        ),
+        DatasetSpecSingleParticle(
+            site="cades",
+            particle="pion",
+            momentum_selection=[0.3, 20],
+            label="geoOption5",
+        ),
+        DatasetSpecSingleParticle(
+            site="cades",
+            particle="electron",
+            momentum_selection=[0.3, 20],
+            label="geoOption6",
+        ),
+        DatasetSpecSingleParticle(
+            site="cades",
+            particle="pion",
+            momentum_selection=[0.3, 20],
+            label="geoOption6",
+        ),
     ]
 
     # Job execution parameters
@@ -165,40 +246,82 @@ def run() -> None:
     task_config = job_utils.TaskConfig(name=task_name, n_cores_per_task=1)
     #n_cores_to_allocate = 120
     #walltime = "1:59:00"
-    n_cores_to_allocate = 80
-    walltime = "24:00:00"
-    n_cores_to_allocate = 2
+    n_cores_to_allocate = 40
+    #walltime = "24:00:00"
+    walltime = "1:59:00"
+    #n_cores_to_allocate = 2
 
     # Validation
     # Possible datasets
     _datasets = {
-        "pythia8-18x275-q2-1-to-100": Dataset(
+        # Central productions
+        "production-pythia8-18x275-q2-1-to-100": Dataset(
             data=Path("/alf/data/rehlers/eic/official_prod/prop.4/prop.4.0/HFandJets/pythia8/ep-18x275-q2-1-to-100/eval_00002"),
             geometry=Path("/alf/data/rehlers/eic/official_prod/prop.4/geometry.root")
         ),
-        "pythia8-18x275-q2-100": Dataset(
+        "production-pythia8-18x275-q2-100": Dataset(
             data=Path("/alf/data/rehlers/eic/official_prod/prop.4/prop.4.0/HFandJets/pythia8/ep-18x275-q2-100/eval_00002"),
             geometry=Path("/alf/data/rehlers/eic/official_prod/prop.4/geometry.root")
         ),
-        "pythia8-10x100-q2-1-to-100": Dataset(
+        "production-pythia8-10x100-q2-1-to-100": Dataset(
             data=Path("/alf/data/rehlers/eic/official_prod/prop.4/prop.4.0/HFandJets/pythia8/ep-10x100-q2-1-to-100/eval_00002"),
             geometry=Path("/alf/data/rehlers/eic/official_prod/prop.4/geometry.root")
         ),
-        "pythia8-10x100-q2-100": Dataset(
+        "production-pythia8-10x100-q2-100": Dataset(
             data=Path("/alf/data/rehlers/eic/official_prod/prop.4/prop.4.0/HFandJets/pythia8/ep-10x100-q2-100/eval_00002"),
             geometry=Path("/alf/data/rehlers/eic/official_prod/prop.4/geometry.root")
         ),
-        "pythia6-18x275-q2-1-to-100": Dataset(
+        "production-pythia6-18x275-q2-1-to-100": Dataset(
             data=Path("/alf/data/rehlers/eic/official_prod/prop.4/prop.4.0/SIDIS/pythia6/ep-18x275-q2-1-to-100/eval_00001/"),
             geometry=Path("/alf/data/rehlers/eic/official_prod/prop.4/geometry.root")
         ),
         # Not available yet
-        "pythia6-18x275-q2-100": Dataset(
+        "production-pythia6-18x275-q2-100": Dataset(
             data=Path("/alf/data/rehlers/eic/official_prod/prop.4/prop.4.0/SIDIS/pythia6/ep-18x275-q2-100/eval_00001/"),
             geometry=Path("/alf/data/rehlers/eic/official_prod/prop.4/geometry.root")
         ),
         #"pythia6-10x100-q2-100"
         #"pythia6-10x100-q2-1-to-100": Path("/alf/data/rehlers/"),
+        # CADES productions
+        # Option geo 5
+        # Single particle electron
+        "cades-singleElectron-p-0.3-to-20-geoOption5": Dataset(
+            data=Path("/alf/data/rehlers/eic/cades/LYSO_1fwd_1bkd_option5/output_TTLGEO_5_SimpleElectron/"),
+            geometry=Path("/alf/data/rehlers/eic/cades/LYSO_1fwd_1bkd_option5/geometry.root"),
+        ),
+        # Single particle pion
+        "cades-singlePion-p-0.3-to-20-geoOption5": Dataset(
+            data=Path("/alf/data/rehlers/eic/cades/LYSO_1fwd_1bkd_option5/output_TTLGEO_5_SimplePion/"),
+            geometry=Path("/alf/data/rehlers/eic/cades/LYSO_1fwd_1bkd_option5/geometry.root"),
+        ),
+        # Pythia8
+        "cades-pythia8-10x100-q2-1-to-100-geoOption5": Dataset(
+            data=Path("/alf/data/rehlers/eic/cades/LYSO_1fwd_1bkd_option5/output_TTLGEO_5_Jets_pythia8_ep-10x100-q2-1-to-100/"),
+            geometry=Path("/alf/data/rehlers/eic/cades/LYSO_1fwd_1bkd_option5/geometry.root"),
+        ),
+        "cades-pythia8-10x100-q2-100-geoOption5": Dataset(
+            data=Path("/alf/data/rehlers/eic/cades/LYSO_1fwd_1bkd_option5/output_TTLGEO_5_Jets_pythia8_ep-10x100-q2-100/"),
+            geometry=Path("/alf/data/rehlers/eic/cades/LYSO_1fwd_1bkd_option5/geometry.root"),
+        ),
+        # Option geo 6
+        # Single particle electron
+        "cades-singleElectron-p-0.3-to-20-geoOption6": Dataset(
+            data=Path("/alf/data/rehlers/eic/cades/LYSO_1fwd_1bkd_option6/output_TTLGEO_6_SimpleElectron/"),
+            geometry=Path("/alf/data/rehlers/eic/cades/LYSO_1fwd_1bkd_option5/geometry.root"),
+        ),
+        # Single particle pion
+        "cades-singlePion-p-0.3-to-20-geoOption6": Dataset(
+            data=Path("/alf/data/rehlers/eic/cades/LYSO_1fwd_1bkd_option6/output_TTLGEO_6_SimplePion/"),
+            geometry=Path("/alf/data/rehlers/eic/cades/LYSO_1fwd_1bkd_option5/geometry.root"),
+        ),
+        "cades-pythia8-10x100-q2-1-to-100-geoOption6": Dataset(
+            data=Path("/alf/data/rehlers/eic/cades/LYSO_1fwd_1bkd_option6/output_TTLGEO_6_Jets_pythia8_ep-10x100-q2-1-to-100/"),
+            geometry=Path("/alf/data/rehlers/eic/cades/LYSO_1fwd_1bkd_option6/geometry.root"),
+        ),
+        "cades-pythia8-10x100-q2-100-geoOption6": Dataset(
+            data=Path("/alf/data/rehlers/eic/cades/LYSO_1fwd_1bkd_option6/output_TTLGEO_6_Jets_pythia8_ep-10x100-q2-100/"),
+            geometry=Path("/alf/data/rehlers/eic/cades/LYSO_1fwd_1bkd_option6/geometry.root"),
+        ),
     }
     for d in datasets_to_process:
         if str(d) not in _datasets:
@@ -214,8 +337,8 @@ def run() -> None:
     #       it's super verbose and a huge pain to turn off. Note that by passing on the storage messages,
     #       we don't actually lose any info.
     config, facility_config, stored_messages = job_utils.config(
-        facility="ORNL_b587_long",
-        #facility="ORNL_b587_short",
+        #facility="ORNL_b587_long",
+        facility="ORNL_b587_short",
         task_config=task_config,
         n_tasks=n_cores_to_allocate,
         walltime=walltime,
