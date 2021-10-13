@@ -23,7 +23,7 @@ pachyderm = {path = "external/pachyderm", develop = true}
 pandas = "^1.3.0"
 particle = "^0.15.1"
 numba = "^0.53.1"
-hist = {version = "^2.4.0", extras = ["plot"]}
+hist = {version = "^2.5.1", extras = ["plot"]}
 seaborn = "^0.11.1"
 vector = "^0.8"
 parsl = {git = "https://github.com/Parsl/parsl.git", rev = "9eca2a949471520f161a82cc046397a1d69d939c", extras = ["monitoring"]}
