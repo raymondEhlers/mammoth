@@ -115,8 +115,11 @@ def run_ecce_afterburner(
 
     from mammoth.eic import ecce_afterburner
 
-    with tempfile.NamedTemporaryFile("w") as f:
+    with tempfile.NamedTemporaryFile("w+") as f:
         f.write("\n".join([input_file.filepath for input_file in inputs[:-1]]))
+        # Apparently other processes opening this file open it at the same seek point.
+        # Or at least it does in the case. So we need to seek to the beginning for it to be read
+        f.seek(0)
 
         try:
             result = ecce_afterburner.run_afterburner(
