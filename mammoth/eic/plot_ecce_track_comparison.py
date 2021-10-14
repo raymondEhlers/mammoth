@@ -45,12 +45,11 @@ def _plot_tracking_comparison(input_specs: Sequence[run_ecce_analysis.DatasetSpe
         input_spec_hists = hists[str(input_spec)]
         markers = ["s", "o", "X", "D"]
         for i_eta_index, (eta_index, h) in enumerate(input_spec_hists.items()):
-            #m = h.values() > -1e-4
-            m = h.values() > -1e6
-            values = h.values()[m]
-            errors = np.sqrt(h.variances()[m])
-            bin_centers = h.axes[0].centers[m]
-            bin_widths = h.axes[0].widths[m]
+            #m = h.values() > -1e6
+            #values = h.values()[m]
+            #errors = np.sqrt(h.variances()[m])
+            #bin_centers = h.axes[0].centers[m]
+            #bin_widths = h.axes[0].widths[m]
             #indices_with_values = np.where(m)[0]
             #if len(indices_with_values) == 0:
             #    logger.info(f"No valid values. Skipping {eta_index}, {str(input_spec)}")
@@ -72,15 +71,18 @@ def _plot_tracking_comparison(input_specs: Sequence[run_ecce_analysis.DatasetSpe
             #)
             _input_spec_labels = {}
             ax.errorbar(
-                bin_centers,
-                values,
-                xerr=bin_widths / 2,
-                yerr=errors,
+                h.axes[0].centers,
+                h.values(),
+                xerr=h.axes[0].widths / 2,
+                yerr=np.sqrt(h.variances()),
                 label=_input_spec_labels.get(input_spec, "") if len(input_spec_hists) == 1 else get_eta_label(all_regions[eta_index]),
                 marker=markers[i_eta_index if len(input_spec_hists) > 1 else i_input_spec],
                 linestyle="",
                 markersize=4,
             )
+
+    if "_mean" in plot_config.name:
+        ax.axhline(y=0, color="black", linestyle="dashed", zorder=1)
 
     # Labeling and presentation
     plot_config.apply(fig=fig, ax=ax)
@@ -124,7 +126,7 @@ def plot_tracking_comparison(input_specs: Sequence[run_ecce_analysis.DatasetSpec
                     text=pb.TextConfig(x=0.97, y=0.97, text=text, font_size=22),
                     legend=pb.LegendConfig(location="upper left", font_size=22),
                 ),
-            figure=pb.Figure(edge_padding=dict(left=0.11 if plot_name == "width" else 0.13, bottom=0.10)),
+            figure=pb.Figure(edge_padding=dict(left=0.10 if "width" in plot_name else 0.13, bottom=0.10)),
         ),
         output_dir=output_dir,
     )
