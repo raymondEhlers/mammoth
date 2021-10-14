@@ -13,6 +13,7 @@ import pachyderm.plot as pb
 import seaborn as sns
 import uproot
 from mammoth import helpers
+from mammoth.eic import base as ecce_base
 from pachyderm import binned_data
 
 pb.configure()
@@ -44,7 +45,7 @@ class SimulationConfig:
     _output_dir: Path = attr.ib()
 
     def setup(self) -> bool:
-        self._output_dir.mkdir(parents=True, exist_ok=True)
+        self.output_dir.mkdir(parents=True, exist_ok=True)
 
         return True
 
@@ -53,20 +54,12 @@ class SimulationConfig:
         return self._output_dir / f"{self.electron_beam_energy}x{self.proton_beam_energy}_{self.jet_algorithm}"
 
 
-def load_hists(filename: Path) -> Dict[str, hist.Hist]:
-    hists = {}
-    with uproot.open(filename) as f:
-        for k in f.keys(cycle=False):
-            hists[k] = f[k]
-
-    return hists
-
 
 def _load_results(config: SimulationConfig, input_specs: Sequence[InputSpec]) -> Dict[str, Dict[str, hist.Hist]]:
     output_hists = {}
     for spec in input_specs:
         logger.info(f"Loading hists from {config.input_dir / spec.filename}")
-        output_hists[spec.n_PDF_name] = load_hists(config.input_dir / spec.filename)
+        output_hists[spec.n_PDF_name] = ecce_base.load_hists(config.input_dir / spec.filename)
 
     return output_hists
 
@@ -231,6 +224,7 @@ if __name__ == "__main__":
         input_dir=input_dir,
         output_dir=output_dir,
     )
+    config.setup()
 
     output_hists = _load_results(
         config=config,

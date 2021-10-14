@@ -6,7 +6,7 @@
 import logging
 import itertools
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, Mapping, Protocol, Sequence, Union
+from typing import Any, Dict, Iterable, List, Mapping, Sequence, Union
 
 import attr
 import IPython
@@ -36,14 +36,14 @@ def iterate_in_chunks(n: int, iterable: Iterable[Any]) -> Iterable[Any]:
         yield itertools.chain((first_el,), chunk_it)
 
 
-@attr.s
+@attr.s(frozen=True)
 class Dataset:
     data: Path = attr.ib()
     geometry: Path = attr.ib()
 
 
-@attr.s
-class DatasetSpec(Protocol):
+@attr.s(frozen=True)
+class DatasetSpec:
     site: str = attr.ib()
     label: str = attr.ib()
 
@@ -58,7 +58,7 @@ class DatasetSpec(Protocol):
         return s
 
 
-@attr.s
+@attr.s(frozen=True)
 class DatasetSpecSingleParticle(DatasetSpec):
     particle: str = attr.ib()
     momentum_selection: List[float] = attr.ib()
@@ -68,7 +68,7 @@ class DatasetSpecSingleParticle(DatasetSpec):
         return f"single{self.particle.capitalize()}-p-{self.momentum_selection[0]:g}-to-{self.momentum_selection[1]:g}"
 
 
-@attr.s
+@attr.s(frozen=True)
 class DatasetSpecPythia(DatasetSpec):
     generator: str = attr.ib()
     electron_beam_energy: int = attr.ib()
