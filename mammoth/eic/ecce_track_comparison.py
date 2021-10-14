@@ -62,24 +62,37 @@ def _plot_tracking_comparison(input_specs: Sequence[run_ecce_analysis.DatasetSpe
         input_spec_hists = hists[str(input_spec)]
         for eta_index, h in input_spec_hists.items():
             m = h.values() > -1e-4
-            indices_with_values = np.where(m)[0]
-            if len(indices_with_values) == 0:
-                logger.info(f"No valid values. Skipping {eta_index}, {str(input_spec)}")
-                continue
-            else:
-                # Inefficient, but I don't really care here - it doesn't need to be that fast.
-                groups = [(k, sum(1 for i in g)) for k,g in itertools.groupby(m)]
-                # Max is three groups: Falses, followed by Trues, followed by Falses
-                if len(groups) > 3:
-                    logger.warning(f"Can't slice in a continuous range for {eta_index}, {str(input_spec)}. Groups: {groups}")
-                # NOTE: Have to explicitly convert to int because they have an explicit isinstance on int, and apparently np.int64 doesn't count...
-                s = slice(int(indices_with_values[0]), int(indices_with_values[-1] + 1))
-            h_sliced = h[s]
+            values = h.values()[m]
+            errors = np.sqrt(h.variances()[m])
+            bin_centers = h.axes[0].centers[m]
+            bin_widths = h.axes[0].widths[m]
+            #indices_with_values = np.where(m)[0]
+            #if len(indices_with_values) == 0:
+            #    logger.info(f"No valid values. Skipping {eta_index}, {str(input_spec)}")
+            #    continue
+            #else:
+            #    # Inefficient, but I don't really care here - it doesn't need to be that fast.
+            #    groups = [(k, sum(1 for i in g)) for k,g in itertools.groupby(m)]
+            #    # Max is three groups: Falses, followed by Trues, followed by Falses
+            #    if len(groups) > 3:
+            #        logger.warning(f"Can't slice in a continuous range for {eta_index}, {str(input_spec)}. Groups: {groups}")
+            #    # NOTE: Have to explicitly convert to int because they have an explicit isinstance on int, and apparently np.int64 doesn't count...
+            #    s = slice(int(indices_with_values[0]), int(indices_with_values[-1] + 1))
+            #h_sliced = h[s]
             logger.info(f"plotting eta_index: {eta_index}, {str(input_spec)}")
+            #ax.errorbar(
+            #    h_sliced.axes[0].centers, h_sliced.values(),
+            #    yerr=np.sqrt(h_sliced.variances()),
+            #    label=str(input_spec)
+            #)
             ax.errorbar(
-                h_sliced.axes[0].centers, h_sliced.values(),
-                yerr=np.sqrt(h_sliced.variances()),
-                label=str(input_spec)
+                bin_centers,
+                values,
+                xerr=bin_widths / 2,
+                yerr=errors,
+                label=str(input_spec),
+                linestyle="",
+                markersize=2,
             )
 
     # Labeling and presentation
@@ -95,7 +108,7 @@ def _plot_tracking_comparison(input_specs: Sequence[run_ecce_analysis.DatasetSpe
 
 def plot_tracking_comparison(input_specs: Sequence[run_ecce_analysis.DatasetSpec], output_hists: Dict[str, Dict[str, hist.Hist]], hist_name_template: str, plot_name: str,
                              all_regions: Sequence[Tuple[float, float]],
-                             regions_index: Sequence[int], regions_label: str,
+                             regions_index: Sequence[int], regions_label: str, y_range: Tuple[float, float],
                              output_dir: Path) -> None:
     text = "ECCE"
     text += "\n" + r"$R=0.5$ anti-$k_{\text{T}}$ jets"
@@ -117,13 +130,13 @@ def plot_tracking_comparison(input_specs: Sequence[run_ecce_analysis.DatasetSpec
                         pb.AxisConfig("x", label=r"$p\:(\text{GeV}/c)$", font_size=22, range=(0, 30)),
                         pb.AxisConfig(
                             "y",
-                            label=r"Mean",
-                            #range=(0, 1.4),
+                            label=plot_name.split("_")[-1].capitalize(),
+                            range=y_range,
                             font_size=22,
                         ),
                     ],
                     text=pb.TextConfig(x=0.97, y=0.97, text=text, font_size=22),
-                    legend=pb.LegendConfig(location="lower left", font_size=22),
+                    legend=pb.LegendConfig(location="lower right", font_size=22),
                 ),
             figure=pb.Figure(edge_padding=dict(left=0.12, bottom=0.08)),
         ),
@@ -145,36 +158,36 @@ if __name__ == "__main__":
             momentum_selection=[0.0, 20],
             label="",
         ),
-        run_ecce_analysis.DatasetSpecSingleParticle(
-            site="production",
-            particle="pion",
-            momentum_selection=[0.0, 20],
-            label="",
-        ),
+        #run_ecce_analysis.DatasetSpecSingleParticle(
+        #    site="production",
+        #    particle="pion",
+        #    momentum_selection=[0.0, 20],
+        #    label="",
+        #),
         run_ecce_analysis.DatasetSpecSingleParticle(
             site="cades",
             particle="electron",
             momentum_selection=[0.3, 20],
             label="geoOption5",
         ),
-        run_ecce_analysis.DatasetSpecSingleParticle(
-            site="cades",
-            particle="pion",
-            momentum_selection=[0.3, 20],
-            label="geoOption5",
-        ),
-        run_ecce_analysis.DatasetSpecSingleParticle(
-            site="cades",
-            particle="electron",
-            momentum_selection=[0.3, 20],
-            label="geoOption6",
-        ),
-        run_ecce_analysis.DatasetSpecSingleParticle(
-            site="cades",
-            particle="pion",
-            momentum_selection=[0.3, 20],
-            label="geoOption6",
-        ),
+        #run_ecce_analysis.DatasetSpecSingleParticle(
+        #    site="cades",
+        #    particle="pion",
+        #    momentum_selection=[0.3, 20],
+        #    label="geoOption5",
+        #),
+        #run_ecce_analysis.DatasetSpecSingleParticle(
+        #    site="cades",
+        #    particle="electron",
+        #    momentum_selection=[0.3, 20],
+        #    label="geoOption6",
+        #),
+        #run_ecce_analysis.DatasetSpecSingleParticle(
+        #    site="cades",
+        #    particle="pion",
+        #    momentum_selection=[0.3, 20],
+        #    label="geoOption6",
+        #),
     ]
 
     output_hists = _load_results(
@@ -217,21 +230,28 @@ if __name__ == "__main__":
         else:
             label = "all"
 
+        # TODO: Need to split pions and electrons. Because duh.
+        hist_name_template = "histPResol_{particle}_FitMean_{eta_region_index}"
         plot_tracking_comparison(
             input_specs=input_specs,
             output_hists=output_hists,
             hist_name_template=hist_name_template,
             plot_name="p_mean",
             all_regions=eta_ranges, regions_label=label, regions_index=[i],
+            y_range=(-0.5, 0.5),
+            output_dir=output_dir,
+        )
+
+        hist_name_template = "histPResol_{particle}_FitSigma_{eta_region_index}"
+        plot_tracking_comparison(
+            input_specs=input_specs,
+            output_hists=output_hists,
+            hist_name_template=hist_name_template,
+            plot_name="p_width",
+            all_regions=eta_ranges, regions_label=label, regions_index=[i],
+            y_range=(-0.05, 0.1),
             output_dir=output_dir,
         )
 
     import IPython; IPython.embed()
-
-    hist_name_template = "histPResol_{particle}_FitSigma_15"
-
-    plot_tracking_comparison(
-        input_specs=input_specs, output_hists=output_hists, hist_name_template=hist_name_template
-    )
-
 
