@@ -11,7 +11,6 @@ from pathlib import Path
 from typing import Dict, Mapping, Sequence, Tuple
 
 import attr
-import cycler
 import hist
 import matplotlib
 import matplotlib.pyplot as plt
@@ -21,23 +20,13 @@ import seaborn as sns
 import uproot
 from mammoth import helpers
 from mammoth.eic import base as ecce_base
-from mammoth.eic import run_ecce_analysis
+from mammoth.eic import plot_ecce_track_comparison, run_ecce_analysis
 from pachyderm import binned_data
+
 
 pb.configure()
 
 logger = logging.getLogger(__name__)
-
-_okabe_ito_colors = [
-    "#E69F00",
-    "#56B4E9",
-    "#009E73",
-    "#F0E442",
-    "#0072B2",
-    "#D55E00",
-    "#CC79A7",
-    "#000000",
-]
 
 
 def _load_results(input_specs: Sequence[run_ecce_analysis.DatasetSpec], input_dir: Path, filename: str) -> Dict[str, Dict[str, hist.Hist]]:
@@ -52,99 +41,8 @@ def _load_results(input_specs: Sequence[run_ecce_analysis.DatasetSpec], input_di
     return output_hists
 
 
-def _plot_tracking_comparison(input_specs: Sequence[run_ecce_analysis.DatasetSpec], hists: Mapping[str, Mapping[str, hist.Hist]],
-                              all_regions: Sequence[Tuple[float, float]], regions_index: Sequence[int],
-                              plot_config: pb.PlotConfig, output_dir: Path) -> None:
-    fig, ax = plt.subplots(figsize=(10, 7.5))
-    ax.set_prop_cycle(cycler.cycler(color=_okabe_ito_colors))
 
-    for input_spec in input_specs:
-        input_spec_hists = hists[str(input_spec)]
-        for eta_index, h in input_spec_hists.items():
-            m = h.values() > -1e-4
-            values = h.values()[m]
-            errors = np.sqrt(h.variances()[m])
-            bin_centers = h.axes[0].centers[m]
-            bin_widths = h.axes[0].widths[m]
-            #indices_with_values = np.where(m)[0]
-            #if len(indices_with_values) == 0:
-            #    logger.info(f"No valid values. Skipping {eta_index}, {str(input_spec)}")
-            #    continue
-            #else:
-            #    # Inefficient, but I don't really care here - it doesn't need to be that fast.
-            #    groups = [(k, sum(1 for i in g)) for k,g in itertools.groupby(m)]
-            #    # Max is three groups: Falses, followed by Trues, followed by Falses
-            #    if len(groups) > 3:
-            #        logger.warning(f"Can't slice in a continuous range for {eta_index}, {str(input_spec)}. Groups: {groups}")
-            #    # NOTE: Have to explicitly convert to int because they have an explicit isinstance on int, and apparently np.int64 doesn't count...
-            #    s = slice(int(indices_with_values[0]), int(indices_with_values[-1] + 1))
-            #h_sliced = h[s]
-            logger.info(f"plotting eta_index: {eta_index}, {str(input_spec)}")
-            #ax.errorbar(
-            #    h_sliced.axes[0].centers, h_sliced.values(),
-            #    yerr=np.sqrt(h_sliced.variances()),
-            #    label=str(input_spec)
-            #)
-            ax.errorbar(
-                bin_centers,
-                values,
-                xerr=bin_widths / 2,
-                yerr=errors,
-                label=str(input_spec),
-                linestyle="",
-                markersize=2,
-            )
-
-    # Labeling and presentation
-    plot_config.apply(fig=fig, ax=ax)
-    # A few additional tweaks.
-    #ax.xaxis.set_major_locator(matplotlib.ticker.MultipleLocator(base=1.0))
-    # ax_ratio.yaxis.set_major_locator(matplotlib.ticker.MultipleLocator(base=0.2))
-
-    filename = f"{plot_config.name}"
-    fig.savefig(output_dir / f"{filename}.pdf")
-    plt.close(fig)
-
-
-def plot_tracking_comparison(input_specs: Sequence[run_ecce_analysis.DatasetSpec], output_hists: Dict[str, Dict[str, hist.Hist]], hist_name_template: str, plot_name: str,
-                             all_regions: Sequence[Tuple[float, float]],
-                             regions_index: Sequence[int], regions_label: str, y_range: Tuple[float, float],
-                             output_dir: Path) -> None:
-    text = "ECCE"
-    text += "\n" + r"$R=0.5$ anti-$k_{\text{T}}$ jets"
-    _plot_tracking_comparison(
-        input_specs=input_specs,
-        hists={
-            str(input_spec): {
-                str(index): output_hists[str(input_spec)][hist_name_template.format(particle=input_spec.particle.capitalize(), eta_region_index=index)]
-                for index in regions_index
-            }
-            for input_spec in input_specs
-        },
-        all_regions=all_regions,
-        regions_index=regions_index,
-        plot_config=pb.PlotConfig(
-            name=f"{plot_name}_{regions_label}_{'_'.join([str(v) for v in regions_index])}",
-            panels=pb.Panel(
-                    axes=[
-                        pb.AxisConfig("x", label=r"$p\:(\text{GeV}/c)$", font_size=22, range=(0, 30)),
-                        pb.AxisConfig(
-                            "y",
-                            label=plot_name.split("_")[-1].capitalize(),
-                            range=y_range,
-                            font_size=22,
-                        ),
-                    ],
-                    text=pb.TextConfig(x=0.97, y=0.97, text=text, font_size=22),
-                    legend=pb.LegendConfig(location="lower right", font_size=22),
-                ),
-            figure=pb.Figure(edge_padding=dict(left=0.12, bottom=0.08)),
-        ),
-        output_dir=output_dir,
-    )
-
-
-if __name__ == "__main__":
+def run() -> None:
     helpers.setup_logging()
 
     input_dir = Path("/Volumes/data/eic/trackingComparison/2021-10-13")
@@ -176,12 +74,12 @@ if __name__ == "__main__":
         #    momentum_selection=[0.3, 20],
         #    label="geoOption5",
         #),
-        #run_ecce_analysis.DatasetSpecSingleParticle(
-        #    site="cades",
-        #    particle="electron",
-        #    momentum_selection=[0.3, 20],
-        #    label="geoOption6",
-        #),
+        run_ecce_analysis.DatasetSpecSingleParticle(
+            site="cades",
+            particle="electron",
+            momentum_selection=[0.3, 20],
+            label="geoOption6",
+        ),
         #run_ecce_analysis.DatasetSpecSingleParticle(
         #    site="cades",
         #    particle="pion",
@@ -209,15 +107,58 @@ if __name__ == "__main__":
     eta_bins = [-4.0, -3.5, -3.0, -2.5, -2.0, -1.5, -1.2, -0.4, 0.4, 1.2, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0]
     eta_ranges = [(a, b) for a, b in zip(eta_bins[:-1], eta_bins[1:])]
     eta_ranges.append((-4.0, 4.0))
+
     #backward_regions = eta_ranges[0:5]
     #barrel_regions = eta_ranges[5:10]
     #forward_regions = eta_ranges[10:14]
-    backward_regions = list(range(0, 5))
-    barrel_regions = list(range(5, 11))
-    forward_regions = list(range(11, 15))
+    backward_regions = list(range(1, 5))
+    barrel_regions = list(range(5, 10))
+    forward_regions = list(range(10, 14))
+    all = [15]
 
     #hist_name = "histPResol_Electron_FitMean_15"
     hist_name_template = "histPResol_{particle}_FitMean_{eta_region_index}"
+
+    # Plots:
+    # - [x] Single pion in four forward regions for each config
+    # - [x] Single electron in four forward regions for each config
+    # - Pythia in four forward regions for each config
+    # - Comparison between systems for each forward eta region
+    # - Same as above, but switch forward -> backward
+
+    #for selected_particle in ["pion"]:
+    for selected_particle in ["pion", "electron"]:
+        for input_spec in input_specs:
+            if input_spec.particle != selected_particle:
+                continue
+            output_dir_for_input_spec = output_dir / str(input_spec)
+            output_dir_for_input_spec.mkdir(parents=True, exist_ok=True)
+            hist_name_template = "histPResol_{particle}_FitMean_{eta_region_index}"
+            plot_ecce_track_comparison.plot_tracking_comparison(
+                input_specs=[input_spec],
+                output_hists=output_hists,
+                hist_name_template=hist_name_template,
+                plot_name="p_mean",
+                all_regions=eta_ranges, regions_label="forward", regions_index=forward_regions,
+                y_range=(-0.5, 0.5),
+                output_dir=output_dir_for_input_spec,
+            )
+
+            hist_name_template = "histPResol_{particle}_FitSigma_{eta_region_index}"
+            plot_ecce_track_comparison.plot_tracking_comparison(
+                input_specs=[input_spec],
+                output_hists=output_hists,
+                hist_name_template=hist_name_template,
+                plot_name="p_width",
+                all_regions=eta_ranges, regions_label="forward", regions_index=forward_regions,
+                y_range=(0.0, 0.17),
+                output_dir=output_dir_for_input_spec,
+            )
+
+    from importlib import reload
+    import IPython; IPython.embed()
+
+    raise RuntimeError("Stahp")
 
     #for label, regions in [("backward", backward_regions), ("barrel", barrel_regions), ("forward", forward_regions)]:
     for i in range(0, len(eta_ranges)):
@@ -232,7 +173,7 @@ if __name__ == "__main__":
 
         # TODO: Need to split pions and electrons. Because duh.
         hist_name_template = "histPResol_{particle}_FitMean_{eta_region_index}"
-        plot_tracking_comparison(
+        plot_ecce_track_comparison.plot_tracking_comparison(
             input_specs=input_specs,
             output_hists=output_hists,
             hist_name_template=hist_name_template,
@@ -243,7 +184,7 @@ if __name__ == "__main__":
         )
 
         hist_name_template = "histPResol_{particle}_FitSigma_{eta_region_index}"
-        plot_tracking_comparison(
+        plot_ecce_track_comparison.plot_tracking_comparison(
             input_specs=input_specs,
             output_hists=output_hists,
             hist_name_template=hist_name_template,
@@ -255,3 +196,6 @@ if __name__ == "__main__":
 
     import IPython; IPython.embed()
 
+
+if __name__ == "__main__":
+    run()
