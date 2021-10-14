@@ -45,7 +45,8 @@ def _plot_tracking_comparison(input_specs: Sequence[run_ecce_analysis.DatasetSpe
         input_spec_hists = hists[str(input_spec)]
         markers = ["s", "o", "X", "D"]
         for i_eta_index, (eta_index, h) in enumerate(input_spec_hists.items()):
-            m = h.values() > -1e-4
+            #m = h.values() > -1e-4
+            m = h.values() > -1e6
             values = h.values()[m]
             errors = np.sqrt(h.variances()[m])
             bin_centers = h.axes[0].centers[m]
@@ -94,11 +95,9 @@ def _plot_tracking_comparison(input_specs: Sequence[run_ecce_analysis.DatasetSpe
 
 def plot_tracking_comparison(input_specs: Sequence[run_ecce_analysis.DatasetSpec], output_hists: Dict[str, Dict[str, hist.Hist]], hist_name_template: str, plot_name: str,
                              all_regions: Sequence[Tuple[float, float]],
-                             regions_index: Sequence[int], regions_label: str, y_range: Tuple[float, float],
-                             label_text: str,
+                             regions_index: Sequence[int], regions_label: str, y_range: Tuple[float, float], y_label: str,
+                             text: str,
                              output_dir: Path) -> None:
-    text = "ECCE"
-    text += "\n" + r"$R=0.5$ anti-$k_{\text{T}}$ jets"
     _plot_tracking_comparison(
         input_specs=input_specs,
         hists={
@@ -114,10 +113,10 @@ def plot_tracking_comparison(input_specs: Sequence[run_ecce_analysis.DatasetSpec
             name=f"{plot_name}_{regions_label}_{'_'.join([str(v) for v in regions_index])}",
             panels=pb.Panel(
                     axes=[
-                        pb.AxisConfig("x", label=r"$p\:(\text{GeV}/c)$", font_size=22, log=True, range=(0.1, 30)),
+                        pb.AxisConfig("x", label=r"$p^{\text{MC}}\:(\text{GeV}/c)$", font_size=22, log=True, range=(0.1, 30)),
                         pb.AxisConfig(
                             "y",
-                            label=plot_name.split("_")[-1].capitalize(),
+                            label=y_label,
                             range=y_range,
                             font_size=22,
                         ),
@@ -125,7 +124,7 @@ def plot_tracking_comparison(input_specs: Sequence[run_ecce_analysis.DatasetSpec
                     text=pb.TextConfig(x=0.97, y=0.97, text=text, font_size=22),
                     legend=pb.LegendConfig(location="upper left", font_size=22),
                 ),
-            figure=pb.Figure(edge_padding=dict(left=0.12, bottom=0.08)),
+            figure=pb.Figure(edge_padding=dict(left=0.11 if plot_name == "width" else 0.13, bottom=0.10)),
         ),
         output_dir=output_dir,
     )

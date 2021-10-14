@@ -88,6 +88,15 @@ def run() -> None:
         #),
     ]
 
+    # Setup
+    _input_spec_labels = {}
+    for particle in ["Pion", "Electron"]:
+        _input_spec_labels.update({
+            f"production-single{particle}-p-0-to-20": "2 LGAD layers",
+            f"cades-single{particle}-p-0.3-to-20-geoOption5": "1 LGAD layer, $30 \mu$m",
+            f"cades-single{particle}-p-0.3-to-20-geoOption6": "1 LGAD layer, $55 \mu$m",
+        })
+
     output_hists = _load_results(
         input_specs=input_specs,
         input_dir=input_dir,
@@ -127,12 +136,16 @@ def run() -> None:
     # - Same as above, but switch forward -> backward
 
     #for selected_particle in ["pion"]:
-    for selected_particle in ["pion", "electron"]:
+    for selected_particle, latex_label in [("pion", "$\pi$"), ("electron", "$e^{\pm}$")]:
         for input_spec in input_specs:
             if input_spec.particle != selected_particle:
                 continue
             output_dir_for_input_spec = output_dir / str(input_spec)
             output_dir_for_input_spec.mkdir(parents=True, exist_ok=True)
+            text = "ECCE Simulation"
+            text += "\n" + _input_spec_labels[str(input_spec)]
+            text += "\n" + "Single " + latex_label + fr", ${input_spec.momentum_selection[0]:g} < p_{{\text{{T}}}} < {input_spec.momentum_selection[1]:g}$"
+
             hist_name_template = "histPResol_{particle}_FitMean_{eta_region_index}"
             plot_ecce_track_comparison.plot_tracking_comparison(
                 input_specs=[input_spec],
@@ -140,7 +153,8 @@ def run() -> None:
                 hist_name_template=hist_name_template,
                 plot_name="p_mean",
                 all_regions=eta_ranges, regions_label="forward", regions_index=forward_regions,
-                y_range=(-0.5, 0.5),
+                text=text,
+                y_range=(-0.1, 0.1), y_label=r"$\langle (p_{\text{T}}^{\text{rec}} - p_{\text{T}}^{\text{MC}}) / p_{\text{T}}^{\text{MC}} \rangle$",
                 output_dir=output_dir_for_input_spec,
             )
 
@@ -151,7 +165,8 @@ def run() -> None:
                 hist_name_template=hist_name_template,
                 plot_name="p_width",
                 all_regions=eta_ranges, regions_label="forward", regions_index=forward_regions,
-                y_range=(0.0, 0.17),
+                text=text,
+                y_range=(0.0, 0.17), y_label=r"$\sigma((p_{\text{T}}^{\text{rec}} - p_{\text{T}}^{\text{MC}}) / p_{\text{T}}^{\text{MC}})$",
                 output_dir=output_dir_for_input_spec,
             )
 
