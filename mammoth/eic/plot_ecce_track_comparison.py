@@ -33,7 +33,7 @@ def get_eta_label(eta_range: Tuple[float, float]) -> str:
     return fr"${eta_range[0]} < \eta < {eta_range[1]}$"
 
 
-def _plot_tracking_comparison(input_specs: Sequence[run_ecce_analysis.DatasetSpec], hists: Mapping[str, Mapping[str, hist.Hist]],
+def _plot_tracking_comparison(input_specs: Sequence[run_ecce_analysis.DatasetSpec], input_spec_labels: Mapping[str, str], hists: Mapping[str, Mapping[str, hist.Hist]],
                               all_regions: Sequence[Tuple[float, float]], regions_index: Sequence[int],
                               plot_config: pb.PlotConfig, output_dir: Path) -> None:
     fig, ax = plt.subplots(figsize=(10, 7.5))
@@ -43,7 +43,7 @@ def _plot_tracking_comparison(input_specs: Sequence[run_ecce_analysis.DatasetSpe
 
     for i_input_spec, input_spec in enumerate(input_specs):
         input_spec_hists = hists[str(input_spec)]
-        markers = ["s", "o", "X", "D"]
+        markers = ["s", "o", "X", "D", "*"]
         for i_eta_index, (eta_index, h) in enumerate(input_spec_hists.items()):
             #m = h.values() > -1e6
             #values = h.values()[m]
@@ -69,16 +69,15 @@ def _plot_tracking_comparison(input_specs: Sequence[run_ecce_analysis.DatasetSpe
             #    yerr=np.sqrt(h_sliced.variances()),
             #    label=str(input_spec)
             #)
-            _input_spec_labels = {}
             ax.errorbar(
                 h.axes[0].centers,
                 h.values(),
                 xerr=h.axes[0].widths / 2,
                 yerr=np.sqrt(h.variances()),
-                label=_input_spec_labels.get(input_spec, "") if len(input_spec_hists) == 1 else get_eta_label(all_regions[eta_index]),
+                label=input_spec_labels[str(input_spec)] if len(input_spec_hists) == 1 else get_eta_label(all_regions[eta_index]),
                 marker=markers[i_eta_index if len(input_spec_hists) > 1 else i_input_spec],
                 linestyle="",
-                markersize=4,
+                markersize=8,
             )
 
     if "_mean" in plot_config.name:
@@ -95,13 +94,15 @@ def _plot_tracking_comparison(input_specs: Sequence[run_ecce_analysis.DatasetSpe
     plt.close(fig)
 
 
-def plot_tracking_comparison(input_specs: Sequence[run_ecce_analysis.DatasetSpec], output_hists: Dict[str, Dict[str, hist.Hist]], hist_name_template: str, plot_name: str,
+def plot_tracking_comparison(input_specs: Sequence[run_ecce_analysis.DatasetSpec], input_spec_labels: Mapping[str, str], output_hists: Dict[str, Dict[str, hist.Hist]],
+                             hist_name_template: str, plot_name: str,
                              all_regions: Sequence[Tuple[float, float]],
                              regions_index: Sequence[int], regions_label: str, y_range: Tuple[float, float], y_label: str,
                              text: str,
                              output_dir: Path) -> None:
     _plot_tracking_comparison(
         input_specs=input_specs,
+        input_spec_labels=input_spec_labels,
         hists={
             str(input_spec): {
                 index: output_hists[str(input_spec)][hist_name_template.format(particle=input_spec.particle.capitalize(), eta_region_index=index)]

@@ -56,36 +56,36 @@ def run() -> None:
             momentum_selection=[0.0, 20],
             label="",
         ),
-        #run_ecce_analysis.DatasetSpecSingleParticle(
-        #    site="production",
-        #    particle="pion",
-        #    momentum_selection=[0.0, 20],
-        #    label="",
-        #),
+        run_ecce_analysis.DatasetSpecSingleParticle(
+            site="production",
+            particle="pion",
+            momentum_selection=[0.0, 20],
+            label="",
+        ),
         run_ecce_analysis.DatasetSpecSingleParticle(
             site="cades",
             particle="electron",
             momentum_selection=[0.3, 20],
             label="geoOption5",
         ),
-        #run_ecce_analysis.DatasetSpecSingleParticle(
-        #    site="cades",
-        #    particle="pion",
-        #    momentum_selection=[0.3, 20],
-        #    label="geoOption5",
-        #),
+        run_ecce_analysis.DatasetSpecSingleParticle(
+            site="cades",
+            particle="pion",
+            momentum_selection=[0.3, 20],
+            label="geoOption5",
+        ),
         run_ecce_analysis.DatasetSpecSingleParticle(
             site="cades",
             particle="electron",
             momentum_selection=[0.3, 20],
             label="geoOption6",
         ),
-        #run_ecce_analysis.DatasetSpecSingleParticle(
-        #    site="cades",
-        #    particle="pion",
-        #    momentum_selection=[0.3, 20],
-        #    label="geoOption6",
-        #),
+        run_ecce_analysis.DatasetSpecSingleParticle(
+            site="cades",
+            particle="pion",
+            momentum_selection=[0.3, 20],
+            label="geoOption6",
+        ),
     ]
 
     # Setup
@@ -131,44 +131,92 @@ def run() -> None:
     # Plots:
     # - [x] Single pion in four forward regions for each config
     # - [x] Single electron in four forward regions for each config
+    # - [x] Comparison between systems for each forward eta region
     # - Pythia in four forward regions for each config
-    # - Comparison between systems for each forward eta region
     # - Same as above, but switch forward -> backward
 
     #for selected_particle in ["pion"]:
-    for selected_particle, latex_label in [("pion", "$\pi$"), ("electron", "$e^{\pm}$")]:
-        for input_spec in input_specs:
-            if input_spec.particle != selected_particle:
+    for regions_label, region_indices in [("forward", forward_regions), ("barrel", barrel_regions), ("backward", backward_regions)]:
+        for selected_particle, latex_label in [("pion", "$\pi$"), ("electron", "$e^{\pm}$")]:
+            for input_spec in input_specs:
+                if input_spec.particle != selected_particle:
+                    continue
+                output_dir_for_input_spec = output_dir / str(input_spec)
+                output_dir_for_input_spec.mkdir(parents=True, exist_ok=True)
+                text = "ECCE Simulation"
+                text += "\n" + _input_spec_labels[str(input_spec)]
+                text += "\n" + "Single " + latex_label + fr", ${input_spec.momentum_selection[0]:g} < p_{{\text{{T}}}} < {input_spec.momentum_selection[1]:g}$"
+
+                hist_name_template = "histPResol_{particle}_FitMean_{eta_region_index}"
+                plot_ecce_track_comparison.plot_tracking_comparison(
+                    input_specs=[input_spec],
+                    input_spec_labels=_input_spec_labels,
+                    output_hists=output_hists,
+                    hist_name_template=hist_name_template,
+                    plot_name=f"p_mean_{selected_particle}",
+                    all_regions=eta_ranges, regions_label=regions_label, regions_index=region_indices,
+                    text=text,
+                    y_range=(-0.1, 0.1), y_label=r"$\langle (p_{\text{T}}^{\text{rec}} - p_{\text{T}}^{\text{MC}}) / p_{\text{T}}^{\text{MC}} \rangle$",
+                    output_dir=output_dir_for_input_spec,
+                )
+
+                hist_name_template = "histPResol_{particle}_FitSigma_{eta_region_index}"
+                plot_ecce_track_comparison.plot_tracking_comparison(
+                    input_specs=[input_spec],
+                    input_spec_labels=_input_spec_labels,
+                    output_hists=output_hists,
+                    hist_name_template=hist_name_template,
+                    plot_name=f"p_width_{selected_particle}",
+                    all_regions=eta_ranges, regions_label=regions_label, regions_index=region_indices,
+                    text=text,
+                    y_range=(0.0, 0.17), y_label=r"$\sigma((p_{\text{T}}^{\text{rec}} - p_{\text{T}}^{\text{MC}}) / p_{\text{T}}^{\text{MC}})$",
+                    output_dir=output_dir_for_input_spec,
+                )
+
+        # Now, the comparison for each eta region
+        for selected_particle, latex_label in [("pion", "$\pi$"), ("electron", "$e^{\pm}$")]:
+            #plot_input_specs = [input_spec for input_spec in input_specs if input_spec.particle == selected_particle]
+            plot_input_specs = []
+            for input_spec in input_specs:
+                if input_spec.particle == selected_particle:
+                    plot_input_specs.append(input_spec)
+
+            # Skip if we didn't load the data
+            if not len(plot_input_specs):
                 continue
-            output_dir_for_input_spec = output_dir / str(input_spec)
-            output_dir_for_input_spec.mkdir(parents=True, exist_ok=True)
-            text = "ECCE Simulation"
-            text += "\n" + _input_spec_labels[str(input_spec)]
-            text += "\n" + "Single " + latex_label + fr", ${input_spec.momentum_selection[0]:g} < p_{{\text{{T}}}} < {input_spec.momentum_selection[1]:g}$"
 
-            hist_name_template = "histPResol_{particle}_FitMean_{eta_region_index}"
-            plot_ecce_track_comparison.plot_tracking_comparison(
-                input_specs=[input_spec],
-                output_hists=output_hists,
-                hist_name_template=hist_name_template,
-                plot_name="p_mean",
-                all_regions=eta_ranges, regions_label="forward", regions_index=forward_regions,
-                text=text,
-                y_range=(-0.1, 0.1), y_label=r"$\langle (p_{\text{T}}^{\text{rec}} - p_{\text{T}}^{\text{MC}}) / p_{\text{T}}^{\text{MC}} \rangle$",
-                output_dir=output_dir_for_input_spec,
-            )
+            for i in region_indices:
+                # Labels
+                text = "ECCE Simulation"
+                text += "\n" + "Single " + latex_label
+                text += "\n" + plot_ecce_track_comparison.get_eta_label(eta_ranges[i])
 
-            hist_name_template = "histPResol_{particle}_FitSigma_{eta_region_index}"
-            plot_ecce_track_comparison.plot_tracking_comparison(
-                input_specs=[input_spec],
-                output_hists=output_hists,
-                hist_name_template=hist_name_template,
-                plot_name="p_width",
-                all_regions=eta_ranges, regions_label="forward", regions_index=forward_regions,
-                text=text,
-                y_range=(0.0, 0.17), y_label=r"$\sigma((p_{\text{T}}^{\text{rec}} - p_{\text{T}}^{\text{MC}}) / p_{\text{T}}^{\text{MC}})$",
-                output_dir=output_dir_for_input_spec,
-            )
+                hist_name_template = "histPResol_{particle}_FitMean_{eta_region_index}"
+                plot_ecce_track_comparison.plot_tracking_comparison(
+                    input_specs=plot_input_specs,
+                    input_spec_labels=_input_spec_labels,
+                    output_hists=output_hists,
+                    hist_name_template=hist_name_template,
+                    plot_name=f"p_mean_comparison_{selected_particle}",
+                    all_regions=eta_ranges, regions_label=regions_label, regions_index=[i],
+                    text=text,
+                    y_range=(-0.1, 0.1), y_label=r"$\langle (p_{\text{T}}^{\text{rec}} - p_{\text{T}}^{\text{MC}}) / p_{\text{T}}^{\text{MC}} \rangle$",
+                    output_dir=output_dir,
+                )
+
+                hist_name_template = "histPResol_{particle}_FitSigma_{eta_region_index}"
+                plot_ecce_track_comparison.plot_tracking_comparison(
+                    input_specs=plot_input_specs,
+                    input_spec_labels=_input_spec_labels,
+                    output_hists=output_hists,
+                    hist_name_template=hist_name_template,
+                    plot_name=f"p_width_comparison_{selected_particle}",
+                    all_regions=eta_ranges, regions_label=regions_label, regions_index=[i],
+                    text=text,
+                    y_range=(0.0, 0.17), y_label=r"$\sigma((p_{\text{T}}^{\text{rec}} - p_{\text{T}}^{\text{MC}}) / p_{\text{T}}^{\text{MC}})$",
+                    output_dir=output_dir,
+                )
+
 
     from importlib import reload
     import IPython; IPython.embed()
