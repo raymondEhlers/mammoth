@@ -170,7 +170,7 @@ def _plot_ReA_multiple_R(hists: Mapping[JetParameters, hist.Hist], plot_config: 
     plt.close(fig)
 
 
-def _plot_ReA_ratio(hists: Mapping[JetParameters, hist.Hist], plot_config: pb.PlotConfig, output_dir: Path) -> None:
+def _plot_ReA_ratio_multiple_R(hists: Mapping[JetParameters, hist.Hist], plot_config: pb.PlotConfig, output_dir: Path) -> None:
     #with sns.color_palette("Set2"):
     fig, ax = plt.subplots(figsize=(10, 7.5))
     ax.set_prop_cycle(cycler.cycler(color=_okabe_ito_colors))
@@ -183,7 +183,7 @@ def _plot_ReA_ratio(hists: Mapping[JetParameters, hist.Hist], plot_config: pb.Pl
             xerr=v.axes[0].widths / 2,
             yerr=np.sqrt(v.variances()),
             linestyle="",
-            label=str(k).replace("_", " "),
+            label=f"$R = {round(int(k.jet_R) / 100, 2):01}$",
             marker="d",
             markersize=6,
         )
@@ -255,28 +255,38 @@ def plot_ReA(config: SimulationConfig, output_hists: Dict[str, Dict[str, hist.Hi
                     output_dir=config.output_dir,
                 )
 
-    _plot_ReA_ratio(
-        hists=fixed_region_ReA_hists,
-        plot_config=pb.PlotConfig(
-            name=next(iter(fixed_region_ReA_hists)).name_eA,
-            panels=pb.Panel(
-                    axes=[
-                        pb.AxisConfig("x", label=r"$p^{\text{jet}}\:(\text{GeV}/c)$", font_size=22, range=(0, 50)),
-                        pb.AxisConfig(
-                            "y",
-                            label=r"$R_{\text{eA}}$",
-                            range=(0, 1.4),
-                            font_size=22,
-                        ),
-                    ],
-                    text=pb.TextConfig(x=0.97, y=0.97, text=text, font_size=22),
-                    legend=pb.LegendConfig(location="lower left", font_size=22),
-                ),
-            figure=pb.Figure(edge_padding=dict(left=0.12, bottom=0.1)),
-        ),
-        output_dir=config.output_dir,
+                # Calculate ratio
+                for k, v in fixed_region_ReA_hists.items():
+                    if k.jet_R == "100":
+                        ref = binned_data.BinnedData.from_existing_data(v)
 
-    )
+                fixed_region_ReA_ratio_hists = {}
+                for k, v in fixed_region_ReA_hists.items():
+                    if k.jet_R == "100":
+                        continue
+                    fixed_region_ReA_ratio_hists[k] = hist.Hist((binned_data.BinnedData.from_existing_data(v) / ref).to_boost_histogram()[::hist.rebin(2)] / 2.0)
+
+                _plot_ReA_ratio_multiple_R(
+                    hists=fixed_region_ReA_ratio_hists,
+                    plot_config=pb.PlotConfig(
+                        name=next(iter(fixed_region_ReA_hists)).name_eA.replace("jetR030_", "") + "_ratio",
+                        panels=pb.Panel(
+                                axes=[
+                                    pb.AxisConfig("x", label=r"$p" + variable_label + r"^{\text{jet}}\:(\text{GeV}/c)$", font_size=22, range=(0, 50)),
+                                    pb.AxisConfig(
+                                        "y",
+                                        label=r"$R_{\text{eA}} / R_{\text{eA}}|_{R=1.0}$",
+                                        range=(0, 1.4),
+                                        font_size=22,
+                                    ),
+                                ],
+                                text=pb.TextConfig(x=0.97, y=0.97, text=text, font_size=22),
+                                legend=pb.LegendConfig(location="lower left", font_size=22),
+                            ),
+                        figure=pb.Figure(edge_padding=dict(left=0.12, bottom=0.1)),
+                    ),
+                    output_dir=config.output_dir,
+                )
 
     import IPython; IPython.embed()
 
