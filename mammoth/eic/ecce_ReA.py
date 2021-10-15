@@ -9,6 +9,7 @@ import cycler
 import hist
 import matplotlib
 import matplotlib.pyplot as plt
+import numpy as np
 import pachyderm.plot as pb
 import seaborn as sns
 import uproot
@@ -95,7 +96,8 @@ class JetParameters:
 def _calculate_ReA(ep_hists: Dict[str, hist.Hist], eA_hists: Dict[str, hist.Hist], parameters: JetParameters) -> hist.Hist:
     ep_hist = binned_data.BinnedData.from_existing_data(ep_hists[parameters.name_ep])
     eA_hist = binned_data.BinnedData.from_existing_data(eA_hists[parameters.name_eA])
-    return hist.Hist((ep_hist / eA_hist).to_boost_histogram())
+    return hist.Hist((eA_hist / ep_hist).to_boost_histogram() * 1/79.0)[::hist.rebin(2)] / 2.0
+    #return hist.Hist((eA_hist / ep_hist).to_boost_histogram())[::hist.rebin(5)] / 5.0
 
 
 def calculate_ReA(output_hists: Dict[str, Dict[str, hist.Hist]],
@@ -136,7 +138,7 @@ _okabe_ito_colors = [
 ]
 
 
-def _plot_ReA(hists: Mapping[JetParameters, hist.Hist], plot_config: pb.PlotConfig, output_dir: Path) -> None:
+def _plot_ReA_multiple_R(hists: Mapping[JetParameters, hist.Hist], plot_config: pb.PlotConfig, output_dir: Path) -> None:
 
     #with sns.color_palette("Set2"):
     fig, ax = plt.subplots(figsize=(10, 7.5))
@@ -144,7 +146,47 @@ def _plot_ReA(hists: Mapping[JetParameters, hist.Hist], plot_config: pb.PlotConf
 
     for k, v in hists.items():
         logger.info(f"plotting {k}")
-        ax.plot(v.axes[0].centers, v.values(), label=k)
+        ax.errorbar(
+            v.axes[0].centers,
+            v.values(),
+            xerr=v.axes[0].widths / 2,
+            yerr=np.sqrt(v.variances()),
+            linestyle="",
+            label=f"$R = {round(int(k.jet_R) / 100, 2):01}$",
+            marker="d",
+            markersize=6,
+        )
+
+    ax.axhline(y=1, color="black", linestyle="dashed", zorder=1)
+
+    # Labeling and presentation
+    plot_config.apply(fig=fig, ax=ax)
+    # A few additional tweaks.
+    #ax.xaxis.set_major_locator(matplotlib.ticker.MultipleLocator(base=1.0))
+    # ax_ratio.yaxis.set_major_locator(matplotlib.ticker.MultipleLocator(base=0.2))
+
+    filename = f"{plot_config.name}"
+    fig.savefig(output_dir / f"{filename}.pdf")
+    plt.close(fig)
+
+
+def _plot_ReA_ratio(hists: Mapping[JetParameters, hist.Hist], plot_config: pb.PlotConfig, output_dir: Path) -> None:
+    #with sns.color_palette("Set2"):
+    fig, ax = plt.subplots(figsize=(10, 7.5))
+    ax.set_prop_cycle(cycler.cycler(color=_okabe_ito_colors))
+
+    for k, v in hists.items():
+        logger.info(f"plotting {k}")
+        ax.errorbar(
+            v.axes[0].centers,
+            v.values(),
+            xerr=v.axes[0].widths / 2,
+            yerr=np.sqrt(v.variances()),
+            linestyle="",
+            label=str(k).replace("_", " "),
+            marker="d",
+            markersize=6,
+        )
 
     ax.axhline(y=1, color="black", linestyle="dashed", zorder=1)
 
@@ -161,10 +203,10 @@ def _plot_ReA(hists: Mapping[JetParameters, hist.Hist], plot_config: pb.PlotConf
 
 def plot_ReA(config: SimulationConfig, output_hists: Dict[str, Dict[str, hist.Hist]]) -> None:
 
-    jet_R_values = [0.5]
-    jet_types = ["charged", "calo", "true_charged"]
+    jet_R_values = [0.3, 0.5, 0.8, 1.0]
+    jet_types = ["charged", "calo", "true_charged", "true_full"]
     regions = ["forward", "backward", "mid_rapidity"]
-    variables = ["p"]
+    variables = ["pt", "p"]
 
     RAA_hists = calculate_ReA(
         output_hists=output_hists, input_n_PDF_names=[k for k in output_hists],
@@ -172,33 +214,69 @@ def plot_ReA(config: SimulationConfig, output_hists: Dict[str, Dict[str, hist.Hi
         regions=regions, variables=variables,
    )
 
-    for k, v in RAA_hists.items():
-        # TODO: Fill in text...
-        text = "ECCE"
-        text += "\n" + r"$R=0.5$ anti-$k_{\text{T}}$ jets"
-        _plot_ReA(
-            hists={k:v},
-            plot_config=pb.PlotConfig(
-                name=k.name_eA,
-                panels=pb.Panel(
-                        axes=[
-                            pb.AxisConfig("x", label=r"$p^{\text{jet}}\:(\text{GeV}/c)$", font_size=22, range=(0, 50)),
-                            pb.AxisConfig(
-                                "y",
-                                label=r"$R_{\text{eA}}$",
-                                range=(0, 1.4),
-                                font_size=22,
+    #for k, v in RAA_hists.items():
+    # TODO: Fill in text...
+    for variable in ["p", "pt"]:
+        for jet_type in jet_types:
+            for region in ["forward", "mid_rapidity"]:
+                fixed_region_ReA_hists = {
+                    k: v
+                    for k, v in RAA_hists.items() if k.region == region and k.jet_type == jet_type and k.variable == variable
+                }
+                variable_label = ""
+                if variable == "pt":
+                    variable_label = r"_{\text{T}}"
+                text = "ECCE Simulation"
+                text += "\n" + "PYTHIA8 10x100, $Q^{2} > 100$"
+                text += "\n" + r"anti-$k_{\text{T}}$ jets"
+                if region == "forward":
+                    text += "\n" + r"$1.5 < \eta < 3.5$"
+                if region == "mid_rapidity":
+                    text += "\n" + r"$-1.5 < \eta < 1.5$"
+                _plot_ReA_multiple_R(
+                    hists=fixed_region_ReA_hists,
+                    plot_config=pb.PlotConfig(
+                        name=next(iter(fixed_region_ReA_hists)).name_eA.replace("jetR030_", ""),
+                        panels=pb.Panel(
+                                axes=[
+                                    pb.AxisConfig("x", label=r"$p" + variable_label + r"^{\text{jet}}\:(\text{GeV}/c)$", font_size=22, range=(0, 50)),
+                                    pb.AxisConfig(
+                                        "y",
+                                        label=r"$R_{\text{eA}}$",
+                                        range=(0, 1.4),
+                                        font_size=22,
+                                    ),
+                                ],
+                                text=pb.TextConfig(x=0.97, y=0.97, text=text, font_size=22),
+                                legend=pb.LegendConfig(location="center right", font_size=22),
                             ),
-                        ],
-                        text=pb.TextConfig(x=0.97, y=0.97, text=text, font_size=22),
-                        legend=pb.LegendConfig(location="lower left", font_size=22),
+                        figure=pb.Figure(edge_padding=dict(left=0.12, bottom=0.1)),
                     ),
-                figure=pb.Figure(edge_padding=dict(left=0.12, bottom=0.08)),
-            ),
-            output_dir=config.output_dir,
-        )
+                    output_dir=config.output_dir,
+                )
 
-        break
+    _plot_ReA_ratio(
+        hists=fixed_region_ReA_hists,
+        plot_config=pb.PlotConfig(
+            name=next(iter(fixed_region_ReA_hists)).name_eA,
+            panels=pb.Panel(
+                    axes=[
+                        pb.AxisConfig("x", label=r"$p^{\text{jet}}\:(\text{GeV}/c)$", font_size=22, range=(0, 50)),
+                        pb.AxisConfig(
+                            "y",
+                            label=r"$R_{\text{eA}}$",
+                            range=(0, 1.4),
+                            font_size=22,
+                        ),
+                    ],
+                    text=pb.TextConfig(x=0.97, y=0.97, text=text, font_size=22),
+                    legend=pb.LegendConfig(location="lower left", font_size=22),
+                ),
+            figure=pb.Figure(edge_padding=dict(left=0.12, bottom=0.1)),
+        ),
+        output_dir=config.output_dir,
+
+    )
 
     import IPython; IPython.embed()
 
@@ -207,10 +285,11 @@ if __name__ == "__main__":
     helpers.setup_logging()
 
     # Setup
-    electron_beam_energy = 18
-    proton_beam_energy = 275
-    input_dir = Path("/Volumes/data/eic/ReA/2021-10-08")
-    output_dir = Path("/Volumes/data/eic/ReA/2021-10-11/plots")
+    electron_beam_energy = 10
+    proton_beam_energy = 100
+    production = "production-pythia8-10x100-q2-100"
+    input_dir = Path(f"/Volumes/data/eic/ReA/2021-10-15/{production}")
+    output_dir = Path(f"/Volumes/data/eic/ReA/2021-10-15/plots/{production}")
     output_dir.mkdir(parents=True, exist_ok=True)
 
     config = SimulationConfig(
