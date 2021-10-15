@@ -174,7 +174,8 @@ def setup_ecce_afterburner(
     input_files = sorted(dataset.data.glob("*.root"))
 
     # TEMP for testing
-    #input_files = input_files[:1]
+    #input_files = input_files[:4]
+    input_files = input_files[:100]
     # ENDTEMP
 
     futures = []
@@ -221,29 +222,94 @@ def run() -> None:
         #    q2_selection=[1, 100],
         #    label="",
         #),
-        DatasetSpecSingleParticle(
+        #DatasetSpecPythia(
+        #    site="production",
+        #    generator="pythia8",
+        #    electron_beam_energy=10, proton_beam_energy=100,
+        #    q2_selection=[1, 100],
+        #    label="",
+        #),
+        DatasetSpecPythia(
+            site="production",
+            generator="pythia8",
+            electron_beam_energy=10, proton_beam_energy=100,
+            q2_selection=[100],
+            label="",
+        ),
+        # Single particle
+        # Production
+        #DatasetSpecSingleParticle(
+        #    site="production",
+        #    particle="electron",
+        #    momentum_selection=[0.0, 20],
+        #    label="",
+        #),
+        #DatasetSpecSingleParticle(
+        #    site="production",
+        #    particle="pion",
+        #    momentum_selection=[0.0, 20],
+        #    label="",
+        #),
+        # CADES
+        #DatasetSpecSingleParticle(
+        #    site="cades",
+        #    particle="electron",
+        #    momentum_selection=[0.3, 20],
+        #    label="geoOption5",
+        #),
+        #DatasetSpecSingleParticle(
+        #    site="cades",
+        #    particle="pion",
+        #    momentum_selection=[0.3, 20],
+        #    label="geoOption5",
+        #),
+        #DatasetSpecSingleParticle(
+        #    site="cades",
+        #    particle="electron",
+        #    momentum_selection=[0.3, 20],
+        #    label="geoOption6",
+        #),
+        #DatasetSpecSingleParticle(
+        #    site="cades",
+        #    particle="pion",
+        #    momentum_selection=[0.3, 20],
+        #    label="geoOption6",
+        #),
+        DatasetSpecPythia(
             site="cades",
-            particle="electron",
-            momentum_selection=[0.3, 20],
+            generator="pythia8",
+            electron_beam_energy=10, proton_beam_energy=100,
+            q2_selection=[1, 100],
             label="geoOption5",
         ),
-        DatasetSpecSingleParticle(
+        DatasetSpecPythia(
             site="cades",
-            particle="pion",
-            momentum_selection=[0.3, 20],
+            generator="pythia8",
+            electron_beam_energy=10, proton_beam_energy=100,
+            q2_selection=[100],
             label="geoOption5",
         ),
-        DatasetSpecSingleParticle(
+        DatasetSpecPythia(
             site="cades",
-            particle="electron",
-            momentum_selection=[0.3, 20],
+            generator="pythia8",
+            electron_beam_energy=10, proton_beam_energy=100,
+            q2_selection=[1, 100],
             label="geoOption6",
         ),
-        DatasetSpecSingleParticle(
+        DatasetSpecPythia(
             site="cades",
-            particle="pion",
-            momentum_selection=[0.3, 20],
+            generator="pythia8",
+            electron_beam_energy=10, proton_beam_energy=100,
+            q2_selection=[100],
             label="geoOption6",
+        ),
+        # NOTE: Put last because it has the most files!
+        DatasetSpecPythia(
+            site="production",
+            generator="pythia8",
+            electron_beam_energy=10, proton_beam_energy=100,
+            q2_selection=[1, 100],
+            label="",
         ),
     ]
 
@@ -257,9 +323,9 @@ def run() -> None:
     task_config = job_utils.TaskConfig(name=task_name, n_cores_per_task=1)
     #n_cores_to_allocate = 120
     #walltime = "1:59:00"
-    n_cores_to_allocate = 40
-    #walltime = "24:00:00"
-    walltime = "1:59:00"
+    n_cores_to_allocate = 100
+    walltime = "10:00:00"
+    #walltime = "1:59:00"
     #n_cores_to_allocate = 2
 
     # Validation
@@ -293,6 +359,15 @@ def run() -> None:
         ),
         #"pythia6-10x100-q2-100"
         #"pythia6-10x100-q2-1-to-100": Path("/alf/data/rehlers/"),
+        # Single particle
+        "production-singleElectron-p-0-to-20": Dataset(
+            data=Path("/alf/data/rehlers/eic/official_prod/prop.4/prop.4.0/General/particleGun/singleElectron/eval_00001"),
+            geometry=Path("/alf/data/rehlers/eic/official_prod/prop.4/geometry.root")
+        ),
+        "production-singlePion-p-0-to-20": Dataset(
+            data=Path("/alf/data/rehlers/eic/official_prod/prop.4/prop.4.0/General/particleGun/singlePion/eval_00001"),
+            geometry=Path("/alf/data/rehlers/eic/official_prod/prop.4/geometry.root")
+        ),
         # CADES productions
         # Option geo 5
         # Single particle electron
@@ -335,6 +410,7 @@ def run() -> None:
         ),
     }
     for d in datasets_to_process:
+        print(str(d))
         if str(d) not in _datasets:
             raise ValueError(f"Invalid dataset name: {d}")
 
@@ -349,7 +425,8 @@ def run() -> None:
     #       we don't actually lose any info.
     config, facility_config, stored_messages = job_utils.config(
         #facility="ORNL_b587_long",
-        facility="ORNL_b587_short",
+        #facility="ORNL_b587_short",
+        facility="ORNL_b587_vip",
         task_config=task_config,
         n_tasks=n_cores_to_allocate,
         walltime=walltime,
@@ -378,6 +455,7 @@ def run() -> None:
                     jet_R_parameters=jet_R_parameters,
                     tree_processing_code_directory=afterburner_dir / "treeAnalysis",
                     output_dir=output_dir,
+                    n_files_per_job=5,
                 )
             )
 
