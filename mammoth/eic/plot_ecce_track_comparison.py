@@ -98,14 +98,16 @@ def plot_tracking_comparison(input_specs: Sequence[run_ecce_analysis.DatasetSpec
                              hist_name_template: str, plot_name: str,
                              all_regions: Sequence[Tuple[float, float]],
                              regions_index: Sequence[int], regions_label: str, y_range: Tuple[float, float], y_label: str,
+                             selected_particle: str,
                              text: str,
-                             output_dir: Path) -> None:
+                             output_dir: Path,
+                             x_range: Tuple[float, float] = (0.1, 30)) -> None:
     _plot_tracking_comparison(
         input_specs=input_specs,
         input_spec_labels=input_spec_labels,
         hists={
             str(input_spec): {
-                index: output_hists[str(input_spec)][hist_name_template.format(particle=input_spec.particle.capitalize(), eta_region_index=index)]
+                index: output_hists[str(input_spec)][hist_name_template.format(particle=selected_particle.capitalize(), eta_region_index=index)]
                 for index in regions_index
             }
             for input_spec in input_specs
@@ -116,7 +118,7 @@ def plot_tracking_comparison(input_specs: Sequence[run_ecce_analysis.DatasetSpec
             name=f"{plot_name}_{regions_label}_{'_'.join([str(v) for v in regions_index])}",
             panels=pb.Panel(
                     axes=[
-                        pb.AxisConfig("x", label=r"$p^{\text{MC}}\:(\text{GeV}/c)$", font_size=22, log=True, range=(0.1, 30)),
+                        pb.AxisConfig("x", label=r"$p^{\text{MC}}\:(\text{GeV}/c)$", font_size=22, log=True, range=x_range),
                         pb.AxisConfig(
                             "y",
                             label=y_label,

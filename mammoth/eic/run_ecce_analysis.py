@@ -84,6 +84,14 @@ class DatasetSpecPythia(DatasetSpec):
         return ""
 
     @property
+    def q2_display(self) -> str:
+        if len(self._q2_selection) == 2:
+            return fr"{self._q2_selection[0]} < Q^{{2}} < {self._q2_selection[1]}"
+        elif len(self._q2_selection) == 1:
+            return fr"Q^{{2}} > {self._q2_selection[0]}"
+        return ""
+
+    @property
     def identifier(self) -> str:
         return f"{self.generator}-{self.electron_beam_energy}x{self.proton_beam_energy}-{self.q2}"
 
