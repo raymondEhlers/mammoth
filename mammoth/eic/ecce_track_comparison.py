@@ -166,8 +166,6 @@ def run() -> None:
     hist_name = "h_tracks_reso_p_{primary_track_source}_{name_reso_add}_{mc_particles_selection}_{eta_region}"
     # Example:   h_tracks_reso_p_0_All_All_6
 
-    ...
-
     #int nEta = 15
     #Double_t partEta[nEta+1]        = { -4.0, -3.5, -3.0, -2.5, -2.0, -1.5, -1.2, -0.4, 0.4, 1.2,
     #                                   1.5, 2.0, 2.5, 3.0, 3.5, 4.0};
@@ -320,7 +318,6 @@ def run() -> None:
                     output_dir=output_dir_for_input_spec,
                 )
 
-    for regions_label, region_indices in [("forward", forward_regions), ("barrel", barrel_regions), ("backward", backward_regions)]:
         # Now, the comparison for each eta region
         for selected_particle, latex_label in [("all", ""), ("pion", "$\pi$"), ("electron", "$e^{\pm}$")]:
             #plot_input_specs = [input_spec for input_spec in input_specs if input_spec.particle == selected_particle]
@@ -375,43 +372,39 @@ def run() -> None:
     from importlib import reload
     import IPython; IPython.embed()
 
-    raise RuntimeError("Stahp")
-
     #for label, regions in [("backward", backward_regions), ("barrel", barrel_regions), ("forward", forward_regions)]:
-    for i in range(0, len(eta_ranges)):
-        if i in backward_regions:
-            label = "backward"
-        elif i in barrel_regions:
-            label = "barrel"
-        elif i in forward_regions:
-            label = "forward"
-        else:
-            label = "all"
+    #for i in range(0, len(eta_ranges)):
+    #    if i in backward_regions:
+    #        label = "backward"
+    #    elif i in barrel_regions:
+    #        label = "barrel"
+    #    elif i in forward_regions:
+    #        label = "forward"
+    #    else:
+    #        label = "all"
 
-        # TODO: Need to split pions and electrons. Because duh.
-        hist_name_template = "histPResol_{particle}_FitMean_{eta_region_index}"
-        plot_ecce_track_comparison.plot_tracking_comparison(
-            input_specs=input_specs,
-            output_hists=output_hists,
-            hist_name_template=hist_name_template,
-            plot_name="p_mean",
-            all_regions=eta_ranges, regions_label=label, regions_index=[i],
-            y_range=(-0.5, 0.5),
-            output_dir=output_dir,
-        )
+    #    # TODO: Need to split pions and electrons. Because duh.
+    #    hist_name_template = "histPResol_{particle}_FitMean_{eta_region_index}"
+    #    plot_ecce_track_comparison.plot_tracking_comparison(
+    #        input_specs=input_specs,
+    #        output_hists=output_hists,
+    #        hist_name_template=hist_name_template,
+    #        plot_name="p_mean",
+    #        all_regions=eta_ranges, regions_label=label, regions_index=[i],
+    #        y_range=(-0.5, 0.5),
+    #        output_dir=output_dir,
+    #    )
 
-        hist_name_template = "histPResol_{particle}_FitSigma_{eta_region_index}"
-        plot_ecce_track_comparison.plot_tracking_comparison(
-            input_specs=input_specs,
-            output_hists=output_hists,
-            hist_name_template=hist_name_template,
-            plot_name="p_width",
-            all_regions=eta_ranges, regions_label=label, regions_index=[i],
-            y_range=(-0.05, 0.1),
-            output_dir=output_dir,
-        )
-
-    import IPython; IPython.embed()
+    #    hist_name_template = "histPResol_{particle}_FitSigma_{eta_region_index}"
+    #    plot_ecce_track_comparison.plot_tracking_comparison(
+    #        input_specs=input_specs,
+    #        output_hists=output_hists,
+    #        hist_name_template=hist_name_template,
+    #        plot_name="p_width",
+    #        all_regions=eta_ranges, regions_label=label, regions_index=[i],
+    #        y_range=(-0.05, 0.1),
+    #        output_dir=output_dir,
+    #    )
 
 
 if __name__ == "__main__":
