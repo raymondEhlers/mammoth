@@ -29,11 +29,11 @@ pb.configure()
 logger = logging.getLogger(__name__)
 
 
-def _load_results(input_specs: Sequence[run_ecce_analysis.DatasetSpec], input_dir: Path, filename: str) -> Dict[str, Dict[str, hist.Hist]]:
+def _load_results(input_specs: Sequence[run_ecce_analysis.DatasetSpec], input_dir: Path, filename: str, filter: str ="hist") -> Dict[str, Dict[str, hist.Hist]]:
     output_hists = {}
     for spec in input_specs:
         logger.info(f"Loading hists from {input_dir / str(spec) / filename}")
-        output_hists[str(spec)] = ecce_base.load_hists(input_dir / str(spec) / filename, filter="hist")
+        output_hists[str(spec)] = ecce_base.load_hists(input_dir / str(spec) / filename, filter=filter)
 
         for k, v in output_hists[str(spec)].items():
             output_hists[str(spec)][k] = v.to_hist()
@@ -61,6 +61,18 @@ def run() -> None:
             particle="pion",
             momentum_selection=[0.0, 20],
             label="",
+        ),
+        run_ecce_analysis.DatasetSpecSingleParticle(
+            site="production",
+            particle="electron",
+            momentum_selection=[0.0, 20],
+            label="0layer",
+        ),
+        run_ecce_analysis.DatasetSpecSingleParticle(
+            site="production",
+            particle="pion",
+            momentum_selection=[0.0, 20],
+            label="0layer",
         ),
         run_ecce_analysis.DatasetSpecSingleParticle(
             site="cades",
@@ -103,6 +115,13 @@ def run() -> None:
             q2_selection=[100],
             label="",
         ),
+        run_ecce_analysis.DatasetSpecPythia(
+            site="production",
+            generator="pythia8",
+            electron_beam_energy=10, proton_beam_energy=100,
+            q2_selection=[100],
+            label="0layer",
+        ),
         # CADES geoOption5
         run_ecce_analysis.DatasetSpecPythia(
             site="cades",
@@ -134,11 +153,15 @@ def run() -> None:
             label="geoOption6",
         ),
     ]
+    # These are the ones which contain the JRH_extra outputs
+    pythia_high_q2_input_specs = [s for s in pythia_input_specs if s._q2_selection == [100]]
 
     # Setup
     _input_spec_labels = {
         f"production-pythia8-10x100-q2-1-to-100": "2 LGAD layers",
         f"production-pythia8-10x100-q2-100": "2 LGAD layers",
+        f"production-pythia8-10x100-q2-1-to-100-0layer": "No LGADs",
+        f"production-pythia8-10x100-q2-100-0layer": "No LGADs",
         f"cades-pythia8-10x100-q2-1-to-100-geoOption5": "1 LGAD layer, $30 \mu$m",
         f"cades-pythia8-10x100-q2-100-geoOption5": "1 LGAD layer, $30 \mu$m",
         f"cades-pythia8-10x100-q2-1-to-100-geoOption6": "1 LGAD layer, $55 \mu$m",
@@ -147,6 +170,7 @@ def run() -> None:
     for particle in ["Pion", "Electron"]:
         _input_spec_labels.update({
             f"production-single{particle}-p-0-to-20": "2 LGAD layers",
+            f"production-single{particle}-p-0-to-20-inner-tracking": "No LGADs",
             f"cades-single{particle}-p-0.3-to-20-geoOption5": "1 LGAD layer, $30 \mu$m",
             f"cades-single{particle}-p-0.3-to-20-geoOption6": "1 LGAD layer, $55 \mu$m",
         })
@@ -195,6 +219,9 @@ def run() -> None:
 
     # Single particle productions
     for regions_label, region_indices in [("forward", forward_regions), ("barrel", barrel_regions), ("backward", backward_regions)]:
+        # TEMP
+        break
+        # ENDTEMP
         for selected_particle, latex_label in [("pion", "$\pi$"), ("electron", "$e^{\pm}$")]:
             for input_spec in input_specs:
                 if input_spec.particle != selected_particle:
@@ -282,13 +309,16 @@ def run() -> None:
 
     # Pythia
     for regions_label, region_indices in [("forward", forward_regions), ("barrel", barrel_regions), ("backward", backward_regions)]:
+        # TEMP
+        break
+        # ENDTEMP
         for selected_particle, latex_label in [("all", ""), ("pion", "$\pi$"), ("electron", "$e^{\pm}$")]:
             for input_spec in pythia_input_specs:
                 output_dir_for_input_spec = output_dir / str(input_spec)
                 output_dir_for_input_spec.mkdir(parents=True, exist_ok=True)
                 text = "ECCE Simulation"
                 text += "\n" + _input_spec_labels[str(input_spec)]
-                text += "\n" + "PYTHIA 8 " +  (", " + latex_label if latex_label else "") + f", ${input_spec.q2_display}$"
+                text += "\n" + "PYTHIA 8 10x100 " +  (", " + latex_label if latex_label else "") + f", ${input_spec.q2_display}$"
 
                 hist_name_template = "histPResol_{particle}_FitMean_{eta_region_index}"
                 plot_ecce_track_comparison.plot_tracking_comparison(
@@ -336,7 +366,7 @@ def run() -> None:
                 for i in region_indices:
                     # Labels
                     text = "ECCE Simulation"
-                    text += "\n" + "PYTHIA 8 " +  (", " + latex_label if latex_label else "") + f", ${label_input_spec.q2_display}$"
+                    text += "\n" + "PYTHIA 8 10x100 " +  (", " + latex_label if latex_label else "") + f", ${label_input_spec.q2_display}$"
                     text += "\n" + plot_ecce_track_comparison.get_eta_label(eta_ranges[i])
 
                     hist_name_template = "histPResol_{particle}_FitMean_{eta_region_index}"
@@ -369,8 +399,124 @@ def run() -> None:
                         output_dir=output_dir,
                     )
 
+    # Single particle jets aren't really meaningful, so we just load pythia
+    output_hists_jets_pythia = _load_results(
+        input_specs=pythia_high_q2_input_specs,
+        input_dir=input_dir,
+        filename="output_JRH_extra.root",
+        filter="",
+    )
+
     from importlib import reload
     import IPython; IPython.embed()
+
+    for regions_label, region_indices in [("forward", forward_regions), ("barrel", barrel_regions), ("backward", backward_regions)]:
+        for jet_type in ["track"]:
+            for variable in ["p", "E", "pT"]:
+                for input_spec in pythia_high_q2_input_specs:
+                    output_dir_for_input_spec = output_dir / "jets" / str(input_spec)
+                    output_dir_for_input_spec.mkdir(parents=True, exist_ok=True)
+                    text = "ECCE Simulation"
+                    text += "\n" + _input_spec_labels[str(input_spec)]
+                    text += "\n" + "PYTHIA 8 10x100 " + f", ${input_spec.q2_display}$"
+                    text += "\n" + r"anti-$k_{\text{T}}$ $R$=0.5 jets"
+
+                    x_label = r"$p^{\text{jet}}\:(\text{GeV}/c)$"
+                    y_label_var = r"p"
+                    if variable == "pT":
+                        x_label = r"$p^{\text{T,jet}}\:(\text{GeV}/c)$"
+                        y_label_var = r"p_{\text{T}}"
+                    elif variable == "E":
+                        x_label = r"$E^{\text{jet}}\:(\text{GeV})$"
+                        y_label_var = r"E"
+
+                    hist_name_template = f"h_JES_{jet_type}_{variable}_{{eta_region_index}}"
+                    plot_ecce_track_comparison.plot_tracking_comparison(
+                        input_specs=[input_spec],
+                        input_spec_labels=_input_spec_labels,
+                        output_hists=output_hists_jets_pythia,
+                        hist_name_template=hist_name_template,
+                        plot_name=f"JES_{jet_type}_{variable}",
+                        all_regions=eta_ranges, regions_label=regions_label, regions_index=region_indices,
+                        text=text,
+                        selected_particle="",
+                        y_range=(-0.1, 0.1), y_label=r"$\langle (" + y_label_var + r"^{\text{rec}} - " + y_label_var + r"^{\text{MC}}) / " + y_label_var + r"^{\text{MC}} \rangle$",
+                        plot_jets=True, x_label=x_label, x_range=(0.1, 30),
+                        output_dir=output_dir_for_input_spec,
+                    )
+
+                    hist_name_template = f"h_JER_{jet_type}_{variable}_{{eta_region_index}}"
+                    plot_ecce_track_comparison.plot_tracking_comparison(
+                        input_specs=[input_spec],
+                        input_spec_labels=_input_spec_labels,
+                        output_hists=output_hists_jets_pythia,
+                        hist_name_template=hist_name_template,
+                        plot_name=f"JER_{jet_type}_{variable}",
+                        all_regions=eta_ranges, regions_label=regions_label, regions_index=region_indices,
+                        text=text,
+                        selected_particle="",
+                        y_range=(0.0, 0.45), y_label=r"$\sigma((" + y_label_var + r"^{\text{rec}} - " + y_label_var + r"^{\text{MC}}) / " + y_label_var + r"^{\text{MC}})$",
+                        plot_jets=True, x_label=x_label, x_range=(0.1, 30),
+                        output_dir=output_dir_for_input_spec,
+                    )
+
+    for regions_label, region_indices in [("forward", forward_regions), ("barrel", barrel_regions), ("backward", backward_regions)]:
+        for jet_type in ["track"]:
+            for variable in ["p", "E", "pT"]:
+                #plot_input_specs = [input_spec for input_spec in input_specs if input_spec.particle == selected_particle]
+                for q2_selection in ["q2-100"]:
+                    plot_input_specs = []
+                    for input_spec in pythia_high_q2_input_specs:
+                        if input_spec.q2 == q2_selection:
+                            plot_input_specs.append(input_spec)
+
+                    # Skip if we didn't load the data
+                    if not len(plot_input_specs):
+                        continue
+                    _jet_output_dir = output_dir / "jets"
+                    _jet_output_dir.mkdir(parents=True, exist_ok=True)
+                    label_input_spec = plot_input_specs[0]
+
+                    for i in region_indices:
+                        # Labels
+                        text = "ECCE Simulation"
+                        text += "\n" + "PYTHIA 8 10x100 " +  (", " + latex_label if latex_label else "") + f", ${label_input_spec.q2_display}$"
+                        text += "\n" + r"anti-$k_{\text{T}}$ $R$=0.5 jets"
+                        text += "\n" + plot_ecce_track_comparison.get_eta_label(eta_ranges[i])
+
+                        hist_name_template = "histPResol_{particle}_FitMean_{eta_region_index}"
+                        plot_ecce_track_comparison.plot_tracking_comparison(
+                            input_specs=plot_input_specs,
+                            input_spec_labels=_input_spec_labels,
+                            output_hists=output_hists_pythia,
+                            hist_name_template=hist_name_template,
+                            plot_name=f"p_mean_comparison_{selected_particle}_pythia_{label_input_spec.q2}",
+                            all_regions=eta_ranges, regions_label=regions_label, regions_index=[i],
+                            text=text,
+                            selected_particle=selected_particle,
+                            #x_range=(0.1, 100),
+                            y_range=(-0.1, 0.1), y_label=r"$\langle (p_{\text{T}}^{\text{rec}} - p_{\text{T}}^{\text{MC}}) / p_{\text{T}}^{\text{MC}} \rangle$",
+                            x_label=r"$p^{\text{jet}}\:(\text{GeV}/c)$",
+                            output_dir=output_dir,
+                        )
+
+                        hist_name_template = "histPResol_{particle}_FitSigma_{eta_region_index}"
+                        plot_ecce_track_comparison.plot_tracking_comparison(
+                            input_specs=plot_input_specs,
+                            input_spec_labels=_input_spec_labels,
+                            output_hists=output_hists_pythia,
+                            hist_name_template=hist_name_template,
+                            plot_name=f"p_width_comparison_{selected_particle}_pythia_{label_input_spec.q2}",
+                            all_regions=eta_ranges, regions_label=regions_label, regions_index=[i],
+                            text=text,
+                            selected_particle=selected_particle,
+                            #x_range=(0.1, 100),
+                            y_range=(0.0, 0.17), y_label=r"$\sigma((p_{\text{T}}^{\text{rec}} - p_{\text{T}}^{\text{MC}}) / p_{\text{T}}^{\text{MC}})$",
+                            x_label=r"$p^{\text{jet}}\:(\text{GeV}/c)$",
+                            output_dir=_jet_output_dir,
+                        )
+
+
 
     #for label, regions in [("backward", backward_regions), ("barrel", barrel_regions), ("forward", forward_regions)]:
     #for i in range(0, len(eta_ranges)):

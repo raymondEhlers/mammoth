@@ -101,11 +101,23 @@ def plot_tracking_comparison(input_specs: Sequence[run_ecce_analysis.DatasetSpec
                              selected_particle: str,
                              text: str,
                              output_dir: Path,
+                             plot_jets: bool = False,
+                             x_label: str = r"$p^{\text{MC}}\:(\text{GeV}/c)$",
                              x_range: Tuple[float, float] = (0.1, 30)) -> None:
+    logger.info(f"hist_name_template: {hist_name_template}")
+    logger.info(f"input_specs: {str(input_specs[0])}")
+
+    #hists = {}
+    #for input_spec in input_specs:
+    #    hists[str(input_spec)] = {}
+    #    for index in regions_index:
+    #        logger.info(f"{str(input_spec)}, {index}")
+    #        hists[str(input_spec)][index] = output_hists[str(input_spec)][hist_name_template.format(particle=selected_particle.capitalize(), eta_region_index=index)]
+
     _plot_tracking_comparison(
         input_specs=input_specs,
         input_spec_labels=input_spec_labels,
-        hists={
+        hists = {
             str(input_spec): {
                 index: output_hists[str(input_spec)][hist_name_template.format(particle=selected_particle.capitalize(), eta_region_index=index)]
                 for index in regions_index
@@ -118,7 +130,7 @@ def plot_tracking_comparison(input_specs: Sequence[run_ecce_analysis.DatasetSpec
             name=f"{plot_name}_{regions_label}_{'_'.join([str(v) for v in regions_index])}",
             panels=pb.Panel(
                     axes=[
-                        pb.AxisConfig("x", label=r"$p^{\text{MC}}\:(\text{GeV}/c)$", font_size=22, log=True, range=x_range),
+                        pb.AxisConfig("x", label=x_label, font_size=22, log=(plot_jets == False), range=x_range),
                         pb.AxisConfig(
                             "y",
                             label=y_label,
