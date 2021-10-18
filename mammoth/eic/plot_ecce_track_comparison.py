@@ -21,7 +21,7 @@ _okabe_ito_colors = [
     "#E69F00",
     "#56B4E9",
     "#009E73",
-    "#F0E442",
+    #"#F0E442",
     "#0072B2",
     "#D55E00",
     "#CC79A7",
@@ -69,6 +69,7 @@ def _plot_tracking_comparison(input_specs: Sequence[run_ecce_analysis.DatasetSpe
             #    yerr=np.sqrt(h_sliced.variances()),
             #    label=str(input_spec)
             #)
+            #logger.info(f"h.values(): {h.values()}")
             ax.errorbar(
                 h.axes[0].centers,
                 h.values(),
@@ -78,6 +79,7 @@ def _plot_tracking_comparison(input_specs: Sequence[run_ecce_analysis.DatasetSpe
                 marker=markers[i_eta_index if len(input_spec_hists) > 1 else i_input_spec],
                 linestyle="",
                 markersize=8,
+                #alpha=0.7,
             )
 
     if "_mean" in plot_config.name:
@@ -107,23 +109,25 @@ def plot_tracking_comparison(input_specs: Sequence[run_ecce_analysis.DatasetSpec
     logger.info(f"hist_name_template: {hist_name_template}")
     logger.info(f"input_specs: {str(input_specs[0])}")
 
-    #hists = {}
-    #for input_spec in input_specs:
-    #    hists[str(input_spec)] = {}
-    #    for index in regions_index:
-    #        logger.info(f"{str(input_spec)}, {index}")
-    #        hists[str(input_spec)][index] = output_hists[str(input_spec)][hist_name_template.format(particle=selected_particle.capitalize(), eta_region_index=index)]
+    hists = {}
+    for input_spec in input_specs:
+        hists[str(input_spec)] = {}
+        for index in regions_index:
+            temp_name = hist_name_template.format(particle=selected_particle.capitalize(), eta_region_index=index)
+            #logger.info(f"{str(input_spec)}, {index}, template_name: {temp_name}")
+            hists[str(input_spec)][index] = output_hists[str(input_spec)][temp_name]
 
     _plot_tracking_comparison(
         input_specs=input_specs,
         input_spec_labels=input_spec_labels,
-        hists = {
-            str(input_spec): {
-                index: output_hists[str(input_spec)][hist_name_template.format(particle=selected_particle.capitalize(), eta_region_index=index)]
-                for index in regions_index
-            }
-            for input_spec in input_specs
-        },
+        #hists = {
+        #    str(input_spec): {
+        #        index: output_hists[str(input_spec)][hist_name_template.format(particle=selected_particle.capitalize(), eta_region_index=index)]
+        #        for index in regions_index
+        #    }
+        #    for input_spec in input_specs
+        #},
+        hists=hists,
         all_regions=all_regions,
         regions_index=regions_index,
         plot_config=pb.PlotConfig(

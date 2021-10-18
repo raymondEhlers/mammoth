@@ -52,24 +52,6 @@ def run() -> None:
     input_specs = [
         run_ecce_analysis.DatasetSpecSingleParticle(
             site="production",
-            particle="electron",
-            momentum_selection=[0.0, 20],
-            label="",
-        ),
-        run_ecce_analysis.DatasetSpecSingleParticle(
-            site="production",
-            particle="pion",
-            momentum_selection=[0.0, 20],
-            label="",
-        ),
-        run_ecce_analysis.DatasetSpecSingleParticle(
-            site="production",
-            particle="electron",
-            momentum_selection=[0.0, 20],
-            label="0layer",
-        ),
-        run_ecce_analysis.DatasetSpecSingleParticle(
-            site="production",
             particle="pion",
             momentum_selection=[0.0, 20],
             label="0layer",
@@ -97,31 +79,27 @@ def run() -> None:
             particle="pion",
             momentum_selection=[0.3, 20],
             label="geoOption6",
+        ),
+        run_ecce_analysis.DatasetSpecSingleParticle(
+            site="production",
+            particle="electron",
+            momentum_selection=[0.0, 20],
+            label="",
+        ),
+        run_ecce_analysis.DatasetSpecSingleParticle(
+            site="production",
+            particle="pion",
+            momentum_selection=[0.0, 20],
+            label="",
+        ),
+        run_ecce_analysis.DatasetSpecSingleParticle(
+            site="production",
+            particle="electron",
+            momentum_selection=[0.0, 20],
+            label="0layer",
         ),
     ]
     pythia_input_specs = [
-        # Pythia8
-        run_ecce_analysis.DatasetSpecPythia(
-            site="production",
-            generator="pythia8",
-            electron_beam_energy=10, proton_beam_energy=100,
-            q2_selection=[1, 100],
-            label="",
-        ),
-        run_ecce_analysis.DatasetSpecPythia(
-            site="production",
-            generator="pythia8",
-            electron_beam_energy=10, proton_beam_energy=100,
-            q2_selection=[100],
-            label="",
-        ),
-        run_ecce_analysis.DatasetSpecPythia(
-            site="production",
-            generator="pythia8",
-            electron_beam_energy=10, proton_beam_energy=100,
-            q2_selection=[100],
-            label="0layer",
-        ),
         # CADES geoOption5
         run_ecce_analysis.DatasetSpecPythia(
             site="cades",
@@ -151,6 +129,28 @@ def run() -> None:
             electron_beam_energy=10, proton_beam_energy=100,
             q2_selection=[100],
             label="geoOption6",
+        ),
+        # Pythia8
+        run_ecce_analysis.DatasetSpecPythia(
+            site="production",
+            generator="pythia8",
+            electron_beam_energy=10, proton_beam_energy=100,
+            q2_selection=[1, 100],
+            label="",
+        ),
+        run_ecce_analysis.DatasetSpecPythia(
+            site="production",
+            generator="pythia8",
+            electron_beam_energy=10, proton_beam_energy=100,
+            q2_selection=[100],
+            label="",
+        ),
+        run_ecce_analysis.DatasetSpecPythia(
+            site="production",
+            generator="pythia8",
+            electron_beam_energy=10, proton_beam_energy=100,
+            q2_selection=[100],
+            label="0layer",
         ),
     ]
     # These are the ones which contain the JRH_extra outputs
@@ -215,7 +215,7 @@ def run() -> None:
     # - [x] Single electron in four forward regions for each config
     # - [x] Comparison between systems for each forward eta region
     # - [x] Same as above, but switch forward -> backward
-    # - Pythia in four forward regions for each config
+    # - [x] Pythia in four forward regions for each config
 
     # Single particle productions
     for regions_label, region_indices in [("forward", forward_regions), ("barrel", barrel_regions), ("backward", backward_regions)]:
@@ -257,6 +257,7 @@ def run() -> None:
                     output_dir=output_dir_for_input_spec,
                 )
 
+    for regions_label, region_indices in [("forward", forward_regions), ("barrel", barrel_regions), ("backward", backward_regions)]:
         # Now, the comparison for each eta region
         for selected_particle, latex_label in [("pion", "$\pi$"), ("electron", "$e^{\pm}$")]:
             #plot_input_specs = [input_spec for input_spec in input_specs if input_spec.particle == selected_particle]
@@ -264,6 +265,7 @@ def run() -> None:
             for input_spec in input_specs:
                 if input_spec.particle == selected_particle:
                     plot_input_specs.append(input_spec)
+            logger.info(f"plot_input_specs: {plot_input_specs}")
 
             # Skip if we didn't load the data
             if not len(plot_input_specs):
@@ -284,7 +286,7 @@ def run() -> None:
                     plot_name=f"p_mean_comparison_{selected_particle}",
                     all_regions=eta_ranges, regions_label=regions_label, regions_index=[i],
                     text=text,
-                    selected_particle=input_spec.particle,
+                    selected_particle=selected_particle,
                     y_range=(-0.1, 0.1), y_label=r"$\langle (p_{\text{T}}^{\text{rec}} - p_{\text{T}}^{\text{MC}}) / p_{\text{T}}^{\text{MC}} \rangle$",
                     output_dir=output_dir,
                 )
@@ -298,7 +300,7 @@ def run() -> None:
                     plot_name=f"p_width_comparison_{selected_particle}",
                     all_regions=eta_ranges, regions_label=regions_label, regions_index=[i],
                     text=text,
-                    selected_particle=input_spec.particle,
+                    selected_particle=selected_particle,
                     y_range=(0.0, 0.17), y_label=r"$\sigma((p_{\text{T}}^{\text{rec}} - p_{\text{T}}^{\text{MC}}) / p_{\text{T}}^{\text{MC}})$",
                     output_dir=output_dir,
                 )
@@ -312,7 +314,7 @@ def run() -> None:
                 output_dir_for_input_spec.mkdir(parents=True, exist_ok=True)
                 text = "ECCE Simulation"
                 text += "\n" + _input_spec_labels[str(input_spec)]
-                text += "\n" + "PYTHIA 8 10x100 " +  (", " + latex_label if latex_label else "") + f", ${input_spec.q2_display}$"
+                text += "\n" + "PYTHIA 8 10x100, " +  (latex_label + "," if latex_label else "") + f"${input_spec.q2_display}$"
 
                 hist_name_template = "histPResol_{particle}_FitMean_{eta_region_index}"
                 plot_ecce_track_comparison.plot_tracking_comparison(
@@ -360,7 +362,7 @@ def run() -> None:
                 for i in region_indices:
                     # Labels
                     text = "ECCE Simulation"
-                    text += "\n" + "PYTHIA 8 10x100 " +  (", " + latex_label if latex_label else "") + f", ${label_input_spec.q2_display}$"
+                    text += "\n" + "PYTHIA 8 10x100, " +  (latex_label + "," if latex_label else "") + f"${input_spec.q2_display}$"
                     text += "\n" + plot_ecce_track_comparison.get_eta_label(eta_ranges[i])
 
                     hist_name_template = "histPResol_{particle}_FitMean_{eta_region_index}"
@@ -409,7 +411,7 @@ def run() -> None:
                     output_dir_for_input_spec.mkdir(parents=True, exist_ok=True)
                     text = "ECCE Simulation"
                     text += "\n" + _input_spec_labels[str(input_spec)]
-                    text += "\n" + "PYTHIA 8 10x100 " + f", ${input_spec.q2_display}$"
+                    text += "\n" + "PYTHIA 8 10x100, " + f"${input_spec.q2_display}$"
                     text += "\n" + r"anti-$k_{\text{T}}$ $R$=0.5 jets"
 
                     x_label = r"$p^{\text{jet}}\:(\text{GeV}/c)$"
@@ -431,7 +433,7 @@ def run() -> None:
                         all_regions=eta_ranges, regions_label=regions_label, regions_index=region_indices,
                         text=text,
                         selected_particle="",
-                        y_range=(-0.1, 0.1), y_label=r"$\langle (" + y_label_var + r"^{\text{rec}} - " + y_label_var + r"^{\text{MC}}) / " + y_label_var + r"^{\text{MC}} \rangle$",
+                        y_range=(-0.2, 0.2), y_label=r"$\langle (" + y_label_var + r"^{\text{rec}} - " + y_label_var + r"^{\text{MC}}) / " + y_label_var + r"^{\text{MC}} \rangle$",
                         plot_jets=True, x_label=x_label, x_range=(0.1, 30),
                         output_dir=output_dir_for_input_spec,
                     )
@@ -471,7 +473,7 @@ def run() -> None:
                     for i in region_indices:
                         # Labels
                         text = "ECCE Simulation"
-                        text += "\n" + "PYTHIA 8 10x100 " + f", ${label_input_spec.q2_display}$"
+                        text += "\n" + "PYTHIA 8 10x100, " + f"${input_spec.q2_display}$"
                         text += "\n" + r"anti-$k_{\text{T}}$ $R$=0.5 jets"
                         text += "\n" + plot_ecce_track_comparison.get_eta_label(eta_ranges[i])
 
@@ -494,7 +496,7 @@ def run() -> None:
                             all_regions=eta_ranges, regions_label=regions_label, regions_index=[i],
                             text=text,
                             selected_particle="",
-                            y_range=(-0.1, 0.1), y_label=r"$\langle (" + y_label_var + r"^{\text{rec}} - " + y_label_var + r"^{\text{MC}}) / " + y_label_var + r"^{\text{MC}} \rangle$",
+                            y_range=(-0.2, 0.2), y_label=r"$\langle (" + y_label_var + r"^{\text{rec}} - " + y_label_var + r"^{\text{MC}}) / " + y_label_var + r"^{\text{MC}} \rangle$",
                             plot_jets=True, x_label=x_label, x_range=(0.1, 30),
                             output_dir=_jet_output_dir,
                         )
@@ -513,7 +515,6 @@ def run() -> None:
                             plot_jets=True, x_label=x_label, x_range=(0.1, 30),
                             output_dir=_jet_output_dir,
                         )
-
 
                         #hist_name_template = "histPResol_{particle}_FitMean_{eta_region_index}"
                         #plot_ecce_track_comparison.plot_tracking_comparison(
