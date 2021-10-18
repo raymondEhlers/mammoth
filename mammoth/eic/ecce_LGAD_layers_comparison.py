@@ -217,6 +217,9 @@ def run() -> None:
     # - [x] Same as above, but switch forward -> backward
     # - [x] Pythia in four forward regions for each config
 
+    from importlib import reload
+    import IPython; IPython.embed()
+
     # Single particle productions
     for regions_label, region_indices in [("forward", forward_regions), ("barrel", barrel_regions), ("backward", backward_regions)]:
         for selected_particle, latex_label in [("pion", "$\pi$"), ("electron", "$e^{\pm}$")]:
@@ -375,8 +378,8 @@ def run() -> None:
                         all_regions=eta_ranges, regions_label=regions_label, regions_index=[i],
                         text=text,
                         selected_particle=selected_particle,
-                        #x_range=(0.1, 100),
                         y_range=(-0.1, 0.1), y_label=r"$\langle (p_{\text{T}}^{\text{rec}} - p_{\text{T}}^{\text{MC}}) / p_{\text{T}}^{\text{MC}} \rangle$",
+                        x_range=(0.1, 100),
                         output_dir=output_dir,
                     )
 
@@ -390,8 +393,8 @@ def run() -> None:
                         all_regions=eta_ranges, regions_label=regions_label, regions_index=[i],
                         text=text,
                         selected_particle=selected_particle,
-                        #x_range=(0.1, 100),
                         y_range=(0.0, 0.17), y_label=r"$\sigma((p_{\text{T}}^{\text{rec}} - p_{\text{T}}^{\text{MC}}) / p_{\text{T}}^{\text{MC}})$",
+                        x_range=(0.1, 100),
                         output_dir=output_dir,
                     )
 
@@ -497,7 +500,7 @@ def run() -> None:
                             text=text,
                             selected_particle="",
                             y_range=(-0.2, 0.2), y_label=r"$\langle (" + y_label_var + r"^{\text{rec}} - " + y_label_var + r"^{\text{MC}}) / " + y_label_var + r"^{\text{MC}} \rangle$",
-                            plot_jets=True, x_label=x_label, x_range=(0.1, 30),
+                            plot_jets=True, x_label=x_label, x_range=(0.1, 50),
                             output_dir=_jet_output_dir,
                         )
 
@@ -512,9 +515,10 @@ def run() -> None:
                             text=text,
                             selected_particle="",
                             y_range=(0.0, 0.45), y_label=r"$\sigma((" + y_label_var + r"^{\text{rec}} - " + y_label_var + r"^{\text{MC}}) / " + y_label_var + r"^{\text{MC}})$",
-                            plot_jets=True, x_label=x_label, x_range=(0.1, 30),
+                            plot_jets=True, x_label=x_label, x_range=(0.1, 50),
                             output_dir=_jet_output_dir,
                         )
+
 
                         #hist_name_template = "histPResol_{particle}_FitMean_{eta_region_index}"
                         #plot_ecce_track_comparison.plot_tracking_comparison(
@@ -548,7 +552,6 @@ def run() -> None:
                         #    output_dir=_jet_output_dir,
                         #)
 
-    from importlib import reload
     import IPython; IPython.embed()
 
     #for label, regions in [("backward", backward_regions), ("barrel", barrel_regions), ("forward", forward_regions)]:
