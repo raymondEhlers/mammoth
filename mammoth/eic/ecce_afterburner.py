@@ -75,7 +75,8 @@ def run_afterburner(
     ROOT.treeProcessing(
         str(input_file),
         str(geometry_file),
-        output_identifier,
+        str(output_identifier),
+        str(output_dir),
         do_reclustering,
         do_jet_finding,
         has_timing,
@@ -87,7 +88,6 @@ def run_afterburner(
         jet_algorithm,
         _array_to_ROOT(np.array(jet_R_parameters), "double"),
         max_track_pt_in_jet,
-        str(output_dir),
     )
 
     return True, f"Success for {output_identifier} with input file {input_file}"

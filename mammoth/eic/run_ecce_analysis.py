@@ -12,7 +12,7 @@ import attr
 import IPython
 import parsl
 from mammoth import helpers, job_utils
-from parsl.app.app import python_app
+from parsl.app.app import bash_app, python_app
 from parsl.data_provider.files import File
 from parsl.dataflow.futures import AppFuture
 from rich.progress import Progress
@@ -96,6 +96,73 @@ class DatasetSpecPythia(DatasetSpec):
         return f"{self.generator}-{self.electron_beam_energy}x{self.proton_beam_energy}-{self.q2}"
 
 
+@bash_app  # type: ignore
+def run_ecce_afterburner_bash(
+    tree_processing_code_directory: Path,
+    output_identifier: str,
+    output_dir: Path,
+    do_reclustering: bool = True,
+    do_jet_finding: bool = True,
+    has_timing: bool = True,
+    is_all_silicon: bool = True,
+    max_n_events: int = -1,
+    verbosity: int = 0,
+    do_calibration: bool = False,
+    primary_track_source: int = 0,
+    remove_tracklets: bool = False,
+    jet_algorithm: str = "anti-kt",
+    jet_R_parameters: Sequence[float] = [0.3, 0.5, 0.8, 1.0],
+    max_track_pt_in_jet: float = 30.0,
+    inputs: Sequence[File] = [],
+    outputs: Sequence[File] = [],
+    stdout: str = parsl.AUTO_LOGNAME,
+    stderr: str = parsl.AUTO_LOGNAME,
+) -> AppFuture:
+    import tempfile
+    import uuid
+    from pathlib import Path
+
+    # Apparently NamedTemporarilyFile doesn't work here (reasons are unclear), so let's do it by hand...
+    temp_filename = f"/tmp/{uuid.uuid4()}.txt"
+    with open(temp_filename, "w") as f:
+        f.write("\n".join([input_file.filepath for input_file in inputs[:-1]]))
+
+    args = [
+        f"\"{str(Path(inputs[0])) if len(inputs) == 2 else str(Path(f.name))}\"",
+        f"\"{str(Path(inputs[-1]))}\"",
+        f"\"{str(output_identifier)}\"",
+        f"\"{str(output_dir)}\"",
+        str(do_reclustering).lower(),
+        str(do_jet_finding).lower(),
+        str(has_timing).lower(),
+        str(is_all_silicon).lower(),
+        str(max_n_events),
+        str(verbosity),
+        str(do_calibration).lower(),
+        str(primary_track_source),
+        str(remove_tracklets).lower(),
+        f"\"{str(jet_algorithm)}\"",
+    ]
+    s = f"root -b -q '{tree_processing_code_directory}/treeProcessing.C({', '.join(args)})'; rm {temp_filename}"
+
+#        s = f"""root -b -q {tree_processing_code_directory}/treeProcessing.C\(
+#    "{str(Path(inputs[0])) if len(inputs) == 2 else str(Path(f.name))}",
+#    "{str(Path(inputs[-1]))}",
+#    "{str(output_identifier)}",
+#    "{str(output_dir)}",
+#    {str(do_reclustering).lower()},
+#    {str(do_jet_finding).lower()},
+#    {str(has_timing).lower()},
+#    {str(is_all_silicon).lower()},
+#    {max_n_events},
+#    {verbosity},
+#    {str(do_calibration).lower()},
+#    {primary_track_source},
+#    "{str(jet_algorithm)}"
+#\)"""
+    return s
+
+
 @python_app  # type: ignore
 def run_ecce_afterburner(
     tree_processing_code_directory: Path,
@@ -109,6 +176,7 @@ def run_ecce_afterburner(
     verbosity: int = 0,
     do_calibration: bool = False,
     primary_track_source: int = 0,
+    remove_tracklets: bool = False,
     jet_algorithm: str = "anti-kt",
     jet_R_parameters: Sequence[float] = [0.3, 0.5, 0.8, 1.0],
     max_track_pt_in_jet: float = 30.0,
@@ -143,6 +211,7 @@ def run_ecce_afterburner(
                 verbosity=verbosity,
                 do_calibration=do_calibration,
                 primary_track_source=primary_track_source,
+                remove_tracklets=remove_tracklets,
                 jet_algorithm=jet_algorithm,
                 jet_R_parameters=jet_R_parameters,
                 max_track_pt_in_jet=max_track_pt_in_jet,
@@ -161,45 +230,61 @@ def setup_ecce_afterburner(
     dataset_spec: DatasetSpec,
     jet_R_parameters: Sequence[float],
     jet_algorithm: str,
+    primary_track_source: int,
+    remove_tracklets: bool,
     tree_processing_code_directory: Path,
     output_dir: Path,
+    use_bash_app: bool,
     n_files_per_job: int = 10,
 ) -> Sequence[AppFuture]:
     # Validate that the processing code is available.
     tree_processing_entry_point = tree_processing_code_directory / "treeProcessing.C"
     if not tree_processing_entry_point.exists():
         raise ValueError(f"Tree processing at {tree_processing_entry_point} doesn't appear to be available. Check your path")
+    # Further validation
+    if use_bash_app:
+        # Can't set a vector via bash (as far as I know), so if we're non default, we need to notify immediately.
+        if jet_R_parameters != [0.3, 0.5, 0.8, 1.0]:
+            raise RuntimeError(
+                f"Cannot specify non-default values of jet_R_parameters ({jet_R_parameters}). Please update the default values in treeProcessing.C to change them."
+            )
 
     # Find all of the input files.
     input_files = sorted(dataset.data.glob("*.root"))
 
     # TEMP for testing
-    #input_files = input_files[:4]
-    input_files = input_files[:100]
+    #input_files = input_files[:2]
     # ENDTEMP
 
+    # Limit stats to keep things moving...
+    input_files = input_files[:100]
+    # TODO: Remove later
+
     futures = []
+    func = run_ecce_afterburner_bash if use_bash_app else run_ecce_afterburner
     for index, input_files in enumerate(iterate_in_chunks(n_files_per_job, input_files)):
         input_files_list = list(input_files)
         logger.info(f"Adding {index}: {input_files_list}")
 
         output_identifier = f"{str(dataset_spec)}/{index:03}"
         futures.append(
-            run_ecce_afterburner(
+            func(
                 tree_processing_code_directory=tree_processing_code_directory,
                 output_identifier=output_identifier,
                 output_dir=output_dir,
                 do_jet_finding=(jet_algorithm != ""),
                 jet_algorithm=jet_algorithm,
                 jet_R_parameters=jet_R_parameters,
+                primary_track_source=primary_track_source,
+                remove_tracklets=remove_tracklets,
                 #max_n_events=2,
                 inputs=[
                     *[File(str(input_file)) for input_file in input_files_list],
                     File(str(dataset.geometry)),
                 ],
-                outputs=[
-                    File(str(Path("treeProcessing/{output_identifier}/output_JetObservables.root"))),
-                ]
+                #outputs=[
+                #    File(str(Path(output_dir / f"treeProcessing/{output_identifier}/output_JetObservables.root"))),
+                #]
             )
         )
 
@@ -209,10 +294,10 @@ def setup_ecce_afterburner(
 def run() -> None:
     # Basic setup
     afterburner_dir = Path("/software/rehlers/dev/eic/analysis_software_EIC")
-    output_dir = Path("/alf/data/rehlers/eic/afterburner")
+    output_dir = Path("/alf/data/rehlers/eic/afterburner/primary_track_source_0_remove_tracklets")
     jet_R_parameters = [0.3, 0.5, 0.8, 1.0]
-    #jet_algorithm = "anti-kt"
-    jet_algorithm = ""
+    jet_algorithm = "anti-kt"
+    #jet_algorithm = ""
     # Dataset selection
     datasets_to_process = [
         #DatasetSpecPythia(
@@ -275,58 +360,52 @@ def run() -> None:
         #    momentum_selection=[0.3, 20],
         #    label="geoOption6",
         #),
-        DatasetSpecPythia(
-            site="cades",
-            generator="pythia8",
-            electron_beam_energy=10, proton_beam_energy=100,
-            q2_selection=[1, 100],
-            label="geoOption5",
-        ),
-        DatasetSpecPythia(
-            site="cades",
-            generator="pythia8",
-            electron_beam_energy=10, proton_beam_energy=100,
-            q2_selection=[100],
-            label="geoOption5",
-        ),
-        DatasetSpecPythia(
-            site="cades",
-            generator="pythia8",
-            electron_beam_energy=10, proton_beam_energy=100,
-            q2_selection=[1, 100],
-            label="geoOption6",
-        ),
-        DatasetSpecPythia(
-            site="cades",
-            generator="pythia8",
-            electron_beam_energy=10, proton_beam_energy=100,
-            q2_selection=[100],
-            label="geoOption6",
-        ),
-        # NOTE: Put last because it has the most files!
-        DatasetSpecPythia(
-            site="production",
-            generator="pythia8",
-            electron_beam_energy=10, proton_beam_energy=100,
-            q2_selection=[1, 100],
-            label="",
-        ),
+        #DatasetSpecPythia(
+        #    site="cades",
+        #    generator="pythia8",
+        #    electron_beam_energy=10, proton_beam_energy=100,
+        #    q2_selection=[1, 100],
+        #    label="geoOption5",
+        #),
+        #DatasetSpecPythia(
+        #    site="cades",
+        #    generator="pythia8",
+        #    electron_beam_energy=10, proton_beam_energy=100,
+        #    q2_selection=[100],
+        #    label="geoOption5",
+        #),
+        #DatasetSpecPythia(
+        #    site="cades",
+        #    generator="pythia8",
+        #    electron_beam_energy=10, proton_beam_energy=100,
+        #    q2_selection=[1, 100],
+        #    label="geoOption6",
+        #),
+        #DatasetSpecPythia(
+        #    site="cades",
+        #    generator="pythia8",
+        #    electron_beam_energy=10, proton_beam_energy=100,
+        #    q2_selection=[100],
+        #    label="geoOption6",
+        #),
     ]
 
     # Job execution parameters
     task_name = "ecce_mammoth"
     tasks_to_execute = [
-        "ecce_afterburner"
+        #"ecce_afterburner",
+        "ecce_afterburner_bash",
     ]
 
     # Job execution configuration
     task_config = job_utils.TaskConfig(name=task_name, n_cores_per_task=1)
     #n_cores_to_allocate = 120
     #walltime = "1:59:00"
-    n_cores_to_allocate = 100
-    walltime = "10:00:00"
+    n_cores_to_allocate = 10
+    walltime = "20:00:00"
+    # For testing
     #walltime = "1:59:00"
-    #n_cores_to_allocate = 2
+    #n_cores_to_allocate = 3
 
     # Validation
     # Possible datasets
@@ -446,16 +525,23 @@ def run() -> None:
     for dataset_spec in datasets_to_process:
         # Setup tasks
         dataset_results: List[AppFuture] = []
-        if "ecce_afterburner" in tasks_to_execute:
+        if "ecce_afterburner" in tasks_to_execute or "ecce_afterburner_bash" in tasks_to_execute:
             dataset_results.extend(
                 setup_ecce_afterburner(
                     dataset=_datasets[str(dataset_spec)],
                     dataset_spec=dataset_spec,
                     jet_algorithm=jet_algorithm,
                     jet_R_parameters=jet_R_parameters,
+                    primary_track_source=0,
+                    remove_tracklets=True,
                     tree_processing_code_directory=afterburner_dir / "treeAnalysis",
                     output_dir=output_dir,
-                    n_files_per_job=5,
+                    use_bash_app=("ecce_afterburner_bash" in tasks_to_execute),
+                    # Seems to work better for jets
+                    #n_files_per_job=2,
+                    n_files_per_job=10,
+                    # Seems to work for single particle
+                    #n_files_per_job=10,
                 )
             )
 
@@ -476,12 +562,16 @@ def run() -> None:
         # for a in all_results:
         for result in gen_results:
             # r = a.result()
-            logger.info(f"result: {result[:2]}")
-            if result[0] and len(result) == 4 and isinstance(result[3], dict):
-                k = result[2]
-                logger.info(f"Found result for key {k}")
-                output_hists[k] = job_utils.merge_results(output_hists[k], result[3])
-            logger.info(f"output_hists: {output_hists}")
+            # NOTE: a bash app will just return an int, so there's not super interesting to be done.
+            #       Just update the progress.
+            if not isinstance(result, int):
+                # There's more information here - let the user see it
+                logger.info(f"result: {result[:2]}")
+                if result[0] and len(result) == 4 and isinstance(result[3], dict):
+                    k = result[2]
+                    logger.info(f"Found result for key {k}")
+                    output_hists[k] = job_utils.merge_results(output_hists[k], result[3])
+                logger.info(f"output_hists: {output_hists}")
             progress.update(track_results, advance=1)
 
     # Save hists to uproot
@@ -514,7 +604,11 @@ def run() -> None:
     # Also allows for a summary at the end.
     # By taking only the first two, it just tells use the status and a quick message.
     # Otherwise, we can overwhelm with trying to print large objects
-    res = [r.result()[:2] for r in all_results]
+    if "ecce_afterburner_bash" in tasks_to_execute:
+        # Bash only returns a single value, so we need to be careful
+        res = [r.result() for r in all_results]
+    else:
+        res = [r.result()[:2] for r in all_results]
     logger.info(res)
 
 
