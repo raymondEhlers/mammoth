@@ -40,6 +40,7 @@ FACILITIES = Literal[
     "ORNL_b587_short",
     "ORNL_b587_long",
     "ORNL_b587_loginOnly",
+    "ORNL_b587_vip",
 ]
 
 
@@ -166,7 +167,7 @@ _facilities_configs = {
         launcher=SingleNodeLauncher,
         #node_work_dir=Path("/tmp/parsl/$USER"),
         #storage_work_dir=Path("/alf/data/rehlers/jetscape/work_dir"),
-    ) for queue in ["short", "long", "loginOnly"]
+    ) for queue in ["short", "long", "loginOnly", "vip"]
 }
 
 
