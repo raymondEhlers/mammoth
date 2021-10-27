@@ -78,6 +78,10 @@ class JetParameters:
     def jet_R(self) -> str:
         return f"{round(self._jet_R * 100):03}"
 
+    @property
+    def jet_R_value(self) -> float:
+        return self._jet_R
+
     def name(self, n_PDF_label: str) -> str:
         return f"jetR{self.jet_R}_{self.jet_type}_{self.region}_{self.observable}_{self.variable}_{n_PDF_label}"
 
@@ -96,7 +100,8 @@ class JetParameters:
 def _calculate_ReA(ep_hists: Dict[str, hist.Hist], eA_hists: Dict[str, hist.Hist], parameters: JetParameters) -> hist.Hist:
     ep_hist = binned_data.BinnedData.from_existing_data(ep_hists[parameters.name_ep])
     eA_hist = binned_data.BinnedData.from_existing_data(eA_hists[parameters.name_eA])
-    return hist.Hist((eA_hist / ep_hist).to_boost_histogram() * 1/79.0)[::hist.rebin(2)] / 2.0
+    #return hist.Hist((eA_hist / ep_hist).to_boost_histogram() * 1/79.0)[::hist.rebin(2)] / 2.0
+    return hist.Hist((eA_hist / ep_hist).to_boost_histogram())[::hist.rebin(2)] / 2.0
     #return hist.Hist((eA_hist / ep_hist).to_boost_histogram())[::hist.rebin(5)] / 5.0
 
 
@@ -130,7 +135,7 @@ _okabe_ito_colors = [
     "#E69F00",
     "#56B4E9",
     "#009E73",
-    "#F0E442",
+    #"#F0E442",
     "#0072B2",
     "#D55E00",
     "#CC79A7",
@@ -201,6 +206,22 @@ def _plot_ReA_ratio_multiple_R(hists: Mapping[JetParameters, hist.Hist], plot_co
     plt.close(fig)
 
 
+_regions_acceptance = {
+    "forward": [1.5, 3.5],
+    "mid_rapidity": [-1.5, 1.5],
+    "backward": [-3.5, -1.5],
+}
+
+
+def _jet_eta_range(region: str, jet_R: float) -> float:
+    low, high = _regions_acceptance[region]
+    if region == "forward":
+        high -= jet_R
+    if region == "backward":
+        low += jet_R
+    return high - low
+
+
 def plot_ReA(config: SimulationConfig, output_hists: Dict[str, Dict[str, hist.Hist]]) -> None:
 
     jet_R_values = [0.3, 0.5, 0.8, 1.0]
@@ -215,7 +236,6 @@ def plot_ReA(config: SimulationConfig, output_hists: Dict[str, Dict[str, hist.Hi
    )
 
     #for k, v in RAA_hists.items():
-    # TODO: Fill in text...
     for variable in ["p", "pt"]:
         for jet_type in jet_types:
             for region in ["forward", "mid_rapidity"]:
@@ -230,7 +250,7 @@ def plot_ReA(config: SimulationConfig, output_hists: Dict[str, Dict[str, hist.Hi
                 text += "\n" + "PYTHIA8 10x100, $Q^{2} > 100$"
                 text += "\n" + r"anti-$k_{\text{T}}$ jets"
                 if region == "forward":
-                    text += "\n" + r"$1.5 < \eta < 3.5$"
+                    text += "\n" + r"$1.5 < \eta < 3.5 - R$"
                 if region == "mid_rapidity":
                     text += "\n" + r"$-1.5 < \eta < 1.5$"
                 _plot_ReA_multiple_R(
@@ -248,7 +268,7 @@ def plot_ReA(config: SimulationConfig, output_hists: Dict[str, Dict[str, hist.Hi
                                     ),
                                 ],
                                 text=pb.TextConfig(x=0.97, y=0.97, text=text, font_size=22),
-                                legend=pb.LegendConfig(location="center right", font_size=22),
+                                legend=pb.LegendConfig(location="lower left", font_size=22),
                             ),
                         figure=pb.Figure(edge_padding=dict(left=0.12, bottom=0.1)),
                     ),
@@ -257,14 +277,16 @@ def plot_ReA(config: SimulationConfig, output_hists: Dict[str, Dict[str, hist.Hi
 
                 # Calculate ratio
                 for k, v in fixed_region_ReA_hists.items():
+                    logger.info(f"eta ranges: {_jet_eta_range(region=region, jet_R=k.jet_R_value)}")
                     if k.jet_R == "100":
-                        ref = binned_data.BinnedData.from_existing_data(v)
+                        ref = binned_data.BinnedData.from_existing_data(v) / _jet_eta_range(region=region, jet_R = k.jet_R_value)
 
                 fixed_region_ReA_ratio_hists = {}
                 for k, v in fixed_region_ReA_hists.items():
                     if k.jet_R == "100":
                         continue
-                    fixed_region_ReA_ratio_hists[k] = hist.Hist((binned_data.BinnedData.from_existing_data(v) / ref).to_boost_histogram()[::hist.rebin(2)] / 2.0)
+                    fixed_region_ReA_ratio_hists[k] = hist.Hist(
+                        ((binned_data.BinnedData.from_existing_data(v) / _jet_eta_range(region=region, jet_R=k.jet_R_value)) / ref).to_boost_histogram()[::hist.rebin(2)] / 2.0)
 
                 _plot_ReA_ratio_multiple_R(
                     hists=fixed_region_ReA_ratio_hists,
@@ -294,12 +316,18 @@ def plot_ReA(config: SimulationConfig, output_hists: Dict[str, Dict[str, hist.Hi
 if __name__ == "__main__":
     helpers.setup_logging()
 
+    #import warnings
+    #warnings.filterwarnings("error")
+
     # Setup
     electron_beam_energy = 10
     proton_beam_energy = 100
     production = "production-pythia8-10x100-q2-100"
-    input_dir = Path(f"/Volumes/data/eic/ReA/2021-10-15/{production}")
-    output_dir = Path(f"/Volumes/data/eic/ReA/2021-10-15/plots/{production}")
+    #production = "production-pythia8-10x100-q2-1-to-100"
+    #input_dir = Path(f"/Volumes/data/eic/ReA/2021-10-15/{production}")
+    #input_dir = Path(f"/Volumes/data/eic/ReA/2021-10-22/primary_track_source_0_remove_tracklets/{production}")
+    input_dir = Path(f"/Volumes/data/eic/ReA/2021-10-26/noMinPCut/{production}")
+    output_dir = Path(f"/Volumes/data/eic/ReA/2021-10-26/plots/{production}")
     output_dir.mkdir(parents=True, exist_ok=True)
 
     config = SimulationConfig(
