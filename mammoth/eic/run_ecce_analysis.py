@@ -103,8 +103,7 @@ def run_ecce_afterburner_bash(
     output_dir: Path,
     do_reclustering: bool = True,
     do_jet_finding: bool = True,
-    has_timing: bool = True,
-    is_all_silicon: bool = True,
+    do_calo_res: bool = False,
     max_n_events: int = -1,
     verbosity: int = 0,
     do_calibration: bool = False,
@@ -118,7 +117,6 @@ def run_ecce_afterburner_bash(
     stdout: str = parsl.AUTO_LOGNAME,
     stderr: str = parsl.AUTO_LOGNAME,
 ) -> AppFuture:
-    import tempfile
     import uuid
     from pathlib import Path
 
@@ -132,34 +130,19 @@ def run_ecce_afterburner_bash(
         f"\"{str(Path(inputs[-1]))}\"",
         f"\"{str(output_identifier)}\"",
         f"\"{str(output_dir)}\"",
+        str(max_n_events),
         str(do_reclustering).lower(),
         str(do_jet_finding).lower(),
-        str(has_timing).lower(),
-        str(is_all_silicon).lower(),
-        str(max_n_events),
-        str(verbosity),
+        str(do_calo_res).lower(),
         str(do_calibration).lower(),
+        str(verbosity),
         str(primary_track_source),
         str(remove_tracklets).lower(),
         f"\"{str(jet_algorithm)}\"",
     ]
-    s = f"root -b -q '{tree_processing_code_directory}/treeProcessing.C({', '.join(args)})'; rm {temp_filename}"
 
-#        s = f"""root -b -q {tree_processing_code_directory}/treeProcessing.C\(
-#    "{str(Path(inputs[0])) if len(inputs) == 2 else str(Path(f.name))}",
-#    "{str(Path(inputs[-1]))}",
-#    "{str(output_identifier)}",
-#    "{str(output_dir)}",
-#    {str(do_reclustering).lower()},
-#    {str(do_jet_finding).lower()},
-#    {str(has_timing).lower()},
-#    {str(is_all_silicon).lower()},
-#    {max_n_events},
-#    {verbosity},
-#    {str(do_calibration).lower()},
-#    {primary_track_source},
-#    "{str(jet_algorithm)}"
-#\)"""
+    # NOTE: Includes the cleanup of the temporary file
+    s = f"root -b -q '{tree_processing_code_directory}/treeProcessing.C({', '.join(args)})'; rm {temp_filename}"
     return s
 
 
@@ -170,8 +153,7 @@ def run_ecce_afterburner(
     output_dir: Path,
     do_reclustering: bool = True,
     do_jet_finding: bool = True,
-    has_timing: bool = True,
-    is_all_silicon: bool = True,
+    do_calo_res: bool = False,
     max_n_events: int = -1,
     verbosity: int = 0,
     do_calibration: bool = False,
@@ -203,19 +185,18 @@ def run_ecce_afterburner(
                 input_file=Path(inputs[0]) if len(inputs) == 2 else Path(f.name),
                 geometry_file=Path(inputs[-1]),
                 output_identifier=output_identifier,
+                output_dir=output_dir,
+                max_n_events=max_n_events,
                 do_reclustering=do_reclustering,
                 do_jet_finding=do_jet_finding,
-                has_timing=has_timing,
-                is_all_silicon=is_all_silicon,
-                max_n_events=max_n_events,
-                verbosity=verbosity,
+                do_calo_res=do_calo_res,
                 do_calibration=do_calibration,
+                verbosity=verbosity,
                 primary_track_source=primary_track_source,
                 remove_tracklets=remove_tracklets,
                 jet_algorithm=jet_algorithm,
                 jet_R_parameters=jet_R_parameters,
                 max_track_pt_in_jet=max_track_pt_in_jet,
-                output_dir=output_dir,
             )
         except Exception:
             result = (
@@ -273,11 +254,13 @@ def setup_ecce_afterburner(
                 output_identifier=output_identifier,
                 output_dir=output_dir,
                 do_jet_finding=(jet_algorithm != ""),
+                do_calo_res=False,
                 jet_algorithm=jet_algorithm,
                 jet_R_parameters=jet_R_parameters,
                 primary_track_source=primary_track_source,
                 remove_tracklets=remove_tracklets,
-                #max_n_events=2,
+                max_n_events=-1,
+                #verbosity=2,
                 inputs=[
                     *[File(str(input_file)) for input_file in input_files_list],
                     File(str(dataset.geometry)),
