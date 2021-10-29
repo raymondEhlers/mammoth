@@ -6,8 +6,9 @@
 
 import logging
 from pathlib import Path
-from typing import Dict
+from typing import Dict, List
 
+import attr
 import hist
 import uproot
 
@@ -30,4 +31,59 @@ def load_hists(filename: Path, filter: str = "") -> Dict[str, hist.Hist]:
             hists[k] = f[k]
 
     return hists
+
+
+
+@attr.s(frozen=True)
+class DatasetSpec:
+    site: str = attr.ib()
+    label: str = attr.ib()
+
+    @property
+    def identifier(self) -> str:
+        return ""
+
+    def __str__(self) -> str:
+        s = f"{self.site}-{self.identifier}"
+        if self.label:
+            s += f"-{self.label}"
+        return s
+
+
+@attr.s(frozen=True)
+class DatasetSpecSingleParticle(DatasetSpec):
+    particle: str = attr.ib()
+    momentum_selection: List[float] = attr.ib()
+
+    @property
+    def identifier(self) -> str:
+        return f"single{self.particle.capitalize()}-p-{self.momentum_selection[0]:g}-to-{self.momentum_selection[1]:g}"
+
+
+@attr.s(frozen=True)
+class DatasetSpecPythia(DatasetSpec):
+    generator: str = attr.ib()
+    electron_beam_energy: int = attr.ib()
+    proton_beam_energy: int = attr.ib()
+    _q2_selection: List[int] = attr.ib()
+
+    @property
+    def q2(self) -> str:
+        if len(self._q2_selection) == 2:
+            return f"q2-{self._q2_selection[0]}-to-{self._q2_selection[1]}"
+        elif len(self._q2_selection) == 1:
+            return f"q2-{self._q2_selection[0]}"
+        return ""
+
+    @property
+    def q2_display(self) -> str:
+        if len(self._q2_selection) == 2:
+            return fr"{self._q2_selection[0]} < Q^{{2}} < {self._q2_selection[1]}"
+        elif len(self._q2_selection) == 1:
+            return fr"Q^{{2}} > {self._q2_selection[0]}"
+        return ""
+
+    @property
+    def identifier(self) -> str:
+        return f"{self.generator}-{self.electron_beam_energy}x{self.proton_beam_energy}-{self.q2}"
 

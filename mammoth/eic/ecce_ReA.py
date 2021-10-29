@@ -38,8 +38,7 @@ class InputSpec:
 
 @attr.s
 class SimulationConfig:
-    electron_beam_energy: int = attr.ib()
-    proton_beam_energy: int = attr.ib()
+    dataset_spec: ecce_base.DatasetSpecPythia = attr.ib()
     input_specs: Sequence[InputSpec] = attr.ib()
     jet_algorithm: str = attr.ib()
     input_dir: Path = attr.ib()
@@ -52,7 +51,7 @@ class SimulationConfig:
 
     @property
     def output_dir(self) -> Path:
-        return self._output_dir / f"{self.electron_beam_energy}x{self.proton_beam_energy}_{self.jet_algorithm}"
+        return self._output_dir / f"{self.dataset_spec.electron_beam_energy}x{self.dataset_spec.proton_beam_energy}_{self.jet_algorithm}"
 
 
 
@@ -222,6 +221,10 @@ def _jet_eta_range(region: str, jet_R: float) -> float:
     return high - low
 
 
+def dataset_spec_display_label(d: ecce_base.DatasetSpecPythia) -> str:
+    return f"{d.generator.upper()} {d.electron_beam_energy}x{d.proton_beam_energy}, ${d.q2_display}$"
+
+
 def plot_ReA(config: SimulationConfig, output_hists: Dict[str, Dict[str, hist.Hist]]) -> None:
 
     jet_R_values = [0.3, 0.5, 0.8, 1.0]
@@ -247,7 +250,7 @@ def plot_ReA(config: SimulationConfig, output_hists: Dict[str, Dict[str, hist.Hi
                 if variable == "pt":
                     variable_label = r"_{\text{T}}"
                 text = "ECCE Simulation"
-                text += "\n" + "PYTHIA8 10x100, $Q^{2} > 100$"
+                text += "\n" + dataset_spec_display_label(d=config.dataset_spec)
                 text += "\n" + r"anti-$k_{\text{T}}$ jets"
                 if region == "forward":
                     text += "\n" + r"$1.5 < \eta < 3.5 - R$"
@@ -313,26 +316,28 @@ def plot_ReA(config: SimulationConfig, output_hists: Dict[str, Dict[str, hist.Hi
     import IPython; IPython.embed()
 
 
-if __name__ == "__main__":
+def run() -> None:
     helpers.setup_logging()
 
     #import warnings
     #warnings.filterwarnings("error")
 
     # Setup
-    electron_beam_energy = 10
-    proton_beam_energy = 100
-    production = "production-pythia8-10x100-q2-100"
-    #production = "production-pythia8-10x100-q2-1-to-100"
+    dataset_spec = ecce_base.DatasetSpecPythia(
+        site="production",
+        generator="pythia8",
+        electron_beam_energy=10, proton_beam_energy=100,
+        q2_selection=[100],
+        label="",
+    )
     #input_dir = Path(f"/Volumes/data/eic/ReA/2021-10-15/{production}")
     #input_dir = Path(f"/Volumes/data/eic/ReA/2021-10-22/primary_track_source_0_remove_tracklets/{production}")
-    input_dir = Path(f"/Volumes/data/eic/ReA/2021-10-26/noMinPCut/{production}")
-    output_dir = Path(f"/Volumes/data/eic/ReA/2021-10-26/plots/{production}")
+    input_dir = Path(f"/Volumes/data/eic/ReA/2021-10-26/noMinPCut/{str(dataset_spec)}")
+    output_dir = Path(f"/Volumes/data/eic/ReA/2021-10-26/plots/{str(dataset_spec)}")
     output_dir.mkdir(parents=True, exist_ok=True)
 
     config = SimulationConfig(
-        electron_beam_energy=electron_beam_energy,
-        proton_beam_energy=proton_beam_energy,
+        dataset_spec=dataset_spec,
         jet_algorithm="anti_kt",
         input_specs=[
             InputSpec("ep"),
@@ -352,3 +357,7 @@ if __name__ == "__main__":
         config=config,
         output_hists=output_hists,
     )
+
+
+if __name__ == "__main__":
+    run()
