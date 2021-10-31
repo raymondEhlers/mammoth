@@ -63,6 +63,7 @@ def _load_results(config: SimulationConfig, input_specs: Sequence[InputSpec]) ->
         # Temprorarily only look at the main variation to avoid it taking forever to load.
         # TODO: Make this fully configurable
         output_hists[spec.n_PDF_name] = ecce_base.load_hists(config.input_dir / spec.filename, filter="variation0" if spec.n_PDF_name != "ep" else "")
+        #output_hists[spec.n_PDF_name] = ecce_base.load_hists(config.input_dir / spec.filename)
         # Convert to hist.Hist
         for k, v in output_hists[spec.n_PDF_name].items():
             output_hists[spec.n_PDF_name][k] = v.to_hist()
@@ -213,17 +214,14 @@ def _plot_ReA_ratio_multiple_R(hists: Mapping[JetParameters, hist.Hist], plot_co
     plt.close(fig)
 
 
-def _plot_true_vs_det_level(hists: Mapping[JetParameters, hist.Hist], plot_config: pb.PlotConfig, output_dir: Path) -> None:
+def _plot_true_vs_det_level(true_hists: Mapping[JetParameters, hist.Hist], det_hists: Mapping[JetParameters, hist.Hist], plot_config: pb.PlotConfig, output_dir: Path) -> None:
     #with sns.color_palette("Set2"):
     fig, ax = plt.subplots(figsize=(10, 7.5))
     ax.set_prop_cycle(cycler.cycler(color=_okabe_ito_colors))
 
-    for jet_type in ["true_charged", "charged"]:
-        print(jet_type)
-        for k, v in hists[jet_type].items():
+    for hists in [true_hists, det_hists]:
+        for k, v in hists.items():
             print(k.jet_R)
-            if k.jet_R != "080":
-                continue
             logger.info(f"plotting {k}")
             ax.errorbar(
                 v.axes[0].centers,
@@ -232,7 +230,7 @@ def _plot_true_vs_det_level(hists: Mapping[JetParameters, hist.Hist], plot_confi
                 yerr=np.sqrt(v.variances()),
                 linestyle="",
                 #label=f"$R = {round(int(k.jet_R) / 100, 2):01}$",
-                label=jet_type.replace("_", " "),
+                label=k.jet_type.replace("_", " "),
                 marker="d",
                 markersize=6,
             )
@@ -248,7 +246,6 @@ def _plot_true_vs_det_level(hists: Mapping[JetParameters, hist.Hist], plot_confi
     filename = f"{plot_config.name}"
     fig.savefig(output_dir / f"{filename}.pdf")
     plt.close(fig)
-
 
 
 _regions_acceptance = {
@@ -368,7 +365,7 @@ def plot_ReA(sim_config: SimulationConfig, analysis_config: ecce_ReA_implementat
                 )
 
     # Compare true vs det level to see the importance of unfolding
-    for jet_type_true, jet_type_det in zip(["true", "true_charged"], ["calo", "charged"]):
+    for jet_type_true, jet_type_det in zip(["true_full", "true_charged"], ["calo", "charged"]):
         for variable in analysis_config.variables:
             for region in analysis_config.regions:
                 for jet_R in analysis_config.jet_R_values:
@@ -392,7 +389,7 @@ def plot_ReA(sim_config: SimulationConfig, analysis_config: ecce_ReA_implementat
                                         pb.AxisConfig("x", label=r"$p" + variable_label + r"^{\text{jet}}\:(\text{GeV}/c)$", font_size=22, range=(0, 50)),
                                         pb.AxisConfig(
                                             "y",
-                                            label=r"$R_{\text{eA}}$ (true/charged)",
+                                            label=r"$R_{\text{eA}}$",
                                             range=(0, 1.4),
                                             font_size=22,
                                         ),
@@ -405,6 +402,8 @@ def plot_ReA(sim_config: SimulationConfig, analysis_config: ecce_ReA_implementat
                         output_dir=sim_config.output_dir,
                     )
 
+    import IPython; IPython.start_ipython(user_ns=locals())
+
 
 def run() -> None:
     helpers.setup_logging()
@@ -413,7 +412,7 @@ def run() -> None:
     #warnings.filterwarnings("error")
 
     # Settings
-    scale_jets_by_expected_luminosity = True
+    scale_jets_by_expected_luminosity = False
 
     # Setup
     dataset_spec = ecce_base.DatasetSpecPythia(
@@ -425,11 +424,14 @@ def run() -> None:
     )
     # Setup I/O dirs
     date = "2021-10-30"
+    #date = "2021-10-26"
     #input_dir = Path(f"/Volumes/data/eic/ReA/2021-10-15/{production}")
     #input_dir = Path(f"/Volumes/data/eic/ReA/2021-10-22/primary_track_source_0_remove_tracklets/{production}")
     #input_dir = Path(f"/Volumes/data/eic/ReA/2021-10-26/noMinPCut/{str(dataset_spec)}")
     input_dir = Path(f"/Volumes/data/eic/ReA/{date}/{str(dataset_spec)}")
     output_dir = Path(f"/Volumes/data/eic/ReA/{date}/plots/{str(dataset_spec)}")
+    #input_dir = Path(f"/Volumes/data/eic/ReA/{date}/noMinPCut/{str(dataset_spec)}")
+    #output_dir = Path(f"/Volumes/data/eic/ReA/2021-10-30/plots_test/{str(dataset_spec)}")
     output_dir.mkdir(parents=True, exist_ok=True)
 
     config = SimulationConfig(
@@ -452,7 +454,7 @@ def run() -> None:
         #variables = ["pt", "p"],
         #variations=list(range(0, 97)),
         # More minimal
-        regions=["forward"],
+        regions=["forward", "mid_rapidity"],
         variables=["p"],
         variations=list(range(0, 1)),
     )

@@ -45,6 +45,7 @@ class JetParameters:
     @property
     def name_eA(self) -> str:
         return self.name(n_PDF_label=f"eA_variation{self.variation}")
+        #return self.name(n_PDF_label=f"eA")
 
     def __str__(self) -> str:
         return self.name_eA
