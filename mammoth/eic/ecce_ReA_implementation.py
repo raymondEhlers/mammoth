@@ -1,11 +1,20 @@
 
 import logging
-from typing import Dict, Mapping, Sequence
+from typing import Dict, List, Mapping, Sequence
 
 import attr
 import hist
 
 logger = logging.getLogger(__name__)
+
+
+@attr.s
+class AnalysisConfig:
+    jet_R_values: List[float] = attr.ib()
+    jet_types: List[str] = attr.ib()
+    regions: List[str] = attr.ib()
+    variables: List[str] = attr.ib()
+    variations: List[int] = attr.ib()
 
 
 @attr.s(frozen=True)
@@ -43,13 +52,9 @@ class JetParameters:
 
 
 def scale_jets(input_hists: Dict[str, Dict[str, hist.Hist]],
-                jet_R_values: Sequence[float],
-                jet_types: Sequence[str],
-                regions: Sequence[str],
-                variables: Sequence[str],
-                variations: Sequence[int],
-                cross_section: float,
-                expected_luminosities: Mapping[str, float]) -> Dict[JetParameters, hist.Hist]:
+               analysis_config: AnalysisConfig,
+               cross_section: float,
+               expected_luminosities: Mapping[str, float]) -> Dict[JetParameters, hist.Hist]:
     # Start with ep, so we can get the counts
     #counts_without_lumi = {}
     pdf_name = "ep"
@@ -59,11 +64,11 @@ def scale_jets(input_hists: Dict[str, Dict[str, hist.Hist]],
     scaled_hists = {}
     #input_hists["ep_scaled"] = {}
     scaled_hists["ep_scaled"] = {}
-    for jet_R in jet_R_values:
-        for jet_type in jet_types:
-            for region in regions:
-                for variable in variables:
-                    for variation in variations:
+    for jet_R in analysis_config.jet_R_values:
+        for jet_type in analysis_config.jet_types:
+            for region in analysis_config.regions:
+                for variable in analysis_config.variables:
+                    for variation in [0]:
                         parameters_spectra = JetParameters(jet_R=jet_R, jet_type=jet_type, region=region, observable="spectra", variable=variable, variation=variation, n_PDF_name=pdf_name)
                         h_temp = hists[parameters_spectra.name_ep]
                         h = h_temp * cross_section
@@ -88,11 +93,11 @@ def scale_jets(input_hists: Dict[str, Dict[str, hist.Hist]],
         expected_luminosity = expected_luminosities["eA"]
         scaled_hists[f"{pdf_name}_scaled"] = {}
 
-        for jet_R in jet_R_values:
-            for jet_type in jet_types:
-                for region in regions:
-                    for variable in variables:
-                        for variation in variations:
+        for jet_R in analysis_config.jet_R_values:
+            for jet_type in analysis_config.jet_types:
+                for region in analysis_config.regions:
+                    for variable in analysis_config.variables:
+                        for variation in analysis_config.variations:
                             parameters_spectra = JetParameters(jet_R=jet_R, jet_type=jet_type, region=region, observable="spectra", variable=variable, variation=variation, n_PDF_name=pdf_name
                             )
                             h_temp = hists[parameters_spectra.name_eA]
@@ -100,9 +105,9 @@ def scale_jets(input_hists: Dict[str, Dict[str, hist.Hist]],
 
                             # Now, scale the ep errors by the increased number of counts
                             h_scaled_eA = h_temp * cross_section * expected_luminosity
-                            logger.info(f"values before assignment: {h_scaled_eA.values()}")
+                            #logger.info(f"values before assignment: {h_scaled_eA.values()}")
                             h_scaled_eA.values()[:] = h.values().copy()
-                            logger.info(f"values after  assignment: {h_scaled_eA.values()}")
+                            #logger.info(f"values after  assignment: {h_scaled_eA.values()}")
 
                             #c = counts_without_lumi[parameters_spectra.name_ep].values()
                             #c *= expected_luminosity
