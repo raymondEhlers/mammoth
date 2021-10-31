@@ -15,6 +15,8 @@ import seaborn as sns
 import uproot
 from mammoth import helpers
 from mammoth.eic import base as ecce_base
+from mammoth.eic import ecce_ReA_implementation
+from mammoth.eic.ecce_ReA_implementation import JetParameters
 from pachyderm import binned_data
 
 pb.configure()
@@ -59,41 +61,14 @@ def _load_results(config: SimulationConfig, input_specs: Sequence[InputSpec]) ->
     output_hists = {}
     for spec in input_specs:
         logger.info(f"Loading hists from {config.input_dir / spec.filename}")
-        output_hists[spec.n_PDF_name] = ecce_base.load_hists(config.input_dir / spec.filename)
+        # Temprorarily only look at the main variation to avoid it taking forever to load.
+        # TODO: Make this fully configurable
+        output_hists[spec.n_PDF_name] = ecce_base.load_hists(config.input_dir / spec.filename, filter="variation0" if spec.n_PDF_name != "ep" else "")
+        # Convert to hist.Hist
+        for k, v in output_hists[spec.n_PDF_name].items():
+            output_hists[spec.n_PDF_name][k] = v.to_hist()
 
     return output_hists
-
-
-@attr.s(frozen=True)
-class JetParameters:
-    _jet_R: float = attr.ib()
-    jet_type: str = attr.ib()
-    region: str = attr.ib()
-    observable: str = attr.ib()
-    variable: str = attr.ib()
-    n_PDF_name: str = attr.ib()
-
-    @property
-    def jet_R(self) -> str:
-        return f"{round(self._jet_R * 100):03}"
-
-    @property
-    def jet_R_value(self) -> float:
-        return self._jet_R
-
-    def name(self, n_PDF_label: str) -> str:
-        return f"jetR{self.jet_R}_{self.jet_type}_{self.region}_{self.observable}_{self.variable}_{n_PDF_label}"
-
-    @property
-    def name_ep(self) -> str:
-        return self.name(n_PDF_label="ep")
-
-    @property
-    def name_eA(self) -> str:
-        return self.name(n_PDF_label="eA")
-
-    def __str__(self) -> str:
-        return self.name_eA
 
 
 def _calculate_ReA(ep_hists: Dict[str, hist.Hist], eA_hists: Dict[str, hist.Hist], parameters: JetParameters) -> hist.Hist:
@@ -104,7 +79,7 @@ def _calculate_ReA(ep_hists: Dict[str, hist.Hist], eA_hists: Dict[str, hist.Hist
     #return hist.Hist((eA_hist / ep_hist).to_boost_histogram())[::hist.rebin(5)] / 5.0
 
 
-def calculate_ReA(output_hists: Dict[str, Dict[str, hist.Hist]],
+def calculate_ReA(input_hists: Dict[str, Dict[str, hist.Hist]],
                   input_n_PDF_names: Sequence[str],
                   jet_R_values: Sequence[float],
                   jet_types: Sequence[str],
@@ -122,8 +97,8 @@ def calculate_ReA(output_hists: Dict[str, Dict[str, hist.Hist]],
                         parameters_spectra = JetParameters(jet_R=jet_R, jet_type=jet_type, region=region, observable="spectra", variable=variable, n_PDF_name=n_PDF_name)
                         parameters_RAA = JetParameters(jet_R=jet_R, jet_type=jet_type, region=region, observable="RAA", variable=variable, n_PDF_name=n_PDF_name)
                         RAA_hists[parameters_RAA] = _calculate_ReA(
-                            ep_hists=output_hists["ep"],
-                            eA_hists=output_hists[n_PDF_name],
+                            ep_hists=input_hists["ep"],
+                            eA_hists=input_hists[n_PDF_name],
                             parameters=parameters_spectra,
                         )
 
@@ -205,6 +180,44 @@ def _plot_ReA_ratio_multiple_R(hists: Mapping[JetParameters, hist.Hist], plot_co
     plt.close(fig)
 
 
+def _plot_true_vs_det_level(hists: Mapping[JetParameters, hist.Hist], plot_config: pb.PlotConfig, output_dir: Path) -> None:
+    #with sns.color_palette("Set2"):
+    fig, ax = plt.subplots(figsize=(10, 7.5))
+    ax.set_prop_cycle(cycler.cycler(color=_okabe_ito_colors))
+
+    for jet_type in ["true_charged", "charged"]:
+        print(jet_type)
+        for k, v in hists[jet_type].items():
+            print(k.jet_R)
+            if k.jet_R != "080":
+                continue
+            logger.info(f"plotting {k}")
+            ax.errorbar(
+                v.axes[0].centers,
+                v.values(),
+                xerr=v.axes[0].widths / 2,
+                yerr=np.sqrt(v.variances()),
+                linestyle="",
+                #label=f"$R = {round(int(k.jet_R) / 100, 2):01}$",
+                label=jet_type.replace("_", " "),
+                marker="d",
+                markersize=6,
+            )
+
+    ax.axhline(y=1, color="black", linestyle="dashed", zorder=1)
+
+    # Labeling and presentation
+    plot_config.apply(fig=fig, ax=ax)
+    # A few additional tweaks.
+    #ax.xaxis.set_major_locator(matplotlib.ticker.MultipleLocator(base=1.0))
+    # ax_ratio.yaxis.set_major_locator(matplotlib.ticker.MultipleLocator(base=0.2))
+
+    filename = f"{plot_config.name}"
+    fig.savefig(output_dir / f"{filename}.pdf")
+    plt.close(fig)
+
+
+
 _regions_acceptance = {
     "forward": [1.5, 3.5],
     "mid_rapidity": [-1.5, 1.5],
@@ -225,23 +238,38 @@ def dataset_spec_display_label(d: ecce_base.DatasetSpecPythia) -> str:
     return f"{d.generator.upper()} {d.electron_beam_energy}x{d.proton_beam_energy}, ${d.q2_display}$"
 
 
-def plot_ReA(config: SimulationConfig, output_hists: Dict[str, Dict[str, hist.Hist]]) -> None:
 
+def plot_ReA(config: SimulationConfig, input_hists: Dict[str, Dict[str, hist.Hist]],
+             cross_section: float, scale_jets_by_expected_luminosity: bool = False, expected_luminosities: Mapping[str, float] = None) -> None:
     jet_R_values = [0.3, 0.5, 0.8, 1.0]
     jet_types = ["charged", "calo", "true_charged", "true_full"]
-    regions = ["forward", "backward", "mid_rapidity"]
-    variables = ["pt", "p"]
+    #regions = ["forward", "backward", "mid_rapidity"]
+    #variables = ["pt", "p"]
+    regions = ["forward"]
+    variables = ["p"]
+
+    scaled_hists = {}
+    if scale_jets_by_expected_luminosity:
+        scaled_hists = ecce_ReA_implementation.scale_jets(
+            input_hists=input_hists,
+            jet_R_values=jet_R_values, jet_types=jet_types,
+            regions=regions, variables=variables,
+            cross_section=cross_section, expected_luminosities=expected_luminosities,
+            variations=[0],
+        )
 
     RAA_hists = calculate_ReA(
-        output_hists=output_hists, input_n_PDF_names=[k for k in output_hists],
+        input_hists=input_hists, input_n_PDF_names=[k for k in input_hists],
         jet_R_values=jet_R_values, jet_types=jet_types,
         regions=regions, variables=variables,
    )
 
+    true_vs_det = {}
+
     #for k, v in RAA_hists.items():
-    for variable in ["p", "pt"]:
+    for variable in variables:
         for jet_type in jet_types:
-            for region in ["forward", "mid_rapidity"]:
+            for region in regions:
                 fixed_region_ReA_hists = {
                     k: v
                     for k, v in RAA_hists.items() if k.region == region and k.jet_type == jet_type and k.variable == variable
@@ -313,7 +341,32 @@ def plot_ReA(config: SimulationConfig, output_hists: Dict[str, Dict[str, hist.Hi
                     output_dir=config.output_dir,
                 )
 
+                true_vs_det[jet_type] = fixed_region_ReA_ratio_hists
+
     import IPython; IPython.embed()
+
+    _plot_true_vs_det_level(
+        hists=true_vs_det,
+        plot_config=pb.PlotConfig(
+            #name=next(iter(fixed_region_ReA_hists)).name_eA.replace("jetR030_", "") + "_ratio",
+            name="true_vs_det_ReA",
+            panels=pb.Panel(
+                    axes=[
+                        pb.AxisConfig("x", label=r"$p" + variable_label + r"^{\text{jet}}\:(\text{GeV}/c)$", font_size=22, range=(0, 50)),
+                        pb.AxisConfig(
+                            "y",
+                            label=r"$R_{\text{eA}}$ (true/charged)",
+                            range=(0, 1.4),
+                            font_size=22,
+                        ),
+                    ],
+                    text=pb.TextConfig(x=0.97, y=0.97, text=text, font_size=22),
+                    legend=pb.LegendConfig(location="lower left", font_size=22),
+                ),
+            figure=pb.Figure(edge_padding=dict(left=0.12, bottom=0.1)),
+        ),
+        output_dir=config.output_dir,
+    )
 
 
 def run() -> None:
@@ -321,6 +374,9 @@ def run() -> None:
 
     #import warnings
     #warnings.filterwarnings("error")
+
+    # Settings
+    scale_jets_by_expected_luminosity = True
 
     # Setup
     dataset_spec = ecce_base.DatasetSpecPythia(
@@ -330,11 +386,29 @@ def run() -> None:
         q2_selection=[100],
         label="",
     )
+    # Setup I/O dirs
+    date = "2021-10-30"
     #input_dir = Path(f"/Volumes/data/eic/ReA/2021-10-15/{production}")
     #input_dir = Path(f"/Volumes/data/eic/ReA/2021-10-22/primary_track_source_0_remove_tracklets/{production}")
-    input_dir = Path(f"/Volumes/data/eic/ReA/2021-10-26/noMinPCut/{str(dataset_spec)}")
-    output_dir = Path(f"/Volumes/data/eic/ReA/2021-10-26/plots/{str(dataset_spec)}")
+    #input_dir = Path(f"/Volumes/data/eic/ReA/2021-10-26/noMinPCut/{str(dataset_spec)}")
+    input_dir = Path(f"/Volumes/data/eic/ReA/{date}/{str(dataset_spec)}")
+    output_dir = Path(f"/Volumes/data/eic/ReA/{date}/plots/{str(dataset_spec)}")
     output_dir.mkdir(parents=True, exist_ok=True)
+
+
+    # Inputs
+    # From the evaluator files, in pb (pythia provides in mb, but then it's change to pb during the conversion to HepMC2)
+    _pb_to_fb = 1e3
+    _cross_sections = {
+        "production-pythia8-10x100-q2-100": 1322.52 * _pb_to_fb,
+        "production-pythia8-10x100-q2-1-to-100": 470921.71 * _pb_to_fb,
+    }
+    # 1 year in fb^{-1}
+    _luminosity_projections = {
+        "ep": 10,
+        # Scaling according to the recommendations
+        "eA": 10 * 1.0/197,
+    }
 
     config = SimulationConfig(
         dataset_spec=dataset_spec,
@@ -348,14 +422,17 @@ def run() -> None:
     )
     config.setup()
 
-    output_hists = _load_results(
+    input_hists = _load_results(
         config=config,
         input_specs=config.input_specs
     )
 
     plot_ReA(
         config=config,
-        output_hists=output_hists,
+        input_hists=input_hists,
+        cross_section=_cross_sections[str(dataset_spec)],
+        expected_luminosities=_luminosity_projections,
+        scale_jets_by_expected_luminosity=scale_jets_by_expected_luminosity,
     )
 
 
