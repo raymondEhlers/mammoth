@@ -151,8 +151,7 @@ _okabe_ito_colors = [
 ]
 
 
-def _plot_ReA_multiple_R(hists: Mapping[JetParameters, hist.Hist], plot_config: pb.PlotConfig, output_dir: Path) -> None:
-
+def _plot_multiple_R(hists: Mapping[JetParameters, hist.Hist], is_ReA_related: bool, plot_config: pb.PlotConfig, output_dir: Path) -> None:
     #with sns.color_palette("Set2"):
     fig, ax = plt.subplots(figsize=(10, 7.5))
     ax.set_prop_cycle(cycler.cycler(color=_okabe_ito_colors))
@@ -170,7 +169,8 @@ def _plot_ReA_multiple_R(hists: Mapping[JetParameters, hist.Hist], plot_config: 
             markersize=6,
         )
 
-    ax.axhline(y=1, color="black", linestyle="dashed", zorder=1)
+    if is_ReA_related:
+        ax.axhline(y=1, color="black", linestyle="dashed", zorder=1)
 
     # Labeling and presentation
     plot_config.apply(fig=fig, ax=ax)
@@ -183,38 +183,7 @@ def _plot_ReA_multiple_R(hists: Mapping[JetParameters, hist.Hist], plot_config: 
     plt.close(fig)
 
 
-def _plot_ReA_ratio_multiple_R(hists: Mapping[JetParameters, hist.Hist], plot_config: pb.PlotConfig, output_dir: Path) -> None:
-    #with sns.color_palette("Set2"):
-    fig, ax = plt.subplots(figsize=(10, 7.5))
-    ax.set_prop_cycle(cycler.cycler(color=_okabe_ito_colors))
-
-    for k, v in hists.items():
-        logger.info(f"plotting {k}")
-        ax.errorbar(
-            v.axes[0].centers,
-            v.values(),
-            xerr=v.axes[0].widths / 2,
-            yerr=np.sqrt(v.variances()),
-            linestyle="",
-            label=f"$R = {round(int(k.jet_R) / 100, 2):01}$",
-            marker="d",
-            markersize=6,
-        )
-
-    ax.axhline(y=1, color="black", linestyle="dashed", zorder=1)
-
-    # Labeling and presentation
-    plot_config.apply(fig=fig, ax=ax)
-    # A few additional tweaks.
-    #ax.xaxis.set_major_locator(matplotlib.ticker.MultipleLocator(base=1.0))
-    # ax_ratio.yaxis.set_major_locator(matplotlib.ticker.MultipleLocator(base=0.2))
-
-    filename = f"{plot_config.name}"
-    fig.savefig(output_dir / f"{filename}.pdf")
-    plt.close(fig)
-
-
-def _plot_true_vs_det_level(true_hists: Mapping[JetParameters, hist.Hist], det_hists: Mapping[JetParameters, hist.Hist], plot_config: pb.PlotConfig, output_dir: Path) -> None:
+def _plot_true_vs_det_level_ReA(true_hists: Mapping[JetParameters, hist.Hist], det_hists: Mapping[JetParameters, hist.Hist], plot_config: pb.PlotConfig, output_dir: Path) -> None:
     #with sns.color_palette("Set2"):
     fig, ax = plt.subplots(figsize=(10, 7.5))
     ax.set_prop_cycle(cycler.cycler(color=_okabe_ito_colors))
@@ -291,6 +260,51 @@ def plot_ReA(sim_config: SimulationConfig, analysis_config: ecce_ReA_implementat
         analysis_config=analysis_config,
     )
 
+    # First, print raw spectra. Print all R on the same figure
+    for n_PDF_name in input_hists:
+        for variable in analysis_config.variables:
+            for jet_type in analysis_config.jet_types:
+                for region in analysis_config.regions:
+                    # TODO: Skip only for a moment...
+                    continue
+
+                    # Spectra of fixed variable, jet type, and region, varying as a function of R
+                    spectra_hists = {
+                        k: v
+                        for k, v in input_hists[n_PDF_name].items() if k.region == region and k.jet_type == jet_type and k.variable == variable
+                    }
+                    variable_label = ""
+                    if variable == "pt":
+                        variable_label = r"_{\text{T}}"
+                    text = "ECCE Simulation"
+                    text += "\n" + dataset_spec_display_label(d=sim_config.dataset_spec)
+                    text += "\n" + r"anti-$k_{\text{T}}$ jets"
+                    if region == "forward":
+                        text += "\n" + r"$1.5 < \eta < 3.5 - R$"
+                    if region == "mid_rapidity":
+                        text += "\n" + r"$-1.5 < \eta < 1.5$"
+                    _plot_multiple_R(
+                        hists=spectra_hists,
+                        plot_config=pb.PlotConfig(
+                            name=n_PDF_name + next(iter(spectra_hists)).name_eA.replace("jetR030_", ""),
+                            panels=pb.Panel(
+                                    axes=[
+                                        pb.AxisConfig("x", label=r"$p" + variable_label + r"^{\text{jet}}\:(\text{GeV}/c)$", font_size=22, range=(0, 50)),
+                                        pb.AxisConfig(
+                                            "y",
+                                            label=r"$\frac{\text{d}^{2}\sigma}{\text{d}\eta\text{d}" + variable_label + r"^{\text{jet}}}\:(\text{GeV}/c)$",
+                                            log=True,
+                                            font_size=22,
+                                        ),
+                                    ],
+                                    text=pb.TextConfig(x=0.97, y=0.97, text=text, font_size=22),
+                                    legend=pb.LegendConfig(location="lower left", font_size=22),
+                                ),
+                            figure=pb.Figure(edge_padding=dict(left=0.125, bottom=0.1)),
+                        ),
+                        output_dir=sim_config.output_dir,
+                    )
+
     #for k, v in ReA_hists.items():
     for variable in analysis_config.variables:
         for jet_type in analysis_config.jet_types:
@@ -310,8 +324,9 @@ def plot_ReA(sim_config: SimulationConfig, analysis_config: ecce_ReA_implementat
                     text += "\n" + r"$1.5 < \eta < 3.5 - R$"
                 if region == "mid_rapidity":
                     text += "\n" + r"$-1.5 < \eta < 1.5$"
-                _plot_ReA_multiple_R(
+                _plot_multiple_R(
                     hists=fixed_region_ReA_hists,
+                    is_ReA_related=True,
                     plot_config=pb.PlotConfig(
                         name=next(iter(fixed_region_ReA_hists)).name_eA.replace("jetR030_", ""),
                         panels=pb.Panel(
@@ -352,8 +367,9 @@ def plot_ReA(sim_config: SimulationConfig, analysis_config: ecce_ReA_implementat
                 if region == "mid_rapidity":
                     text += "\n" + r"$-1.5 < \eta < 1.5$"
 
-                _plot_ReA_ratio_multiple_R(
+                _plot_multiple_R(
                     hists=double_ratio_hists,
+                    is_ReA_related=True,
                     plot_config=pb.PlotConfig(
                         name=next(iter(double_ratio_hists)).name_eA.replace("jetR030_", "") + "_ratio",
                         panels=pb.Panel(
@@ -399,7 +415,7 @@ def plot_ReA(sim_config: SimulationConfig, analysis_config: ecce_ReA_implementat
                     if region == "mid_rapidity":
                         text += "\n" + r"$-1.5 < \eta < 1.5$"
 
-                    _plot_true_vs_det_level(
+                    _plot_true_vs_det_level_ReA(
                         true_hists=true_hists,
                         det_hists=det_hists,
                         plot_config=pb.PlotConfig(
@@ -457,6 +473,7 @@ def run() -> None:
     )
     # Setup I/O dirs
     label = "no_min_p_cut_with_tracklets"
+    label = "no_min_p_cut_with_tracklets_original_settings"
     base_dir = Path(f"/Volumes/data/eic/ReA/current_best_knowledge/{str(dataset_spec)}")
     input_dir = base_dir / label
     output_dir = base_dir / "plots" / label
