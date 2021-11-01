@@ -341,6 +341,17 @@ def plot_ReA(sim_config: SimulationConfig, analysis_config: ecce_ReA_implementat
                     for k, v in ReA_double_ratio_hists.items() if k.region == region and k.jet_type == jet_type and k.variable == variable
                 }
 
+                variable_label = ""
+                if variable == "pt":
+                    variable_label = r"_{\text{T}}"
+                text = "ECCE Simulation"
+                text += "\n" + dataset_spec_display_label(d=sim_config.dataset_spec)
+                text += "\n" + r"anti-$k_{\text{T}}$ jets"
+                if region == "forward":
+                    text += "\n" + r"$1.5 < \eta < 3.5 - R$"
+                if region == "mid_rapidity":
+                    text += "\n" + r"$-1.5 < \eta < 1.5$"
+
                 _plot_ReA_ratio_multiple_R(
                     hists=double_ratio_hists,
                     plot_config=pb.PlotConfig(
@@ -376,6 +387,17 @@ def plot_ReA(sim_config: SimulationConfig, analysis_config: ecce_ReA_implementat
                         k: v
                         for k, v in ReA_hists.items() if k.region == region and k.jet_type == jet_type_det and k.variable == variable and k.jet_R_value == jet_R and k.variation == 0
                     }
+
+                    variable_label = ""
+                    if variable == "pt":
+                        variable_label = r"_{\text{T}}"
+                    text = "ECCE Simulation"
+                    text += "\n" + dataset_spec_display_label(d=sim_config.dataset_spec)
+                    text += "\n" + r"anti-$k_{\text{T}}$ jets"
+                    if region == "forward":
+                        text += "\n" + r"$1.5 < \eta < 3.5 - R$"
+                    if region == "mid_rapidity":
+                        text += "\n" + r"$-1.5 < \eta < 1.5$"
 
                     _plot_true_vs_det_level(
                         true_hists=true_hists,
@@ -434,7 +456,7 @@ def run() -> None:
         label="",
     )
     # Setup I/O dirs
-    label = "min_p_cut_with_tracklets"
+    label = "no_min_p_cut_with_tracklets"
     base_dir = Path(f"/Volumes/data/eic/ReA/current_best_knowledge/{str(dataset_spec)}")
     input_dir = base_dir / label
     output_dir = base_dir / "plots" / label
