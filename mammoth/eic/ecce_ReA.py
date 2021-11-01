@@ -265,14 +265,13 @@ def plot_ReA(sim_config: SimulationConfig, analysis_config: ecce_ReA_implementat
         for variable in analysis_config.variables:
             for jet_type in analysis_config.jet_types:
                 for region in analysis_config.regions:
-                    # TODO: Skip only for a moment...
-                    continue
-
                     # Spectra of fixed variable, jet type, and region, varying as a function of R
-                    spectra_hists = {
-                        k: v
-                        for k, v in input_hists[n_PDF_name].items() if k.region == region and k.jet_type == jet_type and k.variable == variable
-                    }
+                    # Intentionally only look at the variation 0 case
+                    spectra_hists = {}
+                    for jet_R in analysis_config.jet_R_values:
+                        _parameters_spectra = JetParameters(jet_R=jet_R, jet_type=jet_type, region=region, observable="spectra", variable=variable, variation=0, n_PDF_name=n_PDF_name)
+                        spectra_hists[_parameters_spectra] = input_hists[n_PDF_name][_parameters_spectra.name_eA if n_PDF_name != "ep" else _parameters_spectra.name_ep]
+
                     variable_label = ""
                     if variable == "pt":
                         variable_label = r"_{\text{T}}"
@@ -285,6 +284,7 @@ def plot_ReA(sim_config: SimulationConfig, analysis_config: ecce_ReA_implementat
                         text += "\n" + r"$-1.5 < \eta < 1.5$"
                     _plot_multiple_R(
                         hists=spectra_hists,
+                        is_ReA_related=False,
                         plot_config=pb.PlotConfig(
                             name=n_PDF_name + next(iter(spectra_hists)).name_eA.replace("jetR030_", ""),
                             panels=pb.Panel(
@@ -472,8 +472,9 @@ def run() -> None:
         label="",
     )
     # Setup I/O dirs
-    label = "no_min_p_cut_with_tracklets"
-    label = "no_min_p_cut_with_tracklets_original_settings"
+    #label = "no_min_p_cut_with_tracklets"
+    label = "no_PDF_variations"
+    #label = "2021-10-26-original"
     base_dir = Path(f"/Volumes/data/eic/ReA/current_best_knowledge/{str(dataset_spec)}")
     input_dir = base_dir / label
     output_dir = base_dir / "plots" / label
