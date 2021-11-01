@@ -4,6 +4,9 @@ version = "0.1.0"
 description = "Mostly columnar based physics analyses"
 authors = ["Raymond Ehlers <raymond.ehlers@gmail.com>"]
 license = "BSD-3-Clause"
+include = [
+    "mammoth/py.typed",
+]
 
 [tool.poetry.build]
 script = "build.py"
