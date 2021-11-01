@@ -286,13 +286,13 @@ def plot_ReA(sim_config: SimulationConfig, analysis_config: ecce_ReA_implementat
                         hists=spectra_hists,
                         is_ReA_related=False,
                         plot_config=pb.PlotConfig(
-                            name=n_PDF_name + next(iter(spectra_hists)).name_eA.replace("jetR030_", ""),
+                            name=n_PDF_name + "_" + next(iter(spectra_hists)).name_eA.replace("jetR030_", ""),
                             panels=pb.Panel(
                                     axes=[
                                         pb.AxisConfig("x", label=r"$p" + variable_label + r"^{\text{jet}}\:(\text{GeV}/c)$", font_size=22, range=(0, 50)),
                                         pb.AxisConfig(
                                             "y",
-                                            label=r"$\frac{\text{d}^{2}\sigma}{\text{d}\eta\text{d}" + variable_label + r"^{\text{jet}}}\:(\text{GeV}/c)$",
+                                            label=r"$\frac{\text{d}^{2}\sigma}{\text{d}\eta\text{d}p" + variable_label + r"^{\text{jet}}}\:(\text{GeV}/c)$",
                                             log=True,
                                             font_size=22,
                                         ),
