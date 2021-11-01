@@ -413,6 +413,18 @@ def run() -> None:
 
     # Settings
     scale_jets_by_expected_luminosity = False
+    analysis_config = ecce_ReA_implementation.AnalysisConfig(
+        jet_R_values=[0.3, 0.5, 0.8, 1.0],
+        jet_types=["charged", "calo", "true_charged", "true_full"],
+        # Full analysis
+        #regions = ["forward", "backward", "mid_rapidity"],
+        #variables = ["pt", "p"],
+        #variations=list(range(0, 97)),
+        # More minimal
+        regions=["forward", "mid_rapidity"],
+        variables=["p"],
+        variations=list(range(0, 1)),
+    )
 
     # Setup
     dataset_spec = ecce_base.DatasetSpecPythia(
@@ -423,15 +435,10 @@ def run() -> None:
         label="",
     )
     # Setup I/O dirs
-    date = "2021-10-30"
-    #date = "2021-10-26"
-    #input_dir = Path(f"/Volumes/data/eic/ReA/2021-10-15/{production}")
-    #input_dir = Path(f"/Volumes/data/eic/ReA/2021-10-22/primary_track_source_0_remove_tracklets/{production}")
-    #input_dir = Path(f"/Volumes/data/eic/ReA/2021-10-26/noMinPCut/{str(dataset_spec)}")
-    input_dir = Path(f"/Volumes/data/eic/ReA/{date}/{str(dataset_spec)}")
-    output_dir = Path(f"/Volumes/data/eic/ReA/{date}/plots/{str(dataset_spec)}")
-    #input_dir = Path(f"/Volumes/data/eic/ReA/{date}/noMinPCut/{str(dataset_spec)}")
-    #output_dir = Path(f"/Volumes/data/eic/ReA/2021-10-30/plots_test/{str(dataset_spec)}")
+    label = "min_p_cut_without_tracklets"
+    base_dir = Path(f"/Volumes/data/eic/ReA/current_best_knowledge/{str(dataset_spec)}")
+    input_dir = base_dir / label
+    output_dir = base_dir / "plots" / label
     output_dir.mkdir(parents=True, exist_ok=True)
 
     config = SimulationConfig(
@@ -445,19 +452,6 @@ def run() -> None:
         output_dir=output_dir,
     )
     config.setup()
-
-    analysis_config = ecce_ReA_implementation.AnalysisConfig(
-        jet_R_values=[0.3, 0.5, 0.8, 1.0],
-        jet_types=["charged", "calo", "true_charged", "true_full"],
-        # Full analysis
-        #regions = ["forward", "backward", "mid_rapidity"],
-        #variables = ["pt", "p"],
-        #variations=list(range(0, 97)),
-        # More minimal
-        regions=["forward", "mid_rapidity"],
-        variables=["p"],
-        variations=list(range(0, 1)),
-    )
 
     # Inputs
     # From the evaluator files, in pb (pythia provides in mb, but then it's change to pb during the conversion to HepMC2)
