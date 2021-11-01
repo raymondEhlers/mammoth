@@ -121,7 +121,7 @@ def calculate_double_ratio(ReA_hists: Dict[str, Dict[str, hist.Hist]],
 
                     # Then, find the ratio reference
                     for k, v in fixed_region_ReA_hists.items():
-                        logger.info(f"eta ranges: {_jet_eta_range(region=region, jet_R=k.jet_R_value)}")
+                        #logger.info(f"eta ranges: {_jet_eta_range(region=region, jet_R=k.jet_R_value)}")
                         if k.jet_R_value == 1.0:
                             ref = binned_data.BinnedData.from_existing_data(v) / _jet_eta_range(region=region, jet_R = k.jet_R_value)
 
@@ -130,7 +130,7 @@ def calculate_double_ratio(ReA_hists: Dict[str, Dict[str, hist.Hist]],
                         if k.jet_R_value == 1.0:
                             continue
                         # hist doesn't divide hists properly, so go through binned_data
-                        logger.info(f"Storing double ratio for {str(k)}")
+                        #logger.info(f"Storing double ratio for {str(k)}")
                         double_ratio_hists[k] = hist.Hist(
                             (
                                 (binned_data.BinnedData.from_existing_data(v) / _jet_eta_range(region=region, jet_R=k.jet_R_value)) / ref
@@ -221,7 +221,6 @@ def _plot_true_vs_det_level(true_hists: Mapping[JetParameters, hist.Hist], det_h
 
     for hists in [true_hists, det_hists]:
         for k, v in hists.items():
-            print(k.jet_R)
             logger.info(f"plotting {k}")
             ax.errorbar(
                 v.axes[0].centers,
@@ -435,7 +434,7 @@ def run() -> None:
         label="",
     )
     # Setup I/O dirs
-    label = "min_p_cut_without_tracklets"
+    label = "min_p_cut_with_tracklets"
     base_dir = Path(f"/Volumes/data/eic/ReA/current_best_knowledge/{str(dataset_spec)}")
     input_dir = base_dir / label
     output_dir = base_dir / "plots" / label
