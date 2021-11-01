@@ -6,7 +6,7 @@
 
 import logging
 from pathlib import Path
-from typing import Dict, List
+from typing import Dict, List, Sequence
 
 import attr
 import hist
@@ -15,7 +15,7 @@ import uproot
 logger = logging.getLogger(__name__)
 
 
-def load_hists(filename: Path, filter: str = "") -> Dict[str, hist.Hist]:
+def load_hists(filename: Path, filter: str = "", filters: Sequence[str] = None) -> Dict[str, hist.Hist]:
     """Load histograms from a flat root file
 
     Note:
@@ -23,10 +23,15 @@ def load_hists(filename: Path, filter: str = "") -> Dict[str, hist.Hist]:
         and there's no obvious typing for uproot hists since they're generally dynamically
 
     """
+    if filters is None:
+        filters = []
     hists = {}
+    logger.debug(f"Loading {filename} with filter: {filter}, filters: {filters}")
     with uproot.open(filename) as f:
         for k in f.keys(cycle=False):
             if filter and filter not in k:
+                continue
+            if filters and all(f not in k for f in filters):
                 continue
             hists[k] = f[k]
 
