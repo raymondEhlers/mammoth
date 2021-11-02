@@ -152,6 +152,21 @@ def calculate_double_ratio(ReA_hists: Dict[str, Dict[str, hist.Hist]],
 
     return double_ratio_hists
 
+def _calculate_nominal_variations(variation_hists: Dict[str, Dict[str, hist.Hist]], nominal_hist: hist.Hist) -> bool:
+    lower = np.zeros(len(nominal_hist.values()))
+    upper = np.zeros(len(nominal_hist.values()))
+    for k, v in variation_hists.items():
+        difference = nominal_hist.values() - v.values()
+        lower = np.minimum(lower, difference)
+        upper = np.maximum(upper, difference)
+
+    if not nominal_hist.metadata:
+        nominal_hist.metadata = {}
+    nominal_hist.metadata["n_PDF_lower"] = lower
+    nominal_hist.metadata["n_PDF_upper"] = upper
+
+    return True
+
 
 _okabe_ito_colors = [
     "#E69F00",
@@ -174,7 +189,7 @@ def _plot_multiple_R(hists: Mapping[JetParameters, hist.Hist], is_ReA_related: b
 
     for k, v in hists.items():
         logger.info(f"plotting {k}")
-        ax.errorbar(
+        p = ax.errorbar(
             v.axes[0].centers,
             v.values(),
             xerr=v.axes[0].widths / 2,
@@ -183,7 +198,20 @@ def _plot_multiple_R(hists: Mapping[JetParameters, hist.Hist], is_ReA_related: b
             label=f"$R = {round(int(k.jet_R) / 100, 2):01}$",
             marker="d",
             markersize=6,
+            zorder=5,
         )
+        if v.metadata and "n_PDF_lower" in v.metadata and "n_PDF_upper" in v.metadata:
+            # Plot the error band
+            ax.fill_between(
+                v.axes[0].centers,
+                # + because the values are negative for the lower
+                v.values() + v.metadata["n_PDF_lower"],
+                v.values() + v.metadata["n_PDF_upper"],
+                color=p[0].get_color(),
+                alpha=0.4,
+                zorder=2,
+                edgecolor="None",
+            )
 
     if is_ReA_related:
         ax.axhline(y=1, color="black", linestyle="dashed", zorder=1)
@@ -427,6 +455,35 @@ def plot_ReA(sim_config: SimulationConfig, analysis_config: ecce_ReA_implementat
         logger.info(f"Plotting n_PDF_variations failed with {e}")
         import IPython; IPython.start_ipython(user_ns={**globals(),**locals()})
 
+    # Calculate band for nominal variation
+    try:
+        for input_spec in sim_config.input_specs:
+            if input_spec.n_variations > 1 and input_spec.n_PDF_name != "ep":
+                for variable in analysis_config.variables:
+                    for jet_type in analysis_config.jet_types:
+                        for region in analysis_config.regions:
+                            for jet_R in analysis_config.jet_R_values:
+                                variation_hists = {}
+                                nominal_hist = None
+                                for variation in input_spec.variations:
+                                    _parameters_ReA = JetParameters(jet_R=jet_R, jet_type=jet_type, region=region,
+                                                                    observable="ReA", variable=variable, variation=variation, n_PDF_name=input_spec.n_PDF_name)
+                                    variation_hists[_parameters_ReA] = ReA_hists[input_spec.n_PDF_name][_parameters_ReA]
+                                    if variation == 0:
+                                        nominal_hist = variation_hists[_parameters_ReA]
+
+                                _calculate_nominal_variations(
+                                    variation_hists=variation_hists,
+                                    nominal_hist=nominal_hist,
+                                )
+                                #logger.info(f"nominal_hist.metadata: {nominal_hist.metadata}")
+                                #_temp = JetParameters(jet_R=jet_R, jet_type=jet_type, region=region,
+                                #                      observable="ReA", variable=variable, variation=0, n_PDF_name=input_spec.n_PDF_name)
+                                #logger.info(f"nominal_hist in array.metadata: {variation_hists[_temp].metadata}")
+    except Exception as e:
+        logger.info(f"Error band calculation for ReA failed with {e}")
+        import IPython; IPython.start_ipython(user_ns={**globals(),**locals()})
+
     for input_spec in sim_config.input_specs:
         if input_spec.n_PDF_name == "ep":
             continue
@@ -526,6 +583,36 @@ def plot_ReA(sim_config: SimulationConfig, analysis_config: ecce_ReA_implementat
                             )
     except Exception as e:
         logger.info(f"Plotting n_PDF_variations for ReA failed with {e}")
+        import IPython; IPython.start_ipython(user_ns={**globals(),**locals()})
+
+    # Calculate double ratio error band for nominal variation
+    try:
+        for input_spec in sim_config.input_specs:
+            if input_spec.n_variations > 1 and input_spec.n_PDF_name != "ep":
+                for variable in analysis_config.variables:
+                    for jet_type in analysis_config.jet_types:
+                        for region in analysis_config.regions:
+                            # -1 to skip R = 1.0, which isn't valid for the ratio
+                            for jet_R in analysis_config.jet_R_values[:-1]:
+                                variation_hists = {}
+                                nominal_hist = None
+                                for variation in input_spec.variations:
+                                    _parameters_ReA = JetParameters(jet_R=jet_R, jet_type=jet_type, region=region,
+                                                                    observable="ReA", variable=variable, variation=variation, n_PDF_name=input_spec.n_PDF_name)
+                                    variation_hists[_parameters_ReA] = ReA_double_ratio_hists[input_spec.n_PDF_name][_parameters_ReA]
+                                    if variation == 0:
+                                        nominal_hist = variation_hists[_parameters_ReA]
+
+                                _calculate_nominal_variations(
+                                    variation_hists=variation_hists,
+                                    nominal_hist=nominal_hist,
+                                )
+                                #logger.info(f"nominal_hist.metadata: {nominal_hist.metadata}")
+                                #_temp = JetParameters(jet_R=jet_R, jet_type=jet_type, region=region,
+                                #                      observable="ReA", variable=variable, variation=0, n_PDF_name=input_spec.n_PDF_name)
+                                #logger.info(f"nominal_hist in array.metadata: {variation_hists[_temp].metadata}")
+    except Exception as e:
+        logger.info(f"Error band calculation for ReA failed with {e}")
         import IPython; IPython.start_ipython(user_ns={**globals(),**locals()})
 
     # Plot double ratios
@@ -724,7 +811,10 @@ def run() -> None:
         label="",
     )
     # Setup I/O dirs
-    label = "fix_variable_shadowing"
+    #label = "fix_variable_shadowing"
+    #label = "min_p_cuts_with_tracklets_EPPS"
+    #label = "min_p_cuts_with_tracklets_nNNPDF"
+    label = "min_p_cut_with_tracklets_nNNPDF"
     base_dir = Path(f"/Volumes/data/eic/ReA/current_best_knowledge/{str(dataset_spec)}")
     input_dir = base_dir / label
     output_dir = base_dir / "plots" / label
@@ -735,10 +825,17 @@ def run() -> None:
         jet_algorithm="anti_kt",
         input_specs=[
             InputSpec("ep", n_variations=1),
+            # EPPS
             # For testing
             #InputSpec("EPPS16nlo_CT14nlo_Au197", n_variations=2),
             # Full set of variations
-            InputSpec("EPPS16nlo_CT14nlo_Au197", n_variations=97),
+            #InputSpec("EPPS16nlo_CT14nlo_Au197", n_variations=97),
+            # nNNPDF
+            # For testing
+            #InputSpec("nNNPDF20_nlo_as_0118_Au197", n_variations=1),
+            #InputSpec("nNNPDF20_nlo_as_0118_Au197", n_variations=5),
+            # Full set of variations
+            #InputSpec("nNNPDF20_nlo_as_0118_Au197", n_variations=250),
         ],
         input_dir=input_dir,
         output_dir=output_dir,
