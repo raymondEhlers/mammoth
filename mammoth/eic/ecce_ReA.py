@@ -403,11 +403,8 @@ def plot_ReA(sim_config: SimulationConfig, analysis_config: ecce_ReA_implementat
                                 )
     except Exception as e:
         logger.info(f"Plotting n_PDF_variations failed with {e}")
-        import IPython; IPython.start_ipython(user_ns=locals())
+        import IPython; IPython.start_ipython(user_ns={**globals(),**locals()})
 
-    import IPython; IPython.start_ipython(user_ns={**globals(),**locals()})
-
-    #for k, v in ReA_hists.items():
     for input_spec in sim_config.input_specs:
         if input_spec.n_PDF_name == "ep":
             continue
@@ -511,12 +508,16 @@ def plot_ReA(sim_config: SimulationConfig, analysis_config: ecce_ReA_implementat
                     for jet_R in analysis_config.jet_R_values:
                         true_hists = {
                             k: v
-                            for k, v in ReA_hists.items() if k.region == region and k.jet_type == jet_type_true and k.variable == variable and k.jet_R_value == jet_R and k.variation == 0
+                            for k, v in ReA_hists[input_spec.n_PDF_name].items() if k.region == region and k.jet_type == jet_type_true and k.variable == variable and k.jet_R_value == jet_R and k.variation == 0
                         }
                         det_hists = {
                             k: v
-                            for k, v in ReA_hists.items() if k.region == region and k.jet_type == jet_type_det and k.variable == variable and k.jet_R_value == jet_R and k.variation == 0
+                            for k, v in ReA_hists[input_spec.n_PDF_name].items() if k.region == region and k.jet_type == jet_type_det and k.variable == variable and k.jet_R_value == jet_R and k.variation == 0
                         }
+
+                        if not true_hists or not det_hists:
+                            logger.info(f"Couldn't find any hists for {jet_type_true}, {jet_type_det}, {variable}, {region}, {jet_R} and variation 0. Continiuing")
+                            continue
 
                         variable_label = ""
                         if variable == "pt":
