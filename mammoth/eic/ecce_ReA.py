@@ -56,13 +56,12 @@ class SimulationConfig:
         return self._output_dir / f"{self.dataset_spec.electron_beam_energy}x{self.dataset_spec.proton_beam_energy}_{self.jet_algorithm}"
 
 
-def _load_results(config: SimulationConfig, input_specs: Sequence[InputSpec]) -> Dict[str, Dict[str, hist.Hist]]:
+def _load_results(config: SimulationConfig, analysis_config: ecce_ReA_implementation.AnalysisConfig, input_specs: Sequence[InputSpec]) -> Dict[str, Dict[str, hist.Hist]]:
     output_hists = {}
     for spec in input_specs:
         logger.info(f"Loading hists from {config.input_dir / spec.filename}")
         # Temprorarily only look at the main variation to avoid it taking forever to load.
-        # TODO: Make this fully configurable
-        output_hists[spec.n_PDF_name] = ecce_base.load_hists(config.input_dir / spec.filename, filter="variation0" if spec.n_PDF_name != "ep" else "")
+        output_hists[spec.n_PDF_name] = ecce_base.load_hists(config.input_dir / spec.filename, filters=[f"variation{i}" for i in range(analysis_config.variations)] if spec.n_PDF_name != "ep" else None)
         #output_hists[spec.n_PDF_name] = ecce_base.load_hists(config.input_dir / spec.filename)
         # Convert to hist.Hist
         for k, v in output_hists[spec.n_PDF_name].items():
@@ -183,6 +182,37 @@ def _plot_multiple_R(hists: Mapping[JetParameters, hist.Hist], is_ReA_related: b
     plt.close(fig)
 
 
+def _plot_n_PDF_variations(hists: Mapping[JetParameters, hist.Hist], is_ReA_related: bool, plot_config: pb.PlotConfig, output_dir: Path) -> None:
+    #with sns.color_palette("Set2"):
+    fig, ax = plt.subplots(figsize=(10, 7.5))
+    ax.set_prop_cycle(cycler.cycler(color=_okabe_ito_colors))
+
+    for k, v in hists.items():
+        logger.info(f"plotting {k}")
+        ax.plot(
+            v.axes[0].centers,
+            v.values(),
+            linestyle="-",
+            linewidth=2,
+            color=_okabe_ito_colors[2],
+            alpha=0.075,
+            marker="",
+        )
+
+    if is_ReA_related:
+        ax.axhline(y=1, color="black", linestyle="dashed", zorder=1)
+
+    # Labeling and presentation
+    plot_config.apply(fig=fig, ax=ax)
+    # A few additional tweaks.
+    #ax.xaxis.set_major_locator(matplotlib.ticker.MultipleLocator(base=1.0))
+    # ax_ratio.yaxis.set_major_locator(matplotlib.ticker.MultipleLocator(base=0.2))
+
+    filename = f"{plot_config.name}"
+    fig.savefig(output_dir / f"{filename}.pdf")
+    plt.close(fig)
+
+
 def _plot_true_vs_det_level_ReA(true_hists: Mapping[JetParameters, hist.Hist], det_hists: Mapping[JetParameters, hist.Hist], plot_config: pb.PlotConfig, output_dir: Path) -> None:
     #with sns.color_palette("Set2"):
     fig, ax = plt.subplots(figsize=(10, 7.5))
@@ -236,7 +266,6 @@ def dataset_spec_display_label(d: ecce_base.DatasetSpecPythia) -> str:
     return f"{d.generator.upper()} {d.electron_beam_energy}x{d.proton_beam_energy}, ${d.q2_display}$"
 
 
-
 def plot_ReA(sim_config: SimulationConfig, analysis_config: ecce_ReA_implementation.AnalysisConfig, input_hists: Dict[str, Dict[str, hist.Hist]],
              cross_section: float, scale_jets_by_expected_luminosity: bool = False, expected_luminosities: Mapping[str, float] = None) -> None:
 
@@ -265,6 +294,9 @@ def plot_ReA(sim_config: SimulationConfig, analysis_config: ecce_ReA_implementat
         for variable in analysis_config.variables:
             for jet_type in analysis_config.jet_types:
                 for region in analysis_config.regions:
+                    # TEMP
+                    #continue
+                    # ENDTEMP
                     # Spectra of fixed variable, jet type, and region, varying as a function of R
                     # Intentionally only look at the variation 0 case
                     spectra_hists = {}
@@ -305,6 +337,59 @@ def plot_ReA(sim_config: SimulationConfig, analysis_config: ecce_ReA_implementat
                         output_dir=sim_config.output_dir,
                     )
 
+    try:
+        for n_PDF_name in input_hists:
+            if len(analysis_config.variations) > 1 and n_PDF_name != "ep":
+                for variable in analysis_config.variables:
+                    for jet_type in analysis_config.jet_types:
+                        for region in analysis_config.regions:
+                            for jet_R in analysis_config.jet_R_values:
+                                variation_hists = {}
+                                for variation in analysis_config.variations:
+                                    _parameters_spectra = JetParameters(jet_R=jet_R, jet_type=jet_type, region=region,
+                                                                        observable="spectra", variable=variable, variation=variation, n_PDF_name=n_PDF_name)
+                                    variation_hists[_parameters_spectra] = input_hists[n_PDF_name][_parameters_spectra.name_eA if n_PDF_name != "ep" else _parameters_spectra.name_ep]
+
+                                variable_label = ""
+                                if variable == "pt":
+                                    variable_label = r"_{\text{T}}"
+                                text = "ECCE Simulation"
+                                text += "\n" + dataset_spec_display_label(d=sim_config.dataset_spec)
+                                text += "\n" + f"$R$ = {jet_R}" + r" anti-$k_{\text{T}}$ jets"
+                                if region == "forward":
+                                    text += "\n" + r"$1.5 < \eta < 3.5 - R$"
+                                if region == "mid_rapidity":
+                                    text += "\n" + r"$-1.5 < \eta < 1.5$"
+                                variations_index = next(iter(variation_hists)).name_eA.find("_variation")
+                                _plot_n_PDF_variations(
+                                    hists=variation_hists,
+                                    is_ReA_related=False,
+                                    plot_config=pb.PlotConfig(
+                                        # [:variations_index] removes the variations number, since we'll show all variations here
+                                        name=n_PDF_name + "_" + next(iter(variation_hists)).name_eA[:variations_index] + "_variations",
+                                        panels=pb.Panel(
+                                                axes=[
+                                                    pb.AxisConfig("x", label=r"$p" + variable_label + r"^{\text{jet}}\:(\text{GeV}/c)$", font_size=22, range=(0, 50)),
+                                                    pb.AxisConfig(
+                                                        "y",
+                                                        label=r"$\frac{\text{d}^{2}\sigma}{\text{d}\eta\text{d}p" + variable_label + r"^{\text{jet}}}\:(\text{GeV}/c)$",
+                                                        log=True,
+                                                        font_size=22,
+                                                    ),
+                                                ],
+                                                text=pb.TextConfig(x=0.97, y=0.97, text=text, font_size=22),
+                                                #legend=pb.LegendConfig(location="lower left", font_size=22),
+                                            ),
+                                        figure=pb.Figure(edge_padding=dict(left=0.125, bottom=0.1)),
+                                    ),
+                                    output_dir=sim_config.output_dir,
+                                )
+    except Exception as e:
+        logger.info(f"Plotting n_PDF_variations failed with {e}")
+        import IPython; IPython.start_ipython(user_ns=locals())
+
+    import IPython; IPython.start_ipython(user_ns={**globals(),**locals()})
+
     #for k, v in ReA_hists.items():
     for variable in analysis_config.variables:
         for jet_type in analysis_config.jet_types:
@@ -312,7 +397,7 @@ def plot_ReA(sim_config: SimulationConfig, analysis_config: ecce_ReA_implementat
                 # ReA of fixed variable, jet type, and region, varying as a function of R
                 fixed_region_ReA_hists = {
                     k: v
-                    for k, v in ReA_hists.items() if k.region == region and k.jet_type == jet_type and k.variable == variable
+                    for k, v in ReA_hists.items() if k.region == region and k.jet_type == jet_type and k.variable == variable and k.variation == 0
                 }
                 variable_label = ""
                 if variable == "pt":
@@ -353,7 +438,7 @@ def plot_ReA(sim_config: SimulationConfig, analysis_config: ecce_ReA_implementat
             for region in analysis_config.regions:
                 double_ratio_hists = {
                     k: v
-                    for k, v in ReA_double_ratio_hists.items() if k.region == region and k.jet_type == jet_type and k.variable == variable
+                    for k, v in ReA_double_ratio_hists.items() if k.region == region and k.jet_type == jet_type and k.variable == variable and k.variation == 0
                 }
 
                 variable_label = ""
@@ -439,7 +524,8 @@ def plot_ReA(sim_config: SimulationConfig, analysis_config: ecce_ReA_implementat
                         output_dir=sim_config.output_dir,
                     )
 
-    import IPython; IPython.start_ipython(user_ns=locals())
+    import IPython; IPython.start_ipython(user_ns={**globals(),**locals()})
+    #import IPython; IPython.embed()
 
 
 def run() -> None:
@@ -458,9 +544,10 @@ def run() -> None:
         #variables = ["pt", "p"],
         #variations=list(range(0, 97)),
         # More minimal
-        regions=["forward", "mid_rapidity"],
+        regions=["forward"],
         variables=["p"],
         variations=list(range(0, 1)),
+        #variations=list(range(0, 20)),
     )
 
     # Setup
@@ -472,8 +559,8 @@ def run() -> None:
         label="",
     )
     # Setup I/O dirs
-    #label = "no_min_p_cut_with_tracklets"
-    label = "no_PDF_variations"
+    #label = "fix_variable_shadowing"
+    label = "min_p_cut_with_tracklets"
     #label = "2021-10-26-original"
     base_dir = Path(f"/Volumes/data/eic/ReA/current_best_knowledge/{str(dataset_spec)}")
     input_dir = base_dir / label
@@ -506,8 +593,10 @@ def run() -> None:
         "eA": 10 * 1.0/197,
     }
 
+    logger.info(f"Analyzing {label}")
     input_hists = _load_results(
         config=config,
+        analysis_config=analysis_config,
         input_specs=config.input_specs
     )
 
