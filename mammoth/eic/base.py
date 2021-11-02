@@ -26,7 +26,7 @@ def load_hists(filename: Path, filter: str = "", filters: Sequence[str] = None) 
     if filters is None:
         filters = []
     hists = {}
-    logger.debug(f"Loading {filename} with filter: {filter}, filters: {filters}")
+    logger.info(f"Loading {filename} with filter: {filter}, filters: {filters}")
     with uproot.open(filename) as f:
         for k in f.keys(cycle=False):
             if filter and filter not in k:

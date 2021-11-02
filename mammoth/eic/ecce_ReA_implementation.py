@@ -14,7 +14,6 @@ class AnalysisConfig:
     jet_types: List[str] = attr.ib()
     regions: List[str] = attr.ib()
     variables: List[str] = attr.ib()
-    variations: List[int] = attr.ib()
 
 
 @attr.s(frozen=True)
