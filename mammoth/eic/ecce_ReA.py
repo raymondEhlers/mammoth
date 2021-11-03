@@ -825,7 +825,6 @@ def run() -> None:
     output_dir = base_dir / "plots" / label
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    # TODO: Fix scaling. It needs to scale the fractional error to get the right scaling, probably
     # TODO: Add the nPDF label to the plot since it seems to matter a good deal
 
     config = SimulationConfig(
