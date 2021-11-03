@@ -330,16 +330,20 @@ def dataset_spec_display_label(d: ecce_base.DatasetSpecPythia) -> str:
 def plot_ReA(sim_config: SimulationConfig, analysis_config: ecce_ReA_implementation.AnalysisConfig, input_hists: Dict[str, Dict[str, hist.Hist]],
              cross_section: float, scale_jets_by_expected_luminosity: bool = False, expected_luminosities: Mapping[str, float] = None) -> None:
     scaled_hists = {}
+    input_spectra_hists = input_hists
     if scale_jets_by_expected_luminosity:
-        scaled_hists = ecce_ReA_implementation.scale_jets(
+        logger.info("Scaling jet spectra by expected luminosity")
+        # Replaces the input spectra hists with the scaled hists
+        input_spectra_hists = ecce_ReA_implementation.scale_jets(
             input_hists=input_hists,
+            sim_config=sim_config,
             analysis_config=analysis_config,
             cross_section=cross_section, expected_luminosities=expected_luminosities,
         )
 
     # Calculate ReA
     ReA_hists = calculate_ReA(
-        input_hists=input_hists,
+        input_hists=input_spectra_hists,
         sim_config=sim_config,
         analysis_config=analysis_config,
    )
@@ -352,7 +356,7 @@ def plot_ReA(sim_config: SimulationConfig, analysis_config: ecce_ReA_implementat
     )
 
     # First, print raw spectra. Print all R on the same figure
-    for n_PDF_name in input_hists:
+    for n_PDF_name in input_spectra_hists:
         for variable in analysis_config.variables:
             for jet_type in analysis_config.jet_types:
                 for region in analysis_config.regions:
@@ -364,7 +368,7 @@ def plot_ReA(sim_config: SimulationConfig, analysis_config: ecce_ReA_implementat
                     spectra_hists = {}
                     for jet_R in analysis_config.jet_R_values:
                         _parameters_spectra = JetParameters(jet_R=jet_R, jet_type=jet_type, region=region, observable="spectra", variable=variable, variation=0, n_PDF_name=n_PDF_name)
-                        spectra_hists[_parameters_spectra] = input_hists[n_PDF_name][_parameters_spectra.name_eA if n_PDF_name != "ep" else _parameters_spectra.name_ep]
+                        spectra_hists[_parameters_spectra] = input_spectra_hists[n_PDF_name][_parameters_spectra.name_eA if n_PDF_name != "ep" else _parameters_spectra.name_ep]
 
                     variable_label = ""
                     x_range = (5, 50)
@@ -413,7 +417,7 @@ def plot_ReA(sim_config: SimulationConfig, analysis_config: ecce_ReA_implementat
                                 for variation in input_spec.variations:
                                     _parameters_spectra = JetParameters(jet_R=jet_R, jet_type=jet_type, region=region,
                                                                         observable="spectra", variable=variable, variation=variation, n_PDF_name=input_spec.n_PDF_name)
-                                    variation_hists[_parameters_spectra] = input_hists[input_spec.n_PDF_name][_parameters_spectra.name_eA if input_spec.n_PDF_name != "ep" else _parameters_spectra.name_ep]
+                                    variation_hists[_parameters_spectra] = input_spectra_hists[input_spec.n_PDF_name][_parameters_spectra.name_eA if input_spec.n_PDF_name != "ep" else _parameters_spectra.name_ep]
 
                                 variable_label = ""
                                 x_range = (5, 50)
@@ -812,9 +816,8 @@ def run() -> None:
     )
     # Setup I/O dirs
     #label = "fix_variable_shadowing"
-    #label = "min_p_cuts_with_tracklets_EPPS"
-    #label = "min_p_cuts_with_tracklets_nNNPDF"
-    label = "min_p_cut_with_tracklets_nNNPDF"
+    label = "min_p_cut_with_tracklets_EPPS"
+    #label = "min_p_cut_with_tracklets_nNNPDF"
     base_dir = Path(f"/Volumes/data/eic/ReA/current_best_knowledge/{str(dataset_spec)}")
     input_dir = base_dir / label
     output_dir = base_dir / "plots" / label
@@ -827,7 +830,7 @@ def run() -> None:
             InputSpec("ep", n_variations=1),
             # EPPS
             # For testing
-            #InputSpec("EPPS16nlo_CT14nlo_Au197", n_variations=2),
+            InputSpec("EPPS16nlo_CT14nlo_Au197", n_variations=2),
             # Full set of variations
             #InputSpec("EPPS16nlo_CT14nlo_Au197", n_variations=97),
             # nNNPDF
