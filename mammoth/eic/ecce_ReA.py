@@ -158,12 +158,29 @@ def calculate_double_ratio(ReA_hists: Dict[str, Dict[str, hist.Hist]],
     return double_ratio_hists
 
 def _calculate_nominal_variations(variation_hists: Dict[str, Dict[str, hist.Hist]], nominal_hist: hist.Hist) -> bool:
-    lower = np.zeros(len(nominal_hist.values()))
-    upper = np.zeros(len(nominal_hist.values()))
+    # Collect all of the differences from all of the variations
+    differences_list = []
     for k, v in variation_hists.items():
-        difference = nominal_hist.values() - v.values()
-        lower = np.minimum(lower, difference)
-        upper = np.maximum(upper, difference)
+        differences_list.append(
+            nominal_hist.values() - v.values()
+        )
+
+    # transpose so that each row is now a single set of values
+    differences = np.transpose(np.array(differences_list))
+    # Sort for each p value
+    differences = np.sort(differences, axis=1)
+    # Could extract this many ways, but this works and is simple
+    n_variations = differences.shape[1]
+    # We want to remove the top and bottom 5% percent
+    remove_up_to_this_index = round(n_variations / 20)
+    # NOTE: If we end up rounding down to 0, it won't work. In that case,
+    # there's nothing to be done.
+    if remove_up_to_this_index != 0:
+        # Remove the top and bottom 5%, and keep the rest
+        differences = differences[:, remove_up_to_this_index:-remove_up_to_this_index]
+
+    lower = np.min(differences, axis=1)
+    upper = np.max(differences, axis=1)
 
     if not nominal_hist.metadata:
         nominal_hist.metadata = {}
