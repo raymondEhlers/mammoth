@@ -4,6 +4,7 @@ from typing import Any, Dict, List, Mapping, Sequence
 
 import attr
 import hist
+import numpy as np
 
 logger = logging.getLogger(__name__)
 
@@ -75,11 +76,24 @@ def scale_jets(input_hists: Dict[str, Dict[str, hist.Hist]],
                         h = h_temp * cross_section
                         #counts_without_lumi[parameters_spectra.name_ep] = h
 
-                        # Now, scale the ep errors by the increased number of counts
-                        h_ep_scaled = h_temp * cross_section * expected_luminosity
-                        h_ep_scaled.values()[:] = h.values().copy()
-                        #scaled_hists["ep_scaled"][parameters_spectra.name_ep] = h_ep_scaled
-                        scaled_hists["ep"][parameters_spectra.name_ep] = h_ep_scaled
+                        # TODO: Describe... (old: Now, scale the ep errors by the increased number of counts)
+                        h_scaled_ep = h_temp * cross_section
+                        h_scaled_ep.variances()[:] = h_scaled_ep.variances() / expected_luminosity
+                        #values = h_scaled_ep.values()
+                        #h_scaled_ep.variances()[:] = np.divide(
+                        #    h_scaled_ep.variances(),
+                        #    ((values ** 2) * expected_luminosity),
+                        #    out=np.zeros_like(values),
+                        #    where=values!=0,
+                        #)
+                        #scaled_hists["ep_scaled"][parameters_spectra.name_ep] = h_scaled_ep
+                        scaled_hists["ep"][parameters_spectra.name_ep] = h_scaled_ep
+
+                        ## Now, scale the ep errors by the increased number of counts
+                        #h_ep_scaled = h_temp * cross_section * expected_luminosity
+                        #h_ep_scaled.values()[:] = h.values().copy()
+                        ##scaled_hists["ep_scaled"][parameters_spectra.name_ep] = h_ep_scaled
+                        #scaled_hists["ep"][parameters_spectra.name_ep] = h_ep_scaled
 
                         #c = h_ep_scaled.values()
                         #c *= expected_luminosity
@@ -108,19 +122,19 @@ def scale_jets(input_hists: Dict[str, Dict[str, hist.Hist]],
                         for variation in input_spec.variations:
                             parameters_spectra = JetParameters(jet_R=jet_R, jet_type=jet_type, region=region, observable="spectra", variable=variable, variation=variation, n_PDF_name=pdf_name
                             )
-                            h_temp = hists[parameters_spectra.name_eA]
-                            h = h_temp * cross_section
 
-                            # Now, scale the ep errors by the increased number of counts
-                            h_scaled_eA = h_temp * cross_section * expected_luminosity
-                            #logger.info(f"values before assignment: {h_scaled_eA.values()}")
-                            h_scaled_eA.values()[:] = h.values().copy()
-                            #logger.info(f"values after  assignment: {h_scaled_eA.values()}")
+                            # First, scale by the cross section, which we need to do in all cases
+                            h_scaled_eA = hists[parameters_spectra.name_eA] * cross_section
 
-                            #c = counts_without_lumi[parameters_spectra.name_ep].values()
-                            #c *= expected_luminosity
-                            #h_scaled.variances()[:] = 1 / (np.sqrt(c) ** 2)
-                            #scaled_hists[f"{pdf_name}_scaled"][parameters_spectra.name_eA] = h_scaled_eA
+                            # Now we need to account for the projected luminosity.
+                            # However, the overall relative scaling between the ep and eA will be messed up if we scale them directly
+                            # by their projected luminosity. So what we want to do is reduce the size of the errors based on the projected
+                            # luminosity while keeping the overall scale (values) fixed
+                            # For all those complicated tests, it measures that we just need to scale the variance by 1 / expected_luminosity,
+                            # which propagates to a 1/sqrt(expected_luminosity) in the error.
+                            h_scaled_eA.variances()[:] = h_scaled_eA.variances() / expected_luminosity
+
+                            # Store the new hist
                             scaled_hists[pdf_name][parameters_spectra.name_eA] = h_scaled_eA
 
     return scaled_hists

@@ -341,6 +341,8 @@ def plot_ReA(sim_config: SimulationConfig, analysis_config: ecce_ReA_implementat
             cross_section=cross_section, expected_luminosities=expected_luminosities,
         )
 
+        #import IPython; IPython.start_ipython(user_ns={**globals(),**locals()})
+
     # Calculate ReA
     ReA_hists = calculate_ReA(
         input_hists=input_spectra_hists,
@@ -793,7 +795,7 @@ def run() -> None:
     #warnings.filterwarnings("error")
 
     # Settings
-    scale_jets_by_expected_luminosity = False
+    scale_jets_by_expected_luminosity = True
     analysis_config = ecce_ReA_implementation.AnalysisConfig(
         jet_R_values=[0.3, 0.5, 0.8, 1.0],
         #jet_types=["charged", "calo", "true_charged", "true_full"],
@@ -822,6 +824,9 @@ def run() -> None:
     input_dir = base_dir / label
     output_dir = base_dir / "plots" / label
     output_dir.mkdir(parents=True, exist_ok=True)
+
+    # TODO: Fix scaling. It needs to scale the fractional error to get the right scaling, probably
+    # TODO: Add the nPDF label to the plot since it seems to matter a good deal
 
     config = SimulationConfig(
         dataset_spec=dataset_spec,
