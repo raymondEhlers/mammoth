@@ -187,6 +187,37 @@ _okabe_ito_colors = [
 _jet_R_to_color_index = {0.3: 0, 0.5: 1, 0.8: 2, 1.0: 3}
 
 
+def _plot_spectra_2D(hist: hist.Hist, plot_config: pb.PlotConfig, output_dir: Path) -> None:
+    fig, ax = plt.subplots(figsize=(10, 7.5))
+
+    # Determine the normalization range
+    z_axis_range = {
+        # "vmin": h_proj.values[h_proj.values > 0].min(),
+        "vmin": max(1e-4, hist.values()[hist.values() > 0].min()),
+        "vmax": hist.values().max(),
+        #"vmax": 1,
+    }
+
+    # Plot
+    mesh = ax.pcolormesh(
+        hist.axes[0].edges.T,
+        hist.axes[1].edges.T,
+        hist.values().T,
+        norm=matplotlib.colors.LogNorm(**z_axis_range),
+    )
+    fig.colorbar(mesh, pad=0.02)
+
+    # Labeling and presentation
+    plot_config.apply(fig=fig, ax=ax)
+    # A few additional tweaks.
+    #ax.xaxis.set_major_locator(matplotlib.ticker.MultipleLocator(base=1.0))
+    # ax_ratio.yaxis.set_major_locator(matplotlib.ticker.MultipleLocator(base=0.2))
+
+    filename = f"{plot_config.name}"
+    fig.savefig(output_dir / f"{filename}.pdf")
+    plt.close(fig)
+
+
 def _plot_multiple_R(hists: Mapping[JetParameters, hist.Hist], is_ReA_related: bool, plot_config: pb.PlotConfig, output_dir: Path) -> None:
     #with sns.color_palette("Set2"):
     fig, ax = plt.subplots(figsize=(10, 7.5))
@@ -348,13 +379,118 @@ def plot_ReA(sim_config: SimulationConfig, analysis_config: ecce_ReA_implementat
 
         #import IPython; IPython.start_ipython(user_ns={**globals(),**locals()})
 
+    ###############################################
+    # Basic QA: jet momentum as a function of x, Q2
+    ###############################################
+    # NOTE: We only plot the nominal variation. It's good enough
+    try:
+        for n_PDF_name in input_spectra_hists:
+            for variable in analysis_config.variables:
+                for jet_type in analysis_config.jet_types:
+                    for region in analysis_config.regions:
+                        for jet_R in analysis_config.jet_R_values:
+                            # TEMP: Possibility to skip over this to save time
+                            #continue
+                            # ENDTEMP
+                            # Q2 vs spectra of fixed variable, jet type, region, and R
+                            _parameters_spectra = JetParameters(
+                                # Have to hack the variable name here because I wasn't careful enough in the definition
+                                jet_R=jet_R, jet_type=jet_type, region=region, observable="spectra", variable=f"{variable}_Q2", variation=0, n_PDF_name=n_PDF_name
+                            )
+                            h = input_hists[n_PDF_name][_parameters_spectra.name_eA if n_PDF_name != "ep" else _parameters_spectra.name_ep]
+
+                            variable_label = ""
+                            x_range = (0, 50)
+                            if variable == "pt":
+                                variable_label = r"_{\text{T}}"
+                                x_range = (0, 25)
+                            text = "ECCE Simulation"
+                            text += "\n" + dataset_spec_display_label(d=sim_config.dataset_spec)
+                            text += "\n" + f"$R$ = {jet_R}" + r" anti-$k_{\text{T}}$ jets"
+                            if region == "forward":
+                                text += "\n" + r"$1.5 < \eta < 3.5 - R$"
+                            if region == "mid_rapidity":
+                                text += "\n" + r"$-1.5 < \eta < 1.5$"
+                            name = _parameters_spectra.name_eA if n_PDF_name != "ep" else _parameters_spectra.name_ep
+                            logger.info(f"Plotting {n_PDF_name}, {name} for Q2")
+                            _plot_spectra_2D(
+                                hist=h,
+                                plot_config=pb.PlotConfig(
+                                    name=f"{n_PDF_name}_{name}_Q2",
+                                    panels=pb.Panel(
+                                            axes=[
+                                                pb.AxisConfig("x", label=r"$p" + variable_label + r"^{\text{jet}}\:(\text{GeV}/c)$", font_size=22, range=x_range),
+                                                pb.AxisConfig(
+                                                    "y",
+                                                    label=r"$Q^{2}\:(\text{GeV}^{2})$",
+                                                    log=True,
+                                                    font_size=22,
+                                                    range=(90, 1100),
+                                                ),
+                                            ],
+                                            text=pb.TextConfig(x=0.97, y=0.97, text=text, font_size=22),
+                                            #legend=pb.LegendConfig(location="lower left", font_size=22),
+                                        ),
+                                    figure=pb.Figure(edge_padding=dict(left=0.125, bottom=0.1)),
+                                ),
+                                output_dir=sim_config.output_dir,
+                            )
+                            # x vs spectra of fixed variable, jet type, region, and R
+                            _parameters_spectra = JetParameters(
+                                # Have to hack the variable name here because I wasn't careful enough in the definition
+                                jet_R=jet_R, jet_type=jet_type, region=region, observable="spectra", variable=f"{variable}_x", variation=0, n_PDF_name=n_PDF_name
+                            )
+                            h = input_hists[n_PDF_name][_parameters_spectra.name_eA if n_PDF_name != "ep" else _parameters_spectra.name_ep]
+
+                            variable_label = ""
+                            x_range = (0, 50)
+                            if variable == "pt":
+                                variable_label = r"_{\text{T}}"
+                                x_range = (0, 25)
+                            text = "ECCE Simulation"
+                            text += "\n" + dataset_spec_display_label(d=sim_config.dataset_spec)
+                            text += "\n" + f"$R$ = {jet_R}" + r" anti-$k_{\text{T}}$ jets"
+                            if region == "forward":
+                                text += "\n" + r"$1.5 < \eta < 3.5 - R$"
+                            if region == "mid_rapidity":
+                                text += "\n" + r"$-1.5 < \eta < 1.5$"
+                            name = _parameters_spectra.name_eA if n_PDF_name != "ep" else _parameters_spectra.name_ep
+                            logger.info(f"Plotting {n_PDF_name}, {name} for x")
+                            _plot_spectra_2D(
+                                hist=h,
+                                plot_config=pb.PlotConfig(
+                                    name=f"{n_PDF_name}_{name}_x",
+                                    panels=pb.Panel(
+                                            axes=[
+                                                pb.AxisConfig("x", label=r"$p" + variable_label + r"^{\text{jet}}\:(\text{GeV}/c)$", font_size=22, range=x_range),
+                                                pb.AxisConfig(
+                                                    "y",
+                                                    label=r"$x$",
+                                                    log=True,
+                                                    font_size=22,
+                                                    range=(1e-2, 1),
+                                                ),
+                                            ],
+                                            text=pb.TextConfig(x=0.97, y=0.03, text=text, font_size=22),
+                                            #legend=pb.LegendConfig(location="lower left", font_size=22),
+                                        ),
+                                    figure=pb.Figure(edge_padding=dict(left=0.125, bottom=0.1)),
+                                ),
+                                output_dir=sim_config.output_dir,
+                            )
+    except Exception as e:
+        logger.info(f"Q2, x plots failed with {e}")
+        import IPython; IPython.start_ipython(user_ns={**globals(),**locals()})
+
+    ##############################
+    # Calculate derived quantities
+    ##############################
     # Calculate ReA
     ReA_hists = calculate_ReA(
         input_hists=input_spectra_hists,
         sim_config=sim_config,
         analysis_config=analysis_config,
-   )
-
+    )
     # Calculate ReA double ratio
     ReA_double_ratio_hists = calculate_double_ratio(
         ReA_hists=ReA_hists,
