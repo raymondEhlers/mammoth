@@ -363,8 +363,17 @@ def dataset_spec_display_label(d: ecce_base.DatasetSpecPythia) -> str:
     return f"{d.generator.upper()} {d.electron_beam_energy}x{d.proton_beam_energy}, ${d.q2_display}$"
 
 
+def expected_luminosities_display_text(expected_luminosities: Mapping[str, float]) -> str:
+    entries = []
+    for n_PDF_name in ["ep", "eA"]:
+        entries.append(
+            fr"$\mathcal{{L}}^{{\text{{int}}}}_{{{n_PDF_name}}} = {round(expected_luminosities[n_PDF_name], 2)}\:\text{{fb}}^{{-1}}$"
+        )
+    return "Projected: " + ", ".join(entries)
+
+
 def plot_ReA(sim_config: SimulationConfig, analysis_config: ecce_ReA_implementation.AnalysisConfig, input_hists: Dict[str, Dict[str, hist.Hist]],
-             cross_section: float, scale_jets_by_expected_luminosity: bool = False, expected_luminosities: Mapping[str, float] = None) -> None:
+             cross_section: float, scale_jets_by_expected_luminosity: bool = False, expected_luminosities: Mapping[str, float] = None, skip_slow_2D_plots: bool = False) -> None:
     scaled_hists = {}
     input_spectra_hists = input_hists
     if scale_jets_by_expected_luminosity:
@@ -383,14 +392,14 @@ def plot_ReA(sim_config: SimulationConfig, analysis_config: ecce_ReA_implementat
     # Basic QA: jet momentum as a function of x, Q2
     ###############################################
     # NOTE: We only plot the nominal variation. It's good enough
-    try:
+    if not skip_slow_2D_plots:
         for n_PDF_name in input_spectra_hists:
             for variable in analysis_config.variables:
                 for jet_type in analysis_config.jet_types:
                     for region in analysis_config.regions:
                         for jet_R in analysis_config.jet_R_values:
                             # TEMP: Possibility to skip over this to save time
-                            #continue
+                            continue
                             # ENDTEMP
                             # Q2 vs spectra of fixed variable, jet type, region, and R
                             _parameters_spectra = JetParameters(
@@ -482,9 +491,6 @@ def plot_ReA(sim_config: SimulationConfig, analysis_config: ecce_ReA_implementat
                                 ),
                                 output_dir=sim_config.output_dir,
                             )
-    except Exception as e:
-        logger.info(f"Q2, x plots failed with {e}")
-        import IPython; IPython.start_ipython(user_ns={**globals(),**locals()})
 
     ##############################
     # Calculate derived quantities
@@ -544,7 +550,7 @@ def plot_ReA(sim_config: SimulationConfig, analysis_config: ecce_ReA_implementat
                                         pb.AxisConfig("x", label=r"$p" + variable_label + r"^{\text{jet}}\:(\text{GeV}/c)$", font_size=22, range=x_range),
                                         pb.AxisConfig(
                                             "y",
-                                            label=r"$\frac{\text{d}^{2}\sigma}{\text{d}\eta\text{d}p" + variable_label + r"^{\text{jet}}}\:(\text{GeV}/c)$",
+                                            label=r"$\frac{\text{d}^{2}\sigma}{\text{d}\eta\text{d}p" + variable_label + r"^{\text{jet}}}\:(\text{fb} c/\text{GeV})$",
                                             log=True,
                                             font_size=22,
                                         ),
@@ -598,7 +604,7 @@ def plot_ReA(sim_config: SimulationConfig, analysis_config: ecce_ReA_implementat
                                                 pb.AxisConfig("x", label=r"$p" + variable_label + r"^{\text{jet}}\:(\text{GeV}/c)$", font_size=22, range=x_range),
                                                 pb.AxisConfig(
                                                     "y",
-                                                    label=r"$\frac{\text{d}^{2}\sigma}{\text{d}\eta\text{d}p" + variable_label + r"^{\text{jet}}}\:(\text{GeV}/c)$",
+                                                    label=r"$\frac{\text{d}^{2}\sigma}{\text{d}\eta\text{d}p" + variable_label + r"^{\text{jet}}}\:(\text{fb} c/\text{GeV})$",
                                                     log=True,
                                                     font_size=22,
                                                 ),
@@ -684,7 +690,10 @@ def plot_ReA(sim_config: SimulationConfig, analysis_config: ecce_ReA_implementat
                                             font_size=22,
                                         ),
                                     ],
-                                    text=pb.TextConfig(x=0.97, y=0.97, text=text, font_size=22),
+                                    text=[
+                                        pb.TextConfig(x=0.97, y=0.97, text=text, font_size=22),
+                                        pb.TextConfig(x=0.97, y=0.03, text=expected_luminosities_display_text(expected_luminosities), font_size=22),
+                                    ],
                                     legend=pb.LegendConfig(location="lower left", font_size=22),
                                 ),
                             figure=pb.Figure(edge_padding=dict(left=0.12, bottom=0.1)),
@@ -739,7 +748,10 @@ def plot_ReA(sim_config: SimulationConfig, analysis_config: ecce_ReA_implementat
                                                 font_size=22,
                                             ),
                                         ],
-                                        text=pb.TextConfig(x=0.97, y=0.97, text=text, font_size=22),
+                                        text=[
+                                            pb.TextConfig(x=0.97, y=0.97, text=text, font_size=22),
+                                            pb.TextConfig(x=0.97, y=0.03, text=expected_luminosities_display_text(expected_luminosities), font_size=22),
+                                        ],
                                         legend=pb.LegendConfig(location="lower left", font_size=22),
                                     ),
                                 figure=pb.Figure(edge_padding=dict(left=0.125, bottom=0.1)),
@@ -820,12 +832,15 @@ def plot_ReA(sim_config: SimulationConfig, analysis_config: ecce_ReA_implementat
                                         pb.AxisConfig("x", label=r"$p" + variable_label + r"^{\text{jet}}\:(\text{GeV}/c)$", font_size=22, range=x_range),
                                         pb.AxisConfig(
                                             "y",
-                                            label=r"$R_{\text{eA}} / R_{\text{eA}}|_{R=1.0}$",
+                                            label=r"$R_{\text{eA}}(R) / R_{\text{eA}}(R=1.0)$",
                                             range=(0, 1.4),
                                             font_size=22,
                                         ),
                                     ],
-                                    text=pb.TextConfig(x=0.97, y=0.97, text=text, font_size=22),
+                                    text=[
+                                        pb.TextConfig(x=0.97, y=0.97, text=text, font_size=22),
+                                        pb.TextConfig(x=0.97, y=0.03, text=expected_luminosities_display_text(expected_luminosities), font_size=22),
+                                    ],
                                     legend=pb.LegendConfig(location="lower left", font_size=22),
                                 ),
                             figure=pb.Figure(edge_padding=dict(left=0.12, bottom=0.1)),
@@ -876,12 +891,15 @@ def plot_ReA(sim_config: SimulationConfig, analysis_config: ecce_ReA_implementat
                                                 pb.AxisConfig("x", label=r"$p" + variable_label + r"^{\text{jet}}\:(\text{GeV}/c)$", font_size=22, range=x_range),
                                                 pb.AxisConfig(
                                                     "y",
-                                                    label=r"$R_{\text{eA}} / R_{\text{eA}}|_{R=1.0}$",
+                                                    label=r"$R_{\text{eA}}(R) / R_{\text{eA}}(R=1.0)$",
                                                     range=(0, 1.4),
                                                     font_size=22,
                                                 ),
                                             ],
-                                            text=pb.TextConfig(x=0.97, y=0.97, text=text, font_size=22),
+                                            text=[
+                                                pb.TextConfig(x=0.97, y=0.97, text=text, font_size=22),
+                                                pb.TextConfig(x=0.97, y=0.03, text=expected_luminosities_display_text(expected_luminosities), font_size=22),
+                                            ],
                                             legend=pb.LegendConfig(location="lower left", font_size=22),
                                         ),
                                     figure=pb.Figure(edge_padding=dict(left=0.12, bottom=0.1)),
@@ -947,7 +965,10 @@ def plot_ReA(sim_config: SimulationConfig, analysis_config: ecce_ReA_implementat
                                                 font_size=22,
                                             ),
                                         ],
-                                        text=pb.TextConfig(x=0.97, y=0.97, text=text, font_size=22),
+                                        text=[
+                                            pb.TextConfig(x=0.97, y=0.97, text=text, font_size=22),
+                                            pb.TextConfig(x=0.97, y=0.03, text=expected_luminosities_display_text(expected_luminosities), font_size=22),
+                                        ],
                                         legend=pb.LegendConfig(location="lower left", font_size=22),
                                     ),
                                 figure=pb.Figure(edge_padding=dict(left=0.12, bottom=0.1)),
@@ -967,6 +988,7 @@ def run() -> None:
 
     # Settings
     scale_jets_by_expected_luminosity = True
+    skip_slow_2D_plots = True
     analysis_config = ecce_ReA_implementation.AnalysisConfig(
         jet_R_values=[0.3, 0.5, 0.8, 1.0],
         #jet_types=["charged", "calo", "true_charged", "true_full"],
@@ -1027,7 +1049,7 @@ def run() -> None:
     }
     # 1 year in fb^{-1}
     _luminosity_projections = {
-        "ep": 10,
+        "ep": 10.0,
         # Scaling according to the recommendations
         "eA": 10 * 1.0/197,
     }
@@ -1045,6 +1067,7 @@ def run() -> None:
         cross_section=_cross_sections[str(dataset_spec)],
         expected_luminosities=_luminosity_projections,
         scale_jets_by_expected_luminosity=scale_jets_by_expected_luminosity,
+        skip_slow_2D_plots=skip_slow_2D_plots,
     )
 
 
