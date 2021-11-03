@@ -43,8 +43,8 @@ class InputSpec:
         return p
 
 _n_PDF_name_display_name = {
-    "EPPS16nlo_CT14nlo_Au197": "EPPS16 NLO / CT14 NLO",
-    "nNNPDF20_nlo_as_0118_Au197": "nNNPDF 2.0 NLO / NNPDF 3.1 NNLO",
+    "EPPS16nlo_CT14nlo_Au197": "EPPS16 NLO, CT14 NLO",
+    "nNNPDF20_nlo_as_0118_Au197": "nNNPDF 2.0 NLO, NNPDF 3.1 NNLO",
 }
 
 
@@ -406,6 +406,8 @@ def plot_ReA(sim_config: SimulationConfig, analysis_config: ecce_ReA_implementat
                                 x_range = (0, 25)
                             text = "ECCE Simulation"
                             text += "\n" + dataset_spec_display_label(d=sim_config.dataset_spec)
+                            if n_PDF_name != "ep":
+                                text += "\n" + _n_PDF_name_display_name[n_PDF_name]
                             text += "\n" + f"$R$ = {jet_R}" + r" anti-$k_{\text{T}}$ jets"
                             if region == "forward":
                                 text += "\n" + r"$1.5 < \eta < 3.5 - R$"
@@ -449,6 +451,8 @@ def plot_ReA(sim_config: SimulationConfig, analysis_config: ecce_ReA_implementat
                                 x_range = (0, 25)
                             text = "ECCE Simulation"
                             text += "\n" + dataset_spec_display_label(d=sim_config.dataset_spec)
+                            if n_PDF_name != "ep":
+                                text += "\n" + _n_PDF_name_display_name[n_PDF_name]
                             text += "\n" + f"$R$ = {jet_R}" + r" anti-$k_{\text{T}}$ jets"
                             if region == "forward":
                                 text += "\n" + r"$1.5 < \eta < 3.5 - R$"
@@ -523,6 +527,8 @@ def plot_ReA(sim_config: SimulationConfig, analysis_config: ecce_ReA_implementat
                         x_range = (5, 25)
                     text = "ECCE Simulation"
                     text += "\n" + dataset_spec_display_label(d=sim_config.dataset_spec)
+                    if n_PDF_name != "ep":
+                        text += "\n" + _n_PDF_name_display_name[n_PDF_name]
                     text += "\n" + r"anti-$k_{\text{T}}$ jets"
                     if region == "forward":
                         text += "\n" + r"$1.5 < \eta < 3.5 - R$"
@@ -573,6 +579,8 @@ def plot_ReA(sim_config: SimulationConfig, analysis_config: ecce_ReA_implementat
                                 x_range = (5, 25)
                             text = "ECCE Simulation"
                             text += "\n" + dataset_spec_display_label(d=sim_config.dataset_spec)
+                            if input_spec.n_PDF_name != "ep":
+                                text += "\n" + _n_PDF_name_display_name[n_PDF_name]
                             text += "\n" + f"$R$ = {jet_R}" + r" anti-$k_{\text{T}}$ jets"
                             if region == "forward":
                                 text += "\n" + r"$1.5 < \eta < 3.5 - R$"
@@ -654,6 +662,8 @@ def plot_ReA(sim_config: SimulationConfig, analysis_config: ecce_ReA_implementat
                         x_range = (5, 25)
                     text = "ECCE Simulation"
                     text += "\n" + dataset_spec_display_label(d=sim_config.dataset_spec)
+                    if input_spec.n_PDF_name != "ep":
+                        text += "\n" + _n_PDF_name_display_name[n_PDF_name]
                     text += "\n" + r"anti-$k_{\text{T}}$ jets"
                     if region == "forward":
                         text += "\n" + r"$1.5 < \eta < 3.5 - R$"
@@ -705,6 +715,8 @@ def plot_ReA(sim_config: SimulationConfig, analysis_config: ecce_ReA_implementat
                             x_range = (5, 25)
                         text = "ECCE Simulation"
                         text += "\n" + dataset_spec_display_label(d=sim_config.dataset_spec)
+                        if input_spec.n_PDF_name != "ep":
+                            text += "\n" + _n_PDF_name_display_name[n_PDF_name]
                         text += "\n" + r" anti-$k_{\text{T}}$ jets"
                         if region == "forward":
                             text += "\n" + r"$1.5 < \eta < 3.5 - R$"
@@ -790,6 +802,8 @@ def plot_ReA(sim_config: SimulationConfig, analysis_config: ecce_ReA_implementat
                         x_range = (5, 25)
                     text = "ECCE Simulation"
                     text += "\n" + dataset_spec_display_label(d=sim_config.dataset_spec)
+                    if input_spec.n_PDF_name != "ep":
+                        text += "\n" + _n_PDF_name_display_name[n_PDF_name]
                     text += "\n" + r"anti-$k_{\text{T}}$ jets"
                     if region == "forward":
                         text += "\n" + r"$1.5 < \eta < 3.5 - R$"
@@ -843,6 +857,8 @@ def plot_ReA(sim_config: SimulationConfig, analysis_config: ecce_ReA_implementat
                                 x_range = (5, 25)
                             text = "ECCE Simulation"
                             text += "\n" + dataset_spec_display_label(d=sim_config.dataset_spec)
+                            if input_spec.n_PDF_name != "ep":
+                                text += "\n" + _n_PDF_name_display_name[n_PDF_name]
                             text += "\n" + r"anti-$k_{\text{T}}$ jets"
                             if region == "forward":
                                 text += "\n" + r"$1.5 < \eta < 3.5 - R$"
@@ -907,6 +923,8 @@ def plot_ReA(sim_config: SimulationConfig, analysis_config: ecce_ReA_implementat
                             x_range = (5, 25)
                         text = "ECCE Simulation"
                         text += "\n" + dataset_spec_display_label(d=sim_config.dataset_spec)
+                        if input_spec.n_PDF_name != "ep":
+                            text += "\n" + _n_PDF_name_display_name[n_PDF_name]
                         text += "\n" + r"anti-$k_{\text{T}}$ jets"
                         if region == "forward":
                             text += "\n" + r"$1.5 < \eta < 3.5 - R$"
@@ -977,8 +995,6 @@ def run() -> None:
     input_dir = base_dir / label
     output_dir = base_dir / "plots" / label
     output_dir.mkdir(parents=True, exist_ok=True)
-
-    # TODO: Add the nPDF label to the plot since it seems to matter a good deal
 
     config = SimulationConfig(
         dataset_spec=dataset_spec,
