@@ -92,6 +92,7 @@ def _calculate_ReA(ep_hists: Dict[str, hist.Hist], eA_hists: Dict[str, hist.Hist
 def calculate_ReA(input_hists: Dict[str, Dict[str, hist.Hist]],
                   sim_config: SimulationConfig,
                   analysis_config: ecce_ReA_implementation.AnalysisConfig,
+                  rebin_factor: int = 2,
                   ) -> Dict[JetParameters, hist.Hist]:
     ReA_hists = {}
 
@@ -105,12 +106,17 @@ def calculate_ReA(input_hists: Dict[str, Dict[str, hist.Hist]],
                 for region in analysis_config.regions:
                     for variable in analysis_config.variables:
                         for variation in input_spec.variations:
-                            parameters_spectra = JetParameters(jet_R=jet_R, jet_type=jet_type, region=region, observable="spectra", variable=variable, variation=variation, n_PDF_name=input_spec.n_PDF_name)
-                            parameters_ReA = JetParameters(jet_R=jet_R, jet_type=jet_type, region=region, observable="ReA", variable=variable, variation=variation, n_PDF_name=input_spec.n_PDF_name)
+                            parameters_spectra = JetParameters(
+                                jet_R=jet_R, jet_type=jet_type, region=region, observable="spectra", variable=variable, variation=variation, n_PDF_name=input_spec.n_PDF_name
+                            )
+                            parameters_ReA = JetParameters(
+                                jet_R=jet_R, jet_type=jet_type, region=region, observable="ReA", variable=variable, variation=variation, n_PDF_name=input_spec.n_PDF_name
+                            )
                             ReA_hists[input_spec.n_PDF_name][parameters_ReA] = _calculate_ReA(
                                 ep_hists=input_hists["ep"],
                                 eA_hists=input_hists[input_spec.n_PDF_name],
                                 parameters=parameters_spectra,
+                                rebin_factor=2 if variable == "pt" else rebin_factor,
                             )
 
     return ReA_hists
@@ -517,6 +523,7 @@ def plot_ReA(sim_config: SimulationConfig, analysis_config: ecce_ReA_implementat
         input_hists=input_spectra_hists,
         sim_config=sim_config,
         analysis_config=analysis_config,
+        rebin_factor=5,
     )
     # Calculate ReA double ratio
     ReA_double_ratio_hists = calculate_double_ratio(
@@ -934,7 +941,7 @@ def plot_ReA(sim_config: SimulationConfig, analysis_config: ecce_ReA_implementat
         if input_spec.n_PDF_name == "ep":
             continue
 
-        for jet_type_true, jet_type_det in zip(["true_full", "true_charged"], ["calo", "charged"]):
+        for jet_type_true, jet_type_det in [("true_full", "calo"), ("true_charged", "charged")]:
             for variable in analysis_config.variables:
                 for region in analysis_config.regions:
                     for jet_R in analysis_config.jet_R_values:
