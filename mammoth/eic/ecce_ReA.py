@@ -440,7 +440,7 @@ def plot_ReA(sim_config: SimulationConfig, analysis_config: ecce_ReA_implementat
                             text += "\n" + dataset_spec_display_label(d=sim_config.dataset_spec)
                             if n_PDF_name != "ep":
                                 text += "\n" + _n_PDF_name_display_name[n_PDF_name]
-                            text += "\n" + f"$R$ = {jet_R}" + r" anti-$k_{\text{T}}$ jets"
+                            text += "\n" + f"$R$ = {jet_R}" + r" anti-$k_{\text{T}}$" + (" charged-particle" if jet_type == "charged" else "") + " jets"
                             if region == "forward":
                                 text += "\n" + r"$1.5 < \eta < 3.5 - R$"
                             if region == "mid_rapidity":
@@ -485,7 +485,7 @@ def plot_ReA(sim_config: SimulationConfig, analysis_config: ecce_ReA_implementat
                             text += "\n" + dataset_spec_display_label(d=sim_config.dataset_spec)
                             if n_PDF_name != "ep":
                                 text += "\n" + _n_PDF_name_display_name[n_PDF_name]
-                            text += "\n" + f"$R$ = {jet_R}" + r" anti-$k_{\text{T}}$ jets"
+                            text += "\n" + f"$R$ = {jet_R}" + r" anti-$k_{\text{T}}$" + (" charged-particle" if jet_type == "charged" else "") + " jets"
                             if region == "forward":
                                 text += "\n" + r"$1.5 < \eta < 3.5 - R$"
                             if region == "mid_rapidity":
@@ -559,7 +559,7 @@ def plot_ReA(sim_config: SimulationConfig, analysis_config: ecce_ReA_implementat
                     text += "\n" + dataset_spec_display_label(d=sim_config.dataset_spec)
                     if n_PDF_name != "ep":
                         text += "\n" + _n_PDF_name_display_name[n_PDF_name]
-                    text += "\n" + r"anti-$k_{\text{T}}$ jets"
+                    text += "\n" + r"anti-$k_{\text{T}}$" + (" charged-particle" if jet_type == "charged" else "") + " jets"
                     if region == "forward":
                         text += "\n" + r"$1.5 < \eta < 3.5 - R$"
                     if region == "mid_rapidity":
@@ -611,7 +611,7 @@ def plot_ReA(sim_config: SimulationConfig, analysis_config: ecce_ReA_implementat
                             text += "\n" + dataset_spec_display_label(d=sim_config.dataset_spec)
                             if input_spec.n_PDF_name != "ep":
                                 text += "\n" + _n_PDF_name_display_name[n_PDF_name]
-                            text += "\n" + f"$R$ = {jet_R}" + r" anti-$k_{\text{T}}$ jets"
+                            text += "\n" + f"$R$ = {jet_R}" + r" anti-$k_{\text{T}}$" + (" charged-particle" if jet_type == "charged" else "") + " jets"
                             if region == "forward":
                                 text += "\n" + r"$1.5 < \eta < 3.5 - R$"
                             if region == "mid_rapidity":
@@ -694,7 +694,7 @@ def plot_ReA(sim_config: SimulationConfig, analysis_config: ecce_ReA_implementat
                     text += "\n" + dataset_spec_display_label(d=sim_config.dataset_spec)
                     if input_spec.n_PDF_name != "ep":
                         text += "\n" + _n_PDF_name_display_name[n_PDF_name]
-                    text += "\n" + r"anti-$k_{\text{T}}$ jets"
+                    text += "\n" + r"anti-$k_{\text{T}}$" + (" charged-particle" if jet_type == "charged" else "") + " jets"
                     if region == "forward":
                         text += "\n" + r"$1.5 < \eta < 3.5 - R$"
                     if region == "mid_rapidity":
@@ -750,18 +750,18 @@ def plot_ReA(sim_config: SimulationConfig, analysis_config: ecce_ReA_implementat
                         text += "\n" + dataset_spec_display_label(d=sim_config.dataset_spec)
                         if input_spec.n_PDF_name != "ep":
                             text += "\n" + _n_PDF_name_display_name[n_PDF_name]
-                        text += "\n" + r" anti-$k_{\text{T}}$ jets"
+                        text += "\n" + r"anti-$k_{\text{T}}$" + (" charged-particle" if jet_type == "charged" else "") + " jets"
                         if region == "forward":
                             text += "\n" + r"$1.5 < \eta < 3.5 - R$"
                         if region == "mid_rapidity":
                             text += "\n" + r"$-1.5 < \eta < 1.5$"
-                        variations_index = next(iter(fixed_region_ReA_hists)).name_eA.replace("jetR030_", "").find("_variation")
+                        variations_index = next(iter(variation_hists)).name_eA.replace("jetR030_", "").find("_variation")
                         _plot_n_PDF_variations(
                             hists=variation_hists,
                             is_ReA_related=True,
                             plot_config=pb.PlotConfig(
                                 # [:variations_index] removes the variations number, since we'll show all variations here
-                                name=input_spec.n_PDF_name + "_" + next(iter(fixed_region_ReA_hists)).name_eA.replace("jetR030_", "")[:variations_index] + "_variations",
+                                name=input_spec.n_PDF_name + "_" + next(iter(variation_hists)).name_eA.replace("jetR030_", "")[:variations_index] + "_variations",
                                 panels=pb.Panel(
                                         axes=[
                                             pb.AxisConfig("x", label=r"$p" + variable_label + r"^{\text{jet}}\:(\text{GeV}/c)$", font_size=22, range=x_range),
@@ -840,7 +840,7 @@ def plot_ReA(sim_config: SimulationConfig, analysis_config: ecce_ReA_implementat
                     text += "\n" + dataset_spec_display_label(d=sim_config.dataset_spec)
                     if input_spec.n_PDF_name != "ep":
                         text += "\n" + _n_PDF_name_display_name[n_PDF_name]
-                    text += "\n" + r"anti-$k_{\text{T}}$ jets"
+                    text += "\n" + r"anti-$k_{\text{T}}$" + (" charged-particle" if jet_type == "charged" else "") + " jets"
                     if region == "forward":
                         text += "\n" + r"$1.5 < \eta < 3.5 - R$"
                     if region == "mid_rapidity":
@@ -898,18 +898,18 @@ def plot_ReA(sim_config: SimulationConfig, analysis_config: ecce_ReA_implementat
                             text += "\n" + dataset_spec_display_label(d=sim_config.dataset_spec)
                             if input_spec.n_PDF_name != "ep":
                                 text += "\n" + _n_PDF_name_display_name[n_PDF_name]
-                            text += "\n" + r"anti-$k_{\text{T}}$ jets"
+                            text += "\n" + r"anti-$k_{\text{T}}$" + (" charged-particle" if jet_type == "charged" else "") + " jets"
                             if region == "forward":
                                 text += "\n" + r"$1.5 < \eta < 3.5 - R$"
                             if region == "mid_rapidity":
                                 text += "\n" + r"$-1.5 < \eta < 1.5$"
-                            variations_index = next(iter(double_ratio_hists)).name_eA.replace("jetR030_", "").find("_variation")
+                            variations_index = next(iter(variation_hists)).name_eA.replace("jetR030_", "").find("_variation")
                             _plot_n_PDF_variations(
                                 hists=variation_hists,
                                 is_ReA_related=True,
                                 plot_config=pb.PlotConfig(
                                     # [:variations_index] removes the variations number, since we'll show all variations here
-                                    name=input_spec.n_PDF_name + "_" + next(iter(double_ratio_hists)).name_eA.replace("jetR030_", "") + "_ratio_variations",
+                                    name=input_spec.n_PDF_name + "_" + next(iter(variation_hists)).name_eA.replace("jetR030_", "") + "_ratio_variations",
                                     panels=pb.Panel(
                                             axes=[
                                                 pb.AxisConfig("x", label=r"$p" + variable_label + r"^{\text{jet}}\:(\text{GeV}/c)$", font_size=22, range=x_range),
@@ -967,7 +967,7 @@ def plot_ReA(sim_config: SimulationConfig, analysis_config: ecce_ReA_implementat
                         text += "\n" + dataset_spec_display_label(d=sim_config.dataset_spec)
                         if input_spec.n_PDF_name != "ep":
                             text += "\n" + _n_PDF_name_display_name[n_PDF_name]
-                        text += "\n" + r"anti-$k_{\text{T}}$ jets"
+                        text += "\n" + r"anti-$k_{\text{T}}$" + (" charged-particle" if jet_type == "charged" else "") + " jets"
                         if region == "forward":
                             text += "\n" + r"$1.5 < \eta < 3.5 - R$"
                         if region == "mid_rapidity":
@@ -1012,7 +1012,7 @@ def run() -> None:
 
     # Settings
     scale_jets_by_expected_luminosity = True
-    skip_slow_2D_plots = True
+    skip_slow_2D_plots = False
     analysis_config = ecce_ReA_implementation.AnalysisConfig(
         jet_R_values=[0.3, 0.5, 0.8, 1.0],
         #jet_types=["charged", "calo", "true_charged", "true_full"],
@@ -1020,7 +1020,8 @@ def run() -> None:
         #regions = ["forward", "backward", "mid_rapidity"],
         #variables = ["pt", "p"],
         # More minimal for speed + testing
-        jet_types=["charged"],
+        jet_types=["charged", "true_charged"],
+        #jet_types=["calo", "true_full"],
         regions=["forward"],
         variables=["p"],
     )
@@ -1049,13 +1050,13 @@ def run() -> None:
             InputSpec("ep", n_variations=1),
             # EPPS
             # For testing
-            InputSpec("EPPS16nlo_CT14nlo_Au197", n_variations=2),
+            #InputSpec("EPPS16nlo_CT14nlo_Au197", n_variations=2),
             # Full set of variations
-            #InputSpec("EPPS16nlo_CT14nlo_Au197", n_variations=97),
+            InputSpec("EPPS16nlo_CT14nlo_Au197", n_variations=97),
             # nNNPDF
             # For testing
             #InputSpec("nNNPDF20_nlo_as_0118_Au197", n_variations=1),
-            #InputSpec("nNNPDF20_nlo_as_0118_Au197", n_variations=5),
+            #InputSpec("nNNPDF20_nlo_as_0118_Au197", n_variations=15),
             # Full set of variations
             #InputSpec("nNNPDF20_nlo_as_0118_Au197", n_variations=250),
         ],
