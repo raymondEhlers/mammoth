@@ -49,8 +49,13 @@ def run(n_variations: int = 97) -> None:
                                                           ("EPPS16nlo_CT14nlo_Au197", "CT14nlo", 97)]:
             values[n_PDF_name] = {}
             proton_pdf = lhapdf.mkPDF(proton_pdf_name)
+            first_loop = True
+            logger.info(f"proton_pdf {proton_pdf_name} limits: x=({proton_pdf.xMin}, {proton_pdf.xMax}), Q2=({proton_pdf.q2Min}, {proton_pdf.q2Max})")
             for variation in range(n_variations):
                 n_pdf = lhapdf.mkPDF(n_PDF_name, variation)
+                if first_loop:
+                    logger.info(f"n_pdf {n_PDF_name} limits: x=({n_pdf.xMin}, {n_pdf.xMax}), Q2=({n_pdf.q2Min}, {n_pdf.q2Max})")
+                    first_loop = False
 
                 temp_values = []
                 for x_val in x:
@@ -126,4 +131,5 @@ def run(n_variations: int = 97) -> None:
 
 
 if __name__ == "__main__":
+    helpers.setup_logging()
     run()
