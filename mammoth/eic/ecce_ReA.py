@@ -395,6 +395,14 @@ def expected_luminosities_display_text(expected_luminosities: Mapping[str, float
     return "Projected: " + ", ".join(entries)
 
 
+_jet_type_display_label = {
+    "charged": "charged-particle jets",
+    "true_charged": "true charged-particle jets",
+    "calo": "calorimeter jets",
+    "true_full": "true jets",
+}
+
+
 def plot_ReA(sim_config: SimulationConfig, analysis_config: ecce_ReA_implementation.AnalysisConfig, input_hists: Dict[str, Dict[str, hist.Hist]],
              cross_section: float, scale_jets_by_expected_luminosity: bool = False, expected_luminosities: Mapping[str, float] = None, skip_slow_2D_plots: bool = False) -> None:
     scaled_hists = {}
@@ -421,9 +429,6 @@ def plot_ReA(sim_config: SimulationConfig, analysis_config: ecce_ReA_implementat
                 for jet_type in analysis_config.jet_types:
                     for region in analysis_config.regions:
                         for jet_R in analysis_config.jet_R_values:
-                            # TEMP: Possibility to skip over this to save time
-                            continue
-                            # ENDTEMP
                             # Q2 vs spectra of fixed variable, jet type, region, and R
                             _parameters_spectra = JetParameters(
                                 # Have to hack the variable name here because I wasn't careful enough in the definition
@@ -440,7 +445,7 @@ def plot_ReA(sim_config: SimulationConfig, analysis_config: ecce_ReA_implementat
                             text += "\n" + dataset_spec_display_label(d=sim_config.dataset_spec)
                             if n_PDF_name != "ep":
                                 text += "\n" + _n_PDF_name_display_name[n_PDF_name]
-                            text += "\n" + f"$R$ = {jet_R}" + r" anti-$k_{\text{T}}$" + (" charged-particle" if jet_type == "charged" else "") + " jets"
+                            text += "\n" + f"$R$ = {jet_R}" + r" anti-$k_{\text{T}}$ " + _jet_type_display_label[jet_type]
                             if region == "forward":
                                 text += "\n" + r"$1.5 < \eta < 3.5 - R$"
                             if region == "mid_rapidity":
@@ -485,7 +490,7 @@ def plot_ReA(sim_config: SimulationConfig, analysis_config: ecce_ReA_implementat
                             text += "\n" + dataset_spec_display_label(d=sim_config.dataset_spec)
                             if n_PDF_name != "ep":
                                 text += "\n" + _n_PDF_name_display_name[n_PDF_name]
-                            text += "\n" + f"$R$ = {jet_R}" + r" anti-$k_{\text{T}}$" + (" charged-particle" if jet_type == "charged" else "") + " jets"
+                            text += "\n" + f"$R$ = {jet_R}" + r" anti-$k_{\text{T}}$ " + _jet_type_display_label[jet_type]
                             if region == "forward":
                                 text += "\n" + r"$1.5 < \eta < 3.5 - R$"
                             if region == "mid_rapidity":
@@ -548,7 +553,11 @@ def plot_ReA(sim_config: SimulationConfig, analysis_config: ecce_ReA_implementat
                     spectra_hists = {}
                     for jet_R in analysis_config.jet_R_values:
                         _parameters_spectra = JetParameters(jet_R=jet_R, jet_type=jet_type, region=region, observable="spectra", variable=variable, variation=0, n_PDF_name=n_PDF_name)
-                        spectra_hists[_parameters_spectra] = input_spectra_hists[n_PDF_name][_parameters_spectra.name_eA if n_PDF_name != "ep" else _parameters_spectra.name_ep]
+                        # NOTE: Since we're intentionally taking the unscaled hists regardless of whether
+                        #       we enabled scaling. (we never want to scale up the values by luminosity because
+                        #       then we'll end up on different scales in the ReA. This is why we only scale the errors).
+                        #       So we need to scale here by cross section so we can talk about well defined spectra
+                        spectra_hists[_parameters_spectra] = input_hists[n_PDF_name][_parameters_spectra.name_eA if n_PDF_name != "ep" else _parameters_spectra.name_ep] * cross_section
 
                     variable_label = ""
                     x_range = (5, 50)
@@ -559,7 +568,7 @@ def plot_ReA(sim_config: SimulationConfig, analysis_config: ecce_ReA_implementat
                     text += "\n" + dataset_spec_display_label(d=sim_config.dataset_spec)
                     if n_PDF_name != "ep":
                         text += "\n" + _n_PDF_name_display_name[n_PDF_name]
-                    text += "\n" + r"anti-$k_{\text{T}}$" + (" charged-particle" if jet_type == "charged" else "") + " jets"
+                    text += "\n" + r"anti-$k_{\text{T}}$ " + _jet_type_display_label[jet_type]
                     if region == "forward":
                         text += "\n" + r"$1.5 < \eta < 3.5 - R$"
                     if region == "mid_rapidity":
@@ -600,7 +609,12 @@ def plot_ReA(sim_config: SimulationConfig, analysis_config: ecce_ReA_implementat
                             for variation in input_spec.variations:
                                 _parameters_spectra = JetParameters(jet_R=jet_R, jet_type=jet_type, region=region,
                                                                     observable="spectra", variable=variable, variation=variation, n_PDF_name=input_spec.n_PDF_name)
-                                variation_hists[_parameters_spectra] = input_spectra_hists[input_spec.n_PDF_name][_parameters_spectra.name_eA if input_spec.n_PDF_name != "ep" else _parameters_spectra.name_ep]
+                                # NOTE: Since we're intentionally taking the unscaled hists regardless of whether
+                                #       we enabled scaling. (we never want to scale up the values by luminosity because
+                                #       then we'll end up on different scales in the ReA. This is why we only scale the errors).
+                                #       So we need to scale here by cross section so we can talk about well defined spectra
+                                variation_hists[_parameters_spectra] = input_hists[input_spec.n_PDF_name][
+                                    _parameters_spectra.name_eA if input_spec.n_PDF_name != "ep" else _parameters_spectra.name_ep] * cross_section
 
                             variable_label = ""
                             x_range = (5, 50)
@@ -611,7 +625,7 @@ def plot_ReA(sim_config: SimulationConfig, analysis_config: ecce_ReA_implementat
                             text += "\n" + dataset_spec_display_label(d=sim_config.dataset_spec)
                             if input_spec.n_PDF_name != "ep":
                                 text += "\n" + _n_PDF_name_display_name[n_PDF_name]
-                            text += "\n" + f"$R$ = {jet_R}" + r" anti-$k_{\text{T}}$" + (" charged-particle" if jet_type == "charged" else "") + " jets"
+                            text += "\n" + f"$R$ = {jet_R}" + r" anti-$k_{\text{T}}$ " + _jet_type_display_label[jet_type]
                             if region == "forward":
                                 text += "\n" + r"$1.5 < \eta < 3.5 - R$"
                             if region == "mid_rapidity":
@@ -694,7 +708,7 @@ def plot_ReA(sim_config: SimulationConfig, analysis_config: ecce_ReA_implementat
                     text += "\n" + dataset_spec_display_label(d=sim_config.dataset_spec)
                     if input_spec.n_PDF_name != "ep":
                         text += "\n" + _n_PDF_name_display_name[n_PDF_name]
-                    text += "\n" + r"anti-$k_{\text{T}}$" + (" charged-particle" if jet_type == "charged" else "") + " jets"
+                    text += "\n" + r"anti-$k_{\text{T}}$ " + _jet_type_display_label[jet_type]
                     if region == "forward":
                         text += "\n" + r"$1.5 < \eta < 3.5 - R$"
                     if region == "mid_rapidity":
@@ -750,7 +764,7 @@ def plot_ReA(sim_config: SimulationConfig, analysis_config: ecce_ReA_implementat
                         text += "\n" + dataset_spec_display_label(d=sim_config.dataset_spec)
                         if input_spec.n_PDF_name != "ep":
                             text += "\n" + _n_PDF_name_display_name[n_PDF_name]
-                        text += "\n" + r"anti-$k_{\text{T}}$" + (" charged-particle" if jet_type == "charged" else "") + " jets"
+                        text += "\n" + r"anti-$k_{\text{T}}$ " + _jet_type_display_label[jet_type]
                         if region == "forward":
                             text += "\n" + r"$1.5 < \eta < 3.5 - R$"
                         if region == "mid_rapidity":
@@ -840,7 +854,7 @@ def plot_ReA(sim_config: SimulationConfig, analysis_config: ecce_ReA_implementat
                     text += "\n" + dataset_spec_display_label(d=sim_config.dataset_spec)
                     if input_spec.n_PDF_name != "ep":
                         text += "\n" + _n_PDF_name_display_name[n_PDF_name]
-                    text += "\n" + r"anti-$k_{\text{T}}$" + (" charged-particle" if jet_type == "charged" else "") + " jets"
+                    text += "\n" + r"anti-$k_{\text{T}}$ " + _jet_type_display_label[jet_type]
                     if region == "forward":
                         text += "\n" + r"$1.5 < \eta < 3.5 - R$"
                     if region == "mid_rapidity":
@@ -898,7 +912,7 @@ def plot_ReA(sim_config: SimulationConfig, analysis_config: ecce_ReA_implementat
                             text += "\n" + dataset_spec_display_label(d=sim_config.dataset_spec)
                             if input_spec.n_PDF_name != "ep":
                                 text += "\n" + _n_PDF_name_display_name[n_PDF_name]
-                            text += "\n" + r"anti-$k_{\text{T}}$" + (" charged-particle" if jet_type == "charged" else "") + " jets"
+                            text += "\n" + r"anti-$k_{\text{T}}$ " + _jet_type_display_label[jet_type]
                             if region == "forward":
                                 text += "\n" + r"$1.5 < \eta < 3.5 - R$"
                             if region == "mid_rapidity":
@@ -967,7 +981,7 @@ def plot_ReA(sim_config: SimulationConfig, analysis_config: ecce_ReA_implementat
                         text += "\n" + dataset_spec_display_label(d=sim_config.dataset_spec)
                         if input_spec.n_PDF_name != "ep":
                             text += "\n" + _n_PDF_name_display_name[n_PDF_name]
-                        text += "\n" + r"anti-$k_{\text{T}}$" + (" charged-particle" if jet_type == "charged" else "") + " jets"
+                        text += "\n" + r"anti-$k_{\text{T}}$ " + _jet_type_display_label[jet_type]
                         if region == "forward":
                             text += "\n" + r"$1.5 < \eta < 3.5 - R$"
                         if region == "mid_rapidity":
@@ -1020,10 +1034,10 @@ def run() -> None:
         #regions = ["forward", "backward", "mid_rapidity"],
         #variables = ["pt", "p"],
         # More minimal for speed + testing
-        jet_types=["charged", "true_charged"],
-        #jet_types=["calo", "true_full"],
+        #jet_types=["charged", "true_charged"],
+        jet_types=["calo", "true_full"],
         regions=["forward"],
-        variables=["p"],
+        variables=["p", "pt"],
     )
 
     # Setup
