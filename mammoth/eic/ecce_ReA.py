@@ -659,29 +659,25 @@ def plot_ReA(sim_config: SimulationConfig, analysis_config: ecce_ReA_implementat
     # Calculate band for PDF variation of ReA
     #########################################
     # NOTE: The results are stored in the metadata of the nominal variation
-    try:
-        for input_spec in sim_config.input_specs:
-            if input_spec.n_variations > 1 and input_spec.n_PDF_name != "ep":
-                for variable in analysis_config.variables:
-                    for jet_type in analysis_config.jet_types:
-                        for region in analysis_config.regions:
-                            for jet_R in analysis_config.jet_R_values:
-                                variation_hists = {}
-                                nominal_hist = None
-                                for variation in input_spec.variations:
-                                    _parameters_ReA = JetParameters(jet_R=jet_R, jet_type=jet_type, region=region,
-                                                                    observable="ReA", variable=variable, variation=variation, n_PDF_name=input_spec.n_PDF_name)
-                                    variation_hists[_parameters_ReA] = ReA_hists[input_spec.n_PDF_name][_parameters_ReA]
-                                    if variation == 0:
-                                        nominal_hist = variation_hists[_parameters_ReA]
+    for input_spec in sim_config.input_specs:
+        if input_spec.n_variations > 1 and input_spec.n_PDF_name != "ep":
+            for variable in analysis_config.variables:
+                for jet_type in analysis_config.jet_types:
+                    for region in analysis_config.regions:
+                        for jet_R in analysis_config.jet_R_values:
+                            variation_hists = {}
+                            nominal_hist = None
+                            for variation in input_spec.variations:
+                                _parameters_ReA = JetParameters(jet_R=jet_R, jet_type=jet_type, region=region,
+                                                                observable="ReA", variable=variable, variation=variation, n_PDF_name=input_spec.n_PDF_name)
+                                variation_hists[_parameters_ReA] = ReA_hists[input_spec.n_PDF_name][_parameters_ReA]
+                                if variation == 0:
+                                    nominal_hist = variation_hists[_parameters_ReA]
 
-                                _calculate_nominal_variations(
-                                    variation_hists=variation_hists,
-                                    nominal_hist=nominal_hist,
-                                )
-    except Exception as e:
-        logger.info(f"Error band calculation for ReA failed with {e}")
-        import IPython; IPython.start_ipython(user_ns={**globals(),**locals()})
+                            _calculate_nominal_variations(
+                                variation_hists=variation_hists,
+                                nominal_hist=nominal_hist,
+                            )
 
     ####################################
     # Plot ReA for nomainl PDF variation
@@ -801,34 +797,30 @@ def plot_ReA(sim_config: SimulationConfig, analysis_config: ecce_ReA_implementat
     # Calculate double ratio error band for PDF variations
     ######################################################
     # NOTE: The results are stored in the metadata of the nominal variation
-    try:
-        for input_spec in sim_config.input_specs:
-            if input_spec.n_variations > 1 and input_spec.n_PDF_name != "ep":
-                for variable in analysis_config.variables:
-                    for jet_type in analysis_config.jet_types:
-                        for region in analysis_config.regions:
-                            # -1 to skip R = 1.0, which isn't valid for the ratio
-                            for jet_R in analysis_config.jet_R_values[:-1]:
-                                variation_hists = {}
-                                nominal_hist = None
-                                for variation in input_spec.variations:
-                                    _parameters_ReA = JetParameters(jet_R=jet_R, jet_type=jet_type, region=region,
-                                                                    observable="ReA", variable=variable, variation=variation, n_PDF_name=input_spec.n_PDF_name)
-                                    variation_hists[_parameters_ReA] = ReA_double_ratio_hists[input_spec.n_PDF_name][_parameters_ReA]
-                                    if variation == 0:
-                                        nominal_hist = variation_hists[_parameters_ReA]
+    for input_spec in sim_config.input_specs:
+        if input_spec.n_variations > 1 and input_spec.n_PDF_name != "ep":
+            for variable in analysis_config.variables:
+                for jet_type in analysis_config.jet_types:
+                    for region in analysis_config.regions:
+                        # -1 to skip R = 1.0, which isn't valid for the ratio
+                        for jet_R in analysis_config.jet_R_values[:-1]:
+                            variation_hists = {}
+                            nominal_hist = None
+                            for variation in input_spec.variations:
+                                _parameters_ReA = JetParameters(jet_R=jet_R, jet_type=jet_type, region=region,
+                                                                observable="ReA", variable=variable, variation=variation, n_PDF_name=input_spec.n_PDF_name)
+                                variation_hists[_parameters_ReA] = ReA_double_ratio_hists[input_spec.n_PDF_name][_parameters_ReA]
+                                if variation == 0:
+                                    nominal_hist = variation_hists[_parameters_ReA]
 
-                                _calculate_nominal_variations(
-                                    variation_hists=variation_hists,
-                                    nominal_hist=nominal_hist,
-                                )
-                                #logger.info(f"nominal_hist.metadata: {nominal_hist.metadata}")
-                                #_temp = JetParameters(jet_R=jet_R, jet_type=jet_type, region=region,
-                                #                      observable="ReA", variable=variable, variation=0, n_PDF_name=input_spec.n_PDF_name)
-                                #logger.info(f"nominal_hist in array.metadata: {variation_hists[_temp].metadata}")
-    except Exception as e:
-        logger.info(f"Error band calculation for ReA failed with {e}")
-        import IPython; IPython.start_ipython(user_ns={**globals(),**locals()})
+                            _calculate_nominal_variations(
+                                variation_hists=variation_hists,
+                                nominal_hist=nominal_hist,
+                            )
+                            #logger.info(f"nominal_hist.metadata: {nominal_hist.metadata}")
+                            #_temp = JetParameters(jet_R=jet_R, jet_type=jet_type, region=region,
+                            #                      observable="ReA", variable=variable, variation=0, n_PDF_name=input_spec.n_PDF_name)
+                            #logger.info(f"nominal_hist in array.metadata: {variation_hists[_temp].metadata}")
 
     ######################################################
     # Plot double ratios
@@ -1034,8 +1026,12 @@ def run() -> None:
         #regions = ["forward", "backward", "mid_rapidity"],
         #variables = ["pt", "p"],
         # More minimal for speed + testing
-        #jet_types=["charged", "true_charged"],
-        jet_types=["calo", "true_full"],
+        # NOTE: For the future, the number of hists is usually too large to load all of the into memory at once.
+        #       So instead, load some ofthem at a time, and take it in steps. One could do this with a shell script, etc.
+        #       (or carefully clear the memory in python). However, the easiest thing to do so have has been to deal
+        #       with it by hand.
+        jet_types=["charged", "true_charged"],
+        #jet_types=["calo", "true_full"],
         regions=["forward"],
         variables=["p", "pt"],
     )
