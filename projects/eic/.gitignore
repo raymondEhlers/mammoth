@@ -1,4 +1,14 @@
-# Generate files
+# Projects + tests that don't need to be stored
+cvmfsKeys
+forwardTracking
+jetResolution
+jetObservables/*.txt
+jetObservables/*.diff
+jetObservables/**/*.pdf
+jetObservables/*.root
+trackingComparison
+
+# Generated files
 Makefile.in
 aclocal.m4
 autom4te.cache/
