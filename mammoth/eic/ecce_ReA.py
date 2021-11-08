@@ -70,9 +70,9 @@ def _load_results(config: SimulationConfig, input_specs: Sequence[InputSpec]) ->
     output_hists = {}
     for spec in input_specs:
         logger.info(f"Loading hists from {config.input_dir / spec.filename}")
-        # Temprorarily only look at the main variation to avoid it taking forever to load.
         output_hists[spec.n_PDF_name] = ecce_base.load_hists(config.input_dir / spec.filename,
-                                                             filters=[f"variation{i}" for i in spec.variations] if spec.n_PDF_name != "ep" else None)
+                                                             filters=[f"variation{i}" for i in spec.variations] if spec.n_PDF_name != "ep" else None,
+                                                             require_ends_with_in_filter=True)
         #output_hists[spec.n_PDF_name] = ecce_base.load_hists(config.input_dir / spec.filename)
         # Convert to hist.Hist
         for k, v in output_hists[spec.n_PDF_name].items():

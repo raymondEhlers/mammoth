@@ -15,24 +15,50 @@ import uproot
 logger = logging.getLogger(__name__)
 
 
-def load_hists(filename: Path, filter: str = "", filters: Sequence[str] = None) -> Dict[str, hist.Hist]:
+def load_hists(filename: Path, filter: str = "", filters: Sequence[str] = None, require_ends_with_in_filter: bool = False) -> Dict[str, hist.Hist]:
     """Load histograms from a flat root file
 
     Note:
         The typing is lying a bit here, but it's good enough - we can convert later,
         and there's no obvious typing for uproot hists since they're generally dynamically
 
+    Note:
+        Specify either filter or filters, but not both!
+
+    Args:
+        filename: Path to the root file.
+        filter: Filter to apply to the keys. Default: "".
+        filters: List of filters to apply to the keys. Default: [].
+        require_ends_with_in_filter: Instead of testing with `in` for the filter, test
+            with `endswith`. This can be convenient for requiring exact matches to reduce
+            the number of hists extracted, at the expense of a more complicated or
+            expansive filter. Default: False.
+
+    Returns:
+        Dict of hist name -> hist.
     """
+    # Raise error if both are passed
+    if filter and filters:
+        raise ValueError(f"Please provide only a single filter, or a list of filters. Not both. filter: {filter}, filters: {filters}")
+    # Ensure the filters list is always iterable
     if filters is None:
         filters = []
+    # We always want to use the filters list. So if only a filter is passed, then put it into the filters list.
+    # This reduces the number of code paths, which makes the code simpler
+    if filter != "":
+        filters = [filter]
+
     hists = {}
     logger.info(f"Loading {filename} with filter: {filter}, filters: {filters}")
     with uproot.open(filename) as f:
         for k in f.keys(cycle=False):
-            if filter and filter not in k:
-                continue
-            if filters and all(f not in k for f in filters):
-                continue
+            if filters:
+                if require_ends_with_in_filter:
+                    if all(not k.endswith(f) for f in filters):
+                        continue
+                else:
+                    if all(f not in k for f in filters):
+                        continue
             hists[k] = f[k]
 
     return hists
