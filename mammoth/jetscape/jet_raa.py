@@ -122,7 +122,11 @@ def find_jets_for_analysis(arrays: ak.Array, jet_R_values: Sequence[float], part
             ]
 
     # Apply jet level cuts.
-    # None for now
+    # Fiducial cuts for ALICE full jets
+    for jet_label, jet_collection in jets.items():
+        if jet_label.label == "full":
+            fiducial_mask = np.abs(jet_collection.eta) <= (0.7 - jet_label.jet_R)
+            jets[jet_label] = jet_collection[fiducial_mask]
 
     return jets
 
