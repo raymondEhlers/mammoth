@@ -182,12 +182,12 @@ def setup_ecce_afterburner(
     input_files = sorted(dataset.data.glob("*.root"))
 
     # TEMP for testing
-    #input_files = input_files[:2]
+    #input_files = input_files[1:2]
     # ENDTEMP
 
     # Limit stats to keep things moving...
-    input_files = input_files[:100]
-    # TODO: Remove later
+    # This was sufficient to get all files for Q2 > 100, pythia8
+    #input_files = input_files[:1000]
 
     futures = []
     func = run_ecce_afterburner_bash if use_bash_app else run_ecce_afterburner
@@ -225,7 +225,8 @@ def setup_ecce_afterburner(
 def run() -> None:
     # Basic setup
     afterburner_dir = Path("/software/rehlers/dev/eic/analysis_software_EIC")
-    output_dir = Path("/alf/data/rehlers/eic/afterburner/primary_track_source_0_remove_tracklets")
+    output_dir = Path("/alf/data/rehlers/eic/afterburner/ReA/2021-11-02/min_p_cut_EPPS")
+    #output_dir = Path("/alf/data/rehlers/eic/afterburner/ReA/test")
     jet_R_parameters = [0.3, 0.5, 0.8, 1.0]
     jet_algorithm = "anti-kt"
     #jet_algorithm = ""
@@ -332,11 +333,13 @@ def run() -> None:
     task_config = job_utils.TaskConfig(name=task_name, n_cores_per_task=1)
     #n_cores_to_allocate = 120
     #walltime = "1:59:00"
-    n_cores_to_allocate = 10
-    walltime = "20:00:00"
+    n_cores_to_allocate = 100
+    #walltime = "20:00:00"
+    walltime = "06:00:00"
+    #walltime = "02:00:00"
     # For testing
     #walltime = "1:59:00"
-    #n_cores_to_allocate = 3
+    #n_cores_to_allocate = 1
 
     # Validation
     # Possible datasets
@@ -464,12 +467,13 @@ def run() -> None:
                     jet_algorithm=jet_algorithm,
                     jet_R_parameters=jet_R_parameters,
                     primary_track_source=0,
-                    remove_tracklets=True,
+                    remove_tracklets=False,
                     tree_processing_code_directory=afterburner_dir / "treeAnalysis",
                     output_dir=output_dir,
                     use_bash_app=("ecce_afterburner_bash" in tasks_to_execute),
                     # Seems to work better for jets
                     #n_files_per_job=2,
+                    #n_files_per_job=5,
                     n_files_per_job=10,
                     # Seems to work for single particle
                     #n_files_per_job=10,
@@ -524,6 +528,9 @@ def run() -> None:
             logger.info(f"Writing output_hists to {output_hist_filename} for system {system}")
             with uproot.recreate(output_hist_filename) as f:
                 helpers.write_hists_to_file(hists=hists, f=f)
+
+    # Add a log message here to get the time that the futures are done
+    logger.info("Futures done!")
 
     # As far as I can tell, jobs will start executing as soon as they can, regardless of
     # asking for the result. By embedded here, we can inspect results, etc in the meantime.
