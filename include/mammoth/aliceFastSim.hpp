@@ -29,7 +29,7 @@ namespace fastsim {
      * @brief Identify the beam type and period that is being analyzed.
      */
     enum class Period_t {
-        kDisabled = -1,     //!<! No identifier
+        kDisabled = -1,     //!<! Disabled. Always return 1
         kLHC11h = 0,        //!<! Run1 PbPb - LHC11h
         kLHC15o = 1,        //!<! Run2 PbPb - LHC15o
         kLHC18qr = 2,       //!<! Run2 PbPb - LHC18{q,r}
@@ -37,6 +37,41 @@ namespace fastsim {
         kpA = 4,            //!<! Generic pA
         kpp = 5,            //!<! Generic pp
     };
+
+    /**
+     * @brief Characterize event activity
+     *
+     */
+    enum class EventActivity_t {
+        kInclusive = -1,
+        k0010 = 0,
+        k1030 = 1,
+        k3050 = 2,
+        k5090 = 3,
+        kInvalid = 4,
+    };
+    /**
+     * @brief Lookup event activity class based on centraltiy value
+     *
+     * @param eventActivity Centrality value
+     * @return EventActivity_t Event activity class
+     */
+    EventActivity_t findEventActivity(double eventActivity) {
+        if (eventActivity < 10) {
+            return EventActivity_t::k0010;
+        }
+        if (eventActivity >= 10 && eventActivity < 30) {
+            return EventActivity_t::k1030;
+        }
+        if (eventActivity >= 30 && eventActivity < 50) {
+            return EventActivity_t::k3050;
+        }
+        if (eventActivity >= 50 && eventActivity < 90) {
+            return EventActivity_t::k5090;
+        }
+        // Invalid
+        return EventActivity_t::kInvalid;
+    }
 
     /**
      * @brief Map from name to efficiency period
@@ -64,17 +99,19 @@ namespace fastsim {
      * NOTE: This function relies on the user taking advantage of the centrality binning in ``AliAnalysisTaskEmcal``.
      *       If it's not used, the proper centrality dependent efficiency may not be applied.
      *
+     * NOTE: We removed the task name argument because it breaks the automatic vectorization from pybind11, and we
+     *       don't really need it here anyway.
+     *
      * @param[in] trackPt Track pt
      * @param[in] trackEta Track eta
-     * @param[in] centralityBin Centrality bin of the current event.
+     * @param[in] eventActivity Event activity of the current event.
      * @param[in] period Identifies the data taking period to select the efficiency parametrization.
      * @param[in] taskName Name of the task which is calling this function (for logging purposes).
      * @returns The efficiency of measuring the given single track.
      */
-    double TrackingEfficiencyByPeriod(
+    double trackingEfficiencyByPeriod(
         const double trackPt, const double trackEta,
-        const int centralityBin,
-        const Period_t period,
-        const std::string &taskName);
+        const EventActivity_t eventActivity,
+        const Period_t period);
 }
 }

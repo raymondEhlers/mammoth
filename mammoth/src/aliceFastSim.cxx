@@ -1,5 +1,5 @@
 
-#include "aliceFastSim.hpp"
+#include "mammoth/aliceFastSim.hpp"
 
 #include <cmath>
 #include <iostream>
@@ -95,11 +95,11 @@ const double LHC15oParam_50_90_eta[13] = { 1.1259,  0.0105, 0.1961, -0.1330, -0.
  *
  * @param[in] trackPt Track pt
  * @param[in] trackEta Track eta
- * @param[in] centralityBin Centrality bin of the current event.
+ * @param[in] eventActivity Centrality bin of the current event.
  * @param[in] taskName Name of the task which is calling this function (for logging purposes).
  * @returns The efficiency of measuring the given single track.
  */
-double LHC11hTrackingEfficiency(const double trackPt, const double trackEta, const int centralityBin, const std::string & taskName)
+double LHC11hTrackingEfficiency(const double trackPt, const double trackEta, const alice::fastsim::EventActivity_t eventActivity, const std::string & taskName)
 {
   // Setup
   double etaAxis = 0;
@@ -111,8 +111,8 @@ double LHC11hTrackingEfficiency(const double trackPt, const double trackEta, con
   // 1 = 10-30%
   // 2 = 30-50%
   // 3 = 50-90%
-  switch (centralityBin) {
-    case 0 :
+  switch (eventActivity) {
+    case alice::fastsim::EventActivity_t::k0010:
       // Parameter values for GOOD TPC (LHC11h) runs (0-10%):
       ptAxis =
        (trackPt < 2.9) * (LHC11hParam_0_10[0] * exp(-pow(LHC11hParam_0_10[1] / trackPt, LHC11hParam_0_10[2])) +
@@ -130,7 +130,7 @@ double LHC11hTrackingEfficiency(const double trackPt, const double trackEta, con
       efficiency = ptAxis * etaAxis;
       break;
 
-    case 1:
+    case alice::fastsim::EventActivity_t::k1030:
       // Parameter values for GOOD TPC (LHC11h) runs (10-30%):
       ptAxis = (trackPt < 2.9) *
             (LHC11hParam_10_30[0] * exp(-pow(LHC11hParam_10_30[1] / trackPt, LHC11hParam_10_30[2])) +
@@ -148,7 +148,7 @@ double LHC11hTrackingEfficiency(const double trackPt, const double trackEta, con
       efficiency = ptAxis * etaAxis;
       break;
 
-    case 2:
+    case alice::fastsim::EventActivity_t::k3050:
       // Parameter values for GOOD TPC (LHC11h) runs (30-50%):
       ptAxis = (trackPt < 2.9) *
             (LHC11hParam_30_50[0] * exp(-pow(LHC11hParam_30_50[1] / trackPt, LHC11hParam_30_50[2])) +
@@ -166,7 +166,7 @@ double LHC11hTrackingEfficiency(const double trackPt, const double trackEta, con
       efficiency = ptAxis * etaAxis;
       break;
 
-    case 3:
+    case alice::fastsim::EventActivity_t::k5090:
       // Parameter values for GOOD TPC (LHC11h) runs (50-90%):
       ptAxis = (trackPt < 2.9) *
             (LHC11hParam_50_90[0] * exp(-pow(LHC11hParam_50_90[1] / trackPt, LHC11hParam_50_90[2])) +
@@ -190,20 +190,6 @@ double LHC11hTrackingEfficiency(const double trackPt, const double trackEta, con
   }
 
   return efficiency;
-}
-
-/**
- * Determine the pt efficiency axis for LHC15o. This is the main interface
- * for getting the efficiency.
- *
- * @param[in] trackEta Track eta.
- * @param[in] params Parameters for use with the function.
- * @returns The efficiency associated with the eta parameterization.
- */
-double LHC15oPtEfficiency(const double trackPt, const double params[10])
-{
-  return ((trackPt <= 3.5) * LHC15oLowPtEfficiencyImpl(trackPt, params, 0) +
-      (trackPt > 3.5) * LHC15oHighPtEfficiencyImpl(trackPt, params, 5));
 }
 
 /**
@@ -235,17 +221,17 @@ double LHC15oHighPtEfficiencyImpl(const double trackPt, const double params[10],
 }
 
 /**
- * Determine the eta efficiency axis for LHC15o.
+ * Determine the pt efficiency axis for LHC15o. This is the main interface
+ * for getting the efficiency.
  *
  * @param[in] trackEta Track eta.
  * @param[in] params Parameters for use with the function.
  * @returns The efficiency associated with the eta parameterization.
  */
-double LHC15oEtaEfficiency(const double trackEta, const double params[13])
+double LHC15oPtEfficiency(const double trackPt, const double params[10])
 {
-  // Just modify the arguments - the function is the same.
-  return ((trackEta <= -0.04) * LHC15oEtaEfficiencyImpl(trackEta, params, 0) +
-      (trackEta > -0.04) * LHC15oEtaEfficiencyImpl(trackEta, params, 6));
+  return ((trackPt <= 3.5) * LHC15oLowPtEfficiencyImpl(trackPt, params, 0) +
+      (trackPt > 3.5) * LHC15oHighPtEfficiencyImpl(trackPt, params, 5));
 }
 
 /**
@@ -269,15 +255,29 @@ double LHC15oEtaEfficiencyImpl(const double trackEta, const double params[13],
 }
 
 /**
+ * Determine the eta efficiency axis for LHC15o.
+ *
+ * @param[in] trackEta Track eta.
+ * @param[in] params Parameters for use with the function.
+ * @returns The efficiency associated with the eta parameterization.
+ */
+double LHC15oEtaEfficiency(const double trackEta, const double params[13])
+{
+  // Just modify the arguments - the function is the same.
+  return ((trackEta <= -0.04) * LHC15oEtaEfficiencyImpl(trackEta, params, 0) +
+      (trackEta > -0.04) * LHC15oEtaEfficiencyImpl(trackEta, params, 6));
+}
+
+/**
  * Calculate the track efficiency for LHC15o - PbPb at 5.02 TeV. See the gamma-hadron analysis (from Eliane via Michael).
  *
  * @param[in] trackPt Track pt
  * @param[in] trackEta Track eta
- * @param[in] centralityBin Centrality bin of the current event.
+ * @param[in] eventActivity Centrality bin of the current event.
  * @param[in] taskName Name of the task which is calling this function (for logging purposes).
  * @returns The efficiency of measuring the given single track.
  */
-double LHC15oTrackingEfficiency(const double trackPt, const double trackEta, const int centralityBin, const std::string & taskName)
+double LHC15oTrackingEfficiency(const double trackPt, const double trackEta, const alice::fastsim::EventActivity_t eventActivity, const std::string & taskName)
 {
   // We use the switch to determine the parameters needed to call the functions.
   // Assumes that the centrality bins follow (as defined in AliAnalysisTaskEmcal)
@@ -287,20 +287,20 @@ double LHC15oTrackingEfficiency(const double trackPt, const double trackEta, con
   // 3 = 50-90%
   const double* ptParams = nullptr;
   const double* etaParams = nullptr;
-  switch (centralityBin) {
-    case 0:
+  switch (eventActivity) {
+    case alice::fastsim::EventActivity_t::k0010:
       ptParams = LHC15oParam_0_10_pt;
       etaParams = LHC15oParam_0_10_eta;
       break;
-    case 1:
+    case alice::fastsim::EventActivity_t::k1030:
       ptParams = LHC15oParam_10_30_pt;
       etaParams = LHC15oParam_10_30_eta;
       break;
-    case 2:
+    case alice::fastsim::EventActivity_t::k3050:
       ptParams = LHC15oParam_30_50_pt;
       etaParams = LHC15oParam_30_50_eta;
       break;
-    case 3:
+    case alice::fastsim::EventActivity_t::k5090:
       ptParams = LHC15oParam_50_90_pt;
       etaParams = LHC15oParam_50_90_eta;
       break;
@@ -323,12 +323,18 @@ double LHC15oTrackingEfficiency(const double trackPt, const double trackEta, con
  *
  * @param[in] trackPt Track pt
  * @param[in] trackEta Track eta
- * @param[in] centralityBin Centrality bin of the current event.
+ * @param[in] eventActivity Centrality bin of the current event.
  * @param[in] taskName Name of the task which is calling this function (for logging purposes).
  * @returns The efficiency of measuring the given single track.
  */
-double LHC11aTrackingEfficiency(const double trackPt, const double trackEta, const int centralityBin, const std::string & taskName)
+double LHC11aTrackingEfficiency(const double trackPt, const double trackEta, const alice::fastsim::EventActivity_t eventActivity, const std::string & taskName)
 {
+  // Validation
+  if (eventActivity != alice::fastsim::EventActivity_t::kInclusive) {
+      std::cerr << taskName << ": " << "Passed event activity other than inclusive to pp. Passed: " << static_cast<int>(eventActivity) << "\n";
+      throw alice::fastsim::Error_t::kInvalidCentrality;
+  }
+
   // Pt axis
   // If the trackPt > 6 GeV, then all we need is this coefficient
   double coefficient = 0.898052; // p6
@@ -356,10 +362,14 @@ double LHC11aTrackingEfficiency(const double trackPt, const double trackEta, con
 namespace alice {
 namespace fastsim {
 
-double TrackingEfficiencyByPeriod(
- const double trackPt, const double trackEta, const int centralityBin,
- const Period_t period, const std::string& taskName)
+double trackingEfficiencyByPeriod(
+ const double trackPt, const double trackEta, const EventActivity_t eventActivity,
+ const Period_t period)
 {
+    // NOTE: We can't pass this because it breaks the vectorization method.
+    //       We could remove it, but it's easier just to leave it in place at this point.
+    const std::string taskName = "mammoth-fastsim";
+
     // Efficiency is determined entirely based on the given efficiency period.
     double efficiency = 1;
     switch (period)
@@ -368,13 +378,13 @@ double TrackingEfficiencyByPeriod(
         efficiency = 1;
         break;
     case Period_t::kLHC11h:
-        efficiency = LHC11hTrackingEfficiency(trackPt, trackEta, centralityBin, taskName);
+        efficiency = LHC11hTrackingEfficiency(trackPt, trackEta, eventActivity, taskName);
         break;
     case Period_t::kLHC15o:
-        efficiency = LHC15oTrackingEfficiency(trackPt, trackEta, centralityBin, taskName);
+        efficiency = LHC15oTrackingEfficiency(trackPt, trackEta, eventActivity, taskName);
         break;
     case Period_t::kLHC11a:
-        efficiency = LHC11aTrackingEfficiency(trackPt, trackEta, centralityBin, taskName);
+        efficiency = LHC11aTrackingEfficiency(trackPt, trackEta, eventActivity, taskName);
         break;
     case Period_t::kLHC18qr:
     case Period_t::kpA:

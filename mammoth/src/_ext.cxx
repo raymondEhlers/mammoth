@@ -5,6 +5,7 @@
 #include <pybind11/iostream.h>
 
 #include "mammoth/jetFinding.hpp"
+#include "mammoth/aliceFastSim.hpp"
 
 namespace py = pybind11;
 // Shorthand for literals
@@ -209,6 +210,33 @@ PYBIND11_MODULE(_ext, m) {
     })
   ;
 
+  // Jet reclustering
   m.def("recluster_jet", &reclusterJet<float>, "px"_a, "py"_a, "pz"_a, "E"_a, "jet_R"_a = 1.0, "jet_algorithm"_a = "CA", "area_settings"_a = std::nullopt, "eta_range"_a = std::make_tuple(-1, 1), "store_recursive_splittings"_a = true, "Recluster the given jet", py::call_guard<JetFindingLoggingStdout, JetFindingLoggingStderr>());
   m.def("recluster_jet", &reclusterJet<double>, "px"_a, "py"_a, "pz"_a, "E"_a, "jet_R"_a = 1.0, "jet_algorithm"_a = "CA", "area_settings"_a = std::nullopt, "eta_range"_a = std::make_tuple(-1, 1), "store_recursive_splittings"_a = true, "Recluster the given jet", py::call_guard<JetFindingLoggingStdout, JetFindingLoggingStderr>());
+
+  // ALICE
+  // Fast sim
+  py::enum_<alice::fastsim::Period_t>(m, "TrackingEfficiencyPeriod",  py::arithmetic(), "Tracking efficiency periods")
+    .value("disabled", alice::fastsim::Period_t::kDisabled, "Disabled. Always return 1")
+    .value("LHC11h", alice::fastsim::Period_t::kLHC11h, "Run1 PbPb - LHC11h")
+    .value("LHC15o", alice::fastsim::Period_t::kLHC15o, "Run2 PbPb - LHC15o")
+    .value("LHC18qr", alice::fastsim::Period_t::kLHC18qr, "Run2 PbPb - LHC18{q,r}")
+    .value("LHC11a", alice::fastsim::Period_t::kLHC11a, "Run1 pp - LHC11a (2.76 TeV)")
+    .value("pA", alice::fastsim::Period_t::kpA, "Generic pA")
+    .value("pp", alice::fastsim::Period_t::kpp, "Generic pp")
+    .export_values();
+  py::enum_<alice::fastsim::EventActivity_t>(m, "TrackingEfficiencyEventActivity", py::arithmetic(), "Event activity for tracking efficiency")
+    .value("inclusive", alice::fastsim::EventActivity_t::kInclusive, "Inclusive event activity, for say, pp, or MB PbPb.")
+    .value("central_00_10", alice::fastsim::EventActivity_t::k0010, "0-10% central event activity")
+    .value("mid_central_10_30", alice::fastsim::EventActivity_t::k1030, "10-30% mid-central event activity")
+    .value("semi_central_30_50", alice::fastsim::EventActivity_t::k3050, "30-50% semi-central event activity")
+    .value("peripheral_50_90", alice::fastsim::EventActivity_t::k5090, "50-90% peripheral event activity")
+    .value("invalid", alice::fastsim::EventActivity_t::kInvalid, "Invalid event activity")
+    .export_values();
+
+  m.def("find_event_activity", &alice::fastsim::findEventActivity, "value"_a,
+        "Utility to convert a numerical event activity value to an event activity enumeration value for calling the tracking efficiency.");
+  m.def("fast_sim_tracking_efficiency", py::vectorize(alice::fastsim::trackingEfficiencyByPeriod),
+        "track_pt"_a, "track_eta"_a, "centrality_bin"_a, "period"_a,
+        "Fast sim via tracking efficiency parametrization", py::call_guard<JetFindingLoggingStdout, JetFindingLoggingStderr>());
 }
