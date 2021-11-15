@@ -209,6 +209,7 @@ def run() -> None:
         #"convert",
         "analyze_RAA",
     ]
+    jet_R_values = [0.2, 0.4, 0.5, 0.6]
     #systems_to_process = _possible_systems[1:]
     systems_to_process = _possible_systems
     # Job execution configuration
@@ -252,6 +253,7 @@ def run() -> None:
                 setup_RAA_analysis(
                     system=system,
                     parquet_input_dir=_system_to_base_path[system] / "skim",
+                    jet_R_values=jet_R_values,
                     min_jet_pt=5,
                     write_jets_to_tree=True,
                     write_hists_to_file=True,
