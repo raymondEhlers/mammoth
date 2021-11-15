@@ -1,3 +1,5 @@
+#pragma once
+
 #include <string>
 #include <utility>
 
@@ -511,7 +513,7 @@ OutputWrapper<T> findJets(
     //       constituents with a selector.
     //     - I think it will be a small on the background because we're concerned with the median and we
     //       exclude the two leading jets. So unless there are many fake tracks in a single event, it's
-    //       unlikely to have a meaningful effect on the median. 
+    //       unlikely to have a meaningful effect on the median.
     //
     // Some notes for possible tweaks (not saying that they necessarily should be done):
     // - `GridMedianBackgroundEstimator` may be usable here, and much faster. However, it needs to be validated.
