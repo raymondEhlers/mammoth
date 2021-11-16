@@ -4,11 +4,44 @@
 """
 
 from pathlib import Path
+from typing import Any, MutableMapping
 
+import attr
 import awkward as ak
-import numpy as np
 
 from mammoth.framework import sources, utils
+
+
+@attr.s
+class FileSource:
+    _filename: Path = attr.ib(converter=Path)
+    _collision_system: str = attr.ib()
+    metadata: MutableMapping[str, Any] = attr.ib(factory=dict)
+
+    def __len__(self) -> int:
+        """Number of entries in the source."""
+        if "n_entries" in self.metadata:
+            return int(self.metadata["n_entries"])
+        raise ValueError("N entries not yet available.")
+
+    def data(self) -> ak.Array:
+        """Return data from the source.
+
+        Returns:
+            Data in an awkward array.
+        """
+        if "parquet" not in self._filename.suffix:
+            arrays = track_skim_to_awkward(
+                filename=self._filename,
+                collision_system=self._collision_system,
+            )
+        else:
+            source = sources.ParquetSource(
+                filename=self._filename,
+            )
+            arrays = source.data()
+        self.metadata["n_entries"] = len(arrays)
+        return arrays
 
 
 def track_skim_to_awkward(

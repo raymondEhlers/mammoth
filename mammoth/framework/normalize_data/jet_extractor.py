@@ -5,13 +5,47 @@
 
 import logging
 from pathlib import Path
-from typing import Optional, Tuple
+from typing import Any, MutableMapping, Optional, Tuple
 
+import attr
 import awkward as ak
 
 from mammoth.framework import sources
 
 logger = logging.getLogger(__name__)
+
+
+@attr.s
+class JEWELSource:
+    _filename: Path = attr.ib(converter=Path)
+    metadata: MutableMapping[str, Any] = attr.ib(factory=dict)
+
+    def __len__(self) -> int:
+        """Number of entries in the source."""
+        if "n_entries" in self.metadata:
+            return int(self.metadata["n_entries"])
+        raise ValueError("N entries not yet available.")
+
+    def data(self) -> ak.Array:
+        """Return data from the source.
+
+        Returns:
+            Data in an awkward array.
+        """
+        if "parquet" not in self._filename.suffix:
+            arrays = jet_extractor_to_awkward(
+                filename=self._filename,
+                # We always want to pull in as many tracks as possible, so take the largest possible R
+                jet_R=0.6,
+            )
+        else:
+            source = sources.ParquetSource(
+                filename=self._filename,
+            )
+            arrays = source.data()
+        self.metadata["n_entries"] = len(arrays)
+        return arrays
+
 
 def jet_extractor_to_awkward(
     filename: Path,
@@ -106,46 +140,58 @@ def write_to_parquet(arrays: ak.Array, filename: Path) -> bool:
 
 
 if __name__ == "__main__":
-    from mammoth import helpers
-    helpers.setup_logging()
+    import mammoth.helpers
+    mammoth.helpers.setup_logging()
 
-    # TODO: Skim to parquet to get the file sizes more uniform.
-    #       Then, make the JEWEL files a chunk source, and pass that into the embedding as a chunk source
-    #       So that way, the background dictates the number of events
+    # TODO: [x] Skim to parquet to get the file sizes more uniform.
+    #       [x] Then, make the JEWEL files a chunk source, and pass that into the embedding as a chunk source
+    #       [x] So that way, the background dictates the number of events
 
     chunk_size = int(1e5)
-    filename = Path("/alf/data/rehlers/skims/JEWEL_PbPb_no_recoil/JEWEL_NoToy_PbPb_PtHard80_140.root")
+    for pt_hat_bin in [
+        "05_15",
+        "15_30",
+        "30_45",
+        "45_60",
+        "60_80",
+        "80_140",
+    ]:
+        filename = Path(f"/alf/data/rehlers/skims/JEWEL_PbPb_no_recoil/JEWEL_NoToy_PbPb_3050_PtHard{pt_hat_bin}.root")
 
-    # Keep track of iteration
-    start = 0
-    continue_iterating = True
-    index = 0
-    while continue_iterating:
-        end = start + chunk_size
-        logger.info(f"Processing chunk {index} from {start}-{end}")
+        # Keep track of iteration
+        start = 0
+        continue_iterating = True
+        index = 0
+        while continue_iterating:
+            end = start + chunk_size
+            logger.info(f"Processing file {filename}, chunk {index} from {start}-{end}")
 
-        arrays = jet_extractor_to_awkward(
-            filename=filename,
-            jet_R=0.6,
-            entry_range=(start, end),
-        )
-        logger.info(f"Array length: {len(arrays)}")
+            arrays = jet_extractor_to_awkward(
+                filename=filename,
+                # Use jet R = 0.6 because this will contain more of the JEWEL particles.
+                # We should be safe to use this for embedding for smaller R jets too, since they
+                # should be encompassed within the R = 0.6 jet.
+                jet_R=0.6,
+                entry_range=(start, end),
+            )
+            # Just for confirmation that it matches the chunk size (or is smaller)
+            logger.debug(f"Array length: {len(arrays)}")
 
-        output_dir = filename.parent / "skim"
-        output_dir.mkdir(parents=True, exist_ok=True)
-        write_to_parquet(
-            arrays=arrays,
-            filename=(output_dir / f"{filename.stem}_{index:03}").with_suffix('.parquet'),
-        )
+            output_dir = filename.parent / "skim"
+            output_dir.mkdir(parents=True, exist_ok=True)
+            write_to_parquet(
+                arrays=arrays,
+                filename=(output_dir / f"{filename.stem}_{index:03}").with_suffix('.parquet'),
+            )
 
-        if len(arrays) < (end - start):
-            # We're out of entries - we're done.
-            break
+            if len(arrays) < (end - start):
+                # We're out of entries - we're done.
+                break
 
-        # Move up to the next iteration.
-        start = end
-        index += 1
+            # Move up to the next iteration.
+            start = end
+            index += 1
 
     logger.info(f"Finished at index {index}")
 
-    import IPython; IPython.start_ipython(user_ns={**globals(),**locals()})
+    #import IPython; IPython.start_ipython(user_ns={**globals(),**locals()})
