@@ -237,6 +237,6 @@ PYBIND11_MODULE(_ext, m) {
   m.def("find_event_activity", &alice::fastsim::findEventActivity, "value"_a,
         "Utility to convert a numerical event activity value to an event activity enumeration value for calling the tracking efficiency.");
   m.def("fast_sim_tracking_efficiency", py::vectorize(alice::fastsim::trackingEfficiencyByPeriod),
-        "track_pt"_a, "track_eta"_a, "centrality_bin"_a, "period"_a,
+        "track_pt"_a, "track_eta"_a, "event_activity"_a, "period"_a,
         "Fast sim via tracking efficiency parametrization", py::call_guard<JetFindingLoggingStdout, JetFindingLoggingStderr>());
 }
