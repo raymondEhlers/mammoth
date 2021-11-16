@@ -1,9 +1,12 @@
 import functools
 from typing import Any, Callable, Union
 
+import attr
 import numpy as np
 import numpy.typing as npt
 from scipy.interpolate import interp1d
+
+from mammoth._ext import TrackingEfficiencyPeriod as ALICETrackingEfficiencyPeriod, TrackingEfficiencyEventActivity as ALICETrackingEfficiencyEventActivity, find_event_activity, fast_sim_tracking_efficiency as alice_fast_sim_tracking_efficiency
 
 
 def inverse_sample_decorator(
@@ -42,3 +45,9 @@ def x_exp(
 
 
 sample_x_exp = inverse_sample_decorator(x_exp)
+
+
+@attr.s
+class ALICEFastSimParameters:
+    period: ALICETrackingEfficiencyPeriod = attr.ib()
+    event_activity: ALICETrackingEfficiencyEventActivity = attr.ib()

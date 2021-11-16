@@ -291,6 +291,67 @@ class ThermalModelExponential:
         )})
 
 
+@attr.s
+class ALICEFastSimTrackingEfficiency:
+    """ ALICE fast simulation based on tracking efficiency
+
+    This is definitely a poor man's implementation, but it's fine for a first look.
+    """
+    particle_level_data: ak.Array = attr.ib()
+    fast_sim_parameters: models.ALICEFastSimParameters = attr.ib()
+    metadata: MutableMapping[str, Any] = attr.ib(factory=dict)
+
+    def __len__(self) -> int:
+        if "n_entries" in self.metadata:
+            return int(self.metadata["n_entries"])
+        raise ValueError("N entries not yet available.")
+
+    def data(self) -> ak.Array:
+        # Setup
+        rng = np.random.default_rng()
+
+        self.metadata["n_entries"] = len(self.particle_level_data)
+
+        efficiencies = models.alice_fast_sim_tracking_efficiency(
+            track_pt=np.asarray(ak.flatten(self.particle_level_data["part_level"].pt, axis=-1)),
+            track_eta=np.asarray(ak.flatten(self.particle_level_data["part_level"].eta, axis=-1)),
+            event_activity=self.fast_sim_parameters.event_activity,
+            period=self.fast_sim_parameters.period,
+        )
+
+        n_particles_per_event = ak.num(self.particle_level_data["part_level"], axis=1)
+        total_n_particles = ak.sum(n_particles_per_event)
+
+        # Drop values that are higher than the tracking efficiency
+        random_values = rng.uniform(low=0.0, high=1.0, size=total_n_particles)
+        drop_particles_mask = random_values > efficiencies
+        # Since True will keep the particle, we need to invert this
+        drop_particles_mask = ~drop_particles_mask
+
+        # Unflatten so we can apply the mask to the existing particles
+        drop_particles_mask = ak.unflatten(drop_particles_mask, n_particles_per_event)
+
+        # Finally, add the particle structure at the end.
+        # NOTE: We return the fast sim wrapped in the "det_level" key because the framework
+        #       expects that every source has some kind of particle column name.
+        # NOTE: We also return the "part_level" because it's convenient to have both
+        #       together, even if it's in principle available elsewhere. We also include the event
+        #       level info for the same reason. I think we're violating the separation of concerns
+        #       a little bit, but it seems to work, so good enough for now.
+        return ak.Array(
+            {
+                "det_level": self.particle_level_data["part_level"][drop_particles_mask],
+                "part_level": self.particle_level_data["part_level"],
+                # Include the rest of the non particle related fields (ie. event level info)
+                **{
+                    k: v
+                    for k, v in zip(ak.fields(self.particle_level_data), ak.unzip(self.particle_level_data))
+                    if k not in ["det_level", "part_level"]
+                },
+            }
+        )
+
+
 def _sources_to_list(sources: Union[Source, Sequence[Source]]) -> Sequence[Source]:
     if not isinstance(sources, collections.abc.Iterable):
         return [sources]
