@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import collections.abc
 import itertools
+import logging
 from pathlib import Path
 from typing import (
     Any,
@@ -27,6 +28,8 @@ import numpy as np
 import uproot
 
 from mammoth.framework import models, utils
+
+logger = logging.getLogger(__name__)
 
 
 class Source(Protocol):
@@ -94,7 +97,8 @@ class UprootSource:
             }
             # Add restricted start and stop entries if requested.
             # Only if we specify a start and stop do we actually pass it on to uproot.
-            if self._entry_range.min and self._entry_range.max:
+            # Check explicitly for not none because min could be 0 and still a valid range.
+            if self._entry_range.min is not None and self._entry_range.max is not None:
                 reading_kwargs.update(
                     {
                         "entry_start": self._entry_range.min,
