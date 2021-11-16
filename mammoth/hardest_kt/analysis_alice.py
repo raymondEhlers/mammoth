@@ -322,16 +322,10 @@ def load_thermal_model(
     source_index_identifiers = {"signal": 0, "background": 100_000}
 
     # Signal
-    if "parquet" not in signal_filename.suffix:
-        pythia_arrays = track_skim.track_skim_to_awkward(
-            filename=signal_filename,
-            collision_system="pythia",
-        )
-    else:
-        source = sources.ParquetSource(
-            filename=signal_filename,
-        )
-        pythia_arrays = source.data()
+    pythia_source = track_skim.FileSource(
+        filename=signal_filename,
+        collision_system="pythia",
+    )
     # Background
     thermal_source = sources.ThermalModelExponential(
         # Chunk sizee will be set when combining the sources.
@@ -341,7 +335,7 @@ def load_thermal_model(
 
     # Now, just zip them together, effectively.
     combined_source = sources.MultipleSources(
-        fixed_size_sources={"signal": pythia_arrays},
+        fixed_size_sources={"signal": pythia_source},
         chunked_sources={"background": thermal_source},
         source_index_identifiers=source_index_identifiers,
     )
