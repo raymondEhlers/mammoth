@@ -154,7 +154,7 @@ def write_tree(jets: ak.Array, filename: Path) -> bool:
             for (k, dtype), v in zip(fields.items(), ak.unzip(jets[jet_label][list(fields)]))
         })
         # NOTE: We don't want to flatten here because otherwise we lose the overall number of events.
-        #       Plus, this ensures compatiably with the standard analysis.
+        #       Plus, this ensures compatibility with the standard analysis.
 
         # Trying to write an empty file causes problems because the types are undetermined
         # NOTE: This kind of sucks because we lose the event count by doing this. So instead we use the hack above.
