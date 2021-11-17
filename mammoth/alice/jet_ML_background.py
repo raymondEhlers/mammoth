@@ -9,6 +9,7 @@ from typing import Any, Dict, Mapping, MutableMapping, Tuple
 
 import awkward as ak
 import numpy as np
+import uproot
 
 from mammoth.framework import jet_finding, models, sources, transform
 from mammoth.framework.normalize_data import jet_extractor, track_skim
@@ -63,7 +64,7 @@ def load_embedding(signal_filename: Path, background_filename: Path, background_
     # NOTE: We can apply the signal selections in the analysis task later since we propagate those fields,
     #       so we skip it for now
     # Background
-    # Only apply background event selection if applicaable
+    # Only apply background event selection if applicable
     background_fields = ak.fields(arrays["background"])
     if "is_ev_rej" in background_fields:
         mask = mask & (arrays["background", "is_ev_rej"] == 0)
@@ -76,7 +77,8 @@ def load_embedding(signal_filename: Path, background_filename: Path, background_
     arrays = arrays[mask]
 
     return source_index_identifiers, transform.embedding(
-        arrays=arrays, source_index_identifiers=source_index_identifiers
+        arrays=arrays, source_index_identifiers=source_index_identifiers,
+        fix_background_index_to_minus_one=True,
     )
 
 
@@ -256,8 +258,44 @@ def analysis_embedding(source_index_identifiers: Mapping[str, int],
         depth_limit=1,
     )
 
+    # Calculate angularity
+    # We do this after flatten the jets because it's simpler, and we don't actually care about the =
+    # event structure for this calculation
+    for label in ["part_level", "det_level", "hybrid"]:
+        jets[label, "angularity"] = ak.sum(
+            jets[label].constituents.pt * jets[label].constituents.deltaR(jets[label]),
+            axis=1
+        ) / jets[label].pt
+
     # Now, the final transformation into a form that can be used to skim into a flat tree.
     return jets
+
+
+def write_skim(jets: ak.Array, filename: Path) -> None:
+    # Rename according to the expected conventions
+    jets_renamed = {
+        "Jet_Pt": jets["hybrid"].pt,
+        "Jet_NumTracks": ak.num(jets["hybrid"].constituents, axis=1),
+        "Jet_Track_Pt": jets["hybrid"].constituents.pt,
+        "Jet_Track_Label": jets["hybrid"].constituents["index"],
+        "Jet_Shape_Angularity": jets["hybrid", "angularity"],
+        "Jet_MC_MatchedDetLevelJet_Pt": jets["det_level"].pt,
+        "Jet_MC_MatchedPartLevelJet_Pt": jets["part_level"].pt,
+        # TODO: Update this when the shared momentum fraction is calculated
+        "Jet_MC_TruePtFraction": jets["hybrid"].pt * 0 + 1,
+    }
+
+    logger.info(f"Writing to root file: {filename}")
+    # Write with uproot
+    try:
+        with uproot.recreate(filename) as f:
+            f["tree"] = jets_renamed
+    except Exception as e:
+        logger.exception(e)
+        raise e from ValueError(
+            f"{jets.type}, {jets}"
+        )
+
 
 
 if __name__ == "__main__":
@@ -267,22 +305,25 @@ if __name__ == "__main__":
     JEWEL_identifier = "NoToy_PbPb"
     pt_hat_bin = "80_140"
     index = "000"
+    signal_filename = Path(f"/alf/data/rehlers/skims/JEWEL_PbPb_no_recoil/skim/JEWEL_{JEWEL_identifier}_PtHard{pt_hat_bin}_{index}.parquet")
+    background_filename = Path("/alf/data/rehlers/substructure/trains/PbPb/7666/run_by_run/LHC15o/246087/AnalysisResults.15o.825.root")
     source_index_identifiers, arrays = load_embedding(
-        signal_filename=Path(f"/alf/data/rehlers/skims/JEWEL_PbPb_no_recoil/skim/JEWEL_{JEWEL_identifier}_PtHard{pt_hat_bin}_{index}.parquet"),
-        background_filename=Path("/alf/data/rehlers/substructure/trains/PbPb/7666/run_by_run/LHC15o/246087/AnalysisResults.15o.825.root"),
+        signal_filename=signal_filename,
+        background_filename=background_filename,
         background_collision_system_tag="PbPb_central",
     )
 
     jet_R = 0.6
-    try:
-        jets = analysis_embedding(
-            source_index_identifiers=source_index_identifiers,
-            arrays=arrays,
-            jet_R=jet_R,
-            min_jet_pt={"hybrid": 10},
-            use_standard_rho_subtract=True,
-        )
-    except Exception as e:
-        logger.exception(e)
+    jets = analysis_embedding(
+        source_index_identifiers=source_index_identifiers,
+        arrays=arrays,
+        jet_R=jet_R,
+        min_jet_pt={"hybrid": 10},
+        use_standard_rho_subtract=True,
+    )
+
+    output_filename = Path(f"/alf/data/rehlers/skims/JEWEL_PbPb_no_recoil/skim/ML/{signal_filename.stem}_{background_filename.stem}.root")
+    output_filename.parent.mkdir(exist_ok=True, parents=True)
+    write_skim(jets=jets, filename=output_filename)
 
     import IPython; IPython.start_ipython(user_ns={**globals(),**locals()})
