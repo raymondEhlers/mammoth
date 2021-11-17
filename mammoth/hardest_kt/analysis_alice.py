@@ -93,7 +93,7 @@ def analysis_MC(arrays: ak.Array, jet_R: float, min_jet_pt: Mapping[str, float])
     # Apply area cut
     # Requires at least 60% of possible area.
     # **************
-    min_area = (jet_finding.area_percentage(60, jet_R),)
+    min_area = jet_finding.area_percentage(60, jet_R)
     part_level_mask = jets["part_level", "area"] > min_area
     det_level_mask = det_level_mask & (jets["det_level", "area"] > min_area)
     # *************
@@ -242,7 +242,7 @@ def analysis_data(
     # Apply area cut
     # Requires at least 60% of possible area.
     # **************
-    min_area = (jet_finding.area_percentage(60, jet_R),)
+    min_area = jet_finding.area_percentage(60, jet_R)
     #logger.warning(f"min area: {np.count_nonzero(np.asarray(ak.flatten((jets[particle_column_name, 'area'] > min_area) == True, axis=None)))}")
     mask = mask & (jets[particle_column_name, "area"] > min_area)
     logger.warning(f"add area cut accepted: {np.count_nonzero(np.asarray(ak.flatten(mask == True, axis=None)))}")
@@ -442,7 +442,7 @@ def analysis_embedding(source_index_identifiers: Mapping[str, int], arrays: ak.A
     # Apply area cut
     # Requires at least 60% of possible area.
     # **************
-    min_area = (jet_finding.area_percentage(60, jet_R),)
+    min_area = jet_finding.area_percentage(60, jet_R)
     part_level_mask = jets["part_level", "area"] > min_area
     det_level_mask = det_level_mask & (jets["det_level", "area"] > min_area)
     hybrid_mask = hybrid_mask & (jets["hybrid", "area"] > min_area)
