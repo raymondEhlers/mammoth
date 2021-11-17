@@ -83,7 +83,7 @@ def track_skim_to_awkward(
         columns=event_level_columns + particle_columns,
     ).data()
 
-    # NOTE: If there are no accepted tracks, we don't both storing the event.
+    # NOTE: If there are no accepted tracks, we don't bother storing the event.
     #       However, we attempt to preclude this at the AnalysisTask level by not filling events
     #       where there are no accepted tracks in the first collection.
 
