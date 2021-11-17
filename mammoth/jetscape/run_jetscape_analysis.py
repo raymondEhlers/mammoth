@@ -139,7 +139,7 @@ def setup_RAA_analysis(
 
     Args:
         system: Key describing the collision system (eg. `PbPb_00_10`)
-        parquet_input_dir: Directory containing the converetd parquet files.
+        parquet_input_dir: Directory containing the converted parquet files.
         jet_R_values: Jet R values to analyze. Default: [0.2, 0.4, 0.6]
         min_jet_pt: Minimum jet pt. Default: 5.
         write_jets_to_tree: If true, write jets to a tree.
