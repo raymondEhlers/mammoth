@@ -143,10 +143,6 @@ if __name__ == "__main__":
     import mammoth.helpers
     mammoth.helpers.setup_logging()
 
-    # TODO: [x] Skim to parquet to get the file sizes more uniform.
-    #       [x] Then, make the JEWEL files a chunk source, and pass that into the embedding as a chunk source
-    #       [x] So that way, the background dictates the number of events
-
     chunk_size = int(1e5)
     for pt_hat_bin in [
         "05_15",

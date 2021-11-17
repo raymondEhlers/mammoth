@@ -1,6 +1,6 @@
 """Run analysis using PYTHIA + thermal model.
 
-.. codeuathor:: Raymond Ehlers <raymond.ehlers@cern.ch>, ORNL
+.. codeauthor:: Raymond Ehlers <raymond.ehlers@cern.ch>, ORNL
 """
 
 import logging
@@ -328,7 +328,7 @@ def load_thermal_model(
     )
     # Background
     thermal_source = sources.ThermalModelExponential(
-        # Chunk sizee will be set when combining the sources.
+        # Chunk size will be set when combining the sources.
         chunk_size=-1,
         thermal_model_parameters=thermal_model_parameters,
     )

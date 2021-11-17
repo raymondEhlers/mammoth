@@ -130,7 +130,7 @@ def _jet_matching(
     i = 0
     # We don't care about the last offset (it's just the total number of jets), so we skip it
     # here in order to match with the length of the base counts.
-    # NOTE: I guess this kind of reimplements broadcast_arrays. But okay, it seems to be fine.
+    # NOTE: I guess this kind of re-implements broadcast_arrays. But okay, it seems to be fine.
     for event_offset_base, event_offset_tag, count_base in zip(starts_base[:-1], starts_tag[:-1], counts_base):
         # print(f"{i=}")
         # We don't care about this counter, we just need to iterate this many times.
@@ -354,7 +354,7 @@ def find_jets(
     if subtracted_to_unsubtracted_indices:
         # We have to play the same expand array game as above for the subtracted-to-unsubtracted
         # constituents mapping.
-        expanded_subtracted_to_unsbtracted_indices = _expand_array_for_applying_constituent_indices(
+        expanded_subtracted_to_unsubtracted_indices = _expand_array_for_applying_constituent_indices(
             array_to_expand=ak.Array(subtracted_to_unsubtracted_indices),
             constituent_indices=output_constituents["index"],
         )
@@ -364,7 +364,7 @@ def find_jets(
                 **dict(zip(ak.fields(output_constituents), ak.unzip(output_constituents))),
                 # TODO: This will overwrite the input index, which I don't think we want to do.
                 #       Temporarily, keep this separate. But determine where this actually matters.
-                "jf_unsubtracted_index": expanded_subtracted_to_unsbtracted_indices,
+                "jf_unsubtracted_index": expanded_subtracted_to_unsubtracted_indices,
             },
             with_name="Momentum4D",
         )

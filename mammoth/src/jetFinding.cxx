@@ -385,7 +385,7 @@ void ExtractJetSplittings(
     }
 }
 
-} // namesapce mammoth
+} // namespace mammoth
 
 /**
  * Subjets

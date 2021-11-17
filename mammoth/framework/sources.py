@@ -528,8 +528,8 @@ class MultipleSources:
 #    Think: Embedding into data, embedding into thermal model, etc.
 #
 #    Attributes:
-#        _sources: Contains an arbitary number of sources.
-#        source_index_identifiers: Map contanining an integer identifier for each source.
+#        _sources: Contains an arbitrary number of sources.
+#        source_index_identifiers: Map contianing an integer identifier for each source.
 #        _particles_columns: Names of columns to include in the particles.
 #    """
 #    _sources: Mapping[str, Source] = attr.ib(validator=_contains_signal_and_background)
@@ -570,7 +570,7 @@ class MultipleSources:
 #        )
 #
 #        # TODO: This isn't right. It needs to append the two collections together.
-#        #       This should be done via awkward primivities.
+#        #       This should be done via awkward primitives.
 #        particles = ak.zip(
 #            {
 #                k: ak.concatenate(

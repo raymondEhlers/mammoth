@@ -135,12 +135,12 @@ std::vector<unsigned int> updateSubtractedConstituentIndices(
 );
 
 /**
-  * @brief Implementatino of main jet finder.
+  * @brief Implementation of main jet finder.
   *
   * @tparam T Input data type (usually float or double)
   * @param columnFourVectors Column four vectors, with the columns ordered ["px", "py", "pz", "E"]
   * @param jetR jet resolution parameter
-  * @param jetAlgorithmStr jet alogrithm
+  * @param jetAlgorithmStr jet algorithm
   * @param areaSettings Area settings
   * @param etaRange Eta range. Tuple of min and max. Default: (-0.9, 0.9)
   * @param minJetPt Minimum jet pt. Default: 1.
@@ -221,7 +221,7 @@ class Subjets {
  * @class ColumnarSplittings
  * @brief Columnar jet splittings
  *
- * Container for columnar jet splitings info. It's mainly for convenience in moving over to python.
+ * Container for columnar jet splittings info. It's mainly for convenience in moving over to python.
  */
 struct ColumnarSplittings {
   std::vector<float> kt;             ///<  kT between the subjets.
@@ -340,7 +340,7 @@ void ExtractJetSplittings(
   * @tparam T Input data type (usually float or double)
   * @param columnFourVectors Column four vectors, with the columns ordered ["px", "py", "pz", "E"]
   * @param jetR jet resolution parameter. Default: 1.
-  * @param jetAlgorithmStr jet alogrithm. Default: "CA".
+  * @param jetAlgorithmStr jet algorithm. Default: "CA".
   * @param areaSettings Area settings. Default: None.
   * @param etaRange Eta range. Tuple of min and max. Default: (-1, 1)
   * @return Jet substructure splittings container

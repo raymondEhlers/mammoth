@@ -203,7 +203,7 @@ def embedding(
             "part_level": part_level,
             "det_level": det_level,
             # Practically, this is where we are performing the embedding
-            # Need to rezip so it applies the vector at the same level as the other collections
+            # Need to re-zip so it applies the vector at the same level as the other collections
             # (ie. we want `var * Momentum4D[...]`, but without the zip, we have `Momentum4D[var * ...]`)
             # NOTE: For some reason, ak.concatenate returns float64 here. I'm not sure why, but for now
             #       it's not diving into.
