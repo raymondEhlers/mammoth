@@ -565,7 +565,6 @@ def run() -> None:
     #    else:
     #        label = "all"
 
-    #    # TODO: Need to split pions and electrons. Because duh.
     #    hist_name_template = "histPResol_{particle}_FitMean_{eta_region_index}"
     #    plot_ecce_track_comparison.plot_tracking_comparison(
     #        input_specs=input_specs,
