@@ -372,7 +372,12 @@ class ChunkSource:
 
     def data(self) -> ak.Array:
         """Retrieve data to satisfy the given chunk size."""
-        return next(iter(self.data_iter()))
+        # We need to keep track of the iterator so that we can actually advance it.
+        # To do this, we add a private class member to store the iter, and then we
+        # call next on that.
+        if not hasattr(self, "_iter_with_data_func"):
+            self._iter_with_data_func = iter(self.data_iter())
+        return next(self._iter_with_data_func)
 
     def data_iter(self) -> Iterable[ak.Array]:
         if self.repeat:
@@ -383,7 +388,7 @@ class ChunkSource:
         remaining_data = None
 
         while True:
-            if remaining_data:
+            if remaining_data is not None:
                 _data = remaining_data
                 remaining_data = None
             else:
