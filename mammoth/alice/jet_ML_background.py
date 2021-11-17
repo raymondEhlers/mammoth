@@ -293,6 +293,12 @@ def analysis_embedding(source_index_identifiers: Mapping[str, int],
             generator_like_jet_constituents=ak.packed(jets["det_level"].constituents),
             measured_like_jet_constituents=ak.packed(jets["hybrid"].constituents),
         )
+
+        # Require a shared momentum fraction of > 50%
+        shared_momentum_fraction_mask = (jets["det_level", "shared_momentum_fraction"] >= 0.5)
+        n_jets_removed = len(jets) - np.count_nonzero(shared_momentum_fraction_mask)
+        logger.info(f"Removing {n_jets_removed} events out of {len(jets)} total jets ({round(n_jets_removed / len(jets) * 100, 2)}%) due to shared momentum fraction")
+        jets = jets[shared_momentum_fraction_mask]
     except Exception as e:
         print(e)
         import IPython; IPython.embed()
