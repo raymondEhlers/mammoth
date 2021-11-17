@@ -343,7 +343,9 @@ def find_jets(
     output_constituents = ak.zip(
         {
             **dict(zip(ak.fields(output_constituents), ak.unzip(output_constituents))),
-            "index": output_constituent_indices,
+            # TODO: This will overwrite the input index, which I don't think we want to do.
+            #       Temporarily, keep this separate. But determine where this actually matters.
+            "jf_index": output_constituent_indices,
         },
         with_name="Momentum4D",
     )
@@ -360,7 +362,9 @@ def find_jets(
         output_constituents = ak.zip(
             {
                 **dict(zip(ak.fields(output_constituents), ak.unzip(output_constituents))),
-                "unsubtracted_index": expanded_subtracted_to_unsbtracted_indices,
+                # TODO: This will overwrite the input index, which I don't think we want to do.
+                #       Temporarily, keep this separate. But determine where this actually matters.
+                "jf_unsubtracted_index": expanded_subtracted_to_unsbtracted_indices,
             },
             with_name="Momentum4D",
         )
