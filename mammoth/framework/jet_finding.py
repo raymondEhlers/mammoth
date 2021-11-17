@@ -321,9 +321,9 @@ def find_jets(
     if subtracted_to_unsubtracted_indices:
         # If we have subtracted constituents, the indices that were returned reference
         # the subtracted constituents.
-        particles_for_constistuents = ak.Array(subtracted_constituents)
+        particles_for_constituents = ak.Array(subtracted_constituents)
     else:
-        particles_for_constistuents = particles
+        particles_for_constituents = particles
 
     # Determine constituents from constituent indices
     # NOTE: This follows the example in the scikit-hep fastjet bindings.
@@ -335,7 +335,7 @@ def find_jets(
     # Namely, we have to get a singly-jagged array to broadcast with a doubly-jagged array
     # of constituent indices.
     output_constituents = _expand_array_for_applying_constituent_indices(
-        array_to_expand=particles_for_constistuents,
+        array_to_expand=particles_for_constituents,
         constituent_indices=output_constituent_indices,
     )
     # Add their constituent indices to the array so we can keep track of where they came from
