@@ -141,9 +141,22 @@ def write_to_parquet(arrays: ak.Array, filename: Path) -> bool:
 
 if __name__ == "__main__":
     import mammoth.helpers
-    mammoth.helpers.setup_logging()
+    mammoth.helpers.setup_logging(level=logging.INFO)
 
-    chunk_size = int(1e5)
+    # Setup
+    JEWEL_identifier = "NoToy_PbPb_3050"
+    # Since the PbPb files tend to have a few thousand or fewer events, we want the JEWEL chunk size
+    # to be similar to that value. Otherwise, the start of JEWEL files will be embedded far too often,
+    # while the ends will never be reached.
+    # We also want to keep the number of files in check. 5000 seems like a reasonable balance.
+    chunk_size = int(5e3)
+
+    # Map from JEWEL identifier to a somewhat clearer name for directories, etc
+    JEWEL_label = {
+        "NoToy_PbPb": "central_00_10",
+        "NoToy_PbPb_3050": "semi_central_30_50",
+    }
+
     for pt_hat_bin in [
         "05_15",
         "15_30",
@@ -152,7 +165,7 @@ if __name__ == "__main__":
         "60_80",
         "80_140",
     ]:
-        filename = Path(f"/alf/data/rehlers/skims/JEWEL_PbPb_no_recoil/JEWEL_NoToy_PbPb_3050_PtHard{pt_hat_bin}.root")
+        filename = Path(f"/alf/data/rehlers/skims/JEWEL_PbPb_no_recoil/JEWEL_{JEWEL_identifier}_PtHard{pt_hat_bin}.root")
 
         # Keep track of iteration
         start = 0
@@ -173,7 +186,7 @@ if __name__ == "__main__":
             # Just for confirmation that it matches the chunk size (or is smaller)
             logger.debug(f"Array length: {len(arrays)}")
 
-            output_dir = filename.parent / "skim"
+            output_dir = filename.parent / "skim" / JEWEL_label[JEWEL_identifier]
             output_dir.mkdir(parents=True, exist_ok=True)
             write_to_parquet(
                 arrays=arrays,
@@ -188,6 +201,6 @@ if __name__ == "__main__":
             start = end
             index += 1
 
-    logger.info(f"Finished at index {index}")
+        logger.info(f"Finished at index {index} for pt hat bin {pt_hat_bin}")
 
     #import IPython; IPython.start_ipython(user_ns={**globals(),**locals()})
