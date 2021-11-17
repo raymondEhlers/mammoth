@@ -450,6 +450,7 @@ def analysis_embedding(source_index_identifiers: Mapping[str, int], arrays: ak.A
     # Apply the cuts
     jets["part_level"] = jets["part_level"][part_level_mask]
     jets["det_level"] = jets["det_level"][det_level_mask]
+    jets["hybrid"] = jets["hybrid"][hybrid_mask]
 
     logger.info("Matching jets")
     # TODO: For better matching, need to use the hybrid sub -> hybrid sub info
