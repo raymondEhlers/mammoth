@@ -305,25 +305,28 @@ if __name__ == "__main__":
     JEWEL_identifier = "NoToy_PbPb"
     pt_hat_bin = "80_140"
     index = "000"
-    signal_filename = Path(f"/alf/data/rehlers/skims/JEWEL_PbPb_no_recoil/skim/JEWEL_{JEWEL_identifier}_PtHard{pt_hat_bin}_{index}.parquet")
-    background_filename = Path("/alf/data/rehlers/substructure/trains/PbPb/7666/run_by_run/LHC15o/246087/AnalysisResults.15o.825.root")
-    source_index_identifiers, arrays = load_embedding(
-        signal_filename=signal_filename,
-        background_filename=background_filename,
-        background_collision_system_tag="PbPb_central",
-    )
+    for background_index in range(820, 830):
+        signal_filename = Path(f"/alf/data/rehlers/skims/JEWEL_PbPb_no_recoil/skim/JEWEL_{JEWEL_identifier}_PtHard{pt_hat_bin}_{index}.parquet")
+        background_filename = Path(f"/alf/data/rehlers/substructure/trains/PbPb/7666/run_by_run/LHC15o/246087/AnalysisResults.15o.{background_index}.root")
+        logger.info(f"Processing {background_filename}")
+        source_index_identifiers, arrays = load_embedding(
+            signal_filename=signal_filename,
+            background_filename=background_filename,
+            background_collision_system_tag="PbPb_central",
+        )
 
-    jet_R = 0.6
-    jets = analysis_embedding(
-        source_index_identifiers=source_index_identifiers,
-        arrays=arrays,
-        jet_R=jet_R,
-        min_jet_pt={"hybrid": 10},
-        use_standard_rho_subtract=True,
-    )
+        #jet_R = 0.6
+        jet_R = 0.4
+        jets = analysis_embedding(
+            source_index_identifiers=source_index_identifiers,
+            arrays=arrays,
+            jet_R=jet_R,
+            min_jet_pt={"hybrid": 10},
+            use_standard_rho_subtract=True,
+        )
 
-    output_filename = Path(f"/alf/data/rehlers/skims/JEWEL_PbPb_no_recoil/skim/ML/{signal_filename.stem}_{background_filename.stem}.root")
-    output_filename.parent.mkdir(exist_ok=True, parents=True)
-    write_skim(jets=jets, filename=output_filename)
+        output_filename = Path(f"/alf/data/rehlers/skims/JEWEL_PbPb_no_recoil/skim/ML/jetR{round(jet_R * 100):03}_{signal_filename.stem}_{background_filename.parent.stem}_{background_filename.stem}.root")
+        output_filename.parent.mkdir(exist_ok=True, parents=True)
+        write_skim(jets=jets, filename=output_filename)
 
     import IPython; IPython.start_ipython(user_ns={**globals(),**locals()})
