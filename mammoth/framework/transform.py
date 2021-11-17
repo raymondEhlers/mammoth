@@ -142,6 +142,7 @@ def embedding(
     source_index_identifiers: Mapping[str, int],
     mass_hypothesis: Union[float, Mapping[str, float]] = 0.139,
     particle_columns: Optional[Mapping[str, npt.DTypeLike]] = None,
+    fixed_background_index_value: Optional[int] = None,
 ) -> ak.Array:
     """Transform into a form appropriate for embedding.
 
@@ -153,7 +154,10 @@ def embedding(
         source_index_identifiers: Index offset map for each source.
         mass_hypothesis: Mass hypothesis for either all three prefixes, or individually. Default: 0.139 GeV
             for all particle collections.
-        particle_columns: Dtypes for particle columns (unused as of July 2021).
+        particle_columns: dtypes for particle columns (unused as of July 2021).
+        fixed_background_index_value: If an integer is passed, fix the background index for all particles
+            to that value. This reduces the information propagated, but is required for some applications
+            (namely, the jet background ML studies). Default: None.
 
     Returns:
         Fully transformed arrays, with all particle collections and event level info.
@@ -184,7 +188,10 @@ def embedding(
         part_level["m"] = part_level["pt"] * 0 + mass_hypotheses["part_level"]
     part_level = vector.Array(part_level)
     background = arrays["background"]["data"]
-    background["index"] = ak.local_index(background) + source_index_identifiers["background"]
+    if fixed_background_index_value is not None:
+        background["index"] = ak.local_index(background) * 0 + fixed_background_index_value
+    else:
+        background["index"] = ak.local_index(background) + source_index_identifiers["background"]
     if "m" not in ak.fields(background) and "E" not in ak.fields(background):
         background["m"] = background["pt"] * 0 + mass_hypotheses["background"]
     background = vector.Array(background)

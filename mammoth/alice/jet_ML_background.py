@@ -78,7 +78,10 @@ def load_embedding(signal_filename: Path, background_filename: Path, background_
 
     return source_index_identifiers, transform.embedding(
         arrays=arrays, source_index_identifiers=source_index_identifiers,
-        fix_background_index_to_minus_one=True,
+        # NOTE: We set a fixed background index value because it's required for the ML framework.
+        #       In principle, we could do this later during the analysis, but assignment gets tricky
+        #       due to awkward arrays, so this is a simpler approach.
+        fixed_background_index_value=-1,
     )
 
 
