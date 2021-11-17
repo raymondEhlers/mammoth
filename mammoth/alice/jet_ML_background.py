@@ -186,12 +186,13 @@ def analysis_embedding(source_index_identifiers: Mapping[str, int],
     jets["hybrid"] = jets["hybrid"][hybrid_mask]
 
     logger.info("Matching jets")
-    # TODO: For better matching, need to use the hybrid sub -> hybrid sub info
+    # det_level <-> hybrid
     jets["det_level", "matching"], jets["hybrid", "matching"] = jet_finding.jet_matching(
         jets_base=jets["det_level"],
         jets_tag=jets["hybrid"],
         max_matching_distance=0.3,
     )
+    # part_level <-> det_level
     jets["part_level", "matching"], jets["det_level", "matching"] = jet_finding.jet_matching(
         jets_base=jets["part_level"],
         jets_tag=jets["det_level"],
@@ -209,7 +210,6 @@ def analysis_embedding(source_index_identifiers: Mapping[str, int],
         & (ak.num(jets["hybrid"], axis=1) > 0)
     )
     jets = jets[jets_present_mask]
-    #import IPython; IPython.embed()
 
     # Now, onto the individual jet collections
     # We want to require valid matched jet indices. The strategy here is to lead via the detector
@@ -225,7 +225,6 @@ def analysis_embedding(source_index_identifiers: Mapping[str, int],
     #
     # The other benefit to this approach is that it should reorder the particle level matches
     # to be the same shape as the detector level jets, so in principle they are paired together.
-    # TODO: Check this is truly the case.
     hybrid_to_det_level_valid_matches = jets["hybrid", "matching"] > -1
     det_to_part_level_valid_matches = jets["det_level", "matching"] > -1
     hybrid_to_det_level_including_det_to_part_level_valid_matches = det_to_part_level_valid_matches[jets["hybrid", "matching"][hybrid_to_det_level_valid_matches]]
@@ -249,8 +248,6 @@ def analysis_embedding(source_index_identifiers: Mapping[str, int],
 
     logger.warning(f"n events: {len(jets)}")
 
-    #import IPython; IPython.embed()
-
     # Next step for using existing skimming:
     # Flatten from events -> jets
     # NOTE: Apparently it's takes issues with flattening the jets directly, so we have to do it
@@ -260,6 +257,8 @@ def analysis_embedding(source_index_identifiers: Mapping[str, int],
         {k: ak.flatten(v, axis=1) for k, v in zip(ak.fields(jets), ak.unzip(jets))},
         depth_limit=1,
     )
+
+    logger.warning(f"n jets: {len(jets)}")
 
     # Now, calculate some properties based on the final matched jets
     # We do this after flatten the jets because it's simpler, and we don't actually care about
