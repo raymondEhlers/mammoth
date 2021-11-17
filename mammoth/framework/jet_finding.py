@@ -4,7 +4,7 @@
 """
 
 import logging
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, Final, List, Optional, Tuple, Union
 
 import awkward as ak
 import numba as nb
@@ -22,6 +22,94 @@ vector.register_awkward()
 AREA_PP = AreaSettings("active_area", 0.01)
 AREA_AA = AreaSettings("active_area_explicit_ghosts", 0.005)
 AREA_SUBSTRUCTURE = AreaSettings("passive_area", 0.05)
+
+DISTANCE_DELTA: Final[float] = 0.01
+
+
+@nb.njit  # type: ignore
+def _shared_momentum_fraction_for_flat_array_implementation(
+    generator_like_jet_pts: ak.Array,
+    generator_like_jet_constituents: ak.Array,
+    generator_like_jet_constituent_indices: ak.Array,
+    measured_like_jet_constituents: ak.Array,
+    measured_like_jet_constituent_indices: ak.Array,
+    match_using_distance: bool = False
+) -> npt.NDArray[np.float32]:
+    """ Implementation of the shared momentum fraction
+
+    Why passed the indices separately? Because when awkward has a momentum field, it doesn't seem to pass
+    the other fields along. So we workaround it by passing it separately so we can use it now, at the cost
+    of some extra bookkeeping.
+    """
+    # Setup
+    delta = DISTANCE_DELTA
+    shared_momentum_fraction = np.zeros(len(generator_like_jet_constituents), dtype=np.float32)
+
+    for i, (generator_like_jet_pt, generator_like_constituents, generator_like_constituent_indices, measured_like_constituents, measured_like_constituent_indices) in \
+        enumerate(zip(generator_like_jet_pts,
+                      generator_like_jet_constituents, generator_like_jet_constituent_indices,
+                      measured_like_jet_constituents, measured_like_jet_constituent_indices)):
+        sum_pt = 0
+        for generator_like_constituent, generator_like_constituent_index in zip(generator_like_constituents, generator_like_constituent_indices):
+            #print(f"generator: index: {generator_like_constituent.index}, pt: {generator_like_constituent.pt}")
+            for measured_like_constituent, measured_like_constituent_index in zip(measured_like_constituents, measured_like_constituent_indices):
+                #print(f"measured: index: {measured_like_constituent.index}, pt: {measured_like_constituent.pt}")
+                if match_using_distance:
+                    if np.abs(measured_like_constituent.eta - generator_like_constituent.eta) > delta:
+                        continue
+                    if np.abs(measured_like_constituent.phi - generator_like_constituent.phi) > delta:
+                        continue
+                else:
+                    #if generator_like_constituent.index != measured_like_constituent.index:
+                    #if generator_like_constituent["index"] != measured_like_constituent["index"]:
+                    if generator_like_constituent_index != measured_like_constituent_index:
+                        continue
+
+                sum_pt += generator_like_constituent.pt
+                #print(f"Right after sum_pt: {sum_pt}")
+                # We've matched once - no need to match again.
+                # Otherwise, the run the risk of summing a generator-like constituent pt twice.
+                break
+
+        shared_momentum_fraction[i] = sum_pt / generator_like_jet_pt
+    return shared_momentum_fraction
+
+
+def shared_momentum_fraction_for_flat_array(
+    generator_like_jet_pts: ak.Array,
+    generator_like_jet_constituents: ak.Array,
+    measured_like_jet_constituents: ak.Array,
+    match_using_distance: bool = False
+) -> npt.NDArray[np.float32]:
+    """Calculate shared momentum fraction for a flat jet array
+
+    Should be used _after_ jet matching, so that we only have a flat jet array.
+
+    Note:
+        Calculate the momentum fraction as a scalar sum of constituent pt.
+
+    Args:
+        generator_like_jet_pts: Generator-like jet pt.
+        generator_like_jet_constituents: Generator-like jet constituents.
+        measured_like_jet_constituents: Measured-like jet constituents.
+        match_using_distance: If True, match using distance instead of index. Default: False.
+    Return:
+        Fraction of generator-like jet momentum contained in the measured-like jet.
+    """
+    # Validation
+    if len(generator_like_jet_constituents) != len(measured_like_jet_constituents):
+        raise ValueError(
+            f"Number of jets mismatch: generator: {len(generator_like_jet_constituents)} measured: {len(measured_like_jet_constituents)}"
+            )
+
+    return _shared_momentum_fraction_for_flat_array_implementation(  # type: ignore
+        generator_like_jet_pts=generator_like_jet_pts,
+        generator_like_jet_constituents=generator_like_jet_constituents,
+        generator_like_jet_constituent_indices=generator_like_jet_constituents.index,
+        measured_like_jet_constituents=measured_like_jet_constituents,
+        measured_like_jet_constituent_indices=measured_like_jet_constituents.index,
+        match_using_distance=match_using_distance,
+    )
 
 
 @nb.njit  # type: ignore

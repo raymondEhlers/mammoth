@@ -261,14 +261,42 @@ def analysis_embedding(source_index_identifiers: Mapping[str, int],
         depth_limit=1,
     )
 
-    # Calculate angularity
-    # We do this after flatten the jets because it's simpler, and we don't actually care about the =
-    # event structure for this calculation
+    # Now, calculate some properties based on the final matched jets
+    # We do this after flatten the jets because it's simpler, and we don't actually care about
+    # the event structure for many calculations
+    # Angularity
     for label in ["part_level", "det_level", "hybrid"]:
         jets[label, "angularity"] = ak.sum(
             jets[label].constituents.pt * jets[label].constituents.deltaR(jets[label]),
             axis=1
         ) / jets[label].pt
+    # Shared momentum fraction
+    try:
+        #import pickle
+        #with open("projects/exploration/repro.pkl", "wb") as f:
+        #    pickle.dump(ak.to_buffers(jets["det_level"]), f)
+        #ak.to_parquet(array=jets["det_level"], where="projects/exploration/repro.parquet")
+        #res = jet_finding.repro(jets["det_level"].constituents)
+        # Take slice for test...
+        #res = jet_finding.shared_momentum_fraction_for_flat_array(
+        #    generator_like_jet_pts=jets["det_level"][:1].pt,
+        #    generator_like_jet_constituents=jets["det_level"][:1].constituents,
+        #    measured_like_jet_constituents=jets["hybrid"][:1].constituents,
+        #)
+        #logger.info("Success")
+        #import IPython; IPython.embed()
+        jets["det_level", "shared_momentum_fraction"] = jet_finding.shared_momentum_fraction_for_flat_array(
+            generator_like_jet_pts=jets["det_level"].pt,
+            # NOTE: ak.packed is temporary. I assume I take a performance hit, but it also enables the code
+            #       to run successfully, so I'll take it for now. Reported the bug on github, and presumably
+            #       will be fixed soon
+            # TODO: Update to remove the two ak.packed class when fixed!
+            generator_like_jet_constituents=ak.packed(jets["det_level"].constituents),
+            measured_like_jet_constituents=ak.packed(jets["hybrid"].constituents),
+        )
+    except Exception as e:
+        print(e)
+        import IPython; IPython.embed()
 
     # Now, the final transformation into a form that can be used to skim into a flat tree.
     return jets
@@ -284,8 +312,7 @@ def write_skim(jets: ak.Array, filename: Path) -> None:
         "Jet_Shape_Angularity": jets["hybrid", "angularity"],
         "Jet_MC_MatchedDetLevelJet_Pt": jets["det_level"].pt,
         "Jet_MC_MatchedPartLevelJet_Pt": jets["part_level"].pt,
-        # TODO: Update this when the shared momentum fraction is calculated
-        "Jet_MC_TruePtFraction": jets["hybrid"].pt * 0 + 1,
+        "Jet_MC_TruePtFraction": jets["det_level"]["shared_momentum_fraction"],
     }
 
     logger.info(f"Writing to root file: {filename}")
@@ -308,9 +335,10 @@ if __name__ == "__main__":
     JEWEL_identifier = "NoToy_PbPb"
     pt_hat_bin = "80_140"
     index = "000"
-    for background_index in range(820, 830):
+    #for background_index in range(820, 830):
+    for background_index in range(2, 3):
         signal_filename = Path(f"/alf/data/rehlers/skims/JEWEL_PbPb_no_recoil/skim/JEWEL_{JEWEL_identifier}_PtHard{pt_hat_bin}_{index}.parquet")
-        background_filename = Path(f"/alf/data/rehlers/substructure/trains/PbPb/7666/run_by_run/LHC15o/246087/AnalysisResults.15o.{background_index}.root")
+        background_filename = Path(f"/alf/data/rehlers/substructure/trains/PbPb/7666/run_by_run/LHC15o/246087/AnalysisResults.15o.{background_index:03}.root")
         logger.info(f"Processing {background_filename}")
         source_index_identifiers, arrays = load_embedding(
             signal_filename=signal_filename,
