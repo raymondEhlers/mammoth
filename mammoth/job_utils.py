@@ -50,6 +50,9 @@ def _expand_vars_in_work_dir_(
     value: Path,
 ) -> None:
     """Validate work dir."""
+    # To start, we need to assign to `value` here in case we've modified the value in the validator,
+    # but it hasn't been propagated to the value that is passed here
+    value = getattr(instance, attribute.name)
     # We need to expand any variations, but return a Path
     _p = os.path.expandvars(str(value))
     p = Path(_p)
