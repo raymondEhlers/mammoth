@@ -4,7 +4,8 @@
 """
 
 import logging
-import random
+import secrets
+from collections import defaultdict
 from pathlib import Path
 from typing import Any, Dict, List, Mapping, Optional, Sequence
 
@@ -67,6 +68,7 @@ def setup_jet_background_ML_embedding_analysis(
     background_collision_system_tag: str,
     jet_R_values: Sequence[float],
     min_jet_pt: Mapping[str, float],
+    sample_each_pt_hat_bin_equally: bool,
     signal_input_dir: Path,
     background_input_dir: Path,
     base_output_dir: Path,
@@ -90,24 +92,52 @@ def setup_jet_background_ML_embedding_analysis(
     background_input_files = list(sorted(background_input_dir.glob("*/*.root")))
 
     # TEMP for testing
-    background_input_files = background_input_files[:2]
+    #background_input_files = background_input_files[:2]
     # ENDTEMP
 
-    results = []
-    for background_input_file in background_input_files:
-        # Randomly select an input file to match up with the background input file.
-        # NOTE: The signal input file will repeat if there are more background events.
-        #       So far, this doesn't seem to be terribly common, but even if it was, it
-        #       would be perfectly fine as long as it doesn't happen too often.
-        signal_input_file = random.choice(signal_input_files)
-        pt_hat_bin_label = extract_pt_hat_bin_label_from_JEWEL_filename(signal_input_file)
+    # We want to even sample all of the pt hat bins (or at least approximately)
+    # However, there are many more high pt hat files than low pt hat files (because there
+    # are more statistics at high pt hat). So, we should sample the pt hat bin, and then
+    # randomly select one of the files for that pt hat bin
+    # NOTE: These are only used when sampling each pt hat bin equally
+    signal_input_files_by_pt_hat_bin_label: Dict[str, List[Path]] = defaultdict(list)
+    for signal_input in signal_input_files:
+        pt_hat_bin_label = extract_pt_hat_bin_label_from_JEWEL_filename(signal_input)
+        signal_input_files_by_pt_hat_bin_label[pt_hat_bin_label].append(signal_input)
+    # NOTE: We convert back to list in the end because random choice is expecting a
+    #       sequence, and it's more efficient to convert it only once.
+    pt_hat_bin_labels = list(set(list(signal_input_files_by_pt_hat_bin_label)))
 
+    results = []
+    logger.info("Creating embedding tasks...")
+    for background_input_file in background_input_files:
+        # NOTE: We iterate first by jet_R because I want to avoid autocorrelations if we create
+        #       a ratio as a function of R. As it's configured here, the signal file will be random,
+        #       but the background will be the same. That should be enough to avoid autocorrelation issues.
         for jet_R in jet_R_values:
+            # Randomly select (in some manner) an input file to match up with the background input file.
+            # NOTE: The signal input file will repeat if there are more background events.
+            #       So far, this doesn't seem to be terribly common, but even if it was, it
+            #       would be perfectly fine as long as it doesn't happen too often.
+            if sample_each_pt_hat_bin_equally:
+                # Each pt hat bin will be equally likely, and then we select the file from
+                # those which are available.
+                # NOTE: This doesn't mean that the embedded statistics will still be the same in the end.
+                #       For example, if I compare a low and high pt hat bin, there are just going to be
+                #       more accepted jets in the high pt hat sample.
+                pt_hat_bin_label = secrets.choice(pt_hat_bin_labels)
+                signal_input_file = secrets.choice(signal_input_files_by_pt_hat_bin_label[pt_hat_bin_label])
+            else:
+                # Directly sample the files. This probes the generator stats because
+                # the number of files is directly proportional to the generated statistics.
+                signal_input_file = secrets.choice(signal_input_files)
+                pt_hat_bin_label = extract_pt_hat_bin_label_from_JEWEL_filename(signal_input_file)
+
             output_filename = base_output_dir / f"jetR{round(jet_R * 100):03}" / pt_hat_bin_label / f"jetR{round(jet_R * 100):03}_{signal_input_file.stem}_{background_input_file.parent.stem}_{background_input_file.stem}.root"
             output_filename.parent.mkdir(exist_ok=True, parents=True)
 
-            logger.info(f"Adding {signal_input_file}, {background_input_file} for analysis")
-            logger.info(f"Output file: {output_filename}")
+            #logger.info(f"Adding {signal_input_file}, {background_input_file} for analysis")
+            #logger.info(f"Output file: {output_filename}")
             results.append(
                 run_jet_background_ML_embedding_analysis(
                     system_label=system_label,
