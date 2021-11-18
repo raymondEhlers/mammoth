@@ -109,7 +109,7 @@ def setup_jet_background_ML_embedding_analysis(
     pt_hat_bin_labels = list(set(list(signal_input_files_by_pt_hat_bin_label)))
 
     results = []
-    logger.info("Creating embedding tasks...")
+    logger.info("Creating embedding tasks. This may make time a minute...")
     for background_input_file in background_input_files:
         # NOTE: We iterate first by jet_R because I want to avoid autocorrelations if we create
         #       a ratio as a function of R. As it's configured here, the signal file will be random,
