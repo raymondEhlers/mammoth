@@ -561,7 +561,7 @@ def provide_results_as_completed(input_futures: Sequence[AppFuture], timeout: Op
                     f"Early stop: cancelled {len(futures) - running} jobs, will wait for {running} running jobs to complete"
                 )
                 # parsl can't cancel, so we need to break out ourselves
-                # It's most convenient to do this by just reraising the ctrl-c
+                # It's most convenient to do this by just re-raising the ctrl-c
                 if running_with_parsl:
                     raise e
     finally:
@@ -575,9 +575,9 @@ def provide_results_as_completed(input_futures: Sequence[AppFuture], timeout: Op
 
 
 def merge_results(a: Dict[Any, Any], b: Dict[Any, Any]) -> Dict[Any, Any]:
-    """Merge job results togther.
+    """Merge job results together.
 
-    By convention, we merge into the first dict to try to avoid unnecssary copying.
+    By convention, we merge into the first dict to try to avoid unnecessary copying.
 
     Although this should generically work for any object which implements `__add__`,
     it's geared towards histograms.
@@ -620,13 +620,13 @@ def merge_results(a: Dict[Any, Any], b: Dict[Any, Any]) -> Dict[Any, Any]:
         # At this point, both a_value and b_value should be not None
         assert a_value is not None and b_value is not None
 
-        # Reccursve on dict
+        # Recursive on dict
         if isinstance(a_value, dict):
             logger.debug(f"Recursing on dict for {k}")
             a[k] = merge_results(a_value, b_value)
         else:
             # Otherwise, merge
-            logger.debug(f"Mergng for {k}")
+            logger.debug(f"Merging for {k}")
             a[k] = a_value + b_value
 
     return a
