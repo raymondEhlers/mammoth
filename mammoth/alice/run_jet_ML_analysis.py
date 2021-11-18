@@ -175,30 +175,32 @@ def run() -> None:
         "PbPb_00_10": "PbPb_central",
         "PbPb_30_50": "PbPb_semi_central",
     }
-    # TODO: Parametrize the output dir values, so they configure with everything else
-    _base_output_dir = Path("/alf/data/rehlers/skims/JEWEL_PbPb_no_recoil/embedding/LHC15o/central_00_10")
+    _base_output_dir = Path("/alf/data/rehlers/skims/JEWEL_PbPb_no_recoil/embedding/LHC15o")
 
     # Job execution parameters
     task_name = "jet_background_ML"
     tasks_to_execute = [
         "embedding_analysis",
     ]
-    jet_R_values = [0.4]
+    jet_R_values = [0.2, 0.4, 0.6]
+    min_jet_pt = {"hybrid": 10}
+    sample_each_pt_hat_bin_equally = True
     #systems_to_process = _possible_systems
-    systems_to_process = _possible_systems[:1]
+    systems_to_process = _possible_systems[1:]
+
     # Job execution configuration
     task_config = job_utils.TaskConfig(name=task_name, n_cores_per_task=1)
     n_cores_to_allocate = 80
     walltime = "24:00:00"
-    n_cores_to_allocate = 2
-    walltime = "02:00:00"
+    #n_cores_to_allocate = 6
+    #walltime = "02:00:00"
 
     # Basic setup: logging and parsl.
     # NOTE: Parsl's logger setup is broken, so we have to set it up before starting logging. Otherwise,
     #       it's super verbose and a huge pain to turn off. Note that by passing on the storage messages,
     #       we don't actually lose any info.
     config, facility_config, stored_messages = job_utils.config(
-        facility="ORNL_b587_long",
+        facility="ORNL_b587_vip",
         task_config=task_config,
         n_tasks=n_cores_to_allocate,
         walltime=walltime,
@@ -216,16 +218,18 @@ def run() -> None:
         # Setup tasks
         system_results = []
         signal_input_dir, background_input_dir = _system_to_paths[system]
+        output_dir = _base_output_dir / system
         if "embedding_analysis" in tasks_to_execute:
             system_results.extend(
                 setup_jet_background_ML_embedding_analysis(
                     system_label=system,
                     background_collision_system_tag=_background_collision_system_tag[system],
                     jet_R_values=jet_R_values,
-                    min_jet_pt={"hybrid": 10},
+                    min_jet_pt=min_jet_pt,
+                    sample_each_pt_hat_bin_equally=sample_each_pt_hat_bin_equally,
                     signal_input_dir=signal_input_dir,
                     background_input_dir=background_input_dir,
-                    base_output_dir=_base_output_dir,
+                    base_output_dir=output_dir,
                 )
             )
         all_results.extend(system_results)
@@ -273,6 +277,9 @@ def run() -> None:
             logger.info(f"Writing output_hists to {output_hist_filename} for system {system}")
             with uproot.recreate(output_hist_filename) as f:
                 helpers.write_hists_to_file(hists=hists, f=f)
+
+    # Add a log message here to get the time that the futures are done
+    logger.info("Futures done!")
 
     # As far as I can tell, jobs will start executing as soon as they can, regardless of
     # asking for the result. By embedded here, we can inspect results, etc in the meantime.
