@@ -159,6 +159,21 @@ def analysis_embedding(source_index_identifiers: Mapping[str, int],
         depth_limit=1,
     )
 
+    # We need to keep track of the event level cuts on the jets from here until flattening.
+    # This enables us to store event level quantities by projecting them along with the jets.
+    # Unfortunately, this takes a good deal of book keeping
+    #event_level_mask_for_jets = np.ones(len(arrays)) > 0
+    event_level_mask_for_jets = []
+
+    # Add some event level quantities.
+    # Unfortunately, because we often mask each jet level seprately, the bookkeeping can be
+    # quite a pain in the ass.
+    # NOTE: We need these event level quantities to follow the shape of the jets, so we take
+    #       the pt as a proxy for the shape. Since the eventual result will be that jets at
+    #       each level will match up, we can arbitrarily select "part_level", and it will
+    #       match up at the end.
+    #       Adding the desired values will project them to the right shapes.
+
     #logger.info("Right after jet finding...")
     #import IPython; IPython.embed()
 
@@ -210,6 +225,8 @@ def analysis_embedding(source_index_identifiers: Mapping[str, int],
         & (ak.num(jets["hybrid"], axis=1) > 0)
     )
     jets = jets[jets_present_mask]
+    #event_level_mask_for_jets = event_level_mask_for_jets & jets_present_mask
+    event_level_mask_for_jets.append(jets_present_mask)
 
     # Now, onto the individual jet collections
     # We want to require valid matched jet indices. The strategy here is to lead via the detector
@@ -245,20 +262,45 @@ def analysis_embedding(source_index_identifiers: Mapping[str, int],
         & (ak.num(jets["hybrid"], axis=1) > 0)
     )
     jets = jets[jets_present_mask]
+    #event_level_mask_for_jets = event_level_mask_for_jets & jets_present_mask
+    event_level_mask_for_jets.append(jets_present_mask)
 
     logger.warning(f"n events: {len(jets)}")
+
+    event_level_fields = [
+        # Event weight
+        "event_weight",
+        # Store the original jet pt for the extractor bins
+        "jet_pt_original"
+    ]
+    event_level_arrays = arrays[event_level_fields]
+    for m in event_level_mask_for_jets:
+        event_level_arrays = event_level_arrays[m]
+    event_level_following_jets_shape = ak.zip(
+        {
+            k: jets["part_level"].pt * 0 + event_level_arrays[k] for k in event_level_fields
+        }
+    )
+
+    import IPython; IPython.embed()
 
     # Next step for using existing skimming:
     # Flatten from events -> jets
     # NOTE: Apparently it's takes issues with flattening the jets directly, so we have to do it
     #       separately for the different collections and then zip them together. This should keep
     #       matching together as appropriate.
-    jets = ak.zip(
-        {k: ak.flatten(v, axis=1) for k, v in zip(ak.fields(jets), ak.unzip(jets))},
+    jets = ak.zip({
+            k: ak.flatten(v, axis=1) for k, v in zip(
+                ak.fields(jets) + ak.fields(event_level_following_jets_shape),
+                ak.unzip(jets) + ak.unzip(event_level_following_jets_shape)
+            )
+        },
         depth_limit=1,
     )
 
     logger.warning(f"n jets: {len(jets)}")
+
+    import IPython; IPython.embed()
 
     # Now, calculate some properties based on the final matched jets
     # We do this after flatten the jets because it's simpler, and we don't actually care about
@@ -310,6 +352,7 @@ def analysis_embedding(source_index_identifiers: Mapping[str, int],
 def write_skim(jets: ak.Array, filename: Path) -> None:
     # Rename according to the expected conventions
     jets_renamed = {
+        "Jet_Pt_NoToy": jets["jet_pt_original"],
         "Jet_Pt": jets["hybrid"].pt,
         "Jet_NumTracks": ak.num(jets["hybrid"].constituents, axis=1),
         "Jet_Track_Pt": jets["hybrid"].constituents.pt,
@@ -318,6 +361,7 @@ def write_skim(jets: ak.Array, filename: Path) -> None:
         "Jet_MC_MatchedDetLevelJet_Pt": jets["det_level"].pt,
         "Jet_MC_MatchedPartLevelJet_Pt": jets["part_level"].pt,
         "Jet_MC_TruePtFraction": jets["det_level"]["shared_momentum_fraction"],
+        "Event_Weight": jets["event_weight"],
     }
 
     logger.info(f"Writing to root file: {filename}")
@@ -368,7 +412,7 @@ if __name__ == "__main__":
     JEWEL_identifier = "NoToy_PbPb"
     pt_hat_bin = "80_140"
     index = "000"
-    signal_filename = Path(f"/alf/data/rehlers/skims/JEWEL_PbPb_no_recoil/skim/JEWEL_{JEWEL_identifier}_PtHard{pt_hat_bin}_{index}.parquet")
+    signal_filename = Path(f"/alf/data/rehlers/skims/JEWEL_PbPb_no_recoil/skim/central_00_10/JEWEL_{JEWEL_identifier}_PtHard{pt_hat_bin}_{index}.parquet")
 
     background_collision_system_tag="PbPb_central"
     #jet_R = 0.6
