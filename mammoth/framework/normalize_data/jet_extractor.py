@@ -56,6 +56,8 @@ def jet_extractor_to_awkward(
     event_level_columns = {
         "Event_Weight": "event_weight",
         "Event_ImpactParameter": "event_impact_parameter",
+        # Hannah needs this for the extractor bin scaling
+        "Jet_Pt": "jet_pt_original",
     }
     particle_columns = {
         "Jet_Track_Pt": "pt",
@@ -116,6 +118,7 @@ def write_to_parquet(arrays: ak.Array, filename: Path) -> bool:
     byte_stream_split_columns = [
         "event_weight",
         "event_impact_parameter",
+        "jet_pt_original",
         f"part_level.list.item.pt",
         f"part_level.list.item.eta",
         f"part_level.list.item.phi",
@@ -144,11 +147,12 @@ if __name__ == "__main__":
     mammoth.helpers.setup_logging(level=logging.INFO)
 
     # Setup
-    JEWEL_identifier = "NoToy_PbPb_3050"
+    JEWEL_identifier = "NoToy_PbPb"
     # Since the PbPb files tend to have a few thousand or fewer events, we want the JEWEL chunk size
     # to be similar to that value. Otherwise, the start of JEWEL files will be embedded far too often,
     # while the ends will never be reached.
-    # We also want to keep the number of files in check. 5000 seems like a reasonable balance.
+    # We also want to keep the num
+    # ber of files in check. 5000 seems like a reasonable balance.
     chunk_size = int(5e3)
 
     # Map from JEWEL identifier to a somewhat clearer name for directories, etc
