@@ -282,8 +282,6 @@ def analysis_embedding(source_index_identifiers: Mapping[str, int],
         }
     )
 
-    import IPython; IPython.embed()
-
     # Next step for using existing skimming:
     # Flatten from events -> jets
     # NOTE: Apparently it's takes issues with flattening the jets directly, so we have to do it
@@ -299,8 +297,6 @@ def analysis_embedding(source_index_identifiers: Mapping[str, int],
     )
 
     logger.warning(f"n jets: {len(jets)}")
-
-    import IPython; IPython.embed()
 
     # Now, calculate some properties based on the final matched jets
     # We do this after flatten the jets because it's simpler, and we don't actually care about
