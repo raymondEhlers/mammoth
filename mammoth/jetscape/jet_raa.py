@@ -204,6 +204,22 @@ def write_tree(jets: ak.Array, filename: Path) -> bool:
     return True
 
 
+def read_jet_skims(filename: Path, jet_R_values: Sequence[float]) -> ak.Array:
+    jet_inputs = {}
+    for jet_R in jet_R_values:
+        for label in ["charged", "full"]:
+            tag = JetLabel(jet_R=jet_R, label=label)
+            jet_collection_filename = filename.parent / str(tag) / filename.name
+            try:
+                with uproot.open(jet_collection_filename) as f:
+                    jet_inputs[tag] = f["tree"].arrays()
+            except IOError as e:
+                logger.info(f"Skipping {tag} due to IO error {e}")
+                continue
+
+    return ak.zip(jet_inputs)
+
+
 def analyze_jets(arrays: ak.Array, jets: Mapping[JetLabel, ak.Array]) -> Dict[str, hist.Hist]:
     # Define hists
     hists = {}
@@ -256,20 +272,35 @@ def write_hists(hists: Dict[str, hist.Hist], filename: Path) -> bool:
     return True
 
 
-def run(arrays: ak.Array, min_jet_pt: float = 5, jet_R_values: Optional[Sequence[float]] = None, write_jets_filename: Optional[Path] = None, write_hists_filename: Optional[Path] = None) -> Dict[str, hist.Hist]:
+def run(arrays: ak.Array,
+        read_jet_skim_from_file: bool,
+        min_jet_pt: float = 5,
+        jet_R_values: Optional[Sequence[float]] = None,
+        jets_skim_filename: Optional[Path] = None,
+        write_hists_filename: Optional[Path] = None) -> Dict[str, hist.Hist]:
     # Validation
     if jet_R_values is None:
         jet_R_values = [0.2, 0.4, 0.6]
+    if read_jet_skim_from_file and jets_skim_filename is None:
+        raise ValueError("If reading jet skim from file, must pass jets skims filename")
 
     # Find jets
-    jets = find_jets_for_analysis(
-        arrays=arrays,
-        jet_R_values=jet_R_values,
-        min_jet_pt=min_jet_pt,
-    )
+    if read_jet_skim_from_file:
+        # Help out mypy...
+        assert jets_skim_filename is not None
+        jets = read_jet_skims(
+            filename=jets_skim_filename,
+            jet_R_values=jet_R_values,
+        )
+    else:
+        jets = find_jets_for_analysis(
+            arrays=arrays,
+            jet_R_values=jet_R_values,
+            min_jet_pt=min_jet_pt,
+        )
 
-    if write_jets_filename:
-        write_tree(jets=jets, filename=write_jets_filename)
+    if jets_skim_filename and not read_jet_skim_from_file:
+        write_tree(jets=jets, filename=jets_skim_filename)
 
     # Analyze the jets
     hists = analyze_jets(arrays=arrays, jets=jets)
@@ -292,6 +323,7 @@ if __name__ == "__main__":
             #Path("/alf/data/rehlers/jetscape/osiris/AAPaperData/MATTER_LBT_RunningAlphaS_Q2qhat/5020_PbPb_40-50_0.30_2.0_1/skim/JetscapeHadronListBin270_280_01.parquet"),
             Path("/alf/data/rehlers/jetscape/osiris/AAPaperData/MATTER_LBT_RunningAlphaS_Q2qhat/5020_PbPb_40-50_0.30_2.0_1/skim/JetscapeHadronListBin1_2_07.parquet"),
         ),
+        read_jet_skim_from_file=False,
         # Low for testing
         min_jet_pt=5,
         # Jet one R for faster testing
@@ -301,7 +333,7 @@ if __name__ == "__main__":
         #write_jets_filename=Path("/alf/data/rehlers/jetscape/osiris/AAPaperData/MATTER_LBT_RunningAlphaS_Q2qhat/5020_PbPb_40-50_0.30_2.0_1/jetsSkim/JetsBin7_9_01.parquet"),
         #write_jets_filename=Path("/alf/data/rehlers/jetscape/osiris/AAPaperData/MATTER_LBT_RunningAlphaS_Q2qhat/5020_PbPb_40-50_0.30_2.0_1/jetRAA/test/jetsSkim/JetsBin270_280_01.root"),
         #write_hists_filename=Path("/alf/data/rehlers/jetscape/osiris/AAPaperData/MATTER_LBT_RunningAlphaS_Q2qhat/5020_PbPb_40-50_0.30_2.0_1/jetRAA/test/hists/hists_Bin270_280_01.root"),
-        write_jets_filename=Path("/alf/data/rehlers/jetscape/osiris/AAPaperData/MATTER_LBT_RunningAlphaS_Q2qhat/5020_PbPb_40-50_0.30_2.0_1/jetRAA/test/jetsSkim/JetsBin1_2_07.root"),
+        jets_skim_filename=Path("/alf/data/rehlers/jetscape/osiris/AAPaperData/MATTER_LBT_RunningAlphaS_Q2qhat/5020_PbPb_40-50_0.30_2.0_1/jetRAA/test/jetsSkim/JetsBin1_2_07.root"),
         write_hists_filename=Path("/alf/data/rehlers/jetscape/osiris/AAPaperData/MATTER_LBT_RunningAlphaS_Q2qhat/5020_PbPb_40-50_0.30_2.0_1/jetRAA/test/hists/hists_Bin1_2_07.root"),
     )
 

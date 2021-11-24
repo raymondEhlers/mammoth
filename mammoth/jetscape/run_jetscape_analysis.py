@@ -101,7 +101,8 @@ def run_RAA_analysis(
     system: str,
     jet_R_values: Sequence[float],
     min_jet_pt: float,
-    write_jets_filename: Optional[Path] = None,
+    read_jet_skim_from_file: bool,
+    jets_skim_filename: Optional[Path] = None,
     write_hists_filename: Optional[Path] = None,
     inputs: Sequence[File] = [],
     outputs: Sequence[File] = [],
@@ -116,9 +117,10 @@ def run_RAA_analysis(
             arrays=jet_raa.load_data(
                 Path(inputs[0].filepath)
             ),
+            read_jet_skim_from_file=read_jet_skim_from_file,
             jet_R_values=jet_R_values,
             min_jet_pt=min_jet_pt,
-            write_jets_filename=write_jets_filename,
+            jets_skim_filename=jets_skim_filename,
             write_hists_filename=write_hists_filename,
         )
         result = True, f"success for {system}, {inputs[0].filepath}", system, hists
@@ -130,6 +132,7 @@ def run_RAA_analysis(
 def setup_RAA_analysis(
     system: str,
     parquet_input_dir: Path,
+    read_jet_skim_from_file: bool,
     jet_R_values: Optional[Sequence[float]] = None,
     min_jet_pt: float = 5,
     write_jets_to_tree: bool = False,
@@ -154,17 +157,17 @@ def setup_RAA_analysis(
     input_files = sorted(parquet_input_dir.glob("*.parquet"), key=lambda p: int(str(p.name).split("_")[0].replace("JetscapeHadronListBin", "")))
 
     # TEMP for testing
-    # input_files = input_files[:2]
+    #input_files = input_files[100:102]
     # ENDTEMP
 
     results = []
     for input_file in input_files:
-        write_jets_filename: Optional[Path] = None
+        jets_skim_filename: Optional[Path] = None
         output_files = []
         if write_jets_to_tree:
-            write_jets_filename = input_file.parent.parent / "jetRAA" / "jetsSkim" / input_file.name.replace("JetscapeHadronList", "Jets").replace("parquet", "root")
+            jets_skim_filename = input_file.parent.parent / "jetRAA" / "jetsSkim" / input_file.name.replace("JetscapeHadronList", "Jets").replace("parquet", "root")
             output_files.extend([
-                File(str(write_jets_filename.parent / f"{jet_type}_jetR{round(jet_R * 100):03}" / write_jets_filename.name))
+                File(str(jets_skim_filename.parent / f"{jet_type}_jetR{round(jet_R * 100):03}" / jets_skim_filename.name))
                 for jet_type in ["charged", "full"]
                 for jet_R in jet_R_values
             ])
@@ -179,8 +182,9 @@ def setup_RAA_analysis(
             run_RAA_analysis(
                 system=system,
                 jet_R_values=jet_R_values,
+                read_jet_skim_from_file=read_jet_skim_from_file,
                 min_jet_pt=min_jet_pt,
-                write_jets_filename=write_jets_filename,
+                jets_skim_filename=jets_skim_filename,
                 write_hists_filename=write_hists_filename,
                 inputs=[
                     File(str(input_file))
@@ -214,7 +218,7 @@ def run() -> None:
     systems_to_process = _possible_systems
     # Job execution configuration
     task_config = job_utils.TaskConfig(name=task_name, n_cores_per_task=1)
-    n_cores_to_allocate = 80
+    n_cores_to_allocate = 110
     #n_cores_to_allocate = 21
     #n_cores_to_allocate = 2
     walltime = "24:00:00"
@@ -224,7 +228,7 @@ def run() -> None:
     #       it's super verbose and a huge pain to turn off. Note that by passing on the storage messages,
     #       we don't actually lose any info.
     config, facility_config, stored_messages = job_utils.config(
-        facility="ORNL_b587_long",
+        facility="ORNL_b587_vip",
         task_config=task_config,
         n_tasks=n_cores_to_allocate,
         walltime=walltime,
@@ -253,6 +257,7 @@ def run() -> None:
                 setup_RAA_analysis(
                     system=system,
                     parquet_input_dir=_system_to_base_path[system] / "skim",
+                    read_jet_skim_from_file=False,
                     jet_R_values=jet_R_values,
                     min_jet_pt=5,
                     write_jets_to_tree=True,
