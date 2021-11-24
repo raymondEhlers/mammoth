@@ -54,7 +54,6 @@ def run_ecce_afterburner_bash(
     do_calo_res: bool = False,
     max_n_events: int = -1,
     verbosity: int = 0,
-    do_calibration: bool = False,
     primary_track_source: int = 0,
     remove_tracklets: bool = False,
     jet_algorithm: str = "anti-kt",
@@ -82,7 +81,6 @@ def run_ecce_afterburner_bash(
         str(do_reclustering).lower(),
         str(do_jet_finding).lower(),
         str(do_calo_res).lower(),
-        str(do_calibration).lower(),
         str(verbosity),
         str(primary_track_source),
         str(remove_tracklets).lower(),
@@ -104,7 +102,6 @@ def run_ecce_afterburner(
     do_calo_res: bool = False,
     max_n_events: int = -1,
     verbosity: int = 0,
-    do_calibration: bool = False,
     primary_track_source: int = 0,
     remove_tracklets: bool = False,
     jet_algorithm: str = "anti-kt",
@@ -138,7 +135,6 @@ def run_ecce_afterburner(
                 do_reclustering=do_reclustering,
                 do_jet_finding=do_jet_finding,
                 do_calo_res=do_calo_res,
-                do_calibration=do_calibration,
                 verbosity=verbosity,
                 primary_track_source=primary_track_source,
                 remove_tracklets=remove_tracklets,
@@ -225,7 +221,7 @@ def setup_ecce_afterburner(
 def run() -> None:
     # Basic setup
     afterburner_dir = Path("/software/rehlers/dev/eic/analysis_software_EIC")
-    output_dir = Path("/alf/data/rehlers/eic/afterburner/ReA/2021-11-02/min_p_cut_EPPS")
+    output_dir = Path("/alf/data/rehlers/eic/afterburner/ReA/2021-11-24/min_p_cut_EPPS")
     #output_dir = Path("/alf/data/rehlers/eic/afterburner/ReA/test")
     jet_R_parameters = [0.3, 0.5, 0.8, 1.0]
     jet_algorithm = "anti-kt"
