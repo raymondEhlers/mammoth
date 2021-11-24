@@ -373,6 +373,10 @@ def _define_config(
     # Setup
     config_kwargs = _default_parsl_config_kwargs(workflow_name=task_config.name, enable_monitoring=enable_monitoring)
 
+    machines_to_exclude = [
+        #"pc147"
+    ]
+
     config = Config(
         executors=[
             HighThroughputExecutor(
@@ -398,7 +402,7 @@ def _define_config(
                     account=facility.allocation_account,
                     # string to prepend to #SBATCH blocks in the submit
                     # Can add additional options directly to scheduler.
-                    scheduler_options="""""",
+                    scheduler_options=f"#SBATCH --exclude={','.join(machines_to_exclude)}" if machines_to_exclude else "",
                     # Command to be run before starting a worker, such as:
                     # 'module load Anaconda; source activate parsl_env'.
                     worker_init=f"{facility.worker_init_script}; {additional_worker_init_script}" if facility.worker_init_script else additional_worker_init_script,
