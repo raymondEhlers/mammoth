@@ -146,9 +146,9 @@ def calculate_double_ratio(ReA_hists: Dict[str, Dict[str, hist.Hist]],
 
                         # Then, find the ratio reference
                         for k, v in fixed_region_ReA_hists.items():
-                            #logger.info(f"eta ranges: {_jet_eta_range(region=region, jet_R=k.jet_R_value)}")
+                            #logger.info(f"eta ranges: {_jet_rapidity_range(region=region, jet_R=k.jet_R_value)}")
                             if k.jet_R_value == 1.0:
-                                ref = binned_data.BinnedData.from_existing_data(v) / _jet_eta_range(region=region, jet_R = k.jet_R_value)
+                                ref = binned_data.BinnedData.from_existing_data(v) / _jet_rapidity_range(region=region, jet_R = k.jet_R_value)
 
                         # And finally, divide and store the relevant hists.
                         for k, v in fixed_region_ReA_hists.items():
@@ -158,7 +158,7 @@ def calculate_double_ratio(ReA_hists: Dict[str, Dict[str, hist.Hist]],
                             #logger.info(f"Storing double ratio for {str(k)}")
                             double_ratio_hists[input_spec.n_PDF_name][k] = hist.Hist(
                                 (
-                                    (binned_data.BinnedData.from_existing_data(v) / _jet_eta_range(region=region, jet_R=k.jet_R_value)) / ref
+                                    (binned_data.BinnedData.from_existing_data(v) / _jet_rapidity_range(region=region, jet_R=k.jet_R_value)) / ref
                                 ).to_boost_histogram()[::hist.rebin(rebin_factor)] / (rebin_factor * 1.0))
 
     return double_ratio_hists
@@ -373,7 +373,7 @@ _regions_acceptance = {
 }
 
 
-def _jet_eta_range(region: str, jet_R: float) -> float:
+def _jet_rapidity_range(region: str, jet_R: float) -> float:
     low, high = _regions_acceptance[region]
     if region == "forward":
         high -= jet_R
@@ -447,9 +447,9 @@ def plot_ReA(sim_config: SimulationConfig, analysis_config: ecce_ReA_implementat
                                 text += "\n" + _n_PDF_name_display_name[n_PDF_name]
                             text += "\n" + f"$R$ = {jet_R}" + r" anti-$k_{\text{T}}$ " + _jet_type_display_label[jet_type]
                             if region == "forward":
-                                text += "\n" + r"$1.5 < \eta < 3.5 - R$"
+                                text += "\n" + r"$1.5 < y < 3.5 - R$"
                             if region == "mid_rapidity":
-                                text += "\n" + r"$-1.5 < \eta < 1.5$"
+                                text += "\n" + r"$-1.5 < y < 1.5$"
                             name = _parameters_spectra.name_eA if n_PDF_name != "ep" else _parameters_spectra.name_ep
                             logger.info(f"Plotting {n_PDF_name}, {name} for Q2")
                             _plot_spectra_2D(
@@ -492,9 +492,9 @@ def plot_ReA(sim_config: SimulationConfig, analysis_config: ecce_ReA_implementat
                                 text += "\n" + _n_PDF_name_display_name[n_PDF_name]
                             text += "\n" + f"$R$ = {jet_R}" + r" anti-$k_{\text{T}}$ " + _jet_type_display_label[jet_type]
                             if region == "forward":
-                                text += "\n" + r"$1.5 < \eta < 3.5 - R$"
+                                text += "\n" + r"$1.5 < y < 3.5 - R$"
                             if region == "mid_rapidity":
-                                text += "\n" + r"$-1.5 < \eta < 1.5$"
+                                text += "\n" + r"$-1.5 < y < 1.5$"
                             name = _parameters_spectra.name_eA if n_PDF_name != "ep" else _parameters_spectra.name_ep
                             logger.info(f"Plotting {n_PDF_name}, {name} for x")
                             _plot_spectra_2D(
@@ -570,9 +570,9 @@ def plot_ReA(sim_config: SimulationConfig, analysis_config: ecce_ReA_implementat
                         text += "\n" + _n_PDF_name_display_name[n_PDF_name]
                     text += "\n" + r"anti-$k_{\text{T}}$ " + _jet_type_display_label[jet_type]
                     if region == "forward":
-                        text += "\n" + r"$1.5 < \eta < 3.5 - R$"
+                        text += "\n" + r"$1.5 < y < 3.5 - R$"
                     if region == "mid_rapidity":
-                        text += "\n" + r"$-1.5 < \eta < 1.5$"
+                        text += "\n" + r"$-1.5 < y < 1.5$"
                     _plot_multiple_R(
                         hists=spectra_hists,
                         is_ReA_related=False,
@@ -583,7 +583,7 @@ def plot_ReA(sim_config: SimulationConfig, analysis_config: ecce_ReA_implementat
                                         pb.AxisConfig("x", label=r"$p" + variable_label + r"^{\text{jet}}\:(\text{GeV}/c)$", font_size=22, range=x_range),
                                         pb.AxisConfig(
                                             "y",
-                                            label=r"$\frac{\text{d}^{2}\sigma}{\text{d}\eta\text{d}p" + variable_label + r"^{\text{jet}}}\:(\text{fb}\:c/\text{GeV})$",
+                                            label=r"$\frac{\text{d}^{2}\sigma}{\text{d}y\text{d}p" + variable_label + r"^{\text{jet}}}\:(\text{fb}\:c/\text{GeV})$",
                                             log=True,
                                             font_size=22,
                                         ),
@@ -627,9 +627,9 @@ def plot_ReA(sim_config: SimulationConfig, analysis_config: ecce_ReA_implementat
                                 text += "\n" + _n_PDF_name_display_name[n_PDF_name]
                             text += "\n" + f"$R$ = {jet_R}" + r" anti-$k_{\text{T}}$ " + _jet_type_display_label[jet_type]
                             if region == "forward":
-                                text += "\n" + r"$1.5 < \eta < 3.5 - R$"
+                                text += "\n" + r"$1.5 < y < 3.5 - R$"
                             if region == "mid_rapidity":
-                                text += "\n" + r"$-1.5 < \eta < 1.5$"
+                                text += "\n" + r"$-1.5 < y < 1.5$"
                             variations_index = next(iter(variation_hists)).name_eA.find("_variation")
                             _plot_n_PDF_variations(
                                 hists=variation_hists,
@@ -642,7 +642,7 @@ def plot_ReA(sim_config: SimulationConfig, analysis_config: ecce_ReA_implementat
                                                 pb.AxisConfig("x", label=r"$p" + variable_label + r"^{\text{jet}}\:(\text{GeV}/c)$", font_size=22, range=x_range),
                                                 pb.AxisConfig(
                                                     "y",
-                                                    label=r"$\frac{\text{d}^{2}\sigma}{\text{d}\eta\text{d}p" + variable_label + r"^{\text{jet}}}\:(\text{fb}\:c/\text{GeV})$",
+                                                    label=r"$\frac{\text{d}^{2}\sigma}{\text{d}y\text{d}p" + variable_label + r"^{\text{jet}}}\:(\text{fb}\:c/\text{GeV})$",
                                                     log=True,
                                                     font_size=22,
                                                 ),
@@ -706,9 +706,9 @@ def plot_ReA(sim_config: SimulationConfig, analysis_config: ecce_ReA_implementat
                         text += "\n" + _n_PDF_name_display_name[n_PDF_name]
                     text += "\n" + r"anti-$k_{\text{T}}$ " + _jet_type_display_label[jet_type]
                     if region == "forward":
-                        text += "\n" + r"$1.5 < \eta < 3.5 - R$"
+                        text += "\n" + r"$1.5 < y < 3.5 - R$"
                     if region == "mid_rapidity":
-                        text += "\n" + r"$-1.5 < \eta < 1.5$"
+                        text += "\n" + r"$-1.5 < y < 1.5$"
                     _plot_multiple_R(
                         hists=fixed_region_ReA_hists,
                         is_ReA_related=True,
@@ -762,9 +762,9 @@ def plot_ReA(sim_config: SimulationConfig, analysis_config: ecce_ReA_implementat
                             text += "\n" + _n_PDF_name_display_name[n_PDF_name]
                         text += "\n" + r"anti-$k_{\text{T}}$ " + _jet_type_display_label[jet_type]
                         if region == "forward":
-                            text += "\n" + r"$1.5 < \eta < 3.5 - R$"
+                            text += "\n" + r"$1.5 < y < 3.5 - R$"
                         if region == "mid_rapidity":
-                            text += "\n" + r"$-1.5 < \eta < 1.5$"
+                            text += "\n" + r"$-1.5 < y < 1.5$"
                         variations_index = next(iter(variation_hists)).name_eA.replace("jetR030_", "").find("_variation")
                         _plot_n_PDF_variations(
                             hists=variation_hists,
@@ -848,9 +848,9 @@ def plot_ReA(sim_config: SimulationConfig, analysis_config: ecce_ReA_implementat
                         text += "\n" + _n_PDF_name_display_name[n_PDF_name]
                     text += "\n" + r"anti-$k_{\text{T}}$ " + _jet_type_display_label[jet_type]
                     if region == "forward":
-                        text += "\n" + r"$1.5 < \eta < 3.5 - R$"
+                        text += "\n" + r"$1.5 < y < 3.5 - R$"
                     if region == "mid_rapidity":
-                        text += "\n" + r"$-1.5 < \eta < 1.5$"
+                        text += "\n" + r"$-1.5 < y < 1.5$"
 
                     _plot_multiple_R(
                         hists=double_ratio_hists,
@@ -906,9 +906,9 @@ def plot_ReA(sim_config: SimulationConfig, analysis_config: ecce_ReA_implementat
                                 text += "\n" + _n_PDF_name_display_name[n_PDF_name]
                             text += "\n" + r"anti-$k_{\text{T}}$ " + _jet_type_display_label[jet_type]
                             if region == "forward":
-                                text += "\n" + r"$1.5 < \eta < 3.5 - R$"
+                                text += "\n" + r"$1.5 < y < 3.5 - R$"
                             if region == "mid_rapidity":
-                                text += "\n" + r"$-1.5 < \eta < 1.5$"
+                                text += "\n" + r"$-1.5 < y < 1.5$"
                             variations_index = next(iter(variation_hists)).name_eA.replace("jetR030_", "").find("_variation")
                             _plot_n_PDF_variations(
                                 hists=variation_hists,
@@ -975,9 +975,9 @@ def plot_ReA(sim_config: SimulationConfig, analysis_config: ecce_ReA_implementat
                             text += "\n" + _n_PDF_name_display_name[n_PDF_name]
                         text += "\n" + r"anti-$k_{\text{T}}$ " + _jet_type_display_label[jet_type]
                         if region == "forward":
-                            text += "\n" + r"$1.5 < \eta < 3.5 - R$"
+                            text += "\n" + r"$1.5 < y < 3.5 - R$"
                         if region == "mid_rapidity":
-                            text += "\n" + r"$-1.5 < \eta < 1.5$"
+                            text += "\n" + r"$-1.5 < y < 1.5$"
 
                         _plot_true_vs_det_level_ReA(
                             true_hists=true_hists,
