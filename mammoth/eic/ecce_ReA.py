@@ -2,7 +2,7 @@
 
 import logging
 from pathlib import Path
-from typing import Dict, Iterable, List, Mapping, Sequence
+from typing import Dict, Iterable, List, Mapping, Optional, Sequence
 
 import attr
 import cycler
@@ -141,14 +141,22 @@ def calculate_double_ratio(ReA_hists: Dict[str, Dict[str, hist.Hist]],
                         # Retrieve the relevant hists
                         fixed_region_ReA_hists = {
                             k: v
-                            for k, v in ReA_hists[input_spec.n_PDF_name].items() if k.region == region and k.jet_type == jet_type and k.variable == variable and k.variation == variation
+                            for k, v in ReA_hists[input_spec.n_PDF_name].items() if k.variable == variable
+                                                                                 and k.jet_type == jet_type
+                                                                                 and k.region == region
+                                                                                 and k.variation == variation
                         }
 
                         # Then, find the ratio reference
+                        reference: Optional[binned_data.BinnedData] = None
                         for k, v in fixed_region_ReA_hists.items():
                             #logger.info(f"eta ranges: {_jet_rapidity_range(region=region, jet_R=k.jet_R_value)}")
                             if k.jet_R_value == 1.0:
-                                ref = binned_data.BinnedData.from_existing_data(v) / _jet_rapidity_range(region=region, jet_R = k.jet_R_value)
+                                # NOTE: We don't want to normalize by the jet rapidity range because it's already divide out in the ReA
+                                reference = binned_data.BinnedData.from_existing_data(v)
+
+                        # Double check that we've found a reference for this case
+                        assert reference is not None
 
                         # And finally, divide and store the relevant hists.
                         for k, v in fixed_region_ReA_hists.items():
@@ -156,12 +164,17 @@ def calculate_double_ratio(ReA_hists: Dict[str, Dict[str, hist.Hist]],
                                 continue
                             # hist doesn't divide hists properly, so go through binned_data
                             #logger.info(f"Storing double ratio for {str(k)}")
+                            # NOTE: We don't want to normalize by the jet rapidity range because it's already divide out in the ReA
                             double_ratio_hists[input_spec.n_PDF_name][k] = hist.Hist(
                                 (
-                                    (binned_data.BinnedData.from_existing_data(v) / _jet_rapidity_range(region=region, jet_R=k.jet_R_value)) / ref
+                                    (binned_data.BinnedData.from_existing_data(v))
+                                    / reference
                                 ).to_boost_histogram()[::hist.rebin(rebin_factor)] / (rebin_factor * 1.0))
 
+                        #import IPython; IPython.start_ipython(user_ns={**globals(),**locals()})
+
     return double_ratio_hists
+
 
 def _calculate_nominal_variations(variation_hists: Dict[str, Dict[str, hist.Hist]], nominal_hist: hist.Hist) -> bool:
     # Collect all of the differences from all of the variations
