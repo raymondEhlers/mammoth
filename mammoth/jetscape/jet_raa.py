@@ -210,9 +210,9 @@ def analyze_jets(arrays: ak.Array, jets: Mapping[JetLabel, ak.Array]) -> Dict[st
     hists["n_events"] = hist.Hist(hist.axis.Regular(1, -0.5, 0.5))
     hists["n_events_weighted"] = hist.Hist(hist.axis.Regular(1, -0.5, 0.5))
     for jet_label in jets:
-        hists[f"{jet_label}_jet_pt"] = hist.Hist(hist.axis.Regular(200, 0, 200, label="jet_pt"), storage=hist.storage.Weight())
+        hists[f"{jet_label}_jet_pt"] = hist.Hist(hist.axis.Regular(1000, 0, 1000, label="jet_pt"), storage=hist.storage.Weight())
         # Try a coarser binning to reduce outliers
-        hists[f"{jet_label}_jet_pt_coarse_binned"] = hist.Hist(hist.axis.Regular(40, 0, 200, label="jet_pt"), storage=hist.storage.Weight())
+        hists[f"{jet_label}_jet_pt_coarse_binned"] = hist.Hist(hist.axis.Regular(200, 0, 1000, label="jet_pt"), storage=hist.storage.Weight())
         # This is assuredly overkill, but it hopefully means that I won't need to mess with it anymore
         hists[f"{jet_label}_n_events"] = hist.Hist(hist.axis.Regular(1, -0.5, 0.5))
         hists[f"{jet_label}_n_events_weighted"] = hist.Hist(hist.axis.Regular(1, -0.5, 0.5))
