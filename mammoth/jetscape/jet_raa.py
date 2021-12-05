@@ -204,7 +204,7 @@ def write_tree(jets: ak.Array, filename: Path) -> bool:
     return True
 
 
-def read_jet_skims(filename: Path, jet_R_values: Sequence[float]) -> ak.Array:
+def read_jet_skims(filename: Path, jet_R_values: Sequence[float]) -> Dict[JetLabel, ak.Array]:
     jet_inputs = {}
     for jet_R in jet_R_values:
         for label in ["charged", "full"]:
@@ -217,7 +217,7 @@ def read_jet_skims(filename: Path, jet_R_values: Sequence[float]) -> ak.Array:
                 logger.info(f"Skipping {tag} due to IO error {e}")
                 continue
 
-    return ak.zip(jet_inputs)
+    return jet_inputs
 
 
 def analyze_jets(arrays: ak.Array, jets: Mapping[JetLabel, ak.Array]) -> Dict[str, hist.Hist]:
