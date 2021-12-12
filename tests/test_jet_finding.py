@@ -128,7 +128,8 @@ def test_jet_finding_basic_multiple_events(caplog: Any) -> None:
     #assert False
 
 
-def test_jet_finding_with_subtraction_multiple_events(caplog: Any) -> None:
+@pytest.mark.parametrize("separate_background_particles_arg", [True, False], ids=["Standard", "Separate background particles argument"])  # type: ignore
+def test_jet_finding_with_subtraction_multiple_events(caplog: Any, separate_background_particles_arg: bool) -> None:
     """ Jet finding with subtraction for multiple events. """
     # Setup
     caplog.set_level(logging.DEBUG)
@@ -160,10 +161,15 @@ def test_jet_finding_with_subtraction_multiple_events(caplog: Any) -> None:
         with_name="Momentum4D",
     )
     print(f"input particles array type: {ak.type(input_particles)}")
+    extra_kwargs = {}
+    if separate_background_particles_arg:
+        extra_kwargs = {"background_particles": input_particles}
     jets = jet_finding.find_jets(particles=input_particles, jet_R=0.7,
                                  algorithm="anti-kt",
                                  area_settings=jet_finding.AREA_AA,
-                                 background_subtraction=True)
+                                 background_subtraction=True,
+                                 **extra_kwargs,
+                                 )
 
     expected_jets = ak.zip(
         {

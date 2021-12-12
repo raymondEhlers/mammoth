@@ -311,6 +311,7 @@ def find_jets(
     area_settings: Optional[AreaSettings] = None,
     eta_range: Tuple[float, float] = (-0.9, 0.9),
     min_jet_pt: float = 1.0,
+    background_particles: Optional[ak.Array] = None,
     background_subtraction: bool = False,
     constituent_subtraction: Optional[ConstituentSubtractionSettings] = None,
 ) -> ak.Array:
@@ -346,12 +347,62 @@ def find_jets(
     # actually be px, py, pz, and E), so calculate them now, and view them as numpy arrays
     # so we can pass them directly into our function.
     # NOTE: To avoid argument mismatches when calling to the c++, we view as float64 (which
-    #       will be converted to a double). As of July 2021, tests seem to indicate that it's =
+    #       will be converted to a double). As of July 2021, tests seem to indicate that it's
     #       not making the float32 -> float conversion properly.
     px = np.asarray(flattened_particles.px, dtype=np.float64)
     py = np.asarray(flattened_particles.py, dtype=np.float64)
     pz = np.asarray(flattened_particles.pz, dtype=np.float64)
     E = np.asarray(flattened_particles.E, dtype=np.float64)
+
+    # Now, onto the background particles. If background particles were passed, we want to do the
+    # same thing as the input particles
+    if background_particles is not None:
+        background_counts = ak.num(background_particles, axis=1)
+        # To use for indexing, we need to keep track of the cumulative sum. That way, we can
+        # slice using these indices.
+        background_sum_counts = np.cumsum(np.asarray(background_counts))
+        # However, to use as slices, we need one more entry than the number of events. We
+        # account for this by inserting 0 at the beginning since the first indices starts at 0.
+        background_sum_counts = np.insert(background_sum_counts, 0, 0)  # type: ignore
+
+        # Validate that there is at least one particle per event
+        event_with_no_particles = background_sum_counts[1:] == background_sum_counts[:-1]
+        if np.any(event_with_no_particles):
+            raise ValueError(
+                f"There are some background events with zero particles, which is going to mess up the alignment. Check the input! 0s are at {np.where(event_with_no_particles)}"
+            )
+
+        # Now, deal with the particles themselves.
+        # This will flatten the awkward array contents while keeping the record names.
+        flattened_background_particles = ak.flatten(background_particles, axis=1)
+        # We only want vector to calculate the components once (the input components may not
+        # actually be px, py, pz, and E), so calculate them now, and view them as numpy arrays
+        # so we can pass them directly into our function.
+        # NOTE: To avoid argument mismatches when calling to the c++, we view as float64 (which
+        #       will be converted to a double). As of July 2021, tests seem to indicate that it's
+        #       not making the float32 -> float conversion properly.
+        background_px = np.asarray(flattened_background_particles.px, dtype=np.float64)
+        background_py = np.asarray(flattened_background_particles.py, dtype=np.float64)
+        background_pz = np.asarray(flattened_background_particles.pz, dtype=np.float64)
+        background_E = np.asarray(flattened_background_particles.E, dtype=np.float64)
+    else:
+        # If we don't have any particles, we just want to pass empty arrays. This will be interpreted
+        # to use the signal events for the background estimator.
+        # For this to work, we need to at least fake some values.
+        # In particular, slices of 0 (ie. [0:0]) will return empty arrays, even if the arrays themselves
+        # are already empty. So we make the counts 0 for all events
+        background_sum_counts = np.zeros(len(sum_counts), dtype=np.int64)
+        # And then create the empty arrays.
+        background_px = np.zeros(0, dtype=np.float64)
+        background_py = np.zeros(0, dtype=np.float64)
+        background_pz = np.zeros(0, dtype=np.float64)
+        background_E = np.zeros(0, dtype=np.float64)
+
+    # Validate that the number of background events match the number of signal events
+    if len(sum_counts) != len(background_sum_counts):
+        raise ValueError(
+            f"Mismatched between number of events for signal and background. Signal: {len(sum_counts) -1}, background: {len(background_sum_counts) - 1}"
+        )
 
     # Keep track of the jet four vector components. Although this will have to be converted later,
     # it seems that this is good enough enough to start.
@@ -373,13 +424,17 @@ def find_jets(
         "E": [],
     }
     subtracted_to_unsubtracted_indices = []
-    for lower, upper in zip(sum_counts[:-1], sum_counts[1:]):
+    for lower, upper, background_lower, background_upper in zip(sum_counts[:-1], sum_counts[1:], background_sum_counts[:-1], background_sum_counts[1:]):
         # Run the actual jet finding.
         res = mammoth._ext.find_jets(
             px=px[lower:upper],
             py=py[lower:upper],
             pz=pz[lower:upper],
             E=E[lower:upper],
+            background_px=background_px[background_lower:background_upper],
+            background_py=background_py[background_lower:background_upper],
+            background_pz=background_pz[background_lower:background_upper],
+            background_E=background_E[background_lower:background_upper],
             jet_R=jet_R,
             jet_algorithm=algorithm,
             area_settings=area_settings,

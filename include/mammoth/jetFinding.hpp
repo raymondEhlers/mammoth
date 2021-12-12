@@ -144,6 +144,8 @@ std::vector<unsigned int> updateSubtractedConstituentIndices(
   * @param areaSettings Area settings
   * @param etaRange Eta range. Tuple of min and max. Default: (-0.9, 0.9)
   * @param minJetPt Minimum jet pt. Default: 1.
+  * @param backgroundEstimatorFourVectors Four vectors to provide to the background estimator. If they're empty
+  *                                       the column (ie. input) four vectors are used.
   * @param backgroundSubtraction If true, enable rho background subtraction
   * @param constituentSubtraction If provided, configure constituent subtraction according to given settings.
   * @return OutputWrapper<T> Output from jet finding.
@@ -156,6 +158,7 @@ OutputWrapper<T> findJets(
   AreaSettings areaSettings,
   std::tuple<double, double> etaRange = {-0.9, 0.9},
   double minJetPt = 1,
+  FourVectorTuple<T> & backgroundEstimatorFourVectors = {{}, {}, {}, {}},
   bool backgroundSubtraction = false,
   std::optional<ConstituentSubtractionSettings> constituentSubtraction = std::nullopt
 );
@@ -424,6 +427,7 @@ OutputWrapper<T> findJets(
   AreaSettings areaSettings,
   std::tuple<double, double> etaRange,
   double minJetPt,
+  FourVectorTuple<T> & backgroundEstimatorFourVectors,
   bool backgroundSubtraction,
   std::optional<ConstituentSubtractionSettings> constituentSubtraction
 )
@@ -445,6 +449,7 @@ OutputWrapper<T> findJets(
     << "\tMin jet pt=" << minJetPt << "\n"
     << "Settings:\n"
     << "\tGhost area: " << areaSettings.ghostArea << "\n"
+    << "\tBackground estimator using " << (std::get<0>(backgroundEstimatorFourVectors).size() > 0 ? "background" : "input") << " particles\n"
     << "\tBackground subtraction: " << backgroundSubtraction << "\n"
     << "\tConstituent subtraction: " << static_cast<bool>(constituentSubtraction) << "\n";
 
@@ -531,7 +536,16 @@ OutputWrapper<T> findJets(
     backgroundEstimator->set_compute_rho_m(true);
 
     // Setup the input particles for the estimator so we it calculate the background.
-    backgroundEstimator->set_particles(particlePseudoJets);
+    // If we have background estimator four vectors, we need to make sure we use them here.
+    // In the case that they weren't provided, the arrays are empty, so it doesn't really cost anything
+    // to create a new (empty) vector. So we just do it regardless.
+    auto possibleBackgroundEstimatorParticles = vectorsToPseudoJets(backgroundEstimatorFourVectors);
+    // Then, we actually decide on what to pass depending on if there are passed background estimator particles or not.
+    // NOTE: In principle, this would get us in trouble if the estimator is supposed to have no particles. But in that case,
+    //       we would just turn off the background estimator. So it should be fine.
+    backgroundEstimator->set_particles(possibleBackgroundEstimatorParticles.size() > 0
+                                       ? possibleBackgroundEstimatorParticles
+                                       : particlePseudoJets);
 
     // Specific setup for event-wise constituent subtraction
     if (constituentSubtraction) {

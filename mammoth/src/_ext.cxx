@@ -61,11 +61,21 @@ mammoth::FourVectorTuple<T> numpyToColumnFourVector(
  /**
   * @brief Find jets with background subtraction.
   *
+  * NOTE: The interface is awkward because we can't optionally pass the background estimator particles.
+  *       Instead, we implicitly pass them optionally by reacting if they're empty by passing the input
+  *       particles to the background estimator. It would be nicer if it was better, but the only person
+  *       who has to actually this interface is me, so it's not the end of the world (it's hidden behind
+  *       other functions for all uses).
+  *
   * @tparam T Input data type (usually float or double).
   * @param pxIn px of input particles
   * @param pyIn py of input particles
   * @param pzIn pz of input particles
   * @param EIn energy of input particles
+  * @param backgroundPxIn px of background estimator particles
+  * @param backgroundPyIn py of background estimator particles
+  * @param backgroundPzIn pz of background estimator particles
+  * @param backgroundEIn energy of background estimator particles
   * @param jetR jet resolution parameter
   * @param jetAlgorithm jet algorithm
   * @param areaSettings Jet area calculation settings
@@ -81,6 +91,10 @@ mammoth::OutputWrapper<T> findJets(
   const py::array_t<T, py::array::c_style | py::array::forcecast> & pyIn,
   const py::array_t<T, py::array::c_style | py::array::forcecast> & pzIn,
   const py::array_t<T, py::array::c_style | py::array::forcecast> & EIn,
+  const py::array_t<T, py::array::c_style | py::array::forcecast> & backgroundPxIn,
+  const py::array_t<T, py::array::c_style | py::array::forcecast> & backgroundPyIn,
+  const py::array_t<T, py::array::c_style | py::array::forcecast> & backgroundPzIn,
+  const py::array_t<T, py::array::c_style | py::array::forcecast> & backgroundEIn,
   double jetR,
   std::string jetAlgorithm,
   mammoth::AreaSettings areaSettings,
@@ -91,7 +105,9 @@ mammoth::OutputWrapper<T> findJets(
 )
 {
   auto fourVectors = numpyToColumnFourVector<T>(pxIn, pyIn, pzIn, EIn);
-  return mammoth::findJets(fourVectors, jetR, jetAlgorithm, areaSettings, etaRange, minJetPt, backgroundSubtraction, constituentSubtraction);
+  // NOTE: These may be empty. If they are, the input four vectors are used for the background estimator
+  auto backgroundFourVectors = numpyToColumnFourVector<T>(backgroundPxIn, backgroundPyIn, backgroundPzIn, backgroundEIn);
+  return mammoth::findJets(fourVectors, jetR, jetAlgorithm, areaSettings, etaRange, minJetPt, backgroundFourVectors, backgroundSubtraction, constituentSubtraction);
 }
 
 template <typename T>
@@ -177,8 +193,18 @@ PYBIND11_MODULE(_ext, m) {
     .def_readwrite("r_max", &mammoth::ConstituentSubtractionSettings::rMax)
     .def_readwrite("alpha", &mammoth::ConstituentSubtractionSettings::alpha)
   ;
-  m.def("find_jets", &findJets<float>, "px"_a, "py"_a, "pz"_a, "E"_a, "jet_R"_a, "jet_algorithm"_a, "area_settings"_a, "eta_range"_a = std::make_tuple(-0.9, 0.9), "min_jet_pt"_a = 1., "background_subtraction"_a = false, "constituent_subtraction"_a = std::nullopt, "Jet finding function", py::call_guard<JetFindingLoggingStdout, JetFindingLoggingStderr>());
-  m.def("find_jets", &findJets<double>, "px"_a, "py"_a, "pz"_a, "E"_a, "jet_R"_a, "jet_algorithm"_a, "area_settings"_a, "eta_range"_a = std::make_tuple(-0.9, 0.9), "min_jet_pt"_a = 1., "background_subtraction"_a = false,"constituent_subtraction"_a = std::nullopt, "Jet finding function", py::call_guard<JetFindingLoggingStdout, JetFindingLoggingStderr>());
+  m.def("find_jets", &findJets<float>, "px"_a, "py"_a, "pz"_a, "E"_a,
+                                       "background_px"_a, "background_py"_a, "background_pz"_a, "background_E"_a,
+                                       "jet_R"_a, "jet_algorithm"_a, "area_settings"_a,
+                                       "eta_range"_a = std::make_tuple(-0.9, 0.9), "min_jet_pt"_a = 1.,
+                                       "background_subtraction"_a = false, "constituent_subtraction"_a = std::nullopt,
+                                       "Jet finding function", py::call_guard<JetFindingLoggingStdout, JetFindingLoggingStderr>());
+  m.def("find_jets", &findJets<double>, "px"_a, "py"_a, "pz"_a, "E"_a,
+                                        "background_px"_a, "background_py"_a, "background_pz"_a, "background_E"_a,
+                                        "jet_R"_a, "jet_algorithm"_a, "area_settings"_a,
+                                        "eta_range"_a = std::make_tuple(-0.9, 0.9), "min_jet_pt"_a = 1.,
+                                        "background_subtraction"_a = false, "constituent_subtraction"_a = std::nullopt,
+                                        "Jet finding function", py::call_guard<JetFindingLoggingStdout, JetFindingLoggingStderr>());
 
   // Wrapper for reclustered jet outputs
   py::class_<mammoth::JetSubstructure::ColumnarSplittings>(m, "ColumnarSplittings", "Columnar splittings output")
