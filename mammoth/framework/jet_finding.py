@@ -444,7 +444,7 @@ def find_jets(
         # constituents mapping.
         expanded_subtracted_to_unsubtracted_indices = _expand_array_for_applying_constituent_indices(
             array_to_expand=ak.Array(subtracted_to_unsubtracted_indices),
-            constituent_indices=output_constituents["index"],
+            constituent_indices=output_constituents["jf_index"],
         )
         # And then include that in the output.
         output_constituents = ak.zip(
