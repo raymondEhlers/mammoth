@@ -164,9 +164,9 @@ _facilities_configs = {
         node_spec=NodeSpec(n_cores=10, memory=64),
         partition_name=queue,
         # Allocate full node:
-        target_allocate_n_cores=10 if queue != "loginOnly" else 6,
+        # target_allocate_n_cores=10 if queue != "loginOnly" else 6,
         # Allocate by core:
-        # target_allocate_n_cores=1,
+        target_allocate_n_cores=1,
         launcher=SingleNodeLauncher,
         #node_work_dir=Path("/tmp/parsl/$USER"),
         #storage_work_dir=Path("/alf/data/rehlers/jetscape/work_dir"),
@@ -373,7 +373,7 @@ def _define_config(
     # Setup
     config_kwargs = _default_parsl_config_kwargs(workflow_name=task_config.name, enable_monitoring=enable_monitoring)
 
-    machines_to_exclude = [
+    machines_to_exclude: List[str] = [
         #"pc147"
     ]
 
