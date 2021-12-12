@@ -3,7 +3,9 @@
 .. codeauthor:: Raymond Ehlers <raymond.ehlers@cern.ch>, ORNL
 """
 
+import logging
 import pytest  # noqa: F401
+from typing import Any
 
 import awkward as ak
 import numpy as np
@@ -11,9 +13,10 @@ import vector
 
 from mammoth.framework import jet_finding
 
-def test_jet_finding_basic_single_event() -> None:
+def test_jet_finding_basic_single_event(caplog: Any) -> None:
     """ Basic jet finding test with a single event. """
     # Setup
+    caplog.set_level(logging.DEBUG)
     vector.register_awkward()
 
     # an event with three particles:   px    py  pz      E
@@ -54,9 +57,10 @@ def test_jet_finding_basic_single_event() -> None:
     #assert False
 
 
-def test_jet_finding_basic_multiple_events() -> None:
+def test_jet_finding_basic_multiple_events(caplog: Any) -> None:
     """ Basic jet finding test with for multiple events. """
     # Setup
+    caplog.set_level(logging.DEBUG)
     vector.register_awkward()
 
     # an event with three particles
@@ -124,9 +128,10 @@ def test_jet_finding_basic_multiple_events() -> None:
     #assert False
 
 
-def test_jet_finding_with_subtraction_multiple_events() -> None:
+def test_jet_finding_with_subtraction_multiple_events(caplog: Any) -> None:
     """ Jet finding with subtraction for multiple events. """
     # Setup
+    caplog.set_level(logging.DEBUG)
     vector.register_awkward()
 
     # an event with three particles
@@ -197,7 +202,7 @@ def test_jet_finding_with_subtraction_multiple_events() -> None:
     #assert False
 
 
-def test_jet_finding_with_constituent_subtraction_does_something_multiple_events() -> None:
+def test_jet_finding_with_constituent_subtraction_does_something_multiple_events(caplog: Any) -> None:
     """ Jet finding with constituent subtraction modifies the jets somehow for multiple events.
 
     NOTE:
@@ -205,6 +210,7 @@ def test_jet_finding_with_constituent_subtraction_does_something_multiple_events
         This is because there's no simple reference. So we have to validate elsewhere.
     """
     # Setup
+    caplog.set_level(logging.DEBUG)
     vector.register_awkward()
 
     # an event with three particles
