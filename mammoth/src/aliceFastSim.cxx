@@ -389,7 +389,7 @@ double trackingEfficiencyByPeriod(
     case Period_t::kLHC18qr:
     case Period_t::kpA:
     case Period_t::kpp:
-        // Intetionally fall through for LHC18, pA
+        // Intentionally fall through for LHC18, pA
         {
             // Need to find the period name for the error message
             // Put it in a scope for clarity
@@ -416,5 +416,5 @@ double trackingEfficiencyByPeriod(
     return efficiency;
 }
 
-} /* namesapce fastsim */
-} /* namesapce alice */
+} /* namespace fastsim */
+} /* namespace alice */

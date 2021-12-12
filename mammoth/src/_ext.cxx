@@ -146,7 +146,7 @@ class JetFindingLoggingStderr : public py::scoped_ostream_redirect {
  *
  * @tparam T Type to specialize for the output wrapper
  * @param m pybind11 module
- * @param typestr Name of the string, captialized by convention.
+ * @param typestr Name of the string, capitalized by convention.
  */
 template<typename T>
 void wrapOutputWrapper(py::module & m, const std::string & typestr)
