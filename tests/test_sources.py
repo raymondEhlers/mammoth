@@ -29,7 +29,7 @@ def test_thermal_embedding() -> None:
     thermal_source = sources.ThermalModelExponential(
         # Chunk sizee will be set when combining the sources.
         chunk_size=-1,
-        thermal_model_parameters=sources.THERAML_MODEL_PARAMETERS["central"],
+        thermal_model_parameters=sources.THERMAL_MODEL_SETTINGS["central"],
     )
 
     # Now, just zip them together, effectively.
