@@ -45,7 +45,7 @@ def run(n_variations: int = 97) -> None:
         values = {}
 
         for n_PDF_name, proton_pdf_name, n_variations in [#("nNNPDF20_nlo_as_0118_Au197", "NNPDF40_nnlo_as_01180", 250)]:
-                                                          ("nNNPDF20_nlo_as_0118_Au197", "NNPDF31_nnlo_as_0118", 250),
+                                                          ("nNNPDF20_nlo_as_0118_Au197", "nNNPDF20_nlo_as_0118_N1", 250),
                                                           ("EPPS16nlo_CT14nlo_Au197", "CT14nlo", 97)]:
             values[n_PDF_name] = {}
             proton_pdf = lhapdf.mkPDF(proton_pdf_name)
