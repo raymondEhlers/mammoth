@@ -171,6 +171,7 @@ def calculate_double_ratio(ReA_hists: Dict[str, Dict[str, hist.Hist]],
                                     / reference
                                 ).to_boost_histogram()[::hist.rebin(rebin_factor)] / (rebin_factor * 1.0))
 
+
                         #import IPython; IPython.start_ipython(user_ns={**globals(),**locals()})
 
     return double_ratio_hists
@@ -598,6 +599,8 @@ def plot_ReA(sim_config: SimulationConfig, analysis_config: ecce_ReA_implementat
                                             "y",
                                             label=r"$\frac{\text{d}^{2}\sigma}{\text{d}y\text{d}p" + variable_label + r"^{\text{jet}}}\:(\text{fb}\:c/\text{GeV})$",
                                             log=True,
+                                            # Reduce this range for p to make to easier to see
+                                            range=(1e8, 1e11) if variable == "p" else None,
                                             font_size=22,
                                         ),
                                     ],
@@ -657,6 +660,8 @@ def plot_ReA(sim_config: SimulationConfig, analysis_config: ecce_ReA_implementat
                                                     "y",
                                                     label=r"$\frac{\text{d}^{2}\sigma}{\text{d}y\text{d}p" + variable_label + r"^{\text{jet}}}\:(\text{fb}\:c/\text{GeV})$",
                                                     log=True,
+                                                    # Reduce this range for p to make to easier to see
+                                                    range=(1e8, 1e11) if variable == "p" else None,
                                                     font_size=22,
                                                 ),
                                             ],
@@ -876,7 +881,7 @@ def plot_ReA(sim_config: SimulationConfig, analysis_config: ecce_ReA_implementat
                                         pb.AxisConfig(
                                             "y",
                                             label=r"$R_{\text{eA}}(R) / R_{\text{eA}}(R=1.0)$",
-                                            range=(0, 1.4),
+                                            range=(0.5, 1.4),
                                             font_size=22,
                                         ),
                                     ],
@@ -1043,15 +1048,16 @@ def run() -> None:
         #       So instead, load some ofthem at a time, and take it in steps. One could do this with a shell script, etc.
         #       (or carefully clear the memory in python). However, the easiest thing to do so have has been to deal
         #       with it by hand.
-        jet_types=["charged", "true_charged"],
-        #jet_types=["calo", "true_full"],
+        #jet_types=["charged", "true_charged"],
+        jet_types=["calo", "true_full"],
         regions=["forward"],
         variables=["p", "pt"],
     )
 
     # Setup
     dataset_spec = ecce_base.DatasetSpecPythia(
-        site="production",
+        #site="production",
+        site="cades",
         generator="pythia8",
         electron_beam_energy=10, proton_beam_energy=100,
         q2_selection=[100],
@@ -1059,8 +1065,9 @@ def run() -> None:
     )
     # Setup I/O dirs
     #label = "fix_variable_shadowing"
-    label = "min_p_cut_with_tracklets_EPPS"
+    #label = "min_p_cut_with_tracklets_EPPS"
     #label = "min_p_cut_with_tracklets_nNNPDF"
+    label = "min_p_cut_EPPS"
     base_dir = Path(f"/Volumes/data/eic/ReA/current_best_knowledge/{str(dataset_spec)}")
     input_dir = base_dir / label
     output_dir = base_dir / "plots" / label
@@ -1091,10 +1098,12 @@ def run() -> None:
     # Inputs
     # From the evaluator files, in pb (pythia provides in mb, but then it's change to pb during the conversion to HepMC2)
     _pb_to_fb = 1e3
-    _cross_sections = {
-        "production-pythia8-10x100-q2-100": 1322.52 * _pb_to_fb,
-        "production-pythia8-10x100-q2-1-to-100": 470921.71 * _pb_to_fb,
-    }
+    _cross_sections = {}
+    for site in ["production", "cades"]:
+        _cross_sections.update({
+            f"{site}-pythia8-10x100-q2-100": 1322.52 * _pb_to_fb,
+            f"{site}-pythia8-10x100-q2-1-to-100": 470921.71 * _pb_to_fb,
+        })
     # 1 year in fb^{-1}
     _luminosity_projections = {
         "ep": 10.0,
