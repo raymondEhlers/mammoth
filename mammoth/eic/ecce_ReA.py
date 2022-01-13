@@ -81,18 +81,33 @@ def _load_results(config: SimulationConfig, input_specs: Sequence[InputSpec]) ->
     return output_hists
 
 
-def _calculate_ReA(ep_hists: Dict[str, hist.Hist], eA_hists: Dict[str, hist.Hist], parameters: JetParameters, rebin_factor: int = 2) -> hist.Hist:
+def _calculate_ReA(ep_hists: Dict[str, hist.Hist], eA_hists: Dict[str, hist.Hist], parameters: JetParameters,
+                   narrow_rebin_factor: int = 2, wide_rebin_factor: int = 5, transition_for_binning: int = 10) -> hist.Hist:
     ep_hist = binned_data.BinnedData.from_existing_data(ep_hists[parameters.name_ep])
     eA_hist = binned_data.BinnedData.from_existing_data(eA_hists[parameters.name_eA])
-    #return hist.Hist((eA_hist / ep_hist).to_boost_histogram() * 1/79.0)[::hist.rebin(2)] / 2.0
-    return hist.Hist((eA_hist / ep_hist).to_boost_histogram())[::hist.rebin(rebin_factor)] / (rebin_factor * 1.0)
-    #return hist.Hist((eA_hist / ep_hist).to_boost_histogram())[::hist.rebin(5)] / 5.0
+
+    # We have our ReA, so ideally we'd be able to pass a variable binning. However, that doesn't exist yet,
+    # so we a dumb thing and simple thing:
+    # 1. rebin with two widths: narrow and wide
+    # 2. merge the two histograms together at some bin, taking the narrow below and the wide above
+    res = hist.Hist((eA_hist / ep_hist).to_boost_histogram())
+    narrow_rebin = res[:complex(0, transition_for_binning):hist.rebin(narrow_rebin_factor)] / (narrow_rebin_factor * 1.0)
+    wide_rebin = res[complex(0, transition_for_binning)::hist.rebin(wide_rebin_factor)] / (wide_rebin_factor * 1.0)
+
+    bin_edges = np.concatenate([narrow_rebin.axes[0].edges, wide_rebin.axes[0].edges[1:]])
+    values = np.concatenate([narrow_rebin.values(), wide_rebin.values()])
+    variances = np.concatenate([narrow_rebin.variances(), wide_rebin.variances()])
+
+    combined = hist.Hist(binned_data.BinnedData(axes=[bin_edges], values=values, variances=variances).to_boost_histogram())
+
+    return combined
 
 
 def calculate_ReA(input_hists: Dict[str, Dict[str, hist.Hist]],
                   sim_config: SimulationConfig,
                   analysis_config: ecce_ReA_implementation.AnalysisConfig,
-                  rebin_factor: int = 2,
+                  narrow_rebin_factor: int = 2,
+                  wide_rebin_factor: int = 5,
                   ) -> Dict[JetParameters, hist.Hist]:
     ReA_hists = {}
 
@@ -116,7 +131,8 @@ def calculate_ReA(input_hists: Dict[str, Dict[str, hist.Hist]],
                                 ep_hists=input_hists["ep"],
                                 eA_hists=input_hists[input_spec.n_PDF_name],
                                 parameters=parameters_spectra,
-                                rebin_factor=2 if variable == "pt" else rebin_factor,
+                                narrow_rebin_factor=2 if variable == "pt" else narrow_rebin_factor,
+                                wide_rebin_factor=5 if variable == "pt" else wide_rebin_factor,
                             )
 
     return ReA_hists
@@ -542,7 +558,8 @@ def plot_ReA(sim_config: SimulationConfig, analysis_config: ecce_ReA_implementat
         input_hists=input_spectra_hists,
         sim_config=sim_config,
         analysis_config=analysis_config,
-        rebin_factor=5,
+        narrow_rebin_factor=5,
+        wide_rebin_factor=10,
     )
     # Calculate ReA double ratio
     ReA_double_ratio_hists = calculate_double_ratio(
@@ -1048,8 +1065,8 @@ def run() -> None:
         #       So instead, load some ofthem at a time, and take it in steps. One could do this with a shell script, etc.
         #       (or carefully clear the memory in python). However, the easiest thing to do so have has been to deal
         #       with it by hand.
-        #jet_types=["charged", "true_charged"],
-        jet_types=["calo", "true_full"],
+        jet_types=["charged", "true_charged"],
+        #jet_types=["calo", "true_full"],
         regions=["forward"],
         variables=["p", "pt"],
     )
