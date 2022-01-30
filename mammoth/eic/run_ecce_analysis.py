@@ -52,10 +52,12 @@ def run_ecce_afterburner_bash(
     do_reclustering: bool = True,
     do_jet_finding: bool = True,
     do_calo_res: bool = False,
+    is_single_particle_production: bool = False,
     max_n_events: int = -1,
     verbosity: int = 0,
     primary_track_source: int = 0,
     remove_tracklets: bool = False,
+    track_projections_are_broken: bool = True,
     jet_algorithm: str = "anti-kt",
     jet_R_parameters: Sequence[float] = [0.3, 0.5, 0.8, 1.0],
     max_track_pt_in_jet: float = 30.0,
@@ -81,9 +83,11 @@ def run_ecce_afterburner_bash(
         str(do_reclustering).lower(),
         str(do_jet_finding).lower(),
         str(do_calo_res).lower(),
+        str(is_single_particle_production).lower(),
         str(verbosity),
         str(primary_track_source),
         str(remove_tracklets).lower(),
+        str(track_projections_are_broken).lower(),
         f"\"{str(jet_algorithm)}\"",
     ]
 
@@ -100,10 +104,12 @@ def run_ecce_afterburner(
     do_reclustering: bool = True,
     do_jet_finding: bool = True,
     do_calo_res: bool = False,
+    is_single_particle_production: bool = False,
     max_n_events: int = -1,
     verbosity: int = 0,
     primary_track_source: int = 0,
     remove_tracklets: bool = False,
+    track_projections_are_broken: bool = True,
     jet_algorithm: str = "anti-kt",
     jet_R_parameters: Sequence[float] = [0.3, 0.5, 0.8, 1.0],
     max_track_pt_in_jet: float = 30.0,
@@ -135,9 +141,11 @@ def run_ecce_afterburner(
                 do_reclustering=do_reclustering,
                 do_jet_finding=do_jet_finding,
                 do_calo_res=do_calo_res,
+                is_single_particle_production=is_single_particle_production,
                 verbosity=verbosity,
                 primary_track_source=primary_track_source,
                 remove_tracklets=remove_tracklets,
+                track_projections_are_broken=track_projections_are_broken,
                 jet_algorithm=jet_algorithm,
                 jet_R_parameters=jet_R_parameters,
                 max_track_pt_in_jet=max_track_pt_in_jet,
@@ -199,10 +207,13 @@ def setup_ecce_afterburner(
                 output_dir=output_dir,
                 do_jet_finding=(jet_algorithm != ""),
                 do_calo_res=False,
+                is_single_particle_production=isinstance(dataset, DatasetSpecSingleParticle),
                 jet_algorithm=jet_algorithm,
                 jet_R_parameters=jet_R_parameters,
                 primary_track_source=primary_track_source,
                 remove_tracklets=remove_tracklets,
+                # Track projections are broken in prop.4, but work for future productions.
+                track_projections_are_broken="prop.4" in str(dataset.data),
                 max_n_events=-1,
                 #verbosity=2,
                 inputs=[
@@ -221,7 +232,7 @@ def setup_ecce_afterburner(
 def run() -> None:
     # Basic setup
     afterburner_dir = Path("/software/rehlers/dev/eic/analysis_software_EIC")
-    output_dir = Path("/alf/data/rehlers/eic/afterburner/ReA/2021-11-24/min_p_cut_EPPS")
+    output_dir = Path("/alf/data/rehlers/eic/afterburner/ReA/2022-01-12/min_p_cut_EPPS")
     #output_dir = Path("/alf/data/rehlers/eic/afterburner/ReA/test")
     jet_R_parameters = [0.3, 0.5, 0.8, 1.0]
     jet_algorithm = "anti-kt"
@@ -242,13 +253,13 @@ def run() -> None:
         #    q2_selection=[1, 100],
         #    label="",
         #),
-        DatasetSpecPythia(
-            site="production",
-            generator="pythia8",
-            electron_beam_energy=10, proton_beam_energy=100,
-            q2_selection=[100],
-            label="",
-        ),
+        #DatasetSpecPythia(
+        #    site="production",
+        #    generator="pythia8",
+        #    electron_beam_energy=10, proton_beam_energy=100,
+        #    q2_selection=[100],
+        #    label="",
+        #),
         # Single particle
         # Production
         #DatasetSpecSingleParticle(
@@ -316,6 +327,22 @@ def run() -> None:
         #    q2_selection=[100],
         #    label="geoOption6",
         #),
+        # Productions from Nico at CADES in December 2021.
+        # These should be _the_ canonical productions
+        #DatasetSpecPythia(
+        #    site="cades",
+        #    generator="pythia6",
+        #    electron_beam_energy=10, proton_beam_energy=100,
+        #    q2_selection=[100],
+        #    label="",
+        #),
+        DatasetSpecPythia(
+            site="cades",
+            generator="pythia8",
+            electron_beam_energy=10, proton_beam_energy=100,
+            q2_selection=[100],
+            label="",
+        ),
     ]
 
     # Job execution parameters
@@ -329,7 +356,7 @@ def run() -> None:
     task_config = job_utils.TaskConfig(name=task_name, n_cores_per_task=1)
     #n_cores_to_allocate = 120
     #walltime = "1:59:00"
-    n_cores_to_allocate = 100
+    n_cores_to_allocate = 90
     #walltime = "20:00:00"
     walltime = "06:00:00"
     #walltime = "02:00:00"
@@ -417,6 +444,21 @@ def run() -> None:
             data=Path("/alf/data/rehlers/eic/cades/LYSO_1fwd_1bkd_option6/output_TTLGEO_6_Jets_pythia8_ep-10x100-q2-100/"),
             geometry=Path("/alf/data/rehlers/eic/cades/LYSO_1fwd_1bkd_option6/geometry.root"),
         ),
+        # Productions from Nico at CADES in December 2021.
+        # These should be _the_ canonical productions
+        # Pythia6
+        # NOTE: There is a second pythia6 production (FSTFIX_2), which is identical as this one, but contains additional stats
+        #       However, we're not statistics starved, so we don't bother with merging them (since it would require re-indexing
+        #       the files, which is often a pain)
+        "cades-pythia6-10x100-q2-100": Dataset(
+            data=Path("/alf/data/rehlers/eic/cades/nico_december_2021/output_TTLGEO_8_P6_HITS_Q2_FSTFIX_1_phpythia6_ep18x275_q2_100"),
+            geometry=Path("/alf/data/rehlers/eic/cades/nico_december_2021/geometry.root"),
+        ),
+        # Pythia8
+        "cades-pythia8-10x100-q2-100": Dataset(
+            data=Path("/alf/data/rehlers/eic/cades/nico_december_2021/output_TTLGEO_7_HITS_EEMAPUPDATE_P8_10x100_Q2_JETS_1_Jets_pythia8_ep-10x100-q2-100"),
+            geometry=Path("/alf/data/rehlers/eic/cades/nico_december_2021/geometry.root"),
+        ),
     }
     for d in datasets_to_process:
         print(str(d))
@@ -433,9 +475,9 @@ def run() -> None:
     #       it's super verbose and a huge pain to turn off. Note that by passing on the storage messages,
     #       we don't actually lose any info.
     config, facility_config, stored_messages = job_utils.config(
-        #facility="ORNL_b587_long",
+        facility="ORNL_b587_long",
         #facility="ORNL_b587_short",
-        facility="ORNL_b587_vip",
+        #facility="ORNL_b587_vip",
         task_config=task_config,
         n_tasks=n_cores_to_allocate,
         walltime=walltime,
@@ -470,7 +512,7 @@ def run() -> None:
                     # Seems to work better for jets
                     #n_files_per_job=2,
                     #n_files_per_job=5,
-                    n_files_per_job=10,
+                    n_files_per_job=12,
                     # Seems to work for single particle
                     #n_files_per_job=10,
                 )
