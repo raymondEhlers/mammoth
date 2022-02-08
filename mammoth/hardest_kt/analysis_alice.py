@@ -56,6 +56,18 @@ def analysis_MC(arrays: ak.Array, jet_R: float, min_jet_pt: Mapping[str, float])
     # NOTE: Since the HF Tree uses track containers, the min is usually applied by default
     det_track_pt_mask = arrays["det_level"].pt >= 0.150
     arrays["det_level"] = arrays["det_level"][det_track_pt_mask]
+    # NOTE: We don't need to explicitly select charged particles here because when creating
+    #       the alice track skims, we explicitly select charged particles there.
+    #       However, this would be required for separate MC (eg. jetscape, herwig, etc) productions.
+    #       This is probably best served by some switch somewhere.
+
+    # Finally, require that we have part and det level particles for each event
+    # NOTE: We have to do it in a separate mask because the above is masked as the particle level,
+    #       but here we need to mask at the event level. (If you try to mask at the particle, you'll
+    #       end up with empty events)
+    # NOTE: Remember that the lengths of det and particle level need to match up, so be careful with the mask!
+    event_has_particles_mask = (ak.num(arrays["part_level"], axis=1) > 0) & (ak.num(arrays["det_level"], axis=1) > 0)
+    arrays = arrays[event_has_particles_mask]
 
     # Jet finding
     logger.info("Find jets")
@@ -211,7 +223,7 @@ def analysis_data(
     logger.info("Find jets")
     area_settings = jet_finding.AREA_PP
     additional_kwargs: Dict[str, Any] = {}
-    if collision_system in ["PbPb", "embedPythia"]:
+    if collision_system in ["PbPb", "embedPythia", "thermalModel"]:
         area_settings = jet_finding.AREA_AA
         additional_kwargs["constituent_subtraction"] = jet_finding.ConstituentSubtractionSettings(
             r_max=0.25,
@@ -250,7 +262,7 @@ def analysis_data(
     # Require more than one constituent at detector level if we're not in PbPb
     # Matches a cut in AliAnalysisTaskJetDynamicalGrooming
     # *************
-    if collision_system not in ["PbPb", "embedPythia"]:
+    if collision_system not in ["PbPb", "embedPythia", "thermalModel"]:
         mask = mask & (ak.num(jets[particle_column_name].constituents, axis=2) > 1)
 
     # Apply the cuts
@@ -546,23 +558,23 @@ if __name__ == "__main__":
     # Data:
     ######
     # pp: needs min_jet_pt = 5 to have any jets
-    # collision_system = "pp"
+    collision_system = "pp"
     # pythia: Can test both "part_level" and "det_level" in the rename map.
     # collision_system = "pythia"
     # PbPb:
     # collision_system = "PbPb"
-    # jets = analysis_data(
-    #     collision_system=collision_system,
-    #     arrays=load_data(
-    #         filename=Path(
-    #             f"/software/rehlers/dev/mammoth/projects/framework/{collision_system}/AnalysisResults_track_skim.parquet"
-    #         ),
-    #         collision_system=collision_system,
-    #         rename_prefix={"data": "data"} if collision_system != "pythia" else {"data": "det_level"},
-    #     ),
-    #     jet_R=0.4,
-    #     min_jet_pt=5 if collision_system == "pp" else 20,
-    # )
+    jets = analysis_data(
+        collision_system=collision_system,
+        arrays=load_data(
+            filename=Path(
+                f"/software/rehlers/dev/mammoth/projects/framework/{collision_system}/AnalysisResults_track_skim.parquet"
+            ),
+            collision_system=collision_system,
+            rename_prefix={"data": "data"} if collision_system != "pythia" else {"data": "det_level"},
+        ),
+        jet_R=0.4,
+        min_jet_pt=5 if collision_system == "pp" else 20,
+    )
     ######
     # MC
     ######
@@ -591,19 +603,19 @@ if __name__ == "__main__":
     ###############
     # Thermal model
     ###############
-    jets = analysis_embedding(
-        *load_thermal_model(
-            signal_filename=Path("/software/rehlers/dev/substructure/trains/pythia/641/run_by_run/LHC20g4/295612/1/AnalysisResults.20g4.001.root"),
-            thermal_model_parameters=sources.THERMAL_MODEL_SETTINGS["central"],
-        ),
-        jet_R=0.2,
-        min_jet_pt={
-            "hybrid": 20,
-            #"det_level": 1,
-            #"part_level": 1,
-        },
-        r_max=0.25,
-    )
+    # jets = analysis_embedding(
+    #     *load_thermal_model(
+    #         signal_filename=Path("/software/rehlers/dev/substructure/trains/pythia/641/run_by_run/LHC20g4/295612/1/AnalysisResults.20g4.001.root"),
+    #         thermal_model_parameters=sources.THERMAL_MODEL_SETTINGS["central"],
+    #     ),
+    #     jet_R=0.2,
+    #     min_jet_pt={
+    #         "hybrid": 20,
+    #         #"det_level": 1,
+    #         #"part_level": 1,
+    #     },
+    #     r_max=0.25,
+    # )
 
     import IPython
 
