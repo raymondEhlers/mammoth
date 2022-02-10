@@ -558,23 +558,25 @@ if __name__ == "__main__":
     # Data:
     ######
     # pp: needs min_jet_pt = 5 to have any jets
-    collision_system = "pp"
+    # collision_system = "pp"
     # pythia: Can test both "part_level" and "det_level" in the rename map.
     # collision_system = "pythia"
     # PbPb:
     # collision_system = "PbPb"
-    jets = analysis_data(
-        collision_system=collision_system,
-        arrays=load_data(
-            filename=Path(
-                f"/software/rehlers/dev/mammoth/projects/framework/{collision_system}/AnalysisResults_track_skim.parquet"
-            ),
+    for collision_system in ["pp", "pythia", "PbPb"]:
+        logger.info(f"Analyzing {collision_system}")
+        jets = analysis_data(
             collision_system=collision_system,
-            rename_prefix={"data": "data"} if collision_system != "pythia" else {"data": "det_level"},
-        ),
-        jet_R=0.4,
-        min_jet_pt=5 if collision_system == "pp" else 20,
-    )
+            arrays=load_data(
+                filename=Path(
+                    f"/software/rehlers/dev/mammoth/projects/framework/{collision_system}/AnalysisResults_track_skim.parquet"
+                ),
+                collision_system=collision_system,
+                rename_prefix={"data": "data"} if collision_system != "pythia" else {"data": "det_level"},
+            ),
+            jet_R=0.4,
+            min_jet_pt=5 if collision_system == "pp" else 20,
+        )
     ######
     # MC
     ######

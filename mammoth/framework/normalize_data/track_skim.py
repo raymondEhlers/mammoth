@@ -3,13 +3,16 @@
 .. codeauthor:: Raymond Ehlers <raymond.ehlers@cern.ch>, ORNL
 """
 
+import logging
 from pathlib import Path
 from typing import Any, MutableMapping
 
 import attr
 import awkward as ak
 
-from mammoth.framework import sources, utils
+from mammoth.framework import sources
+
+logger = logging.getLogger(__name__)
 
 
 @attr.s
@@ -222,9 +225,12 @@ def write_to_parquet(arrays: ak.Array, filename: Path, collision_system: str) ->
 
 
 if __name__ == "__main__":
+    from mammoth import helpers
+    helpers.setup_logging(level=logging.INFO)
+
     # for collision_system in ["pythia"]:
     for collision_system in ["pp", "pythia", "PbPb"]:
-        print(f"Converting collision system {collision_system}")
+        logger.info(f"Converting collision system {collision_system}")
         arrays = track_skim_to_awkward(
             filename=Path(
                 f"/software/rehlers/dev/mammoth/projects/framework/{collision_system}/AnalysisResults.root"
