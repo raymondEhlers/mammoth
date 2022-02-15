@@ -49,8 +49,8 @@ def data(
     if rename_prefix is None:
         rename_prefix = {"data": "data"}
     _prefixes = list(rename_prefix.keys())
-    if isinstance(mass_hypothesis, float):
-        mass_hypotheses = {p: mass_hypothesis for p in _prefixes}
+    if isinstance(mass_hypothesis, (int, float)):
+        mass_hypotheses = {p: float(mass_hypothesis) for p in _prefixes}
     else:
         mass_hypotheses = dict(mass_hypothesis)
 
@@ -99,14 +99,16 @@ def mc(
     if not particle_columns:
         particle_columns = _default_particle_columns
     # Validation
-    if rename_prefix is None:
+    # Since we require the rename_prefix to define what prefixes to work with, if it's passed as an
+    # empty mapping, we should treat it as is None was actually passed.
+    if rename_prefix is None or not rename_prefix:
         rename_prefix = {
             "part_level": "part_level",
             "det_level": "det_level",
         }
     _prefixes = list(rename_prefix.keys())
-    if isinstance(mass_hypothesis, float):
-        mass_hypotheses = {p: mass_hypothesis for p in _prefixes}
+    if isinstance(mass_hypothesis, (int, float)):
+        mass_hypotheses = {p: float(mass_hypothesis) for p in _prefixes}
     else:
         mass_hypotheses = dict(mass_hypothesis)
 
@@ -167,8 +169,8 @@ def embedding(
         particle_columns = _default_particle_columns
     # Validation
     _mass_hypothesis_prefixes = ["part_level", "det_level", "background"]
-    if isinstance(mass_hypothesis, float):
-        mass_hypotheses = {p: mass_hypothesis for p in _mass_hypothesis_prefixes}
+    if isinstance(mass_hypothesis, (int, float)):
+        mass_hypotheses = {p: float(mass_hypothesis) for p in _mass_hypothesis_prefixes}
     else:
         mass_hypotheses = dict(mass_hypothesis)
 
