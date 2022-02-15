@@ -202,13 +202,13 @@ def analysis_embedding(source_index_identifiers: Mapping[str, int],
 
     logger.info("Matching jets")
     # det_level <-> hybrid
-    jets["det_level", "matching"], jets["hybrid", "matching"] = jet_finding.jet_matching(
+    jets["det_level", "matching"], jets["hybrid", "matching"] = jet_finding.jet_matching_geometrical(
         jets_base=jets["det_level"],
         jets_tag=jets["hybrid"],
         max_matching_distance=0.3,
     )
     # part_level <-> det_level
-    jets["part_level", "matching"], jets["det_level", "matching"] = jet_finding.jet_matching(
+    jets["part_level", "matching"], jets["det_level", "matching"] = jet_finding.jet_matching_geometrical(
         jets_base=jets["part_level"],
         jets_tag=jets["det_level"],
         max_matching_distance=0.3,

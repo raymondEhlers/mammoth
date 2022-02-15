@@ -119,7 +119,7 @@ def analysis_MC(arrays: ak.Array, jet_R: float, min_jet_pt: Mapping[str, float])
     jets["det_level"] = jets["det_level"][det_level_mask]
 
     logger.info("Matching jets")
-    jets["part_level", "matching"], jets["det_level", "matching"] = jet_finding.jet_matching(
+    jets["part_level", "matching"], jets["det_level", "matching"] = jet_finding.jet_matching_geometrical(
         jets_base=jets["part_level"],
         jets_tag=jets["det_level"],
         max_matching_distance=0.3,
@@ -466,12 +466,12 @@ def analysis_embedding(source_index_identifiers: Mapping[str, int], arrays: ak.A
 
     logger.info("Matching jets")
     # TODO: For better matching, need to use the hybrid sub -> hybrid sub info
-    jets["det_level", "matching"], jets["hybrid", "matching"] = jet_finding.jet_matching(
+    jets["det_level", "matching"], jets["hybrid", "matching"] = jet_finding.jet_matching_geometrical(
         jets_base=jets["det_level"],
         jets_tag=jets["hybrid"],
         max_matching_distance=0.3,
     )
-    jets["part_level", "matching"], jets["det_level", "matching"] = jet_finding.jet_matching(
+    jets["part_level", "matching"], jets["det_level", "matching"] = jet_finding.jet_matching_geometrical(
         jets_base=jets["part_level"],
         jets_tag=jets["det_level"],
         max_matching_distance=0.3,

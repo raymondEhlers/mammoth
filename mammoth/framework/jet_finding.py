@@ -85,6 +85,10 @@ def shared_momentum_fraction_for_flat_array(
 
     Should be used _after_ jet matching, so that we only have a flat jet array.
 
+    NOTE:
+        The index matching is based on jets coming from the same source and therefore having the same index.
+        Which is to say, this function won't work for part <-> det because they are matched by _label_, not _index_.
+
     Note:
         Calculate the momentum fraction as a scalar sum of constituent pt.
 
@@ -163,7 +167,7 @@ def _jet_matching_geometrical_impl(
 def _jet_matching(
     jets_base: ak.Array, jets_tag: ak.Array, max_matching_distance: float
 ) -> Tuple[npt.NDArray[np.int64], npt.NDArray[np.int64]]:
-    """Main jet matching implementation in numba.
+    """Main geometrical jet matching implementation in numba.
 
     Args:
         jets_base: Base jet collection to match, in an event structure.
@@ -242,7 +246,18 @@ def _jet_matching(
     return matching_output_base, matching_output_tag
 
 
-def jet_matching(jets_base: ak.Array, jets_tag: ak.Array, max_matching_distance: float) -> ak.Array:
+def jet_matching_geometrical(jets_base: ak.Array, jets_tag: ak.Array, max_matching_distance: float) -> ak.Array:
+    """ Main interface for geometrical jet matching
+
+    Matches are required to be bijective (ie. base <-> tag).
+
+    Args:
+        jets_base: Base jet collection to match, in an event structure.
+        jets_tag: Tag jet collection to match, in an event structure.
+        max_matching_distance: Maximum matching distance.
+    Returns:
+        (base -> tag matching indices, tag -> base matching indices)
+    """
     base_to_tag_matching_np, tag_to_base_matching_np = _jet_matching(
         jets_base=jets_base, jets_tag=jets_tag, max_matching_distance=max_matching_distance
     )
