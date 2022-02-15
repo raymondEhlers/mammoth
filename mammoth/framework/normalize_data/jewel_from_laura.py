@@ -8,7 +8,7 @@ is stored in: `/alf/data/laura/pc069/alice/thermal_ML/jewel_stuff`
 
 import logging
 from pathlib import Path
-from typing import Any, MutableMapping, Optional, Tuple
+from typing import Optional, Tuple
 
 import awkward as ak
 

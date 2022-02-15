@@ -100,7 +100,7 @@ def shared_momentum_fraction_for_flat_array(
     if len(generator_like_jet_constituents) != len(measured_like_jet_constituents):
         raise ValueError(
             f"Number of jets mismatch: generator: {len(generator_like_jet_constituents)} measured: {len(measured_like_jet_constituents)}"
-            )
+        )
 
     return _shared_momentum_fraction_for_flat_array_implementation(  # type: ignore
         generator_like_jet_pts=generator_like_jet_pts,

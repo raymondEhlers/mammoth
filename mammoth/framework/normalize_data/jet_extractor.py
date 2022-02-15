@@ -119,10 +119,10 @@ def write_to_parquet(arrays: ak.Array, filename: Path) -> bool:
         "event_weight",
         "event_impact_parameter",
         "jet_pt_original",
-        f"part_level.list.item.pt",
-        f"part_level.list.item.eta",
-        f"part_level.list.item.phi",
-        f"part_level.list.item.charge",
+        "part_level.list.item.pt",
+        "part_level.list.item.eta",
+        "part_level.list.item.phi",
+        "part_level.list.item.charge",
     ]
 
     # NOTE: If there are issues about reading the files due to arrays being too short, check that

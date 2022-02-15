@@ -66,7 +66,7 @@ def group_by(array: ak.Array, by: Sequence[Union[str, int]]) -> ak.Array:
     # every time any of them change.
     run_lengths = [ak.run_lengths(sorted_array[:, k]) for k in by]
     # We can match them up more easily by using the starting index of each run.
-    run_starts = [np.cumsum(np.asarray(l)) for l in run_lengths]
+    run_starts = [np.cumsum(np.asarray(l)) for l in run_lengths]  # noqa: E741
     # Combine all of the indices together into one array. Note that this isn't unique.
     combined = np.concatenate(run_starts)  # type: ignore
     # TODO: Unique properly...

@@ -434,7 +434,7 @@ def read_events_in_chunks(filename: Path, events_per_chunk: int = int(1e5)) -> I
             file_format_version = int(first_line_split[2][1:])
         else:
             # We need to move back to the beginning of the file, since we just burned through
-            # a meaningful line (which almost certianly contains an event header).
+            # a meaningful line (which almost certainly contains an event header).
             # NOTE: My initial version of two separate iterators doesn't work because it appears
             #       that you cannot do so for a file (which I suppose I can make sense of because
             #       it points to a position in a file, but still unexpected).
@@ -501,7 +501,7 @@ def _parse_with_pandas(chunk_generator: Iterator[str]) -> npt.NDArray[Any]:
 
     return pd.read_csv(  # type: ignore
         FileLikeGenerator(chunk_generator),
-        # NOTE: If the field is missing (such as eta and phi), they will exist, but they willl be filled with NaN
+        # NOTE: If the field is missing (such as eta and phi), they will exist, but they will be filled with NaN
         #       We actively take advantage of this so we don't have to change the parsing for header v1 (which
         #       includes eta and phi) vs header v2 (which does not)
         names=["particle_index", "particle_ID", "status", "E", "px", "py", "pz", "eta", "phi"],
@@ -653,19 +653,19 @@ def read(filename: Union[Path, str], events_per_chunk: int, parser: str = "panda
                 # Trying to fit them in alongside the event level info makes life far more difficult.
                 "particles": ak.zip(
                     {
-                    "particle_ID": ak.values_astype(array_with_events[:, :, 1], np.int32),
-                    # We're only considering final state hadrons or partons, so status codes are limited to a few values.
-                    # -1 are holes, while >= 0 are signal particles (includes both the jet signal and the recoils).
-                    # So we can't differentiate the recoil from the signal.
-                    "status": ak.values_astype(array_with_events[:, :, 2], np.int8),
-                    "E": ak.values_astype(array_with_events[:, :, 3], np.float32),
-                    "px": ak.values_astype(array_with_events[:, :, 4], np.float32),
-                    "py": ak.values_astype(array_with_events[:, :, 5], np.float32),
-                    "pz": ak.values_astype(array_with_events[:, :, 6], np.float32),
-                    # We could skip eta and phi since we can always recalculate them. However, since we've already parsed
-                    # them, we may as well pass them along.
-                    "eta": ak.values_astype(array_with_events[:, :, 7], np.float32),
-                    "phi": ak.values_astype(array_with_events[:, :, 8], np.float32),
+                        "particle_ID": ak.values_astype(array_with_events[:, :, 1], np.int32),
+                        # We're only considering final state hadrons or partons, so status codes are limited to a few values.
+                        # -1 are holes, while >= 0 are signal particles (includes both the jet signal and the recoils).
+                        # So we can't differentiate the recoil from the signal.
+                        "status": ak.values_astype(array_with_events[:, :, 2], np.int8),
+                        "E": ak.values_astype(array_with_events[:, :, 3], np.float32),
+                        "px": ak.values_astype(array_with_events[:, :, 4], np.float32),
+                        "py": ak.values_astype(array_with_events[:, :, 5], np.float32),
+                        "pz": ak.values_astype(array_with_events[:, :, 6], np.float32),
+                        # We could skip eta and phi since we can always recalculate them. However, since we've already parsed
+                        # them, we may as well pass them along.
+                        "eta": ak.values_astype(array_with_events[:, :, 7], np.float32),
+                        "phi": ak.values_astype(array_with_events[:, :, 8], np.float32),
                     }
                 ),
             },
