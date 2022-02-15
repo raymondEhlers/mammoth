@@ -472,7 +472,7 @@ def find_jets(
     # To create the output, we start with the constituents.
     # First, we convert the fastjet user_index indices that we use for book keeping during jet finding
     # into an awkward array to make the next operations simpler.
-    # NOTE: To reiterate, these indices are just for internal mapping during jet finding. They're totally
+    # NOTE: Remember, these indices are just for internal mapping during jet finding! They're totally
     #       separate from the `index` field that we include in all particles arrays to identify the source
     #       of jet constituents (ie. in terms of the input particle collection that they're from).
     # NOTE: This requires a copy, but that's fine - there's nothing to be done about it, so it's just the cost.
@@ -484,10 +484,10 @@ def find_jets(
         # constituents. Consequently, we need to build our jet constituents using the subtracted constituent
         # four vectors that were returned from the jet finding.
         # NOTE: Constituents are expected to have an `index` field to identify their input source.
-        #       However, the `subtracted_constituents` assigned here to `particles_for_constituents`
+        #       However, the `subtracted_constituents` assigned here to `_particles_for_constituents`
         #       don't contain an `index` field yet because we only returned the four vectors from the
         #       jet finding. We need to add it in below!
-        particles_for_constituents = ak.Array(subtracted_constituents)
+        _particles_for_constituents = ak.Array(subtracted_constituents)
 
         # Now, to add in the indices. Since the subtracted-to-unsubtracted mapping is actually just a
         # list of unsubtracted indices (where the location of unsubtracted index corresponds to the
@@ -497,31 +497,24 @@ def find_jets(
         _subtracted_indices = particles["index"][_subtracted_to_unsubtracted_indices_awkward]
         # Then, we just need to zip it in to the particles for constituents, and it will be brought
         # along when the constituents are associated with the jets.
-        particles_for_constituents = ak.zip(
+        _particles_for_constituents = ak.zip(
             {
-                **dict(zip(ak.fields(particles_for_constituents), ak.unzip(particles_for_constituents))),
+                **dict(zip(ak.fields(_particles_for_constituents), ak.unzip(_particles_for_constituents))),
                 "index": _subtracted_indices,
             },
             with_name="Momentum4D",
         )
     else:
         # Since `index` is already included in particles, there's nothing else we need to do here.
-        particles_for_constituents = particles
+        _particles_for_constituents = particles
 
-    # Determine constituents from constituent indices
-    # NOTE: This follows the example in the scikit-hep fastjet bindings.
-    # First, we convert the fastjet user_index indices into an awkward array to make the next operations simpler.
-    # NOTE: These indices are just for internal mapping during jet finding. They're totally separate from the `index`
-    #       field that we include in all particles arrays to identify the source of any constituents.
-    # NOTE: This requires a copy, but that's fine - there's nothing to be done about it, so it's just the cost.
-    #_constituent_indices_awkward = ak.Array(constituent_indices)
-
-    # Then, we perform the manipulations necessary to get all of the dimensions to match up.
-    # Namely, we have to get a singly-jagged array to broadcast with a doubly-jagged array
-    # of constituent indices.
+    # Now, determine constituents from constituent indices
+    # To do this, we perform the manipulations necessary to get all of the dimensions to match up.
+    # Namely, we have to get a singly-jagged array (_particles_for_constituents) to broadcast with a
+    # doubly-jagged array (_constituent_indices_awkward).
     # NOTE: This follows the example in the scikit-hep fastjet bindings.
     output_constituents = _apply_constituent_indices_to_expanded_array(
-        array_to_expand=particles_for_constituents,
+        array_to_expand=_particles_for_constituents,
         constituent_indices=_constituent_indices_awkward,
     )
 
@@ -540,82 +533,6 @@ def find_jets(
     )
     ```
     """
-    # TODO: Remove this when done!
-    ## Add their constituent indices to the array so we can keep track of where they came from
-    ## NOTE: This is a separate index from the value usually stored under `index`. This one is the
-    ##       index of the constituent in `particles`. Thus, we assign the field the name `index_input_particle`.
-    ##       Often, the `index` is enough to identify particles, but not always (say, for pp or PbPb data)
-    ## NOTE: I'm not entirely convinced that this info is necessary, but better to keep it around
-    #output_constituents = ak.zip(
-    #    {
-    #        **dict(zip(ak.fields(output_constituents), ak.unzip(output_constituents))),
-    #        "index_input_particle": _constituent_indices_awkward,
-    #    },
-    #    with_name="Momentum4D",
-    #)
-    #logger.warning(f"fields: {ak.fields(output_constituents)}")
-    #assert ak.all(output_constituents["index"] == output_constituents["index_input_particle"])
-    #logger.warning("Success - same!")
-
-    # Now, handle cases that are specific to the subtracted constituents (if they exist).
-    if subtracted_to_unsubtracted_indices:
-        # In particular, we need an `index` for the subtracted constituents, since we don't have one yet.
-        # To do so, we need to map from the subtracted constituents to the `index` of the input particles
-        # (ie. the unsubtracted particles), so that we can keep track of their source.
-
-        # To start, since the subtracted-to-unsubtracted mapping is actually just a list of unsubtracted
-        # indices (where the location of unsubtracted index corresponds to the subtracted particles), we
-        # can directly apply this "mapping" to the unsubtracted particles `index`.
-        _subtracted_to_unsubtracted_indices_awkward = ak.Array(subtracted_to_unsubtracted_indices)
-        _subtracted_indices = particles["index"][_subtracted_to_unsubtracted_indices_awkward]
-        # Once we have the subtracted indices, we need to play the same expand array game as above, but now
-        # with the `index`. Since we're using the subtracted constituents, the relevant consitutent indices
-        # are the usual _constituent_indices_awkward
-        _index_subtracted_constituents = _apply_constituent_indices_to_expanded_array(
-            array_to_expand=_subtracted_indices,
-            constituent_indices=_constituent_indices_awkward,
-        )
-
-        # Both of these work. The second one is about 20% faster, but it needs slightly more explanation,
-        # TODO: Add more explanation here, and keep the alternative commented out, I think
-
-        # First idea
-        expanded_subtracted_to_unsubtracted_indices = _apply_constituent_indices_to_expanded_array(
-            array_to_expand=ak.Array(subtracted_to_unsubtracted_indices),
-            constituent_indices=_constituent_indices_awkward,
-        )
-        index_subtracted_constituents = _apply_constituent_indices_to_expanded_array(
-            array_to_expand=particles["index"],
-            constituent_indices=expanded_subtracted_to_unsubtracted_indices,
-        )
-        # Second idea
-
-        import IPython; IPython.start_ipython(user_ns={**globals(),**locals()})
-        #import IPython; IPython.embed()
-
-        # Old
-        #expanded_subtracted_to_unsubtracted_indices = _apply_constituent_indices_to_expanded_array(
-        #    array_to_expand=ak.Array(subtracted_to_unsubtracted_indices),
-        #    constituent_indices=output_constituents["jf_index"],
-        #)
-        #### And then include that in the output.
-        ###output_constituents = ak.zip(
-        ###    {
-        ###        **dict(zip(ak.fields(output_constituents), ak.unzip(output_constituents))),
-        ###        "index": index_subtracted_constituents,
-        ###    },
-        ###    with_name="Momentum4D",
-        ###)
-
-        #output_constituents = ak.zip(
-        #    {
-        #        **dict(zip(ak.fields(output_constituents), ak.unzip(output_constituents))),
-        #        # TODO: This will overwrite the input index, which I don't think we want to do.
-        #        #       Temporarily, keep this separate. But determine where this actually matters.
-        #        "jf_unsubtracted_index": expanded_subtracted_to_unsubtracted_indices,
-        #    },
-        #    with_name="Momentum4D",
-        #)
 
     # Finally, construct the output
     output_jets = ak.zip(
