@@ -37,10 +37,14 @@ std::vector<unsigned int> updateSubtractedConstituentIndices(
 )
 {
   std::vector<unsigned int> subtractedToUnsubtractedIndices;
+  // NOTE: For event-wise CS, we don't need to account for ghost particles here (which have user index -1).
+  //       However, if we use jet-wise CS, we should maintain the -1 label for when we use active ghosts
   for (unsigned int i = 0; i < pseudoJets.size(); ++i) {
     subtractedToUnsubtractedIndices.push_back(pseudoJets[i].user_index());
-    // The indexing may be different due to the subtraction. So we reset it be certain.
-    pseudoJets[i].set_user_index(i);
+    // The indexing may be different due to the subtraction (for example, if a particle is entirely subtracted
+    // away). Since we want the index to be continuous (up to ghost particle), we reassign it here to be certain.
+    // If it's a ghost particle (with user_index == -1), we keep that assignment so we don't lose that identification.
+    pseudoJets[i].set_user_index(i ? pseudoJets[i].user_index() != -1 : -1);
   }
 
   return subtractedToUnsubtractedIndices;
