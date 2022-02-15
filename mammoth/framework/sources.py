@@ -476,9 +476,6 @@ class MultipleSources:
 
     _fixed_size_sources: Mapping[str, Source] = attr.ib(validator=[_no_overlapping_keys])
     _chunked_sources: Mapping[str, SourceWithChunks] = attr.ib(validator=[_no_overlapping_keys])
-    # _signal_source: ChunkSource = attr.ib()
-    # _background_source: ChunkSource = attr.ib()
-    # _sources: Mapping[str, Source] = attr.ib(validator=_contains_signal_and_background)
     _source_index_identifiers: Mapping[str, int] = attr.ib(
         factory=dict,
         validator=[_contains_signal_and_background, _has_offset_per_source],
@@ -492,9 +489,12 @@ class MultipleSources:
         raise ValueError("N entries not yet available.")
 
     def data(self) -> ak.Array:
-        # Grab the events from the sources
-        fixed_sized_data = {k: v if isinstance(v, ak.Array) else v.data() for k, v in self._fixed_size_sources.items()}
-        # source_data = {k: v.data() for k, v in self._sources.items()}
+        # Grab the events from the fixed size sources first
+        # NOTE: Sometimes these are already awkward arrays, so we explicitly check for this case for safety
+        fixed_sized_data = {
+            k: v if isinstance(v, ak.Array) else v.data()
+            for k, v in self._fixed_size_sources.items()
+        }
 
         # Cross check that we have the right sizes for all data sources
         lengths = [len(v) for v in fixed_sized_data.values()]
@@ -511,13 +511,17 @@ class MultipleSources:
             # )
             pass
 
+        # Set the length of the chunked source based on the size of the fixed size sources
         for v in self._chunked_sources.values():
             v.chunk_size = lengths[0]
+        # Now that the chunked data source is well defined, extract the chunked data
         chunked_data = {k: v.data() for k, v in self._chunked_sources.items()}
 
         # Add metadata
         self.metadata["n_entries"] = lengths[0]
 
+        # NOTE: We're safe to blindly combine these here because the class validates that there
+        #       are no overlapping keys between the fixed size and chunked data.
         return ak.zip({**fixed_sized_data, **chunked_data}, depth_limit=1)
 
 
