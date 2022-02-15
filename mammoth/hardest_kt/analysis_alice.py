@@ -223,7 +223,7 @@ def analysis_data(
     logger.info("Find jets")
     area_settings = jet_finding.AREA_PP
     additional_kwargs: Dict[str, Any] = {}
-    if collision_system in ["PbPb", "embedPythia", "thermalModel"]:
+    if collision_system in ["PbPb", "embedPythia", "thermal_model"]:
         area_settings = jet_finding.AREA_AA
         additional_kwargs["constituent_subtraction"] = jet_finding.ConstituentSubtractionSettings(
             r_max=0.25,
@@ -262,7 +262,7 @@ def analysis_data(
     # Require more than one constituent at detector level if we're not in PbPb
     # Matches a cut in AliAnalysisTaskJetDynamicalGrooming
     # *************
-    if collision_system not in ["PbPb", "embedPythia", "thermalModel"]:
+    if collision_system not in ["PbPb", "embedPythia", "thermal_model"]:
         mask = mask & (ak.num(jets[particle_column_name].constituents, axis=2) > 1)
 
     # Apply the cuts
