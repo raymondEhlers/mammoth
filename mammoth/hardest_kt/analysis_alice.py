@@ -20,20 +20,44 @@ logger = logging.getLogger(__name__)
 vector.register_awkward()
 
 
-def load_MC(filename: Path, collision_system: str) -> ak.Array:
-    logger.info("Loading MC")
-    if "parquet" not in filename.suffix:
-        arrays = track_skim.track_skim_to_awkward(
-            filename=filename,
-            collision_system=collision_system,
-        )
-    else:
-        pythia_source = sources.ParquetSource(
-            filename=filename,
-        )
-        arrays = pythia_source.data()
-    logger.info("Transforming MC")
-    return transform.mc(arrays=arrays)
+def load_data(
+    filename: Path,
+    collision_system: str,
+    rename_prefix: Mapping[str, str],
+) -> ak.Array:
+    """ Load data for ALICE analysis from the track skim task output.
+
+    Could come from a ROOT file or a converted parquet file.
+
+    Args:
+        filename: Filename containing the data.
+        collision_system: Collision system corresponding to the data to load.
+        rename_prefix: Prefix to label the data, and any mapping that we might need to perform. Note: the mapping
+            goes from value -> key!
+    Returns:
+        The loaded data, transformed as appropriate based on the collision system
+    """
+    # Validation
+    if "embed" in collision_system:
+        raise ValueError("This function doesn't handle embedding. Please call the dedicated functions.")
+    logger.info(f"Loading \"{collision_system}\" data")
+
+    source = track_skim.FileSource(
+        filename=filename,
+        collision_system=collision_system,
+    )
+    arrays = source.data()
+
+    # If we are renaming one of the prefixes to "data", that means that we want to treat it
+    # as if it were standard data rather than pythia.
+    if collision_system in ["pythia"] and "data" not in list(rename_prefix.keys()):
+        logger.info("Transforming as MC")
+        return transform.mc(arrays=arrays, rename_prefix=rename_prefix)
+
+    # If not pythia, we don't need to handle it separately - it's all just data
+    # All the rest of the collision systems would be embedded together separately by other functions
+    logger.info("Transforming as data")
+    return transform.data(arrays=arrays, rename_prefix=rename_prefix)
 
 
 def analysis_MC(arrays: ak.Array, jet_R: float, min_jet_pt: Mapping[str, float]) -> ak.Array:
@@ -176,26 +200,6 @@ def analysis_MC(arrays: ak.Array, jet_R: float, min_jet_pt: Mapping[str, float])
 
     # Now, the final transformation into a form that can be used to skim into a flat tree.
     return jets
-
-
-def load_data(
-    filename: Path,
-    collision_system: str,
-    rename_prefix: Mapping[str, str],
-) -> ak.Array:
-    logger.info("Loading data")
-    if "parquet" not in filename.suffix:
-        arrays = track_skim.track_skim_to_awkward(
-            filename=filename,
-            collision_system=collision_system,
-        )
-    else:
-        source = sources.ParquetSource(
-            filename=filename,
-        )
-        arrays = source.data()
-    logger.info("Transforming data")
-    return transform.data(arrays=arrays, rename_prefix=rename_prefix)
 
 
 def analysis_data(
