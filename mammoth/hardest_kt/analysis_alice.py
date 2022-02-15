@@ -199,7 +199,7 @@ def load_data(
 
 
 def analysis_data(
-    collision_system: str, arrays: ak.Array, jet_R: float, min_jet_pt: float, particle_column_name: str = "data",
+    collision_system: str, arrays: ak.Array, jet_R: float, min_jet_pt: Mapping[str, float], particle_column_name: str = "data",
 ) -> ak.Array:
     logger.info("Start analyzing")
     # Event selection
@@ -235,7 +235,7 @@ def analysis_data(
                 algorithm="anti-kt",
                 jet_R=jet_R,
                 area_settings=area_settings,
-                min_jet_pt=min_jet_pt,
+                min_jet_pt=float(min_jet_pt.get(particle_column_name, 1.)),
                 **additional_kwargs,
             ),
         },
@@ -575,7 +575,7 @@ if __name__ == "__main__":
                 rename_prefix={"data": "data"} if collision_system != "pythia" else {"data": "det_level"},
             ),
             jet_R=0.4,
-            min_jet_pt=5 if collision_system == "pp" else 20,
+            min_jet_pt={"data": 5. if collision_system == "pp" else 20.},
         )
 
         #import IPython; IPython.embed()
