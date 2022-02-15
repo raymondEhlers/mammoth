@@ -7,7 +7,7 @@ import logging
 import secrets
 from collections import defaultdict
 from pathlib import Path
-from typing import Any, Dict, List, Mapping, Optional, Sequence
+from typing import Any, Dict, List, Mapping, Sequence
 
 import IPython
 from parsl.app.app import python_app
@@ -48,7 +48,7 @@ def run_jet_background_ML_embedding_analysis(
             use_constituent_subtraction=use_constituent_subtraction,
         )
         result = True, f"success for {system_label}, R={jet_R}, {inputs[0].filepath}, {inputs[1].filepath}"
-    except Exception as e:
+    except Exception:
         result = False, f"failure for {system_label}, R={jet_R}, {inputs[0].filepath} with: \n{traceback.format_exc()}"
     return result
 

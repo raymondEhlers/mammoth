@@ -5,7 +5,7 @@
 
 import logging
 from pathlib import Path
-from typing import Any, Dict, Mapping, MutableMapping, Tuple
+from typing import Any, Dict, Mapping, Tuple
 
 import awkward as ak
 import numpy as np
@@ -287,7 +287,8 @@ def analysis_embedding(source_index_identifiers: Mapping[str, int],
     # NOTE: Apparently it's takes issues with flattening the jets directly, so we have to do it
     #       separately for the different collections and then zip them together. This should keep
     #       matching together as appropriate.
-    jets = ak.zip({
+    jets = ak.zip(
+        {
             k: ak.flatten(v, axis=1) for k, v in zip(
                 ak.fields(jets) + ak.fields(event_level_following_jets_shape),
                 ak.unzip(jets) + ak.unzip(event_level_following_jets_shape)
@@ -339,7 +340,9 @@ def analysis_embedding(source_index_identifiers: Mapping[str, int],
         jets = jets[shared_momentum_fraction_mask]
     except Exception as e:
         print(e)
-        import IPython; IPython.embed()
+        import IPython
+
+        IPython.embed()
 
     # Now, the final transformation into a form that can be used to skim into a flat tree.
     return jets
@@ -410,7 +413,7 @@ if __name__ == "__main__":
     index = "000"
     signal_filename = Path(f"/alf/data/rehlers/skims/JEWEL_PbPb_no_recoil/skim/central_00_10/JEWEL_{JEWEL_identifier}_PtHard{pt_hat_bin}_{index}.parquet")
 
-    background_collision_system_tag="PbPb_central"
+    background_collision_system_tag = "PbPb_central"
     #jet_R = 0.6
     jet_R = 0.4
 
@@ -434,4 +437,6 @@ if __name__ == "__main__":
             use_constituent_subtraction=use_constituent_subtraction,
         )
 
-    import IPython; IPython.start_ipython(user_ns={**globals(),**locals()})
+    import IPython
+
+    IPython.start_ipython(user_ns={**globals(), **locals()})
