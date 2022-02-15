@@ -44,7 +44,7 @@ std::vector<unsigned int> updateSubtractedConstituentIndices(
     // The indexing may be different due to the subtraction (for example, if a particle is entirely subtracted
     // away). Since we want the index to be continuous (up to ghost particle), we reassign it here to be certain.
     // If it's a ghost particle (with user_index == -1), we keep that assignment so we don't lose that identification.
-    pseudoJets[i].set_user_index(i ? pseudoJets[i].user_index() != -1 : -1);
+    pseudoJets[i].set_user_index((pseudoJets[i].user_index() != -1) ? i : -1);
   }
 
   return subtractedToUnsubtractedIndices;
