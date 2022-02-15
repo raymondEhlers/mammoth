@@ -88,6 +88,18 @@ class UprootSource:
 
     def data(self) -> ak.Array:
         with uproot.open(self._filename) as f:
+            # Allow for star matching in tree_name
+            if "*" in self._tree_name:
+                logger.debug(f"Searching for tree name pattern {self._tree_name}")
+                # Search for keys which contain the provided tree name. Very nicely, uproot already has this built-in
+                _possible_tree_names = f.keys(cycle=False, filter_name=self._tree_name, filter_classname="TTree")
+                if len(_possible_tree_names) != 1:
+                    raise ValueError(
+                        f"Ambiguous tree name '{self._tree_name}'. Please revise it as needed. Options: {_possible_tree_names}"
+                    )
+                # We're good - let's keep going
+                self._tree_name = _possible_tree_names[0]
+
             tree = f[self._tree_name]
 
             # First, let's setup the arguments

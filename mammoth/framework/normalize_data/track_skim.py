@@ -34,7 +34,7 @@ class FileSource:
             Data in an awkward array.
         """
         if "parquet" not in self._filename.suffix:
-            arrays = track_skim_to_awkward(
+            arrays = to_awkward(
                 filename=self._filename,
                 collision_system=self._collision_system,
             )
@@ -47,7 +47,7 @@ class FileSource:
         return arrays
 
 
-def track_skim_to_awkward(
+def to_awkward(
     filename: Path,
     collision_system: str,
 ) -> ak.Array:
@@ -82,7 +82,7 @@ def track_skim_to_awkward(
 
     data = sources.UprootSource(
         filename=filename,
-        tree_name=f"AliAnalysisTaskTrackSkim_{collision_system}_tree",
+        tree_name=f"AliAnalysisTaskTrackSkim_*_tree",
         columns=event_level_columns + particle_columns,
     ).data()
 
@@ -231,7 +231,7 @@ if __name__ == "__main__":
     # for collision_system in ["pythia"]:
     for collision_system in ["pp", "pythia", "PbPb"]:
         logger.info(f"Converting collision system {collision_system}")
-        arrays = track_skim_to_awkward(
+        arrays = to_awkward(
             filename=Path(
                 f"/software/rehlers/dev/mammoth/projects/framework/{collision_system}/AnalysisResults.root"
             ),
