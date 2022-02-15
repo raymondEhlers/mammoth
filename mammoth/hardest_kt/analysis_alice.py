@@ -564,7 +564,7 @@ if __name__ == "__main__":
     # PbPb:
     # collision_system = "PbPb"
     for collision_system in ["pp", "pythia", "PbPb"]:
-        logger.info(f"Analyzing {collision_system}")
+        logger.info(f"Analyzing \"{collision_system}\"")
         jets = analysis_data(
             collision_system=collision_system,
             arrays=load_data(
@@ -577,6 +577,8 @@ if __name__ == "__main__":
             jet_R=0.4,
             min_jet_pt=5 if collision_system == "pp" else 20,
         )
+
+        #import IPython; IPython.embed()
     ######
     # MC
     ######
