@@ -128,7 +128,7 @@ std::vector<std::vector<unsigned int>> constituentIndicesFromJets(
  * Updating this indexing ensures that we can keep track of everything.
  *
  * @param pseudoJets Subtracted input particles.
- * @return std::vector<unsigned int> Map of indices from subtracted constituents to unsubtracted constituents.
+ * @return std::vector<unsigned int> Map indices of subtracted constituents to unsubtracted constituents.
  */
 std::vector<unsigned int> updateSubtractedConstituentIndices(
   std::vector<fastjet::PseudoJet> & pseudoJets
@@ -510,14 +510,15 @@ OutputWrapper<T> findJets(
     //   Removing them includes more jets (because the median background is smaller). We remove them because
     //   that's what is done in ALICE.
     // - We skip phi selection since we're looking at charged jets, so we take the full [0, 2pi).
-    //   [0, 2pi) is the standard PseudoJet phi range. If you want it, it should be applied at the right
-    //   most with `* fastjet::SelectorPhiRange(backgroundJetPhiMin, backgroundJetPhiMax)`, or via the combined
+    //   [0, 2pi) is the standard PseudoJet phi range. If you want to restrict the phi range, it should be
+    //   applied at the right most with
+    //   `* fastjet::SelectorPhiRange(backgroundJetPhiMin, backgroundJetPhiMax)`, or via the combined
     //   EtaPhi selector (see possible tweaks below).
     // - We don't remove jets with tracks > 100 GeV here because:
     //     - It is technically complicated with the current setup because I don't see any way to select
-    //       constituents with a selector.
-    //     - I think it will be a small on the background because we're concerned with the median and we
-    //       exclude the two leading jets. So unless there are many fake tracks in a single event, it's
+    //       constituents with a selector. It looks like I'd have to make an additional copy.
+    //     - I think it will be a small effect on the background because we're concerned with the median
+    //       and we exclude the two leading jets. So unless there are many fake tracks in a single event, it's
     //       unlikely to have a meaningful effect on the median.
     //
     // Some notes for possible tweaks (not saying that they necessarily should be done):
@@ -607,6 +608,8 @@ OutputWrapper<T> findJets(
   fastjet::Selector selectJets = !fastjet::SelectorIsPureGhost() * (fastjet::SelectorPtRange(minJetPt, jetPtMax) && fastjet::SelectorEtaRange(jetEtaMin, jetEtaMax));
 
   // For constituent subtraction, we perform event-wise subtraction on the input particles
+  // We also keep track of a map from the subtracted constituents to the unsubtracted constituents
+  // (both of which are based on the user_index that we assign during the jet finding).
   std::vector<unsigned int> subtractedToUnsubtractedIndices;
   if (constituentSubtractor) {
     particlePseudoJets = constituentSubtractor->subtract_event(particlePseudoJets);
@@ -626,22 +629,24 @@ OutputWrapper<T> findJets(
   //       than the second)
   jets = selectJets(jets);
 
-  // It's also not uncommon to apply a sorting by E or pt.
+  // Sort by pt for convenience
   jets = fastjet::sorted_by_pt(jets);
 
   // Now, handle returning the values.
-  // First, we need to extract the constituents.
-  //auto & [px, py, pz, E] = pseudoJetsToNumpy(jets);
+  // First, we grab the jets themselves, converting the four vectors into column vector to return them.
   auto numpyJets = pseudoJetsToVectors<T>(jets);
+  // Next, we grab whatever other properties we desire
   auto columnarJetsArea = extractJetsArea(jets);
-
-  // Then, we convert the jets themselves into vectors to return.
+  // Finally, we need to associate the constituents with the jets. To do so, we store one vector per jet,
+  // with the vector containing the user_index assigned earlier in the jet finding process.
   auto constituentIndices = constituentIndicesFromJets(jets);
 
   if (constituentSubtraction) {
     // NOTE: particlePseudoJets are actually the subtracted constituents now.
     return OutputWrapper<T>{
-      numpyJets, constituentIndices, columnarJetsArea, std::make_tuple(pseudoJetsToVectors<T>(particlePseudoJets), subtractedToUnsubtractedIndices)
+      numpyJets, constituentIndices, columnarJetsArea, std::make_tuple(
+        pseudoJetsToVectors<T>(particlePseudoJets), subtractedToUnsubtractedIndices
+      )
     };
   }
   return OutputWrapper<T>{numpyJets, constituentIndices, columnarJetsArea, {}};
