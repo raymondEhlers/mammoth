@@ -44,6 +44,7 @@ bin/
 build/
 lib/
 *.so
+*.dylib
 
 # Singularity
 *.sif
