@@ -206,7 +206,7 @@ class Subjets {
   void AddSubjet(const unsigned short splittingNodeIndex, const bool partOfIterativeSplitting,
           const std::vector<unsigned short>& constituentIndices);
   std::tuple<unsigned short, bool, const std::vector<unsigned short>> GetSubjet(int i) const;
-  ColumnarSubjets GetSubjets() { return std::move(ColumnarSubjets{fSplittingNodeIndex, fPartOfIterativeSplitting, fConstituentIndices}); }
+  ColumnarSubjets GetSubjets() { return ColumnarSubjets{fSplittingNodeIndex, fPartOfIterativeSplitting, fConstituentIndices}; }
   //std::tuple<std::vector<unsigned short> &, std::vector<bool> &, std::vector<std::vector<unsigned short>> &> GetSubjets() { return ; }
 
   // Printing
@@ -259,7 +259,7 @@ class JetSplittings {
   void AddSplitting(float kt, float deltaR, float z, short parentIndex);
   std::tuple<float, float, float, short> GetSplitting(int i) const;
   unsigned int GetNumberOfSplittings() const { return fKt.size(); }
-  ColumnarSplittings GetSplittings() { return std::move(ColumnarSplittings{fKt, fDeltaR, fZ, fParentIndex}); }
+  ColumnarSplittings GetSplittings() { return ColumnarSplittings{fKt, fDeltaR, fZ, fParentIndex}; }
   //std::tuple<std::vector<float> &, std::vector<float> &, std::vector<float> &, std::vector<short> &> GetSplittings() { return {fKt, fDeltaR, fZ, fParentIndex}; }
 
   // Printing
