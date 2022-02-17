@@ -71,7 +71,9 @@ def data(
         {
             "data": data,
             # Include the rest of the non particle related fields (ie. event level info)
-            **{k: v for k, v in zip(ak.fields(arrays), ak.unzip(arrays)) if k not in _prefixes},
+            # NOTE: We also intentionally skip the name of the value associated with "data" in the rename
+            #       prefix to avoid copying both the original and the renamed into the same array.
+            **{k: v for k, v in zip(ak.fields(arrays), ak.unzip(arrays)) if k not in _prefixes + [rename_prefix["data"]]},
         }
     )
 
