@@ -9,7 +9,7 @@
 #export CXX=g++-10
 
 # Setup
-export CXXFLAGS="-std=c++17"
+export CXXFLAGS="-std=c++17 -O2"
 fastjet_version=3.3.4
 fjcontrib_version=1.045
 prefix=$PWD/install/fastjet
@@ -36,7 +36,14 @@ make -j4
 make install
 cd ../fjcontrib-${fjcontrib_version}
 make clean
-./configure --prefix=$prefix --fastjet-config=$prefix/bin/fastjet-config
+# configure for fj-contrib ignores CXXFLAGS unless we pass them explicitly...
+# Seriously...? :-(
+# Figured out by look at alidist: https://github.com/alisw/alidist/blob/8e772427a4c51717f45ec9e22f39944512983b02/fastjet.sh#L63-L67
+./configure --prefix=$prefix --fastjet-config=$prefix/bin/fastjet-config \
+    CXXFLAGS="$CXXFLAGS" \
+    CFLAGS="$CFLAGS" \
+    CPATH="$CPATH" \
+    C_INCLUDE_PATH="$C_INCLUDE_PATH"
 make -j4
 make install
 make fragile-shared-install
