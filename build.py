@@ -48,7 +48,10 @@ class CMakeBuild(build_ext):  # type: ignore
         cmake_args = [
             "-DCMAKE_LIBRARY_OUTPUT_DIRECTORY={}".format(extdir),
             "-DPYTHON_EXECUTABLE={}".format(sys.executable),
-            "-DEXAMPLE_VERSION_INFO={}".format(self.distribution.get_version()),
+            # We don't need this, and it causes a CMake warning, so comment out for now.
+            # But we'll keep it around in case we need it later, since it seems to be
+            # potentially quite useful.
+            #"-DEXAMPLE_VERSION_INFO={}".format(self.distribution.get_version()),
             "-DCMAKE_BUILD_TYPE={}".format(cfg),  # not used on MSVC, but no harm
         ]
         build_args = []
