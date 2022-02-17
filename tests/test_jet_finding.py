@@ -85,6 +85,10 @@ def test_jet_finding_basic_multiple_events(caplog: Any) -> None:
                 [100.0, 5.0, 99.0],
                 [100.0, 5.0, 99.0],
             ],
+            "index": [
+                [1, 2, 3],
+                [4, 5, 6],
+            ],
         },
         with_name="Momentum4D",
     )
@@ -156,6 +160,10 @@ def test_jet_finding_with_subtraction_multiple_events(caplog: Any, separate_back
             "E": [
                 [100.0, 5.0, 99.0],
                 [100.0, 5.0, 99.0],
+            ],
+            "index": [
+                [1, 2, 3],
+                [4, 5, 6],
             ],
         },
         with_name="Momentum4D",
@@ -240,6 +248,10 @@ def test_jet_finding_with_constituent_subtraction_does_something_multiple_events
             "E": [
                 [100.0, 5.0, 99.0],
                 [100.0, 5.0, 99.0],
+            ],
+            "index": [
+                [1, 2, 3],
+                [4, 5, 6],
             ],
         },
         with_name="Momentum4D",
