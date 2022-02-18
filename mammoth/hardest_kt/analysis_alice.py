@@ -278,7 +278,11 @@ def analysis_data(
         raise ValueError(f"No jets left for {particle_column_name}. Are your settings correct?")
 
     logger.info(f"Reclustering {particle_column_name} jets...")
-    jets[particle_column_name, "reclustering"] = jet_finding.recluster_jets(jets=jets[particle_column_name])
+    jets[particle_column_name, "reclustering"] = jet_finding.recluster_jets(
+        jets=jets[particle_column_name],
+        # We perform the area calculation here since we're dealing with data, as is done in the AliPhysics DyG task
+        area_settings=jet_finding.AREA_SUBSTRUCTURE,
+    )
     logger.info("Done with reclustering")
     logger.warning(f"n events: {len(jets)}")
 

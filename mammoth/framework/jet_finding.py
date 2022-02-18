@@ -583,7 +583,10 @@ def _subjets_output() -> Dict[str, List[Any]]:
     }
 
 
-def recluster_jets(jets: ak.Array) -> ak.Array:
+def recluster_jets(jets: ak.Array,
+                   jet_R_for_reclustering: float = 1.0,
+                   area_settings: Optional[AreaSettings] = None,
+                   ) -> ak.Array:
     # Validation. There must be jets
     if len(jets) == 0:
         raise ValueError("No jets present for reclustering!")
@@ -620,7 +623,7 @@ def recluster_jets(jets: ak.Array) -> ak.Array:
     # actually be px, py, pz, and E), so calculate them now, and view them as numpy arrays
     # so we can pass them directly into our function.
     # NOTE: To avoid argument mismatches when calling to the c++, we view as float64 (which
-    #       will be converted to a double). As of July 2021, tests seem to suggest that it's =
+    #       will be converted to a double). As of July 2021, tests seem to suggest that it's
     #       not making the float32 -> float conversion properly.
     px = np.asarray(ak.flatten(jets.constituents.px, axis=None), dtype=np.float64)
     py = np.asarray(ak.flatten(jets.constituents.py, axis=None), dtype=np.float64)
@@ -640,8 +643,8 @@ def recluster_jets(jets: ak.Array) -> ak.Array:
                 py=py[lower:upper],
                 pz=pz[lower:upper],
                 E=E[lower:upper],
-                jet_R=1.0,
-                #area_settings=area_settings,
+                jet_R=jet_R_for_reclustering,
+                area_settings=area_settings,
                 #eta_range=eta_range,
             )
             _temp_splittings = res.splittings()
