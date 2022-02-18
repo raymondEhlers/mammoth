@@ -355,7 +355,7 @@ JetSubstructure::JetSubstructureSplittings jetReclustering(
   std::string jetAlgorithmStr = "CA",
   std::optional<AreaSettings> areaSettings = std::nullopt,
   std::tuple<double, double> etaRange = {-1, 1},
-  bool storeRecursiveSplittings = true
+  const bool storeRecursiveSplittings = true
 );
 
 /************************************************
@@ -659,13 +659,13 @@ JetSubstructure::JetSubstructureSplittings jetReclustering(
   std::string jetAlgorithmStr,
   std::optional<AreaSettings> areaSettings,
   std::tuple<double, double> etaRange,
-  bool storeRecursiveSplittings
+  const bool storeRecursiveSplittings
 )
 {
   // Jet algorithm
   fastjet::JetAlgorithm jetAlgorithm = getJetAlgorithm(jetAlgorithmStr);
   fastjet::RecombinationScheme recombinationScheme(fastjet::RecombinationScheme::E_scheme);
-  fastjet::Strategy strategy(fastjet::Strategy::Best);
+  fastjet::Strategy strategy(fastjet::Strategy::BestFJ30);
   fastjet::JetDefinition jetDefinition(jetAlgorithm, jetR, recombinationScheme, strategy);
   // For area calculation (when desired)
   // Area type
