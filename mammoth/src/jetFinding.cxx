@@ -364,7 +364,7 @@ void ExtractJetSplittings(
     // We have a splitting. Record the properties.
     double z = j2.perp() / (j2.perp() + j1.perp());
     double delta_R = j1.delta_R(j2);
-    double xkt = j2.perp() * sin(delta_R);
+    double xkt = j2.perp() * std::sin(delta_R);
     // Add the splitting node.
     jetSplittings.AddSplitting(xkt, delta_R, z, splittingNodeIndex);
     // Determine which splitting parent the subjets will point to (ie. the one that
