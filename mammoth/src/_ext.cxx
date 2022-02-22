@@ -187,12 +187,18 @@ PYBIND11_MODULE(_ext, m) {
     .def(py::init<std::string, double>(), "area_type"_a = "active_area", "ghost_area"_a = 0.005)
     .def_readwrite("area_type", &mammoth::AreaSettings::areaType)
     .def_readwrite("ghost_area", &mammoth::AreaSettings::ghostArea)
+    .def("__repr__", [](const mammoth::AreaSettings &s) {
+      return "<AreaSettings area_type='" + s.areaType + "', ghost_area=" + std::to_string(s.ghostArea) + ">";
+    })
   ;
   // Wrapper for constituent subtraction settings
   py::class_<mammoth::ConstituentSubtractionSettings>(m, "ConstituentSubtractionSettings", "Constituent subtraction settings")
     .def(py::init<double, double>(), "r_max"_a = 0.25, "alpha"_a = 0)
     .def_readwrite("r_max", &mammoth::ConstituentSubtractionSettings::rMax)
     .def_readwrite("alpha", &mammoth::ConstituentSubtractionSettings::alpha)
+    .def("__repr__", [](const mammoth::ConstituentSubtractionSettings &s) {
+      return "<ConstituentSubtractionSettings r_max=" + std::to_string(s.rMax) + ", alpha=" + std::to_string(s.alpha) + ">";
+    })
   ;
   m.def("find_jets", &findJets<float>, "px"_a, "py"_a, "pz"_a, "E"_a,
                                        "background_px"_a, "background_py"_a, "background_pz"_a, "background_E"_a,
