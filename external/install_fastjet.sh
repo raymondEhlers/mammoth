@@ -46,4 +46,5 @@ make clean
     C_INCLUDE_PATH="$C_INCLUDE_PATH"
 make -j4
 make install
+make fragile-shared -j4
 make fragile-shared-install
