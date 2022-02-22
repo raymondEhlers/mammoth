@@ -426,6 +426,7 @@ OutputWrapper<T> findJets(
   std::string jetAlgorithmStr,
   AreaSettings areaSettings,
   std::tuple<double, double> etaRange,
+  bool fiducialAcceptance,
   double minJetPt,
   FourVectorTuple<T> & backgroundEstimatorFourVectors,
   bool backgroundSubtraction,
@@ -589,9 +590,14 @@ OutputWrapper<T> findJets(
   // Signal jet settings
   // Again, these should all be settable, but I wanted to keep the signature simple, so I just define them here with some reasonable(ish) defaults.
   double jetPtMax = 1000;
-  // Would often set as abs(eta - R), but should be configurable.
-  double jetEtaMin = etaMin + jetR;
-  double jetEtaMax = etaMax - jetR;
+  // Jet acceptance
+  double jetEtaMin = etaMin;
+  double jetEtaMax = etaMax;
+  // Allow to select jets in fiducial acceptance (ie . abs(eta - R))
+  if (fiducialAcceptance) {
+    jetEtaMin = etaMin + jetR;
+    jetEtaMax = etaMax - jetR;
+  }
   // Since we're using charged jets over the full acceptance, we don't both with setting the phi range.
   // NOTE: If we wanted to, we would use combine it with the pt and eta selector below using `&&`.
   //       eg. `&& fastjet::SelectorPhiRange(jetPhiMin, jetPhiMax);` One could also use the combined RapPhi selector

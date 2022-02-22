@@ -99,6 +99,7 @@ mammoth::OutputWrapper<T> findJets(
   std::string jetAlgorithm,
   mammoth::AreaSettings areaSettings,
   std::tuple<double, double> etaRange,
+  bool fiducialAcceptance,
   double minJetPt,
   bool backgroundSubtraction,
   std::optional<mammoth::ConstituentSubtractionSettings> constituentSubtraction
@@ -107,7 +108,7 @@ mammoth::OutputWrapper<T> findJets(
   auto fourVectors = numpyToColumnFourVector<T>(pxIn, pyIn, pzIn, EIn);
   // NOTE: These may be empty. If they are, the input four vectors are used for the background estimator
   auto backgroundFourVectors = numpyToColumnFourVector<T>(backgroundPxIn, backgroundPyIn, backgroundPzIn, backgroundEIn);
-  return mammoth::findJets(fourVectors, jetR, jetAlgorithm, areaSettings, etaRange, minJetPt, backgroundFourVectors, backgroundSubtraction, constituentSubtraction);
+  return mammoth::findJets(fourVectors, jetR, jetAlgorithm, areaSettings, etaRange, fiducialAcceptance, minJetPt, backgroundFourVectors, backgroundSubtraction, constituentSubtraction);
 }
 
 template <typename T>
@@ -196,13 +197,17 @@ PYBIND11_MODULE(_ext, m) {
   m.def("find_jets", &findJets<float>, "px"_a, "py"_a, "pz"_a, "E"_a,
                                        "background_px"_a, "background_py"_a, "background_pz"_a, "background_E"_a,
                                        "jet_R"_a, "jet_algorithm"_a, "area_settings"_a,
-                                       "eta_range"_a = std::make_tuple(-0.9, 0.9), "min_jet_pt"_a = 1.,
+                                       "eta_range"_a = std::make_tuple(-0.9, 0.9),
+                                       "fiducial_acceptance"_a = true,
+                                       "min_jet_pt"_a = 1.,
                                        "background_subtraction"_a = false, "constituent_subtraction"_a = std::nullopt,
                                        "Jet finding function", py::call_guard<JetFindingLoggingStdout, JetFindingLoggingStderr>());
   m.def("find_jets", &findJets<double>, "px"_a, "py"_a, "pz"_a, "E"_a,
                                         "background_px"_a, "background_py"_a, "background_pz"_a, "background_E"_a,
                                         "jet_R"_a, "jet_algorithm"_a, "area_settings"_a,
-                                        "eta_range"_a = std::make_tuple(-0.9, 0.9), "min_jet_pt"_a = 1.,
+                                        "eta_range"_a = std::make_tuple(-0.9, 0.9),
+                                        "fiducial_acceptance"_a = true,
+                                        "min_jet_pt"_a = 1.,
                                         "background_subtraction"_a = false, "constituent_subtraction"_a = std::nullopt,
                                         "Jet finding function", py::call_guard<JetFindingLoggingStdout, JetFindingLoggingStderr>());
 
