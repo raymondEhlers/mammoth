@@ -190,7 +190,7 @@ PYBIND11_MODULE(_ext, m) {
   ;
   // Wrapper for constituent subtraction settings
   py::class_<mammoth::ConstituentSubtractionSettings>(m, "ConstituentSubtractionSettings", "Constituent subtraction settings")
-    .def(py::init<double, double>(), "r_max"_a = 0.25, "alpha"_a = 1)
+    .def(py::init<double, double>(), "r_max"_a = 0.25, "alpha"_a = 0)
     .def_readwrite("r_max", &mammoth::ConstituentSubtractionSettings::rMax)
     .def_readwrite("alpha", &mammoth::ConstituentSubtractionSettings::alpha)
   ;
