@@ -2,17 +2,154 @@
 
 namespace mammoth {
 
-std::vector<float> extractJetsArea(
-  const std::vector<fastjet::PseudoJet> & jets
-)
-{
-  std::size_t nJets = jets.size();
-  std::vector<float> jetsArea(nJets);
-  for (std::size_t i = 0; i < nJets; ++i) {
-    jetsArea.at(i) = jets.at(i).area();
+namespace detail {
+// Base framework for working with fastjet selector.
+// This is mostly copied directly from fastjet (ie. Selector.cc) since they don't make it part of the
+// public interface, but it's quite useful as an example for implementing a new selector
+
+/**
+  * @brief Container for a quantity
+  *
+  */
+class QuantityBase {
+public:
+  QuantityBase(double q) : _q(q){}
+  virtual ~QuantityBase(){}
+  virtual double operator()(const fastjet::PseudoJet & jet ) const =0;
+  virtual std::string description() const =0;
+  virtual bool is_geometric() const { return false;}
+  virtual double comparison_value() const {return _q;}
+  virtual double description_value() const {return comparison_value();}
+protected:
+  double _q;
+};
+
+/**
+  * @brief Container for a squared quantity
+  *
+  */
+class QuantitySquareBase : public QuantityBase {
+public:
+  QuantitySquareBase(double sqrtq) : QuantityBase(sqrtq*sqrtq), _sqrtq(sqrtq){}
+  virtual double description_value() const {return _sqrtq;}
+protected:
+  double _sqrtq;
+};
+
+/**
+  * @brief quantity >= minimum
+  *
+  * @tparam QuantityType Container for some quantity
+  */
+template<typename QuantityType>
+class SW_QuantityMin : public fastjet::SelectorWorker {
+public:
+  /// detfault ctor (initialises the pt cut)
+  SW_QuantityMin(double qmin) : _qmin(qmin) {}
+
+  /// returns true is the given object passes the selection pt cut
+  virtual bool pass(const fastjet::PseudoJet & jet) const {return _qmin(jet) >= _qmin.comparison_value();}
+
+  /// returns a description of the worker
+  virtual std::string description() const {
+    return _qmin.description() + " >= " + std::to_string(_qmin.description_value());
+    //ostringstream ostr;
+    //ostr << _qmin.description() << " >= " << _qmin.description_value();
+    //return ostr.str();
   }
-  return jetsArea;
+
+  virtual bool is_geometric() const { return _qmin.is_geometric();}
+
+protected:
+  QuantityType _qmin;     ///< the cut
+};
+
+/**
+  * @brief quantity <= maximum
+  *
+  * @tparam QuantityType Container for some quantity
+  */
+template<typename QuantityType>
+class SW_QuantityMax : public fastjet::SelectorWorker {
+public:
+  /// detfault ctor (initialises the pt cut)
+  SW_QuantityMax(double qmax) : _qmax(qmax) {}
+
+  /// returns true is the given object passes the selection pt cut
+  virtual bool pass(const fastjet::PseudoJet & jet) const {return _qmax(jet) <= _qmax.comparison_value();}
+
+  /// returns a description of the worker
+  virtual std::string description() const {
+    return _qmax.description() + " <= " + std::to_string(_qmax.description_value());
+    //ostringstream ostr;
+    //ostr << _qmax.description() << " <= " << _qmax.description_value();
+    //return ostr.str();
+  }
+
+  virtual bool is_geometric() const { return _qmax.is_geometric();}
+
+protected:
+  QuantityType _qmax;   ///< the cut
+};
+
+
+/**
+  * @brief minimum <= quantity <= maximum
+  *
+  * @tparam QuantityType Container for some quantity
+  */
+template<typename QuantityType>
+class SW_QuantityRange : public fastjet::SelectorWorker {
+public:
+  /// detfault ctor (initialises the pt cut)
+  SW_QuantityRange(double qmin, double qmax) : _qmin(qmin), _qmax(qmax) {}
+
+  /// returns true is the given object passes the selection pt cut
+  virtual bool pass(const fastjet::PseudoJet & jet) const {
+    double q = _qmin(jet); // we could identically use _qmax
+    return (q >= _qmin.comparison_value()) && (q <= _qmax.comparison_value());
+  }
+
+  /// returns a description of the worker
+  virtual std::string description() const {
+    return std::to_string(_qmin.description_value()) + " <= " + _qmin.description() + " <= " + std::to_string(_qmax.description_value());
+    //ostringstream ostr;
+    //ostr << _qmin.description_value() << " <= " << _qmin.description() << " <= " << _qmax.description_value();
+    //return ostr.str();
+  }
+
+  virtual bool is_geometric() const { return _qmin.is_geometric();}
+
+protected:
+  QuantityType _qmin;   // the lower cut
+  QuantityType _qmax;   // the upper cut
+};
+
+// Fastjet area selector
+class QuantityArea : public detail::QuantityBase {
+public:
+  QuantityArea(double _area) : QuantityBase(_area){}
+  virtual double operator()(const fastjet::PseudoJet & jet ) const { return jet.area();}
+  virtual std::string description() const {return "area";}
+};
+
 }
+
+// returns a selector for a minimum E
+fastjet::Selector SelectorAreaMin(double areaMin) {
+  return fastjet::Selector(new detail::SW_QuantityMin<detail::QuantityArea>(areaMin));
+}
+
+// returns a selector for a maximum E
+fastjet::Selector SelectorAreaMax(double areaMax) {
+  return fastjet::Selector(new detail::SW_QuantityMax<detail::QuantityArea>(areaMax));
+}
+
+// returns a selector for a E range
+fastjet::Selector SelectorAreaRange(double areaMin, double areaMax) {
+  return fastjet::Selector(new detail::SW_QuantityRange<detail::QuantityArea>(areaMin, areaMax));
+}
+
 
 std::vector<std::vector<unsigned int>> constituentIndicesFromJets(
   const std::vector<fastjet::PseudoJet> & jets

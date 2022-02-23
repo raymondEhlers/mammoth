@@ -36,6 +36,31 @@ void swap(mammoth::JetSubstructure::JetSubstructureSplittings& first,
 
 namespace mammoth {
 
+// Custom fastjet selectors
+/**
+ * @brief A selector requiring jets to have area greater than a minimum area
+ *
+ * @param areaMin Minimum area
+ * @return fastjet::Selector The selector
+ */
+fastjet::Selector SelectorAreaMin(double areaMin);
+/**
+ * @brief A selector requiring jets to have area less than a maximum area
+ *
+ * @param areaMax Maximum area
+ * @return fastjet::Selector The selector
+ */
+fastjet::Selector SelectorAreaMax(double areaMax);
+/**
+ * @brief A selector requiring jets to be within an area range
+ *
+ * @param areaMin Minimum area
+ * @param areaMax Maximum area
+ * @return fastjet::Selector The selector
+ */
+fastjet::Selector SelectorAreaRange(double areaMin, double areaMax);
+
+
 // Convenience
 template<typename T>
 using FourVectorTuple = std::tuple<std::vector<T>, std::vector<T>, std::vector<T>, std::vector<T>>;
