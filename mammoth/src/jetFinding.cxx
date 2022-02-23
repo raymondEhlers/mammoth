@@ -53,9 +53,6 @@ public:
   /// returns a description of the worker
   virtual std::string description() const {
     return _qmin.description() + " >= " + std::to_string(_qmin.description_value());
-    //ostringstream ostr;
-    //ostr << _qmin.description() << " >= " << _qmin.description_value();
-    //return ostr.str();
   }
 
   virtual bool is_geometric() const { return _qmin.is_geometric();}
@@ -81,9 +78,6 @@ public:
   /// returns a description of the worker
   virtual std::string description() const {
     return _qmax.description() + " <= " + std::to_string(_qmax.description_value());
-    //ostringstream ostr;
-    //ostr << _qmax.description() << " <= " << _qmax.description_value();
-    //return ostr.str();
   }
 
   virtual bool is_geometric() const { return _qmax.is_geometric();}
@@ -113,9 +107,6 @@ public:
   /// returns a description of the worker
   virtual std::string description() const {
     return std::to_string(_qmin.description_value()) + " <= " + _qmin.description() + " <= " + std::to_string(_qmax.description_value());
-    //ostringstream ostr;
-    //ostr << _qmin.description_value() << " <= " << _qmin.description() << " <= " << _qmax.description_value();
-    //return ostr.str();
   }
 
   virtual bool is_geometric() const { return _qmin.is_geometric();}
@@ -135,19 +126,28 @@ public:
 
 }
 
-// returns a selector for a minimum E
 fastjet::Selector SelectorAreaMin(double areaMin) {
   return fastjet::Selector(new detail::SW_QuantityMin<detail::QuantityArea>(areaMin));
 }
-
-// returns a selector for a maximum E
 fastjet::Selector SelectorAreaMax(double areaMax) {
   return fastjet::Selector(new detail::SW_QuantityMax<detail::QuantityArea>(areaMax));
 }
-
-// returns a selector for a E range
 fastjet::Selector SelectorAreaRange(double areaMin, double areaMax) {
   return fastjet::Selector(new detail::SW_QuantityRange<detail::QuantityArea>(areaMin, areaMax));
+}
+
+fastjet::Selector SelectorAreaPercentageMin(double jetParameter, double percentageMin) {
+  double valueMin = percentageMin / 100. * M_PI * std::pow(jetParameter, 2);
+  return fastjet::Selector(new detail::SW_QuantityMin<detail::QuantityArea>(valueMin));
+}
+fastjet::Selector SelectorAreaPercentageMax(double jetParameter, double percentageMax) {
+  double valueMax = percentageMax / 100. * M_PI * std::pow(jetParameter, 2);
+  return fastjet::Selector(new detail::SW_QuantityMax<detail::QuantityArea>(valueMax));
+}
+fastjet::Selector SelectorAreaPercentageRange(double jetParameter, double percentageMin, double percentageMax) {
+  double valueMin = percentageMin / 100. * M_PI * std::pow(jetParameter, 2);
+  double valueMax = percentageMax / 100. * M_PI * std::pow(jetParameter, 2);
+  return fastjet::Selector(new detail::SW_QuantityRange<detail::QuantityArea>(valueMin, valueMax));
 }
 
 

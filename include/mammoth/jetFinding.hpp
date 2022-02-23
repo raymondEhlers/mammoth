@@ -60,6 +60,32 @@ fastjet::Selector SelectorAreaMax(double areaMax);
  */
 fastjet::Selector SelectorAreaRange(double areaMin, double areaMax);
 
+/**
+ * @brief A selector requiring jets to have area greater than a percentage of the jet parameter.
+ *
+ * @param jetParameter Jet R
+ * @param percentageMin Minimum percentage (0-100%)
+ * @return fastjet::Selector The selector
+ */
+fastjet::Selector SelectorAreaPercentageMin(double jetParameter, double percentageMin);
+/**
+ * @brief A selector requiring jets to have area less than a percentage of the jet parameter.
+ *
+ * @param jetParameter Jet R
+ * @param percentageMax Maximum percentage (0-100%)
+ * @return fastjet::Selector The selector
+ */
+fastjet::Selector SelectorAreaPercentageMax(double jetParameter, double percentageMax);
+/**
+ * @brief A selector requiring jets to have area within a percentage range of the jet parameter.
+ *
+ * @param jetParameter Jet R
+ * @param percentageMin Minimum percentage (0-100%)
+ * @param percentageMax Maximum percentage (0-100%)
+ * @return fastjet::Selector The selector
+ */
+fastjet::Selector SelectorAreaPercentageRange(double jetParameter, double percentageMin, double percentageMax);
+
 
 // Convenience
 template<typename T>
