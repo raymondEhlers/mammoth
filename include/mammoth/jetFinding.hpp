@@ -86,6 +86,14 @@ fastjet::Selector SelectorAreaPercentageMax(double jetParameter, double percenta
  */
 fastjet::Selector SelectorAreaPercentageRange(double jetParameter, double percentageMin, double percentageMax);
 
+/**
+ * @brief Selector requiring that no constituent have a pt greater than or equal to a maximum
+ *
+ * @param constituentPtMax Maximum constituent pt
+ * @return fastjet::Selector The selector
+ */
+fastjet::Selector SelectorConstituentPtMax(double constituentPtMax);
+
 
 // Convenience
 template<typename T>

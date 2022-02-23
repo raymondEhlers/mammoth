@@ -116,12 +116,37 @@ protected:
   QuantityType _qmax;   // the upper cut
 };
 
-// Fastjet area selector
+/**
+ * @brief Area selector
+ *
+ */
 class QuantityArea : public detail::QuantityBase {
 public:
   QuantityArea(double _area) : QuantityBase(_area){}
   virtual double operator()(const fastjet::PseudoJet & jet ) const { return jet.area();}
   virtual std::string description() const {return "area";}
+};
+
+/**
+ * @brief Max constituent pt selector
+ *
+ * NOTE: This doesn't generalize quite as easily as the other SelectorWorker classes since
+ *       we need to extra a single value. However, we're only likely to use a maximum here,
+ *       so fine for now.
+ */
+class QuantityConstituentPtMax : public detail::QuantityBase {
+public:
+  QuantityConstituentPtMax(double _pt) : QuantityBase(_pt){}
+  virtual double operator()(const fastjet::PseudoJet & jet ) const {
+    double maxValue = 0;
+    for (auto constituent : jet.constituents()) {
+      if (constituent.pt() > maxValue) {
+        maxValue = constituent.pt();
+      }
+    }
+    return maxValue;
+  }
+  virtual std::string description() const {return "max constituent pt";}
 };
 
 }
@@ -148,6 +173,10 @@ fastjet::Selector SelectorAreaPercentageRange(double jetParameter, double percen
   double valueMin = percentageMin / 100. * M_PI * std::pow(jetParameter, 2);
   double valueMax = percentageMax / 100. * M_PI * std::pow(jetParameter, 2);
   return fastjet::Selector(new detail::SW_QuantityRange<detail::QuantityArea>(valueMin, valueMax));
+}
+
+fastjet::Selector SelectorConstituentPtMax(double constituentPtMax) {
+  return fastjet::Selector(new detail::SW_QuantityMax<detail::QuantityConstituentPtMax>(constituentPtMax));
 }
 
 
