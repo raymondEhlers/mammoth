@@ -791,26 +791,30 @@ OutputWrapper<T> findJets(
   }
   std::cout << "\n";
 
-  // Apply the subtractor when appropriate
-  if (backgroundSubtraction) {
-    jets = (*subtractor)(jets);
-  }
   // Subtract scalar jet pt
   T rhoValue = backgroundEstimator ? backgroundEstimator->rho() : 0;
   //for (std::size_t i = 0; i < jets.size(); i++) {
-  //  double ptToSubtract = rhoValue * jets.at(i).area();
+  //  double ptToSubtract = rhoValue * jets.at(i).area_4vector().perp();
   //  fastjet::PseudoJet rhoToSubtract(ptToSubtract * std::cos(jets.at(i).phi()),
   //                                   ptToSubtract * std::sin(jets.at(i).phi()),
   //                                   0, 0);
   //  std::cerr << ", jetPtUnsub=" << jets.at(i).pt()
-  //            << ", area=" << jets.at(i).area()
+  //            << ", area=" << jets.at(i).area_4vector().perp()
   //            << ", phi=" << jets.at(i).phi()
   //            << ", ptToSubtract=" << ptToSubtract
   //            << ", rhoToSubtract.pt()=" << rhoToSubtract.pt()
   //            << "\n";
-  //  jets.at(i) -= rhoToSubtract;
-  //  std::cerr << "after subtraction=" << jets.at(i).pt() << "\n";
+  //  fastjet::PseudoJet result = jets.at(i) - rhoToSubtract;
+  //  //std::cerr << "after subtraction=" << result.pt() << "\n";
+  //  // Using four vectors...
+  //  fastjet::PseudoJet toSubtract = rhoValue * jets.at(i).area_4vector();
+
+  //  std::cerr << "after subtraction by hand=" << result.pt() << ", with 4 vector=" << (jets.at(i) - toSubtract).pt() << "\n";
   //}
+  // Apply the subtractor when appropriate
+  if (backgroundSubtraction) {
+    jets = (*subtractor)(jets);
+  }
 
   // Apply the jet selector after all subtraction is completed.
   // NOTE: It's okay that we already applied the min jet pt cut when we take the inclusive_jets above
