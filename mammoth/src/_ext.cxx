@@ -174,6 +174,7 @@ void wrapOutputWrapper(py::module & m, const std::string & typestr)
     .def_readonly("jets", &Class::jets)
     .def_readonly("constituent_indices", &Class::constituent_indices)
     .def_readonly("jets_area", &Class::jetsArea)
+    .def_readonly("rho_value", &Class::rho)
     .def_readonly("subtracted_info", &Class::subtracted)
   ;
 }

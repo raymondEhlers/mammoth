@@ -431,6 +431,7 @@ def find_jets(
         "pz": [],
         "E": [],
         "area": [],
+        "rho_value": [],
     }
     constituent_indices = []
     subtracted_constituents: Dict[str, List[npt.NDArray[Union[np.float32, np.float64]]]] = {
@@ -471,6 +472,7 @@ def find_jets(
         jets["E"].append(temp_jets[3])
         # Next, store additional jet properties
         jets["area"].append(res.jets_area)
+        jets["rho_value"].append(res.rho_value)
         # Next, associate the indices of the constituents that are associated with each jet
         constituent_indices.append(res.constituent_indices)
 
@@ -559,6 +561,7 @@ def find_jets(
             "pz": jets["pz"],
             "E": jets["E"],
             "area": jets["area"],
+            "rho_value": jets["rho_value"],
             "constituents": output_constituents,
         },
         with_name="Momentum4D",
