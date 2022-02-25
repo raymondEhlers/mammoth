@@ -879,9 +879,9 @@ JetSubstructure::JetSubstructureSplittings jetReclustering(
 
   // Convert column vector input to pseudo jets.
   auto particlePseudoJets = vectorsToPseudoJets(columnFourVectors);
-  for (auto & temp_j : particlePseudoJets) {
-    std::cerr << "constituent " << temp_j.user_index() << ", pt=" << temp_j.pt() << ", rapidity=" << temp_j.rapidity() << "\n";
-  }
+  //for (auto & temp_j : particlePseudoJets) {
+  //  std::cerr << "constituent " << temp_j.user_index() << ", pt=" << temp_j.pt() << ", rapidity=" << temp_j.rapidity() << ", mass=" << temp_j.m() << "\n";
+  //}
   //std::cerr << "delta_R\n";
   //for (auto & temp_i : particlePseudoJets) {
   //  for (auto & temp_j: particlePseudoJets) {

@@ -521,6 +521,7 @@ void ExtractJetSplittings(
         // No parents, so we're done - just return.
         return;
     }
+    //std::cout << "j1 (" << j1.user_index() << "): " << j1.pt() << ", j2(" << j2.user_index() << "): " << j2.pt() << "\n";
 
     // j1 should always be the harder of the two subjets.
     if (j1.perp() < j2.perp()) {
@@ -531,6 +532,7 @@ void ExtractJetSplittings(
     double z = j2.perp() / (j2.perp() + j1.perp());
     double delta_R = j1.delta_R(j2);
     double xkt = j2.perp() * std::sin(delta_R);
+    //std::cout << "delta_R=" << delta_R << ", kt=" << xkt << ", z=" << z << "\n";
     // Add the splitting node.
     jetSplittings.AddSplitting(xkt, delta_R, z, splittingNodeIndex);
     // Determine which splitting parent the subjets will point to (ie. the one that
