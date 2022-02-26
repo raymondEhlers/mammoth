@@ -11,6 +11,8 @@ import numpy as np
 import numpy.typing as npt
 import vector
 
+from mammoth.framework import particle_ID
+
 logger = logging.getLogger(__name__)
 
 
@@ -124,10 +126,15 @@ def mc(
     # NOTE: This is fully equivalent because we registered vector:
     #       >>> det_level = ak.with_name(det_level, name="Momentum4D")
     det_level = vector.Array(det_level)
+    # Part level
     part_level = arrays[rename_prefix["part_level"]]
     part_level["index"] = ak.local_index(part_level)
     if "m" not in ak.fields(part_level) and "E" not in ak.fields(part_level):
-        part_level["m"] = part_level["pt"] * 0 + mass_hypotheses["part_level"]
+        # Since we have truth level info, construct the part level mass based on the particle_ID
+        # rather than a fixed mass hypothesis.
+        # NOTE: At this point, the input data should have been normalized to use "particle_ID" for
+        #       the particle ID column name, so we shouldn't need to change the column name here.
+        part_level["m"] = particle_ID.particle_masses_from_particle_ID(arrays=part_level)
     part_level = vector.Array(part_level)
 
     # Combine inputs
@@ -186,10 +193,19 @@ def embedding(
     # NOTE: This is fully equivalent because we registered vector:
     #       >>> det_level = ak.with_name(det_level, name="Momentum4D")
     det_level = vector.Array(det_level)
+    # Part level
     part_level = arrays["signal"]["part_level"]
+    # NOTE: The particle level and detector level index values overlap. However, I think (as of Feb 2022)
+    #       that this should be fine since they're unlikely to be clustered together. That being said,
+    #       if we're looking at things like the shared momentum fraction, it's critical that they're _not_
+    #       matched by this index, but rather by `label`.
     part_level["index"] = ak.local_index(part_level) + source_index_identifiers["signal"]
     if "m" not in ak.fields(part_level) and "E" not in ak.fields(part_level):
-        part_level["m"] = part_level["pt"] * 0 + mass_hypotheses["part_level"]
+        # Since we have truth level info, construct the part level mass based on the particle_ID
+        # rather than a fixed mass hypothesis.
+        # NOTE: At this point, the input data should have been normalized to use "particle_ID" for
+        #       the particle ID column name, so we shouldn't need to change the column name here.
+        part_level["m"] = particle_ID.particle_masses_from_particle_ID(arrays=part_level)
     part_level = vector.Array(part_level)
     background = arrays["background"]["data"]
     if fixed_background_index_value is not None:
