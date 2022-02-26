@@ -16,8 +16,8 @@ import numpy as np
 import numpy.typing as npt
 import uproot
 
-from mammoth import analysis_base, helpers
-from mammoth.framework import jet_finding, sources, transform
+from mammoth import helpers
+from mammoth.framework import jet_finding, particle_ID, sources, transform
 from mammoth.jetscape import utils
 
 
@@ -60,7 +60,7 @@ def find_jets_for_analysis(arrays: ak.Array, jet_R_values: Sequence[float], part
     holes_mask = ~signal_particles_mask
     # - Charged particles only for charged-particle jets
     _charged_hadron_PIDs = [11, 13, 211, 321, 2212, 3222, 3112, 3312, 3334]
-    charged_particles_mask = analysis_base.build_PID_selection_mask(
+    charged_particles_mask = particle_ID.build_PID_selection_mask(
         arrays[particle_column_name], absolute_pids=_charged_hadron_PIDs
     )
 
