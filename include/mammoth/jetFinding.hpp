@@ -11,6 +11,7 @@
 #include <fastjet/AreaDefinition.hh>
 #include <fastjet/GhostedAreaSpec.hh>
 #include <fastjet/tools/JetMedianBackgroundEstimator.hh>
+#include <fastjet/tools/GridMedianBackgroundEstimator.hh>
 #include <fastjet/tools/Subtractor.hh>
 #include <fastjet/contrib/ConstituentSubtractor.hh>
 
@@ -120,8 +121,43 @@ struct OutputWrapper {
  * Just a simple container for area related settings
  */
 struct AreaSettings {
-  std::string areaType{"active_area"};
+  std::string areaTypeName{"active_area"};
   double ghostArea{0.005};
+  double rapidityMax{1.0};
+  int repeatN{1};
+  double gridScatter{1.0};
+  double ktScatter{0.1};
+  double ktMean{1e-100};
+  std::vector<int> randomSeed{};
+
+  fastjet::AreaType areaType() const { return areaTypes.at(this->areaTypeName); }
+
+  fastjet::GhostedAreaSpec ghostedAreaSpec() const {
+    fastjet::GhostedAreaSpec ghostedAreaSpec(
+      this->rapidityMax,
+      this->repeatN,
+      this->ghostArea,
+      this->gridScatter,
+      this->ktScatter,
+      this->ktMean
+    );
+    if (this->randomSeed.size() > 0) {
+      return ghostedAreaSpec.with_fixed_seed(this->randomSeed);
+    }
+    return ghostedAreaSpec;
+  }
+
+  fastjet::AreaDefinition areaDefinition() const {
+    fastjet::AreaDefinition areaDefinition(this->areaType(), this->ghostedAreaSpec());
+    // TODO: Check if this is required...
+    //if (this->randomSeed.size() > 0) {
+    //  return areaDefinition.with_fixed_seed(this->randomSeed);
+    //}
+    return areaDefinition;
+  }
+
+  protected:
+    static const std::map<std::string, fastjet::AreaType> areaTypes;
 };
 
 /**
@@ -485,6 +521,7 @@ fastjet::JetAlgorithm getJetAlgorithm(std::string jetAlgorithmStr)
   return jetAlgorithms.at(jetAlgorithmStr);
 }
 
+/*
 fastjet::AreaType getAreaType(const AreaSettings & areaSettings)
 {
   // Area type
@@ -495,6 +532,7 @@ fastjet::AreaType getAreaType(const AreaSettings & areaSettings)
   };
   return areaTypes.at(areaSettings.areaType);
 }
+*/
 
 // From: https://stackoverflow.com/a/39487448/12907985
 template <typename T = double, typename C>
@@ -512,6 +550,360 @@ inline const T median(const C &the_container)
         auto max_it = std::max_element(tmp_array.begin(), tmp_array.begin() + n);
         return (*max_it + tmp_array[n]) / 2.0;
     }
+}
+
+
+struct JetFindingSettings {
+  double R;
+  std::string algorithmName;
+  std::string recombinationSchemeName;
+  std::string strategyName;
+  std::tuple<double, double> ptRange;
+  std::tuple<double, double> etaRange;
+  const std::optional<const AreaSettings> areaSettings{std::nullopt};
+
+  fastjet::JetAlgorithm algorithm() const { return this->algorithms.at(this->algorithmName); }
+  fastjet::RecombinationScheme recombinationScheme() const { return this->recombinationSchemes.at(this->recombinationSchemeName); }
+  fastjet::Strategy strategy() const { return this->strategies.at(this->strategyName); }
+
+  fastjet::Selector & selectorPtEtaNonGhost() const {
+    const auto [jetPtMin, jetPtMax] = this->ptRange;
+    const auto [jetEtaMin, jetEtaMax] = this->etaRange;
+
+    fastjet::Selector selectJets = !fastjet::SelectorIsPureGhost()
+                                  * (
+                                    fastjet::SelectorPtRange(jetPtMin, jetPtMax)
+                                    && fastjet::SelectorEtaRange(jetEtaMin, jetEtaMax)
+                                    );
+    return selectJets;
+  }
+
+  fastjet::JetDefinition definition() const {
+    return fastjet::JetDefinition(this->algorithm(), this->R, this->recombinationScheme(), this->strategy());
+  }
+
+  std::unique_ptr<fastjet::ClusterSequence> create(std::vector<fastjet::PseudoJet> particlePseudoJets) const {
+    //auto selector = this->selector();
+    if (this->areaSettings) {
+      return std::make_unique<fastjet::ClusterSequenceArea>(
+        particlePseudoJets,
+        this->definition(),
+        this->areaSettings->areaDefinition()
+      );
+    }
+    return std::make_unique<fastjet::ClusterSequence>(
+      particlePseudoJets,
+      this->definition()
+    );
+  }
+
+ protected:
+  static const std::map<std::string, fastjet::JetAlgorithm> algorithms;
+  static const std::map<std::string, fastjet::RecombinationScheme> recombinationSchemes;
+  static const std::map<std::string, fastjet::Strategy> strategies;
+};
+
+struct BackgroundEstimator {
+  virtual std::unique_ptr<fastjet::BackgroundEstimatorBase> create() = 0;
+};
+
+struct JetMedianBackgroundEstimator : BackgroundEstimator {
+  JetFindingSettings settings;
+  bool computeRhoM{true};
+  bool useAreaFourVector{true};
+  int nExcludeHardestJets{2};
+  double constituentPtMax{100};
+  //// Estimator Settings
+  //// Same as above, so let's just create two classes with different defaults...
+  //double R{0.2};
+  //std::string algorithm{"kt"};
+  //std::string recombinationScheme{"E_scheme"};
+  //std::string strategy{"best"};
+  //AreaSettings areaSettings;
+  //std::tuple<double, double> ptRange;
+  //std::tuple<double, double> etaRange;
+
+  fastjet::Selector & selector() {
+    // Select jets for calculating the background
+    // As of September 2021, this includes (ordered from top to bottom):
+    // - Fiducial eta selection
+    // - Remove the two hardest jets
+    // - Remove pure ghost jets (since they are included with explicit ghosts)
+
+    // NOTES:
+    // - This is more or less the standard rho procedure
+    // - We want to apply the two hardest removal _after_ the acceptance cuts, so we use "*"
+    //   Be aware that the order of the selectors really matters. It applies the **right** most first if we use "*"
+    //   This is super important! Otherwise, you'll get unexpected selections!
+    // - Including or removing the two hardest can have a big impact on the number of jets that are accepted.
+    //   Removing them includes more jets (because the median background is smaller). We remove them because
+    //   that's what is done in ALICE.
+    // - We skip phi selection since we're looking at charged jets, so we take the full [0, 2pi).
+    //   [0, 2pi) is the standard PseudoJet phi range. If you want to restrict the phi range, it should be
+    //   applied at the right most with
+    //   `* fastjet::SelectorPhiRange(backgroundJetPhiMin, backgroundJetPhiMax)`, or via the combined
+    //   EtaPhi selector (see possible tweaks below).
+    // - We don't remove jets with tracks > 100 GeV here because:
+    //     - It is technically complicated with the current setup because I don't see any way to select
+    //       constituents with a selector. It looks like I'd have to make an additional copy.
+    //     - I think it will be a small effect on the background because we're concerned with the median
+    //       and we exclude the two leading jets. So unless there are many fake tracks in a single event, it's
+    //       unlikely to have a meaningful effect on the median.
+    //
+    // Some notes for possible tweaks (not saying that they necessarily should be done):
+    // - `GridMedianBackgroundEstimator` may be usable here, and much faster. However, it needs to be validated.
+    // - If one goes back to applying phi cuts, one could use `* fastjet::SelectorRapPhiRange(backgroundJetEtaMin, backgroundJetEtaMax, backgroundJetPhiMin, backgroundJetPhiMax)`
+    //   However, if using this combined selector, be careful about the difference between rapidity and eta!
+    //fastjet::Selector selRho = !fastjet::SelectorNHardest(2) * !fastjet::SelectorIsPureGhost() * fastjet::SelectorAbsRapMax(ghostRapidityMax);
+    //fastjet::Selector selRho = !fastjet::SelectorNHardest(2) * !fastjet::SelectorIsPureGhost() * fastjet::SelectorRapRange(backgroundJetEtaMin, backgroundJetEtaMax);
+    //fastjet::Selector selRho = !fastjet::SelectorNHardest(2) * !fastjet::SelectorIsPureGhost() * fastjet::SelectorEtaRange(backgroundJetEtaMin, backgroundJetEtaMax);
+    const auto [jetEtaMin, jetEtaMax] = this->settings.etaRange;
+    fastjet::Selector selRho = !fastjet::SelectorNHardest(this->nExcludeHardestJets)
+                               //* !fastjet::SelectorIsPureGhost()  // NB: This selector doesn't make a difference...
+                               * fastjet::SelectorEtaRange(jetEtaMin, jetEtaMax)
+                               * SelectorConstituentPtMax(this->constituentPtMax);
+
+  }
+
+  std::unique_ptr<fastjet::BackgroundEstimatorBase> create() override {
+    //return std::make_unique<fastjet::JetMedianBackgroundEstimator>();
+
+    // Finally, define the background estimator
+    // This is needed for all background subtraction cases.
+    const auto areaSettings = this->settings.areaSettings;
+    if (!areaSettings) {
+      throw std::runtime_error("Must specify area settings when using a background estimator!");
+    }
+    auto backgroundEstimator = std::make_unique<fastjet::JetMedianBackgroundEstimator>(
+      this->selector(), this->settings.definition(), areaSettings->areaDefinition()
+    );
+    // Ensure rho_m is calculated (should be by default, but just to be sure).
+    // NOTE: The background estimator should calculate rho_m by default, but it's not used by default
+    //       in the standard subtractor, so we explicitly enable it in the next block down
+    //       (CS is handled separately)
+    backgroundEstimator->set_compute_rho_m(this->computeRhoM);
+
+    // According to the fj manual, taking the transverse component of the area four vector
+    // provides a more accurate determination of rho. So we take it here.
+    // NOTE: ALICE also takes the transverse component.
+    backgroundEstimator->set_use_area_4vector(this->useAreaFourVector);
+
+    return backgroundEstimator;
+  }
+};
+
+struct GridMedianBackgroundEstimator : BackgroundEstimator {
+  double rapidityMax;
+  double gridSpacing;
+
+  std::unique_ptr<fastjet::BackgroundEstimatorBase> create() override {
+    return std::make_unique<fastjet::GridMedianBackgroundEstimator>(this->rapidityMax, this->gridSpacing);
+  }
+};
+
+enum class BackgroundSubtractionType {
+  kNone = 0,
+  kRho= 1,
+  kEventWiseCS = 2,
+  kJetWiseCS = 3,
+};
+
+struct BackgroundSubtractor {
+  virtual std::unique_ptr<fastjet::Transformer> create(std::shared_ptr<fastjet::BackgroundEstimatorBase> backgroundEstimator) = 0;
+};
+
+struct RhoSubtractor : BackgroundSubtractor {
+  bool useRhoM{true};
+  bool useSafeMass{true};
+
+  std::unique_ptr<fastjet::Transformer> create(std::shared_ptr<fastjet::BackgroundEstimatorBase> backgroundEstimator) override {
+    auto subtractor = std::make_unique<fastjet::Subtractor>(backgroundEstimator.get());
+    // Use rho_m from the estimator.
+    // NOTE: This causes the subtractor to subtract rhom in the four vector subtraction.
+    //       This is done to account for nonzero hadron mass
+    subtractor->set_use_rho_m(this->useRhoM);
+    // Handle negative masses by adjusting the 4-vector to maintain the pt and phi, which leaves
+    // the rapidity the same as the unsubtracted jet. The fj manual describes this as "a sensible
+    // behavior" for most applications, so good enough for us.
+    subtractor->set_safe_mass(this->useSafeMass);
+
+    return subtractor;
+  }
+};
+
+struct ConstituentSubtractor : BackgroundSubtractor {
+  double rMax{0.25};
+  double alpha{0};
+  double rapidityMax{1.0};
+  std::string distanceMeasure{"deltaR"};
+
+  std::unique_ptr<fastjet::Transformer> create(std::shared_ptr<fastjet::BackgroundEstimatorBase> backgroundEstimator) override {
+    // Determine derived settings first
+    fastjet::contrib::ConstituentSubtractor::Distance distanceType = this->distanceTypes.at(this->distanceMeasure);
+
+    // First create the CS object
+    auto constituentSubtractor = std::make_unique<fastjet::contrib::ConstituentSubtractor>();
+
+    // Then configure
+    constituentSubtractor->set_distance_type(fastjet::contrib::ConstituentSubtractor::deltaR);
+    constituentSubtractor->set_max_distance(this->rMax);
+    constituentSubtractor->set_alpha(this->alpha);
+    // ALICE doesn't appear to set the ghost area, so we skip it here and use the default of 0.01
+    //constituentSubtractor->set_ghost_area(areaSettings.ghostArea);
+    // NOTE: Since this is event wise, the max eta should be the track eta, not the fiducial eta
+    //constituentSubtractor->set_max_eta(etaMax);
+    constituentSubtractor->set_max_eta(this->rapidityMax);
+    constituentSubtractor->set_background_estimator(backgroundEstimator.get());
+    // Use the same estimator for rho_m (by default, I think it won't be used in CS, but better
+    // to provide it in case we change our mind later).
+    // NOTE: This needs to be set after setting the background estimator.
+    constituentSubtractor->set_common_bge_for_rho_and_rhom();
+    // Apparently this is new and now required for event-wise CS.
+    // From some tests, constituent subtraction gives some crazy results if it's not called!
+    // NOTE: ALICE gets away with skipping this because we have the old call for event-wise
+    //       subtraction where we pass the max rapidity. But better if we use the newer version here.
+    constituentSubtractor->initialize();
+
+    return constituentSubtractor;
+  }
+
+ protected:
+  static const std::map<std::string, fastjet::contrib::ConstituentSubtractor::Distance> distanceTypes;
+};
+
+struct BackgroundSubtractionSettings {
+  BackgroundSubtractionType type;
+  std::unique_ptr<BackgroundEstimator> backgroundEstimator{nullptr};
+  std::unique_ptr<BackgroundSubtractor> backgroundSubtractor{nullptr};
+};
+
+template<typename T>
+OutputWrapper<T> findJetsNew(
+  FourVectorTuple<T> & columnFourVectors,
+  const JetFindingSettings & mainJetFinder,
+  FourVectorTuple<T> & backgroundEstimatorFourVectors,
+  const BackgroundSubtractionSettings & backgroundSubtraction
+)
+{
+  // TODO: This needs to get moved out...
+  // Needed for PbPb validation
+  std::vector<int> fixedSeeds = {12345, 67890};
+
+  // Convert column vector input to pseudo jets.
+  auto particlePseudoJets = vectorsToPseudoJets(columnFourVectors);
+
+  // Notify about the settings for the jet finding.
+  // NOTE: This can be removed eventually. For now (July 2021), it will be routed to debug level
+  //       so we can be 100% sure about what is being calculated.
+  std::cout << std::boolalpha
+    << "Cuts:\n"
+    //<< "\tMin jet pt=" << minJetPt << "\n"
+    << "Settings:\n"
+    //<< "\tGhost area: " << areaSettings.ghostArea << "\n"
+    << "\tBackground estimator using " << (std::get<0>(backgroundEstimatorFourVectors).size() > 0 ? "background" : "input") << " particles\n"
+    //<< "\tBackground subtraction: " << backgroundSubtraction << "\n"
+    //<< "\tConstituent subtraction: " << static_cast<bool>(constituentSubtraction)
+    << "\n";
+
+  // First start with a background estimator, if we're running one.
+  std::shared_ptr<fastjet::BackgroundEstimatorBase> backgroundEstimator;
+  std::shared_ptr<fastjet::Transformer> subtractor;
+  if (backgroundSubtraction.type != BackgroundSubtractionType::kNone) {
+    // First, we need to create the background estimator
+    if (!backgroundSubtraction.backgroundEstimator) {
+      throw std::runtime_error("Background estimator is required, but not defined. Please check settings!")
+    }
+    // All of the settings are specified in the background estimator
+    backgroundEstimator = backgroundSubtraction.backgroundEstimator->create();
+
+    // Setup the input particles for the estimator so we it calculate the background.
+    // If we have background estimator four vectors, we need to make sure we use them here.
+    // In the case that they weren't provided, the arrays are empty, so it doesn't really cost anything
+    // to create a new (empty) vector. So we just do it regardless.
+    auto possibleBackgroundEstimatorParticles = vectorsToPseudoJets(backgroundEstimatorFourVectors);
+    // Then, we actually decide on what to pass depending on if there are passed background estimator particles or not.
+    // NOTE: In principle, this would get us in trouble if the estimator is supposed to have no particles. But in that case,
+    //       we would just turn off the background estimator. So it should be fine.
+    backgroundEstimator->set_particles(possibleBackgroundEstimatorParticles.size() > 0
+                                       ? possibleBackgroundEstimatorParticles
+                                       : particlePseudoJets);
+
+    // TODO: TEMP
+    // Create a manual CS for background estimator to verify that the seed is set correctly.
+    auto jetMedianSettings = dynamic_cast<std::shared_ptr<JetMedianBackgroundEstimator>>(backgroundSubtraction.backgroundEstimator);
+    auto csBkg = jetMedianSettings->settings.create(
+      possibleBackgroundEstimatorParticles.size() > 0
+      ? possibleBackgroundEstimatorParticles
+      : particlePseudoJets)
+    );
+    // Try use JetMedianBackgroundEstimator w/ existing ClusterSequence
+    fastjet::JetMedianBackgroundEstimator bgeWithExistingCS(jetMedianSettings.selector(), csBkg);
+    bgeWithExisting.set_compute_rho_m(true);
+    bgeWithExisting.set_use_area_4vector(true);
+    std::cerr << "rhoWithCS=" << bgeWithExistingCS.rho() << ", standard rho=" << backgroundEstimator->rho() << "\n";
+    // ENDTEMP
+
+    // Next up, create the subtractor
+    // All of the settings are specified in the background subtractor
+    subtractor = backgroundSubtraction.backgroundSubtractor->create(backgroundEstimator);
+  }
+
+  // For constituent subtraction, we perform event-wise subtraction on the input particles
+  // We also keep track of a map from the subtracted constituents to the unsubtracted constituents
+  // (both of which are based on the user_index that we assign during the jet finding).
+  std::vector<unsigned int> subtractedToUnsubtractedIndices;
+  if (backgroundSubtraction.type == BackgroundSubtractionType::kEventWiseCS) {
+    particlePseudoJets = constituentSubtractor->subtract_event(particlePseudoJets);
+    subtractedToUnsubtractedIndices = updateSubtractedConstituentIndices(particlePseudoJets);
+  }
+
+  // Perform jet finding on signal
+  auto cs = mainJetFinder.create(particlePseudoJets);
+  auto jets = cs->inclusive_jets(minJetPt);
+
+  std::vector<int> fixedSeed;
+  // NOTE: Need to retrieve it for the CSA because we pass copies of objects, not by reference
+  cs.area_def().ghost_spec().get_last_seed(fixedSeed);
+  std::cout << "Fixed seeds (main jet finding): ";
+  for (auto & v : fixedSeed) {
+    std::cout << " " << v;
+  }
+  std::cout << "\n";
+
+  // Apply the subtractor when appropriate
+  if (backgroundSubtraction.type != BackgroundSubtractionType.kEventWiseCS) {
+    jets = (*subtractor)(jets);
+  }
+
+  // Apply the jet selector after all subtraction is completed.
+  // NOTE: It's okay that we already applied the min jet pt cut when we take the inclusive_jets above
+  //       because any additional subtraction will just remove more jets (ie. the first cut is _less_
+  //       restrictive than the second)
+  jets = mainJetFinder.selector()(jets);
+
+  // Sort by pt for convenience
+  jets = fastjet::sorted_by_pt(jets);
+
+  // Now, handle returning the values.
+  // First, we grab the jets themselves, converting the four vectors into column vector to return them.
+  auto numpyJets = pseudoJetsToVectors<T>(jets);
+  // Next, we grab whatever other properties we desire
+  auto columnarJetsArea = extractJetsArea<T>(jets);
+  // Finally, we need to associate the constituents with the jets. To do so, we store one vector per jet,
+  // with the vector containing the user_index assigned earlier in the jet finding process.
+  auto constituentIndices = constituentIndicesFromJets(jets);
+  T rhoValue = backgroundEstimator ? backgroundEstimator->rho() : 0;
+
+  if (backgroundSubtraction.type == BackgroundSubtractionType.kEventWiseCS ||
+      backgroundSubtraction.type == BackgroundSubtractionType.kJetWiseCS) {
+    // NOTE: particlePseudoJets are actually the subtracted constituents now.
+    return OutputWrapper<T>{
+      numpyJets, constituentIndices, columnarJetsArea, rhoValue, std::make_tuple(
+        pseudoJetsToVectors<T>(particlePseudoJets), subtractedToUnsubtractedIndices
+      )
+    };
+  }
+  return OutputWrapper<T>{numpyJets, constituentIndices, columnarJetsArea, rhoValue, {}};
 }
 
 template<typename T>
@@ -879,9 +1271,9 @@ JetSubstructure::JetSubstructureSplittings jetReclustering(
 
   // Convert column vector input to pseudo jets.
   auto particlePseudoJets = vectorsToPseudoJets(columnFourVectors);
-  //for (auto & temp_j : particlePseudoJets) {
-  //  std::cerr << "constituent " << temp_j.user_index() << ", pt=" << temp_j.pt() << ", rapidity=" << temp_j.rapidity() << ", mass=" << temp_j.m() << "\n";
-  //}
+  for (auto & temp_j : particlePseudoJets) {
+    std::cerr << "constituent " << temp_j.user_index() << ", pt=" << temp_j.pt() << ", rapidity=" << temp_j.rapidity() << ", mass=" << temp_j.m() << "\n";
+  }
   //std::cerr << "delta_R\n";
   //for (auto & temp_i : particlePseudoJets) {
   //  for (auto & temp_j: particlePseudoJets) {
@@ -929,10 +1321,10 @@ JetSubstructure::JetSubstructureSplittings jetReclustering(
     cs = std::make_unique<fastjet::ClusterSequence>(particlePseudoJets, jetDefinition);
   }
   std::vector<fastjet::PseudoJet> outputJets = cs->inclusive_jets(0);
-  //std::cerr << "output jets\n";
-  //for (auto & temp_j : outputJets){
-  //  std::cerr << temp_j.pt() << "\n";
-  //}
+  std::cerr << "output jets\n";
+  for (auto & temp_j : outputJets){
+    std::cerr << temp_j.pt() << "\n";
+  }
 
   fastjet::PseudoJet jj;
   jj = outputJets[0];
