@@ -342,10 +342,10 @@ PYBIND11_MODULE(_ext, m) {
   ;
   // Background subtraction type
   py::enum_<mammoth::BackgroundSubtractionType>(m, "BackgroundSubtractionType",  py::arithmetic(), "Background subtraction type")
-    .value("disabled", mammoth::BackgroundSubtractionType::kDisabled, "Subtraction disabled")
-    .value("rho", mammoth::BackgroundSubtractionType::kRho, "Rho subtraction")
-    .value("event_wise_constituent_subtraction", mammoth::BackgroundSubtractionType::kEventWiseCS, "Event-wise constituent subtraction")
-    .value("jet_wise_constituent_subtraction", mammoth::BackgroundSubtractionType::kJetWiseCS, "Jet-wise constituent subtraction")
+    .value("disabled", mammoth::BackgroundSubtractionType::disabled, "Subtraction disabled")
+    .value("rho", mammoth::BackgroundSubtractionType::rho, "Rho subtraction")
+    .value("event_wise_constituent_subtraction", mammoth::BackgroundSubtractionType::eventWiseCS, "Event-wise constituent subtraction")
+    .value("jet_wise_constituent_subtraction", mammoth::BackgroundSubtractionType::jetWiseCS, "Jet-wise constituent subtraction")
     .export_values();
   // Rho background subtractor
   py::class_<mammoth::RhoSubtractor>(m, "RhoSubtractor", "Rho based background subtraction")

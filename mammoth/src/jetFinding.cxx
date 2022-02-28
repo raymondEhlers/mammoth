@@ -388,10 +388,10 @@ std::string GridMedianBackgroundEstimator::to_string() const {
 
 std::string to_string(const BackgroundSubtractionType & subtractionType) {
   const std::map<BackgroundSubtractionType, std::string> subtractionTypes = {
-    {BackgroundSubtractionType::kDisabled, "Subtraction disabled"},
-    {BackgroundSubtractionType::kRho, "Rho subtraction"},
-    {BackgroundSubtractionType::kEventWiseCS, "Event-wise constituent subtraction"},
-    {BackgroundSubtractionType::kJetWiseCS, "Jet-wise constituent subtraction"},
+    {BackgroundSubtractionType::disabled, "Subtraction disabled"},
+    {BackgroundSubtractionType::rho, "Rho subtraction"},
+    {BackgroundSubtractionType::eventWiseCS, "Event-wise constituent subtraction"},
+    {BackgroundSubtractionType::jetWiseCS, "Jet-wise constituent subtraction"},
   };
   return subtractionTypes.at(subtractionType);
 }

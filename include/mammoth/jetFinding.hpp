@@ -373,13 +373,13 @@ struct GridMedianBackgroundEstimator : BackgroundEstimator {
  */
 enum class BackgroundSubtractionType {
   /// Disable background subtraction (also disables background estimation, since it's not needed in this case)
-  kDisabled = 0,
+  disabled = 0,
   /// Standard rho subtraction
-  kRho= 1,
+  rho= 1,
   /// Event-wise constituent subtraction
-  kEventWiseCS = 2,
+  eventWiseCS = 2,
   /// Jet-wise consituent subtraction (never tested as of Feb 2022, so it should be verified)
-  kJetWiseCS = 3,
+  jetWiseCS = 3,
 };
 
 /**
@@ -1014,7 +1014,7 @@ FindJetsImplementationOutputWrapper findJetsImplementation(
   // First start with a background estimator, if we're running one.
   std::shared_ptr<fastjet::BackgroundEstimatorBase> backgroundEstimator;
   std::shared_ptr<fastjet::Transformer> subtractor;
-  if (backgroundSubtraction.type != BackgroundSubtractionType::kDisabled) {
+  if (backgroundSubtraction.type != BackgroundSubtractionType::disabled) {
     // First, we need to create the background estimator
     if (!backgroundSubtraction.estimator) {
       throw std::runtime_error("Background estimator is required, but not defined. Please check settings!");
@@ -1052,6 +1052,7 @@ FindJetsImplementationOutputWrapper findJetsImplementation(
       fastjet::JetMedianBackgroundEstimator bgeWithExistingCS(jetMedianSettings->selector(), *csBkg);
       bgeWithExistingCS.set_compute_rho_m(jetMedianSettings->computeRhoM);
       bgeWithExistingCS.set_use_area_4vector(jetMedianSettings->useAreaFourVector);
+      // And check the values
       assert(
         bgeWithExistingCS.rho() == backgroundEstimator->rho() &&
         ("estimator rho=" + std::to_string(backgroundEstimator->rho()) + ", validation rho=" + std::to_string(bgeWithExistingCS.rho())).c_str()
@@ -1070,7 +1071,7 @@ FindJetsImplementationOutputWrapper findJetsImplementation(
   // We also keep track of a map from the subtracted constituents to the unsubtracted constituents
   // (both of which are based on the user_index that we assign during the jet finding).
   std::vector<unsigned int> subtractedToUnsubtractedIndices;
-  if (backgroundSubtraction.type == BackgroundSubtractionType::kEventWiseCS) {
+  if (backgroundSubtraction.type == BackgroundSubtractionType::eventWiseCS) {
     // Need to cast to CS object so we can actually do the event-wise subtraction
     auto constituentSubtractor = std::dynamic_pointer_cast<fastjet::contrib::ConstituentSubtractor>(subtractor);
     particlePseudoJets = constituentSubtractor->subtract_event(particlePseudoJets);
@@ -1106,7 +1107,7 @@ FindJetsImplementationOutputWrapper findJetsImplementation(
   }
 
   // Apply the subtractor when appropriate
-  if (backgroundSubtraction.type != BackgroundSubtractionType::kEventWiseCS) {
+  if (backgroundSubtraction.type != BackgroundSubtractionType::eventWiseCS) {
     jets = (*subtractor)(jets);
   }
 
@@ -1150,8 +1151,8 @@ OutputWrapper<T> findJetsNew(
   // with the vector containing the user_index assigned earlier in the jet finding process.
   auto constituentIndices = constituentIndicesFromJets(jets);
 
-  if (backgroundSubtraction.type == BackgroundSubtractionType::kEventWiseCS ||
-      backgroundSubtraction.type == BackgroundSubtractionType::kJetWiseCS) {
+  if (backgroundSubtraction.type == BackgroundSubtractionType::eventWiseCS ||
+      backgroundSubtraction.type == BackgroundSubtractionType::jetWiseCS) {
     // NOTE: particlePseudoJets are actually the subtracted constituents now.
     return OutputWrapper<T>{
       numpyJets, constituentIndices, columnarJetsArea, rhoValue, std::make_tuple(
@@ -1506,7 +1507,7 @@ JetSubstructure::JetSubstructureSplittings jetReclusteringNew(
   // Use jet finding implementation to do most of the work
   // We need to disable background subtraction, so create a simple container to disable it
   FourVectorTuple<T> backgroundEstimatorFourVectors = {{}, {}, {}, {}};
-  BackgroundSubtraction backgroundSubtraction{BackgroundSubtractionType::kDisabled, nullptr, nullptr};
+  BackgroundSubtraction backgroundSubtraction{BackgroundSubtractionType::disabled, nullptr, nullptr};
   auto && [cs, backgroundEstimator, jets, particlePseudoJets, subtractedToUnsubtractedIndices] = findJetsImplementation(
     columnFourVectors, mainJetFinder, backgroundEstimatorFourVectors, backgroundSubtraction
   );
