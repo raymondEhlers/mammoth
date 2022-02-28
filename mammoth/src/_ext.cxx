@@ -11,6 +11,9 @@ namespace py = pybind11;
 // Shorthand for literals
 using namespace pybind11::literals;
 
+// First up, some convenient constants
+constexpr double DEFAULT_RAPIDITY_MAX = 1.0;
+
 /**
   * Convert numpy array of px, py, pz, E to a four vector tuple.
   *
@@ -180,6 +183,9 @@ void wrapOutputWrapper(py::module & m, const std::string & typestr)
 }
 
 PYBIND11_MODULE(_ext, m) {
+  // Constants
+  m.attr("DEFAULT_RAPIDITY_MAX") = py::float_(DEFAULT_RAPIDITY_MAX);
+
   // Output wrapper. Just providing access to the fields.
   wrapOutputWrapper<double>(m, "Double");
   wrapOutputWrapper<float>(m, "Float");
@@ -197,7 +203,7 @@ PYBIND11_MODULE(_ext, m) {
     .def(py::init<std::string, double, double, int, double, double, double, std::vector<int>>(),
          "area_type"_a = "active_area",
          "ghost_area"_a = 0.005,
-         "rapidity_max"_a = 1.0,
+         "rapidity_max"_a = DEFAULT_RAPIDITY_MAX,
          "repeat_N_ghosts"_a = 1,
          "grid_scatter"_a = 1.0,
          "kt_scatter"_a = 0.1,
@@ -212,7 +218,7 @@ PYBIND11_MODULE(_ext, m) {
     })
   ;
   // Wrapper for jet finding settings
-  py::class_<mammoth::JetFindingSettings>(m, "JetFinderSettings", "Main settings related to jet finding")
+  py::class_<mammoth::JetFindingSettings>(m, "JetFindingSettings", "Main settings related to jet finding")
     .def(
       py::init<
         double, std::string, std::string, std::string, std::tuple<double, double>, std::tuple<double, double>,
@@ -255,7 +261,7 @@ PYBIND11_MODULE(_ext, m) {
   py::class_<mammoth::GridMedianBackgroundEstimator>(m, "GridMedianBackgroundEstimator", "Background estimator based on a grid")
     .def(
       py::init<double, double>(),
-        "rapidity_max"_a = 1.0,
+        "rapidity_max"_a = DEFAULT_RAPIDITY_MAX,
         "grid_spacing"_a = 1.0
       )
     .def_readwrite("rapidity_max", &mammoth::GridMedianBackgroundEstimator::rapidityMax)
@@ -290,7 +296,7 @@ PYBIND11_MODULE(_ext, m) {
       py::init<double, double, double, std::string>(),
         "r_max"_a = 0.25,
         "alpha"_a = 0.0,
-        "rapidity_max"_a = 1.0,
+        "rapidity_max"_a = DEFAULT_RAPIDITY_MAX,
         "distance_measure"_a = "delta_R"
       )
     .def_readwrite("r_max", &mammoth::ConstituentSubtractor::rMax)
@@ -302,17 +308,17 @@ PYBIND11_MODULE(_ext, m) {
     })
   ;
   // Wrapper for background subtraction
-  //py::class_<mammoth::BackgroundSubtraction>(m, "BackgroundSubtraction", "Background subtraction settings")
-  //  .def(
-  //    py::init<mammoth::BackgroundSubtractionType, std::unique_ptr<mammoth::BackgroundEstimator>, std::unique_ptr<mammoth::BackgroundSubtractor>>(),
-  //      "type"_a,
-  //      "estimator"_a,
-  //      "subtractor"_a
-  //    )
-  //  .def("__repr__", [](const mammoth::BackgroundSubtraction &s) {
-  //    return s.to_string();
-  //  })
-  //;
+  py::class_<mammoth::BackgroundSubtraction>(m, "BackgroundSubtraction", "Background subtraction settings")
+    .def(
+      py::init<mammoth::BackgroundSubtractionType, std::shared_ptr<mammoth::BackgroundEstimator>, std::shared_ptr<mammoth::BackgroundSubtractor>>(),
+        "type"_a,
+        "estimator"_a,
+        "subtractor"_a
+      )
+    .def("__repr__", [](const mammoth::BackgroundSubtraction &s) {
+      return s.to_string();
+    })
+  ;
 
   m.def("find_jets", &findJets<float>, "px"_a, "py"_a, "pz"_a, "E"_a,
                                        "background_px"_a, "background_py"_a, "background_pz"_a, "background_E"_a,
