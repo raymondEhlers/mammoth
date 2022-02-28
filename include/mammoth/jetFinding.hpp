@@ -1482,7 +1482,6 @@ OutputWrapper<T> findJets(
   // Finally, we need to associate the constituents with the jets. To do so, we store one vector per jet,
   // with the vector containing the user_index assigned earlier in the jet finding process.
   auto constituentIndices = constituentIndicesFromJets(jets);
-  // TODO: Moved up
   //T rhoValue = backgroundEstimator ? backgroundEstimator->rho() : 0;
 
   if (constituentSubtraction) {
@@ -1600,8 +1599,6 @@ JetSubstructure::JetSubstructureSplittings jetReclustering(
   //    std::cerr << "(" << temp_i.user_index() << ", " << temp_j.user_index() << "): " << temp_i.rap() - temp_j.rap() << "\n";
   //  }
   //}
-
-  // TODO: Tie into main jet finding function...
 
   // If we use the area definition, we need to create a ClusterSequenceArea.
   // NOTE: The CS has to stay in scope while we explore the splitting history.
