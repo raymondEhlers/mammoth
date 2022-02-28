@@ -3,6 +3,7 @@
 .. codeauthor:: Raymond Ehlers <raymond.ehlers@cern.ch>, ORNL
 """
 
+import functools
 import logging
 from typing import Any, Dict, Final, List, Optional, Tuple, Union
 
@@ -13,11 +14,29 @@ import numpy.typing as npt
 import vector
 
 import mammoth._ext
-from mammoth._ext import AreaSettings, ConstituentSubtractionSettings
+# TODO: Remove ConstituentSubtractionSettings when done since it's been superseeded
+from mammoth._ext import ConstituentSubtractionSettings
+from mammoth._ext import AreaSettings, JetFindingSettings, JetMedianBackgroundEstimator, GridMedianBackgroundEstimator, BackgroundSubtractionType, RhoSubtractor, ConstituentSubtractor, BackgroundSubtraction, DEFAULT_RAPIDITY_MAX
 
 logger = logging.getLogger(__name__)
 
 vector.register_awkward()
+
+JetMedianAreaSettings = functools.partial(
+    AreaSettings,
+    area_type="active_area_explicit_ghosts",
+    ghost_area=0.005,
+    rapidity_max=DEFAULT_RAPIDITY_MAX,
+)
+JetMedianJetFindingSettings = functools.partial(
+    JetFindingSettings,
+    R=0.2,
+    algorithm="kt",
+    reconstruction_scheme="E_scheme",
+    strategy="Best",
+    eta_range=(-0.9 + 0.2, 0.9 - 0.2),
+    area_settings=JetMedianAreaSettings(),
+)
 
 AREA_PP = AreaSettings("active_area", 0.01)
 AREA_AA = AreaSettings("active_area_explicit_ghosts", 0.005)
@@ -340,6 +359,8 @@ def find_jets(
     if background_subtraction and constituent_subtraction:
         raise ValueError("Enabled background subtraction and constituent subtraction together. This isn't compatible. Please disable one.")
 
+    logger.info(f"Area settings: {area_settings}, background_subtraction: {background_subtraction}, cs: {constituent_subtraction}")
+
     # Keep track of the event transitions.
     counts = ak.num(particles, axis=1)
     # To use for indexing, we need to keep track of the cumulative sum. That way, we can
@@ -441,6 +462,7 @@ def find_jets(
         "E": [],
     }
     subtracted_to_unsubtracted_indices = []
+    _event_counter = 0
     for lower, upper, background_lower, background_upper in zip(sum_counts[:-1], sum_counts[1:], background_sum_counts[:-1], background_sum_counts[1:]):
         # Run the actual jet finding.
         res = mammoth._ext.find_jets(
@@ -487,6 +509,13 @@ def find_jets(
             # Plus the association for each subtracted constituent index into the unsubtracted constituent.
             # NOTE: These are the indices assigned via the user_index.
             subtracted_to_unsubtracted_indices.append(subtracted_info[1])
+
+        if len(temp_jets[0]) and np.isclose(temp_jets[0][0], -66.91934424638748):
+            logger.info(f"_event_counter: {_event_counter}")
+        _event_counter += 1
+
+        #if len(jets["rho"]) > 100:
+        #    raise RuntimeError("Stahp")
 
     # To create the output, we start with the constituents.
     # First, we convert the fastjet user_index indices that we use for book keeping during jet finding
@@ -619,6 +648,21 @@ def recluster_jets(jets: ak.Array,
         ak.num(num_constituents, axis=1)
     )
 
+    # For testing, go to a 0 mass hypothesis
+    #{for k, v in zip(ak.fields(jets.constituents), ak.unzip(jets.constituents))
+    _constituents = jets.constituents
+    # Is this the right thing to do for subtracted constituents????
+    # NO: Take the existing mass. Still need to update the AP task
+    #_constituents = ak.zip(
+    #    {
+    #        "pt": jets.constituents.pt,
+    #        "eta": jets.constituents.eta,
+    #        "phi": jets.constituents.phi,
+    #        "m": jets.constituents.pt * 0 + 0.139,
+    #    },
+    #    with_name="Momentum4D",
+    #)
+
     # Now, setup the constituents themselves.
     # It would be nice to flatten them and then assign the components like for standard jet
     # finding, but since we have to flatten with `None` to deals with the multiple levels,
@@ -630,19 +674,22 @@ def recluster_jets(jets: ak.Array,
     # NOTE: To avoid argument mismatches when calling to the c++, we view as float64 (which
     #       will be converted to a double). As of July 2021, tests seem to suggest that it's
     #       not making the float32 -> float conversion properly.
-    px = np.asarray(ak.flatten(jets.constituents.px, axis=None), dtype=np.float64)
-    py = np.asarray(ak.flatten(jets.constituents.py, axis=None), dtype=np.float64)
-    pz = np.asarray(ak.flatten(jets.constituents.pz, axis=None), dtype=np.float64)
-    E = np.asarray(ak.flatten(jets.constituents.E, axis=None), dtype=np.float64)
+    px = np.asarray(ak.flatten(_constituents.px, axis=None), dtype=np.float64)
+    py = np.asarray(ak.flatten(_constituents.py, axis=None), dtype=np.float64)
+    pz = np.asarray(ak.flatten(_constituents.pz, axis=None), dtype=np.float64)
+    E = np.asarray(ak.flatten(_constituents.E, axis=None), dtype=np.float64)
 
     # import IPython; IPython.embed()
 
     event_splittings = _splittings_output()
     event_subjets = _subjets_output()
-    for starts, stops in zip(starts_constituents, stops_constituents):
+    for _temp, (starts, stops) in enumerate(zip(starts_constituents, stops_constituents)):
         jets_splittings = _splittings_output()
         jets_subjets = _subjets_output()
         for lower, upper in zip(starts, stops):
+            #if _temp == 78:
+            #    logger.info(f"lower, upper: {lower}, {upper}")
+            #    import IPython; IPython.embed()
             res = mammoth._ext.recluster_jet(
                 px=px[lower:upper],
                 py=py[lower:upper],
@@ -662,6 +709,10 @@ def recluster_jets(jets: ak.Array,
             jets_subjets["part_of_iterative_splitting"].append(_temp_subjets.part_of_iterative_splitting)
             jets_subjets["constituent_indices"].append(_temp_subjets.constituent_indices)
 
+            #if _temp == 78:
+            #    logger.info(f"after")
+            #    import IPython; IPython.embed()
+
         # Now, move to the overall output objects.
         # NOTE: We want to fill this even if we didn't perform any reclustering to ensure that
         #       we keep the right shape.
@@ -669,6 +720,8 @@ def recluster_jets(jets: ak.Array,
             event_splittings[k].append(jets_splittings[k])
         for k in event_subjets:
             event_subjets[k].append(jets_subjets[k])
+
+    #import IPython; IPython.embed()
 
     return ak.zip(
         {
