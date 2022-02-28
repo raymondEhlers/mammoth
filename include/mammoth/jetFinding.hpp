@@ -606,6 +606,46 @@ std::vector<unsigned int> updateSubtractedConstituentIndices(
 );
 
 /**
+ * @brief Generic function to handle the implementation of jet finding.
+ *
+ * @tparam T Input data type (usually float or double)
+ * @param columnFourVectors Column four vectors, with the columns ordered ["px", "py", "pz", "E"]
+ * @param mainJetFinder Settings for jet finding, including R, algorithm, acceptance, area settings, etc
+ * @param backgroundEstimatorFourVectors Four vectors to provide to the background estimator. If they're empty
+ *                                       the column (ie. input) four vectors are used.
+ * @param backgroundSubtraction Settings for background subtraction, including the option to specify the
+ *                              background estimator and background subtractor.
+ * @return FindJetsImplementationOutputWrapper Output from jet finding, including the CS, background estimator, jets, etc.
+ */
+template<typename T>
+FindJetsImplementationOutputWrapper findJetsImplementation(
+  FourVectorTuple<T> & columnFourVectors,
+  const JetFindingSettings & mainJetFinder,
+  FourVectorTuple<T> & backgroundEstimatorFourVectors,
+  const BackgroundSubtraction & backgroundSubtraction
+);
+
+/**
+ * @brief Find jets based on the input particles and settings.
+ *
+ * @tparam T Input data type (usually float or double)
+ * @param columnFourVectors Column four vectors, with the columns ordered ["px", "py", "pz", "E"]
+ * @param mainJetFinder Settings for jet finding, including R, algorithm, acceptance, area settings, etc
+ * @param backgroundEstimatorFourVectors Four vectors to provide to the background estimator. If they're empty
+ *                                       the column (ie. input) four vectors are used.
+ * @param backgroundSubtraction Settings for background subtraction, including the option to specify the
+ *                              background estimator and background subtractor.
+ * @return OutputWrapper<T> Output from jet finding.
+ */
+template<typename T>
+OutputWrapper<T> findJetsNew(
+  FourVectorTuple<T> & columnFourVectors,
+  const JetFindingSettings & mainJetFinder,
+  FourVectorTuple<T> & backgroundEstimatorFourVectors,
+  const BackgroundSubtraction & backgroundSubtraction
+);
+
+/**
   * @brief Implementation of main jet finder.
   *
   * @tparam T Input data type (usually float or double)
@@ -803,6 +843,20 @@ void ExtractJetSplittings(
   int splittingNodeIndex,
   bool followingIterativeSplitting,
   const bool storeRecursiveSplittings
+);
+
+/**
+ * @brief Main function for jet reclustering
+ *
+ * @tparam T Input data type (usually float or double)
+ * @param columnFourVectors Column four vectors, with the columns ordered ["px", "py", "pz", "E"]
+ * @param mainJetFinder Settings for jet finding, including R, algorithm, acceptance, area settings, etc
+ * @return JetSubstructure::JetSubstructureSplittings Jet substructure splittings container
+ */
+template<typename T>
+JetSubstructure::JetSubstructureSplittings jetReclusteringNew(
+  FourVectorTuple<T> & columnFourVectors,
+  const JetFindingSettings & mainJetFinder
 );
 
 /**
@@ -1405,6 +1459,38 @@ OutputWrapper<T> findJets(
     };
   }
   return OutputWrapper<T>{numpyJets, constituentIndices, columnarJetsArea, rhoValue, {}};
+}
+
+
+template<typename T>
+JetSubstructure::JetSubstructureSplittings jetReclusteringNew(
+  FourVectorTuple<T> & columnFourVectors,
+  const JetFindingSettings & mainJetFinder,
+  bool storeRecursiveSplittings
+)
+{
+  // Use jet finding implementation to do most of the work
+  // We need to disable background subtraction, so create a simple container to disable it
+  auto backgroundSubtraction = BackgroundSubtraction{BackgroundSubtractionType::kDisabled, nullptr, nullptr};
+  auto && [cs, backgroundEstimator, jets, particlePseudoJets, subtractedToUnsubtractedIndices] = findJetsImplementation(
+    columnFourVectors, mainJetFinder, {{}, {}, {}, {}}, backgroundSubtraction
+  );
+
+  // Now that we're done, just need to handle formatting the output
+  // TODO: Remove this print out afeter validation...
+  std::cerr << "output jets\n";
+  for (auto & temp_j : jets){
+    std::cerr << temp_j.pt() << "\n";
+  }
+
+  // Extract the reclustered jets
+  fastjet::PseudoJet jj = jets[0];
+  // And store the jet splittings.
+  JetSubstructure::JetSubstructureSplittings jetSplittings;
+  int splittingNodeIndex = -1;
+  ExtractJetSplittings(jetSplittings, jj, splittingNodeIndex, true, storeRecursiveSplittings);
+
+  return jetSplittings;
 }
 
 template<typename T>
