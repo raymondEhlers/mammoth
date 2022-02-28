@@ -20,6 +20,16 @@
 // NOTE: This probably isn't necessary for mammoth, but I'm copying my code from AliPhysics, and trying to modify
 //       it as little as possible. So since this doesn't cause an issue, I will leave it as is.
 namespace mammoth {
+  class AreaSettings;
+  class JetFindingSettings;
+  class BackgroundEstimator;
+  class JetMedianBackgroundEstimator;
+  class GridMedianBackgroundEstimator;
+  enum class BackgroundSubtractionType;
+  class BackgroundSubtractor;
+  class RhoSubtractor;
+  class ConstituentSubtractor;
+  class BackgroundSubtraction;
 namespace JetSubstructure {
   class Subjets;
   class JetSplittings;
@@ -35,6 +45,17 @@ void swap(mammoth::JetSubstructure::JetSplittings& first,
      mammoth::JetSubstructure::JetSplittings& second);
 void swap(mammoth::JetSubstructure::JetSubstructureSplittings& first,
      mammoth::JetSubstructure::JetSubstructureSplittings& second);
+
+std::ostream& operator<<(std::ostream& in, const mammoth::AreaSettings & c);
+std::ostream& operator<<(std::ostream& in, const mammoth::JetFindingSettings & c);
+std::ostream& operator<<(std::ostream& in, const mammoth::BackgroundEstimator & c);
+std::ostream& operator<<(std::ostream& in, const mammoth::JetMedianBackgroundEstimator & c);
+std::ostream& operator<<(std::ostream& in, const mammoth::GridMedianBackgroundEstimator & c);
+std::ostream& operator<<(std::ostream& in, const mammoth::BackgroundSubtractionType& c);
+std::ostream& operator<<(std::ostream& in, const mammoth::BackgroundSubtractor& c);
+std::ostream& operator<<(std::ostream& in, const mammoth::RhoSubtractor& c);
+std::ostream& operator<<(std::ostream& in, const mammoth::ConstituentSubtractor& c);
+std::ostream& operator<<(std::ostream& in, const mammoth::BackgroundSubtraction& c);
 
 namespace mammoth {
 
@@ -121,14 +142,14 @@ struct OutputWrapper {
  * Just a simple container for area related settings
  */
 struct AreaSettings {
-  std::string areaTypeName{"active_area"};
-  double ghostArea{0.005};
-  double rapidityMax{1.0};
-  int repeatN{1};
-  double gridScatter{1.0};
-  double ktScatter{0.1};
-  double ktMean{1e-100};
-  std::vector<int> randomSeed{};
+  std::string areaTypeName;
+  double ghostArea;
+  double rapidityMax;
+  int repeatN;
+  double gridScatter;
+  double ktScatter;
+  double ktMean;
+  std::vector<int> randomSeed;
 
   fastjet::AreaType areaType() const { return areaTypes.at(this->areaTypeName); }
 
@@ -141,6 +162,7 @@ struct AreaSettings {
       this->ktScatter,
       this->ktMean
     );
+    // Use a fixed seed if it was provided
     if (this->randomSeed.size() > 0) {
       return ghostedAreaSpec.with_fixed_seed(this->randomSeed);
     }
@@ -149,12 +171,27 @@ struct AreaSettings {
 
   fastjet::AreaDefinition areaDefinition() const {
     fastjet::AreaDefinition areaDefinition(this->areaType(), this->ghostedAreaSpec());
-    // TODO: Check if this is required...
+    // TODO: Check if this is required of if the above is enough...
     //if (this->randomSeed.size() > 0) {
     //  return areaDefinition.with_fixed_seed(this->randomSeed);
     //}
     return areaDefinition;
   }
+
+  /**
+   * Prints information about the settings.
+   *
+   * @return std::string containing information about the task.
+   */
+  std::string to_string() const;
+  /**
+   * Print task information on an output stream using the string representation provided by
+   * AreaSettings::to_string. Used by operator<<
+   *
+   * @param in output stream stream
+   * @return reference to the output stream
+   */
+  friend std::ostream & ::operator<<(std::ostream &in, const AreaSettings &areaSettings);
 
   protected:
     static const std::map<std::string, fastjet::AreaType> areaTypes;
@@ -521,7 +558,6 @@ fastjet::JetAlgorithm getJetAlgorithm(std::string jetAlgorithmStr)
   return jetAlgorithms.at(jetAlgorithmStr);
 }
 
-/*
 fastjet::AreaType getAreaType(const AreaSettings & areaSettings)
 {
   // Area type
@@ -530,9 +566,8 @@ fastjet::AreaType getAreaType(const AreaSettings & areaSettings)
     {"active_area_explicit_ghosts", fastjet::AreaType::active_area_explicit_ghosts},
     {"passive_area", fastjet::AreaType::passive_area},
   };
-  return areaTypes.at(areaSettings.areaType);
+  return areaTypes.at(areaSettings.areaTypeName);
 }
-*/
 
 // From: https://stackoverflow.com/a/39487448/12907985
 template <typename T = double, typename C>
@@ -562,11 +597,14 @@ struct JetFindingSettings {
   std::tuple<double, double> etaRange;
   const std::optional<const AreaSettings> areaSettings{std::nullopt};
 
+  // Helper
+  double minJetPt() const { return std::get<0>(this->ptRange); }
+
   fastjet::JetAlgorithm algorithm() const { return this->algorithms.at(this->algorithmName); }
   fastjet::RecombinationScheme recombinationScheme() const { return this->recombinationSchemes.at(this->recombinationSchemeName); }
   fastjet::Strategy strategy() const { return this->strategies.at(this->strategyName); }
 
-  fastjet::Selector & selectorPtEtaNonGhost() const {
+  fastjet::Selector selectorPtEtaNonGhost() const {
     const auto [jetPtMin, jetPtMax] = this->ptRange;
     const auto [jetEtaMin, jetEtaMax] = this->etaRange;
 
@@ -597,6 +635,14 @@ struct JetFindingSettings {
     );
   }
 
+  /**
+   * Prints information about the settings.
+   *
+   * @return std::string containing information about the task.
+   */
+  std::string to_string() const;
+  friend std::ostream & ::operator<<(std::ostream &in, const JetFindingSettings &settings);
+
  protected:
   static const std::map<std::string, fastjet::JetAlgorithm> algorithms;
   static const std::map<std::string, fastjet::RecombinationScheme> recombinationSchemes;
@@ -605,13 +651,21 @@ struct JetFindingSettings {
 
 struct BackgroundEstimator {
   virtual std::unique_ptr<fastjet::BackgroundEstimatorBase> create() = 0;
+
+  /**
+   * Prints information about the estimator.
+   *
+   * @return std::string containing information about the estimator.
+   */
+  virtual std::string to_string() const = 0;
+  friend std::ostream & ::operator<<(std::ostream &in, const BackgroundEstimator &estimator);
 };
 
 struct JetMedianBackgroundEstimator : BackgroundEstimator {
   JetFindingSettings settings;
   bool computeRhoM{true};
   bool useAreaFourVector{true};
-  int nExcludeHardestJets{2};
+  int excludeNHardestJets{2};
   double constituentPtMax{100};
   //// Estimator Settings
   //// Same as above, so let's just create two classes with different defaults...
@@ -619,11 +673,11 @@ struct JetMedianBackgroundEstimator : BackgroundEstimator {
   //std::string algorithm{"kt"};
   //std::string recombinationScheme{"E_scheme"};
   //std::string strategy{"best"};
-  //AreaSettings areaSettings;
   //std::tuple<double, double> ptRange;
-  //std::tuple<double, double> etaRange;
+  //std::tuple<double, double> etaRange = std::make_tuple(-0.9, 0.9);
+  //AreaSettings areaSettings;
 
-  fastjet::Selector & selector() {
+  fastjet::Selector selector() {
     // Select jets for calculating the background
     // As of September 2021, this includes (ordered from top to bottom):
     // - Fiducial eta selection
@@ -658,11 +712,11 @@ struct JetMedianBackgroundEstimator : BackgroundEstimator {
     //fastjet::Selector selRho = !fastjet::SelectorNHardest(2) * !fastjet::SelectorIsPureGhost() * fastjet::SelectorRapRange(backgroundJetEtaMin, backgroundJetEtaMax);
     //fastjet::Selector selRho = !fastjet::SelectorNHardest(2) * !fastjet::SelectorIsPureGhost() * fastjet::SelectorEtaRange(backgroundJetEtaMin, backgroundJetEtaMax);
     const auto [jetEtaMin, jetEtaMax] = this->settings.etaRange;
-    fastjet::Selector selRho = !fastjet::SelectorNHardest(this->nExcludeHardestJets)
+    fastjet::Selector selRho = !fastjet::SelectorNHardest(this->excludeNHardestJets)
                                //* !fastjet::SelectorIsPureGhost()  // NB: This selector doesn't make a difference...
                                * fastjet::SelectorEtaRange(jetEtaMin, jetEtaMax)
                                * SelectorConstituentPtMax(this->constituentPtMax);
-
+    return selRho;
   }
 
   std::unique_ptr<fastjet::BackgroundEstimatorBase> create() override {
@@ -690,6 +744,14 @@ struct JetMedianBackgroundEstimator : BackgroundEstimator {
 
     return backgroundEstimator;
   }
+
+  /**
+   * Prints information about the estimator.
+   *
+   * @return std::string containing information about the estimator.
+   */
+  std::string to_string() const;
+  friend std::ostream & ::operator<<(std::ostream &in, const JetMedianBackgroundEstimator &estimator);
 };
 
 struct GridMedianBackgroundEstimator : BackgroundEstimator {
@@ -699,10 +761,18 @@ struct GridMedianBackgroundEstimator : BackgroundEstimator {
   std::unique_ptr<fastjet::BackgroundEstimatorBase> create() override {
     return std::make_unique<fastjet::GridMedianBackgroundEstimator>(this->rapidityMax, this->gridSpacing);
   }
+
+  /**
+   * Prints information about the estimator.
+   *
+   * @return std::string containing information about the estimator.
+   */
+  std::string to_string() const;
+  friend std::ostream & ::operator<<(std::ostream &in, const GridMedianBackgroundEstimator &estimator);
 };
 
 enum class BackgroundSubtractionType {
-  kNone = 0,
+  kDisabled = 0,
   kRho= 1,
   kEventWiseCS = 2,
   kJetWiseCS = 3,
@@ -710,6 +780,14 @@ enum class BackgroundSubtractionType {
 
 struct BackgroundSubtractor {
   virtual std::unique_ptr<fastjet::Transformer> create(std::shared_ptr<fastjet::BackgroundEstimatorBase> backgroundEstimator) = 0;
+
+  /**
+   * Prints information about the subtractor.
+   *
+   * @return std::string containing information about the subtractor.
+   */
+  virtual std::string to_string() const = 0;
+  friend std::ostream & ::operator<<(std::ostream &in, const BackgroundSubtractor &subtractor);
 };
 
 struct RhoSubtractor : BackgroundSubtractor {
@@ -729,13 +807,21 @@ struct RhoSubtractor : BackgroundSubtractor {
 
     return subtractor;
   }
+
+  /**
+   * Prints information about the subtractor.
+   *
+   * @return std::string containing information about the subtractor.
+   */
+  std::string to_string() const;
+  friend std::ostream & ::operator<<(std::ostream &in, const RhoSubtractor &subtractor);
 };
 
 struct ConstituentSubtractor : BackgroundSubtractor {
   double rMax{0.25};
-  double alpha{0};
+  double alpha{0.0};
   double rapidityMax{1.0};
-  std::string distanceMeasure{"deltaR"};
+  std::string distanceMeasure{"delta_R"};
 
   std::unique_ptr<fastjet::Transformer> create(std::shared_ptr<fastjet::BackgroundEstimatorBase> backgroundEstimator) override {
     // Determine derived settings first
@@ -745,7 +831,7 @@ struct ConstituentSubtractor : BackgroundSubtractor {
     auto constituentSubtractor = std::make_unique<fastjet::contrib::ConstituentSubtractor>();
 
     // Then configure
-    constituentSubtractor->set_distance_type(fastjet::contrib::ConstituentSubtractor::deltaR);
+    constituentSubtractor->set_distance_type(distanceType);
     constituentSubtractor->set_max_distance(this->rMax);
     constituentSubtractor->set_alpha(this->alpha);
     // ALICE doesn't appear to set the ghost area, so we skip it here and use the default of 0.01
@@ -767,14 +853,30 @@ struct ConstituentSubtractor : BackgroundSubtractor {
     return constituentSubtractor;
   }
 
+  /**
+   * Prints information about the subtractor.
+   *
+   * @return std::string containing information about the subtractor.
+   */
+  std::string to_string() const;
+  friend std::ostream & ::operator<<(std::ostream &in, const ConstituentSubtractor &subtractor);
+
  protected:
   static const std::map<std::string, fastjet::contrib::ConstituentSubtractor::Distance> distanceTypes;
 };
 
-struct BackgroundSubtractionSettings {
+struct BackgroundSubtraction {
   BackgroundSubtractionType type;
-  std::unique_ptr<BackgroundEstimator> backgroundEstimator{nullptr};
-  std::unique_ptr<BackgroundSubtractor> backgroundSubtractor{nullptr};
+  std::unique_ptr<BackgroundEstimator> estimator{nullptr};
+  std::unique_ptr<BackgroundSubtractor> subtractor{nullptr};
+
+  /**
+   * Prints information about the background subtraction.
+   *
+   * @return std::string containing information about the background subtraction.
+   */
+  std::string to_string() const;
+  friend std::ostream & ::operator<<(std::ostream &in, const BackgroundSubtraction &c);
 };
 
 template<typename T>
@@ -782,7 +884,7 @@ OutputWrapper<T> findJetsNew(
   FourVectorTuple<T> & columnFourVectors,
   const JetFindingSettings & mainJetFinder,
   FourVectorTuple<T> & backgroundEstimatorFourVectors,
-  const BackgroundSubtractionSettings & backgroundSubtraction
+  const BackgroundSubtraction & backgroundSubtraction
 )
 {
   // TODO: This needs to get moved out...
@@ -808,13 +910,13 @@ OutputWrapper<T> findJetsNew(
   // First start with a background estimator, if we're running one.
   std::shared_ptr<fastjet::BackgroundEstimatorBase> backgroundEstimator;
   std::shared_ptr<fastjet::Transformer> subtractor;
-  if (backgroundSubtraction.type != BackgroundSubtractionType::kNone) {
+  if (backgroundSubtraction.type != BackgroundSubtractionType::kDisabled) {
     // First, we need to create the background estimator
-    if (!backgroundSubtraction.backgroundEstimator) {
-      throw std::runtime_error("Background estimator is required, but not defined. Please check settings!")
+    if (!backgroundSubtraction.estimator) {
+      throw std::runtime_error("Background estimator is required, but not defined. Please check settings!");
     }
     // All of the settings are specified in the background estimator
-    backgroundEstimator = backgroundSubtraction.backgroundEstimator->create();
+    backgroundEstimator = backgroundSubtraction.estimator->create();
 
     // Setup the input particles for the estimator so we it calculate the background.
     // If we have background estimator four vectors, we need to make sure we use them here.
@@ -830,22 +932,22 @@ OutputWrapper<T> findJetsNew(
 
     // TODO: TEMP
     // Create a manual CS for background estimator to verify that the seed is set correctly.
-    auto jetMedianSettings = dynamic_cast<std::shared_ptr<JetMedianBackgroundEstimator>>(backgroundSubtraction.backgroundEstimator);
+    auto jetMedianSettings = dynamic_cast<std::shared_ptr<JetMedianBackgroundEstimator>>(backgroundSubtraction.estimator);
     auto csBkg = jetMedianSettings->settings.create(
       possibleBackgroundEstimatorParticles.size() > 0
       ? possibleBackgroundEstimatorParticles
-      : particlePseudoJets)
+      : particlePseudoJets
     );
     // Try use JetMedianBackgroundEstimator w/ existing ClusterSequence
-    fastjet::JetMedianBackgroundEstimator bgeWithExistingCS(jetMedianSettings.selector(), csBkg);
-    bgeWithExisting.set_compute_rho_m(true);
-    bgeWithExisting.set_use_area_4vector(true);
+    fastjet::JetMedianBackgroundEstimator bgeWithExistingCS(jetMedianSettings->selector(), csBkg);
+    bgeWithExistingCS.set_compute_rho_m(true);
+    bgeWithExistingCS.set_use_area_4vector(true);
     std::cerr << "rhoWithCS=" << bgeWithExistingCS.rho() << ", standard rho=" << backgroundEstimator->rho() << "\n";
     // ENDTEMP
 
     // Next up, create the subtractor
     // All of the settings are specified in the background subtractor
-    subtractor = backgroundSubtraction.backgroundSubtractor->create(backgroundEstimator);
+    subtractor = backgroundSubtraction.subtractor->create(backgroundEstimator);
   }
 
   // For constituent subtraction, we perform event-wise subtraction on the input particles
@@ -853,13 +955,15 @@ OutputWrapper<T> findJetsNew(
   // (both of which are based on the user_index that we assign during the jet finding).
   std::vector<unsigned int> subtractedToUnsubtractedIndices;
   if (backgroundSubtraction.type == BackgroundSubtractionType::kEventWiseCS) {
+    // Need to cast to CS object so we can actually do the event-wise subtraction
+    auto constituentSubtractor = std::dynamic_pointer_cast<fastjet::contrib::ConstituentSubtractor>(subtractor);
     particlePseudoJets = constituentSubtractor->subtract_event(particlePseudoJets);
     subtractedToUnsubtractedIndices = updateSubtractedConstituentIndices(particlePseudoJets);
   }
 
   // Perform jet finding on signal
   auto cs = mainJetFinder.create(particlePseudoJets);
-  auto jets = cs->inclusive_jets(minJetPt);
+  auto jets = cs->inclusive_jets(mainJetFinder.minJetPt());
 
   std::vector<int> fixedSeed;
   // NOTE: Need to retrieve it for the CSA because we pass copies of objects, not by reference
@@ -871,7 +975,7 @@ OutputWrapper<T> findJetsNew(
   std::cout << "\n";
 
   // Apply the subtractor when appropriate
-  if (backgroundSubtraction.type != BackgroundSubtractionType.kEventWiseCS) {
+  if (backgroundSubtraction.type != BackgroundSubtractionType::kEventWiseCS) {
     jets = (*subtractor)(jets);
   }
 
@@ -879,7 +983,7 @@ OutputWrapper<T> findJetsNew(
   // NOTE: It's okay that we already applied the min jet pt cut when we take the inclusive_jets above
   //       because any additional subtraction will just remove more jets (ie. the first cut is _less_
   //       restrictive than the second)
-  jets = mainJetFinder.selector()(jets);
+  jets = mainJetFinder.selectorPtEtaNonGhost()(jets);
 
   // Sort by pt for convenience
   jets = fastjet::sorted_by_pt(jets);
@@ -894,8 +998,8 @@ OutputWrapper<T> findJetsNew(
   auto constituentIndices = constituentIndicesFromJets(jets);
   T rhoValue = backgroundEstimator ? backgroundEstimator->rho() : 0;
 
-  if (backgroundSubtraction.type == BackgroundSubtractionType.kEventWiseCS ||
-      backgroundSubtraction.type == BackgroundSubtractionType.kJetWiseCS) {
+  if (backgroundSubtraction.type == BackgroundSubtractionType::kEventWiseCS ||
+      backgroundSubtraction.type == BackgroundSubtractionType::kJetWiseCS) {
     // NOTE: particlePseudoJets are actually the subtracted constituents now.
     return OutputWrapper<T>{
       numpyJets, constituentIndices, columnarJetsArea, rhoValue, std::make_tuple(
@@ -1310,6 +1414,8 @@ JetSubstructure::JetSubstructureSplittings jetReclustering(
   //    std::cerr << "(" << temp_i.user_index() << ", " << temp_j.user_index() << "): " << temp_i.rap() - temp_j.rap() << "\n";
   //  }
   //}
+
+  // TODO: Tie into main jet finding function...
 
   // If we use the area definition, we need to create a ClusterSequenceArea.
   // NOTE: The CS has to stay in scope while we explore the splitting history.

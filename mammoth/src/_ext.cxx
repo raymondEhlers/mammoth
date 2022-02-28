@@ -183,15 +183,6 @@ PYBIND11_MODULE(_ext, m) {
   // Output wrapper. Just providing access to the fields.
   wrapOutputWrapper<double>(m, "Double");
   wrapOutputWrapper<float>(m, "Float");
-  // Wrapper for area settings
-  py::class_<mammoth::AreaSettings>(m, "AreaSettings", "Settings related to jet finding area")
-    .def(py::init<std::string, double>(), "area_type"_a = "active_area", "ghost_area"_a = 0.005)
-    .def_readwrite("area_type", &mammoth::AreaSettings::areaType)
-    .def_readwrite("ghost_area", &mammoth::AreaSettings::ghostArea)
-    .def("__repr__", [](const mammoth::AreaSettings &s) {
-      return "<AreaSettings area_type='" + s.areaType + "', ghost_area=" + std::to_string(s.ghostArea) + ">";
-    })
-  ;
   // Wrapper for constituent subtraction settings
   py::class_<mammoth::ConstituentSubtractionSettings>(m, "ConstituentSubtractionSettings", "Constituent subtraction settings")
     .def(py::init<double, double>(), "r_max"_a = 0.25, "alpha"_a = 0)
@@ -201,6 +192,128 @@ PYBIND11_MODULE(_ext, m) {
       return "<ConstituentSubtractionSettings r_max=" + std::to_string(s.rMax) + ", alpha=" + std::to_string(s.alpha) + ">";
     })
   ;
+  // Wrapper for area settings
+  py::class_<mammoth::AreaSettings>(m, "AreaSettings", "Settings related to jet finding area")
+    .def(py::init<std::string, double, double, int, double, double, double, std::vector<int>>(),
+         "area_type"_a = "active_area",
+         "ghost_area"_a = 0.005,
+         "rapidity_max"_a = 1.0,
+         "repeat_N_ghosts"_a = 1,
+         "grid_scatter"_a = 1.0,
+         "kt_scatter"_a = 0.1,
+         "kt_mean"_a = 1e-100,
+         "random_seed"_a = std::vector<int>{}
+      )
+    .def_readwrite("area_type", &mammoth::AreaSettings::areaTypeName)
+    .def_readwrite("ghost_area", &mammoth::AreaSettings::ghostArea)
+    .def_readwrite("rapidity_max", &mammoth::AreaSettings::rapidityMax)
+    .def("__repr__", [](const mammoth::AreaSettings &s) {
+      return s.to_string();
+    })
+  ;
+  // Wrapper for jet finding settings
+  py::class_<mammoth::JetFindingSettings>(m, "JetFinderSettings", "Main settings related to jet finding")
+    .def(
+      py::init<
+        double, std::string, std::string, std::string, std::tuple<double, double>, std::tuple<double, double>,
+        const std::optional<const mammoth::AreaSettings>
+      >(),
+        "R"_a,
+        "algorithm"_a,
+        "recombination_scheme"_a,
+        "strategy"_a = "Best",
+        "pt_range"_a = std::make_tuple(0.0, 10000.0),
+        "eta_range"_a = std::make_tuple(0.9, 0.9),
+        "area_settings"_a = std::nullopt
+      )
+    .def_readwrite("R", &mammoth::JetFindingSettings::R)
+    .def("__repr__", [](const mammoth::JetFindingSettings &s) {
+      return s.to_string();
+    })
+  ;
+  // Wrapper for jet median background estimator
+  py::class_<mammoth::JetMedianBackgroundEstimator>(m, "JetMedianBackgroundEstimator", "Background estimator based on jet median")
+    .def(
+      py::init<
+        mammoth::JetFindingSettings, bool, bool, int, double
+      >(),
+        "jet_finding_settings"_a,
+        "compute_rho_m"_a = true,
+        "use_area_four_vector"_a = true,
+        "exclude_n_hardest_jets"_a = 2,
+        "constituent_pt_max"_a = 100.0
+      )
+    .def_readwrite("compute_rho_m", &mammoth::JetMedianBackgroundEstimator::computeRhoM)
+    .def_readwrite("use_area_four_vector", &mammoth::JetMedianBackgroundEstimator::useAreaFourVector)
+    .def_readwrite("exclude_n_hardest_jets", &mammoth::JetMedianBackgroundEstimator::excludeNHardestJets)
+    .def_readwrite("constituent_pt_max", &mammoth::JetMedianBackgroundEstimator::constituentPtMax)
+    .def("__repr__", [](const mammoth::JetMedianBackgroundEstimator &s) {
+      return s.to_string();
+    })
+  ;
+  // Wrapper for grid median background estimator
+  py::class_<mammoth::GridMedianBackgroundEstimator>(m, "GridMedianBackgroundEstimator", "Background estimator based on a grid")
+    .def(
+      py::init<double, double>(),
+        "rapidity_max"_a = 1.0,
+        "grid_spacing"_a = 1.0
+      )
+    .def_readwrite("rapidity_max", &mammoth::GridMedianBackgroundEstimator::rapidityMax)
+    .def_readwrite("grid_spacing", &mammoth::GridMedianBackgroundEstimator::gridSpacing)
+    .def("__repr__", [](const mammoth::GridMedianBackgroundEstimator &s) {
+      return s.to_string();
+    })
+  ;
+  // Background subtraction type
+  py::enum_<mammoth::BackgroundSubtractionType>(m, "BackgroundSubtractionType",  py::arithmetic(), "Background subtraction type")
+    .value("disabled", mammoth::BackgroundSubtractionType::kDisabled, "Subtraction disabled")
+    .value("rho", mammoth::BackgroundSubtractionType::kRho, "Rho subtraction")
+    .value("event_wise_constituent_subtraction", mammoth::BackgroundSubtractionType::kEventWiseCS, "Event-wise constituent subtraction")
+    .value("jet_wise_constituent_subtraction", mammoth::BackgroundSubtractionType::kJetWiseCS, "Jet-wise constituent subtraction")
+    .export_values();
+  // Wrapper for rho background subtractor
+  py::class_<mammoth::RhoSubtractor>(m, "RhoSubtractor", "Rho based background subtraction")
+    .def(
+      py::init<bool, bool>(),
+        "use_rho_M"_a = true,
+        "use_safe_mass"_a = true
+      )
+    .def_readwrite("use_rho_M", &mammoth::RhoSubtractor::useRhoM)
+    .def_readwrite("use_safe_mass", &mammoth::RhoSubtractor::useSafeMass)
+    .def("__repr__", [](const mammoth::RhoSubtractor &s) {
+      return s.to_string();
+    })
+  ;
+  // Wrapper for constituent subtraction
+  py::class_<mammoth::ConstituentSubtractor>(m, "ConstituentSubtractor", "Background subtraction via Constituent Subtraction")
+    .def(
+      py::init<double, double, double, std::string>(),
+        "r_max"_a = 0.25,
+        "alpha"_a = 0.0,
+        "rapidity_max"_a = 1.0,
+        "distance_measure"_a = "delta_R"
+      )
+    .def_readwrite("r_max", &mammoth::ConstituentSubtractor::rMax)
+    .def_readwrite("alpha", &mammoth::ConstituentSubtractor::alpha)
+    .def_readwrite("rapidity_max", &mammoth::ConstituentSubtractor::rapidityMax)
+    .def_readwrite("distance_measure", &mammoth::ConstituentSubtractor::distanceMeasure)
+    .def("__repr__", [](const mammoth::ConstituentSubtractor &s) {
+      return s.to_string();
+    })
+  ;
+  // Wrapper for background subtraction
+  py::class_<mammoth::BackgroundSubtraction>(m, "BackgroundSubtraction", "Background subtraction settings")
+    .def(
+      py::init<mammoth::BackgroundSubtractionType, std::unique_ptr<mammoth::BackgroundEstimator>, std::unique_ptr<mammoth::BackgroundSubtractor>>(),
+        "type"_a,
+        "estimator"_a,
+        "subtractor"_a
+      )
+    .def("__repr__", [](const mammoth::BackgroundSubtraction &s) {
+      return s.to_string();
+    })
+  ;
+
   m.def("find_jets", &findJets<float>, "px"_a, "py"_a, "pz"_a, "E"_a,
                                        "background_px"_a, "background_py"_a, "background_pz"_a, "background_E"_a,
                                        "jet_R"_a, "jet_algorithm"_a, "area_settings"_a,

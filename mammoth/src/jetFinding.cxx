@@ -180,6 +180,143 @@ fastjet::Selector SelectorConstituentPtMax(double constituentPtMax) {
 }
 
 
+const std::map<std::string, fastjet::AreaType> AreaSettings::areaTypes = {
+  {"active_area", fastjet::AreaType::active_area},
+  {"active_area_explicit_ghosts", fastjet::AreaType::active_area_explicit_ghosts},
+  {"passive_area", fastjet::AreaType::passive_area},
+};
+
+std::string AreaSettings::to_string() const
+{
+  std::string randomSeedValues = "[";
+  // Padding formatting based on https://stackoverflow.com/a/3498121/12907985
+  const char * padding = "";
+  for (const auto v : this->randomSeed) {
+    randomSeedValues += (padding + std::to_string(v));
+    padding = ", ";
+  }
+  if (randomSeedValues.size() > 1) {
+    randomSeedValues.erase(randomSeedValues.end() - 2, randomSeedValues.end());
+  }
+  randomSeedValues += "]";
+  return "AreaSettings(area_type='" + this->areaTypeName + "'"
+          + ", ghost_area=" + std::to_string(this->ghostArea)
+          + ", rapidity_max=" + std::to_string(this->rapidityMax)
+          + ", repeat_N_ghosts=" + std::to_string(this->repeatN)
+          + ", grid_scatter=" + std::to_string(this->gridScatter)
+          + ", kt_scatter=" + std::to_string(this->ktScatter)
+          + ", kt_mean=" + std::to_string(this->ktMean)
+          + ", random_seed=" + randomSeedValues
+          + ")";
+}
+
+const std::map<std::string, fastjet::JetAlgorithm> JetFindingSettings::algorithms = {
+  {"anti-kt", fastjet::JetAlgorithm::antikt_algorithm},
+  {"anti_kt", fastjet::JetAlgorithm::antikt_algorithm},
+  {"kt", fastjet::JetAlgorithm::kt_algorithm},
+  {"CA", fastjet::JetAlgorithm::cambridge_algorithm},
+};
+const std::map<std::string, fastjet::RecombinationScheme> recombinationSchemes = {
+  {"BIpt2_scheme", fastjet::RecombinationScheme::BIpt2_scheme},
+  {"BIpt_scheme", fastjet::RecombinationScheme::BIpt_scheme},
+  {"E_scheme", fastjet::RecombinationScheme::E_scheme},
+  {"Et2_scheme", fastjet::RecombinationScheme::Et2_scheme},
+  {"Et_scheme", fastjet::RecombinationScheme::Et_scheme},
+  {"external_scheme", fastjet::RecombinationScheme::external_scheme},
+  {"pt2_scheme", fastjet::RecombinationScheme::pt2_scheme},
+  {"pt_scheme", fastjet::RecombinationScheme::pt_scheme},
+  {"WTA_modp_scheme", fastjet::RecombinationScheme::WTA_modp_scheme},
+  {"WTA_pt_scheme", fastjet::RecombinationScheme::WTA_pt_scheme},
+};
+const std::map<std::string, fastjet::Strategy> strategies = {
+  {"Best", fastjet::Strategy::Best},
+  {"BestFJ30", fastjet::Strategy::BestFJ30},
+  {"plugin_strategy", fastjet::Strategy::plugin_strategy},
+  // For convenience
+  {"best", fastjet::Strategy::Best},
+  {"bestFJ30", fastjet::Strategy::BestFJ30},
+};
+
+std::string JetFindingSettings::to_string() const
+{
+  std::string result = "JetFindingSettings(R=" + std::to_string(this->R)
+    + ", algorithm='" + this->algorithmName + "'"
+    + ", recombination_scheme='" + this->recombinationSchemeName + "'"
+    + ", strategy=" + this->strategyName + "'"
+    + ", pt=(" + std::to_string(std::get<0>(this->ptRange)) + ", " + std::to_string(std::get<1>(this->ptRange)) + ")"
+    + ", eta=(" + std::to_string(std::get<0>(this->etaRange)) + ", " + std::to_string(std::get<1>(this->etaRange)) + ")";
+  // Add area if it's defined.
+  if (this->areaSettings) {
+    result += ", " + this->areaSettings->to_string();
+  }
+  result += ")";
+  return result;
+}
+
+std::string JetMedianBackgroundEstimator::to_string() const {
+  std::stringstream ss;
+  ss << std::boolalpha
+     << "JetMedianBackgroundEstimator(compute_rho_M=" << this->computeRhoM
+     << ", use_area_four_vector=" << this->useAreaFourVector
+     << ", exclude_n_hardest_jets=" << this->excludeNHardestJets
+     << ", constituent_pt_max=" << this->constituentPtMax
+     << ", " << this->settings.to_string()
+     << ")";
+  return ss.str();
+}
+std::string GridMedianBackgroundEstimator::to_string() const {
+  std::stringstream ss;
+  ss << std::boolalpha
+     << "GridMedianBackgroundEstimator(rapidity_max=" << this->rapidityMax
+     << ", grid_spacing=" << this->gridSpacing
+     << ")";
+  return ss.str();
+}
+
+std::string to_string(const BackgroundSubtractionType & subtractionType) {
+  const std::map<BackgroundSubtractionType, std::string> subtractionTypes = {
+    {BackgroundSubtractionType::kDisabled, "Subtraction disabled"},
+    {BackgroundSubtractionType::kRho, "Rho subtraction"},
+    {BackgroundSubtractionType::kEventWiseCS, "Event-wise constituent subtraction"},
+    {BackgroundSubtractionType::kJetWiseCS, "Jet-wise constituent subtraction"},
+  };
+  return subtractionTypes.at(subtractionType);
+}
+std::string RhoSubtractor::to_string() const {
+  std::stringstream ss;
+  ss << std::boolalpha
+     << "RhoSubtractor(use_rho_M=" << this->useRhoM
+     << ", use_safe_mass=" << this->useSafeMass
+     << ")";
+  return ss.str();
+}
+const std::map<std::string, fastjet::contrib::ConstituentSubtractor::Distance> ConstituentSubtractor::distanceTypes = {
+  {"deltaR", fastjet::contrib::ConstituentSubtractor::Distance::deltaR},
+  {"angle", fastjet::contrib::ConstituentSubtractor::Distance::angle},
+  // Alias is for convience
+  {"delta_R", fastjet::contrib::ConstituentSubtractor::Distance::deltaR},
+};
+std::string ConstituentSubtractor::to_string() const {
+  std::stringstream ss;
+  ss << std::boolalpha
+     << "ConstituentSubtractor(r_max=" << this->rMax
+     << ", alpha=" << this->alpha
+     << ", rapidity_max=" << this->rapidityMax
+     << ", distance_measure=" << this->distanceMeasure
+     << ")";
+  return ss.str();
+}
+
+std::string BackgroundSubtraction::to_string() const {
+  std::stringstream ss;
+  ss << std::boolalpha
+     << "BackgroundSubtraction(type=" << this->type
+     << ", estimator=" << *(this->estimator)
+     << ", subtractor=" << *(this->subtractor)
+     << ")";
+  return ss.str();
+}
+
 std::vector<std::vector<unsigned int>> constituentIndicesFromJets(
   const std::vector<fastjet::PseudoJet> & jets
 )
@@ -215,7 +352,6 @@ std::vector<unsigned int> updateSubtractedConstituentIndices(
 
   return subtractedToUnsubtractedIndices;
 }
-
 
 namespace JetSubstructure
 {
@@ -521,7 +657,7 @@ void ExtractJetSplittings(
         // No parents, so we're done - just return.
         return;
     }
-    //std::cout << "j1 (" << j1.user_index() << "): " << j1.pt() << ", j2(" << j2.user_index() << "): " << j2.pt() << "\n";
+    std::cout << "j1 (" << j1.user_index() << "): " << j1.pt() << ", j2(" << j2.user_index() << "): " << j2.pt() << "\n";
 
     // j1 should always be the harder of the two subjets.
     if (j1.perp() < j2.perp()) {
@@ -532,7 +668,7 @@ void ExtractJetSplittings(
     double z = j2.perp() / (j2.perp() + j1.perp());
     double delta_R = j1.delta_R(j2);
     double xkt = j2.perp() * std::sin(delta_R);
-    //std::cout << "delta_R=" << delta_R << ", kt=" << xkt << ", z=" << z << "\n";
+    std::cout << "delta_R=" << delta_R << ", kt=" << xkt << ", z=" << z << "\n";
     // Add the splitting node.
     jetSplittings.AddSplitting(xkt, delta_R, z, splittingNodeIndex);
     // Determine which splitting parent the subjets will point to (ie. the one that
@@ -650,4 +786,49 @@ void swap(mammoth::JetSubstructure::JetSubstructureSplittings& first,
   // Same ordering as in the constructors (for consistency)
   swap(first.fJetSplittings, second.fJetSplittings);
   swap(first.fSubjets, second.fSubjets);
+}
+
+std::ostream& operator<<(std::ostream& in, const mammoth::AreaSettings & c)
+{
+  in << c.to_string();
+  return in;
+}
+
+std::ostream& operator<<(std::ostream& in, const mammoth::JetFindingSettings & c)
+{
+  in << c.to_string();
+  return in;
+}
+
+std::ostream& operator<<(std::ostream& in, const mammoth::JetMedianBackgroundEstimator & c)
+{
+  in << c.to_string();
+  return in;
+}
+std::ostream& operator<<(std::ostream& in, const mammoth::GridMedianBackgroundEstimator & c)
+{
+  in << c.to_string();
+  return in;
+}
+
+std::ostream& operator<<(std::ostream& in, const mammoth::BackgroundSubtractionType& c)
+{
+  in << mammoth::to_string(c);
+  return in;
+}
+std::ostream& operator<<(std::ostream& in, const mammoth::RhoSubtractor& c)
+{
+  in << c.to_string();
+  return in;
+}
+std::ostream& operator<<(std::ostream& in, const mammoth::ConstituentSubtractor& c)
+{
+  in << c.to_string();
+  return in;
+}
+
+std::ostream& operator<<(std::ostream& in, const mammoth::BackgroundSubtraction& c)
+{
+  in << c.to_string();
+  return in;
 }
