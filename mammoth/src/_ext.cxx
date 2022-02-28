@@ -61,6 +61,49 @@ mammoth::FourVectorTuple<T> numpyToColumnFourVector(
   return {pxOut, pyOut, pzOut, EOut};
 }
 
+
+ /**
+  * @brief Find jets with background subtraction.
+  *
+  * NOTE: The interface is awkward because we can't optionally pass the background estimator particles.
+  *       Instead, we implicitly pass them optionally by reacting if they're empty by passing the input
+  *       particles to the background estimator. It would be nicer if it was better, but the only person
+  *       who has to actually this interface is me, so it's not the end of the world (it's hidden behind
+  *       other functions for all uses).
+  *
+  * @tparam T Input data type (usually float or double).
+  * @param pxIn px of input particles
+  * @param pyIn py of input particles
+  * @param pzIn pz of input particles
+  * @param EIn energy of input particles
+  * @param jetFindingSettings Main jet finding settings
+  * @param backgroundPxIn px of background estimator particles
+  * @param backgroundPyIn py of background estimator particles
+  * @param backgroundPzIn pz of background estimator particles
+  * @param backgroundEIn energy of background estimator particles
+  * @param backgroundSubtraction Background subtraction settings (including estimator and subtractor settings)
+  * @return mammoth::OutputWrapper<T> Output from jet finding.
+  */
+template <typename T>
+mammoth::OutputWrapper<T> findJetsNew(
+  const py::array_t<T, py::array::c_style | py::array::forcecast> & pxIn,
+  const py::array_t<T, py::array::c_style | py::array::forcecast> & pyIn,
+  const py::array_t<T, py::array::c_style | py::array::forcecast> & pzIn,
+  const py::array_t<T, py::array::c_style | py::array::forcecast> & EIn,
+  const mammoth::JetFindingSettings & jetFindingSettings,
+  const py::array_t<T, py::array::c_style | py::array::forcecast> & backgroundPxIn,
+  const py::array_t<T, py::array::c_style | py::array::forcecast> & backgroundPyIn,
+  const py::array_t<T, py::array::c_style | py::array::forcecast> & backgroundPzIn,
+  const py::array_t<T, py::array::c_style | py::array::forcecast> & backgroundEIn,
+  const mammoth::BackgroundSubtraction & backgroundSubtraction
+)
+{
+  auto fourVectors = numpyToColumnFourVector<T>(pxIn, pyIn, pzIn, EIn);
+  // NOTE: These may be empty. If they are, the input four vectors are used for the background estimator
+  auto backgroundFourVectors = numpyToColumnFourVector<T>(backgroundPxIn, backgroundPyIn, backgroundPzIn, backgroundEIn);
+  return mammoth::findJetsNew(fourVectors, jetFindingSettings,backgroundFourVectors, backgroundSubtraction);
+}
+
  /**
   * @brief Find jets with background subtraction.
   *
@@ -112,6 +155,33 @@ mammoth::OutputWrapper<T> findJets(
   // NOTE: These may be empty. If they are, the input four vectors are used for the background estimator
   auto backgroundFourVectors = numpyToColumnFourVector<T>(backgroundPxIn, backgroundPyIn, backgroundPzIn, backgroundEIn);
   return mammoth::findJets(fourVectors, jetR, jetAlgorithm, areaSettings, etaRange, fiducialAcceptance, minJetPt, backgroundFourVectors, backgroundSubtraction, constituentSubtraction);
+}
+
+/**
+ * @brief Jet reclustering
+ *
+ * @tparam T Input data type (usually float or double).
+ * @param pxIn px of input particles
+ * @param pyIn py of input particles
+ * @param pzIn pz of input particles
+ * @param EIn energy of input particles
+ * @param jetFindingSettings Main jet finding settings
+ * @param storeRecursiveSplittings If True, store recursive splittings (as opposed to iterative).
+ * @return mammoth::JetSubstructure::JetSubstructureSplittings Data structure containing the requested splittings=
+ *                                                            (originally from my AliPhysics task)
+ */
+template <typename T>
+mammoth::JetSubstructure::JetSubstructureSplittings reclusterJetNew(
+  const py::array_t<T, py::array::c_style | py::array::forcecast> & pxIn,
+  const py::array_t<T, py::array::c_style | py::array::forcecast> & pyIn,
+  const py::array_t<T, py::array::c_style | py::array::forcecast> & pzIn,
+  const py::array_t<T, py::array::c_style | py::array::forcecast> & EIn,
+  const mammoth::JetFindingSettings & jetFindingSettings,
+  const bool storeRecursiveSplittings
+)
+{
+  auto fourVectors = numpyToColumnFourVector<T>(pxIn, pyIn, pzIn, EIn);
+  return mammoth::jetReclusteringNew(fourVectors, jetFindingSettings, storeRecursiveSplittings);
 }
 
 template <typename T>
@@ -320,6 +390,20 @@ PYBIND11_MODULE(_ext, m) {
     })
   ;
 
+  // TODO: Rename when done with validation...
+  m.def("find_jets_new", &findJetsNew<float>, "px"_a, "py"_a, "pz"_a, "E"_a,
+                                              "jet_finder_settings"_a,
+                                              "background_px"_a, "background_py"_a, "background_pz"_a, "background_E"_a,
+                                              "background_subtraction"_a,
+                                              "Jet finding function", py::call_guard<JetFindingLoggingStdout, JetFindingLoggingStderr>()
+                                              );
+  m.def("find_jets_new", &findJetsNew<double>, "px"_a, "py"_a, "pz"_a, "E"_a,
+                                              "jet_finder_settings"_a,
+                                              "background_px"_a, "background_py"_a, "background_pz"_a, "background_E"_a,
+                                              "background_subtraction"_a,
+                                              "Jet finding function", py::call_guard<JetFindingLoggingStdout, JetFindingLoggingStderr>()
+                                              );
+
   m.def("find_jets", &findJets<float>, "px"_a, "py"_a, "pz"_a, "E"_a,
                                        "background_px"_a, "background_py"_a, "background_pz"_a, "background_E"_a,
                                        "jet_R"_a, "jet_algorithm"_a, "area_settings"_a,
@@ -368,8 +452,22 @@ PYBIND11_MODULE(_ext, m) {
   ;
 
   // Jet reclustering
-  m.def("recluster_jet", &reclusterJet<float>, "px"_a, "py"_a, "pz"_a, "E"_a, "jet_R"_a = 1.0, "jet_algorithm"_a = "CA", "area_settings"_a = std::nullopt, "eta_range"_a = std::make_tuple(-1, 1), "store_recursive_splittings"_a = true, "Recluster the given jet", py::call_guard<JetFindingLoggingStdout, JetFindingLoggingStderr>());
-  m.def("recluster_jet", &reclusterJet<double>, "px"_a, "py"_a, "pz"_a, "E"_a, "jet_R"_a = 1.0, "jet_algorithm"_a = "CA", "area_settings"_a = std::nullopt, "eta_range"_a = std::make_tuple(-1, 1), "store_recursive_splittings"_a = true, "Recluster the given jet", py::call_guard<JetFindingLoggingStdout, JetFindingLoggingStderr>());
+  m.def("recluster_jet_new", &reclusterJetNew<float>, "px"_a, "py"_a, "pz"_a, "E"_a,
+                                               "jet_finding_settings"_a,
+                                               "store_recursive_splittings"_a = true,
+                                               "Recluster the given jet", py::call_guard<JetFindingLoggingStdout, JetFindingLoggingStderr>());
+  m.def("recluster_jet_new", &reclusterJetNew<double>, "px"_a, "py"_a, "pz"_a, "E"_a,
+                                               "jet_finding_settings"_a,
+                                               "store_recursive_splittings"_a = true,
+                                               "Recluster the given jet", py::call_guard<JetFindingLoggingStdout, JetFindingLoggingStderr>());
+  m.def("recluster_jet", &reclusterJet<float>, "px"_a, "py"_a, "pz"_a, "E"_a,
+                                               "jet_R"_a = 1.0, "jet_algorithm"_a = "CA", "area_settings"_a = std::nullopt,
+                                               "eta_range"_a = std::make_tuple(-1, 1), "store_recursive_splittings"_a = true,
+                                               "Recluster the given jet", py::call_guard<JetFindingLoggingStdout, JetFindingLoggingStderr>());
+  m.def("recluster_jet", &reclusterJet<double>, "px"_a, "py"_a, "pz"_a, "E"_a,
+                                                "jet_R"_a = 1.0, "jet_algorithm"_a = "CA", "area_settings"_a = std::nullopt,
+                                                "eta_range"_a = std::make_tuple(-1, 1), "store_recursive_splittings"_a = true,
+                                                "Recluster the given jet", py::call_guard<JetFindingLoggingStdout, JetFindingLoggingStderr>());
 
   // ALICE
   // Fast sim
