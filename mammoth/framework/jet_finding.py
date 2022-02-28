@@ -22,28 +22,60 @@ logger = logging.getLogger(__name__)
 
 vector.register_awkward()
 
+"""Default area settings for jet median background determination."""
 JetMedianAreaSettings = functools.partial(
     AreaSettings,
     area_type="active_area_explicit_ghosts",
     ghost_area=0.005,
     rapidity_max=DEFAULT_RAPIDITY_MAX,
 )
+"""Default jet finding settings for jet median background determination."""
 JetMedianJetFindingSettings = functools.partial(
     JetFindingSettings,
     R=0.2,
     algorithm="kt",
-    reconstruction_scheme="E_scheme",
+    recombination_scheme="E_scheme",
     strategy="Best",
+    pt_range=(0., 10000.),
     eta_range=(-0.9 + 0.2, 0.9 - 0.2),
     area_settings=JetMedianAreaSettings(),
 )
 
+AreaSubstructure = functools.partial(
+    AreaSettings,
+    area_type="passive_area",
+    ghost_area=0.05,
+)
+# TODO: Remove
+AREA_SUBSTRUCTURE = AreaSettings("passive_area", 0.05)
+# ENDTODO
+"""Default jet finding settings for reclustering"""
+ReclusteringJetFindingSettings = functools.partial(
+    JetFindingSettings,
+    R=1.0,
+    algorithm="CA",
+    recombination_scheme="E_scheme",
+    strategy="Best",
+    pt_range=(0.0, 10000.),
+    eta_range=(-5, 5),
+)
+
+AreaPP = functools.partial(
+    AreaSettings,
+    area_type="active_area",
+    ghost_area=0.01,
+)
+AreaAA = functools.partial(
+    AreaSettings,
+    area_type="active_area_explicit_ghosts",
+    ghost_area=0.005,
+)
+# TODO: Remove...
 AREA_PP = AreaSettings("active_area", 0.01)
 AREA_AA = AreaSettings("active_area_explicit_ghosts", 0.005)
-AREA_SUBSTRUCTURE = AreaSettings("passive_area", 0.05)
+# ENDTODO
 
 DISTANCE_DELTA: Final[float] = 0.01
-
 
 @nb.njit  # type: ignore
 def _shared_momentum_fraction_for_flat_array_implementation(
@@ -338,6 +370,257 @@ def area_percentage(percentage: float, jet_R: float) -> float:
     return percentage / 100.0 * np.pi * jet_R * jet_R
 
 
+def _indices_for_event_boundaries(array: ak.Array) -> npt.NDArray[np.int64]:
+    """Determine indies of event boundaries.
+
+    Args:
+        array: Event-based array of particles.
+    Returns:
+        Cumulative sum of indices of event boundaries (eg. [0, 3, 7, 11, ..] for 3, 4, 4
+            particles in 3 total events)
+    """
+    counts = ak.num(array, axis=1)
+    # To use for indexing, we need to keep track of the cumulative sum. That way, we can
+    # slice using these indices.
+    sum_counts = np.cumsum(np.asarray(counts))
+    # However, to use as slices, we need one more entry than the number of events. We
+    # account for this by inserting 0 at the beginning since the first indices starts at 0.
+    sum_counts = np.insert(sum_counts, 0, 0)  # type: ignore
+    return sum_counts
+
+
+def find_jets_new(
+    particles: ak.Array,
+    jet_finding_settings: JetFindingSettings,
+    background_particles: Optional[ak.Array] = None,
+    background_subtraction: Optional[BackgroundSubtraction] = None,
+) -> ak.Array:
+    # Validation
+    if background_subtraction is None:
+        background_subtraction = BackgroundSubtraction(type=BackgroundSubtractionType.disabled)
+
+    # Keep track of the event transitions.
+    sum_counts = _indices_for_event_boundaries(particles)
+
+    # Validate that there is at least one particle per event
+    event_with_no_particles = sum_counts[1:] == sum_counts[:-1]
+    if np.any(event_with_no_particles):
+        raise ValueError(
+            f"There are some events with zero particles, which is going to mess up the alignment. Check the input! 0s are at {np.where(event_with_no_particles)}"
+        )
+
+    # Now, deal with the particles themselves.
+    # This will flatten the awkward array contents while keeping the record names.
+    flattened_particles = ak.flatten(particles, axis=1)
+    # We only want vector to calculate the components once (the input components may not
+    # actually be px, py, pz, and E), so calculate them now, and view them as numpy arrays
+    # so we can pass them directly into our function.
+    # NOTE: To avoid argument mismatches when calling to the c++, we view as float64 (which
+    #       will be converted to a double). As of July 2021, tests seem to indicate that it's
+    #       not making the float32 -> float conversion properly.
+    px: npt.NDArray[np.float64] = np.asarray(flattened_particles.px, dtype=np.float64)
+    py: npt.NDArray[np.float64] = np.asarray(flattened_particles.py, dtype=np.float64)
+    pz: npt.NDArray[np.float64] = np.asarray(flattened_particles.pz, dtype=np.float64)
+    E: npt.NDArray[np.float64] = np.asarray(flattened_particles.E, dtype=np.float64)
+
+    # Now, onto the background particles. If background particles were passed, we want to do the
+    # same thing as the input particles
+    if background_particles is not None:
+        background_sum_counts = _indices_for_event_boundaries(background_particles)
+
+        # Validate that there is at least one particle per event
+        event_with_no_particles = background_sum_counts[1:] == background_sum_counts[:-1]
+        if np.any(event_with_no_particles):
+            raise ValueError(
+                f"There are some background events with zero particles, which is going to mess up the alignment. Check the input! 0s are at {np.where(event_with_no_particles)}"
+            )
+
+        # Now, deal with the particles themselves.
+        # This will flatten the awkward array contents while keeping the record names.
+        flattened_background_particles = ak.flatten(background_particles, axis=1)
+        # We only want vector to calculate the components once (the input components may not
+        # actually be px, py, pz, and E), so calculate them now, and view them as numpy arrays
+        # so we can pass them directly into our function.
+        # NOTE: To avoid argument mismatches when calling to the c++, we view as float64 (which
+        #       will be converted to a double). As of July 2021, tests seem to indicate that it's
+        #       not making the float32 -> float conversion properly.
+        background_px: npt.NDArray[np.float64] = np.asarray(flattened_background_particles.px, dtype=np.float64)
+        background_py: npt.NDArray[np.float64] = np.asarray(flattened_background_particles.py, dtype=np.float64)
+        background_pz: npt.NDArray[np.float64] = np.asarray(flattened_background_particles.pz, dtype=np.float64)
+        background_E: npt.NDArray[np.float64] = np.asarray(flattened_background_particles.E, dtype=np.float64)
+    else:
+        # If we don't have any particles, we just want to pass empty arrays. This will be interpreted
+        # to use the signal events for the background estimator.
+        # For this to work, we need to at least fake some values.
+        # In particular, slices of 0 (ie. [0:0]) will return empty arrays, even if the arrays themselves
+        # are already empty. So we make the counts 0 for all events
+        background_sum_counts = np.zeros(len(sum_counts), dtype=np.int64)
+        # And then create the empty arrays.
+        background_px = np.zeros(0, dtype=np.float64)
+        background_py = np.zeros(0, dtype=np.float64)
+        background_pz = np.zeros(0, dtype=np.float64)
+        background_E = np.zeros(0, dtype=np.float64)
+
+    # Validate that the number of background events match the number of signal events
+    if len(sum_counts) != len(background_sum_counts):
+        raise ValueError(
+            f"Mismatched between number of events for signal and background. Signal: {len(sum_counts) -1}, background: {len(background_sum_counts) - 1}"
+        )
+
+    # Keep track of the jet four vector components. Although this will have to be converted later,
+    # it seems that this is good enough enough to start.
+    # NOTE: If this gets too slow, we can do the jet finding over multiple events in c++ like what
+    #       is done in the new fj bindings. I skip this for now because my existing code seems to
+    #       be good enough.
+    jets: Dict[str, List[npt.NDArray[Union[np.float32, np.float64]]]] = {
+        "px": [],
+        "py": [],
+        "pz": [],
+        "E": [],
+        "area": [],
+        # NOTE: We can't call it "rho" because that will interfere with the four vector with a length "rho".
+        "rho_value": [],
+    }
+    constituent_indices = []
+    subtracted_constituents: Dict[str, List[npt.NDArray[Union[np.float32, np.float64]]]] = {
+        "px": [],
+        "py": [],
+        "pz": [],
+        "E": [],
+    }
+    subtracted_to_unsubtracted_indices = []
+    _event_counter = 0
+    for lower, upper, background_lower, background_upper in zip(sum_counts[:-1], sum_counts[1:], background_sum_counts[:-1], background_sum_counts[1:]):
+        # Run the actual jet finding.
+        res = mammoth._ext.find_jets_new(
+            px=px[lower:upper],
+            py=py[lower:upper],
+            pz=pz[lower:upper],
+            E=E[lower:upper],
+            jet_finding_settings=jet_finding_settings,
+            background_px=background_px[background_lower:background_upper],
+            background_py=background_py[background_lower:background_upper],
+            background_pz=background_pz[background_lower:background_upper],
+            background_E=background_E[background_lower:background_upper],
+            background_subtraction=background_subtraction,
+        )
+
+        # Store the results temporarily so we can perform all of the jet finding immediately.
+        # We'll format them for returning below.
+        temp_jets = res.jets
+        # Unpack and store the jet four vector (it doesn't appear to be possible to append via tuple unpacking...)
+        jets["px"].append(temp_jets[0])
+        jets["py"].append(temp_jets[1])
+        jets["pz"].append(temp_jets[2])
+        jets["E"].append(temp_jets[3])
+        # Next, store additional jet properties
+        jets["area"].append(res.jets_area)
+        jets["rho_value"].append(res.rho_value)
+        # Next, associate the indices of the constituents that are associated with each jet
+        constituent_indices.append(res.constituent_indices)
+
+        # Finally, we'll handle the subtracted constituents if relevant
+        subtracted_info = res.subtracted_info
+        if subtracted_info:
+            # Unpack and store the substracted constituent four vector
+            subtracted_constituents["px"].append(subtracted_info[0][0])
+            subtracted_constituents["py"].append(subtracted_info[0][1])
+            subtracted_constituents["pz"].append(subtracted_info[0][2])
+            subtracted_constituents["E"].append(subtracted_info[0][3])
+            # Plus the association for each subtracted constituent index into the unsubtracted constituent.
+            # NOTE: These are the indices assigned via the user_index.
+            subtracted_to_unsubtracted_indices.append(subtracted_info[1])
+
+        if len(temp_jets[0]) and np.isclose(temp_jets[0][0], -66.91934424638748):
+            logger.info(f"_event_counter: {_event_counter}")
+        _event_counter += 1
+
+        #if len(jets["rho"]) > 100:
+        #    raise RuntimeError("Stahp")
+
+    # To create the output, we start with the constituents.
+    # First, we convert the fastjet user_index indices that we use for book keeping during jet finding
+    # into an awkward array to make the next operations simpler.
+    # NOTE: Remember, these indices are just for internal mapping during jet finding! They're totally
+    #       separate from the `index` field that we include in all particles arrays to identify the source
+    #       of jet constituents (ie. in terms of the input particle collection that they're from).
+    # NOTE: This requires a copy, but that's fine - there's nothing to be done about it, so it's just the cost.
+    _constituent_indices_awkward = ak.Array(constituent_indices)
+
+    # If we have subtracted constituents, we need to handle them very carefully.
+    if subtracted_to_unsubtracted_indices:
+        # In the case of subtracted constituents, the indices that were returned reference the subtracted
+        # constituents. Consequently, we need to build our jet constituents using the subtracted constituent
+        # four vectors that were returned from the jet finding.
+        # NOTE: Constituents are expected to have an `index` field to identify their input source.
+        #       However, the `subtracted_constituents` assigned here to `_particles_for_constituents`
+        #       don't contain an `index` field yet because we only returned the four vectors from the
+        #       jet finding. We need to add it in below!
+        _particles_for_constituents = ak.Array(subtracted_constituents)
+
+        # Now, to add in the indices. Since the subtracted-to-unsubtracted mapping is actually just a
+        # list of unsubtracted indices (where the location of unsubtracted index corresponds to the
+        # subtracted particles), we can directly apply this "mapping" to the unsubtracted particles
+        # `index` (after converting it to awkward)
+        _subtracted_to_unsubtracted_indices_awkward = ak.Array(subtracted_to_unsubtracted_indices)
+        _subtracted_indices = particles["index"][_subtracted_to_unsubtracted_indices_awkward]
+        # Then, we just need to zip it in to the particles for constituents, and it will be brought
+        # along when the constituents are associated with the jets.
+        _particles_for_constituents = ak.zip(
+            {
+                **dict(zip(ak.fields(_particles_for_constituents), ak.unzip(_particles_for_constituents))),
+                "index": _subtracted_indices,
+            },
+            with_name="Momentum4D",
+        )
+    else:
+        # Since `index` is already included in particles, there's nothing else we need to do here.
+        _particles_for_constituents = particles
+
+    # Now, determine constituents from constituent indices
+    # To do this, we perform the manipulations necessary to get all of the dimensions to match up.
+    # Namely, we have to get a singly-jagged array (_particles_for_constituents) to broadcast with a
+    # doubly-jagged array (_constituent_indices_awkward).
+    # NOTE: This follows the example in the scikit-hep fastjet bindings.
+    output_constituents = _apply_constituent_indices_to_expanded_array(
+        array_to_expand=_particles_for_constituents,
+        constituent_indices=_constituent_indices_awkward,
+    )
+
+    """
+    NOTE: We don't need the constituent indices themselves since we've already mapped the constituents
+          to the jets. Those constituents can identify their source via `index`. If we later decide that
+          we need them, it's as simple as the zipping everything together. Example:
+
+    ```python
+    output_constituents = ak.zip(
+        {
+            **dict(zip(ak.fields(output_constituents), ak.unzip(output_constituents))),
+            "name_of_field_for_constituent_indices": _constituent_indices_awkward,
+        },
+        with_name="Momentum4D",
+    )
+    ```
+    """
+
+    # Finally, construct the output
+    output_jets = ak.zip(
+        {
+            "px": jets["px"],
+            "py": jets["py"],
+            "pz": jets["pz"],
+            "E": jets["E"],
+            "area": jets["area"],
+            "rho_value": jets["rho_value"],
+            "constituents": output_constituents,
+        },
+        with_name="Momentum4D",
+        # Limit of 2 is based on: 1 for events + 1 for jets
+        depth_limit=2,
+    )
+
+    return output_jets
+
 def find_jets(
     particles: ak.Array,
     jet_R: float,
@@ -616,6 +899,111 @@ def _subjets_output() -> Dict[str, List[Any]]:
         "constituent_indices": [],
     }
 
+
+def recluster_jets_new(
+    jets: ak.Array,
+    jet_finding_settings: JetFindingSettings,
+    store_recursive_splittings: bool,
+) -> ak.Array:
+    # Validation. There must be jets
+    if len(jets) == 0:
+        raise ValueError("No jets present for reclustering!")
+
+    # To iterate over the constituents in an efficient manner, we need to flatten them and
+    # their four-momenta. To make this more manageable, we want to determine the constituent
+    # start and stop indices, and then build those up into doubly-jagged arrays and iterate
+    # over those. Those doubly-jagged arrays then provide the slice indices for selecting
+    # the flattened constituents.
+    # First, we need to get the starts and stops. We'll do this via:
+    # number -> offsets -> starts and stops.
+    # NOTE: axis=2 is really the key to making this work nicely. It provides the number of
+    #       constituents, and crucially, they're in the right jagged form.
+    num_constituents = ak.num(jets.constituents, axis=2)
+    # Convert to offsets
+    offsets_constituents = np.cumsum(np.asarray(ak.flatten(num_constituents, axis=1)))
+    offsets_constituents = np.insert(offsets_constituents, 0, 0)  # type: ignore
+    # Then into starts and stops
+    starts_constituents = ak.unflatten(
+        offsets_constituents[:-1],
+        ak.num(num_constituents, axis=1)
+    )
+    stops_constituents = ak.unflatten(
+        offsets_constituents[1:],
+        ak.num(num_constituents, axis=1)
+    )
+
+    # Now, setup the constituents themselves.
+    # It would be nice to flatten them and then assign the components like for standard jet
+    # finding, but since we have to flatten with `None` to deals with the multiple levels,
+    # it also flattens over the records.
+    # NOTE: `axis="records"` isn't yet available (July 2021).
+    # We only want vector to calculate the components once (the input components may not
+    # actually be px, py, pz, and E), so calculate them now, and view them as numpy arrays
+    # so we can pass them directly into our function.
+    # NOTE: To avoid argument mismatches when calling to the c++, we view as float64 (which
+    #       will be converted to a double). As of July 2021, tests seem to suggest that it's
+    #       not making the float32 -> float conversion properly.
+    px = np.asarray(ak.flatten(jets.constituents.px, axis=None), dtype=np.float64)
+    py = np.asarray(ak.flatten(jets.constituents.py, axis=None), dtype=np.float64)
+    pz = np.asarray(ak.flatten(jets.constituents.pz, axis=None), dtype=np.float64)
+    E = np.asarray(ak.flatten(jets.constituents.E, axis=None), dtype=np.float64)
+
+    # import IPython; IPython.embed()
+
+    event_splittings = _splittings_output()
+    event_subjets = _subjets_output()
+    for _temp, (starts, stops) in enumerate(zip(starts_constituents, stops_constituents)):
+        jets_splittings = _splittings_output()
+        jets_subjets = _subjets_output()
+        for lower, upper in zip(starts, stops):
+            #if _temp == 78:
+            #    logger.info(f"lower, upper: {lower}, {upper}")
+            #    import IPython; IPython.embed()
+            res = mammoth._ext.recluster_jet_new(
+                px=px[lower:upper],
+                py=py[lower:upper],
+                pz=pz[lower:upper],
+                E=E[lower:upper],
+                jet_finding_settings=jet_finding_settings,
+                store_recursive_splittings=store_recursive_splittings,
+            )
+            _temp_splittings = res.splittings()
+            _temp_subjets = res.subjets()
+            jets_splittings["kt"].append(_temp_splittings.kt)
+            jets_splittings["delta_R"].append(_temp_splittings.delta_R)
+            jets_splittings["z"].append(_temp_splittings.z)
+            jets_splittings["parent_index"].append(_temp_splittings.parent_index)
+            jets_subjets["splitting_node_index"].append(_temp_subjets.splitting_node_index)
+            jets_subjets["part_of_iterative_splitting"].append(_temp_subjets.part_of_iterative_splitting)
+            jets_subjets["constituent_indices"].append(_temp_subjets.constituent_indices)
+
+            #if _temp == 78:
+            #    logger.info(f"after")
+            #    import IPython; IPython.embed()
+
+        # Now, move to the overall output objects.
+        # NOTE: We want to fill this even if we didn't perform any reclustering to ensure that
+        #       we keep the right shape.
+        for k in event_splittings:
+            event_splittings[k].append(jets_splittings[k])
+        for k in event_subjets:
+            event_subjets[k].append(jets_subjets[k])
+
+    #import IPython; IPython.embed()
+
+    return ak.zip(
+        {
+            "jet_splittings": ak.zip(
+                event_splittings
+            ),
+            "subjets": ak.zip(
+                event_subjets,
+                # zip over events, jets, and subjets (but can't go all the way due to the constituent indices)
+                depth_limit=3,
+            )
+        },
+        depth_limit=2
+    )
 
 def recluster_jets(jets: ak.Array,
                    jet_R_for_reclustering: float = 1.0,
