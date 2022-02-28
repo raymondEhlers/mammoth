@@ -296,7 +296,7 @@ PYBIND11_MODULE(_ext, m) {
       >(),
         "R"_a,
         "algorithm"_a,
-        "recombination_scheme"_a,
+        "recombination_scheme"_a = "E_scheme",
         "strategy"_a = "Best",
         "pt_range"_a = std::make_tuple(0.0, 10000.0),
         "eta_range"_a = std::make_tuple(-0.9, 0.9),
@@ -392,13 +392,13 @@ PYBIND11_MODULE(_ext, m) {
 
   // TODO: Rename when done with validation...
   m.def("find_jets_new", &findJetsNew<float>, "px"_a, "py"_a, "pz"_a, "E"_a,
-                                              "jet_finder_settings"_a,
+                                              "jet_finding_settings"_a,
                                               "background_px"_a, "background_py"_a, "background_pz"_a, "background_E"_a,
                                               "background_subtraction"_a,
                                               "Jet finding function", py::call_guard<JetFindingLoggingStdout, JetFindingLoggingStderr>()
                                               );
   m.def("find_jets_new", &findJetsNew<double>, "px"_a, "py"_a, "pz"_a, "E"_a,
-                                              "jet_finder_settings"_a,
+                                              "jet_finding_settings"_a,
                                               "background_px"_a, "background_py"_a, "background_pz"_a, "background_E"_a,
                                               "background_subtraction"_a,
                                               "Jet finding function", py::call_guard<JetFindingLoggingStdout, JetFindingLoggingStderr>()

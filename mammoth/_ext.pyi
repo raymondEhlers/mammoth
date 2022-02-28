@@ -27,7 +27,7 @@ class JetFindingSettings:
         self,
         R: float,
         algorithm: str,
-        recombination_scheme: str,
+        recombination_scheme: str = ...,
         strategy: str = ...,
         pt_range: Tuple[float, float] = ...,
         eta_range: Tuple[float, float] = ...,
@@ -168,12 +168,12 @@ class OutputWrapperFloat:
     ]: ...
 
 @overload
-def find_jets_new(  # type: ignore
+def find_jets_new(   # type: ignore
     px: npt.NDArray[np.float32],
     py: npt.NDArray[np.float32],
     pz: npt.NDArray[np.float32],
     E: npt.NDArray[np.float32],
-    jet_finder_settings: JetFindingSettings,
+    jet_finding_settings: JetFindingSettings,
     background_px: npt.NDArray[np.float32],
     background_py: npt.NDArray[np.float32],
     background_pz: npt.NDArray[np.float32],
@@ -186,7 +186,7 @@ def find_jets_new(
     py: npt.NDArray[np.float64],
     pz: npt.NDArray[np.float64],
     E: npt.NDArray[np.float64],
-    jet_finder_settings: JetFindingSettings,
+    jet_finding_settings: JetFindingSettings,
     background_px: npt.NDArray[np.float64],
     background_py: npt.NDArray[np.float64],
     background_pz: npt.NDArray[np.float64],
