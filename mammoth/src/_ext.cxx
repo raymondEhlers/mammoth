@@ -231,26 +231,6 @@ PYBIND11_MODULE(_ext, m) {
       return s.to_string();
     })
   ;
-  // Second wrapper with different defaults for the JetMedianBackgroundEstimator
-  py::class_<mammoth::JetFindingSettings>(m, "JetFinderSettings", "Jet finding settings related to the jet median background estimator")
-    .def(
-      py::init<
-        double, std::string, std::string, std::string, std::tuple<double, double>, std::tuple<double, double>,
-        const std::optional<const mammoth::AreaSettings>
-      >(),
-        "R"_a = 0.2,
-        "algorithm"_a = "kt",
-        "recombination_scheme"_a = "E_scheme",
-        "strategy"_a = "Best",
-        "pt_range"_a = std::make_tuple(0.0, 10000.0),
-        "eta_range"_a = std::make_tuple(-0.9 + 0.2, 0.9 - 0.2),
-        "area_settings"_a = std::nullopt
-      )
-    .def_readwrite("R", &mammoth::JetFindingSettings::R)
-    .def("__repr__", [](const mammoth::JetFindingSettings &s) {
-      return s.to_string();
-    })
-  ;
   // Wrapper for jet median background estimator
   py::class_<mammoth::JetMedianBackgroundEstimator>(m, "JetMedianBackgroundEstimator", "Background estimator based on jet median")
     .def(

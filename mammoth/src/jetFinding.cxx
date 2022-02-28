@@ -216,7 +216,7 @@ const std::map<std::string, fastjet::JetAlgorithm> JetFindingSettings::algorithm
   {"kt", fastjet::JetAlgorithm::kt_algorithm},
   {"CA", fastjet::JetAlgorithm::cambridge_algorithm},
 };
-const std::map<std::string, fastjet::RecombinationScheme> recombinationSchemes = {
+const std::map<std::string, fastjet::RecombinationScheme> JetFindingSettings::recombinationSchemes = {
   {"BIpt2_scheme", fastjet::RecombinationScheme::BIpt2_scheme},
   {"BIpt_scheme", fastjet::RecombinationScheme::BIpt_scheme},
   {"E_scheme", fastjet::RecombinationScheme::E_scheme},
@@ -228,7 +228,7 @@ const std::map<std::string, fastjet::RecombinationScheme> recombinationSchemes =
   {"WTA_modp_scheme", fastjet::RecombinationScheme::WTA_modp_scheme},
   {"WTA_pt_scheme", fastjet::RecombinationScheme::WTA_pt_scheme},
 };
-const std::map<std::string, fastjet::Strategy> strategies = {
+const std::map<std::string, fastjet::Strategy> JetFindingSettings::strategies = {
   {"Best", fastjet::Strategy::Best},
   {"BestFJ30", fastjet::Strategy::BestFJ30},
   {"plugin_strategy", fastjet::Strategy::plugin_strategy},
@@ -788,47 +788,47 @@ void swap(mammoth::JetSubstructure::JetSubstructureSplittings& first,
   swap(first.fSubjets, second.fSubjets);
 }
 
-std::ostream& operator<<(std::ostream& in, const mammoth::AreaSettings & c)
-{
+std::ostream& operator<<(std::ostream& in, const mammoth::AreaSettings & c) {
   in << c.to_string();
   return in;
 }
 
-std::ostream& operator<<(std::ostream& in, const mammoth::JetFindingSettings & c)
-{
+std::ostream& operator<<(std::ostream& in, const mammoth::JetFindingSettings & c) {
   in << c.to_string();
   return in;
 }
 
-std::ostream& operator<<(std::ostream& in, const mammoth::JetMedianBackgroundEstimator & c)
-{
+std::ostream& operator<<(std::ostream& in, const mammoth::BackgroundEstimator & c) {
   in << c.to_string();
   return in;
 }
-std::ostream& operator<<(std::ostream& in, const mammoth::GridMedianBackgroundEstimator & c)
-{
+std::ostream& operator<<(std::ostream& in, const mammoth::JetMedianBackgroundEstimator & c) {
+  in << c.to_string();
+  return in;
+}
+std::ostream& operator<<(std::ostream& in, const mammoth::GridMedianBackgroundEstimator & c) {
   in << c.to_string();
   return in;
 }
 
-std::ostream& operator<<(std::ostream& in, const mammoth::BackgroundSubtractionType& c)
-{
+std::ostream& operator<<(std::ostream& in, const mammoth::BackgroundSubtractor & c) {
+  in << c.to_string();
+  return in;
+}
+std::ostream& operator<<(std::ostream& in, const mammoth::BackgroundSubtractionType& c) {
   in << mammoth::to_string(c);
   return in;
 }
-std::ostream& operator<<(std::ostream& in, const mammoth::RhoSubtractor& c)
-{
+std::ostream& operator<<(std::ostream& in, const mammoth::RhoSubtractor& c) {
   in << c.to_string();
   return in;
 }
-std::ostream& operator<<(std::ostream& in, const mammoth::ConstituentSubtractor& c)
-{
+std::ostream& operator<<(std::ostream& in, const mammoth::ConstituentSubtractor& c) {
   in << c.to_string();
   return in;
 }
 
-std::ostream& operator<<(std::ostream& in, const mammoth::BackgroundSubtraction& c)
-{
+std::ostream& operator<<(std::ostream& in, const mammoth::BackgroundSubtraction& c) {
   in << c.to_string();
   return in;
 }
