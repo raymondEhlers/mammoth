@@ -191,13 +191,13 @@ def analysis_MC(arrays: ak.Array, jet_R: float, min_jet_pt: Mapping[str, float])
     #
     # The other benefit to this approach is that it should reorder the particle level matches
     # to be the same shape as the detector level jets, so in principle they are paired together.
-    # TODO: Check this is truly the case.
     # Semi-validated result for det <-> part w/ thermal model:
     # det <-> part for the thermal model looks like:
     # part: ([[0, 3, 1, 2, 4, 5], [0, 1, -1], [], [0], [1, 0, -1]],
     # det:   [[0, 2, 3, 1, 4, 5], [0, 1], [], [0], [1, 0]])
+    # Semi-validated by pythia validation vs standard AliPhysics task.
+    # TODO: Check this is truly the case by looking at both track collections.
     det_level_matched_jets_mask = jets["det_level"]["matching"] > -1
-    import IPython; IPython.start_ipython(user_ns={**locals(), **globals()})
     jets["det_level"] = jets["det_level"][det_level_matched_jets_mask]
     jets["part_level"] = jets["part_level"][jets["det_level", "matching"]]
     logger.warning(f"post requiring valid matches n accepted: {np.count_nonzero(np.asarray(ak.flatten(jets['det_level'].px, axis=None)))}")
@@ -255,6 +255,8 @@ def analysis_data(
         additional_kwargs["constituent_subtraction"] = jet_finding.ConstituentSubtractionSettings(
             r_max=0.25,
         )
+        #additional_kwargs["background_subtraction"] = True
+
     jets = ak.zip(
         {
             particle_column_name: jet_finding.find_jets(
@@ -268,6 +270,9 @@ def analysis_data(
         },
         depth_limit=1,
     )
+    logger.warning(f"Found n jets: {np.count_nonzero(np.asarray(ak.flatten(jets[particle_column_name].px, axis=None)))}")
+
+    # import IPython; IPython.embed()
 
     # Apply jet level cuts.
     # **************
@@ -299,6 +304,10 @@ def analysis_data(
     # We need some variable to avoid flattening into a record, so select px arbitrarily.
     if len(ak.flatten(jets[particle_column_name].px, axis=None)) == 0:
         raise ValueError(f"No jets left for {particle_column_name}. Are your settings correct?")
+
+    logger.warning(f"jet pt: {ak.flatten(jets[particle_column_name].pt).to_list()}")
+    #import IPython; IPython.embed()
+    #raise RuntimeError("Stahp!")
 
     logger.info(f"Reclustering {particle_column_name} jets...")
     jets[particle_column_name, "reclustering"] = jet_finding.recluster_jets(
