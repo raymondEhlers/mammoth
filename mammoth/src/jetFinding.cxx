@@ -149,7 +149,7 @@ public:
   virtual std::string description() const {return "max constituent pt";}
 };
 
-}
+} /* namespace detail */
 
 fastjet::Selector SelectorAreaMin(double areaMin) {
   return fastjet::Selector(new detail::SW_QuantityMin<detail::QuantityArea>(areaMin));
@@ -185,6 +185,31 @@ const std::map<std::string, fastjet::AreaType> AreaSettings::areaTypes = {
   {"active_area_explicit_ghosts", fastjet::AreaType::active_area_explicit_ghosts},
   {"passive_area", fastjet::AreaType::passive_area},
 };
+
+fastjet::GhostedAreaSpec AreaSettings::ghostedAreaSpec() const {
+  fastjet::GhostedAreaSpec ghostedAreaSpec(
+    this->rapidityMax,
+    this->repeatN,
+    this->ghostArea,
+    this->gridScatter,
+    this->ktScatter,
+    this->ktMean
+  );
+  // Use a fixed seed if it was provided
+  if (this->randomSeed.size() > 0) {
+    return ghostedAreaSpec.with_fixed_seed(this->randomSeed);
+  }
+  return ghostedAreaSpec;
+}
+
+fastjet::AreaDefinition AreaSettings::areaDefinition() const {
+  fastjet::AreaDefinition areaDefinition(this->areaType(), this->ghostedAreaSpec());
+  // TODO: Check if this is required of if the above is enough...
+  //if (this->randomSeed.size() > 0) {
+  //  return areaDefinition.with_fixed_seed(this->randomSeed);
+  //}
+  return areaDefinition;
+}
 
 std::string AreaSettings::to_string() const
 {
@@ -237,6 +262,32 @@ const std::map<std::string, fastjet::Strategy> JetFindingSettings::strategies = 
   {"bestFJ30", fastjet::Strategy::BestFJ30},
 };
 
+fastjet::Selector JetFindingSettings::selectorPtEtaNonGhost() const {
+  const auto [jetPtMin, jetPtMax] = this->ptRange;
+  const auto [jetEtaMin, jetEtaMax] = this->etaRange;
+
+  fastjet::Selector selectJets = !fastjet::SelectorIsPureGhost()
+                                * (
+                                  fastjet::SelectorPtRange(jetPtMin, jetPtMax)
+                                  && fastjet::SelectorEtaRange(jetEtaMin, jetEtaMax)
+                                  );
+  return selectJets;
+}
+
+std::unique_ptr<fastjet::ClusterSequence> JetFindingSettings::create(std::vector<fastjet::PseudoJet> particlePseudoJets) const {
+  if (this->areaSettings) {
+    return std::make_unique<fastjet::ClusterSequenceArea>(
+      particlePseudoJets,
+      this->definition(),
+      this->areaSettings->areaDefinition()
+    );
+  }
+  return std::make_unique<fastjet::ClusterSequence>(
+    particlePseudoJets,
+    this->definition()
+  );
+}
+
 std::string JetFindingSettings::to_string() const
 {
   std::string result = "JetFindingSettings(R=" + std::to_string(this->R)
@@ -251,6 +302,68 @@ std::string JetFindingSettings::to_string() const
   }
   result += ")";
   return result;
+}
+
+
+fastjet::Selector JetMedianBackgroundEstimator::selector() const {
+  // Select jets for calculating the background
+  // As of September 2021, this includes (ordered from top to bottom):
+  // - Fiducial eta selection
+  // - Remove the two hardest jets
+  // - Remove pure ghost jets (since they are included with explicit ghosts)
+
+  // NOTES:
+  // - We want to apply the two hardest removal _after_ the acceptance cuts, so we use "*"
+  //   Be aware that the order of the selectors really matters. It applies the **right** most first if we use "*"
+  //   This is super important! Otherwise, you'll get unexpected selections!
+  // - Including or removing the two hardest can have a big impact on the number of jets that are accepted.
+  //   Removing them includes more jets (because the median background is smaller). We remove them because
+  //   that's what is done in ALICE.
+  // - We skip phi selection since we're looking at charged jets, so we take the full [0, 2pi).
+  //   [0, 2pi) is the standard PseudoJet phi range. If you want to restrict the phi range, it should be
+  //   applied at the right most with
+  //   `* fastjet::SelectorPhiRange(backgroundJetPhiMin, backgroundJetPhiMax)`, or via the combined
+  //   EtaPhi selector (see possible tweaks below).
+  //
+  // Some notes for possible tweaks (not saying that they necessarily should be done):
+  // - If one goes back to applying phi cuts, one could use `* fastjet::SelectorRapPhiRange(backgroundJetEtaMin, backgroundJetEtaMax, backgroundJetPhiMin, backgroundJetPhiMax)`
+  //   However, if using this combined selector, be careful about the difference between rapidity and eta!
+
+  //fastjet::Selector selRho = !fastjet::SelectorNHardest(2) * !fastjet::SelectorIsPureGhost() * fastjet::SelectorAbsRapMax(ghostRapidityMax);
+  //fastjet::Selector selRho = !fastjet::SelectorNHardest(2) * !fastjet::SelectorIsPureGhost() * fastjet::SelectorRapRange(backgroundJetEtaMin, backgroundJetEtaMax);
+  //fastjet::Selector selRho = !fastjet::SelectorNHardest(2) * !fastjet::SelectorIsPureGhost() * fastjet::SelectorEtaRange(backgroundJetEtaMin, backgroundJetEtaMax);
+  const auto [jetEtaMin, jetEtaMax] = this->settings.etaRange;
+  fastjet::Selector selRho = !fastjet::SelectorNHardest(this->excludeNHardestJets)
+                              //* !fastjet::SelectorIsPureGhost()  // NB: This selector doesn't make a difference...
+                              * fastjet::SelectorEtaRange(jetEtaMin, jetEtaMax)
+                              * SelectorConstituentPtMax(this->constituentPtMax);
+  return selRho;
+}
+
+std::unique_ptr<fastjet::BackgroundEstimatorBase> JetMedianBackgroundEstimator::create() const {
+  // Validation
+  // We have to handle the AreaSettings carefully because the JetFindingSettings don't require
+  // the AreaSettings to be provided, but we _have_ to have an AreaSettings to be able to
+  // estimate the background.
+  const auto areaSettings = this->settings.areaSettings;
+  if (!areaSettings) {
+    throw std::runtime_error("Must specify area settings when using a background estimator!");
+  }
+  // Now, create the estimator
+  auto backgroundEstimator = std::make_unique<fastjet::JetMedianBackgroundEstimator>(
+    this->selector(), this->settings.definition(), areaSettings->areaDefinition()
+  );
+  // Ensure rho_m is calculated (should be by default, but just to be sure).
+  // NOTE: The background estimator should calculate rho_m by default, but it's not used by default
+  //       in the standard subtractor, so we explicitly enable it in subtractor (CS is handled separately)
+  backgroundEstimator->set_compute_rho_m(this->computeRhoM);
+
+  // According to the fj manual, taking the transverse component of the area four vector
+  // provides a more accurate determination of rho. So we default to taking it here.
+  // NOTE: ALICE also takes the transverse component.
+  backgroundEstimator->set_use_area_4vector(this->useAreaFourVector);
+
+  return backgroundEstimator;
 }
 
 std::string JetMedianBackgroundEstimator::to_string() const {
@@ -282,6 +395,21 @@ std::string to_string(const BackgroundSubtractionType & subtractionType) {
   };
   return subtractionTypes.at(subtractionType);
 }
+
+std::unique_ptr<fastjet::Transformer> RhoSubtractor::create(std::shared_ptr<fastjet::BackgroundEstimatorBase> backgroundEstimator) const {
+  auto subtractor = std::make_unique<fastjet::Subtractor>(backgroundEstimator.get());
+  // Use rho_m from the estimator.
+  // NOTE: This causes the subtractor to subtract rhom in the four vector subtraction.
+  //       This is done to account for nonzero hadron mass
+  subtractor->set_use_rho_m(this->useRhoM);
+  // Handle negative masses by adjusting the 4-vector to maintain the pt and phi, which leaves
+  // the rapidity the same as the unsubtracted jet. The fj manual describes this as "a sensible
+  // behavior" for most applications, so good enough for us.
+  subtractor->set_safe_mass(this->useSafeMass);
+
+  return subtractor;
+}
+
 std::string RhoSubtractor::to_string() const {
   std::stringstream ss;
   ss << std::boolalpha
@@ -290,12 +418,44 @@ std::string RhoSubtractor::to_string() const {
      << ")";
   return ss.str();
 }
+
 const std::map<std::string, fastjet::contrib::ConstituentSubtractor::Distance> ConstituentSubtractor::distanceTypes = {
   {"deltaR", fastjet::contrib::ConstituentSubtractor::Distance::deltaR},
   {"angle", fastjet::contrib::ConstituentSubtractor::Distance::angle},
   // Alias is for convience
   {"delta_R", fastjet::contrib::ConstituentSubtractor::Distance::deltaR},
 };
+
+std::unique_ptr<fastjet::Transformer> ConstituentSubtractor::create(std::shared_ptr<fastjet::BackgroundEstimatorBase> backgroundEstimator) const {
+  // Determine derived settings first
+  fastjet::contrib::ConstituentSubtractor::Distance distanceType = this->distanceTypes.at(this->distanceMeasure);
+
+  // Next, create the CS object
+  auto constituentSubtractor = std::make_unique<fastjet::contrib::ConstituentSubtractor>();
+
+  // Then configure
+  constituentSubtractor->set_distance_type(distanceType);
+  constituentSubtractor->set_max_distance(this->rMax);
+  constituentSubtractor->set_alpha(this->alpha);
+  // ALICE doesn't appear to set the ghost area, so we skip it here and use the default of 0.01
+  //constituentSubtractor->set_ghost_area(areaSettings.ghostArea);
+  // NOTE: Since this is event wise, the max eta should be the track eta, not the fiducial eta
+  //constituentSubtractor->set_max_eta(etaMax);
+  constituentSubtractor->set_max_eta(this->rapidityMax);
+  constituentSubtractor->set_background_estimator(backgroundEstimator.get());
+  // Use the same estimator for rho_m (by default, I think it won't be used in CS, but better
+  // to provide it in case we change our mind later).
+  // NOTE: This needs to be set after setting the background estimator.
+  constituentSubtractor->set_common_bge_for_rho_and_rhom();
+  // Apparently this is new and now required for event-wise CS.
+  // From some tests, constituent subtraction gives some crazy results if it's not called!
+  // NOTE: ALICE gets away with skipping this because we have the old call for event-wise
+  //       subtraction where we pass the max rapidity. But better if we use the newer version here.
+  constituentSubtractor->initialize();
+
+  return constituentSubtractor;
+}
+
 std::string ConstituentSubtractor::to_string() const {
   std::stringstream ss;
   ss << std::boolalpha

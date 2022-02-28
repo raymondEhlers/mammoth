@@ -198,7 +198,7 @@ PYBIND11_MODULE(_ext, m) {
       return "<ConstituentSubtractionSettings r_max=" + std::to_string(s.rMax) + ", alpha=" + std::to_string(s.alpha) + ">";
     })
   ;
-  // Wrapper for area settings
+  // Area settings
   py::class_<mammoth::AreaSettings>(m, "AreaSettings", "Settings related to jet finding area")
     .def(py::init<std::string, double, double, int, double, double, double, std::vector<int>>(),
          "area_type"_a = "active_area",
@@ -217,7 +217,7 @@ PYBIND11_MODULE(_ext, m) {
       return s.to_string();
     })
   ;
-  // Wrapper for jet finding settings
+  // Jet finding settings
   py::class_<mammoth::JetFindingSettings>(m, "JetFindingSettings", "Main settings related to jet finding")
     .def(
       py::init<
@@ -237,7 +237,7 @@ PYBIND11_MODULE(_ext, m) {
       return s.to_string();
     })
   ;
-  // Wrapper for jet median background estimator
+  // Jet median background estimator
   py::class_<mammoth::JetMedianBackgroundEstimator>(m, "JetMedianBackgroundEstimator", "Background estimator based on jet median")
     .def(
       py::init<
@@ -257,7 +257,7 @@ PYBIND11_MODULE(_ext, m) {
       return s.to_string();
     })
   ;
-  // Wrapper for grid median background estimator
+  // Grid median background estimator
   py::class_<mammoth::GridMedianBackgroundEstimator>(m, "GridMedianBackgroundEstimator", "Background estimator based on a grid")
     .def(
       py::init<double, double>(),
@@ -277,7 +277,7 @@ PYBIND11_MODULE(_ext, m) {
     .value("event_wise_constituent_subtraction", mammoth::BackgroundSubtractionType::kEventWiseCS, "Event-wise constituent subtraction")
     .value("jet_wise_constituent_subtraction", mammoth::BackgroundSubtractionType::kJetWiseCS, "Jet-wise constituent subtraction")
     .export_values();
-  // Wrapper for rho background subtractor
+  // Rho background subtractor
   py::class_<mammoth::RhoSubtractor>(m, "RhoSubtractor", "Rho based background subtraction")
     .def(
       py::init<bool, bool>(),
@@ -290,7 +290,7 @@ PYBIND11_MODULE(_ext, m) {
       return s.to_string();
     })
   ;
-  // Wrapper for constituent subtraction
+  // Constituent subtraction
   py::class_<mammoth::ConstituentSubtractor>(m, "ConstituentSubtractor", "Background subtraction via Constituent Subtraction")
     .def(
       py::init<double, double, double, std::string>(),
@@ -307,13 +307,13 @@ PYBIND11_MODULE(_ext, m) {
       return s.to_string();
     })
   ;
-  // Wrapper for background subtraction
+  // Main container for background subtraction configuration
   py::class_<mammoth::BackgroundSubtraction>(m, "BackgroundSubtraction", "Background subtraction settings")
     .def(
       py::init<mammoth::BackgroundSubtractionType, std::shared_ptr<mammoth::BackgroundEstimator>, std::shared_ptr<mammoth::BackgroundSubtractor>>(),
         "type"_a,
-        "estimator"_a,
-        "subtractor"_a
+        "estimator"_a = nullptr,
+        "subtractor"_a = nullptr
       )
     .def("__repr__", [](const mammoth::BackgroundSubtraction &s) {
       return s.to_string();
