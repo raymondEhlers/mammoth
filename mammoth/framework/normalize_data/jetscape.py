@@ -37,18 +37,18 @@ class ReachedXSecAtEndOfFileException(ReachedEndOfFileException):
     ...
 
 
-@attr.s(frozen=True)
+@attr.frozen
 class CrossSection:
-    value: float = attr.ib()
-    error: float = attr.ib()
+    value: float
+    error: float
 
 
-@attr.s(frozen=True)
+@attr.frozen
 class HeaderInfo:
-    event_number: int = attr.ib()
-    event_plane_angle: float = attr.ib()
-    n_particles: int = attr.ib()
-    event_weight: float = attr.ib(default=-1)
+    event_number: int
+    event_plane_angle: float
+    n_particles: int
+    event_weight: float = attr.field(default=-1)
 
 
 def _retrieve_last_line_of_file(f: typing.TextIO, read_chunk_size: int = 100) -> str:
@@ -304,7 +304,7 @@ class ChunkNotReadyException(Exception):
     ...
 
 
-@attr.s
+@attr.define
 class ChunkGenerator:
     """Generator a chunk of the file.
 
@@ -316,12 +316,12 @@ class ChunkGenerator:
             was defined, and it will try it's best to guess the format.
     """
 
-    g: Iterator[str] = attr.ib()
-    _events_per_chunk: int = attr.ib()
-    cross_section: Optional[CrossSection] = attr.ib(default=None)
-    _file_format_version: int = attr.ib(default=-1)
-    _headers: List[HeaderInfo] = attr.ib(factory=list)
-    _reached_end_of_file: bool = attr.ib(default=False)
+    g: Iterator[str]
+    _events_per_chunk: int
+    cross_section: Optional[CrossSection] = attr.field(default=None)
+    _file_format_version: int = attr.field(default=-1)
+    _headers: List[HeaderInfo] = attr.Factory(list)
+    _reached_end_of_file: bool = attr.field(default=False)
 
     def _is_chunk_ready(self) -> bool:
         """True if the chunk is ready"""

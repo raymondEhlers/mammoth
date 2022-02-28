@@ -15,10 +15,10 @@ from mammoth.framework import sources
 logger = logging.getLogger(__name__)
 
 
-@attr.s
+@attr.define
 class JEWELSource:
-    _filename: Path = attr.ib(converter=Path)
-    metadata: MutableMapping[str, Any] = attr.ib(factory=dict)
+    _filename: Path = attr.field(converter=Path)
+    metadata: MutableMapping[str, Any] = attr.Factory(dict)
 
     def __len__(self) -> int:
         """Number of entries in the source."""

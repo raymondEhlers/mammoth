@@ -73,13 +73,13 @@ def _convert_range(entry_range: Union[utils.Range, Sequence[float]]) -> utils.Ra
     return utils.Range(*entry_range)
 
 
-@attr.s
+@attr.define
 class UprootSource:
-    _filename: Path = attr.ib(converter=Path)
-    _tree_name: str = attr.ib()
-    _columns: Sequence[str] = attr.ib(factory=list)
-    _entry_range: utils.Range = attr.ib(converter=_convert_range, default=utils.Range(None, None))
-    metadata: MutableMapping[str, Any] = attr.ib(factory=dict)
+    _filename: Path = attr.field(converter=Path)
+    _tree_name: str
+    _columns: Sequence[str] = attr.Factory(list)
+    _entry_range: utils.Range = attr.field(converter=_convert_range, default=utils.Range(None, None))
+    metadata: MutableMapping[str, Any] = attr.Factory(dict)
 
     def __len__(self) -> int:
         if "n_entries" in self.metadata:
@@ -170,11 +170,11 @@ def chunked_uproot_source(
     return sources
 
 
-@attr.s
+@attr.define
 class ParquetSource:
-    _filename: Path = attr.ib(converter=Path)
-    _columns: Sequence[str] = attr.ib(factory=list)
-    metadata: MutableMapping[str, Any] = attr.ib(factory=dict)
+    _filename: Path = attr.field(converter=Path)
+    _columns: Sequence[str] = attr.Factory(list)
+    metadata: MutableMapping[str, Any] = attr.Factory(dict)
 
     def __len__(self) -> int:
         if "n_entries" in self.metadata:
@@ -195,7 +195,7 @@ class ParquetSource:
         return arrays
 
 
-@attr.s
+@attr.define
 class JetscapeSource(ParquetSource):
     """Jetscape source via Parquet file.
 
@@ -205,11 +205,11 @@ class JetscapeSource(ParquetSource):
     ...
 
 
-@attr.s
+@attr.define
 class PythiaSource:
-    config: Path = attr.ib(converter=Path)
-    chunk_size: int = attr.ib()
-    metadata: MutableMapping[str, Any] = attr.ib(factory=dict)
+    config: Path = attr.field(converter=Path)
+    chunk_size: int
+    metadata: MutableMapping[str, Any] = attr.Factory(dict)
 
     def __len__(self) -> int:
         return self.chunk_size
@@ -218,11 +218,11 @@ class PythiaSource:
         raise NotImplementedError("Working on it...")
 
 
-@attr.s
+@attr.define
 class ThermalModelParameters:
-    mean: float = attr.ib()
-    sigma: float = attr.ib()
-    pt_exponential_scale: float = attr.ib(default=0.4)
+    mean: float
+    sigma: float
+    pt_exponential_scale: float = attr.field(default=0.4)
 
 
 THERMAL_MODEL_SETTINGS = {
@@ -231,7 +231,7 @@ THERMAL_MODEL_SETTINGS = {
 }
 
 
-@attr.s
+@attr.define
 class ThermalModelExponential:
     """Thermal background model from Leticia
 
@@ -248,9 +248,9 @@ class ThermalModelExponential:
 
     """
 
-    chunk_size: int = attr.ib()
-    thermal_model_parameters: ThermalModelParameters = attr.ib()
-    metadata: MutableMapping[str, Any] = attr.ib(factory=dict)
+    chunk_size: int
+    thermal_model_parameters: ThermalModelParameters
+    metadata: MutableMapping[str, Any] = attr.Factory(dict)
 
     def __len__(self) -> int:
         return self.chunk_size
@@ -303,15 +303,15 @@ class ThermalModelExponential:
         )})
 
 
-@attr.s
+@attr.define
 class ALICEFastSimTrackingEfficiency:
     """ ALICE fast simulation based on tracking efficiency
 
     This is definitely a poor man's implementation, but it's fine for a first look.
     """
-    particle_level_data: ak.Array = attr.ib()
-    fast_sim_parameters: models.ALICEFastSimParameters = attr.ib()
-    metadata: MutableMapping[str, Any] = attr.ib(factory=dict)
+    particle_level_data: ak.Array
+    fast_sim_parameters: models.ALICEFastSimParameters
+    metadata: MutableMapping[str, Any] = attr.Factory(dict)
 
     def __len__(self) -> int:
         if "n_entries" in self.metadata:
@@ -370,12 +370,12 @@ def _sources_to_list(sources: Union[Source, Sequence[Source]]) -> Sequence[Sourc
     return sources
 
 
-@attr.s
+@attr.define
 class ChunkSource:
-    chunk_size: int = attr.ib()
-    sources: Sequence[Source] = attr.ib(converter=_sources_to_list)
-    repeat: bool = attr.ib(default=False)
-    metadata: MutableMapping[str, Any] = attr.ib(factory=dict)
+    chunk_size: int
+    sources: Sequence[Source] = attr.field(converter=_sources_to_list)
+    repeat: bool = attr.field(default=False)
+    metadata: MutableMapping[str, Any] = attr.Factory(dict)
 
     def __len__(self) -> int:
         if "n_entries" in self.metadata:
@@ -474,7 +474,7 @@ def _has_offset_per_source(
         )
 
 
-@attr.s
+@attr.define
 class MultipleSources:
     """Combine multiple data sources together.
 
@@ -486,14 +486,14 @@ class MultipleSources:
         _particles_columns: Names of columns to include in the particles.
     """
 
-    _fixed_size_sources: Mapping[str, Source] = attr.ib(validator=[_no_overlapping_keys])
-    _chunked_sources: Mapping[str, SourceWithChunks] = attr.ib(validator=[_no_overlapping_keys])
-    _source_index_identifiers: Mapping[str, int] = attr.ib(
+    _fixed_size_sources: Mapping[str, Source] = attr.field(validator=[_no_overlapping_keys])
+    _chunked_sources: Mapping[str, SourceWithChunks] = attr.field(validator=[_no_overlapping_keys])
+    _source_index_identifiers: Mapping[str, int] = attr.field(
         factory=dict,
         validator=[_contains_signal_and_background, _has_offset_per_source],
     )
-    _particles_columns: Sequence[str] = attr.ib(factory=lambda: ["px", "py", "pz", "E"])
-    metadata: MutableMapping[str, Any] = attr.ib(factory=dict)
+    _particles_columns: Sequence[str] = attr.field(factory=lambda: ["px", "py", "pz", "E"])
+    metadata: MutableMapping[str, Any] = attr.Factory(dict)
 
     def __len__(self) -> int:
         if "n_entries" in self.metadata:
@@ -537,7 +537,7 @@ class MultipleSources:
         return ak.zip({**fixed_sized_data, **chunked_data}, depth_limit=1)
 
 
-# @attr.s
+# @attr.define
 # class MultipleSources:
 #    """ Combine multiple data sources together.
 #
@@ -548,10 +548,10 @@ class MultipleSources:
 #        source_index_identifiers: Map contianing an integer identifier for each source.
 #        _particles_columns: Names of columns to include in the particles.
 #    """
-#    _sources: Mapping[str, Source] = attr.ib(validator=_contains_signal_and_background)
-#    source_index_identifiers: Mapping[str, int] = attr.ib(factory=dict, validator=[_contains_signal_and_background, _has_offset_per_source])
-#    _particles_columns: Sequence[str] = attr.ib(factory=lambda: ["px", "py", "pz", "E"])
-#    metadata: MutableMapping[str, Any] = attr.ib(factory=dict)
+#    _sources: Mapping[str, Source] = attr.field(validator=_contains_signal_and_background)
+#    source_index_identifiers: Mapping[str, int] = attr.field(factory=dict, validator=[_contains_signal_and_background, _has_offset_per_source])
+#    _particles_columns: Sequence[str] = attr.field(factory=lambda: ["px", "py", "pz", "E"])
+#    metadata: MutableMapping[str, Any] = attr.Factory(dict)
 #
 #    def data(self) -> Iterable[ak.Array]:
 #        # Grab the events from the sources

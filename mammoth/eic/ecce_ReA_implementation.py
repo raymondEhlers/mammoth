@@ -9,23 +9,23 @@ import numpy as np
 logger = logging.getLogger(__name__)
 
 
-@attr.s
+@attr.define
 class AnalysisConfig:
-    jet_R_values: List[float] = attr.ib()
-    jet_types: List[str] = attr.ib()
-    regions: List[str] = attr.ib()
-    variables: List[str] = attr.ib()
+    jet_R_values: List[float]
+    jet_types: List[str]
+    regions: List[str]
+    variables: List[str]
 
 
-@attr.s(frozen=True)
+@attr.frozen
 class JetParameters:
-    _jet_R: float = attr.ib()
-    jet_type: str = attr.ib()
-    region: str = attr.ib()
-    observable: str = attr.ib()
-    variable: str = attr.ib()
-    variation: int = attr.ib()
-    n_PDF_name: str = attr.ib()
+    _jet_R: float
+    jet_type: str
+    region: str
+    observable: str
+    variable: str
+    variation: int
+    n_PDF_name: str
 
     @property
     def jet_R(self) -> str:

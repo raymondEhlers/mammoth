@@ -47,7 +47,7 @@ def x_exp(
 sample_x_exp = inverse_sample_decorator(x_exp)
 
 
-@attr.s
+@attr.define
 class ALICEFastSimParameters:
-    period: ALICETrackingEfficiencyPeriod = attr.ib()
-    event_activity: ALICETrackingEfficiencyEventActivity = attr.ib()
+    period: ALICETrackingEfficiencyPeriod
+    event_activity: ALICETrackingEfficiencyEventActivity

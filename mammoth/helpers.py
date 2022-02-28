@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 rich_console = Console()
 
 
-@attr.s
+@attr.define
 class LogMessage:
     """Stores a log message for logging later.
 
@@ -35,9 +35,9 @@ class LogMessage:
         message: Message to log.
     """
 
-    _source: str = attr.ib()
-    level: str = attr.ib()
-    message: str = attr.ib()
+    _source: str
+    level: str
+    message: str
 
     def log(self) -> None:
         """Log the message."""

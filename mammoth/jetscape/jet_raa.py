@@ -24,10 +24,10 @@ from mammoth.jetscape import utils
 logger = logging.getLogger(__name__)
 
 
-@attr.s(frozen=True)
+@attr.frozen
 class JetLabel:
-    jet_R: float = attr.ib()
-    label: str = attr.ib()
+    jet_R: float
+    label: str
 
     def __str__(self) -> str:
         return f"{self.label}_jetR{round(self.jet_R * 100):03}"

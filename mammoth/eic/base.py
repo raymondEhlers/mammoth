@@ -1,12 +1,12 @@
 
 """Base functionality for ECCE analyses
 
-.. codeuathor:: Raymond Ehlers <raymond.ehlers@cern.ch>, ORNL
+.. codeauthor:: Raymond Ehlers <raymond.ehlers@cern.ch>, ORNL
 """
 
 import logging
 from pathlib import Path
-from typing import Dict, List, Sequence
+from typing import Dict, List, Optional, Sequence
 
 import attr
 import hist
@@ -15,7 +15,7 @@ import uproot
 logger = logging.getLogger(__name__)
 
 
-def load_hists(filename: Path, filter: str = "", filters: Sequence[str] = None, require_ends_with_in_filter: bool = False) -> Dict[str, hist.Hist]:
+def load_hists(filename: Path, filter: Optional[str] = "", filters: Optional[Sequence[str]] = None, require_ends_with_in_filter: bool = False) -> Dict[str, hist.Hist]:
     """Load histograms from a flat root file
 
     Note:
@@ -45,7 +45,7 @@ def load_hists(filename: Path, filter: str = "", filters: Sequence[str] = None, 
         filters = []
     # We always want to use the filters list. So if only a filter is passed, then put it into the filters list.
     # This reduces the number of code paths, which makes the code simpler
-    if filter != "":
+    if filter != "" and filter is not None:
         filters = [filter]
 
     hists = {}
@@ -65,10 +65,10 @@ def load_hists(filename: Path, filter: str = "", filters: Sequence[str] = None, 
 
 
 
-@attr.s(frozen=True)
+@attr.frozen
 class DatasetSpec:
-    site: str = attr.ib()
-    label: str = attr.ib()
+    site: str
+    label: str
 
     @property
     def identifier(self) -> str:
@@ -81,22 +81,22 @@ class DatasetSpec:
         return s
 
 
-@attr.s(frozen=True)
+@attr.frozen
 class DatasetSpecSingleParticle(DatasetSpec):
-    particle: str = attr.ib()
-    momentum_selection: List[float] = attr.ib()
+    particle: str
+    momentum_selection: List[float]
 
     @property
     def identifier(self) -> str:
         return f"single{self.particle.capitalize()}-p-{self.momentum_selection[0]:g}-to-{self.momentum_selection[1]:g}"
 
 
-@attr.s(frozen=True)
+@attr.frozen
 class DatasetSpecPythia(DatasetSpec):
-    generator: str = attr.ib()
-    electron_beam_energy: int = attr.ib()
-    proton_beam_energy: int = attr.ib()
-    _q2_selection: List[int] = attr.ib()
+    generator: str
+    electron_beam_energy: int
+    proton_beam_energy: int
+    _q2_selection: List[int]
 
     @property
     def q2(self) -> str:

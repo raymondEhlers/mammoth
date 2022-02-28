@@ -38,10 +38,10 @@ def iterate_in_chunks(n: int, iterable: Iterable[Any]) -> Iterable[Any]:
         yield itertools.chain((first_el,), chunk_it)
 
 
-@attr.s(frozen=True)
+@attr.frozen
 class Dataset:
-    data: Path = attr.ib()
-    geometry: Path = attr.ib()
+    data: Path
+    geometry: Path
 
 
 @bash_app  # type: ignore

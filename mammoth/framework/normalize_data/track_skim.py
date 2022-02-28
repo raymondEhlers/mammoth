@@ -15,11 +15,11 @@ from mammoth.framework import sources
 logger = logging.getLogger(__name__)
 
 
-@attr.s
+@attr.define
 class FileSource:
-    _filename: Path = attr.ib(converter=Path)
-    _collision_system: str = attr.ib()
-    metadata: MutableMapping[str, Any] = attr.ib(factory=dict)
+    _filename: Path = attr.field(converter=Path)
+    _collision_system: str
+    metadata: MutableMapping[str, Any] = attr.Factory(dict)
 
     def __len__(self) -> int:
         """Number of entries in the source."""

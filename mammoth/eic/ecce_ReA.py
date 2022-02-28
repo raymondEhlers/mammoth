@@ -24,11 +24,11 @@ pb.configure()
 logger = logging.getLogger(__name__)
 
 
-@attr.s(frozen=True)
+@attr.frozen
 class InputSpec:
-    n_PDF_name: str = attr.ib()
-    n_variations: int = attr.ib()
-    base_filename: str = attr.ib(default="output_JetObservables")
+    n_PDF_name: str
+    n_variations: int
+    base_filename: str = attr.field(default="output_JetObservables")
 
     @property
     def variations(self) -> Iterable[int]:
@@ -48,13 +48,13 @@ _n_PDF_name_display_name = {
 }
 
 
-@attr.s
+@attr.define
 class SimulationConfig:
-    dataset_spec: ecce_base.DatasetSpecPythia = attr.ib()
-    input_specs: Sequence[InputSpec] = attr.ib()
-    jet_algorithm: str = attr.ib()
-    input_dir: Path = attr.ib()
-    _output_dir: Path = attr.ib()
+    dataset_spec: ecce_base.DatasetSpecPythia
+    input_specs: Sequence[InputSpec]
+    jet_algorithm: str
+    input_dir: Path
+    _output_dir: Path
 
     def setup(self) -> bool:
         self.output_dir.mkdir(parents=True, exist_ok=True)

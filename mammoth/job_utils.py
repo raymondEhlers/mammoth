@@ -71,7 +71,7 @@ def _use_existing_work_dir_if_not_set(
         setattr(instance, attribute.name, instance.node_work_dir)
 
 
-@attr.s
+@attr.define
 class TaskConfig:
     """Configuration for a single task.
 
@@ -86,19 +86,19 @@ class TaskConfig:
         worth doing if absolutely required.
     """
 
-    name: str = attr.ib()
-    n_cores_per_task: int = attr.ib()
-    memory_per_task: Optional[int] = attr.ib(default=None)
+    name: str
+    n_cores_per_task: int
+    memory_per_task: Optional[int] = attr.field(default=None)
 
 
-@attr.s
+@attr.define
 class NodeSpec:
-    n_cores: int = attr.ib()
+    n_cores: int
     # Denoted in GB.
-    memory: int = attr.ib()
+    memory: int
 
 
-@attr.s
+@attr.define
 class Facility:
     """Facility configuration.
 
@@ -126,23 +126,23 @@ class Facility:
             the parsl config. Default: {}
     """
 
-    name: str = attr.ib()
-    node_spec: NodeSpec = attr.ib()
-    partition_name: str = attr.ib()
+    name: str
+    node_spec: NodeSpec
+    partition_name: str
     # Number of cores to target allocating. Default: Full node.
-    _target_allocate_n_cores: Optional[int] = attr.ib(default=None)
-    allocation_account: str = attr.ib(default="")
-    task_configs: Dict[str, TaskConfig] = attr.ib(factory=dict)
-    node_work_dir: Path = attr.ib(default=Path("."))
-    storage_work_dir: Path = attr.ib(
+    _target_allocate_n_cores: Optional[int] = attr.field(default=None)
+    allocation_account: str = attr.field(default="")
+    task_configs: Dict[str, TaskConfig] = attr.Factory(dict)
+    node_work_dir: Path = attr.field(default=Path("."))
+    storage_work_dir: Path = attr.field(
         validator=[_use_existing_work_dir_if_not_set, _expand_vars_in_work_dir_], default=None
     )
-    directories_to_mount_in_singularity: List[Path] = attr.ib(factory=list)
-    worker_init_script: str = attr.ib(default="")
-    high_throughput_executor_additional_options: Dict[str, Any] = attr.ib(factory=dict)
-    launcher: Callable[[], Launcher] = attr.ib(default=SrunLauncher)
-    parsl_config_additional_options: Dict[str, Any] = attr.ib(factory=dict)
-    cmd_timeout: int = attr.ib(default=10)
+    directories_to_mount_in_singularity: List[Path] = attr.Factory(list)
+    worker_init_script: str = attr.field(default="")
+    high_throughput_executor_additional_options: Dict[str, Any] = attr.Factory(dict)
+    launcher: Callable[[], Launcher] = attr.field(default=SrunLauncher)
+    parsl_config_additional_options: Dict[str, Any] = attr.Factory(dict)
+    cmd_timeout: int = attr.field(default=10)
 
     @property
     def target_allocate_n_cores(self) -> int:

@@ -13,10 +13,10 @@ import numba as nb
 import numpy as np
 
 
-@attr.s(frozen=True)
+@attr.frozen
 class Range:
-    min: Optional[float] = attr.ib()
-    max: Optional[float] = attr.ib()
+    min: Optional[float]
+    max: Optional[float]
 
 
 def _lexsort_for_groupby(array: ak.Array, columns: Sequence[Union[str, int]]) -> ak.Array:

@@ -23,11 +23,11 @@ from mammoth import base, parse_ascii
 pachyderm.plot.configure()
 
 
-@attr.s
+@attr.define
 class ReferenceData:
-    data: binned_data.BinnedData = attr.ib()
-    _stat_errors: binned_data.BinnedData = attr.ib()
-    _sys_errors: binned_data.BinnedData = attr.ib()
+    data: binned_data.BinnedData
+    _stat_errors: binned_data.BinnedData
+    _sys_errors: binned_data.BinnedData
 
     @property
     def values(self) -> np.ndarray:
