@@ -506,7 +506,7 @@ struct BackgroundSubtraction {
 struct FindJetsImplementationOutputWrapper {
   std::shared_ptr<fastjet::ClusterSequence> cs;
   std::shared_ptr<fastjet::BackgroundEstimatorBase> backgroundEstimator;
-  std::shared_ptr<std::vector<fastjet::PseudoJet>> jets;
+  std::vector<fastjet::PseudoJet> jets;
   std::vector<fastjet::PseudoJet> particles;
   std::vector<unsigned int> subtractedToUnsubtractedIndices;
 
@@ -525,7 +525,7 @@ struct FindJetsImplementationOutputWrapper {
    */
   FindJetsImplementationOutputWrapper(std::shared_ptr<fastjet::ClusterSequence> _cs,
                                       std::shared_ptr<fastjet::BackgroundEstimatorBase> _backgroundEstimator,
-                                      std::shared_ptr<std::vector<fastjet::PseudoJet>> _jets,
+                                      std::vector<fastjet::PseudoJet> & _jets,
                                       std::vector<fastjet::PseudoJet> & _particles,
                                       std::vector<unsigned int> & _subtractedToUnsubtractedIndices):
     cs(_cs), backgroundEstimator(_backgroundEstimator), jets(_jets), particles(_particles), subtractedToUnsubtractedIndices(_subtractedToUnsubtractedIndices) {}
@@ -988,6 +988,12 @@ FindJetsImplementationOutputWrapper findJetsImplementation(
   // Needed for PbPb validation
   std::vector<int> fixedSeeds = {12345, 67890};
 
+  // Determine if we're doing validation based on whether there is a fixed seed provided for the AreaSettings
+  bool validationMode = false;
+  if (mainJetFinder.areaSettings) {
+    validationMode = (mainJetFinder.areaSettings->randomSeed.size() > 0);
+  }
+
   // Convert column vector input to pseudo jets.
   auto particlePseudoJets = vectorsToPseudoJets(columnFourVectors);
 
@@ -998,6 +1004,7 @@ FindJetsImplementationOutputWrapper findJetsImplementation(
     << "Cuts:\n"
     //<< "\tMin jet pt=" << minJetPt << "\n"
     << "Settings:\n"
+    << "\tValidation mode" << validationMode << "\n"
     //<< "\tGhost area: " << areaSettings.ghostArea << "\n"
     << "\tBackground estimator using " << (std::get<0>(backgroundEstimatorFourVectors).size() > 0 ? "background" : "input") << " particles\n"
     //<< "\tBackground subtraction: " << backgroundSubtraction << "\n"
@@ -1027,20 +1034,32 @@ FindJetsImplementationOutputWrapper findJetsImplementation(
                                        ? possibleBackgroundEstimatorParticles
                                        : particlePseudoJets);
 
-    // TODO: TEMP
-    // Create a manual CS for background estimator to verify that the seed is set correctly.
-    auto jetMedianSettings = dynamic_cast<std::shared_ptr<JetMedianBackgroundEstimator>>(backgroundSubtraction.estimator);
-    auto csBkg = jetMedianSettings->settings.create(
-      possibleBackgroundEstimatorParticles.size() > 0
-      ? possibleBackgroundEstimatorParticles
-      : particlePseudoJets
-    );
-    // Try use JetMedianBackgroundEstimator w/ existing ClusterSequence
-    fastjet::JetMedianBackgroundEstimator bgeWithExistingCS(jetMedianSettings->selector(), csBkg);
-    bgeWithExistingCS.set_compute_rho_m(true);
-    bgeWithExistingCS.set_use_area_4vector(true);
-    std::cerr << "rhoWithCS=" << bgeWithExistingCS.rho() << ", standard rho=" << backgroundEstimator->rho() << "\n";
-    // ENDTEMP
+    // We can't directly access the cluster sequence of the background estimator.
+    // Consequently, to validate the seed, we create a separate cluster sequence based estimator
+    // using the same settings, and then compare the rho values. They should agree.
+    if (validationMode) {
+      // This is specific to the JetMedianBackgroundEstimator, so we need to cast to it.
+      std::shared_ptr<JetMedianBackgroundEstimator> jetMedianSettings = std::dynamic_pointer_cast<JetMedianBackgroundEstimator>(backgroundSubtraction.estimator);
+      // Create the CS and convert to a CSA. We need to do this in two steps to avoid running
+      // into issues due to returning a unique_ptr
+      std::shared_ptr<fastjet::ClusterSequence> tempCSBkg = jetMedianSettings->settings.create(
+        possibleBackgroundEstimatorParticles.size() > 0
+        ? possibleBackgroundEstimatorParticles
+        : particlePseudoJets
+      );
+      auto csBkg = std::dynamic_pointer_cast<fastjet::ClusterSequenceArea>(tempCSBkg);
+      // Finally, create the JetMedianBackgroundEstimator separately
+      fastjet::JetMedianBackgroundEstimator bgeWithExistingCS(jetMedianSettings->selector(), *csBkg);
+      bgeWithExistingCS.set_compute_rho_m(jetMedianSettings->computeRhoM);
+      bgeWithExistingCS.set_use_area_4vector(jetMedianSettings->useAreaFourVector);
+      assert(
+        bgeWithExistingCS.rho() == backgroundEstimator->rho() &&
+        ("estimator rho=" + std::to_string(backgroundEstimator->rho()) + ", validation rho=" + std::to_string(bgeWithExistingCS.rho())).c_str()
+      );
+      // TODO: Remove the printout...
+      std::cerr << "rhoWithCS=" << bgeWithExistingCS.rho() << ", standard rho=" << backgroundEstimator->rho()  << "\n";
+      // ENDTODO
+    }
 
     // Next up, create the subtractor
     // All of the settings are specified in the background subtractor
@@ -1059,17 +1078,32 @@ FindJetsImplementationOutputWrapper findJetsImplementation(
   }
 
   // Perform jet finding on signal
-  auto cs = mainJetFinder.create(particlePseudoJets);
+  std::shared_ptr<fastjet::ClusterSequence> cs = mainJetFinder.create(particlePseudoJets);
   auto jets = cs->inclusive_jets(mainJetFinder.minJetPt());
 
-  std::vector<int> tempFixedSeed;
-  // NOTE: Need to retrieve it for the CSA because we pass copies of objects, not by reference
-  cs.area_def().ghost_spec().get_last_seed(tempFixedSeed);
-  std::cout << "Fixed seeds (main jet finding): ";
-  for (auto & v : tempFixedSeed) {
-    std::cout << " " << v;
+  // Validate that the seed is fixed
+  // NOTE: We don't want to do this all of the time because the seed needs to be set very carefully,
+  //       or it can lead to very confusing results. It's also a waste of cycles if not needed.
+  if (validationMode) {
+    std::vector<int> checkFixedSeed;
+    // NOTE: Need to retrieve it from the CSA because we pass copies of objects, not by reference
+    auto csa = std::dynamic_pointer_cast<fastjet::ClusterSequenceArea>(cs);
+    csa->area_def().ghost_spec().get_last_seed(checkFixedSeed);
+    if (checkFixedSeed != mainJetFinder.areaSettings->randomSeed) {
+      std::string values = "";
+      for (const auto & v : checkFixedSeed) {
+        values += " " + v;
+      }
+      throw std::runtime_error("Seed mismatch in validation mode! Retrieved: " + values);
+    }
+    // TODO: Comment this out when done...
+    std::cout << "Fixed seeds (main jet finding): ";
+    for (auto & v : checkFixedSeed) {
+      std::cout << " " << v;
+    }
+    std::cout << "\n";
+    // ENDTEMP
   }
-  std::cout << "\n";
 
   // Apply the subtractor when appropriate
   if (backgroundSubtraction.type != BackgroundSubtractionType::kEventWiseCS) {
@@ -1086,7 +1120,7 @@ FindJetsImplementationOutputWrapper findJetsImplementation(
   jets = fastjet::sorted_by_pt(jets);
 
   return FindJetsImplementationOutputWrapper{
-    cs, backgroundEstimator, jets, particlePseudoJets, subtractedToUnsubtractedIndices
+    std::move(cs), backgroundEstimator, jets, particlePseudoJets, subtractedToUnsubtractedIndices
   };
 }
 
@@ -1471,9 +1505,10 @@ JetSubstructure::JetSubstructureSplittings jetReclusteringNew(
 {
   // Use jet finding implementation to do most of the work
   // We need to disable background subtraction, so create a simple container to disable it
-  auto backgroundSubtraction = BackgroundSubtraction{BackgroundSubtractionType::kDisabled, nullptr, nullptr};
+  FourVectorTuple<T> backgroundEstimatorFourVectors = {{}, {}, {}, {}};
+  BackgroundSubtraction backgroundSubtraction{BackgroundSubtractionType::kDisabled, nullptr, nullptr};
   auto && [cs, backgroundEstimator, jets, particlePseudoJets, subtractedToUnsubtractedIndices] = findJetsImplementation(
-    columnFourVectors, mainJetFinder, {{}, {}, {}, {}}, backgroundSubtraction
+    columnFourVectors, mainJetFinder, backgroundEstimatorFourVectors, backgroundSubtraction
   );
 
   // Now that we're done, just need to handle formatting the output
@@ -1484,7 +1519,7 @@ JetSubstructure::JetSubstructureSplittings jetReclusteringNew(
   }
 
   // Extract the reclustered jets
-  fastjet::PseudoJet jj = jets[0];
+  fastjet::PseudoJet jj = jets.at(0);
   // And store the jet splittings.
   JetSubstructure::JetSubstructureSplittings jetSplittings;
   int splittingNodeIndex = -1;
