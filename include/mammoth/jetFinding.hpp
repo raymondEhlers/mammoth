@@ -15,47 +15,20 @@
 #include <fastjet/tools/Subtractor.hh>
 #include <fastjet/contrib/ConstituentSubtractor.hh>
 
-// operator<< has to be forward declared carefully to stay in the global namespace so that it works with CINT.
-// For generally how to keep the operator in the global namespace, See: https://stackoverflow.com/a/38801633
-// NOTE: This probably isn't necessary for mammoth, but I'm copying my code from AliPhysics, and trying to modify
-//       it as little as possible. So since this doesn't cause an issue, I will leave it as is.
 namespace mammoth {
-  class AreaSettings;
-  class JetFindingSettings;
-  class BackgroundEstimator;
-  class JetMedianBackgroundEstimator;
-  class GridMedianBackgroundEstimator;
-  enum class BackgroundSubtractionType;
-  class BackgroundSubtractor;
-  class RhoSubtractor;
-  class ConstituentSubtractor;
-  class BackgroundSubtraction;
 namespace JetSubstructure {
   class Subjets;
   class JetSplittings;
   class JetSubstructureSplittings;
 }
 }
-std::ostream& operator<<(std::ostream& in, const mammoth::JetSubstructure::Subjets& myTask);
-std::ostream& operator<<(std::ostream& in, const mammoth::JetSubstructure::JetSplittings& myTask);
-std::ostream& operator<<(std::ostream& in, const mammoth::JetSubstructure::JetSubstructureSplittings& myTask);
+
 void swap(mammoth::JetSubstructure::Subjets& first,
      mammoth::JetSubstructure::Subjets& second);
 void swap(mammoth::JetSubstructure::JetSplittings& first,
      mammoth::JetSubstructure::JetSplittings& second);
 void swap(mammoth::JetSubstructure::JetSubstructureSplittings& first,
      mammoth::JetSubstructure::JetSubstructureSplittings& second);
-
-std::ostream& operator<<(std::ostream& in, const mammoth::AreaSettings & c);
-std::ostream& operator<<(std::ostream& in, const mammoth::JetFindingSettings & c);
-std::ostream& operator<<(std::ostream& in, const mammoth::BackgroundEstimator & c);
-std::ostream& operator<<(std::ostream& in, const mammoth::JetMedianBackgroundEstimator & c);
-std::ostream& operator<<(std::ostream& in, const mammoth::GridMedianBackgroundEstimator & c);
-std::ostream& operator<<(std::ostream& in, const mammoth::BackgroundSubtractionType& c);
-std::ostream& operator<<(std::ostream& in, const mammoth::BackgroundSubtractor& c);
-std::ostream& operator<<(std::ostream& in, const mammoth::RhoSubtractor& c);
-std::ostream& operator<<(std::ostream& in, const mammoth::ConstituentSubtractor& c);
-std::ostream& operator<<(std::ostream& in, const mammoth::BackgroundSubtraction& c);
 
 namespace mammoth {
 
@@ -117,8 +90,13 @@ fastjet::Selector SelectorAreaPercentageRange(double jetParameter, double percen
  */
 fastjet::Selector SelectorConstituentPtMax(double constituentPtMax);
 
-
-// Convenience
+/**
+ * @brief Wrapper for momentum four vectors.
+ *
+ * Assume px, py, pz, E
+ *
+ * @tparam T Storage type for four vector - usually double or float.
+ */
 template<typename T>
 using FourVectorTuple = std::tuple<std::vector<T>, std::vector<T>, std::vector<T>, std::vector<T>>;
 
@@ -184,14 +162,6 @@ struct AreaSettings {
    * @return std::string containing information about the task.
    */
   std::string to_string() const;
-  /**
-   * Print task information on an output stream using the string representation provided by
-   * AreaSettings::to_string. Used by operator<<
-   *
-   * @param in output stream stream
-   * @return reference to the output stream
-   */
-  friend std::ostream & ::operator<<(std::ostream &in, const AreaSettings &areaSettings);
 
   protected:
     static const std::map<std::string, fastjet::AreaType> areaTypes;
@@ -346,7 +316,6 @@ class Subjets {
 
   // Printing
   std::string toString() const;
-  friend std::ostream & ::operator<<(std::ostream &in, const Subjets &myTask);
   std::ostream & Print(std::ostream &in) const;
 
  protected:
@@ -399,7 +368,6 @@ class JetSplittings {
 
   // Printing
   std::string toString() const;
-  friend std::ostream & ::operator<<(std::ostream &in, const JetSplittings &myTask);
   std::ostream & Print(std::ostream &in) const;
 
  protected:
@@ -444,7 +412,6 @@ class JetSubstructureSplittings {
 
   // Printing
   std::string toString() const;
-  friend std::ostream & ::operator<<(std::ostream &in, const JetSubstructureSplittings &myTask);
   std::ostream & Print(std::ostream &in) const;
 
  private:
@@ -641,7 +608,6 @@ struct JetFindingSettings {
    * @return std::string containing information about the task.
    */
   std::string to_string() const;
-  friend std::ostream & ::operator<<(std::ostream &in, const JetFindingSettings &settings);
 
  protected:
   static const std::map<std::string, fastjet::JetAlgorithm> algorithms;
@@ -658,7 +624,6 @@ struct BackgroundEstimator {
    * @return std::string containing information about the estimator.
    */
   virtual std::string to_string() const = 0;
-  friend std::ostream & ::operator<<(std::ostream &in, const BackgroundEstimator &estimator);
 };
 
 struct JetMedianBackgroundEstimator : BackgroundEstimator {
@@ -762,7 +727,6 @@ struct JetMedianBackgroundEstimator : BackgroundEstimator {
    * @return std::string containing information about the estimator.
    */
   std::string to_string() const;
-  friend std::ostream & ::operator<<(std::ostream &in, const JetMedianBackgroundEstimator &estimator);
 };
 
 struct GridMedianBackgroundEstimator : BackgroundEstimator {
@@ -782,7 +746,6 @@ struct GridMedianBackgroundEstimator : BackgroundEstimator {
    * @return std::string containing information about the estimator.
    */
   std::string to_string() const;
-  friend std::ostream & ::operator<<(std::ostream &in, const GridMedianBackgroundEstimator &estimator);
 };
 
 enum class BackgroundSubtractionType {
@@ -801,7 +764,6 @@ struct BackgroundSubtractor {
    * @return std::string containing information about the subtractor.
    */
   virtual std::string to_string() const = 0;
-  friend std::ostream & ::operator<<(std::ostream &in, const BackgroundSubtractor &subtractor);
 };
 
 struct RhoSubtractor : BackgroundSubtractor {
@@ -832,7 +794,6 @@ struct RhoSubtractor : BackgroundSubtractor {
    * @return std::string containing information about the subtractor.
    */
   std::string to_string() const;
-  friend std::ostream & ::operator<<(std::ostream &in, const RhoSubtractor &subtractor);
 };
 
 struct ConstituentSubtractor : BackgroundSubtractor {
@@ -885,7 +846,6 @@ struct ConstituentSubtractor : BackgroundSubtractor {
    * @return std::string containing information about the subtractor.
    */
   std::string to_string() const;
-  friend std::ostream & ::operator<<(std::ostream &in, const ConstituentSubtractor &subtractor);
 
  protected:
   static const std::map<std::string, fastjet::contrib::ConstituentSubtractor::Distance> distanceTypes;
@@ -907,7 +867,6 @@ struct BackgroundSubtraction {
    * @return std::string containing information about the background subtraction.
    */
   std::string to_string() const;
-  friend std::ostream & ::operator<<(std::ostream &in, const BackgroundSubtraction &c);
 };
 
 struct FindJetsImplementationOutputWrapper {
@@ -1508,3 +1467,17 @@ JetSubstructure::JetSubstructureSplittings jetReclustering(
 }
 
 }
+
+std::ostream& operator<<(std::ostream& in, const mammoth::AreaSettings & c);
+std::ostream& operator<<(std::ostream& in, const mammoth::JetFindingSettings & c);
+std::ostream& operator<<(std::ostream& in, const mammoth::BackgroundEstimator & c);
+std::ostream& operator<<(std::ostream& in, const mammoth::JetMedianBackgroundEstimator & c);
+std::ostream& operator<<(std::ostream& in, const mammoth::GridMedianBackgroundEstimator & c);
+std::ostream& operator<<(std::ostream& in, const mammoth::BackgroundSubtractionType& c);
+std::ostream& operator<<(std::ostream& in, const mammoth::BackgroundSubtractor& c);
+std::ostream& operator<<(std::ostream& in, const mammoth::RhoSubtractor& c);
+std::ostream& operator<<(std::ostream& in, const mammoth::ConstituentSubtractor& c);
+std::ostream& operator<<(std::ostream& in, const mammoth::BackgroundSubtraction& c);
+std::ostream& operator<<(std::ostream& in, const mammoth::JetSubstructure::Subjets& myTask);
+std::ostream& operator<<(std::ostream& in, const mammoth::JetSubstructure::JetSplittings& myTask);
+std::ostream& operator<<(std::ostream& in, const mammoth::JetSubstructure::JetSubstructureSplittings& myTask);

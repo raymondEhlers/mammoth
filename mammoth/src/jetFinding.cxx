@@ -696,96 +696,23 @@ void ExtractJetSplittings(
 } // namespace mammoth
 
 /**
- * Subjets
- */
+  * operator<< for printing objects.
+  */
 
-/**
- * Implementation of the output stream operator for JetSubstructure::Subjets. Printing
- * basic task information provided by function toString
- * @param in output stream
- * @param myTask Task which will be printed
- * @return Reference to the output stream
- */
 std::ostream& operator<<(std::ostream& in, const mammoth::JetSubstructure::Subjets& myTask)
 {
   std::ostream& result = myTask.Print(in);
   return result;
 }
-
-/**
- * Swap function. Created using guide described here: https://stackoverflow.com/a/3279550.
- */
-void swap(mammoth::JetSubstructure::Subjets& first,
-     mammoth::JetSubstructure::Subjets& second)
-{
-  using std::swap;
-
-  // Same ordering as in the constructors (for consistency)
-  swap(first.fSplittingNodeIndex, second.fSplittingNodeIndex);
-  swap(first.fPartOfIterativeSplitting, second.fPartOfIterativeSplitting);
-  swap(first.fConstituentIndices, second.fConstituentIndices);
-}
-
-/**
- * JetSplittings
- */
-
-/**
- * Implementation of the output stream operator for JetSubstructure::JetSplittings. Printing
- * basic task information provided by function toString
- * @param in output stream
- * @param myTask Task which will be printed
- * @return Reference to the output stream
- */
 std::ostream& operator<<(std::ostream& in, const mammoth::JetSubstructure::JetSplittings& myTask)
 {
   std::ostream& result = myTask.Print(in);
   return result;
 }
-
-/**
- * Swap function. Created using guide described here: https://stackoverflow.com/a/3279550.
- */
-void swap(mammoth::JetSubstructure::JetSplittings& first,
-     mammoth::JetSubstructure::JetSplittings& second)
-{
-  using std::swap;
-
-  // Same ordering as in the constructors (for consistency)
-  swap(first.fKt, second.fKt);
-  swap(first.fDeltaR, second.fDeltaR);
-  swap(first.fZ, second.fZ);
-  swap(first.fParentIndex, second.fParentIndex);
-}
-
-/**
- * Jet substructure splittings
- */
-
-/**
- * Implementation of the output stream operator for JetSubstructureSplittings. Printing
- * basic task information provided by function toString
- * @param in output stream
- * @param myTask Task which will be printed
- * @return Reference to the output stream
- */
 std::ostream& operator<<(std::ostream& in, const mammoth::JetSubstructure::JetSubstructureSplittings& myTask)
 {
   std::ostream& result = myTask.Print(in);
   return result;
-}
-
-/**
- * Swap function. Created using guide described here: https://stackoverflow.com/a/3279550.
- */
-void swap(mammoth::JetSubstructure::JetSubstructureSplittings& first,
-     mammoth::JetSubstructure::JetSubstructureSplittings& second)
-{
-  using std::swap;
-
-  // Same ordering as in the constructors (for consistency)
-  swap(first.fJetSplittings, second.fJetSplittings);
-  swap(first.fSubjets, second.fSubjets);
 }
 
 std::ostream& operator<<(std::ostream& in, const mammoth::AreaSettings & c) {
@@ -831,4 +758,35 @@ std::ostream& operator<<(std::ostream& in, const mammoth::ConstituentSubtractor&
 std::ostream& operator<<(std::ostream& in, const mammoth::BackgroundSubtraction& c) {
   in << c.to_string();
   return in;
+}
+
+/**
+ * Swap function for jet substructure tasks. Created using guide described here: https://stackoverflow.com/a/3279550.
+ */
+void swap(mammoth::JetSubstructure::Subjets& first,
+     mammoth::JetSubstructure::Subjets& second) {
+  using std::swap;
+
+  // Same ordering as in the constructors (for consistency)
+  swap(first.fSplittingNodeIndex, second.fSplittingNodeIndex);
+  swap(first.fPartOfIterativeSplitting, second.fPartOfIterativeSplitting);
+  swap(first.fConstituentIndices, second.fConstituentIndices);
+}
+void swap(mammoth::JetSubstructure::JetSplittings& first,
+     mammoth::JetSubstructure::JetSplittings& second) {
+  using std::swap;
+
+  // Same ordering as in the constructors (for consistency)
+  swap(first.fKt, second.fKt);
+  swap(first.fDeltaR, second.fDeltaR);
+  swap(first.fZ, second.fZ);
+  swap(first.fParentIndex, second.fParentIndex);
+}
+void swap(mammoth::JetSubstructure::JetSubstructureSplittings& first,
+     mammoth::JetSubstructure::JetSubstructureSplittings& second) {
+  using std::swap;
+
+  // Same ordering as in the constructors (for consistency)
+  swap(first.fJetSplittings, second.fJetSplittings);
+  swap(first.fSubjets, second.fSubjets);
 }
