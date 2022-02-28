@@ -82,7 +82,7 @@ def to_awkward(
 
     data = sources.UprootSource(
         filename=filename,
-        tree_name=f"AliAnalysisTaskTrackSkim_*_tree",
+        tree_name="AliAnalysisTaskTrackSkim_*_tree",
         columns=event_level_columns + particle_columns,
     ).data()
 

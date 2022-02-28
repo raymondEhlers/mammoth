@@ -6,7 +6,7 @@
 
 import functools
 import operator
-from typing import Any, Mapping, Optional, Sequence, TypeVar
+from typing import Mapping, Optional, Sequence
 
 import awkward as ak
 import numba as nb
