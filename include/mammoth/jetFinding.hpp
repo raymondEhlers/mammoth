@@ -663,10 +663,21 @@ struct BackgroundEstimator {
 
 struct JetMedianBackgroundEstimator : BackgroundEstimator {
   JetFindingSettings settings;
-  bool computeRhoM{true};
-  bool useAreaFourVector{true};
-  int excludeNHardestJets{2};
-  double constituentPtMax{100};
+  bool computeRhoM;
+  bool useAreaFourVector;
+  int excludeNHardestJets;
+  double constituentPtMax;
+
+  JetMedianBackgroundEstimator(JetFindingSettings _settings, bool _computeRhoM, bool _useAreaFourVector, int _excludeNHardestJets, double _constituentPtMax):
+      settings(_settings), computeRhoM(_computeRhoM), useAreaFourVector(_useAreaFourVector),
+      excludeNHardestJets(_excludeNHardestJets), constituentPtMax(_constituentPtMax) {}
+
+  // TOOD: Need to propagate these as the default...
+  //bool computeRhoM{true};
+  //bool useAreaFourVector{true};
+  //int excludeNHardestJets{2};
+  //double constituentPtMax{100};
+
   //// Estimator Settings
   //// Same as above, so let's just create two classes with different defaults...
   //double R{0.2};
@@ -758,6 +769,9 @@ struct GridMedianBackgroundEstimator : BackgroundEstimator {
   double rapidityMax;
   double gridSpacing;
 
+  GridMedianBackgroundEstimator(double _rapidityMax, double _gridSpacing):
+    rapidityMax(_rapidityMax), gridSpacing(_gridSpacing) {}
+
   std::unique_ptr<fastjet::BackgroundEstimatorBase> create() override {
     return std::make_unique<fastjet::GridMedianBackgroundEstimator>(this->rapidityMax, this->gridSpacing);
   }
@@ -791,8 +805,12 @@ struct BackgroundSubtractor {
 };
 
 struct RhoSubtractor : BackgroundSubtractor {
-  bool useRhoM{true};
-  bool useSafeMass{true};
+  bool useRhoM;
+  bool useSafeMass;
+  //bool useRhoM{true};
+  //bool useSafeMass{true};
+
+  RhoSubtractor(bool _useRhoM, bool _useSafeMass): useRhoM(_useRhoM), useSafeMass(_useSafeMass) {}
 
   std::unique_ptr<fastjet::Transformer> create(std::shared_ptr<fastjet::BackgroundEstimatorBase> backgroundEstimator) override {
     auto subtractor = std::make_unique<fastjet::Subtractor>(backgroundEstimator.get());
@@ -818,10 +836,18 @@ struct RhoSubtractor : BackgroundSubtractor {
 };
 
 struct ConstituentSubtractor : BackgroundSubtractor {
-  double rMax{0.25};
-  double alpha{0.0};
-  double rapidityMax{1.0};
-  std::string distanceMeasure{"delta_R"};
+  double rMax;
+  double alpha;
+  double rapidityMax;
+  std::string distanceMeasure;
+
+  ConstituentSubtractor(double _rMax, double _alpha, double _rapidityMax, std::string _distanceMeasure):
+    rMax(_rMax), alpha(_alpha), rapidityMax(_rapidityMax), distanceMeasure(_distanceMeasure) {}
+
+  //double rMax{0.25};
+  //double alpha{0.0};
+  //double rapidityMax{1.0};
+  //std::string distanceMeasure{"delta_R"};
 
   std::unique_ptr<fastjet::Transformer> create(std::shared_ptr<fastjet::BackgroundEstimatorBase> backgroundEstimator) override {
     // Determine derived settings first
@@ -867,8 +893,13 @@ struct ConstituentSubtractor : BackgroundSubtractor {
 
 struct BackgroundSubtraction {
   BackgroundSubtractionType type;
-  std::unique_ptr<BackgroundEstimator> estimator{nullptr};
-  std::unique_ptr<BackgroundSubtractor> subtractor{nullptr};
+  std::shared_ptr<BackgroundEstimator> estimator;
+  std::shared_ptr<BackgroundSubtractor> subtractor;
+  //std::unique_ptr<BackgroundEstimator> estimator{nullptr};
+  //std::unique_ptr<BackgroundSubtractor> subtractor{nullptr};
+
+  BackgroundSubtraction(BackgroundSubtractionType _type, std::shared_ptr<BackgroundEstimator> _estimator, std::shared_ptr<BackgroundSubtractor> _subtractor):
+    type(_type), estimator(_estimator), subtractor(_subtractor) {}
 
   /**
    * Prints information about the background subtraction.
@@ -879,8 +910,23 @@ struct BackgroundSubtraction {
   friend std::ostream & ::operator<<(std::ostream &in, const BackgroundSubtraction &c);
 };
 
+struct FindJetsImplementationOutputWrapper {
+  std::shared_ptr<fastjet::ClusterSequence> cs_;
+  std::shared_ptr<fastjet::BackgroundEstimatorBase> backgroundEstimator_;
+  std::shared_ptr<std::vector<fastjet::PseudoJet>> jets_;
+  std::vector<fastjet::PseudoJet> particles_;
+  std::vector<unsigned int> subtractedToUnsubtractedIndices_;
+
+  FindJetsImplementationOutputWrapper(std::shared_ptr<fastjet::ClusterSequence> cs,
+                                      std::shared_ptr<fastjet::BackgroundEstimatorBase> backgroundEstimator,
+                                      std::shared_ptr<std::vector<fastjet::PseudoJet>> jets,
+                                      std::vector<fastjet::PseudoJet> & particles,
+                                      std::vector<unsigned int> & subtractedToUnsubtractedIndices):
+    cs_(cs), backgroundEstimator_(backgroundEstimator), jets_(jets), particles_(particles), subtractedToUnsubtractedIndices_(subtractedToUnsubtractedIndices) {}
+};
+
 template<typename T>
-OutputWrapper<T> findJetsNew(
+FindJetsImplementationOutputWrapper findJetsImplementation(
   FourVectorTuple<T> & columnFourVectors,
   const JetFindingSettings & mainJetFinder,
   FourVectorTuple<T> & backgroundEstimatorFourVectors,
@@ -988,6 +1034,23 @@ OutputWrapper<T> findJetsNew(
   // Sort by pt for convenience
   jets = fastjet::sorted_by_pt(jets);
 
+  return FindJetsImplementationOutputWrapper{
+    cs, backgroundEstimator, jets, particlePseudoJets, subtractedToUnsubtractedIndices
+  };
+}
+
+template<typename T>
+OutputWrapper<T> findJetsNew(
+  FourVectorTuple<T> & columnFourVectors,
+  const JetFindingSettings & mainJetFinder,
+  FourVectorTuple<T> & backgroundEstimatorFourVectors,
+  const BackgroundSubtraction & backgroundSubtraction
+)
+{
+  auto && [cs, backgroundEstimator, jets, particlePseudoJets, subtractedToUnsubtractedIndices] = findJetsImplementation(
+    columnFourVectors, mainJetFinder, backgroundEstimatorFourVectors, backgroundSubtraction
+  );
+
   // Now, handle returning the values.
   // First, we grab the jets themselves, converting the four vectors into column vector to return them.
   auto numpyJets = pseudoJetsToVectors<T>(jets);
@@ -996,6 +1059,7 @@ OutputWrapper<T> findJetsNew(
   // Finally, we need to associate the constituents with the jets. To do so, we store one vector per jet,
   // with the vector containing the user_index assigned earlier in the jet finding process.
   auto constituentIndices = constituentIndicesFromJets(jets);
+  // Finally, grab the rho value
   T rhoValue = backgroundEstimator ? backgroundEstimator->rho() : 0;
 
   if (backgroundSubtraction.type == BackgroundSubtractionType::kEventWiseCS ||

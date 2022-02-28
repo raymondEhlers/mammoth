@@ -223,7 +223,27 @@ PYBIND11_MODULE(_ext, m) {
         "recombination_scheme"_a,
         "strategy"_a = "Best",
         "pt_range"_a = std::make_tuple(0.0, 10000.0),
-        "eta_range"_a = std::make_tuple(0.9, 0.9),
+        "eta_range"_a = std::make_tuple(-0.9, 0.9),
+        "area_settings"_a = std::nullopt
+      )
+    .def_readwrite("R", &mammoth::JetFindingSettings::R)
+    .def("__repr__", [](const mammoth::JetFindingSettings &s) {
+      return s.to_string();
+    })
+  ;
+  // Second wrapper with different defaults for the JetMedianBackgroundEstimator
+  py::class_<mammoth::JetFindingSettings>(m, "JetFinderSettings", "Jet finding settings related to the jet median background estimator")
+    .def(
+      py::init<
+        double, std::string, std::string, std::string, std::tuple<double, double>, std::tuple<double, double>,
+        const std::optional<const mammoth::AreaSettings>
+      >(),
+        "R"_a = 0.2,
+        "algorithm"_a = "kt",
+        "recombination_scheme"_a = "E_scheme",
+        "strategy"_a = "Best",
+        "pt_range"_a = std::make_tuple(0.0, 10000.0),
+        "eta_range"_a = std::make_tuple(-0.9 + 0.2, 0.9 - 0.2),
         "area_settings"_a = std::nullopt
       )
     .def_readwrite("R", &mammoth::JetFindingSettings::R)
@@ -302,17 +322,17 @@ PYBIND11_MODULE(_ext, m) {
     })
   ;
   // Wrapper for background subtraction
-  py::class_<mammoth::BackgroundSubtraction>(m, "BackgroundSubtraction", "Background subtraction settings")
-    .def(
-      py::init<mammoth::BackgroundSubtractionType, std::unique_ptr<mammoth::BackgroundEstimator>, std::unique_ptr<mammoth::BackgroundSubtractor>>(),
-        "type"_a,
-        "estimator"_a,
-        "subtractor"_a
-      )
-    .def("__repr__", [](const mammoth::BackgroundSubtraction &s) {
-      return s.to_string();
-    })
-  ;
+  //py::class_<mammoth::BackgroundSubtraction>(m, "BackgroundSubtraction", "Background subtraction settings")
+  //  .def(
+  //    py::init<mammoth::BackgroundSubtractionType, std::unique_ptr<mammoth::BackgroundEstimator>, std::unique_ptr<mammoth::BackgroundSubtractor>>(),
+  //      "type"_a,
+  //      "estimator"_a,
+  //      "subtractor"_a
+  //    )
+  //  .def("__repr__", [](const mammoth::BackgroundSubtraction &s) {
+  //    return s.to_string();
+  //  })
+  //;
 
   m.def("find_jets", &findJets<float>, "px"_a, "py"_a, "pz"_a, "E"_a,
                                        "background_px"_a, "background_py"_a, "background_pz"_a, "background_E"_a,
