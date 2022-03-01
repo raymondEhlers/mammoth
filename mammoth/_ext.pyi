@@ -27,10 +27,10 @@ class JetFindingSettings:
         self,
         R: float,
         algorithm: str,
+        pt_range: Tuple[float, float],
+        eta_range: Tuple[float, float],
         recombination_scheme: str = ...,
         strategy: str = ...,
-        pt_range: Tuple[float, float] = ...,
-        eta_range: Tuple[float, float] = ...,
         area_settings: Optional[AreaSettings] = ...,
     ) -> None: ...
 

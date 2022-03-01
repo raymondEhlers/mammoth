@@ -170,10 +170,14 @@ struct AreaSettings {
 struct JetFindingSettings {
   double R;
   std::string algorithmName;
-  std::string recombinationSchemeName;
-  std::string strategyName;
   std::tuple<double, double> ptRange;
   std::tuple<double, double> etaRange;
+  // NOTE: It would be more natural for the recombination scheme and strategy to be listed with the algorithm.
+  //       However, we will set default values for the reco scheme and strategy, but not the pt and eta ranges,
+  //       So to enable brace initialization, I reordered it. I could have also written a constructor, but this
+  //       is fine and has no impact beyond the order in which I bind the arguments.
+  std::string recombinationSchemeName;
+  std::string strategyName;
   const std::optional<const AreaSettings> areaSettings{std::nullopt};
 
   /**
@@ -987,10 +991,6 @@ FindJetsImplementationOutputWrapper findJetsImplementation(
   const BackgroundSubtraction & backgroundSubtraction
 )
 {
-  // TODO: The seed needs to get moved out...
-  // Needed for PbPb validation
-  std::vector<int> fixedSeeds = {12345, 67890};
-
   // Determine if we're doing validation based on whether there is a fixed seed provided for the AreaSettings
   bool validationMode = false;
   if (mainJetFinder.areaSettings) {

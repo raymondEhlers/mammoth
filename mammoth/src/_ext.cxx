@@ -291,15 +291,15 @@ PYBIND11_MODULE(_ext, m) {
   py::class_<mammoth::JetFindingSettings>(m, "JetFindingSettings", "Main settings related to jet finding")
     .def(
       py::init<
-        double, std::string, std::string, std::string, std::tuple<double, double>, std::tuple<double, double>,
+        double, std::string, std::tuple<double, double>, std::tuple<double, double>, std::string, std::string,
         const std::optional<const mammoth::AreaSettings>
       >(),
         "R"_a,
         "algorithm"_a,
+        "pt_range"_a,
+        "eta_range"_a,
         "recombination_scheme"_a = "E_scheme",
         "strategy"_a = "Best",
-        "pt_range"_a = std::make_tuple(0.0, 10000.0),
-        "eta_range"_a = std::make_tuple(-0.9, 0.9),
         "area_settings"_a = std::nullopt
       )
     .def_readwrite("R", &mammoth::JetFindingSettings::R)
