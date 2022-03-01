@@ -252,6 +252,36 @@ void wrapOutputWrapper(py::module & m, const std::string & typestr)
   ;
 }
 
+void testFunction(mammoth::BackgroundEstimator * est) {
+  std::cerr << *est << "\n";
+}
+
+struct PyBackgroundEstimator : mammoth::BackgroundEstimator {
+  using mammoth::BackgroundEstimator::BackgroundEstimator;
+
+  //std::unique_ptr<fastjet::BackgroundEstimatorBase> create() const override {
+  //  PYBIND11_OVERLOAD_PURE(
+  //    std::unique_ptr<fastjet::BackgroundEstimatorBase>,
+  //    mammoth::BackgroundEstimator,
+  //    create,
+  //  );
+  //}
+
+  std::string to_string() const override {
+    PYBIND11_OVERLOAD_PURE(
+      std::string,
+      mammoth::BackgroundEstimator,
+      to_string,
+    );
+  }
+};
+
+mammoth::BackgroundSubtraction createDis(
+  mammoth::BackgroundEstimator * est
+) {
+  return mammoth::BackgroundSubtraction(mammoth::BackgroundSubtraction_t::rho, est, nullptr);
+}
+
 PYBIND11_MODULE(_ext, m) {
   // Constants
   m.attr("DEFAULT_RAPIDITY_MAX") = py::float_(DEFAULT_RAPIDITY_MAX);
@@ -307,8 +337,12 @@ PYBIND11_MODULE(_ext, m) {
       return s.to_string();
     })
   ;
+  // Base background estimator. Just to make pybind11 aware of it
+  py::class_<mammoth::BackgroundEstimator, std::shared_ptr<mammoth::BackgroundEstimator>>(m, "BackgroundEstimator", "Base background estimator");
+  //py::class_<mammoth::BackgroundEstimator, PyBackgroundEstimator, std::shared_ptr<mammoth::BackgroundEstimator>>(m, "BackgroundEstimator", "Base background estimator")
+  //  .def(py::init<>());
   // Jet median background estimator
-  py::class_<mammoth::JetMedianBackgroundEstimator>(m, "JetMedianBackgroundEstimator", "Background estimator based on jet median")
+  py::class_<mammoth::JetMedianBackgroundEstimator, mammoth::BackgroundEstimator, std::shared_ptr<mammoth::JetMedianBackgroundEstimator>>(m, "JetMedianBackgroundEstimator", "Background estimator based on jet median")
     .def(
       py::init<
         mammoth::JetFindingSettings, bool, bool, int, double
@@ -328,7 +362,7 @@ PYBIND11_MODULE(_ext, m) {
     })
   ;
   // Grid median background estimator
-  py::class_<mammoth::GridMedianBackgroundEstimator>(m, "GridMedianBackgroundEstimator", "Background estimator based on a grid")
+  py::class_<mammoth::GridMedianBackgroundEstimator, mammoth::BackgroundEstimator, std::shared_ptr<mammoth::GridMedianBackgroundEstimator>>(m, "GridMedianBackgroundEstimator", "Background estimator based on a grid")
     .def(
       py::init<double, double>(),
         "rapidity_max"_a = DEFAULT_RAPIDITY_MAX,
@@ -341,14 +375,18 @@ PYBIND11_MODULE(_ext, m) {
     })
   ;
   // Background subtraction type
-  py::enum_<mammoth::BackgroundSubtractionType>(m, "BackgroundSubtractionType",  py::arithmetic(), "Background subtraction type")
-    .value("disabled", mammoth::BackgroundSubtractionType::disabled, "Subtraction disabled")
-    .value("rho", mammoth::BackgroundSubtractionType::rho, "Rho subtraction")
-    .value("event_wise_constituent_subtraction", mammoth::BackgroundSubtractionType::eventWiseCS, "Event-wise constituent subtraction")
-    .value("jet_wise_constituent_subtraction", mammoth::BackgroundSubtractionType::jetWiseCS, "Jet-wise constituent subtraction")
-    .export_values();
+  py::enum_<mammoth::BackgroundSubtraction_t>(m, "BackgroundSubtractionType",  py::arithmetic(), "Background subtraction type")
+    .value("disabled", mammoth::BackgroundSubtraction_t::disabled, "Subtraction disabled")
+    .value("rho", mammoth::BackgroundSubtraction_t::rho, "Rho subtraction")
+    .value("event_wise_constituent_subtraction", mammoth::BackgroundSubtraction_t::eventWiseCS, "Event-wise constituent subtraction")
+    .value("jet_wise_constituent_subtraction", mammoth::BackgroundSubtraction_t::jetWiseCS, "Jet-wise constituent subtraction");
+
+  m.def("test_func", &testFunction, "est"_a);
+
+  // Base background subtractor. Just to make pybind11 aware of it
+  py::class_<mammoth::BackgroundSubtractor, std::shared_ptr<mammoth::BackgroundSubtractor>>(m, "BackgroundSubtractor", "Base background subtractor");
   // Rho background subtractor
-  py::class_<mammoth::RhoSubtractor>(m, "RhoSubtractor", "Rho based background subtraction")
+  py::class_<mammoth::RhoSubtractor, mammoth::BackgroundSubtractor, std::shared_ptr<mammoth::RhoSubtractor>>(m, "RhoSubtractor", "Rho based background subtraction")
     .def(
       py::init<bool, bool>(),
         "use_rho_M"_a = true,
@@ -361,7 +399,7 @@ PYBIND11_MODULE(_ext, m) {
     })
   ;
   // Constituent subtraction
-  py::class_<mammoth::ConstituentSubtractor>(m, "ConstituentSubtractor", "Background subtraction via Constituent Subtraction")
+  py::class_<mammoth::ConstituentSubtractor, mammoth::BackgroundSubtractor, std::shared_ptr<mammoth::ConstituentSubtractor>>(m, "ConstituentSubtractor", "Background subtraction via Constituent Subtraction")
     .def(
       py::init<double, double, double, std::string>(),
         "r_max"_a = 0.25,
@@ -380,15 +418,40 @@ PYBIND11_MODULE(_ext, m) {
   // Main container for background subtraction configuration
   py::class_<mammoth::BackgroundSubtraction>(m, "BackgroundSubtraction", "Background subtraction settings")
     .def(
-      py::init<mammoth::BackgroundSubtractionType, std::shared_ptr<mammoth::BackgroundEstimator>, std::shared_ptr<mammoth::BackgroundSubtractor>>(),
+      py::init<mammoth::BackgroundSubtraction_t, mammoth::BackgroundEstimator *, mammoth::BackgroundSubtractor *>(),
         "type"_a,
         "estimator"_a = nullptr,
         "subtractor"_a = nullptr
       )
-    .def("__repr__", [](const mammoth::BackgroundSubtraction &s) {
-      return s.to_string();
+    //.def(
+    //  py::init<mammoth::BackgroundSubtraction_t, mammoth::BackgroundEstimator, mammoth::BackgroundSubtractor>([](
+    //    mammoth::BackgroundSubtraction_t, mammoth::BackgroundEstimator, mammoth::BackgroundSubtractor
+
+    //  ){
+
+    //  }),
+    //    "type"_a,
+    //    "estimator"_a = nullptr,
+    //    "subtractor"_a = nullptr
+    //  )
+    //.def(
+    //  py::init<mammoth::BackgroundSubtraction_t, std::shared_ptr<mammoth::BackgroundEstimator>, std::shared_ptr<mammoth::BackgroundSubtractor>>(),
+    //    "type"_a,
+    //    "estimator"_a = nullptr,
+    //    "subtractor"_a = nullptr
+    //  )
+    //.def(
+    //  py::init<mammoth::BackgroundSubtraction_t>(),
+    //    "type"_a
+    //  )
+    //.def("__repr__", [](const mammoth::BackgroundSubtraction &s) {
+    .def("__repr__", []() {
+      return "blah";
+      //return s.to_string();
     })
   ;
+
+  m.def("create_dis", &createDis);
 
   // TODO: Rename when done with validation...
   m.def("find_jets_new", &findJetsNew<float>, "px"_a, "py"_a, "pz"_a, "E"_a,

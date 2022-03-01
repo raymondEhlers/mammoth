@@ -220,9 +220,6 @@ std::string AreaSettings::to_string() const
     randomSeedValues += (padding + std::to_string(v));
     padding = ", ";
   }
-  if (randomSeedValues.size() > 1) {
-    randomSeedValues.erase(randomSeedValues.end() - 2, randomSeedValues.end());
-  }
   randomSeedValues += "]";
   return "AreaSettings(area_type='" + this->areaTypeName + "'"
           + ", ghost_area=" + std::to_string(this->ghostArea)
@@ -293,7 +290,7 @@ std::string JetFindingSettings::to_string() const
   std::string result = "JetFindingSettings(R=" + std::to_string(this->R)
     + ", algorithm='" + this->algorithmName + "'"
     + ", recombination_scheme='" + this->recombinationSchemeName + "'"
-    + ", strategy=" + this->strategyName + "'"
+    + ", strategy='" + this->strategyName + "'"
     + ", pt=(" + std::to_string(std::get<0>(this->ptRange)) + ", " + std::to_string(std::get<1>(this->ptRange)) + ")"
     + ", eta=(" + std::to_string(std::get<0>(this->etaRange)) + ", " + std::to_string(std::get<1>(this->etaRange)) + ")";
   // Add area if it's defined.
@@ -386,12 +383,12 @@ std::string GridMedianBackgroundEstimator::to_string() const {
   return ss.str();
 }
 
-std::string to_string(const BackgroundSubtractionType & subtractionType) {
-  const std::map<BackgroundSubtractionType, std::string> subtractionTypes = {
-    {BackgroundSubtractionType::disabled, "Subtraction disabled"},
-    {BackgroundSubtractionType::rho, "Rho subtraction"},
-    {BackgroundSubtractionType::eventWiseCS, "Event-wise constituent subtraction"},
-    {BackgroundSubtractionType::jetWiseCS, "Jet-wise constituent subtraction"},
+std::string to_string(const BackgroundSubtraction_t & subtractionType) {
+  const std::map<BackgroundSubtraction_t, std::string> subtractionTypes = {
+    {BackgroundSubtraction_t::disabled, "Subtraction disabled"},
+    {BackgroundSubtraction_t::rho, "Rho subtraction"},
+    {BackgroundSubtraction_t::eventWiseCS, "Event-wise constituent subtraction"},
+    {BackgroundSubtraction_t::jetWiseCS, "Jet-wise constituent subtraction"},
   };
   return subtractionTypes.at(subtractionType);
 }
@@ -471,9 +468,20 @@ std::string BackgroundSubtraction::to_string() const {
   std::stringstream ss;
   ss << std::boolalpha
      << "BackgroundSubtraction(type=" << this->type
-     << ", estimator=" << *(this->estimator)
-     << ", subtractor=" << *(this->subtractor)
-     << ")";
+     << ", estimator=";
+  if (this->estimator) {
+    ss << *(this->estimator);
+  } else {
+    ss << "nullptr";
+  }
+  ss << ", subtractor=";
+  if (this->subtractor) {
+    ss << *(this->subtractor);
+  }
+  else {
+    ss << "nullptr";
+  }
+  ss << ")";
   return ss.str();
 }
 
@@ -902,7 +910,7 @@ std::ostream& operator<<(std::ostream& in, const mammoth::BackgroundSubtractor &
   in << c.to_string();
   return in;
 }
-std::ostream& operator<<(std::ostream& in, const mammoth::BackgroundSubtractionType& c) {
+std::ostream& operator<<(std::ostream& in, const mammoth::BackgroundSubtraction_t& c) {
   in << mammoth::to_string(c);
   return in;
 }
