@@ -1111,7 +1111,7 @@ FindJetsImplementationOutputWrapper findJetsImplementation(
   }
 
   // Apply the subtractor when appropriate
-  if (backgroundSubtraction.type != BackgroundSubtraction_t::eventWiseCS) {
+  if (subtractor && backgroundSubtraction.type != BackgroundSubtraction_t::eventWiseCS) {
     jets = (*subtractor)(jets);
   }
 
