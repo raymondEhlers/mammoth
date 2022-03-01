@@ -491,7 +491,6 @@ struct BackgroundSubtraction {
   std::shared_ptr<BackgroundEstimator> estimator;
   std::shared_ptr<BackgroundSubtractor> subtractor;
 
-  //BackgroundSubtraction(BackgroundSubtraction_t _type, BackgroundEstimator* _estimator, BackgroundSubtractor* _subtractor):
   BackgroundSubtraction(BackgroundSubtraction_t _type, std::shared_ptr<BackgroundEstimator> _estimator, std::shared_ptr<BackgroundSubtractor> _subtractor):
     type{_type}, estimator{_estimator}, subtractor{_subtractor} {}
 
@@ -1290,7 +1289,6 @@ OutputWrapper<T> findJets(
                                //* !fastjet::SelectorIsPureGhost()  // NB: This selector doesn't make a difference...
                                * fastjet::SelectorEtaRange(backgroundJetEtaMin, backgroundJetEtaMax)
                                * SelectorConstituentPtMax(100);
-    // TODO: Try estimating without area_4vector, try disabling rho_m, since it may be contributing...
 
     // Try to calculate rho by hand...
     fastjet::ClusterSequenceArea csBkg(particlePseudoJets,

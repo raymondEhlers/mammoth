@@ -477,8 +477,7 @@ std::string BackgroundSubtraction::to_string() const {
   ss << ", subtractor=";
   if (this->subtractor) {
     ss << this->subtractor->to_string();
-  }
-  else {
+  } else {
     ss << "nullptr";
   }
   ss << ")";
