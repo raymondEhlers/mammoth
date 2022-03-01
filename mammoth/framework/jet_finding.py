@@ -22,13 +22,23 @@ logger = logging.getLogger(__name__)
 
 vector.register_awkward()
 
-"""Default area settings for jet median background determination."""
-JetMedianAreaSettings = functools.partial(
+"""Default area settings for pp."""
+AreaPP = functools.partial(
+    AreaSettings,
+    area_type="active_area",
+    ghost_area=0.01,
+)
+"""Default area settings for AA."""
+AreaAA = functools.partial(
     AreaSettings,
     area_type="active_area_explicit_ghosts",
     ghost_area=0.005,
-    rapidity_max=DEFAULT_RAPIDITY_MAX,
 )
+# TODO: Remove...
+AREA_PP = AreaSettings("active_area", 0.01)
+AREA_AA = AreaSettings("active_area_explicit_ghosts", 0.005)
+# ENDTODO
+
 """Default jet finding settings for jet median background determination."""
 JetMedianJetFindingSettings = functools.partial(
     JetFindingSettings,
@@ -38,9 +48,10 @@ JetMedianJetFindingSettings = functools.partial(
     strategy="Best",
     pt_range=(0., 10000.),
     eta_range=(-0.9 + 0.2, 0.9 - 0.2),
-    area_settings=JetMedianAreaSettings(),
+    area_settings=AreaAA(),
 )
 
+"""Default area settings for reclustering / substructure."""
 AreaSubstructure = functools.partial(
     AreaSettings,
     area_type="passive_area",
@@ -57,25 +68,40 @@ ReclusteringJetFindingSettings = functools.partial(
     recombination_scheme="E_scheme",
     strategy="Best",
     pt_range=(0.0, 10000.),
-    eta_range=(-5, 5),
+    eta_range=(-5., 5.),
 )
-
-AreaPP = functools.partial(
-    AreaSettings,
-    area_type="active_area",
-    ghost_area=0.01,
-)
-AreaAA = functools.partial(
-    AreaSettings,
-    area_type="active_area_explicit_ghosts",
-    ghost_area=0.005,
-)
-# TODO: Remove...
-AREA_PP = AreaSettings("active_area", 0.01)
-AREA_AA = AreaSettings("active_area_explicit_ghosts", 0.005)
-# ENDTODO
 
 DISTANCE_DELTA: Final[float] = 0.01
+
+def pt_range(pt_min: float = 0.0, pt_max: float = 10000.) -> Tuple[float, float]:
+    """Helper to create the pt range, including common default values.
+
+    Args:
+        pt_min: Min jet pt range.
+        pt_max: Max jet pt range.
+    Returns:
+        tuple of pt range according to the settings.
+    """
+    # Wrap in floats to ensure that we don't have any type mismatches in pybind11
+    return float(pt_min), float(pt_max)
+
+
+def eta_range(jet_R: float, fiducial_acceptance: bool, eta_min: float = -0.9, eta_max: float = 0.9) -> Tuple[float, float]:
+    """Helper to create the eta range, including common default values.
+
+    Args:
+        jet_R: Jet R. Used for fiducial acceptance. Could be optional, but I think it's better to just have a consistent interface.
+        fiducial_acceptance: If True, we want a fiducial acceptance.
+        eta_min: Min jet eta range.
+        eta_max: Max jet eta range.
+    Returns:
+        tuple of eta range according to the settings.
+    """
+    if fiducial_acceptance:
+        eta_min, eta_max = eta_min + jet_R, eta_max - jet_R
+    # Wrap in floats to ensure that we don't have any type mismatches in pybind11
+    return float(eta_min), float(eta_max)
+
 
 @nb.njit  # type: ignore
 def _shared_momentum_fraction_for_flat_array_implementation(
@@ -398,6 +424,9 @@ def find_jets_new(
     # Validation
     if background_subtraction is None:
         background_subtraction = BackgroundSubtraction(type=BackgroundSubtractionType.disabled)
+
+    logger.info(f"Jet finding settings: {jet_finding_settings}")
+    logger.info(f"Background subtraction settings: {background_subtraction}")
 
     # Keep track of the event transitions.
     sum_counts = _indices_for_event_boundaries(particles)
