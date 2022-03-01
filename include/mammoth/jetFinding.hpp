@@ -324,7 +324,7 @@ struct JetMedianBackgroundEstimator : BackgroundEstimator {
    *
    * @return std::string containing information about the estimator.
    */
-  std::string to_string() const;
+  std::string to_string() const override;
 };
 
 /**
@@ -363,7 +363,7 @@ struct GridMedianBackgroundEstimator : BackgroundEstimator {
    *
    * @return std::string containing information about the estimator.
    */
-  std::string to_string() const;
+  std::string to_string() const override;
 };
 
 /**
@@ -435,7 +435,7 @@ struct RhoSubtractor : BackgroundSubtractor {
    *
    * @return std::string containing information about the subtractor.
    */
-  std::string to_string() const;
+  std::string to_string() const override;
 };
 
 /**
@@ -474,7 +474,7 @@ struct ConstituentSubtractor : BackgroundSubtractor {
    *
    * @return std::string containing information about the subtractor.
    */
-  std::string to_string() const;
+  std::string to_string() const override;
 
  protected:
   /// Map from name of constituent subtractor distance measure to distance enumeration value.
@@ -491,7 +491,8 @@ struct BackgroundSubtraction {
   std::shared_ptr<BackgroundEstimator> estimator;
   std::shared_ptr<BackgroundSubtractor> subtractor;
 
-  BackgroundSubtraction(BackgroundSubtraction_t _type, BackgroundEstimator* _estimator, BackgroundSubtractor* _subtractor):
+  //BackgroundSubtraction(BackgroundSubtraction_t _type, BackgroundEstimator* _estimator, BackgroundSubtractor* _subtractor):
+  BackgroundSubtraction(BackgroundSubtraction_t _type, std::shared_ptr<BackgroundEstimator> _estimator, std::shared_ptr<BackgroundSubtractor> _subtractor):
     type{_type}, estimator{_estimator}, subtractor{_subtractor} {}
 
   /**

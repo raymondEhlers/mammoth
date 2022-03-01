@@ -470,13 +470,13 @@ std::string BackgroundSubtraction::to_string() const {
      << "BackgroundSubtraction(type=" << this->type
      << ", estimator=";
   if (this->estimator) {
-    ss << *(this->estimator);
+    ss << this->estimator->to_string();
   } else {
     ss << "nullptr";
   }
   ss << ", subtractor=";
   if (this->subtractor) {
-    ss << *(this->subtractor);
+    ss << this->subtractor->to_string();
   }
   else {
     ss << "nullptr";
