@@ -295,7 +295,7 @@ std::string JetFindingSettings::to_string() const
     + ", eta=(" + std::to_string(std::get<0>(this->etaRange)) + ", " + std::to_string(std::get<1>(this->etaRange)) + ")";
   // Add area if it's defined.
   if (this->areaSettings) {
-    result += ", " + this->areaSettings->to_string();
+    result += ", area_settings=" + this->areaSettings->to_string();
   }
   result += ")";
   return result;
@@ -370,7 +370,7 @@ std::string JetMedianBackgroundEstimator::to_string() const {
      << ", use_area_four_vector=" << this->useAreaFourVector
      << ", exclude_n_hardest_jets=" << this->excludeNHardestJets
      << ", constituent_pt_max=" << this->constituentPtMax
-     << ", " << this->settings.to_string()
+     << ", jet_finding_settings=" << this->settings.to_string()
      << ")";
   return ss.str();
 }
