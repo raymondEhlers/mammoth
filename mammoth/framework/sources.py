@@ -483,9 +483,12 @@ class MultipleSources:
     Think: Embedding into data, embedding into thermal model, etc.
 
     Attributes:
-        _sources: Contains an arbitrary number of sources.
-        source_index_identifiers: Map containing an integer identifier for each source.
-        _particles_columns: Names of columns to include in the particles.
+        _fixed_size_sources: Sources which are of a fixed size. These sources determine the size
+            of the chunk that will be provided.
+        _chunked_sources: Sources which can provide chunks of data of a specified size. The size
+            of these chunks is determined by the fixed sized sources and is set when retrieveing
+            the data.
+        _source_index_identifiers: Map containing an integer identifier for each source.
     """
 
     _fixed_size_sources: Mapping[str, Source] = attr.field(validator=[_no_overlapping_keys])
@@ -494,7 +497,6 @@ class MultipleSources:
         factory=dict,
         validator=[_contains_signal_and_background, _has_offset_per_source],
     )
-    _particles_columns: Sequence[str] = attr.field(factory=lambda: ["px", "py", "pz", "E"])
     metadata: MutableMapping[str, Any] = attr.Factory(dict)
 
     def __len__(self) -> int:
@@ -515,16 +517,6 @@ class MultipleSources:
         if lengths.count(lengths[0]) != len(lengths):
             raise ValueError(f"Length of data doesn't match: {lengths}")
 
-        # Add source IDs
-        for k, v in fixed_sized_data.items():
-            # Need a way to get a column that's properly formatted, so we take a known good one,
-            # and then set the value as appropriate.
-            # v["source_ID"] = ak.values_astype(
-            #    v[self._particles_columns[0]] * 0 + self._source_index_identifiers[k],
-            #    np.int16,
-            # )
-            pass
-
         # Set the length of the chunked source based on the size of the fixed size sources
         for v in self._chunked_sources.values():
             v.chunk_size = lengths[0]
@@ -537,67 +529,3 @@ class MultipleSources:
         # NOTE: We're safe to blindly combine these here because the class validates that there
         #       are no overlapping keys between the fixed size and chunked data.
         return ak.zip({**fixed_sized_data, **chunked_data}, depth_limit=1)
-
-
-# @attr.define
-# class MultipleSources:
-#    """ Combine multiple data sources together.
-#
-#    Think: Embedding into data, embedding into thermal model, etc.
-#
-#    Attributes:
-#        _sources: Contains an arbitrary number of sources.
-#        source_index_identifiers: Map contianing an integer identifier for each source.
-#        _particles_columns: Names of columns to include in the particles.
-#    """
-#    _sources: Mapping[str, Source] = attr.field(validator=_contains_signal_and_background)
-#    source_index_identifiers: Mapping[str, int] = attr.field(factory=dict, validator=[_contains_signal_and_background, _has_offset_per_source])
-#    _particles_columns: Sequence[str] = attr.field(factory=lambda: ["px", "py", "pz", "E"])
-#    metadata: MutableMapping[str, Any] = attr.Factory(dict)
-#
-#    def data(self) -> Iterable[ak.Array]:
-#        # Grab the events from the sources
-#        source_events = {k: v.events()() for k, v in self._sources.items()}
-#
-#        # Add source IDs
-#        for k, v in source_events.items():
-#            # Need a way to get a column that's properly formatted, so we take a known good one,
-#            # and then set the value as appropriate.
-#            v["source_ID"] = ak.values_astype(
-#                v[self._particles_columns[0]] * 0 + self.source_index_identifiers[k],
-#                np.int16,
-#            )
-#
-#        # Need to differentiate the event info keys from the particle keys.
-#        event_keys = {k: set(ak.keys(source_events[k])) for k in source_events}
-#        event_keys = {k: v.difference(self._particles_columns) for k, v in event_keys.items()}
-#
-#        # Check if there are keys which we will overwrite with each other.
-#        shared_keys = {k: k1.union(k2) for k, k1 in event_keys.items() for k2 in event_keys if k1 != k2}
-#        # If there are shared keys, need to rename them to be unique.
-#        # TODO: For now, just raise a KeyError
-#        raise KeyError(f"Overlapping keys: {shared_keys}")
-#
-#        event_info = ak.zip(
-#            {
-#                # TODO: I'm not sure these would combine cleanly...
-#                #       May need to ask a question on the awkward discussion board.
-#                ak.unzip(source.events()[event_keys[k]]) for k, source in source_events
-#            },
-#            depth = 1,
-#        )
-#
-#        # TODO: This isn't right. It needs to append the two collections together.
-#        #       This should be done via awkward primitives.
-#        particles = ak.zip(
-#            {
-#                k: ak.concatenate(
-#                    [source[k] for source in source_events.values()],
-#                    axis=1
-#                )
-#                for k in self._particles_columns
-#            },
-#        )
-#
-#        # TODO: This isn't right. What about part vs det vs hybrid level, for example?
-#        yield event_info, particles
