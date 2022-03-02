@@ -598,11 +598,17 @@ def load_embedding(signal_filename: Path, background_filename: Path) -> Tuple[Di
 
     # Signal
     pythia_source = sources.ChunkSource(
+        # Chunk size will be set when combining the sources.
         chunk_size=-1,
-        sources=sources.ParquetSource(filename=signal_filename),
+        sources=track_skim.FileSource(
+            filename=signal_filename,
+            collision_system="pythia",
+        )
     )
-    pbpb_source = sources.ParquetSource(
+    # Background
+    pbpb_source=track_skim.FileSource(
         filename=background_filename,
+        collision_system="PbPb",
     )
 
     # Now, just zip them together, effectively.
@@ -614,10 +620,32 @@ def load_embedding(signal_filename: Path, background_filename: Path) -> Tuple[Di
 
     logger.info("Transforming embedded")
     arrays = combined_source.data()
+
+    # Apply some basic requirements on the data
+    mask = np.ones(len(arrays)) > 0
+    # Require there to be particles for each level of particle collection for each event.
+    # TODO: This select is repeated below. I think it's better below.
+    #       Two things to confirm:
+    #       - Is it actually better below? Or does it matter (eg. if here, could we forget it in the analysis?)
+    #       - Is it the right thing to do? (I think so, but confirm that this is consistent with the AliPhysics analysis)
+    mask = mask & (ak.num(arrays["signal", "part_level"], axis=1) > 0)
+    mask = mask & (ak.num(arrays["signal", "det_level"], axis=1) > 0)
+    mask = mask & (ak.num(arrays["background", "data"], axis=1) > 0)
+
     # Apply background event selection
     # We have to apply this here because we don't keep track of the background associated quantities.
-    background_event_selection = (arrays["background", "is_ev_rej"] == 0) & (np.abs(arrays["background", "z_vtx_reco"]) < 10)
-    arrays = arrays[background_event_selection]
+    # NOTE: In principle, we're wasting pythia events here since there could be good pythia events which
+    #       are rejected just because of the background. However, the background is our constraint, so it's fine.
+    background_event_selection = np.ones(len(arrays)) > 0
+    background_fields = ak.fields(arrays["background"])
+    if "is_ev_rej" in background_fields:
+        background_event_selection = background_event_selection & (arrays["background", "is_ev_rej"] == 0)
+    if "z_vtx_reco" in background_fields:
+        background_event_selection = background_event_selection & (np.abs(arrays["background", "z_vtx_reco"]) < 10)
+
+    # Finally, apply the masks
+    arrays = arrays[(mask & background_event_selection)]
+
     return source_index_identifiers, transform.embedding(
         arrays=arrays, source_index_identifiers=source_index_identifiers
     )
@@ -676,10 +704,17 @@ def load_thermal_model(
     )
 
 
-def analysis_embedding(source_index_identifiers: Mapping[str, int], arrays: ak.Array, jet_R: float, min_jet_pt: Mapping[str, float], r_max: float = 0.25, validation_mode: bool = False) -> ak.Array:
+def analysis_embedding(
+    source_index_identifiers: Mapping[str, int],
+    arrays: ak.Array,
+    jet_R: float,
+    min_jet_pt: Mapping[str, float],
+    r_max: float = 0.25,
+    validation_mode: bool = False,
+    shared_momentum_fraction_min: float = 0.5,
+) -> ak.Array:
     # Event selection
     # This would apply to the signal events, because this is what we propagate from the embedding transform
-    # TODO: Ensure event selection applies to be the signal and the background.
     event_level_mask = np.ones(len(arrays)) > 0
     if "is_ev_rej" in ak.fields(arrays):
         event_level_mask = event_level_mask & (arrays["is_ev_rej"] == 0)
@@ -703,6 +738,21 @@ def analysis_embedding(source_index_identifiers: Mapping[str, int], arrays: ak.A
     # NOTE: Since the HF Tree uses track containers, the min is usually applied by default
     hybrid_track_pt_mask = arrays["hybrid"].pt >= 0.150
     arrays["hybrid"] = arrays["hybrid"][hybrid_track_pt_mask]
+
+    # Finally, require that particles for all particle collections for each event
+    # NOTE: We have to do it in a separate mask because the above is masked as the particle level,
+    #       but here we need to mask at the event level. (If you try to mask at the particle, you'll
+    #       end up with empty events)
+    # NOTE: Remember that the lengths of det and particle level need to match up, so be careful with the mask!
+    # TODO: Double check that this requirement is kosher. I think it's totally reasonable, but needs that check...
+    logger.warning(f"pre requiring a particle in every event n events: {len(arrays)}")
+    event_has_particles_mask = (
+        (ak.num(arrays["part_level"], axis=1) > 0)
+        & (ak.num(arrays["det_level"], axis=1) > 0)
+        & (ak.num(arrays["hybrid"], axis=1) > 0)
+    )
+    arrays = arrays[event_has_particles_mask]
+    logger.warning(f"post requiring a particle in every event n events: {len(arrays)}")
 
     # Jet finding
     logger.info("Find jets")
@@ -774,6 +824,7 @@ def analysis_embedding(source_index_identifiers: Mapping[str, int], arrays: ak.A
                 # NOTE: We only want the minimum pt to apply to the detector level.
                 #       Otherwise, we'll bias our particle level jets.
                 min_jet_pt=1,
+                fiducial_acceptance=False,
             ),
             "det_level": jet_finding.find_jets(
                 particles=arrays["det_level"],
@@ -781,6 +832,7 @@ def analysis_embedding(source_index_identifiers: Mapping[str, int], arrays: ak.A
                 jet_R=jet_R,
                 area_settings=jet_finding.AREA_PP,
                 min_jet_pt=min_jet_pt.get("det_level", 5.0),
+                fiducial_acceptance=False,
             ),
             "hybrid": jet_finding.find_jets(
                 particles=arrays["hybrid"],
@@ -798,6 +850,186 @@ def analysis_embedding(source_index_identifiers: Mapping[str, int], arrays: ak.A
 
     import IPython; IPython.embed()
 
+    # Apply jet level cuts.
+    # **************
+    # Remove detector level jets with constituents with pt > 100 GeV
+    # Those tracks are almost certainly fake at detector level.
+    # NOTE: We skip at part level because it doesn't share these detector effects.
+    # NOTE: We need to do it after jet finding to avoid a z bias.
+    # **************
+    det_level_mask = ~ak.any(jets["det_level"].constituents.pt > 100., axis=-1)
+    hybrid_mask = ~ak.any(jets["hybrid"].constituents.pt > 100., axis=-1)
+    # For part level, we set a cut of 1000. It should be quite rare that it has an effect, but included for consistency
+    part_level_mask = ~ak.any(jets["part_level"].constituents.pt > 1000., axis=-1)
+    # **************
+    # Apply area cut
+    # Requires at least 60% of possible area.
+    # **************
+    min_area = jet_finding.area_percentage(60, jet_R)
+    part_level_mask = jets["part_level", "area"] > min_area
+    det_level_mask = det_level_mask & (jets["det_level", "area"] > min_area)
+    hybrid_mask = hybrid_mask & (jets["hybrid", "area"] > min_area)
+
+    # Apply the cuts
+    jets["part_level"] = jets["part_level"][part_level_mask]
+    jets["det_level"] = jets["det_level"][det_level_mask]
+    jets["hybrid"] = jets["hybrid"][hybrid_mask]
+
+    # Jet matching
+    logger.info("Matching jets")
+    jets = _jet_matching_embedding(
+        jets=jets,
+        det_level_hybrid_max_matching_distance=0.3,
+        part_level_det_level_max_matching_distance=0.3,
+    )
+
+    # Reclustering
+    # If we're out of jets, reclustering will fail. So if we're out of jets, then skip this step
+    if len(jets) == 0:
+        logger.warning("No jets left for reclustering. Skipping reclustering...")
+    else:
+        logger.info("Reclustering jets...")
+        for level in ["hybrid", "det_level", "part_level"]:
+            logger.info(f"Reclustering {level}")
+            # We only do the area calculation for data.
+            reclustering_kwargs = {}
+            if level != "part_level":
+                reclustering_kwargs["area_settings"] = jet_finding.AreaSubstructure(**area_kwargs)
+            jets[level, "reclustering"] = jet_finding.recluster_jets_new(
+                jets=jets[level],
+                jet_finding_settings=jet_finding.ReclusteringJetFindingSettings(**reclustering_kwargs),
+                store_recursive_splittings=True,
+            )
+
+        logger.info("Done with reclustering")
+
+    logger.warning(f"n events: {len(jets)}")
+
+    #### Old code
+
+    jets_old = _embedding_jet_cuts(jets=jets_old, jet_R=jet_R)
+
+    if len(jets_old) == 0:
+        logger.warning("No jets left for reclustering. Skipping reclustering...")
+    else:
+        logger.info("Reclustering jets...")
+        for level in ["hybrid", "det_level", "part_level"]:
+            logger.info(f"Reclustering {level}")
+            jets_old[level, "reclustering"] = jet_finding.recluster_jets(
+                jets=jets_old[level],
+                area_settings=jet_finding.AREA_SUBSTRUCTURE if level != "part_level" else None
+            )
+        logger.info("Done with reclustering")
+
+    #### End old code
+
+    import IPython; IPython.embed()
+
+    # Next step for using existing skimming:
+    # Flatten from events -> jets
+    # NOTE: Apparently it's takes issues with flattening the jets directly, so we have to do it
+    #       separately for the different collections and then zip them together. This should keep
+    #       matching together as appropriate.
+    jets = ak.zip(
+        {k: ak.flatten(v, axis=1) for k, v in zip(ak.fields(jets), ak.unzip(jets))},
+        depth_limit=1,
+    )
+
+    # Shared momentum fraction
+    try:
+        jets["det_level", "shared_momentum_fraction"] = jet_finding.shared_momentum_fraction_for_flat_array(
+            generator_like_jet_pts=jets["det_level"].pt,
+            generator_like_jet_constituents=jets["det_level"].constituents,
+            measured_like_jet_constituents=jets["hybrid"].constituents,
+        )
+
+        # Require a shared momentum fraction (default >= 0.5)
+        shared_momentum_fraction_mask = (jets["det_level", "shared_momentum_fraction"] >= shared_momentum_fraction_min)
+        n_jets_removed = len(jets) - np.count_nonzero(shared_momentum_fraction_mask)
+        logger.info(f"Removing {n_jets_removed} events out of {len(jets)} total jets ({round(n_jets_removed / len(jets) * 100, 2)}%) due to shared momentum fraction")
+        jets = jets[shared_momentum_fraction_mask]
+    except Exception as e:
+        print(e)
+        import IPython
+
+        IPython.embed()
+
+    # Now, the final transformation into a form that can be used to skim into a flat tree.
+    return jets
+
+
+def _jet_matching_embedding(jets: ak.Array,
+                            det_level_hybrid_max_matching_distance: float = 0.3,
+                            part_level_det_level_max_matching_distance: float = 0.3,
+                            ) -> ak.Array:
+    """Jet matching for embedding."""
+
+    # TODO: For better matching, need to use the hybrid sub -> hybrid sub info
+    #       However, this may not be necessary given the additional jet indexing info that
+    #       we have available here.
+    jets["det_level", "matching"], jets["hybrid", "matching"] = jet_finding.jet_matching_geometrical(
+        jets_base=jets["det_level"],
+        jets_tag=jets["hybrid"],
+        max_matching_distance=det_level_hybrid_max_matching_distance,
+    )
+    jets["part_level", "matching"], jets["det_level", "matching"] = jet_finding.jet_matching_geometrical(
+        jets_base=jets["part_level"],
+        jets_tag=jets["det_level"],
+        max_matching_distance=part_level_det_level_max_matching_distance,
+    )
+
+    # Now, use matching info
+    # First, require that there are jets in an event. If there are jets, and require that there
+    # is a valid match.
+    # NOTE: These can't be combined into one mask because they operate at different levels: events and jets
+    logger.info("Using matching info")
+    jets_present_mask = (
+        (ak.num(jets["part_level"], axis=1) > 0)
+        & (ak.num(jets["det_level"], axis=1) > 0)
+        & (ak.num(jets["hybrid"], axis=1) > 0)
+    )
+    jets = jets[jets_present_mask]
+
+    # Now, onto the individual jet collections
+    # We want to require valid matched jet indices. The strategy here is to lead via the detector
+    # level jets. The procedure is as follows:
+    #
+    # 1. Identify all of the detector level jets with valid matches.
+    # 2. Apply that mask to the detector level jets.
+    # 3. Use the matching indices from the detector level jets to index the particle level jets.
+    # 4. We should be done and ready to flatten. Note that the matching indices will refer to
+    #    the original arrays, not the masked ones. In principle, this should be updated, but
+    #    I'm unsure if they'll be used again, so we wait to update them until it's clear that
+    #    it's required.
+    #
+    # The other benefit to this approach is that it should reorder the particle level matches
+    # to be the same shape as the detector level jets, so in principle they are paired together.
+    # TODO: Check this is truly the case.
+    hybrid_to_det_level_valid_matches = jets["hybrid", "matching"] > -1
+    det_to_part_level_valid_matches = jets["det_level", "matching"] > -1
+    hybrid_to_det_level_including_det_to_part_level_valid_matches = det_to_part_level_valid_matches[jets["hybrid", "matching"][hybrid_to_det_level_valid_matches]]
+    # First, restrict the hybrid level, requiring hybrid to det_level valid matches and
+    # det_level to part_level valid matches.
+    jets["hybrid"] = jets["hybrid"][hybrid_to_det_level_valid_matches][hybrid_to_det_level_including_det_to_part_level_valid_matches]
+    # Next, restrict the det_level. Since we've restricted the hybrid to only valid matches, we should be able
+    # to directly apply the masking indices.
+    jets["det_level"] = jets["det_level"][jets["hybrid", "matching"]]
+    # Same reasoning here.
+    jets["part_level"] = jets["part_level"][jets["det_level", "matching"]]
+
+    # After all of these gymnastics, we may not have jets at all levels, so require there to a jet of each type.
+    # In principle, we've done this twice now, but logically this seems to be clearest.
+    jets_present_mask = (
+        (ak.num(jets["part_level"], axis=1) > 0)
+        & (ak.num(jets["det_level"], axis=1) > 0)
+        & (ak.num(jets["hybrid"], axis=1) > 0)
+    )
+    jets = jets[jets_present_mask]
+
+    return jets
+
+
+def _embedding_jet_cuts(jets: ak.Array, jet_R: float) -> ak.Array:
     # Apply jet level cuts.
     # **************
     # Remove detector level jets with constituents with pt > 100 GeV
@@ -884,48 +1116,7 @@ def analysis_embedding(source_index_identifiers: Mapping[str, int], arrays: ak.A
     )
     jets = jets[jets_present_mask]
 
-    if len(jets) == 0:
-        logger.warning("No jets left for reclustering. Skipping reclustering...")
-    else:
-        logger.info("Reclustering jets...")
-        for level in ["hybrid", "det_level", "part_level"]:
-            logger.info(f"Reclustering {level}")
-            # We only do the area calculation for data.
-            reclustering_kwargs = {}
-            if level != "part_level":
-                reclustering_kwargs["area_settings"] = jet_finding.AreaSubstructure(**area_kwargs)
-            jets[level, "reclustering"] = jet_finding.recluster_jets_new(
-                jets=jets[level],
-                jet_finding_settings=jet_finding.ReclusteringJetFindingSettings(**reclustering_kwargs),
-                store_recursive_splittings=True,
-            )
-
-        logger.info("Done with reclustering")
-
-    ## if len(jets) == 0:
-    ##     logger.warning("No jets left for reclustering. Skipping reclustering...")
-    ## else:
-    ##     logger.info("Reclustering jets...")
-    ##     for level in ["hybrid", "det_level", "part_level"]:
-    ##         logger.info(f"Reclustering {level}")
-    ##         jets[level, "reclustering"] = jet_finding.recluster_jets(jets=jets[level])
-    ##     logger.info("Done with reclustering")
-
-    logger.warning(f"n events: {len(jets)}")
-
-    # Next step for using existing skimming:
-    # Flatten from events -> jets
-    # NOTE: Apparently it's takes issues with flattening the jets directly, so we have to do it
-    #       separately for the different collections and then zip them together. This should keep
-    #       matching together as appropriate.
-    jets = ak.zip(
-        {k: ak.flatten(v, axis=1) for k, v in zip(ak.fields(jets), ak.unzip(jets))},
-        depth_limit=1,
-    )
-
-    # Now, the final transformation into a form that can be used to skim into a flat tree.
     return jets
-
 
 if __name__ == "__main__":
     helpers.setup_logging(level=logging.INFO)
