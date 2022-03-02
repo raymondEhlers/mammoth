@@ -60,7 +60,7 @@ def load_data(
     return transform.data(arrays=arrays, rename_prefix=rename_prefix)
 
 
-def analysis_MC(arrays: ak.Array, jet_R: float, min_jet_pt: Mapping[str, float]) -> ak.Array:
+def analysis_MC(arrays: ak.Array, jet_R: float, min_jet_pt: Mapping[str, float], validation_mode: bool = False) -> ak.Array:
     logger.info("Start analyzing")
     # Event selection
     logger.warning(f"pre event sel n events: {len(arrays)}")
@@ -100,7 +100,48 @@ def analysis_MC(arrays: ak.Array, jet_R: float, min_jet_pt: Mapping[str, float])
 
     # Jet finding
     logger.info("Find jets")
+    # First, setup what is needed for validation mode if enabled
+    area_kwargs = {}
+    if validation_mode:
+        area_kwargs["random_seed"] = [12345, 67890]
     jets = ak.zip(
+        {
+            "part_level": jet_finding.find_jets_new(
+                particles=arrays["part_level"],
+                jet_finding_settings=jet_finding.JetFindingSettings(
+                    R=jet_R,
+                    algorithm="anti-kt",
+                    # NOTE: We only want the minimum pt to apply to the detector level.
+                    #       Otherwise, we'll bias our particle level jets.
+                    pt_range=jet_finding.pt_range(pt_min=min_jet_pt.get("part_level", 1)),
+                    eta_range=jet_finding.eta_range(
+                        jet_R=jet_R,
+                        # We will require the det level jets to be in the fiducial acceptance, which means
+                        # that the part level jets don't need to be within the fiducial acceptance - just
+                        # within the overall acceptance.
+                        # NOTE: This is rounding a little bit since we still have an eta cut at particle
+                        #       level which will then cut into the particle level jets. However, this is
+                        #       what we've done in the past, so we continue it here.
+                        fiducial_acceptance=False
+                    ),
+                    area_settings=jet_finding.AreaPP(**area_kwargs),
+                ),
+            ),
+            "det_level": jet_finding.find_jets_new(
+                particles=arrays["det_level"],
+                jet_finding_settings=jet_finding.JetFindingSettings(
+                    R=jet_R,
+                    algorithm="anti-kt",
+                    pt_range=jet_finding.pt_range(pt_min=min_jet_pt["det_level"]),
+                    eta_range=jet_finding.eta_range(jet_R=jet_R, fiducial_acceptance=True),
+                    area_settings=jet_finding.AreaPP(**area_kwargs),
+                )
+            ),
+        },
+        depth_limit=1,
+    )
+
+    jets_old = ak.zip(
         {
             "part_level": jet_finding.find_jets(
                 particles=arrays["part_level"],
@@ -129,6 +170,8 @@ def analysis_MC(arrays: ak.Array, jet_R: float, min_jet_pt: Mapping[str, float])
         depth_limit=1,
     )
     logger.warning(f"Found det_level n jets: {np.count_nonzero(np.asarray(ak.flatten(jets['det_level'].px, axis=None)))}")
+
+    import IPython; IPython.embed()
 
     # Apply jet level cuts.
     # **************
@@ -205,11 +248,106 @@ def analysis_MC(arrays: ak.Array, jet_R: float, min_jet_pt: Mapping[str, float])
     logger.info("Reclustering jets...")
     for level in ["part_level", "det_level"]:
         logger.info(f"Reclustering {level}")
-        jets[level, "reclustering"] = jet_finding.recluster_jets(jets=jets[level])
+        # We only do the area calculation for data.
+        reclustering_kwargs = {}
+        if level != "part_level":
+            reclustering_kwargs["area_settings"] = jet_finding.AreaSubstructure(**area_kwargs)
+        jets[level, "reclustering"] = jet_finding.recluster_jets_new(
+            jets=jets[level],
+            jet_finding_settings=jet_finding.ReclusteringJetFindingSettings(**reclustering_kwargs),
+            store_recursive_splittings=True,
+        )
     logger.info("Done with reclustering")
 
     logger.warning(f"n events: {len(jets)}")
     logger.warning(f"n jets accepted: {np.count_nonzero(np.asarray(ak.flatten(jets['det_level'].px, axis=None)))}")
+
+    ##### Old block:
+
+    # Apply jet level cuts.
+    # **************
+    # Remove detector level jets with constituents with pt > 100 GeV
+    # Those tracks are almost certainly fake at detector level.
+    # NOTE: We skip at part level because it doesn't share these detector effects.
+    # NOTE: We need to do it after jet finding to avoid a z bias.
+    # **************
+    det_level_mask = ~ak.any(jets_old["det_level"].constituents.pt > 100, axis=-1)
+    logger.warning(f"max track constituent max accepted: {np.count_nonzero(np.asarray(ak.flatten(det_level_mask == True, axis=None)))}")
+    # **************
+    # Apply area cut
+    # Requires at least 60% of possible area.
+    # **************
+    min_area = jet_finding.area_percentage(60, jet_R)
+    part_level_mask = jets_old["part_level", "area"] > min_area
+    det_level_mask = det_level_mask & (jets_old["det_level", "area"] > min_area)
+    logger.warning(f"add area cut n accepted: {np.count_nonzero(np.asarray(ak.flatten(det_level_mask == True, axis=None)))}")
+    # *************
+    # Require more than one constituent at detector level if we're not in PbPb
+    # Matches a cut in AliAnalysisTaskJetDynamicalGrooming
+    # *************
+    det_level_mask = det_level_mask & (ak.num(jets_old["det_level", "constituents"], axis=2) > 1)
+    logger.warning(f"more than one constituent n accepted: {np.count_nonzero(np.asarray(ak.flatten(det_level_mask == True, axis=None)))}")
+
+    # Apply the cuts
+    jets_old["part_level"] = jets_old["part_level"][part_level_mask]
+    jets_old["det_level"] = jets_old["det_level"][det_level_mask]
+    logger.warning(f"all jet cuts n accepted: {np.count_nonzero(np.asarray(ak.flatten(jets_old['det_level'].px, axis=None)))}")
+
+    logger.info("Matching jets")
+    jets_old["part_level", "matching"], jets_old["det_level", "matching"] = jet_finding.jet_matching_geometrical(
+        jets_base=jets_old["part_level"],
+        jets_tag=jets_old["det_level"],
+        # NOTE: This is larger than the matching distance that I would usually use (where we usually use 0.3 =
+        #       in embedding), but this is apparently what we use in pythia. So just go with it.
+        max_matching_distance=1.0,
+    )
+
+    # Now, use matching info
+    # First, require that there are jets in an event. If there are jets, further require that there
+    # is a valid match.
+    # NOTE: These can't be combined into one mask because they operate at different levels: events and jets
+    logger.info("Using matching info")
+    jets_old_present_mask = (ak.num(jets_old["part_level"], axis=1) > 0) & (ak.num(jets_old["det_level"], axis=1) > 0)
+    jets_old = jets_old[jets_old_present_mask]
+    logger.warning(f"post jets present mask n accepted: {np.count_nonzero(np.asarray(ak.flatten(jets_old['det_level'].px, axis=None)))}")
+
+    # Now, onto the individual jet collections
+    # We want to require valid matched jet indices. The strategy here is to lead via the detector
+    # level jets. The procedure is as follows:
+    #
+    # 1. Identify all of the detector level jets with valid matches.
+    # 2. Apply that mask to the detector level jets.
+    # 3. Use the matching indices from the detector level jets to index the particle level jets.
+    # 4. We should be done and ready to flatten. Note that the matching indices will refer to
+    #    the original arrays, not the masked ones. In principle, this should be updated, but
+    #    I'm unsure if they'll be used again, so we wait to update them until it's clear that
+    #    it's required.
+    #
+    # The other benefit to this approach is that it should reorder the particle level matches
+    # to be the same shape as the detector level jets, so in principle they are paired together.
+    # Semi-validated result for det <-> part w/ thermal model:
+    # det <-> part for the thermal model looks like:
+    # part: ([[0, 3, 1, 2, 4, 5], [0, 1, -1], [], [0], [1, 0, -1]],
+    # det:   [[0, 2, 3, 1, 4, 5], [0, 1], [], [0], [1, 0]])
+    # Semi-validated by pythia validation vs standard AliPhysics task.
+    # TODO: Check this is truly the case by looking at both track collections.
+    det_level_matched_jets_old_mask = jets_old["det_level"]["matching"] > -1
+    jets_old["det_level"] = jets_old["det_level"][det_level_matched_jets_old_mask]
+    jets_old["part_level"] = jets_old["part_level"][jets_old["det_level", "matching"]]
+    logger.warning(f"post requiring valid matches n accepted: {np.count_nonzero(np.asarray(ak.flatten(jets_old['det_level'].px, axis=None)))}")
+
+    logger.info("Reclustering jets...")
+    for level in ["part_level", "det_level"]:
+        logger.info(f"Reclustering {level}")
+        jets_old[level, "reclustering"] = jet_finding.recluster_jets(jets=jets_old[level])
+    logger.info("Done with reclustering")
+
+    logger.warning(f"n events: {len(jets_old)}")
+    logger.warning(f"n jets accepted: {np.count_nonzero(np.asarray(ak.flatten(jets_old['det_level'].px, axis=None)))}")
+
+    ##### End old block:
+
+    import IPython; IPython.embed()
 
     # Next step for using existing skimming:
     # Flatten from events -> jets
@@ -227,6 +365,7 @@ def analysis_MC(arrays: ak.Array, jet_R: float, min_jet_pt: Mapping[str, float])
 
 def analysis_data(
     collision_system: str, arrays: ak.Array, jet_R: float, min_jet_pt: Mapping[str, float], particle_column_name: str = "data",
+    validation_mode: bool = False,
 ) -> ak.Array:
     logger.info("Start analyzing")
     # Event selection
@@ -248,31 +387,69 @@ def analysis_data(
 
     # Jet finding
     logger.info("Find jets")
-    area_settings = jet_finding.AREA_PP
+    # First, setup what is needed for validation mode if enabled
+    area_kwargs = {}
+    if validation_mode:
+        area_kwargs["random_seed"] = [12345, 67890]
+
+    area_settings = jet_finding.AreaPP(**area_kwargs)
     additional_kwargs: Dict[str, Any] = {}
     if collision_system in ["PbPb", "embedPythia", "thermal_model"]:
-        area_settings = jet_finding.AREA_AA
-        additional_kwargs["constituent_subtraction"] = jet_finding.ConstituentSubtractionSettings(
+        area_settings = jet_finding.AreaAA(**area_kwargs)
+        additional_kwargs["background_subtraction"] = jet_finding.BackgroundSubtraction(
+            type=jet_finding.BackgroundSubtractionType.event_wise_constituent_subtraction,
+            estimator=jet_finding.JetMedianBackgroundEstimator(
+                jet_finding_settings=jet_finding.JetMedianJetFindingSettings(
+                    area_settings=jet_finding.AreaAA(**area_kwargs)
+                )
+            ),
+            subtractor=jet_finding.ConstituentSubtractor(
+                r_max=0.25,
+            ),
+        )
+
+    jets = ak.zip(
+        {
+            particle_column_name: jet_finding.find_jets_new(
+                particles=arrays[particle_column_name],
+                jet_finding_settings=jet_finding.JetFindingSettings(
+                    R=jet_R,
+                    algorithm="anti-kt",
+                    pt_range=jet_finding.pt_range(pt_min=min_jet_pt.get(particle_column_name, 1.)),
+                    eta_range=jet_finding.eta_range(jet_R=jet_R, fiducial_acceptance=True),
+                    area_settings=area_settings,
+                ),
+                **additional_kwargs,
+            ),
+        },
+        depth_limit=1,
+    )
+
+    area_settings_old = jet_finding.AREA_PP
+    additional_kwargs_old: Dict[str, Any] = {}
+    if collision_system in ["PbPb", "embedPythia", "thermal_model"]:
+        area_settings_old = jet_finding.AREA_AA
+        additional_kwargs_old["constituent_subtraction"] = jet_finding.ConstituentSubtractionSettings(
             r_max=0.25,
         )
         #additional_kwargs["background_subtraction"] = True
 
-    jets = ak.zip(
+    jets_old = ak.zip(
         {
             particle_column_name: jet_finding.find_jets(
                 particles=arrays[particle_column_name],
                 algorithm="anti-kt",
                 jet_R=jet_R,
-                area_settings=area_settings,
+                area_settings=area_settings_old,
                 min_jet_pt=float(min_jet_pt.get(particle_column_name, 1.)),
-                **additional_kwargs,
+                **additional_kwargs_old,
             ),
         },
         depth_limit=1,
     )
     logger.warning(f"Found n jets: {np.count_nonzero(np.asarray(ak.flatten(jets[particle_column_name].px, axis=None)))}")
 
-    # import IPython; IPython.embed()
+    import IPython; IPython.embed()
 
     # Apply jet level cuts.
     # **************
@@ -310,13 +487,66 @@ def analysis_data(
     #raise RuntimeError("Stahp!")
 
     logger.info(f"Reclustering {particle_column_name} jets...")
-    jets[particle_column_name, "reclustering"] = jet_finding.recluster_jets(
+    jets[particle_column_name, "reclustering"] = jet_finding.recluster_jets_new(
         jets=jets[particle_column_name],
+        jet_finding_settings=jet_finding.ReclusteringJetFindingSettings(
+            # We perform the area calculation here since we're dealing with data, as is done in the AliPhysics DyG task
+            area_settings=jet_finding.AreaSubstructure(**area_kwargs)
+        ),
+        store_recursive_splittings=True,
+    )
+    logger.info("Done with reclustering")
+    logger.warning(f"n events: {len(jets)}")
+
+    ##### Old block:
+
+    # Apply jet level cuts.
+    # **************
+    # Remove jets with constituents with pt > 100 GeV
+    # Those tracks are almost certainly fake at detector level.
+    # NOTE: We need to do it after jet finding to avoid a z bias.
+    # **************
+    mask = ~ak.any(jets_old[particle_column_name].constituents.pt > 100, axis=-1)
+    logger.warning(f"max track constituent max accepted: {np.count_nonzero(np.asarray(ak.flatten(mask == True, axis=None)))}")
+    # **************
+    # Apply area cut
+    # Requires at least 60% of possible area.
+    # **************
+    min_area = jet_finding.area_percentage(60, jet_R)
+    #logger.warning(f"min area: {np.count_nonzero(np.asarray(ak.flatten((jets_old[particle_column_name, 'area'] > min_area) == True, axis=None)))}")
+    mask = mask & (jets_old[particle_column_name, "area"] > min_area)
+    logger.warning(f"add area cut accepted: {np.count_nonzero(np.asarray(ak.flatten(mask == True, axis=None)))}")
+    # *************
+    # Require more than one constituent at detector level if we're not in PbPb
+    # Matches a cut in AliAnalysisTaskJetDynamicalGrooming
+    # *************
+    if collision_system not in ["PbPb", "embedPythia", "thermal_model"]:
+        mask = mask & (ak.num(jets_old[particle_column_name].constituents, axis=2) > 1)
+
+    # Apply the cuts
+    jets_old[particle_column_name] = jets_old[particle_column_name][mask]
+
+    # Check for any jets. If there are none, we probably want to bail out.
+    # We need some variable to avoid flattening into a record, so select px arbitrarily.
+    if len(ak.flatten(jets_old[particle_column_name].px, axis=None)) == 0:
+        raise ValueError(f"No jets left for {particle_column_name}. Are your settings correct?")
+
+    logger.warning(f"jet pt: {ak.flatten(jets_old[particle_column_name].pt).to_list()}")
+    #import IPython; IPython.embed()
+    #raise RuntimeError("Stahp!")
+
+    logger.info(f"Reclustering {particle_column_name} jets...")
+    jets_old[particle_column_name, "reclustering"] = jet_finding.recluster_jets(
+        jets=jets_old[particle_column_name],
         # We perform the area calculation here since we're dealing with data, as is done in the AliPhysics DyG task
         area_settings=jet_finding.AREA_SUBSTRUCTURE,
     )
     logger.info("Done with reclustering")
-    logger.warning(f"n events: {len(jets)}")
+    logger.warning(f"n events: {len(jets_old)}")
+
+    ##### END Old block:
+
+    import IPython; IPython.embed()
 
     # Next step for using existing skimming:
     # Flatten from events -> jets
@@ -419,7 +649,7 @@ def load_thermal_model(
     )
 
 
-def analysis_embedding(source_index_identifiers: Mapping[str, int], arrays: ak.Array, jet_R: float, min_jet_pt: Mapping[str, float], r_max: float = 0.25) -> ak.Array:
+def analysis_embedding(source_index_identifiers: Mapping[str, int], arrays: ak.Array, jet_R: float, min_jet_pt: Mapping[str, float], r_max: float = 0.25, validation_mode: bool = False) -> ak.Array:
     # Event selection
     # This would apply to the signal events, because this is what we propagate from the embedding transform
     # TODO: Ensure event selection applies to be the signal and the background.
@@ -449,9 +679,65 @@ def analysis_embedding(source_index_identifiers: Mapping[str, int], arrays: ak.A
 
     # Jet finding
     logger.info("Find jets")
+    # First, setup what is needed for validation mode if enabled
+    area_kwargs = {}
+    if validation_mode:
+        area_kwargs["random_seed"] = [12345, 67890]
+
+    jets = ak.zip(
+        {
+            "part_level": jet_finding.find_jets_new(
+                particles=arrays["part_level"],
+                jet_finding_settings=jet_finding.JetFindingSettings(
+                    R=jet_R,
+                    algorithm="anti-kt",
+                    # NOTE: We only want the minimum pt to apply to the detector level.
+                    #       Otherwise, we'll bias our particle level jets.
+                    pt_range=jet_finding.pt_range(pt_min=min_jet_pt.get("part_level", 1.)),
+                    # NOTE: We only want fiducial acceptance at the "data" level (ie. hybrid)
+                    eta_range=jet_finding.eta_range(jet_R=jet_R, fiducial_acceptance=False),
+                    area_settings=jet_finding.AreaPP(**area_kwargs),
+                )
+            ),
+            "det_level": jet_finding.find_jets_new(
+                particles=arrays["det_level"],
+                jet_finding_settings=jet_finding.JetFindingSettings(
+                    R=jet_R,
+                    algorithm="anti-kt",
+                    pt_range=jet_finding.pt_range(pt_min=min_jet_pt.get("det_level", 5.)),
+                    # NOTE: We only want fiducial acceptance at the "data" level (ie. hybrid)
+                    eta_range=jet_finding.eta_range(jet_R=jet_R, fiducial_acceptance=False),
+                    area_settings=jet_finding.AreaPP(**area_kwargs),
+                )
+            ),
+            "hybrid": jet_finding.find_jets_new(
+                particles=arrays["hybrid"],
+                jet_finding_settings=jet_finding.JetFindingSettings(
+                    R=jet_R,
+                    algorithm="anti-kt",
+                    pt_range=jet_finding.pt_range(pt_min=min_jet_pt["hybrid"]),
+                    eta_range=jet_finding.eta_range(jet_R=jet_R, fiducial_acceptance=True),
+                    area_settings=jet_finding.AreaAA(**area_kwargs),
+                ),
+                background_subtraction=jet_finding.BackgroundSubtraction(
+                    type=jet_finding.BackgroundSubtractionType.event_wise_constituent_subtraction,
+                    estimator=jet_finding.JetMedianBackgroundEstimator(
+                        jet_finding_settings=jet_finding.JetMedianJetFindingSettings(
+                            area_settings=jet_finding.AreaAA(**area_kwargs)
+                        )
+                    ),
+                    subtractor=jet_finding.ConstituentSubtractor(
+                        r_max=r_max,
+                    ),
+                ),
+            ),
+        },
+        depth_limit=1,
+    )
+
     # TODO: Carefully consider what needs to be within fiducial acceptance. Based on the DyG task (double check),
     #       I believe it just needs to be the "data" (ie. hybrid).
-    jets = ak.zip(
+    jets_old = ak.zip(
         {
             "part_level": jet_finding.find_jets(
                 particles=arrays["part_level"],
@@ -483,6 +769,8 @@ def analysis_embedding(source_index_identifiers: Mapping[str, int], arrays: ak.A
         depth_limit=1,
     )
 
+    import IPython; IPython.embed()
+
     # Apply jet level cuts.
     # **************
     # Remove detector level jets with constituents with pt > 100 GeV
@@ -490,8 +778,10 @@ def analysis_embedding(source_index_identifiers: Mapping[str, int], arrays: ak.A
     # NOTE: We skip at part level because it doesn't share these detector effects.
     # NOTE: We need to do it after jet finding to avoid a z bias.
     # **************
-    det_level_mask = ~ak.any(jets["det_level"].constituents.pt > 100, axis=-1)
-    hybrid_mask = ~ak.any(jets["hybrid"].constituents.pt > 100, axis=-1)
+    det_level_mask = ~ak.any(jets["det_level"].constituents.pt > 100., axis=-1)
+    hybrid_mask = ~ak.any(jets["hybrid"].constituents.pt > 100., axis=-1)
+    # For part level, we set a cut of 1000. It should be quite rare that it has an effect, but included for consistency
+    part_level_mask = ~ak.any(jets["part_level"].constituents.pt > 1000., axis=-1)
     # **************
     # Apply area cut
     # Requires at least 60% of possible area.
@@ -573,8 +863,26 @@ def analysis_embedding(source_index_identifiers: Mapping[str, int], arrays: ak.A
         logger.info("Reclustering jets...")
         for level in ["hybrid", "det_level", "part_level"]:
             logger.info(f"Reclustering {level}")
-            jets[level, "reclustering"] = jet_finding.recluster_jets(jets=jets[level])
+            # We only do the area calculation for data.
+            reclustering_kwargs = {}
+            if level != "part_level":
+                reclustering_kwargs["area_settings"] = jet_finding.AreaSubstructure(**area_kwargs)
+            jets[level, "reclustering"] = jet_finding.recluster_jets_new(
+                jets=jets[level],
+                jet_finding_settings=jet_finding.ReclusteringJetFindingSettings(**reclustering_kwargs),
+                store_recursive_splittings=True,
+            )
+
         logger.info("Done with reclustering")
+
+    ## if len(jets) == 0:
+    ##     logger.warning("No jets left for reclustering. Skipping reclustering...")
+    ## else:
+    ##     logger.info("Reclustering jets...")
+    ##     for level in ["hybrid", "det_level", "part_level"]:
+    ##         logger.info(f"Reclustering {level}")
+    ##         jets[level, "reclustering"] = jet_finding.recluster_jets(jets=jets[level])
+    ##     logger.info("Done with reclustering")
 
     logger.warning(f"n events: {len(jets)}")
 
