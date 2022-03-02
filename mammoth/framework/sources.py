@@ -13,6 +13,7 @@ from typing import (
     Any,
     Dict,
     Iterable,
+    Iterator,
     List,
     Mapping,
     MutableMapping,
@@ -376,6 +377,7 @@ class ChunkSource:
     sources: Sequence[Source] = attr.field(converter=_sources_to_list)
     repeat: bool = attr.field(default=False)
     metadata: MutableMapping[str, Any] = attr.Factory(dict)
+    _iter_with_data_func: Iterator[ak.Array] = attr.field(init=False, default=None)
 
     def __len__(self) -> int:
         if "n_entries" in self.metadata:
@@ -385,9 +387,9 @@ class ChunkSource:
     def data(self) -> ak.Array:
         """Retrieve data to satisfy the given chunk size."""
         # We need to keep track of the iterator so that we can actually advance it.
-        # To do this, we add a private class member to store the iter, and then we
-        # call next on that.
-        if not hasattr(self, "_iter_with_data_func"):
+        # To do this, we store an iter in a private class member, and then we call
+        # next on that.
+        if not self._iter_with_data_func:
             self._iter_with_data_func = iter(self.data_iter())
         return next(self._iter_with_data_func)
 
