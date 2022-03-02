@@ -1061,7 +1061,7 @@ FindJetsImplementationOutputWrapper findJetsImplementation(
         ("estimator rho=" + std::to_string(backgroundEstimator->rho()) + ", validation rho=" + std::to_string(bgeWithExistingCS.rho())).c_str()
       );
       // TODO: Remove the printout...
-      std::cerr << "rhoWithCS=" << bgeWithExistingCS.rho() << ", standard rho=" << backgroundEstimator->rho()  << "\n";
+      std::cerr << "rhoWithCS=" << bgeWithExistingCS.rho() << ", rhoStandard=" << backgroundEstimator->rho()  << "\n";
       // ENDTODO
     }
 
