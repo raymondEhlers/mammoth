@@ -1123,7 +1123,7 @@ FindJetsImplementationOutputWrapper findJetsImplementation(
   jets = fastjet::sorted_by_pt(jets);
 
   return FindJetsImplementationOutputWrapper{
-    std::move(cs), backgroundEstimator, jets, particlePseudoJets, subtractedToUnsubtractedIndices
+    cs, backgroundEstimator, jets, particlePseudoJets, subtractedToUnsubtractedIndices
   };
 }
 
