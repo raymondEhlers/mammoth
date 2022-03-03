@@ -259,6 +259,7 @@ PYBIND11_MODULE(_ext, m) {
   // Output wrapper. Just providing access to the fields.
   wrapOutputWrapper<double>(m, "Double");
   wrapOutputWrapper<float>(m, "Float");
+  // TODO: Remove when done...
   // Wrapper for constituent subtraction settings
   py::class_<mammoth::ConstituentSubtractionSettings>(m, "ConstituentSubtractionSettings", "Constituent subtraction settings")
     .def(py::init<double, double>(), "r_max"_a = 0.25, "alpha"_a = 0)
@@ -269,7 +270,7 @@ PYBIND11_MODULE(_ext, m) {
     })
   ;
   // Area settings
-  py::class_<mammoth::AreaSettings>(m, "AreaSettings", "Settings related to jet finding area")
+  py::class_<mammoth::AreaSettings, std::shared_ptr<mammoth::AreaSettings>>(m, "AreaSettings", "Settings related to jet finding area")
     .def(py::init<std::string, double, double, int, double, double, double, std::vector<int>>(),
          "area_type"_a = "active_area",
          "ghost_area"_a = 0.005,
@@ -288,7 +289,7 @@ PYBIND11_MODULE(_ext, m) {
     })
   ;
   // Jet finding settings
-  py::class_<mammoth::JetFindingSettings>(m, "JetFindingSettings", "Main settings related to jet finding")
+  py::class_<mammoth::JetFindingSettings, std::shared_ptr<mammoth::JetFindingSettings>>(m, "JetFindingSettings", "Main settings related to jet finding")
     .def(
       py::init<
         double, std::string, std::tuple<double, double>, std::tuple<double, double>, std::string, std::string,
