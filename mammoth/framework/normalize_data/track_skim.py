@@ -245,3 +245,21 @@ if __name__ == "__main__":
             ),
             collision_system=collision_system,
         )
+
+    # For embedding, we need to go to the separate signal and background files themselves.
+    for collision_system in ["pythia", "PbPb"]:
+        logger.info(f"Converting collision system {collision_system} for embedding")
+        arrays = to_awkward(
+            filename=Path(
+                f"/software/rehlers/dev/mammoth/projects/framework/embedPythia/track_skim/{collision_system}/AnalysisResults.root"
+            ),
+            collision_system=collision_system,
+        )
+
+        write_to_parquet(
+            arrays=arrays,
+            filename=Path(
+                f"/software/rehlers/dev/mammoth/projects/framework/embedPythia/AnalysisResults_{collision_system}_track_skim.parquet"
+            ),
+            collision_system=collision_system,
+        )
