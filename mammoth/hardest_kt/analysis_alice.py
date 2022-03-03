@@ -760,6 +760,12 @@ def analysis_embedding(
     area_kwargs = {}
     if validation_mode:
         area_kwargs["random_seed"] = [12345, 67890]
+    # We usually calculate rho only using the PbPb particles (ie. not including the embedded det_level),
+    # so we need to select only them.
+    # NOTE: The most general approach would be some divisor argument to select the signal source indexed
+    #       particles, but since the background has the higher source index, we can just select particles
+    #       with an index smaller than that offset.
+    background_only_particles_mask = ~(arrays["hybrid", "index"] < source_index_identifiers["background"])
 
     jets = ak.zip(
         {
@@ -796,6 +802,7 @@ def analysis_embedding(
                     eta_range=jet_finding.eta_range(jet_R=jet_R, fiducial_acceptance=True),
                     area_settings=jet_finding.AreaAA(**area_kwargs),
                 ),
+                background_particles=arrays["hybrid"][background_only_particles_mask],
                 background_subtraction=jet_finding.BackgroundSubtraction(
                     type=jet_finding.BackgroundSubtractionType.event_wise_constituent_subtraction,
                     estimator=jet_finding.JetMedianBackgroundEstimator(
