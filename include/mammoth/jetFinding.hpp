@@ -1004,14 +1004,13 @@ FindJetsImplementationOutputWrapper findJetsImplementation(
   // NOTE: This can be removed eventually. For now (July 2021), it will be routed to debug level
   //       so we can be 100% sure about what is being calculated.
   std::cout << std::boolalpha
-    << "Cuts:\n"
-    //<< "\tMin jet pt=" << minJetPt << "\n"
     << "Settings:\n"
-    << "\tValidation mode" << validationMode << "\n"
-    //<< "\tGhost area: " << areaSettings.ghostArea << "\n"
+    << "\tValidation mode=" << validationMode << "\n"
+    // For whatever reason, the mainJetFinder streamer doesn't seem to work here. I'm sure I'm doing
+    // something dumb, but it's easily worked around via to_string, so just let it go.
+    << "\tMain jet finding settings: " << mainJetFinder.to_string() << "\n"
     << "\tBackground estimator using " << (std::get<0>(backgroundEstimatorFourVectors).size() > 0 ? "background" : "input") << " particles\n"
-    //<< "\tBackground subtraction: " << backgroundSubtraction << "\n"
-    //<< "\tConstituent subtraction: " << static_cast<bool>(constituentSubtraction)
+    << "\tBackground subtraction: " << backgroundSubtraction
     << "\n";
 
   // First start with a background estimator, if we're running one.
