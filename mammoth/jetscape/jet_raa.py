@@ -81,8 +81,6 @@ def find_jets_for_analysis(arrays: ak.Array, jet_R_values: Sequence[float], part
 
     # Jet finding
     logger.info("Find jets")
-    # Always use the pp jet area because we aren't going to do subtraction via fastjet
-    area_settings = jet_finding.AREA_PP
     jets = {}
     # NOTE: The dict comprehension that was here previously was cute, but it made it harder to
     #       debug issues, so we use a standard set of for loops here instead
@@ -91,12 +89,16 @@ def find_jets_for_analysis(arrays: ak.Array, jet_R_values: Sequence[float], part
         for particles, label in zip([particles_signal_charged, particles_signal], ["charged", "full"]):
             tag = JetLabel(jet_R=jet_R, label=label)
             logger.info(f"label: {tag}")
-            jets[tag] = jet_finding.find_jets(
+            jets[tag] = jet_finding.find_jets_new(
                 particles=particles,
-                algorithm="anti-kt",
-                jet_R=jet_R,
-                area_settings=area_settings,
-                min_jet_pt=min_jet_pt,
+                jet_finding_settings=jet_finding.JetFindingSettings(
+                    R=jet_R,
+                    algorithm="anti-kt",
+                    pt_range=jet_finding.pt_range(pt_min=min_jet_pt),
+                    eta_range=jet_finding.eta_range(jet_R=jet_R, fiducial_acceptance=True),
+                    # Always use the pp jet area because we aren't going to do subtraction via fastjet
+                    area_settings=jet_finding.AreaPP(),
+                )
             )
 
     # Calculated the subtracted pt due to the holes.

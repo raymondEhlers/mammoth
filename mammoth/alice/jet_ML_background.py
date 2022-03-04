@@ -5,7 +5,7 @@
 
 import logging
 from pathlib import Path
-from typing import Any, Dict, Mapping, Tuple
+from typing import Any, Dict, Mapping, Tuple, Union
 
 import awkward as ak
 import numpy as np
@@ -124,36 +124,60 @@ def analysis_embedding(source_index_identifiers: Mapping[str, int],
 
     # Jet finding
     logger.info("Find jets")
-    hybrid_kwargs: Dict[str, Any] = {}
-    if use_standard_rho_subtract:
-        hybrid_kwargs = {"background_subtraction": True}
+    # We usually calculate rho only using the PbPb particles (ie. not including the embedded det_level),
+    # so we need to select only them.
+    # NOTE: The most general approach would be some divisor argument to select the signal source indexed
+    #       particles, but since the background has the higher source index, we can just select particles
+    #       with an index smaller than that offset.
+    background_only_particles_mask = ~(arrays["hybrid", "index"] < source_index_identifiers["background"])
+
+    # Since rho subtraction is the default, we start with that
+    subtractor: Union[jet_finding.RhoSubtractor, jet_finding.ConstituentSubtractor] = jet_finding.RhoSubtractor()
     if use_constituent_subtraction:
-        hybrid_kwargs = {"constituent_subtraction": jet_finding.ConstituentSubtractionSettings(r_max=0.25)}
+        subtractor = jet_finding.ConstituentSubtractor(r_max=0.25)
     jets = ak.zip(
         {
-            "part_level": jet_finding.find_jets(
+            "part_level": jet_finding.find_jets_new(
                 particles=arrays["part_level"],
-                algorithm="anti-kt",
-                jet_R=jet_R,
-                area_settings=jet_finding.AREA_PP,
-                # NOTE: We only want the minimum pt to apply to the detector level.
-                #       Otherwise, we'll bias our particle level jets.
-                min_jet_pt=1,
+                jet_finding_settings=jet_finding.JetFindingSettings(
+                    R=jet_R,
+                    algorithm="anti-kt",
+                    # NOTE: We only want the minimum pt to apply to the detector level.
+                    #       Otherwise, we'll bias our particle level jets.
+                    pt_range=jet_finding.pt_range(pt_min=min_jet_pt.get("part_level", 1.)),
+                    # NOTE: We only want fiducial acceptance at the "data" level (ie. hybrid)
+                    eta_range=jet_finding.eta_range(jet_R=jet_R, fiducial_acceptance=False),
+                    area_settings=jet_finding.AreaPP(),
+                ),
             ),
-            "det_level": jet_finding.find_jets(
+            "det_level": jet_finding.find_jets_new(
                 particles=arrays["det_level"],
-                algorithm="anti-kt",
-                jet_R=jet_R,
-                area_settings=jet_finding.AREA_PP,
-                min_jet_pt=min_jet_pt.get("det_level", 5.0),
+                jet_finding_settings=jet_finding.JetFindingSettings(
+                    R=jet_R,
+                    algorithm="anti-kt",
+                    pt_range=jet_finding.pt_range(pt_min=min_jet_pt.get("det_level", 5.)),
+                    # NOTE: We only want fiducial acceptance at the "data" level (ie. hybrid)
+                    eta_range=jet_finding.eta_range(jet_R=jet_R, fiducial_acceptance=False),
+                    area_settings=jet_finding.AreaPP(),
+                )
             ),
-            "hybrid": jet_finding.find_jets(
+            "hybrid": jet_finding.find_jets_new(
                 particles=arrays["hybrid"],
-                algorithm="anti-kt",
-                jet_R=jet_R,
-                area_settings=jet_finding.AREA_AA,
-                min_jet_pt=min_jet_pt["hybrid"],
-                **hybrid_kwargs,
+                jet_finding_settings=jet_finding.JetFindingSettings(
+                    R=jet_R,
+                    algorithm="anti-kt",
+                    pt_range=jet_finding.pt_range(pt_min=min_jet_pt["hybrid"]),
+                    eta_range=jet_finding.eta_range(jet_R=jet_R, fiducial_acceptance=True),
+                    area_settings=jet_finding.AreaAA(),
+                ),
+                background_particles=arrays["hybrid"][background_only_particles_mask],
+                background_subtraction=jet_finding.BackgroundSubtraction(
+                    type=jet_finding.BackgroundSubtractionType.event_wise_constituent_subtraction,
+                    estimator=jet_finding.JetMedianBackgroundEstimator(
+                        jet_finding_settings=jet_finding.JetMedianJetFindingSettings()
+                    ),
+                    subtractor=subtractor,
+                ),
             ),
         },
         depth_limit=1,
