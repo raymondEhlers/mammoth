@@ -405,6 +405,37 @@ def analysis_data(
     return jets
 
 
+def _event_select_and_transform_embedding(arrays: ak.Array, source_index_identifiers: Mapping[str, int]) ->  Tuple[Dict[str, int], ak.Array]:
+    # Apply some basic requirements on the data
+    mask = np.ones(len(arrays)) > 0
+    # Require there to be particles for each level of particle collection for each event.
+    # Although this will need to be repeated after the track cuts, it's good to start here since
+    # it will avoid wasting signal or background events on events which aren't going to succeed anyway.
+    mask = mask & (ak.num(arrays["signal", "part_level"], axis=1) > 0)
+    mask = mask & (ak.num(arrays["signal", "det_level"], axis=1) > 0)
+    mask = mask & (ak.num(arrays["background", "data"], axis=1) > 0)
+
+    # Signal event selection
+    # NOTE: We can apply the signal selections in the analysis task below, so we don't apply it here
+
+    # Apply background event selection
+    # We have to apply this here because we don't keep track of the background associated quantities.
+    background_event_selection = np.ones(len(arrays)) > 0
+    background_fields = ak.fields(arrays["background"])
+    if "is_ev_rej" in background_fields:
+        background_event_selection = background_event_selection & (arrays["background", "is_ev_rej"] == 0)
+    if "z_vtx_reco" in background_fields:
+        background_event_selection = background_event_selection & (np.abs(arrays["background", "z_vtx_reco"]) < 10)
+
+    # Finally, apply the masks
+    arrays = arrays[(mask & background_event_selection)]
+
+    logger.info("Transforming embedded")
+    return dict(source_index_identifiers), transform.embedding(
+        arrays=arrays, source_index_identifiers=source_index_identifiers
+    )
+
+
 def load_embedding(signal_filename: Path, background_filename: Path) -> Tuple[Dict[str, int], ak.Array]:
     # Setup
     logger.info("Loading embedded data")
@@ -432,36 +463,8 @@ def load_embedding(signal_filename: Path, background_filename: Path) -> Tuple[Di
         source_index_identifiers=source_index_identifiers,
     )
 
-    logger.info("Transforming embedded")
     arrays = combined_source.data()
-
-    # Apply some basic requirements on the data
-    mask = np.ones(len(arrays)) > 0
-    # Require there to be particles for each level of particle collection for each event.
-    # Although this will need to be repeated after the track cuts, it's good to start here since
-    # it will avoid wasting signal or background events on events which aren't going to succeed anyway.
-    mask = mask & (ak.num(arrays["signal", "part_level"], axis=1) > 0)
-    mask = mask & (ak.num(arrays["signal", "det_level"], axis=1) > 0)
-    mask = mask & (ak.num(arrays["background", "data"], axis=1) > 0)
-
-    # Signal event selection
-    # NOTE: We can apply the signal selections in the analysis task below, so we don't apply it here
-
-    # Apply background event selection
-    # We have to apply this here because we don't keep track of the background associated quantities.
-    background_event_selection = np.ones(len(arrays)) > 0
-    background_fields = ak.fields(arrays["background"])
-    if "is_ev_rej" in background_fields:
-        background_event_selection = background_event_selection & (arrays["background", "is_ev_rej"] == 0)
-    if "z_vtx_reco" in background_fields:
-        background_event_selection = background_event_selection & (np.abs(arrays["background", "z_vtx_reco"]) < 10)
-
-    # Finally, apply the masks
-    arrays = arrays[(mask & background_event_selection)]
-
-    return source_index_identifiers, transform.embedding(
-        arrays=arrays, source_index_identifiers=source_index_identifiers
-    )
+    return _event_select_and_transform_embedding(arrays=arrays, source_index_identifiers=source_index_identifiers)
 
 
 def load_thermal_model(
@@ -491,35 +494,7 @@ def load_thermal_model(
     )
 
     arrays = combined_source.data()
-
-    # Apply some basic requirements on the data
-    mask = np.ones(len(arrays)) > 0
-    # Require there to be particles for each level of particle collection for each event.
-    # Although this will need to be repeated after the track cuts, it's good to start here since
-    # it will avoid wasting signal or background events on events which aren't going to succeed anyway.
-    mask = mask & (ak.num(arrays["signal", "part_level"], axis=1) > 0)
-    mask = mask & (ak.num(arrays["signal", "det_level"], axis=1) > 0)
-    mask = mask & (ak.num(arrays["background", "data"], axis=1) > 0)
-
-    # Signal event selection
-    # NOTE: We can apply the signal selections in the analysis task below, so we don't apply it here
-
-    # Apply background event selection
-    # It's not actually necessary here since there's no event selection for the thermal model.
-    # However, it also doesn't hurt and it's consistent with the other loading functions, so we leave it as is.
-    background_event_selection = np.ones(len(arrays)) > 0
-    background_fields = ak.fields(arrays["background"])
-    if "is_ev_rej" in background_fields:
-        background_event_selection = background_event_selection & (arrays["background", "is_ev_rej"] == 0)
-    if "z_vtx_reco" in background_fields:
-        background_event_selection = background_event_selection & (np.abs(arrays["background", "z_vtx_reco"]) < 10)
-
-    # Finally, apply the masks
-    arrays = arrays[(mask & background_event_selection)]
-
-    return source_index_identifiers, transform.embedding(
-        arrays=arrays, source_index_identifiers=source_index_identifiers
-    )
+    return _event_select_and_transform_embedding(arrays=arrays, source_index_identifiers=source_index_identifiers)
 
 
 def analysis_embedding(
