@@ -819,41 +819,43 @@ def analysis_embedding(
         depth_limit=1,
     )
 
-    # TODO: Carefully consider what needs to be within fiducial acceptance. Based on the DyG task (double check),
-    #       I believe it just needs to be the "data" (ie. hybrid).
-    jets_old = ak.zip(
-        {
-            "part_level": jet_finding.find_jets(
-                particles=arrays["part_level"],
-                algorithm="anti-kt",
-                jet_R=jet_R,
-                area_settings=jet_finding.AREA_PP,
-                # NOTE: We only want the minimum pt to apply to the detector level.
-                #       Otherwise, we'll bias our particle level jets.
-                min_jet_pt=1,
-                fiducial_acceptance=False,
-            ),
-            "det_level": jet_finding.find_jets(
-                particles=arrays["det_level"],
-                algorithm="anti-kt",
-                jet_R=jet_R,
-                area_settings=jet_finding.AREA_PP,
-                min_jet_pt=min_jet_pt.get("det_level", 5.0),
-                fiducial_acceptance=False,
-            ),
-            "hybrid": jet_finding.find_jets(
-                particles=arrays["hybrid"],
-                algorithm="anti-kt",
-                jet_R=jet_R,
-                area_settings=jet_finding.AREA_AA,
-                min_jet_pt=min_jet_pt["hybrid"],
-                constituent_subtraction=jet_finding.ConstituentSubtractionSettings(
-                    r_max=r_max,
-                ),
-            ),
-        },
-        depth_limit=1,
-    )
+    #### # TODO: The agreement in the fiducial acceptance is important for matching the rho, but breaks the comparison
+    ####         to jets_old! So we just comment jets_old now.
+    #### # TODO: Carefully consider what needs to be within fiducial acceptance. Based on the DyG task (double check),
+    #### #       I believe it just needs to be the "data" (ie. hybrid).
+    #### jets_old = ak.zip(
+    ####     {
+    ####         "part_level": jet_finding.find_jets(
+    ####             particles=arrays["part_level"],
+    ####             algorithm="anti-kt",
+    ####             jet_R=jet_R,
+    ####             area_settings=jet_finding.AREA_PP,
+    ####             # NOTE: We only want the minimum pt to apply to the detector level.
+    ####             #       Otherwise, we'll bias our particle level jets.
+    ####             min_jet_pt=1,
+    ####             fiducial_acceptance=False,
+    ####         ),
+    ####         "det_level": jet_finding.find_jets(
+    ####             particles=arrays["det_level"],
+    ####             algorithm="anti-kt",
+    ####             jet_R=jet_R,
+    ####             area_settings=jet_finding.AREA_PP,
+    ####             min_jet_pt=min_jet_pt.get("det_level", 5.0),
+    ####             fiducial_acceptance=False,
+    ####         ),
+    ####         "hybrid": jet_finding.find_jets(
+    ####             particles=arrays["hybrid"],
+    ####             algorithm="anti-kt",
+    ####             jet_R=jet_R,
+    ####             area_settings=jet_finding.AREA_AA,
+    ####             min_jet_pt=min_jet_pt["hybrid"],
+    ####             constituent_subtraction=jet_finding.ConstituentSubtractionSettings(
+    ####                 r_max=r_max,
+    ####             ),
+    ####         ),
+    ####     },
+    ####     depth_limit=1,
+    #### )
 
     import IPython; IPython.embed()
 
@@ -914,19 +916,19 @@ def analysis_embedding(
 
     #### Old code
 
-    jets_old = _embedding_jet_cuts(jets=jets_old, jet_R=jet_R)
+    #### jets_old = _embedding_jet_cuts(jets=jets_old, jet_R=jet_R)
 
-    if len(jets_old) == 0:
-        logger.warning("No jets left for reclustering. Skipping reclustering...")
-    else:
-        logger.info("Reclustering jets...")
-        for level in ["hybrid", "det_level", "part_level"]:
-            logger.info(f"Reclustering {level}")
-            jets_old[level, "reclustering"] = jet_finding.recluster_jets(
-                jets=jets_old[level],
-                area_settings=jet_finding.AREA_SUBSTRUCTURE if level != "part_level" else None
-            )
-        logger.info("Done with reclustering")
+    #### if len(jets_old) == 0:
+    ####     logger.warning("No jets left for reclustering. Skipping reclustering...")
+    #### else:
+    ####     logger.info("Reclustering jets...")
+    ####     for level in ["hybrid", "det_level", "part_level"]:
+    ####         logger.info(f"Reclustering {level}")
+    ####         jets_old[level, "reclustering"] = jet_finding.recluster_jets(
+    ####             jets=jets_old[level],
+    ####             area_settings=jet_finding.AREA_SUBSTRUCTURE if level != "part_level" else None
+    ####         )
+    ####     logger.info("Done with reclustering")
 
     #### End old code
 
