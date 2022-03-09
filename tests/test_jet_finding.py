@@ -38,6 +38,8 @@ def test_jet_finding_basic_single_event(caplog: Any) -> None:
         jet_finding_settings=jet_finding.JetFindingSettings(
             R=0.7, algorithm="anti-kt",
             area_settings=jet_finding.AreaAA(),
+            pt_range=jet_finding.pt_range(),
+            eta_range=jet_finding.eta_range(jet_R=0.7, fiducial_acceptance=False, eta_min=-5., eta_max=5.),
         )
     )
 
@@ -108,6 +110,8 @@ def test_jet_finding_basic_multiple_events(caplog: Any) -> None:
         jet_finding_settings=jet_finding.JetFindingSettings(
             R=0.7, algorithm="anti-kt",
             area_settings=jet_finding.AreaAA(),
+            pt_range=jet_finding.pt_range(),
+            eta_range=jet_finding.eta_range(jet_R=0.7, fiducial_acceptance=False, eta_min=-5., eta_max=5.),
         )
     )
 
@@ -200,6 +204,8 @@ def test_jet_finding_with_subtraction_multiple_events(caplog: Any, separate_back
         jet_finding_settings=jet_finding.JetFindingSettings(
             R=0.7, algorithm="anti-kt",
             area_settings=jet_finding.AreaAA(),
+            pt_range=jet_finding.pt_range(),
+            eta_range=jet_finding.eta_range(jet_R=0.7, fiducial_acceptance=False, eta_min=-5., eta_max=5.),
         ),
         background_subtraction=jet_finding.BackgroundSubtraction(
             type=jet_finding.BackgroundSubtractionType.rho,
@@ -302,6 +308,8 @@ def test_jet_finding_with_constituent_subtraction_does_something_multiple_events
         jet_finding_settings=jet_finding.JetFindingSettings(
             R=0.7, algorithm="anti-kt",
             area_settings=jet_finding.AreaAA(),
+            pt_range=jet_finding.pt_range(),
+            eta_range=jet_finding.eta_range(jet_R=0.7, fiducial_acceptance=False, eta_min=-5., eta_max=5.),
         ),
         background_subtraction=jet_finding.BackgroundSubtraction(
             type=jet_finding.BackgroundSubtractionType.event_wise_constituent_subtraction,
