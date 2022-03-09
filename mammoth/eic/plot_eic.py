@@ -12,12 +12,13 @@ import matplotlib
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 import numpy as np
+import numpy.typing as npt
 import pachyderm.plot
 import seaborn as sns
 from pachyderm import binned_data, yaml
 from scipy import optimize
 
-from mammoth import eic_qt
+from mammoth.eic import eic_qt
 
 pachyderm.plot.configure()
 # Enable ticks on all sides
@@ -29,7 +30,7 @@ matplotlib.rcParams["ytick.right"] = True
 matplotlib.rcParams["ytick.minor.right"] = True
 
 
-def _gaussian(x: Union[np.ndarray, float], mean: float, sigma: float, amplitude: float) -> Union[np.ndarray, float]:
+def _gaussian(x: Union[npt.NDArray[np.float64], float], mean: float, sigma: float, amplitude: float) -> Union[npt.NDArray[np.float64], float]:
     r"""Extended gaussian.
 
     .. math::
@@ -67,7 +68,7 @@ def _mean_values_label(mean_x: float, mean_Q2: float) -> str:
 
 
 def plot_jet_p(
-    hists: Mapping[str, binned_data.BinnedData],
+    hists: Mapping[str, Mapping[str, binned_data.BinnedData]],
     base_plot_label: str,
     jet_R_values: Sequence[float],
     means: Mapping[str, Mapping[Tuple[float, float], Mapping[str, float]]],
@@ -137,12 +138,12 @@ def plot_jet_pt(
     # Setup
     p_ranges = [(100, 150), (150, 200), (200, 250), (0, 300)]
     p_range_for_mean_label = (0, 300)
-    bh_hist = hist.to_boost_histogram()
+    bh_hist: bh.Histogram = hist.to_boost_histogram()
 
     fig, ax = plt.subplots(figsize=(12, 9))
     for p_range in p_ranges:
         h = binned_data.BinnedData.from_existing_data(
-            bh_hist[bh.loc(p_range[0]):bh.loc(p_range[1]):bh.sum, :]
+            bh_hist[bh.loc(p_range[0]):bh.loc(p_range[1]):bh.sum, :]  # type: ignore
         )
 
         # Normalize
@@ -205,7 +206,7 @@ def plot_jet_constituent_multiplicity(
     fig, ax = plt.subplots(figsize=(12, 9))
     for p_range in p_ranges:
         h = binned_data.BinnedData.from_existing_data(
-            bh_hist[bh.loc(p_range[0]):bh.loc(p_range[1]):bh.sum, :]
+            bh_hist[bh.loc(p_range[0]):bh.loc(p_range[1]):bh.sum, :]  # type: ignore
         )
 
         # Normalize
@@ -269,7 +270,7 @@ def plot_qt(hist: binned_data.BinnedData,
     pt_ranges = [(10, 15), (20, 25), (30, 40)]
     for pt_range in pt_ranges:
         hists[pt_range] = binned_data.BinnedData.from_existing_data(
-            bh_hist[bh.loc(pt_range[0]):bh.loc(pt_range[1]):bh.sum, :: bh.rebin(2)]
+            bh_hist[bh.loc(pt_range[0]):bh.loc(pt_range[1]):bh.sum, :: bh.rebin(2)]  # type: ignore
         )
 
         # Normalize
@@ -348,7 +349,7 @@ def plot_qt_pt_as_function_of_p(hist: binned_data.BinnedData,
 
     for p_range in p_ranges:
         hists[p_range] = binned_data.BinnedData.from_existing_data(
-            bh_hist[bh.loc(p_range[0]):bh.loc(p_range[1]):bh.sum, :]
+            bh_hist[bh.loc(p_range[0]):bh.loc(p_range[1]):bh.sum, :]  # type: ignore
         )
 
         # Normalize
@@ -510,7 +511,7 @@ def plot_qt_pt_comparison(
         for label, hist in hists.items():
             bh_hist = hist.to_boost_histogram()
             h = binned_data.BinnedData.from_existing_data(
-                bh_hist[bh.loc(p_range[0]):bh.loc(p_range[1]):bh.sum, :]
+                bh_hist[bh.loc(p_range[0]):bh.loc(p_range[1]):bh.sum, :]  # type: ignore
             )
             print(f"label: {label}, p_range: {p_range}, normalization: {np.sum(h.values)}")
             h /= np.sum(h.values)

@@ -9,13 +9,13 @@ from pathlib import Path
 import awkward as ak
 import numba as nb
 import numpy as np
-import pyfastjet as fj
+import vector
 from pachyderm import binned_data
 
-from mammoth import base
+from mammoth.framework import jet_finding, particle_ID
 
 
-@nb.njit
+@nb.njit  # type: ignore
 def _delta_phi(phi_a: float, phi_b: float, output_range: Tuple[float, float] = (-np.pi, np.pi)) -> float:
     # Ensure that they're in the same range.
     phi_a = phi_a % (2 * np.pi)
@@ -27,12 +27,12 @@ def _delta_phi(phi_a: float, phi_b: float, output_range: Tuple[float, float] = (
         delta_phi -= (2 * np.pi)
     return delta_phi
 
-@nb.njit
+@nb.njit  # type: ignore
 def _delta_R(eta_one: float, phi_one: float, eta_two: float, phi_two: float) -> float:
-    return np.sqrt(_delta_phi(phi_one, phi_two) ** 2 + (eta_one - eta_two) ** 2)
+    return np.sqrt(_delta_phi(phi_one, phi_two) ** 2 + (eta_one - eta_two) ** 2)  # type: ignore
 
 
-@nb.njit
+@nb.njit  # type: ignore
 def _subtract_holes_from_jets_pt(jets_pt: ak.Array, jets_eta: ak.Array, jets_phi: ak.Array,
                               particles_holes_pt: ak.Array, particles_holes_eta: ak.Array, particles_holes_phi: ak.Array,
                               jet_R: float, builder: ak.ArrayBuilder) -> ak.Array:
@@ -48,16 +48,25 @@ def _subtract_holes_from_jets_pt(jets_pt: ak.Array, jets_eta: ak.Array, jets_phi
 
     return builder
 
-@nb.njit
-def _calculate_leading_track_cut_mask(constituent_indices: ak.Array, particles_pt: ak.Array, particles_id: ak.Array, leading_track_cut: float, charged_particle_PIDs: Sequence[int], builder: ak.ArrayBuilder):
-    for event_constituent_indices, event_particles_pt, event_particles_id in zip(constituent_indices, particles_pt, particles_id):
+@nb.njit  # type: ignore
+def _calculate_leading_track_cut_mask(constituents: ak.Array, leading_track_cut: float, charged_particle_PIDs: Sequence[int], builder: ak.ArrayBuilder) -> ak.Array:
+    """ Calculate the leading track cut mask
+
+    NOTE:
+        I think I can do this just with awkward now, but it wasn't possible in the past, and as of March 2022, I'm just
+        porting code rather than carefully rewriting.
+
+    Returns:
+        Awkward array with the shape of the jets
+    """
+    for jets_constituents_in_event in constituents:
         builder.begin_list()
-        for jet_constituent_indices in event_constituent_indices:
+        for jet_constituents in jets_constituents_in_event:
             passed = False
-            for i in jet_constituent_indices:
-                if event_particles_pt[i] > leading_track_cut:
+            for c in jet_constituents:
+                if c.pt > leading_track_cut:
                     for possible_PID in charged_particle_PIDs:
-                        if event_particles_id[i] == possible_PID:
+                        if c.particle_ID == possible_PID:
                             passed = True
                             break
                     # Make sure that we break all the way out
@@ -75,22 +84,9 @@ def run(particles: ak.Array) -> None:
     # Remove neutrinos.
     particles = particles[(np.abs(particles["particle_ID"]) != 12) & (np.abs(particles["particle_ID"]) != 14) & (np.abs(particles["particle_ID"]) != 16)]
     # Add the masses based on the PDG code.
-    # First, determine all possible PDG codes, and then retrieve their masses for a lookup table.
-    all_particle_IDs = np.unique(ak.to_numpy(ak.flatten(particles["particle_ID"])))
-    # NOTE: We need to use this special typed dict with numba.
-    #pdg_id_to_mass = nb.typed.Dict.empty(
-    #    key_type=nb.core.types.int64,
-    #    value_type=nb.core.types.float64,
-    #)
-    ## As far as I can tell, we can't fill the dict directly on initialization, so we have to loop over entires.
-    #for pdg_id in all_particle_IDs:
-    #    pdg_id_to_mass[pdg_id] = _pdg_id_to_mass(pdg_id)
-    # Finally, store the result in the existing particles array.
-    # It's important that we snapshot it!
-    particles["m"] = base.determine_masses_from_events(events=particles)
-    # Convert to the expected LorentzVector format
-    #particles = base.LorentzVectorArray.from_awkward_ptetaphim(particles["pt"], particles["eta"], particles["phi"], particles["m"])
-    #particles = base.LorentzVectorArray.from_awkward_ptetaphim(particles)
+    particles["m"] = particle_ID.particle_masses_from_particle_ID(arrays=particles)
+    # Add in four vector functionality
+    particles = vector.Array(particles)
 
     # Divide into signals and holes
     particles_signal = particles[particles["status"] == 0]
@@ -107,34 +103,36 @@ def run(particles: ak.Array) -> None:
     #       Since the main observables in this analysis are the charged hadron spectra, leptons arising from the decays of heavy vector bosons
     #       are excluded from the measured spectra.  Tracks forming part of reconstructedmuons  are  identified  and  the  contribution  from
     #       stable  leptons  is  subtracted  twice  from  the  measuredspectra, assuming that electrons contribute the same as muons.
-    atlas_charged_hadrons = particles_signal[base.build_PID_selection_mask(particles_signal, absolute_pids=_default_charged_hadron_PID[2:])]
+    atlas_charged_hadrons = particles_signal[particle_ID.build_PID_selection_mask(particles_signal, absolute_pids=_default_charged_hadron_PID[2:])]
     # Eta selection
     atlas_charged_hadrons = atlas_charged_hadrons[np.abs(atlas_charged_hadrons.eta) < 2.5]
     # ALICE:
     # Charged hadrons: Primary charged particles (w/ mean proper lifetime τ larger than 1 cm/c )
-    # Pratically, that means: (e-, mu-, pi+, K+, p+, Sigma+, Sigma-, Xi-, Omega-)
-    alice_charged_hadrons = particles_signal[base.build_PID_selection_mask(particles_signal, absolute_pids=_default_charged_hadron_PID)]
+    # Practically, that means: (e-, mu-, pi+, K+, p+, Sigma+, Sigma-, Xi-, Omega-)
+    alice_charged_hadrons = particles_signal[particle_ID.build_PID_selection_mask(particles_signal, absolute_pids=_default_charged_hadron_PID)]
     # Eta selection
     alice_charged_hadrons = alice_charged_hadrons[np.abs(alice_charged_hadrons.eta) < 0.8]
     # CMS:
     # Charged hadrons: (e-, mu-, pi+, K+, p+, Sigma+, Sigma-, Xi-, Omega-)
-    cms_charged_hadrons = particles_signal[base.build_PID_selection_mask(particles_signal, absolute_pids=_default_charged_hadron_PID)]
+    cms_charged_hadrons = particles_signal[particle_ID.build_PID_selection_mask(particles_signal, absolute_pids=_default_charged_hadron_PID)]
     # Eta selection
     cms_charged_hadrons = cms_charged_hadrons[np.abs(cms_charged_hadrons.eta) < 1.0]
 
     # Jet finding
     # Setup
     jet_R = 0.4
-    jet_defintion = fj.JetDefinition(fj.JetAlgorithm.antikt_algorithm, R = jet_R)
-    area_definition = fj.AreaDefinition(fj.AreaType.passive_area, fj.GhostedAreaSpec(1, 1, 0.05))
-    settings = fj.JetFinderSettings(jet_definition=jet_defintion, area_definition=area_definition)
     # Jet finding is only performed on signal particles.
     #import IPython; IPython.embed()
-    # For some reason, I need to do the LorentzVectorArray conversion here...
-    particles_signal = base.LorentzVectorArray.from_awkward_ptetaphim(particles_signal)
-    res = fj.find_jets(events=particles_signal, settings=settings)
-    jets = res.jets
-    constituent_indices = res.constituent_indices
+    jets = jet_finding.find_jets_new(
+        particles=particles_signal,
+        jet_finding_settings=jet_finding.JetFindingSettings(
+            R=jet_R,
+            algorithm="anti_kt",
+            pt_range=jet_finding.pt_range(),
+            # Take the maximum of the ranges below (plus a bit to account for rapidity vs eta)
+            eta_range=jet_finding.eta_range(jet_R=jet_R, fiducial_acceptance=True, eta_min=-2.8, eta_max=3),
+        ),
+    )
 
     # Subtract holes from jet pt.
     jets["pt_subtracted"] = _subtract_holes_from_jets_pt(
@@ -147,14 +145,14 @@ def run(particles: ak.Array) -> None:
     # ATLAS
     atlas_jets = jets[np.abs(jets.rapidity) < 2.8]
     # ALICE
+    # Full jets, so max eta is 0.7
     alice_jets_eta_mask = np.abs(jets.eta) < 0.7 - jet_R
     alice_jets = jets[alice_jets_eta_mask]
     # Apply leading track cut (ie. charged hadron).
     # Assuming R = 0.4
+    jets.constituents.pt
     leading_track_cut_mask = _calculate_leading_track_cut_mask(
-        constituent_indices=constituent_indices[alice_jets_eta_mask],
-        particles_pt=particles_signal.pt,
-        particles_id=particles_signal.particle_ID,
+        constituents=jets.constituents,
         leading_track_cut=7,
         charged_particle_PIDs=nb.typed.List(_default_charged_hadron_PID),
         builder=ak.ArrayBuilder(),

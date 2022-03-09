@@ -4,20 +4,21 @@
 """
 
 from pathlib import Path
-from typing import Any, Dict, Mapping, Tuple, Type, TypeVar
+from typing import Any, Dict, Mapping
 
 import attr
 import awkward as ak
 import boost_histogram as bh
 import matplotlib.pyplot as plt
-import numba as nb
 import numpy as np
 import pachyderm.plot
-import particle
 import uproot
+import vector
 from pachyderm import binned_data
 
-from mammoth import base, parse_ascii
+
+from mammoth.framework import particle_ID
+from mammoth.framework.normalize_data import jetscape as normalize_jetscape
 
 
 pachyderm.plot.configure()
@@ -82,7 +83,7 @@ def load_reference_data() -> Dict[str, binned_data.BinnedData]:
 
 
 def setup() -> None:
-    parse_ascii.parse_to_parquet(
+    normalize_jetscape.parse_to_parquet(
         base_output_filename="skim/output.parquet",
         store_only_necessary_columns=True,
         input_filename=f"final_state_hadrons.out",
@@ -100,8 +101,8 @@ def analyze(output_dir: Path, reference_data: Mapping[str, binned_data.BinnedDat
         #arrays = ak.with_name(ak.from_parquet(filename), "LorentzVector")
         arrays = ak.from_parquet(filename)
         n_events += len(arrays)
-        arrays["m"] = base.determine_masses_from_events(arrays)
-        arrays = base.LorentzVectorArray.from_awkward_ptetaphim(arrays)
+        arrays["m"] = particle_ID.particle_masses_from_particle_ID(arrays=arrays)
+        arrays = vector.Array(arrays)
 
         # Particle selections
         # Drop neutrinos.
@@ -111,7 +112,7 @@ def analyze(output_dir: Path, reference_data: Mapping[str, binned_data.BinnedDat
         #print(all_status_codes)
 
         # Select pions
-        charged_pions_mask = base.build_PID_selection_mask(arrays, absolute_pids=[211])
+        charged_pions_mask = particle_ID.build_PID_selection_mask(arrays, absolute_pids=[211])
         # Selection from STAR analysis.
         # NOTE: For now, we use eta since we don't want to construct the full object. Can do more later.
         #rapidity_mask = np.abs(arrays["eta"]) < 0.5

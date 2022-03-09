@@ -9,11 +9,11 @@ from pathlib import Path
 import awkward as ak
 import boost_histogram as bh
 import numpy as np
-import pyfastjet as fj
 import uproot
+import vector
 from pachyderm import binned_data, yaml
 
-from mammoth import base
+from mammoth.framework import jet_finding, particle_ID
 
 
 def jet_R_to_str(jet_R: float) -> str:
@@ -38,11 +38,11 @@ def run(event_properties: ak.Array,
     # Remove neutrinos.
     particles = particles[(np.abs(particles["particle_ID"]) != 12) & (np.abs(particles["particle_ID"]) != 14) & (np.abs(particles["particle_ID"]) != 16)]
     # To avoid anything that's too soft, require E of at least 50 MeV.
-    particles = particles[particles.E > 0.005]
+    particles = particles[particles.E > 0.05]
 
     # Potentially only select charged hadrons...
     # Charged hadrons: Primary charged particles (w/ mean proper lifetime τ larger than 1 cm/c )
-    # Pratically, that means: (e-, mu-, pi+, K+, p+, Sigma+, Sigma-, Xi-, Omega-)
+    # Practically, that means: (e-, mu-, pi+, K+, p+, Sigma+, Sigma-, Xi-, Omega-)
     #_default_charged_hadron_PID = [11, 13, 211, 321, 2212, 3222, 3112, 3312, 3334]
     #charged_hadrons = particles[base.build_PID_selection_mask(particles, absolute_pids=_default_charged_hadron_PID)]
 
@@ -61,17 +61,14 @@ def run(event_properties: ak.Array,
     #event_properties = event_properties[min_Q2_selection & x_selection]
 
     # Convert the outgoing partons to LorentzVectors.
-    outgoing_partons = base.LorentzVectorArray.from_awkward_ptetaphie(outgoing_partons)
+    outgoing_partons = vector.Array(outgoing_partons)
 
     # Find our electrons for comparison
     electrons_mask = (particles["particle_ID"] == 11)
     # Need to concretely select one of the variables for the mask to work properly.
     electrons_pt = ak.mask(particles.pt, electrons_mask)
     leading_electrons_mask = ak.argmax(electrons_pt, axis=1, keepdims=True)
-    leading_electrons = base.LorentzVectorArray.from_awkward_ptetaphie(
-        #electrons[ak.argmax(electrons.pt, axis=1, keepdims=True)]
-        particles[leading_electrons_mask]
-    )
+    leading_electrons = particles[leading_electrons_mask]
 
     # We want to remove all of the leading electrons from our particles for jet finding.
     # We have the leading electrons indices, but we need a way to remove them.
@@ -89,16 +86,19 @@ def run(event_properties: ak.Array,
 
     # Jet finding
     # Setup
-    particles = base.LorentzVectorArray.from_awkward_ptetaphie(particles)
+    particles = vector.Array(particles)
     for jet_R in jet_R_values:
         print(f"Jet R: {jet_R}")
-        jet_defintion = fj.JetDefinition(fj.JetAlgorithm.antikt_algorithm, R = jet_R)
-        area_definition = fj.AreaDefinition(fj.AreaType.passive_area, fj.GhostedAreaSpec(1, 1, 0.05))
-        settings = fj.JetFinderSettings(jet_definition=jet_defintion, area_definition=area_definition)
         # Run the jet finder
-        res = fj.find_jets(events=particles, settings=settings)
-        jets = res.jets
-        constituent_indices = res.constituent_indices
+        jets = jet_finding.find_jets_new(
+            particles=particles,
+            jet_findingsettings=jet_finding.JetFindingSettings(
+                R=jet_R,
+                algorithm="anti_kt",
+                pt_range=jet_finding.pt_range(),
+                eta_range=jet_finding.eta_range(jet_R=jet_R, fiducial_acceptance=False, eta_min=-4., eta_max=4.),
+            )
+        )
 
         # Jet selection
         # Select forward jets.
