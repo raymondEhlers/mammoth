@@ -106,7 +106,7 @@ def analysis_MC(arrays: ak.Array, jet_R: float, min_jet_pt: Mapping[str, float],
         area_kwargs["random_seed"] = [12345, 67890]
     jets = ak.zip(
         {
-            "part_level": jet_finding.find_jets_new(
+            "part_level": jet_finding.find_jets(
                 particles=arrays["part_level"],
                 jet_finding_settings=jet_finding.JetFindingSettings(
                     R=jet_R,
@@ -127,7 +127,7 @@ def analysis_MC(arrays: ak.Array, jet_R: float, min_jet_pt: Mapping[str, float],
                     area_settings=jet_finding.AreaPP(**area_kwargs),
                 ),
             ),
-            "det_level": jet_finding.find_jets_new(
+            "det_level": jet_finding.find_jets(
                 particles=arrays["det_level"],
                 jet_finding_settings=jet_finding.JetFindingSettings(
                     R=jet_R,
@@ -190,7 +190,7 @@ def analysis_MC(arrays: ak.Array, jet_R: float, min_jet_pt: Mapping[str, float],
         reclustering_kwargs = {}
         if level != "part_level":
             reclustering_kwargs["area_settings"] = jet_finding.AreaSubstructure(**area_kwargs)
-        jets[level, "reclustering"] = jet_finding.recluster_jets_new(
+        jets[level, "reclustering"] = jet_finding.recluster_jets(
             jets=jets[level],
             jet_finding_settings=jet_finding.ReclusteringJetFindingSettings(**reclustering_kwargs),
             store_recursive_splittings=True,
@@ -233,6 +233,7 @@ def _jet_matching_MC(jets: ak.Array,
     Returns:
         jets array containing only the matched jets
     """
+    # First, actually perform the geometrical matching
     jets["part_level", "matching"], jets["det_level", "matching"] = jet_finding.jet_matching_geometrical(
         jets_base=jets["part_level"],
         jets_tag=jets["det_level"],
@@ -241,7 +242,7 @@ def _jet_matching_MC(jets: ak.Array,
 
     # Now, use matching info
     # First, require that there are jets in an event. If there are jets, further require that there
-    # is a valid match.
+    # is a valid match (further below).
     # NOTE: These can't be combined into one mask because they operate at different levels: events and jets
     logger.info("Using matching info")
     jets_present_mask = (ak.num(jets["part_level"], axis=1) > 0) & (ak.num(jets["det_level"], axis=1) > 0)
@@ -261,13 +262,11 @@ def _jet_matching_MC(jets: ak.Array,
     #    it's required.
     #
     # The other benefit to this approach is that it should reorder the particle level matches
-    # to be the same shape as the detector level jets, so in principle they are paired together.
-    # Semi-validated result for det <-> part w/ thermal model:
-    # det <-> part for the thermal model looks like:
-    # part: ([[0, 3, 1, 2, 4, 5], [0, 1, -1], [], [0], [1, 0, -1]],
-    # det:   [[0, 2, 3, 1, 4, 5], [0, 1], [], [0], [1, 0]])
-    # Semi-validated by pythia validation vs standard AliPhysics task.
-    # TODO: Check this is truly the case by looking at both track (ie. det and true) collections -> This works!
+    # to be the same shape as the detector level jets, so they are already paired together.
+    #
+    # NOTE: This method doesn't check that particle level jets match to the detector level jets.
+    #       However, it doesn't need to do so because the matching is bijective, so it already
+    #       must be the case.
     det_level_matched_jets_mask = jets["det_level"]["matching"] > -1
     jets["det_level"] = jets["det_level"][det_level_matched_jets_mask]
     jets["part_level"] = jets["part_level"][jets["det_level", "matching"]]
@@ -323,7 +322,7 @@ def analysis_data(
 
     jets = ak.zip(
         {
-            particle_column_name: jet_finding.find_jets_new(
+            particle_column_name: jet_finding.find_jets(
                 particles=arrays[particle_column_name],
                 jet_finding_settings=jet_finding.JetFindingSettings(
                     R=jet_R,
@@ -377,7 +376,7 @@ def analysis_data(
     #raise RuntimeError("Stahp!")
 
     logger.info(f"Reclustering {particle_column_name} jets...")
-    jets[particle_column_name, "reclustering"] = jet_finding.recluster_jets_new(
+    jets[particle_column_name, "reclustering"] = jet_finding.recluster_jets(
         jets=jets[particle_column_name],
         jet_finding_settings=jet_finding.ReclusteringJetFindingSettings(
             # We perform the area calculation here since we're dealing with data, as is done in the AliPhysics DyG task
@@ -439,18 +438,17 @@ def load_embedding(signal_filename: Path, background_filename: Path) -> Tuple[Di
     # Apply some basic requirements on the data
     mask = np.ones(len(arrays)) > 0
     # Require there to be particles for each level of particle collection for each event.
-    # TODO: This select is repeated below. I think it's better below.
-    #       Two things to confirm:
-    #       - Is it actually better below? Or does it matter (eg. if here, could we forget it in the analysis?)
-    #       - Is it the right thing to do? (I think so, but confirm that this is consistent with the AliPhysics analysis)
+    # Although this will need to be repeated after the track cuts, it's good to start here since
+    # it will avoid wasting signal or background events on events which aren't going to succeed anyway.
     mask = mask & (ak.num(arrays["signal", "part_level"], axis=1) > 0)
     mask = mask & (ak.num(arrays["signal", "det_level"], axis=1) > 0)
     mask = mask & (ak.num(arrays["background", "data"], axis=1) > 0)
 
+    # Signal event selection
+    # NOTE: We can apply the signal selections in the analysis task below, so we don't apply it here
+
     # Apply background event selection
     # We have to apply this here because we don't keep track of the background associated quantities.
-    # NOTE: In principle, we're wasting pythia events here since there could be good pythia events which
-    #       are rejected just because of the background. However, the background is our constraint, so it's fine.
     background_event_selection = np.ones(len(arrays)) > 0
     background_fields = ak.fields(arrays["background"])
     if "is_ev_rej" in background_fields:
@@ -493,26 +491,31 @@ def load_thermal_model(
     )
 
     arrays = combined_source.data()
-    signal_fields = ak.fields(arrays["signal"])
-    # Empty mask
-    # TODO: Confirm that this masks as expected...
-    #mask = arrays["signal"][signal_fields[0]] * 0 >= 0
-    mask = np.ones(len(arrays)) > 0
-    # NOTE: We can apply the signal selections in the analysis task below
-    # TODO: Refactor
-    #if "is_ev_rej" in signal_fields:
-    #    mask = mask & (arrays["signal", "is_ev_rej"] == 0)
-    #if "z_vtx_reco" in signal_fields:
-    #    mask = mask & (np.abs(arrays["signal", "z_vtx_reco"]) < 10)
 
-    # Not necessary since there's no event selection for the thermal model
+    # Apply some basic requirements on the data
+    mask = np.ones(len(arrays)) > 0
+    # Require there to be particles for each level of particle collection for each event.
+    # Although this will need to be repeated after the track cuts, it's good to start here since
+    # it will avoid wasting signal or background events on events which aren't going to succeed anyway.
+    mask = mask & (ak.num(arrays["signal", "part_level"], axis=1) > 0)
+    mask = mask & (ak.num(arrays["signal", "det_level"], axis=1) > 0)
+    mask = mask & (ak.num(arrays["background", "data"], axis=1) > 0)
+
+    # Signal event selection
+    # NOTE: We can apply the signal selections in the analysis task below, so we don't apply it here
+
+    # Apply background event selection
+    # It's not actually necessary here since there's no event selection for the thermal model.
+    # However, it also doesn't hurt and it's consistent with the other loading functions, so we leave it as is.
+    background_event_selection = np.ones(len(arrays)) > 0
     background_fields = ak.fields(arrays["background"])
     if "is_ev_rej" in background_fields:
-        mask = mask & (arrays["background", "is_ev_rej"] == 0)
+        background_event_selection = background_event_selection & (arrays["background", "is_ev_rej"] == 0)
     if "z_vtx_reco" in background_fields:
-        mask = mask & (np.abs(arrays["background", "z_vtx_reco"]) < 10)
+        background_event_selection = background_event_selection & (np.abs(arrays["background", "z_vtx_reco"]) < 10)
 
-    arrays = arrays[mask]
+    # Finally, apply the masks
+    arrays = arrays[(mask & background_event_selection)]
 
     return source_index_identifiers, transform.embedding(
         arrays=arrays, source_index_identifiers=source_index_identifiers
@@ -558,8 +561,7 @@ def analysis_embedding(
     # NOTE: We have to do it in a separate mask because the above is masked as the particle level,
     #       but here we need to mask at the event level. (If you try to mask at the particle, you'll
     #       end up with empty events)
-    # NOTE: Remember that the lengths of det and particle level need to match up, so be careful with the mask!
-    # TODO: Double check that this requirement is kosher. I think it's totally reasonable, but needs that check...
+    # NOTE: Remember that the lengths of particle collections need to match up, so be careful with the mask!
     logger.warning(f"pre requiring a particle in every event n events: {len(arrays)}")
     event_has_particles_mask = (
         (ak.num(arrays["part_level"], axis=1) > 0)
@@ -584,7 +586,7 @@ def analysis_embedding(
 
     jets = ak.zip(
         {
-            "part_level": jet_finding.find_jets_new(
+            "part_level": jet_finding.find_jets(
                 particles=arrays["part_level"],
                 jet_finding_settings=jet_finding.JetFindingSettings(
                     R=jet_R,
@@ -597,7 +599,7 @@ def analysis_embedding(
                     area_settings=jet_finding.AreaPP(**area_kwargs),
                 )
             ),
-            "det_level": jet_finding.find_jets_new(
+            "det_level": jet_finding.find_jets(
                 particles=arrays["det_level"],
                 jet_finding_settings=jet_finding.JetFindingSettings(
                     R=jet_R,
@@ -608,7 +610,7 @@ def analysis_embedding(
                     area_settings=jet_finding.AreaPP(**area_kwargs),
                 )
             ),
-            "hybrid": jet_finding.find_jets_new(
+            "hybrid": jet_finding.find_jets(
                 particles=arrays["hybrid"],
                 jet_finding_settings=jet_finding.JetFindingSettings(
                     R=jet_R,
@@ -681,7 +683,7 @@ def analysis_embedding(
             reclustering_kwargs = {}
             if level != "part_level":
                 reclustering_kwargs["area_settings"] = jet_finding.AreaSubstructure(**area_kwargs)
-            jets[level, "reclustering"] = jet_finding.recluster_jets_new(
+            jets[level, "reclustering"] = jet_finding.recluster_jets(
                 jets=jets[level],
                 jet_finding_settings=jet_finding.ReclusteringJetFindingSettings(**reclustering_kwargs),
                 store_recursive_splittings=True,
@@ -732,9 +734,12 @@ def _jet_matching_embedding(jets: ak.Array,
                             ) -> ak.Array:
     """Jet matching for embedding."""
 
-    # TODO: For better matching, need to use the hybrid sub -> hybrid sub info
-    #       However, this may not be necessary given the additional jet indexing info that
-    #       we have available here.
+    # NOTE: This is a bit of a departure from the AliPhysics constituent subtraction method.
+    #       Namely, in AliPhysics, we doing an additional matching step between hybrid sub
+    #       and hybrid unsubtracted (and then matching hybrid unsubtracted to det level, etc).
+    #       However, since we have the the additional jet constituent indexing info, we can
+    #       figure out the matching directly between hybrid sub and det level. So we don't include
+    #       the intermediate matching.
     jets["det_level", "matching"], jets["hybrid", "matching"] = jet_finding.jet_matching_geometrical(
         jets_base=jets["det_level"],
         jets_tag=jets["hybrid"],
@@ -771,8 +776,12 @@ def _jet_matching_embedding(jets: ak.Array,
     #    it's required.
     #
     # The other benefit to this approach is that it should reorder the particle level matches
-    # to be the same shape as the detector level jets, so in principle they are paired together.
-    # TODO: Check this is truly the case.
+    # to be the same shape as the detector level jets (same for hybrid, etc), so they are already
+    # all paired together.
+    #
+    # NOTE: This method doesn't check that particle level jets match to the detector level jets.
+    #       However, it doesn't need to do so because the matching is bijective, so it already
+    #       must be the case.
     hybrid_to_det_level_valid_matches = jets["hybrid", "matching"] > -1
     det_to_part_level_valid_matches = jets["det_level", "matching"] > -1
     hybrid_to_det_level_including_det_to_part_level_valid_matches = det_to_part_level_valid_matches[jets["hybrid", "matching"][hybrid_to_det_level_valid_matches]]

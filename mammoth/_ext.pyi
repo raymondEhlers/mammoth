@@ -163,7 +163,7 @@ class OutputWrapperFloat:
     ]: ...
 
 @overload
-def find_jets_new(   # type: ignore
+def find_jets(   # type: ignore
     px: npt.NDArray[np.float32],
     py: npt.NDArray[np.float32],
     pz: npt.NDArray[np.float32],
@@ -176,7 +176,7 @@ def find_jets_new(   # type: ignore
     background_subtraction: BackgroundSubtraction,
 ) -> OutputWrapperFloat: ...
 @overload
-def find_jets_new(
+def find_jets(
     px: npt.NDArray[np.float64],
     py: npt.NDArray[np.float64],
     pz: npt.NDArray[np.float64],

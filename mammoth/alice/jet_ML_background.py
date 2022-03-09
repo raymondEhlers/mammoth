@@ -137,7 +137,7 @@ def analysis_embedding(source_index_identifiers: Mapping[str, int],
         subtractor = jet_finding.ConstituentSubtractor(r_max=0.25)
     jets = ak.zip(
         {
-            "part_level": jet_finding.find_jets_new(
+            "part_level": jet_finding.find_jets(
                 particles=arrays["part_level"],
                 jet_finding_settings=jet_finding.JetFindingSettings(
                     R=jet_R,
@@ -150,7 +150,7 @@ def analysis_embedding(source_index_identifiers: Mapping[str, int],
                     area_settings=jet_finding.AreaPP(),
                 ),
             ),
-            "det_level": jet_finding.find_jets_new(
+            "det_level": jet_finding.find_jets(
                 particles=arrays["det_level"],
                 jet_finding_settings=jet_finding.JetFindingSettings(
                     R=jet_R,
@@ -161,7 +161,7 @@ def analysis_embedding(source_index_identifiers: Mapping[str, int],
                     area_settings=jet_finding.AreaPP(),
                 )
             ),
-            "hybrid": jet_finding.find_jets_new(
+            "hybrid": jet_finding.find_jets(
                 particles=arrays["hybrid"],
                 jet_finding_settings=jet_finding.JetFindingSettings(
                     R=jet_R,

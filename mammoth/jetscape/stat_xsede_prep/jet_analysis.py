@@ -46,7 +46,7 @@ def find_jets_arr(array: ak.Array) -> ak.Array:
     # just doing the minimal thing to make it plausibly work).
     new_array = vector.Array(new_array)
 
-    jets = jet_finding.find_jets_new(
+    jets = jet_finding.find_jets(
         arrays=new_array,
         jet_finding_settings=jet_finding.JetFindingSettings(
             R=0.4,

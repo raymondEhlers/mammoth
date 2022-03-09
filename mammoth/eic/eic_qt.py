@@ -90,7 +90,7 @@ def run(event_properties: ak.Array,
     for jet_R in jet_R_values:
         print(f"Jet R: {jet_R}")
         # Run the jet finder
-        jets = jet_finding.find_jets_new(
+        jets = jet_finding.find_jets(
             particles=particles,
             jet_findingsettings=jet_finding.JetFindingSettings(
                 R=jet_R,

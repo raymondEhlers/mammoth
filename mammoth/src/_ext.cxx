@@ -319,19 +319,18 @@ PYBIND11_MODULE(_ext, m) {
     })
   ;
 
-  // TODO: Rename when done with validation...
-  m.def("find_jets_new", &findJetsNew<float>, "px"_a, "py"_a, "pz"_a, "E"_a,
-                                              "jet_finding_settings"_a,
-                                              "background_px"_a, "background_py"_a, "background_pz"_a, "background_E"_a,
-                                              "background_subtraction"_a,
-                                              "Jet finding function", py::call_guard<JetFindingLoggingStdout, JetFindingLoggingStderr>()
-                                              );
-  m.def("find_jets_new", &findJetsNew<double>, "px"_a, "py"_a, "pz"_a, "E"_a,
-                                              "jet_finding_settings"_a,
-                                              "background_px"_a, "background_py"_a, "background_pz"_a, "background_E"_a,
-                                              "background_subtraction"_a,
-                                              "Jet finding function", py::call_guard<JetFindingLoggingStdout, JetFindingLoggingStderr>()
-                                              );
+  m.def("find_jets", &findJetsNew<float>, "px"_a, "py"_a, "pz"_a, "E"_a,
+                                          "jet_finding_settings"_a,
+                                          "background_px"_a, "background_py"_a, "background_pz"_a, "background_E"_a,
+                                          "background_subtraction"_a,
+                                          "Jet finding function", py::call_guard<JetFindingLoggingStdout, JetFindingLoggingStderr>()
+                                          );
+  m.def("find_jets", &findJetsNew<double>, "px"_a, "py"_a, "pz"_a, "E"_a,
+                                           "jet_finding_settings"_a,
+                                           "background_px"_a, "background_py"_a, "background_pz"_a, "background_E"_a,
+                                           "background_subtraction"_a,
+                                           "Jet finding function", py::call_guard<JetFindingLoggingStdout, JetFindingLoggingStderr>()
+                                           );
 
   // Wrapper for reclustered jet outputs
   py::class_<mammoth::JetSubstructure::ColumnarSplittings>(m, "ColumnarSplittings", "Columnar splittings output")

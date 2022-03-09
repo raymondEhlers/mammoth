@@ -89,7 +89,7 @@ def find_jets_for_analysis(arrays: ak.Array, jet_R_values: Sequence[float], part
         for particles, label in zip([particles_signal_charged, particles_signal], ["charged", "full"]):
             tag = JetLabel(jet_R=jet_R, label=label)
             logger.info(f"label: {tag}")
-            jets[tag] = jet_finding.find_jets_new(
+            jets[tag] = jet_finding.find_jets(
                 particles=particles,
                 jet_finding_settings=jet_finding.JetFindingSettings(
                     R=jet_R,

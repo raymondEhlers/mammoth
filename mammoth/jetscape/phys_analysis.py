@@ -123,7 +123,7 @@ def run(particles: ak.Array) -> None:
     jet_R = 0.4
     # Jet finding is only performed on signal particles.
     #import IPython; IPython.embed()
-    jets = jet_finding.find_jets_new(
+    jets = jet_finding.find_jets(
         particles=particles_signal,
         jet_finding_settings=jet_finding.JetFindingSettings(
             R=jet_R,

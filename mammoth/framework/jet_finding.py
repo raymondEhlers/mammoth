@@ -413,7 +413,7 @@ def _indices_for_event_boundaries(array: ak.Array) -> npt.NDArray[np.int64]:
     return sum_counts
 
 
-def find_jets_new(
+def find_jets(
     particles: ak.Array,
     jet_finding_settings: JetFindingSettings,
     background_particles: Optional[ak.Array] = None,
@@ -519,7 +519,7 @@ def find_jets_new(
     _event_counter = 0
     for lower, upper, background_lower, background_upper in zip(sum_counts[:-1], sum_counts[1:], background_sum_counts[:-1], background_sum_counts[1:]):
         # Run the actual jet finding.
-        res = mammoth._ext.find_jets_new(
+        res = mammoth._ext.find_jets(
             px=px[lower:upper],
             py=py[lower:upper],
             pz=pz[lower:upper],
@@ -666,7 +666,7 @@ def _subjets_output() -> Dict[str, List[Any]]:
     }
 
 
-def recluster_jets_new(
+def recluster_jets(
     jets: ak.Array,
     jet_finding_settings: JetFindingSettings,
     store_recursive_splittings: bool,
