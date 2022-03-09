@@ -30,9 +30,6 @@ def test_jet_finding_basic_single_event(caplog: Any) -> None:
         with_name="Momentum4D",
     )
     print(f"input particles array type: {ak.type(input_particles)}")
-    #jets = jet_finding.find_jets(
-    #    particles=input_particles, jet_R=0.7, algorithm="anti-kt", area_settings=jet_finding.AREA_AA
-    #)
     jets = jet_finding.find_jets_new(
         particles=input_particles,
         jet_finding_settings=jet_finding.JetFindingSettings(
@@ -104,7 +101,6 @@ def test_jet_finding_basic_multiple_events(caplog: Any) -> None:
         with_name="Momentum4D",
     )
     print(f"input particles array type: {ak.type(input_particles)}")
-    #jets = jet_finding.find_jets(particles=input_particles, jet_R=0.7, algorithm="anti-kt", area_settings=jet_finding.AREA_AA)
     jets = jet_finding.find_jets_new(
         particles=input_particles,
         jet_finding_settings=jet_finding.JetFindingSettings(
@@ -192,12 +188,6 @@ def test_jet_finding_with_subtraction_multiple_events(caplog: Any, separate_back
     extra_kwargs = {}
     if separate_background_particles_arg:
         extra_kwargs = {"background_particles": input_particles}
-    #jets = jet_finding.find_jets(particles=input_particles, jet_R=0.7,
-    #                             algorithm="anti-kt",
-    #                             area_settings=jet_finding.AREA_AA,
-    #                             background_subtraction=True,
-    #                             **extra_kwargs,
-    #                             )
 
     jets = jet_finding.find_jets_new(
         particles=input_particles,
@@ -295,13 +285,6 @@ def test_jet_finding_with_constituent_subtraction_does_something_multiple_events
         with_name="Momentum4D",
     )
     print(f"input particles array type: {ak.type(input_particles)}")
-    #jets = jet_finding.find_jets(particles=input_particles, jet_R=0.7,
-    #                             algorithm="anti-kt",
-    #                             area_settings=jet_finding.AREA_AA,
-    #                             constituent_subtraction=jet_finding.ConstituentSubtractionSettings(
-    #                                 r_max=0.25,
-    #                                 alpha=1.0,
-    #                             ))
 
     jets = jet_finding.find_jets_new(
         particles=input_particles,

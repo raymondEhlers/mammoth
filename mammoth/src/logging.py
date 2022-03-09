@@ -6,5 +6,5 @@
 import logging
 from mammoth.framework import logging_utils
 
-jet_finding_logger_stdout = logging_utils.StreamLogger(logging.getLogger("mammoth.framework.jet_finding"), logging.DEBUG)
+jet_finding_logger_stdout = logging_utils.StreamLogger(logging.getLogger("mammoth.framework.jet_finding"), logging.INFO)
 jet_finding_logger_stderr = logging_utils.StreamLogger(logging.getLogger("mammoth.framework.jet_finding"), logging.WARNING)

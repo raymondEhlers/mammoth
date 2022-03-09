@@ -104,59 +104,6 @@ mammoth::OutputWrapper<T> findJetsNew(
   return mammoth::findJetsNew(fourVectors, jetFindingSettings,backgroundFourVectors, backgroundSubtraction);
 }
 
- /**
-  * @brief Find jets with background subtraction.
-  *
-  * NOTE: The interface is awkward because we can't optionally pass the background estimator particles.
-  *       Instead, we implicitly pass them optionally by reacting if they're empty by passing the input
-  *       particles to the background estimator. It would be nicer if it was better, but the only person
-  *       who has to actually this interface is me, so it's not the end of the world (it's hidden behind
-  *       other functions for all uses).
-  *
-  * @tparam T Input data type (usually float or double).
-  * @param pxIn px of input particles
-  * @param pyIn py of input particles
-  * @param pzIn pz of input particles
-  * @param EIn energy of input particles
-  * @param backgroundPxIn px of background estimator particles
-  * @param backgroundPyIn py of background estimator particles
-  * @param backgroundPzIn pz of background estimator particles
-  * @param backgroundEIn energy of background estimator particles
-  * @param jetR jet resolution parameter
-  * @param jetAlgorithm jet algorithm
-  * @param areaSettings Jet area calculation settings
-  * @param etaRange Eta range. Tuple of min and max
-  * @param minJetPt Minimum jet pt.
-  * @param backgroundSubtraction If true, enable rho background subtraction
-  * @param constituentSubtraction If provided, configure constituent subtraction according to given settings.
-  * @return mammoth::OutputWrapper<T> Output from jet finding.
-  */
-template <typename T>
-mammoth::OutputWrapper<T> findJets(
-  const py::array_t<T, py::array::c_style | py::array::forcecast> & pxIn,
-  const py::array_t<T, py::array::c_style | py::array::forcecast> & pyIn,
-  const py::array_t<T, py::array::c_style | py::array::forcecast> & pzIn,
-  const py::array_t<T, py::array::c_style | py::array::forcecast> & EIn,
-  const py::array_t<T, py::array::c_style | py::array::forcecast> & backgroundPxIn,
-  const py::array_t<T, py::array::c_style | py::array::forcecast> & backgroundPyIn,
-  const py::array_t<T, py::array::c_style | py::array::forcecast> & backgroundPzIn,
-  const py::array_t<T, py::array::c_style | py::array::forcecast> & backgroundEIn,
-  double jetR,
-  std::string jetAlgorithm,
-  mammoth::AreaSettings areaSettings,
-  std::tuple<double, double> etaRange,
-  bool fiducialAcceptance,
-  double minJetPt,
-  bool backgroundSubtraction,
-  std::optional<mammoth::ConstituentSubtractionSettings> constituentSubtraction
-)
-{
-  auto fourVectors = numpyToColumnFourVector<T>(pxIn, pyIn, pzIn, EIn);
-  // NOTE: These may be empty. If they are, the input four vectors are used for the background estimator
-  auto backgroundFourVectors = numpyToColumnFourVector<T>(backgroundPxIn, backgroundPyIn, backgroundPzIn, backgroundEIn);
-  return mammoth::findJets(fourVectors, jetR, jetAlgorithm, areaSettings, etaRange, fiducialAcceptance, minJetPt, backgroundFourVectors, backgroundSubtraction, constituentSubtraction);
-}
-
 /**
  * @brief Jet reclustering
  *
@@ -182,23 +129,6 @@ mammoth::JetSubstructure::JetSubstructureSplittings reclusterJetNew(
 {
   auto fourVectors = numpyToColumnFourVector<T>(pxIn, pyIn, pzIn, EIn);
   return mammoth::jetReclusteringNew(fourVectors, jetFindingSettings, storeRecursiveSplittings);
-}
-
-template <typename T>
-mammoth::JetSubstructure::JetSubstructureSplittings reclusterJet(
-  const py::array_t<T, py::array::c_style | py::array::forcecast> & pxIn,
-  const py::array_t<T, py::array::c_style | py::array::forcecast> & pyIn,
-  const py::array_t<T, py::array::c_style | py::array::forcecast> & pzIn,
-  const py::array_t<T, py::array::c_style | py::array::forcecast> & EIn,
-  double jetR,
-  std::string jetAlgorithm,
-  std::optional<mammoth::AreaSettings> areaSettings,
-  std::tuple<double, double> etaRange,
-  bool storeRecursiveSplittings
-)
-{
-  auto fourVectors = numpyToColumnFourVector<T>(pxIn, pyIn, pzIn, EIn);
-  return mammoth::jetReclustering(fourVectors, jetR, jetAlgorithm, areaSettings, etaRange, storeRecursiveSplittings);
 }
 
  /**
@@ -259,16 +189,6 @@ PYBIND11_MODULE(_ext, m) {
   // Output wrapper. Just providing access to the fields.
   wrapOutputWrapper<double>(m, "Double");
   wrapOutputWrapper<float>(m, "Float");
-  // TODO: Remove when done...
-  // Wrapper for constituent subtraction settings
-  py::class_<mammoth::ConstituentSubtractionSettings>(m, "ConstituentSubtractionSettings", "Constituent subtraction settings")
-    .def(py::init<double, double>(), "r_max"_a = 0.25, "alpha"_a = 0)
-    .def_readwrite("r_max", &mammoth::ConstituentSubtractionSettings::rMax)
-    .def_readwrite("alpha", &mammoth::ConstituentSubtractionSettings::alpha)
-    .def("__repr__", [](const mammoth::ConstituentSubtractionSettings &s) {
-      return "<ConstituentSubtractionSettings r_max=" + std::to_string(s.rMax) + ", alpha=" + std::to_string(s.alpha) + ">";
-    })
-  ;
   // Area settings
   py::class_<mammoth::AreaSettings, std::shared_ptr<mammoth::AreaSettings>>(m, "AreaSettings", "Settings related to jet finding area")
     .def(py::init<std::string, double, double, int, double, double, double, std::vector<int>>(),
@@ -413,23 +333,6 @@ PYBIND11_MODULE(_ext, m) {
                                               "Jet finding function", py::call_guard<JetFindingLoggingStdout, JetFindingLoggingStderr>()
                                               );
 
-  m.def("find_jets", &findJets<float>, "px"_a, "py"_a, "pz"_a, "E"_a,
-                                       "background_px"_a, "background_py"_a, "background_pz"_a, "background_E"_a,
-                                       "jet_R"_a, "jet_algorithm"_a, "area_settings"_a,
-                                       "eta_range"_a = std::make_tuple(-0.9, 0.9),
-                                       "fiducial_acceptance"_a = true,
-                                       "min_jet_pt"_a = 1.,
-                                       "background_subtraction"_a = false, "constituent_subtraction"_a = std::nullopt,
-                                       "Jet finding function", py::call_guard<JetFindingLoggingStdout, JetFindingLoggingStderr>());
-  m.def("find_jets", &findJets<double>, "px"_a, "py"_a, "pz"_a, "E"_a,
-                                        "background_px"_a, "background_py"_a, "background_pz"_a, "background_E"_a,
-                                        "jet_R"_a, "jet_algorithm"_a, "area_settings"_a,
-                                        "eta_range"_a = std::make_tuple(-0.9, 0.9),
-                                        "fiducial_acceptance"_a = true,
-                                        "min_jet_pt"_a = 1.,
-                                        "background_subtraction"_a = false, "constituent_subtraction"_a = std::nullopt,
-                                        "Jet finding function", py::call_guard<JetFindingLoggingStdout, JetFindingLoggingStderr>());
-
   // Wrapper for reclustered jet outputs
   py::class_<mammoth::JetSubstructure::ColumnarSplittings>(m, "ColumnarSplittings", "Columnar splittings output")
     .def_readonly("kt", &mammoth::JetSubstructure::ColumnarSplittings::kt)
@@ -444,14 +347,6 @@ PYBIND11_MODULE(_ext, m) {
   ;
 
   py::class_<mammoth::JetSubstructure::JetSubstructureSplittings>(m, "JetSubstructureSplittings", "Jet substructure splittings")
-    //.def("splittings", [](mammoth::JetSubstructure::JetSubstructureSplittings & substructure) -> mammoth::JetSubstructure::ColumnarSplittings {
-    //  auto && [kt, deltaR, z, parentIndex ] = substructure.GetSplittings().GetSplittings();
-    //  return mammoth::JetSubstructure::ColumnarSplittings{kt, deltaR, z, parentIndex};
-    //})
-    //.def("subjets", [](mammoth::JetSubstructure::JetSubstructureSplittings & substructure) -> mammoth::JetSubstructure::ColumnarSubjets {
-    //  auto && [splittingNodeIndex, partOfIterativeSplitting, constituentIndices] = substructure.GetSubjets().GetSubjets();
-    //  return mammoth::JetSubstructure::ColumnarSubjets{splittingNodeIndex, partOfIterativeSplitting, constituentIndices};
-    //})
     .def("splittings", [](mammoth::JetSubstructure::JetSubstructureSplittings & substructure) -> mammoth::JetSubstructure::ColumnarSplittings {
       return substructure.GetSplittings().GetSplittings();
     })
@@ -469,14 +364,6 @@ PYBIND11_MODULE(_ext, m) {
                                                "jet_finding_settings"_a,
                                                "store_recursive_splittings"_a = true,
                                                "Recluster the given jet", py::call_guard<JetFindingLoggingStdout, JetFindingLoggingStderr>());
-  m.def("recluster_jet", &reclusterJet<float>, "px"_a, "py"_a, "pz"_a, "E"_a,
-                                               "jet_R"_a = 1.0, "jet_algorithm"_a = "CA", "area_settings"_a = std::nullopt,
-                                               "eta_range"_a = std::make_tuple(-1, 1), "store_recursive_splittings"_a = true,
-                                               "Recluster the given jet", py::call_guard<JetFindingLoggingStdout, JetFindingLoggingStderr>());
-  m.def("recluster_jet", &reclusterJet<double>, "px"_a, "py"_a, "pz"_a, "E"_a,
-                                                "jet_R"_a = 1.0, "jet_algorithm"_a = "CA", "area_settings"_a = std::nullopt,
-                                                "eta_range"_a = std::make_tuple(-1, 1), "store_recursive_splittings"_a = true,
-                                                "Recluster the given jet", py::call_guard<JetFindingLoggingStdout, JetFindingLoggingStderr>());
 
   // ALICE
   // Fast sim

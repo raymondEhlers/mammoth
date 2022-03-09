@@ -117,11 +117,6 @@ class ColumnarSubjest:
     @property
     def splitting_node_index(self) -> npt.NDArray[np.int64]: ...
 
-class ConstituentSubtractionSettings:
-    alpha: float
-    r_max: float
-    def __init__(self, r_max: float = ..., alpha: float = ...) -> None: ...
-
 class JetSubstructureSplittings:
     def __init__(self, *args, **kwargs) -> None: ...  # type: ignore
     def splittings(self) -> ColumnarSplittings: ...
@@ -194,27 +189,6 @@ def find_jets_new(
     background_subtraction: BackgroundSubtraction,
 ) -> OutputWrapperDouble: ...
 @overload
-def find_jets(px: npt.NDArray[np.float32], py: npt.NDArray[np.float32], pz: npt.NDArray[np.float32], E: npt.NDArray[np.float32], background_px: npt.NDArray[np.float32], background_py: npt.NDArray[np.float32], background_pz: npt.NDArray[np.float32], background_E: npt.NDArray[np.float32], jet_R: float, jet_algorithm: str, area_settings: AreaSettings, eta_range: Tuple[float, float] = ..., fiducial_acceptance: bool = ..., min_jet_pt: float = ..., background_subtraction: bool = ..., constituent_subtraction: Optional[ConstituentSubtractionSettings] = ...) -> OutputWrapperFloat: ...  # type: ignore
-@overload
-def find_jets(
-    px: npt.NDArray[np.float64],
-    py: npt.NDArray[np.float64],
-    pz: npt.NDArray[np.float64],
-    E: npt.NDArray[np.float64],
-    background_px: npt.NDArray[np.float64],
-    background_py: npt.NDArray[np.float64],
-    background_pz: npt.NDArray[np.float64],
-    background_E: npt.NDArray[np.float64],
-    jet_R: float,
-    jet_algorithm: str,
-    area_settings: AreaSettings,
-    eta_range: Tuple[float, float] = ...,
-    fiducial_acceptance: bool = ...,
-    min_jet_pt: float = ...,
-    background_subtraction: bool = ...,
-    constituent_subtraction: Optional[ConstituentSubtractionSettings] = ...,
-) -> OutputWrapperDouble: ...
-@overload
 def recluster_jet_new(
     px: npt.NDArray[np.float32],
     py: npt.NDArray[np.float32],
@@ -230,30 +204,6 @@ def recluster_jet_new(
     pz: npt.NDArray[np.float64],
     E: npt.NDArray[np.float64],
     jet_finding_settings: JetFindingSettings,
-    store_recursive_splittings: bool = ...,
-) -> JetSubstructureSplittings: ...
-@overload
-def recluster_jet(
-    px: npt.NDArray[np.float32],
-    py: npt.NDArray[np.float32],
-    pz: npt.NDArray[np.float32],
-    E: npt.NDArray[np.float32],
-    jet_R: float = ...,
-    jet_algorithm: str = ...,
-    area_settings: Optional[AreaSettings] = ...,
-    eta_range: Tuple[float, float] = ...,
-    store_recursive_splittings: bool = ...,
-) -> JetSubstructureSplittings: ...
-@overload
-def recluster_jet(
-    px: npt.NDArray[np.float64],
-    py: npt.NDArray[np.float64],
-    pz: npt.NDArray[np.float64],
-    E: npt.NDArray[np.float64],
-    jet_R: float = ...,
-    jet_algorithm: str = ...,
-    area_settings: Optional[AreaSettings] = ...,
-    eta_range: Tuple[float, float] = ...,
     store_recursive_splittings: bool = ...,
 ) -> JetSubstructureSplittings: ...
 
