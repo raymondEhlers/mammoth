@@ -204,10 +204,6 @@ fastjet::GhostedAreaSpec AreaSettings::ghostedAreaSpec() const {
 
 fastjet::AreaDefinition AreaSettings::areaDefinition() const {
   fastjet::AreaDefinition areaDefinition(this->areaType(), this->ghostedAreaSpec());
-  // TODO: Check if this is required of if the above is enough...
-  //if (this->randomSeed.size() > 0) {
-  //  return areaDefinition.with_fixed_seed(this->randomSeed);
-  //}
   return areaDefinition;
 }
 

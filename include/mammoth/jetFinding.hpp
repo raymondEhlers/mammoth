@@ -879,30 +879,6 @@ std::vector<T> extractJetsArea(
   return jetsArea;
 }
 
-// TODO: Remove this function once done with validation
-fastjet::JetAlgorithm getJetAlgorithm(std::string jetAlgorithmStr)
-{
-  // Jet algorithm name
-  std::map<std::string, fastjet::JetAlgorithm> jetAlgorithms = {
-    {"anti-kt", fastjet::JetAlgorithm::antikt_algorithm},
-    {"kt", fastjet::JetAlgorithm::kt_algorithm},
-    {"CA", fastjet::JetAlgorithm::cambridge_algorithm},
-  };
-  return jetAlgorithms.at(jetAlgorithmStr);
-}
-
-// TODO: Remove this function once done with validation
-fastjet::AreaType getAreaType(const AreaSettings & areaSettings)
-{
-  // Area type
-  std::map<std::string, fastjet::AreaType> areaTypes = {
-    {"active_area", fastjet::AreaType::active_area},
-    {"active_area_explicit_ghosts", fastjet::AreaType::active_area_explicit_ghosts},
-    {"passive_area", fastjet::AreaType::passive_area},
-  };
-  return areaTypes.at(areaSettings.areaTypeName);
-}
-
 // From: https://stackoverflow.com/a/39487448/12907985
 template <typename T = double, typename C>
 inline const T median(const C &the_container)
@@ -997,9 +973,8 @@ FindJetsImplementationOutputWrapper findJetsImplementation(
         bgeWithExistingCS.rho() == backgroundEstimator->rho() &&
         ("estimator rho=" + std::to_string(backgroundEstimator->rho()) + ", validation rho=" + std::to_string(bgeWithExistingCS.rho())).c_str()
       );
-      // TODO: Remove the printout...
-      std::cerr << "rhoWithClusterSequence=" << bgeWithExistingCS.rho() << ", rhoStandard=" << backgroundEstimator->rho()  << "\n";
-      // ENDTODO
+      // NOTE: This is usually too noisy, but if visual confirmation is needed beyond the check above, uncomment the line below.
+      //std::cout << "rhoWithClusterSequence=" << bgeWithExistingCS.rho() << ", rhoStandard=" << backgroundEstimator->rho()  << "\n";
     }
 
     // Next up, create the subtractor
@@ -1037,13 +1012,12 @@ FindJetsImplementationOutputWrapper findJetsImplementation(
       }
       throw std::runtime_error("Seed mismatch in validation mode! Retrieved: " + values);
     }
-    // TODO: Comment this out when done...
-    std::cout << "Fixed seeds (main jet finding): ";
-    for (auto & v : checkFixedSeed) {
-      std::cout << " " << v;
-    }
-    std::cout << "\n";
-    // ENDTEMP
+    // NOTE: This is usually too noisy, but if visual confirmation is needed beyond the check above, uncomment the lines below.
+    //std::cout << "Fixed seeds (main jet finding): ";
+    //for (auto & v : checkFixedSeed) {
+    //  std::cout << " " << v;
+    //}
+    //std::cout << "\n";
   }
 
   // Apply the subtractor when appropriate
@@ -1115,21 +1089,17 @@ JetSubstructure::JetSubstructureSplittings jetReclusteringNew(
 )
 {
   // Use jet finding implementation to do most of the work
-  // We need to disable background subtraction, so create a simple container to disable it
+  // We don't want background subtraction here. To disable it, we create a simple empty container
+  // and set the setting to disabled
   FourVectorTuple<T> backgroundEstimatorFourVectors = {{}, {}, {}, {}};
   BackgroundSubtraction backgroundSubtraction{BackgroundSubtraction_t::disabled, nullptr, nullptr};
   auto && [cs, backgroundEstimator, jets, particlePseudoJets, subtractedToUnsubtractedIndices] = findJetsImplementation(
     columnFourVectors, mainJetFinder, backgroundEstimatorFourVectors, backgroundSubtraction
   );
 
-  // Now that we're done, just need to handle formatting the output
-  // TODO: Remove this print out afeter validation...
-  std::cerr << "output jets\n";
-  for (auto & temp_j : jets){
-    std::cerr << temp_j.pt() << "\n";
-  }
-
-  // Extract the reclustered jets
+  // Now that we're done with the jet finding, we just need to extract the splittings and
+  // put them into the expected output format.
+  // First, extract the reclustered jet
   fastjet::PseudoJet jj = jets.at(0);
   // And store the jet splittings.
   JetSubstructure::JetSubstructureSplittings jetSplittings;

@@ -38,10 +38,6 @@ AreaAA = functools.partial(
     area_type="active_area_explicit_ghosts",
     ghost_area=0.005,
 )
-# TODO: Remove...
-AREA_PP = AreaSettings("active_area", 0.01)
-AREA_AA = AreaSettings("active_area_explicit_ghosts", 0.005)
-# ENDTODO
 
 """Default jet finding settings for jet median background determination."""
 JetMedianJetFindingSettings = functools.partial(
@@ -61,9 +57,6 @@ AreaSubstructure = functools.partial(
     area_type="passive_area",
     ghost_area=0.05,
 )
-# TODO: Remove
-AREA_SUBSTRUCTURE = AreaSettings("passive_area", 0.05)
-# ENDTODO
 """Default jet finding settings for reclustering"""
 ReclusteringJetFindingSettings = functools.partial(
     JetFindingSettings,
@@ -347,11 +340,12 @@ def jet_matching_geometrical(jets_base: ak.Array, jets_tag: ak.Array, max_matchi
     base_to_tag_matching = ak.unflatten(base_to_tag_matching_np, ak.num(jets_base, axis=1))
     tag_to_base_matching = ak.unflatten(tag_to_base_matching_np, ak.num(jets_tag, axis=1))
 
-    # TODO: Probably best to remove these printouts when done debugging...
-    logger.debug(
-        f"base_to_tag_matching_np: {base_to_tag_matching_np}, tag_to_base_matching_np: {tag_to_base_matching_np}"
-    )
-    logger.debug(f"base_to_tag_matching: {base_to_tag_matching}, tag_to_base_matching: {tag_to_base_matching}")
+    # These messages were useful for debugging, but we're quite noisy. We don't need them anymore, so they're
+    # commented out, but they're left here in case they're needed in the future
+    #logger.debug(
+    #    f"base_to_tag_matching_np: {base_to_tag_matching_np}, tag_to_base_matching_np: {tag_to_base_matching_np}"
+    #)
+    #logger.debug(f"base_to_tag_matching: {base_to_tag_matching}, tag_to_base_matching: {tag_to_base_matching}")
 
     return base_to_tag_matching, tag_to_base_matching
 
