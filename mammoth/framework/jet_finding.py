@@ -516,7 +516,6 @@ def find_jets(
         "E": [],
     }
     subtracted_to_unsubtracted_indices = []
-    _event_counter = 0
     for lower, upper, background_lower, background_upper in zip(sum_counts[:-1], sum_counts[1:], background_sum_counts[:-1], background_sum_counts[1:]):
         # Run the actual jet finding.
         res = mammoth._ext.find_jets(
@@ -557,13 +556,6 @@ def find_jets(
             # Plus the association for each subtracted constituent index into the unsubtracted constituent.
             # NOTE: These are the indices assigned via the user_index.
             subtracted_to_unsubtracted_indices.append(subtracted_info[1])
-
-        if len(temp_jets[0]) and np.isclose(temp_jets[0][0], -66.91934424638748):
-            logger.info(f"_event_counter: {_event_counter}")
-        _event_counter += 1
-
-        #if len(jets["rho"]) > 100:
-        #    raise RuntimeError("Stahp")
 
     # To create the output, we start with the constituents.
     # First, we convert the fastjet user_index indices that we use for book keeping during jet finding
@@ -714,17 +706,12 @@ def recluster_jets(
     pz = np.asarray(ak.flatten(jets.constituents.pz, axis=None), dtype=np.float64)
     E = np.asarray(ak.flatten(jets.constituents.E, axis=None), dtype=np.float64)
 
-    # import IPython; IPython.embed()
-
     event_splittings = _splittings_output()
     event_subjets = _subjets_output()
-    for _temp, (starts, stops) in enumerate(zip(starts_constituents, stops_constituents)):
+    for starts, stops in zip(starts_constituents, stops_constituents):
         jets_splittings = _splittings_output()
         jets_subjets = _subjets_output()
         for lower, upper in zip(starts, stops):
-            #if _temp == 78:
-            #    logger.info(f"lower, upper: {lower}, {upper}")
-            #    import IPython; IPython.embed()
             res = mammoth._ext.recluster_jet_new(
                 px=px[lower:upper],
                 py=py[lower:upper],
@@ -743,10 +730,6 @@ def recluster_jets(
             jets_subjets["part_of_iterative_splitting"].append(_temp_subjets.part_of_iterative_splitting)
             jets_subjets["constituent_indices"].append(_temp_subjets.constituent_indices)
 
-            #if _temp == 78:
-            #    logger.info(f"after")
-            #    import IPython; IPython.embed()
-
         # Now, move to the overall output objects.
         # NOTE: We want to fill this even if we didn't perform any reclustering to ensure that
         #       we keep the right shape.
@@ -754,8 +737,6 @@ def recluster_jets(
             event_splittings[k].append(jets_splittings[k])
         for k in event_subjets:
             event_subjets[k].append(jets_subjets[k])
-
-    #import IPython; IPython.embed()
 
     return ak.zip(
         {
