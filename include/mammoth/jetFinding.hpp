@@ -1032,11 +1032,9 @@ FindJetsImplementationOutputWrapper findJetsImplementation(
   jets = mainJetFinder.selectorPtEtaNonGhost()(jets);
 
   // Sort by pt for convenience
-  // NOTE: We skip this during validation mode because apparently AliPhysics doesn't do this, so
-  //       sorting it can mess up the comparison
-  if (validationMode == false) {
-    jets = fastjet::sorted_by_pt(jets);
-  }
+  // NOTE: For embed pythia validation (and only there), we should disable this line since apparently
+  //       the AliPhysics sorting isn't stable in that case...
+  jets = fastjet::sorted_by_pt(jets);
 
   return FindJetsImplementationOutputWrapper{
     cs, backgroundEstimator, jets, particlePseudoJets, subtractedToUnsubtractedIndices
