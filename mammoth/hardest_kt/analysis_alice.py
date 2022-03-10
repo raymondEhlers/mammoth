@@ -5,7 +5,7 @@
 
 import logging
 from pathlib import Path
-from typing import Any, Dict, Mapping, Tuple
+from typing import Any, Dict, Mapping, Optional, Tuple
 
 import awkward as ak
 import numpy as np
@@ -272,9 +272,15 @@ def _jet_matching_MC(jets: ak.Array,
 
 
 def analysis_data(
-    collision_system: str, arrays: ak.Array, jet_R: float, min_jet_pt: Mapping[str, float], particle_column_name: str = "data",
+    collision_system: str, arrays: ak.Array, jet_R: float, min_jet_pt: Mapping[str, float],
+    particle_column_name: str = "data",
     validation_mode: bool = False,
+    background_subtraction_settings: Optional[Mapping[str, Any]] = None,
 ) -> ak.Array:
+    # Validation
+    if background_subtraction_settings is None:
+        background_subtraction_settings = {}
+
     logger.info("Start analyzing")
     # Event selection
     logger.warning(f"pre event sel n events: {len(arrays)}")
@@ -302,7 +308,7 @@ def analysis_data(
 
     area_settings = jet_finding.AreaPP(**area_kwargs)
     additional_kwargs: Dict[str, Any] = {}
-    if collision_system in ["PbPb", "embedPythia", "thermal_model"]:
+    if collision_system in ["PbPb", "embedPythia", "embed_thermal_model"]:
         area_settings = jet_finding.AreaAA(**area_kwargs)
         additional_kwargs["background_subtraction"] = jet_finding.BackgroundSubtraction(
             type=jet_finding.BackgroundSubtractionType.event_wise_constituent_subtraction,
@@ -312,10 +318,11 @@ def analysis_data(
                 )
             ),
             subtractor=jet_finding.ConstituentSubtractor(
-                r_max=0.25,
+                r_max=background_subtraction_settings.get("r_max", 0.25),
             ),
         )
 
+    logger.warning(f"For particle column '{particle_column_name}', additional_kwargs: {additional_kwargs}")
     jets = ak.zip(
         {
             particle_column_name: jet_finding.find_jets(
@@ -354,7 +361,7 @@ def analysis_data(
     # Require more than one constituent at detector level if we're not in PbPb
     # Matches a cut in AliAnalysisTaskJetDynamicalGrooming
     # *************
-    if collision_system not in ["PbPb", "embedPythia", "thermal_model"]:
+    if collision_system not in ["PbPb", "embedPythia", "embed_thermal_model"]:
         mask = mask & (ak.num(jets[particle_column_name].constituents, axis=2) > 1)
 
     # Apply the cuts
@@ -455,7 +462,7 @@ def load_embedding(signal_filename: Path, background_filename: Path) -> Tuple[Di
     return _event_select_and_transform_embedding(arrays=arrays, source_index_identifiers=source_index_identifiers)
 
 
-def load_thermal_model(
+def load_embed_thermal_model(
     signal_filename: Path,
     thermal_model_parameters: sources.ThermalModelParameters,
 ) -> Tuple[Dict[str, int], ak.Array]:
@@ -824,7 +831,7 @@ if __name__ == "__main__":
     # Thermal model
     ###############
     # jets = analysis_embedding(
-    #     *load_thermal_model(
+    #     *load_embed_thermal_model(
     #         signal_filename=Path("/software/rehlers/dev/substructure/trains/pythia/641/run_by_run/LHC20g4/295612/1/AnalysisResults.20g4.001.root"),
     #         thermal_model_parameters=sources.THERMAL_MODEL_SETTINGS["central"],
     #     ),
