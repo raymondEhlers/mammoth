@@ -11,7 +11,7 @@ import math
 import os.path
 import sys
 from pathlib import Path
-from typing import Any, Callable, Dict, Iterable, List, Optional, Sequence, Tuple
+from typing import Any, Callable, Dict, Iterable, List, Optional, Sequence, Tuple, Union
 
 import attr
 
@@ -44,31 +44,13 @@ FACILITIES = Literal[
 ]
 
 
-def _expand_vars_in_work_dir_(
-    instance: "TaskConfig",
-    attribute: attr.Attribute[Path],
-    value: Path,
-) -> None:
+def _expand_vars_in_work_dir(
+    value: Union[str, Path],
+) -> Path:
     """Validate work dir."""
-    # To start, we need to assign to `value` here in case we've modified the value in the validator,
-    # but it hasn't been propagated to the value that is passed here
-    value = getattr(instance, attribute.name)
-    # We need to expand any variations, but return a Path
     _p = os.path.expandvars(str(value))
     p = Path(_p)
-    # Don't create the directory because this is perform automatically for all facilities!
-    # (ie. we'll create random directories all over the place...)
-    setattr(instance, attribute.name, p)
-
-
-def _use_existing_work_dir_if_not_set(
-    instance: "TaskConfig",
-    attribute: attr.Attribute[Path],
-    value: Path,
-) -> None:
-    """If the work_dir isn't set, then use the standard node_work_dir."""
-    if value is None:
-        setattr(instance, attribute.name, instance.node_work_dir)
+    return p
 
 
 @attr.define
@@ -135,7 +117,7 @@ class Facility:
     task_configs: Dict[str, TaskConfig] = attr.Factory(dict)
     node_work_dir: Path = attr.field(default=Path("."))
     storage_work_dir: Path = attr.field(
-        validator=[_use_existing_work_dir_if_not_set, _expand_vars_in_work_dir_], default=None
+        converter=_expand_vars_in_work_dir, default=Path(".")
     )
     directories_to_mount_in_singularity: List[Path] = attr.Factory(list)
     worker_init_script: str = attr.field(default="")
