@@ -142,8 +142,6 @@ def analysis_MC(arrays: ak.Array, jet_R: float, min_jet_pt: Mapping[str, float],
     )
     logger.warning(f"Found det_level n jets: {np.count_nonzero(np.asarray(ak.flatten(jets['det_level'].px, axis=None)))}")
 
-    import IPython; IPython.embed()
-
     # Apply jet level cuts.
     # **************
     # Remove detector level jets with constituents with pt > 100 GeV
@@ -199,8 +197,6 @@ def analysis_MC(arrays: ak.Array, jet_R: float, min_jet_pt: Mapping[str, float],
 
     logger.warning(f"n events: {len(jets)}")
     logger.warning(f"n jets accepted: {np.count_nonzero(np.asarray(ak.flatten(jets['det_level'].px, axis=None)))}")
-
-    import IPython; IPython.embed()
 
     # Next step for using existing skimming:
     # Flatten from events -> jets
@@ -338,8 +334,6 @@ def analysis_data(
     )
     logger.warning(f"Found n jets: {np.count_nonzero(np.asarray(ak.flatten(jets[particle_column_name].px, axis=None)))}")
 
-    import IPython; IPython.embed()
-
     # Apply jet level cuts.
     # **************
     # Remove jets with constituents with pt > 100 GeV
@@ -371,10 +365,6 @@ def analysis_data(
     if len(ak.flatten(jets[particle_column_name].px, axis=None)) == 0:
         raise ValueError(f"No jets left for {particle_column_name}. Are your settings correct?")
 
-    logger.warning(f"jet pt: {ak.flatten(jets[particle_column_name].pt).to_list()}")
-    #import IPython; IPython.embed()
-    #raise RuntimeError("Stahp!")
-
     logger.info(f"Reclustering {particle_column_name} jets...")
     jets[particle_column_name, "reclustering"] = jet_finding.recluster_jets(
         jets=jets[particle_column_name],
@@ -386,8 +376,6 @@ def analysis_data(
     )
     logger.info("Done with reclustering")
     logger.warning(f"n events: {len(jets)}")
-
-    import IPython; IPython.embed()
 
     # Next step for using existing skimming:
     # Flatten from events -> jets
@@ -611,8 +599,6 @@ def analysis_embedding(
         depth_limit=1,
     )
 
-    import IPython; IPython.embed()
-
     # Apply jet level cuts.
     # **************
     # Remove detector level jets with constituents with pt > 100 GeV
@@ -667,8 +653,6 @@ def analysis_embedding(
         logger.info("Done with reclustering")
 
     logger.warning(f"n events: {len(jets)}")
-
-    import IPython; IPython.embed()
 
     # Next step for using existing skimming:
     # Flatten from events -> jets
