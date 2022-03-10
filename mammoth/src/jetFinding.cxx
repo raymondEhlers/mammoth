@@ -300,10 +300,10 @@ std::string JetFindingSettings::to_string() const
 
 fastjet::Selector JetMedianBackgroundEstimator::selector() const {
   // Select jets for calculating the background
-  // As of September 2021, this includes (ordered from top to bottom):
-  // - Fiducial eta selection
+  // As of March 2022, this includes (ordered from top to bottom):
+  // - Remove jets with a constituent with pt > 100
+  // - pt and eta selections (eta should be fiducial)
   // - Remove the two hardest jets
-  // - Remove pure ghost jets (since they are included with explicit ghosts)
 
   // NOTES:
   // - We want to apply the two hardest removal _after_ the acceptance cuts, so we use "*"
@@ -322,13 +322,13 @@ fastjet::Selector JetMedianBackgroundEstimator::selector() const {
   // - If one goes back to applying phi cuts, one could use `* fastjet::SelectorRapPhiRange(backgroundJetEtaMin, backgroundJetEtaMax, backgroundJetPhiMin, backgroundJetPhiMax)`
   //   However, if using this combined selector, be careful about the difference between rapidity and eta!
 
-  //fastjet::Selector selRho = !fastjet::SelectorNHardest(2) * !fastjet::SelectorIsPureGhost() * fastjet::SelectorAbsRapMax(ghostRapidityMax);
-  //fastjet::Selector selRho = !fastjet::SelectorNHardest(2) * !fastjet::SelectorIsPureGhost() * fastjet::SelectorRapRange(backgroundJetEtaMin, backgroundJetEtaMax);
-  //fastjet::Selector selRho = !fastjet::SelectorNHardest(2) * !fastjet::SelectorIsPureGhost() * fastjet::SelectorEtaRange(backgroundJetEtaMin, backgroundJetEtaMax);
+  const auto [jetPtMin, jetPtMax] = this->settings.ptRange;
   const auto [jetEtaMin, jetEtaMax] = this->settings.etaRange;
   fastjet::Selector selRho = !fastjet::SelectorNHardest(this->excludeNHardestJets)
-                              //* !fastjet::SelectorIsPureGhost()  // NB: This selector doesn't make a difference...
-                              * fastjet::SelectorEtaRange(jetEtaMin, jetEtaMax)
+                              * (
+                                fastjet::SelectorPtRange(jetPtMin, jetPtMax)
+                                && fastjet::SelectorEtaRange(jetEtaMin, jetEtaMax)
+                              )
                               * SelectorConstituentPtMax(this->constituentPtMax);
   return selRho;
 }
