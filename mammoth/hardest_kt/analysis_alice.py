@@ -497,10 +497,14 @@ def analysis_embedding(
     arrays: ak.Array,
     jet_R: float,
     min_jet_pt: Mapping[str, float],
-    r_max: float = 0.25,
+    background_subtraction_settings: Optional[Mapping[str, Any]] = None,
     validation_mode: bool = False,
     shared_momentum_fraction_min: float = 0.5,
 ) -> ak.Array:
+    # Validation
+    if background_subtraction_settings is None:
+        background_subtraction_settings = {}
+
     # Event selection
     # This would apply to the signal events, because this is what we propagate from the embedding transform
     event_level_mask = np.ones(len(arrays)) > 0
@@ -598,7 +602,7 @@ def analysis_embedding(
                         )
                     ),
                     subtractor=jet_finding.ConstituentSubtractor(
-                        r_max=r_max,
+                        r_max=background_subtraction_settings.get("r_max", 0.25),
                     ),
                 ),
             ),
