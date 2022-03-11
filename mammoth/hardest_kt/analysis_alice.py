@@ -500,6 +500,7 @@ def analysis_embedding(
     background_subtraction_settings: Optional[Mapping[str, Any]] = None,
     validation_mode: bool = False,
     shared_momentum_fraction_min: float = 0.5,
+    det_level_artificial_tracking_efficiency: float = 1.0,
 ) -> ak.Array:
     # Validation
     if background_subtraction_settings is None:
@@ -558,6 +559,51 @@ def analysis_embedding(
     #       with an index smaller than that offset.
     background_only_particles_mask = ~(arrays["hybrid", "index"] < source_index_identifiers["background"])
 
+    # Setup an artificial tracking efficiency for detector level particles
+    # To apply this, we want to select all background tracks + the subset of det level particles to keep
+    # First, start with an all True mask
+    hybrid_level_mask = (arrays["hybrid"].pt >= 0)
+    if det_level_artificial_tracking_efficiency < 1.0:
+        if validation_mode:
+            raise ValueError("Cannot apply artificial tracking efficiency during validation mode. The randomness will surely break the validation.")
+
+        # Here, we focus in on the detector level particles.
+        # We want to select only them, determine whether they will be rejected, and then assign back
+        # to the full hybrid mask. However, since awkward arrays are immutable, we need to do all of
+        # this in numpy, and then unflatten.
+        # First, we determine the total number of det_level particles to determine how many random
+        # numbers to generate (plus, the info needed to unflatten later)
+        _n_det_level_particles_per_event = ak.num(arrays["hybrid"][~background_only_particles_mask], axis=1)
+        _total_n_det_level_particles = ak.sum(_n_det_level_particles_per_event)
+
+        # Next, drop particles if their random values that are higher than the tracking efficiency
+        _rng = np.random.default_rng()
+        random_values = _rng.uniform(low=0.0, high=1.0, size=_total_n_det_level_particles)
+        _drop_particles_mask = random_values > det_level_artificial_tracking_efficiency
+        # NOTE: The check above will assign `True` when the random value is higher than the tracking efficiency.
+        #       However, since we to remove those particles and keep ones below, we need to invert this selection.
+        _det_level_particles_to_keep_mask = ~_drop_particles_mask
+
+        # Now, we need to integrate it into the hybrid_level_mask
+        # First, flatten that hybrid list into a numpy array, as well as the mask that selects det_level particles only
+        _hybrid_level_mask_np = ak.to_numpy(ak.flatten(hybrid_level_mask))
+        _det_level_particles_mask_np = ak.to_numpy(ak.flatten(~background_only_particles_mask))
+        # Then, we can use the mask selecting det level particles only to assign whether to keep each det level
+        # particle due to the tracking efficiency. Since the mask does the assignment
+        _hybrid_level_mask_np[_det_level_particles_mask_np] = _det_level_particles_to_keep_mask
+
+        # Unflatten so we can apply the mask to the existing particles
+        hybrid_level_mask = ak.unflatten(_hybrid_level_mask_np, ak.num(arrays["hybrid"]))
+
+        # Cross check that it worked.
+        # However, I don't have this as an assert because if there aren't _that_ many particles and the efficiency
+        # is high, I suppose it's possible that this fails, and I don't want to kill jobs for that reason.
+        if ak.all(hybrid_level_mask == True) is False:
+            logger.warning(
+                "No particles were removed in the artificial tracking efficiency."
+                " This is possible, but not super likely. Please check your settings!"
+            )
+
     jets = ak.zip(
         {
             "part_level": jet_finding.find_jets(
@@ -585,7 +631,7 @@ def analysis_embedding(
                 )
             ),
             "hybrid": jet_finding.find_jets(
-                particles=arrays["hybrid"],
+                particles=arrays["hybrid"][hybrid_level_mask],
                 jet_finding_settings=jet_finding.JetFindingSettings(
                     R=jet_R,
                     algorithm="anti-kt",
