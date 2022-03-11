@@ -29,7 +29,7 @@ numba = ">=0.55"
 hist = {version = ">=2.5.0", extras = ["plot"]}
 seaborn = ">=0.11.2"
 vector = ">=0.8.5"
-parsl = {git = "https://github.com/Parsl/parsl.git", rev = "9eca2a949471520f161a82cc046397a1d69d939c", extras = ["monitoring"]}
+parsl = {git = "https://github.com/Parsl/parsl.git", rev = "6d1f9160d487b3265f6e9d65ebb357837a437c30", extras = ["monitoring"]}
 rich = ">=11.2"
 
 [tool.poetry.dev-dependencies]
