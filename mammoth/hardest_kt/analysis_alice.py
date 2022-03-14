@@ -3,9 +3,10 @@
 .. codeauthor:: Raymond Ehlers <raymond.ehlers@cern.ch>, ORNL
 """
 
+import collections
 import logging
 from pathlib import Path
-from typing import Any, Dict, Mapping, Optional, Tuple
+from typing import Any, Dict, Mapping, Optional, Sequence, Tuple, Union
 
 import awkward as ak
 import numpy as np
@@ -431,7 +432,13 @@ def _event_select_and_transform_embedding(arrays: ak.Array, source_index_identif
     )
 
 
-def load_embedding(signal_filename: Path, background_filename: Path, repeat_signal_when_needed_for_statistics: bool = True) -> Tuple[Dict[str, int], ak.Array]:
+def load_embedding(signal_input: Union[Path, Sequence[Path]], background_filename: Path, repeat_signal_when_needed_for_statistics: bool = True) -> Tuple[Dict[str, int], ak.Array]:
+    # Validation
+    signal_filenames = []
+    if not isinstance(signal_input, collections.abc.Iterable):
+        signal_filenames = [signal_input]
+    else:
+        signal_filenames = list(signal_input)
     # Setup
     logger.info("Loading embedded data")
     source_index_identifiers = {"signal": 0, "background": 100_000}
@@ -440,10 +447,13 @@ def load_embedding(signal_filename: Path, background_filename: Path, repeat_sign
     pythia_source = sources.ChunkSource(
         # Chunk size will be set when combining the sources.
         chunk_size=-1,
-        sources=track_skim.FileSource(
-            filename=signal_filename,
-            collision_system="pythia",
-        ),
+        sources=[
+                track_skim.FileSource(
+                filename=_filename,
+                collision_system="pythia",
+            )
+            for _filename in signal_filenames
+        ],
         repeat=repeat_signal_when_needed_for_statistics,
     )
     # Background
