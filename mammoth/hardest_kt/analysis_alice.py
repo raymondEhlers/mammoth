@@ -431,7 +431,7 @@ def _event_select_and_transform_embedding(arrays: ak.Array, source_index_identif
     )
 
 
-def load_embedding(signal_filename: Path, background_filename: Path) -> Tuple[Dict[str, int], ak.Array]:
+def load_embedding(signal_filename: Path, background_filename: Path, repeat_signal_when_needed_for_statistics: bool = True) -> Tuple[Dict[str, int], ak.Array]:
     # Setup
     logger.info("Loading embedded data")
     source_index_identifiers = {"signal": 0, "background": 100_000}
@@ -443,7 +443,8 @@ def load_embedding(signal_filename: Path, background_filename: Path) -> Tuple[Di
         sources=track_skim.FileSource(
             filename=signal_filename,
             collision_system="pythia",
-        )
+        ),
+        repeat=repeat_signal_when_needed_for_statistics,
     )
     # Background
     pbpb_source=track_skim.FileSource(
