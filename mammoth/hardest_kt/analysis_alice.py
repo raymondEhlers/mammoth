@@ -434,6 +434,7 @@ def _event_select_and_transform_embedding(arrays: ak.Array, source_index_identif
 
 def load_embedding(signal_input: Union[Path, Sequence[Path]], background_filename: Path, repeat_signal_when_needed_for_statistics: bool = True) -> Tuple[Dict[str, int], ak.Array]:
     # Validation
+    # We allow for multiple signal filenames
     signal_filenames = []
     if not isinstance(signal_input, collections.abc.Iterable):
         signal_filenames = [signal_input]
@@ -448,7 +449,7 @@ def load_embedding(signal_input: Union[Path, Sequence[Path]], background_filenam
         # Chunk size will be set when combining the sources.
         chunk_size=-1,
         sources=[
-                track_skim.FileSource(
+            track_skim.FileSource(
                 filename=_filename,
                 collision_system="pythia",
             )
