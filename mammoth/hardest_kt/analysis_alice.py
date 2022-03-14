@@ -722,8 +722,9 @@ def analysis_embedding(
         depth_limit=1,
     )
 
-    # Shared momentum fraction
-    try:
+    # I'm not sure if these work when there are no jets, so better to skip any calculations if there are no jets.
+    if len(jets) > 0:
+        # Shared momentum fraction
         jets["det_level", "shared_momentum_fraction"] = jet_finding.shared_momentum_fraction_for_flat_array(
             generator_like_jet_pts=jets["det_level"].pt,
             generator_like_jet_constituents=jets["det_level"].constituents,
@@ -735,11 +736,6 @@ def analysis_embedding(
         n_jets_removed = len(jets) - np.count_nonzero(shared_momentum_fraction_mask)
         logger.info(f"Removing {n_jets_removed} events out of {len(jets)} total jets ({round(n_jets_removed / len(jets) * 100, 2)}%) due to shared momentum fraction")
         jets = jets[shared_momentum_fraction_mask]
-    except Exception as e:
-        print(e)
-        import IPython
-
-        IPython.embed()
 
     # Now, the final transformation into a form that can be used to skim into a flat tree.
     return jets
