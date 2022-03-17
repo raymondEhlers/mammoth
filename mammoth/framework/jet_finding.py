@@ -350,6 +350,63 @@ def jet_matching_geometrical(jets_base: ak.Array, jets_tag: ak.Array, max_matchi
     return base_to_tag_matching, tag_to_base_matching
 
 
+@nb.njit  # type: ignore
+def _calculate_unsubtracted_constituent_max_pt(
+    input_arrays: ak.Array, input_arrays_indices: ak.Array, input_constituents_indices: ak.Array, builder: ak.ArrayBuilder
+) -> ak.ArrayBuilder:
+    """ Implementation of calculating the unsubtracted constituent max pt
+
+    Since matching all of the indices, etc is a pain, we just implement via numba, where it appears to
+    be fast enough.
+
+    Note:
+        It would be nice to pass in directly via the whole particle or jet type, but it seems that
+        numba narrows to just the vector object, so we have to pass indices separately.
+
+    Args:
+        input_arrays: Particle arrays
+        input_arrays_indices: Particle array indices
+        input_constituents_indices: Constituent indices from subtracted jet collection.
+    Returns:
+        ArrayBuilder containing the unsubtracted max pt for each jet.
+    """
+    for particles_in_event, particles_indices_in_event, jets_constituents_indices_in_event in \
+        zip(input_arrays, input_arrays_indices, input_constituents_indices):
+        builder.begin_list()
+        for constituents_indices in jets_constituents_indices_in_event:
+            unsubtracted_constituent_pt = []
+            for constituent_index in constituents_indices:
+                for particle, particle_index in zip(particles_in_event, particles_indices_in_event):
+                    if constituent_index == particle_index:
+                        unsubtracted_constituent_pt.append(particle.pt)
+            builder.append(max(unsubtracted_constituent_pt))
+        builder.end_list()
+
+    return builder
+
+
+def calculate_unsubtracted_constituent_max_pt(arrays: ak.Array, constituents: ak.Array) -> ak.Array:
+    """ Calculate the unsubtracted constituent max pt
+
+    This function is used for calculating the unsubtracted constituent max pt when performing constituent
+    subtraction.
+
+    Args:
+        arrays: Array for a particular particle collection (eg. hybrid). These are the particles
+            used for jet finding.
+        constituents: Jet constituents for a particular jet collection (eg. hybrid).
+            These must be constituent subtracted.
+    Returns:
+        unsubtracted constituent max pt, in the same shape as the jet collection.
+    """
+    return _calculate_unsubtracted_constituent_max_pt(
+        input_arrays=arrays,
+        input_arrays_indices=arrays.index,
+        input_constituents_indices=constituents.index,
+        builder=ak.ArrayBuilder()
+    ).snapshot()
+
+
 def _apply_constituent_indices_to_expanded_array(
     array_to_expand: ak.Array, constituent_indices: ak.Array
 ) -> ak.Array:
@@ -622,6 +679,15 @@ def find_jets(
     ```
     """
 
+    # Add additional columns that only apply for subtracted constituents
+    additional_jet_level_fields = {}
+    if subtracted_to_unsubtracted_indices:
+        # Here, we add the unsubtracted constituent max pt
+        additional_jet_level_fields["unsubtracted_leading_track_pt"] = calculate_unsubtracted_constituent_max_pt(
+            arrays=particles,
+            constituents=output_constituents,
+        )
+
     # Finally, construct the output
     output_jets = ak.zip(
         {
@@ -632,6 +698,7 @@ def find_jets(
             "area": jets["area"],
             "rho_value": jets["rho_value"],
             "constituents": output_constituents,
+            **additional_jet_level_fields,
         },
         with_name="Momentum4D",
         # Limit of 2 is based on: 1 for events + 1 for jets
