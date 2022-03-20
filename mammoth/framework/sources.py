@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import (
     Any,
     Dict,
+    Final,
     Iterable,
     Iterator,
     List,
@@ -54,9 +55,17 @@ class Source(Protocol):
         """
         ...
 
+    def data_iter(self, chunk_size: int) -> Iterable[ak.Array]:
+        """A iterator over a fixed size of data from the source.
 
-class SourceWithChunks(Source, Protocol):
-    """A source that operates in chunks."""
+        Returns:
+            Iterable containing chunk size data in an awkward array.
+        """
+        ...
+
+
+class SourceWithChunkSize(Source, Protocol):
+    """A source that operates with a fixed size."""
 
     chunk_size: int
 
@@ -72,6 +81,31 @@ def _convert_range(entry_range: Union[utils.Range, Sequence[float]]) -> utils.Ra
     if isinstance(entry_range, utils.Range):
         return entry_range
     return utils.Range(*entry_range)
+
+
+def _iterable_from_data(data: ak.Array, chunk_size: int, warn_on_not_enough_data: bool = False) -> Iterable[ak.Array]:
+    # Validation
+    full_data_length = len(data)
+    if full_data_length < chunk_size and warn_on_not_enough_data:
+        logger.warning(f"Requested {chunk_size}, but only have {full_data_length}")
+
+    # If we already have enough data, yield immediately and then return since we're done
+    if full_data_length <= chunk_size:
+        yield data
+        # Afterwards, return None to indicate that we've hit the end of the iterator
+        return None
+
+    # We have more data than requested - provide data of the requested size in chunks
+    while len(data) > 0:
+        # Determine how far to slice into the remaining data.
+        # NOTE: Because we determine the number of events remaining, it will still take the
+        #       right slice even if the chunk size is larger than the remaining data.
+        _remaining_n_events = chunk_size - len(data)
+        yield data[:_remaining_n_events]
+        data = data[_remaining_n_events:]
+
+    # And indicate we're done. Not necessarily required, but I want to be quite explicit here.
+    return None
 
 
 @attr.define
@@ -128,8 +162,11 @@ class UprootSource:
 
             return tree.arrays(**reading_kwargs)
 
+    def data_iter(self, chunk_size: int) -> Iterable[ak.Array]:
+        return _iterable_from_data(data=self.data(), chunk_size=chunk_size)
 
-def chunked_uproot_source(
+
+def define_multiple_sources_from_single_root_file(
     filename: Path,
     tree_name: str,
     chunk_size: int,
@@ -137,7 +174,7 @@ def chunked_uproot_source(
 ) -> List[UprootSource]:
     """Create a set of uproot sources in chunks for a given filename.
 
-    This is most likely to be the main interface.
+    This is only needed if the root file is so large that opening the whole thing at once creates memory issues.
 
     Returns:
         List of UprootSource configured with the provided properties.
@@ -195,15 +232,94 @@ class ParquetSource:
 
         return arrays
 
+    def data_iter(self, chunk_size: int) -> Iterable[ak.Array]:
+        return _iterable_from_data(data=self.data(), chunk_size=chunk_size)
+
 
 @attr.define
-class JetscapeSource(ParquetSource):
-    """Jetscape source via Parquet file.
+class ALICEFastSimTrackingEfficiency:
+    """ ALICE fast simulation based on tracking efficiency
 
-    Nothing needs to be done here.
+    This is definitely a poor man's implementation, but it's fine for a first look.
     """
+    particle_level_source: Source
+    fast_sim_parameters: models.ALICEFastSimParameters
+    metadata: MutableMapping[str, Any] = attr.Factory(dict)
 
-    ...
+    def __len__(self) -> int:
+        if "n_entries" in self.metadata:
+            return int(self.metadata["n_entries"])
+        raise ValueError("N entries not yet available.")
+
+    def _data(self, particle_level_data: ak.Array) -> ak.Array:
+        # Setup
+        rng = np.random.default_rng()
+
+        self.metadata["n_entries"] = len(self.particle_level_data)
+
+        efficiencies = models.alice_fast_sim_tracking_efficiency(
+            track_pt=np.asarray(ak.flatten(particle_level_data["part_level"].pt, axis=-1)),
+            track_eta=np.asarray(ak.flatten(particle_level_data["part_level"].eta, axis=-1)),
+            event_activity=self.fast_sim_parameters.event_activity,
+            period=self.fast_sim_parameters.period,
+        )
+
+        n_particles_per_event = ak.num(particle_level_data["part_level"], axis=1)
+        total_n_particles = ak.sum(n_particles_per_event)
+
+        # Drop values that are higher than the tracking efficiency
+        random_values = rng.uniform(low=0.0, high=1.0, size=total_n_particles)
+        drop_particles_mask = random_values > efficiencies
+        # Since True will keep the particle, we need to invert this
+        drop_particles_mask = ~drop_particles_mask
+
+        # Unflatten so we can apply the mask to the existing particles
+        drop_particles_mask = ak.unflatten(drop_particles_mask, n_particles_per_event)
+
+        # Finally, add the particle structure at the end.
+        # NOTE: We return the fast sim wrapped in the "det_level" key because the framework
+        #       expects that every source has some kind of particle column name.
+        # NOTE: We also return the "part_level" because it's convenient to have both
+        #       together, even if it's in principle available elsewhere. We also include the event
+        #       level info for the same reason. I think we're violating the separation of concerns
+        #       a little bit, but it seems to work, so good enough for now.
+        return ak.Array(
+            {
+                "det_level": particle_level_data["part_level"][drop_particles_mask],
+                "part_level": particle_level_data["part_level"],
+                # Include the rest of the non-particle related fields (ie. event level info)
+                **{
+                    k: v
+                    for k, v in zip(ak.fields(particle_level_data), ak.unzip(self.particle_level_data))
+                    if k not in ["det_level", "part_level"]
+                },
+            }
+        )
+
+    def data(self) -> ak.Array:
+        return self._data(
+            particle_level_data=self.particle_level_source.data()
+        )
+
+    def data_iter(self, chunk_size: int) -> Iterable[ak.Array]:
+        # The particle source should take care of the chunk size, so we don't worry about taking
+        # extra care of it here.
+        particle_level_iter = self.particle_level_source.data_iter(chunk_size=chunk_size)
+        for particle_level_data in particle_level_iter:
+            yield self._data(array=particle_level_data)
+
+
+def _iterable_from_sized_source_data(obj: SourceWithChunkSize, chunk_size: int) -> Iterable[ak.Array]:
+    """Iterable over data from source with size."""
+    # Since the data will be generated inherently has a fixed size, the most efficient approach
+    # is most likely to set the chunk size directly. (For example, if it's a generator, then we should
+    # only generate what is strictly necessary for that chunk).
+    # NOTE: We store the original chunk size because it feels a bit awkward for this call to be mutable.
+    _original_chunk_size = obj.chunk_size
+    obj.chunk_size = chunk_size
+    result = [obj.data()]
+    obj.chunk_size = _original_chunk_size
+    return result
 
 
 @attr.define
@@ -217,6 +333,9 @@ class PythiaSource:
 
     def data(self) -> ak.Array:
         raise NotImplementedError("Working on it...")
+
+    def data_iter(self, chunk_size: int) -> Iterable[ak.Array]:
+        return _iterable_from_sized_source_data(obj=self, chunk_size=chunk_size)
 
 
 @attr.define
@@ -303,66 +422,12 @@ class ThermalModelExponential:
             counts=n_particles_per_event,
         )})
 
+    def data_iter(self, chunk_size: int) -> Iterable[ak.Array]:
+        return _iterable_from_sized_source_data(obj=self, chunk_size=chunk_size)
 
-@attr.define
-class ALICEFastSimTrackingEfficiency:
-    """ ALICE fast simulation based on tracking efficiency
 
-    This is definitely a poor man's implementation, but it's fine for a first look.
-    """
-    particle_level_data: ak.Array
-    fast_sim_parameters: models.ALICEFastSimParameters
-    metadata: MutableMapping[str, Any] = attr.Factory(dict)
-
-    def __len__(self) -> int:
-        if "n_entries" in self.metadata:
-            return int(self.metadata["n_entries"])
-        raise ValueError("N entries not yet available.")
-
-    def data(self) -> ak.Array:
-        # Setup
-        rng = np.random.default_rng()
-
-        self.metadata["n_entries"] = len(self.particle_level_data)
-
-        efficiencies = models.alice_fast_sim_tracking_efficiency(
-            track_pt=np.asarray(ak.flatten(self.particle_level_data["part_level"].pt, axis=-1)),
-            track_eta=np.asarray(ak.flatten(self.particle_level_data["part_level"].eta, axis=-1)),
-            event_activity=self.fast_sim_parameters.event_activity,
-            period=self.fast_sim_parameters.period,
-        )
-
-        n_particles_per_event = ak.num(self.particle_level_data["part_level"], axis=1)
-        total_n_particles = ak.sum(n_particles_per_event)
-
-        # Drop values that are higher than the tracking efficiency
-        random_values = rng.uniform(low=0.0, high=1.0, size=total_n_particles)
-        drop_particles_mask = random_values > efficiencies
-        # Since True will keep the particle, we need to invert this
-        drop_particles_mask = ~drop_particles_mask
-
-        # Unflatten so we can apply the mask to the existing particles
-        drop_particles_mask = ak.unflatten(drop_particles_mask, n_particles_per_event)
-
-        # Finally, add the particle structure at the end.
-        # NOTE: We return the fast sim wrapped in the "det_level" key because the framework
-        #       expects that every source has some kind of particle column name.
-        # NOTE: We also return the "part_level" because it's convenient to have both
-        #       together, even if it's in principle available elsewhere. We also include the event
-        #       level info for the same reason. I think we're violating the separation of concerns
-        #       a little bit, but it seems to work, so good enough for now.
-        return ak.Array(
-            {
-                "det_level": self.particle_level_data["part_level"][drop_particles_mask],
-                "part_level": self.particle_level_data["part_level"],
-                # Include the rest of the non particle related fields (ie. event level info)
-                **{
-                    k: v
-                    for k, v in zip(ak.fields(self.particle_level_data), ak.unzip(self.particle_level_data))
-                    if k not in ["det_level", "part_level"]
-                },
-            }
-        )
+# Allows loading all chunks by picking a number larger than any possible (set of) file(s).
+LOAD_ALL_CHUNKS: Final[int] = int(1e10)
 
 
 def _sources_to_list(sources: Union[Source, Sequence[Source]]) -> Sequence[Source]:
@@ -372,7 +437,7 @@ def _sources_to_list(sources: Union[Source, Sequence[Source]]) -> Sequence[Sourc
 
 
 @attr.define
-class ChunkSource:
+class MultiSource:
     chunk_size: int
     sources: Sequence[Source] = attr.field(converter=_sources_to_list)
     repeat: bool = attr.field(default=False)
@@ -391,9 +456,15 @@ class ChunkSource:
         # next on that.
         if not self._iter_with_data_func:
             self._iter_with_data_func = iter(self.data_iter())
-        return next(self._iter_with_data_func)
+        try:
+            v = next(self._iter_with_data_func)
+            return v
+        except StopIteration:
+            pass
 
-    def data_iter(self) -> Iterable[ak.Array]:
+        return ak.Array({})
+
+    def data_iter_old(self) -> Iterable[ak.Array]:
         if self.repeat:
             # See: https://stackoverflow.com/a/24225372/12907985
             source_iter = itertools.chain.from_iterable(itertools.repeat(self.sources))
@@ -406,7 +477,11 @@ class ChunkSource:
                 _data = remaining_data
                 remaining_data = None
             else:
-                _data = next(source_iter).data()
+                try:
+                    _data = next(source_iter).data()
+                except StopIteration:
+                    return ak.Array({})
+                    #raise StopIteration
 
             # Regardless of where we end up, the number of entries must be equal to the chunk size
             self.metadata["n_entries"] = self.chunk_size
@@ -436,8 +511,108 @@ class ChunkSource:
                 yield _data[:remaining_n_events]
 
 
+    def data_iter(self, chunk_size: int) -> Iterable[ak.Array]:
+        if self.repeat:
+            # See: https://stackoverflow.com/a/24225372/12907985
+            source_iter = itertools.chain.from_iterable(itertools.repeat(self.sources))
+        else:
+            source_iter = iter(self.sources)
+
+        # Regardless of where we end up, the number of entries must be equal to the chunk size
+        self.metadata["n_entries"] = self.chunk_size
+
+        # We need to hang on to any additional data that we may not use that the moment
+        _remaining_data_from_last_loop = []
+        _remaining_data_from_last_loop_size = 0
+        #_additional_chunks = []
+
+        for source in source_iter:
+            _current_data_iter = source.data_iter(chunk_size=chunk_size)
+            for _current_data in _current_data_iter:
+                #_remaining_data_from_last_loop_size = len(_remaining_data_from_last_loop) if _remaining_data_from_last_loop is not None else 0
+                #_data_size = _remaining_data_from_last_loop + len(_current_data)
+                #if _data_size == chunk_size:
+                #    if _remaining_data_from_last_loop:
+                #        yield ak.concatenate(
+                #            [_remaining_data_from_last_loop, _current_data],
+                #            axis=0,
+                #        )
+                #        _remaining_data_from_last_loop = None
+                #    else:
+                #        yield _current_data
+                #elif _data_size > chunk_size:
+                #    _remaining_n_events = self.chunk_size - len(_data)
+                #    _remaining_data_from_last_loop = _data[_remaining_n_events:]
+                #    yield _current_data[:_remaining_n_events]
+                #else:
+                #    n_events_still_needed = self.chunk_size - _data_size
+                #    ...
+
+
+                # TODO: Should be correct...
+                #if not _remaining_data_from_last_loop:
+                #    # Since we call the data_iter from the underlying source and there's no remaining
+                #    # data, the only question is whether there was sufficient data to get to the chunk size
+                #    # (ie. it can never be larger).
+                #    if len(_current_data) < chunk_size:
+                #        # Store for next round
+                #        _remaining_data_from_last_loop.append(_current_data)
+                #        _remaining_data_from_last_loop_size += len(_current_data)
+                #    else:
+                #        yield _current_data
+                #else:
+                # We need to account for the left over data from the previous loop.
+                _data_size = len(_current_data) + _remaining_data_from_last_loop_size
+                if _data_size < chunk_size:
+                    # Need another iteration. Store the current data
+                    _remaining_data_from_last_loop.append(_current_data)
+                    _remaining_data_from_last_loop_size += len(_current_data)
+                elif _data_size == chunk_size:
+                    if _remaining_data_from_last_loop_size > 0:
+                        yield ak.concatenate(
+                            [*_remaining_data_from_last_loop, _current_data],
+                            axis=0,
+                        )
+                    else:
+                        yield _current_data
+                    # Cleanup
+                    _remaining_data_from_last_loop = []
+                    _remaining_data_from_last_loop_size = 0
+                else:
+                    # We have more data than we need. yield what we need, and store the rest.
+                    # We intentionally want a negative number since we will index from the end.
+                    _n_events_to_store_for_next_iteration = chunk_size - _data_size
+                    if _remaining_data_from_last_loop_size > 0:
+                        # NOTE: we merge everything together before grabbing the remaining data because
+                        #       in principle, it could go over more than just the current data
+                        yield ak.concatenate(
+                            [*_remaining_data_from_last_loop, _current_data[:_n_events_to_store_for_next_iteration]],
+                            axis=0,
+                        )
+                    else:
+                        yield _current_data[:_n_events_to_store_for_next_iteration]
+                    # Cleanup
+                    # NOTE: Assign rather than append because we now used all of the previously stored data.
+                    _remaining_data_from_last_loop = [
+                        _current_data[_n_events_to_store_for_next_iteration:]
+                    ]
+                    # It's negative, so we need to take abs
+                    _remaining_data_from_last_loop_size = np.abs(_n_events_to_store_for_next_iteration)
+                # TODO END: Should be correct...
+
+
+
+                ## We don't have enough data - we need to go onto the next source
+                #if len(_current_data) < chunk_size:
+                #    _remaining_data = _current_data
+                #    # Since we don't have enough data to fill the chunk, continue vs break is
+                #    # the same result here
+                #    continue
+                #if len(_current_data)
+
+
 def _no_overlapping_keys(
-    instance: "MultipleSources",
+    instance: "CombineSources",
     attribute: attr.Attribute[Mapping[str, int]],
     value: Mapping[str, int],
 ) -> None:
@@ -448,7 +623,7 @@ def _no_overlapping_keys(
 
 
 def _contains_signal_and_background(
-    instance: "MultipleSources",
+    instance: "CombineSources",
     attribute: attr.Attribute[Mapping[str, int]],
     value: Mapping[str, int],
 ) -> None:
@@ -466,7 +641,7 @@ def _contains_signal_and_background(
 
 
 def _has_offset_per_source(
-    instance: "MultipleSources",
+    instance: "CombineSources",
     attribute: attr.Attribute[Mapping[str, int]],
     value: Mapping[str, int],
 ) -> None:
@@ -477,7 +652,7 @@ def _has_offset_per_source(
 
 
 @attr.define
-class MultipleSources:
+class CombineSources:
     """Combine multiple data sources together.
 
     Think: Embedding into data, embedding into thermal model, etc.
@@ -492,7 +667,7 @@ class MultipleSources:
     """
 
     _fixed_size_sources: Mapping[str, Source] = attr.field(validator=[_no_overlapping_keys])
-    _chunked_sources: Mapping[str, SourceWithChunks] = attr.field(validator=[_no_overlapping_keys])
+    _chunked_sources: Mapping[str, SourceWithChunkSize] = attr.field(validator=[_no_overlapping_keys])
     _source_index_identifiers: Mapping[str, int] = attr.field(
         factory=dict,
         validator=[_contains_signal_and_background, _has_offset_per_source],
