@@ -17,44 +17,38 @@ def test_uproot_source() -> None:
 def test_thermal_embedding() -> None:
     chunk_size = 500
     # Signal
-    pythia_source = sources.ChunkSource(
-        chunk_size=chunk_size,
+    pythia_source = sources.MultiSource(
         sources=sources.PythiaSource(
             config="test.cmnd",
             #seed=...,
-            chunk_size=chunk_size,
         ),
     )
     # Background
     thermal_source = sources.ThermalModelExponential(
-        # Chunk sizee will be set when combining the sources.
-        chunk_size=-1,
-        thermal_model_parameters=sources.THERMAL_MODEL_SETTINGS["central"],
+        thermal_model_parameters=sources.THERMAL_MODEL_SETTINGS["5020_central"],
     )
 
     # Now, just zip them together, effectively.
-    combined_source = sources.MultipleSources(
-        fixed_size_sources={"signal": pythia_source},
-        chunked_sources={"background": thermal_source},
+    combined_source = sources.CombineSources(
+        constrained_size_source={"signal": pythia_source},
+        unconstrained_size_sources={"background": thermal_source},
         source_index_identifiers={"signal": 0, "background": 100_000},
     )
 
-    combined_source.data()
+    combined_source.gen_data(chunk_size=chunk_size)
 
 
 def test_full_embedding() -> None:
     chunk_size = 500
-    pythia_source = sources.ChunkSource(
-        chunk_size=chunk_size,
-        sources=sources.chunked_uproot_source(
+    pythia_source = sources.MultiSource(
+        sources=sources.define_multiple_sources_from_single_root_file(
             filename=Path("."),
             tree_name="tree",
             chunk_size=chunk_size,
         ),
     )
 
-    PbPb_source = sources.ChunkSource(
-        chunk_size=chunk_size,
+    PbPb_source = sources.MultiSource(
         sources=sources.UprootSource(
             filename=Path("."),
             tree_name="tree",
@@ -63,9 +57,9 @@ def test_full_embedding() -> None:
     )
 
     # Now, just zip them together, effectively.
-    combined_source = sources.MultipleSources(
+    combined_source = sources.CombineSources(
         sources={"signal": pythia_source, "background": PbPb_source},
         source_index_identifiers={"signal": 0, "background": 100_000},
     )
 
-    combined_source.data()
+    combined_source.gen_data(chunk_size=chunk_size)
