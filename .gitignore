@@ -23,6 +23,7 @@ env/
 
 # Misc
 temp/
+testBuild/
 .vscode/
 
 # Python
