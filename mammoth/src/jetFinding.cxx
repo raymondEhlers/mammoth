@@ -463,8 +463,8 @@ std::string ConstituentSubtractor::to_string() const {
 std::string BackgroundSubtraction::to_string() const {
   std::stringstream ss;
   ss << std::boolalpha
-     << "BackgroundSubtraction(type=" << this->type
-     << ", estimator=";
+     << "BackgroundSubtraction(type=\"" << this->type
+     << "\", estimator=";
   if (this->estimator) {
     ss << this->estimator->to_string();
   } else {
