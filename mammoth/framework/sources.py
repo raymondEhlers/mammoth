@@ -47,6 +47,7 @@ class ChunkSizeSentinel(enum.Enum):
 
 
 T_ChunkSize = Union[int, ChunkSizeSentinel]
+T_GenData = Generator[ak.Array, Optional[T_ChunkSize], None]
 
 # Allows loading all chunks by picking a number larger than any possible (set of) file(s).
 _FULL_SOURCE_SIZE: Final[int] = int(1e10)
@@ -66,16 +67,16 @@ class Source(Protocol):
     #    """Number of entries in the source."""
     #    ...
 
-    def data(self) -> ak.Array:
-        """Return data from the source.
+    #def data(self) -> ak.Array:
+    #    """Return data from the source.
 
-        Returns:
-            Data in an awkward array.
-        """
-        ...
+    #    Returns:
+    #        Data in an awkward array.
+    #    """
+    #    ...
 
     #def data_iter(self, chunk_size: ChunkSizeType) -> Iterable[ak.Array]:
-    def gen_data(self, chunk_size: T_ChunkSize = ChunkSizeSentinel.SOURCE_DEFAULT) -> Generator[ak.Array, T_ChunkSize, None]:
+    def gen_data(self, chunk_size: T_ChunkSize = ChunkSizeSentinel.SOURCE_DEFAULT) -> Generator[ak.Array, Optional[T_ChunkSize], None]:
         """A iterator over a fixed size of data from the source.
 
         Returns:
@@ -91,7 +92,7 @@ class SourceWithChunkSize(Source, Protocol):
     chunk_size: int
 
 
-def _convert_range(entry_range: Union[utils.Range, Sequence[float]]) -> utils.Range:
+def convert_sequence_to_range(entry_range: Union[utils.Range, Sequence[float]]) -> utils.Range:
     """Convert sequences to Range.
 
     Args:
@@ -112,7 +113,7 @@ def _validate_chunk_size(chunk_size: T_ChunkSize, source_default_chunk_size: T_C
 
     # Full validation
     # Perform the rest of the validation now that we know the chunk size input
-    if chunk_size is ChunkSizeSentinel.FULL_SOURCE:
+    if chunk_size is ChunkSizeSentinel.FULL_SOURCE or chunk_size is ChunkSizeSentinel.SINGLE_FILE:
         chunk_size = _FULL_SOURCE_SIZE
     if chunk_size is ChunkSizeSentinel.FIXED_SIZE:
         raise ValueError("User must provide a chunk size! There is no natural choice for this source.")
@@ -122,10 +123,11 @@ def _validate_chunk_size(chunk_size: T_ChunkSize, source_default_chunk_size: T_C
     return chunk_size
 
 
-def _iterable_from_data(data: ak.Array,
-                        chunk_size: T_ChunkSize,
-                        source_default_chunk_size: T_ChunkSize,
-                        warn_on_not_enough_data: bool = False) -> Generator[ak.Array, T_ChunkSize, None]:
+def generator_from_existing_data(
+    data: ak.Array,
+    chunk_size: T_ChunkSize,
+    source_default_chunk_size: T_ChunkSize,
+    warn_on_not_enough_data: bool = False) -> Generator[ak.Array, Optional[T_ChunkSize], None]:
     # Validation
     # Chunk size
     chunk_size = _validate_chunk_size(chunk_size=chunk_size, source_default_chunk_size=source_default_chunk_size)
@@ -136,13 +138,13 @@ def _iterable_from_data(data: ak.Array,
 
     # If we already have enough data, yield immediately and then return since we're done
     if full_data_length <= chunk_size:
-        res = yield data
-        if res is not None:
+        _result = yield data
+        if _result is not None:
             # I think we don't want to raise an exception that will interfere with the generator
             # understanding that the generator is exhausted. For now (March 2022), we throw a warning
             # to keep an eye on this, but we don't do anything about it right now.
             # If it becomes an issue in the future, we could convert it into a ValueError.
-            logger.warning(f"Requested new chunk of size {res}, but we've exhausted this source.")
+            logger.warning(f"Requested new chunk of size {_result}, but we've exhausted this source.")
         # Afterwards, return None to indicate that we've hit the end of the iterator
         return None
 
@@ -152,11 +154,11 @@ def _iterable_from_data(data: ak.Array,
         # NOTE: Because we determine the number of events remaining, it will still take the
         #       right slice even if the chunk size is larger than the remaining data.
         _remaining_n_events = chunk_size - len(data)
-        res = yield data[:_remaining_n_events]
+        _result = yield data[:_remaining_n_events]
         # If we received a send argument, use this to update the chunk_size
-        if res is not None:
+        if _result is not None:
             chunk_size = _validate_chunk_size(
-                chunk_size=chunk_size, source_default_chunk_size=source_default_chunk_size
+                chunk_size=_result, source_default_chunk_size=source_default_chunk_size
             )
         data = data[_remaining_n_events:]
 
@@ -169,7 +171,7 @@ class UprootSource:
     _filename: Path = attr.field(converter=Path)
     _tree_name: str
     _columns: Sequence[str] = attr.Factory(list)
-    _entry_range: utils.Range = attr.field(converter=_convert_range, default=utils.Range(None, None))
+    _entry_range: utils.Range = attr.field(converter=convert_sequence_to_range, default=utils.Range(None, None))
     _default_chunk_size: Union[int, ChunkSizeSentinel] = attr.field(default=ChunkSizeSentinel.FULL_SOURCE)
     metadata: MutableMapping[str, Any] = attr.Factory(dict)
 
@@ -219,11 +221,11 @@ class UprootSource:
 
             return tree.arrays(**reading_kwargs)
 
-    def gen_data(self, chunk_size: T_ChunkSize = ChunkSizeSentinel.SOURCE_DEFAULT) -> Generator[ak.Array, T_ChunkSize, None]:
+    def gen_data(self, chunk_size: T_ChunkSize = ChunkSizeSentinel.SOURCE_DEFAULT) -> Generator[ak.Array, Optional[T_ChunkSize], None]:
         # NOTE: This is somewhat less efficient than it could be. We load all of the data and then chunk it afterwards.
         #       This isn't currently (March 2022) a big issue, but if that changes, we could rewrite this to become
         #       more efficient by reading and yielding chunks of the requested size directly from uproot.
-        return _iterable_from_data(
+        return generator_from_existing_data(
             data=self._data(), chunk_size=chunk_size, source_default_chunk_size=self._default_chunk_size,
         )
 
@@ -295,8 +297,8 @@ class ParquetSource:
 
         return arrays
 
-    def gen_data(self, chunk_size: T_ChunkSize = ChunkSizeSentinel.SOURCE_DEFAULT) -> Generator[ak.Array, T_ChunkSize, None]:
-        return _iterable_from_data(
+    def gen_data(self, chunk_size: T_ChunkSize = ChunkSizeSentinel.SOURCE_DEFAULT) -> Generator[ak.Array, Optional[T_ChunkSize], None]:
+        return generator_from_existing_data(
             data=self._data(), chunk_size=chunk_size, source_default_chunk_size=self._default_chunk_size,
         )
 
@@ -367,12 +369,21 @@ class ALICEFastSimTrackingEfficiency:
     #        particle_level_data=self.particle_level_source.data()
     #    )
 
-    def gen_data(self, chunk_size: T_ChunkSize = ChunkSizeSentinel.SOURCE_DEFAULT) -> Generator[ak.Array, T_ChunkSize, None]:
+    def gen_data(self, chunk_size: T_ChunkSize = ChunkSizeSentinel.SOURCE_DEFAULT) -> Generator[ak.Array, Optional[T_ChunkSize], None]:
         # The particle source should take care of the chunk size, so we don't worry about taking
         # extra care of it here.
         particle_level_iter = self.particle_level_source.gen_data(chunk_size=chunk_size)
-        for particle_level_data in particle_level_iter:
-            yield self._data(particle_level_data=particle_level_data)
+        try:
+            particle_level_data = next(particle_level_iter)
+            while True:
+                result = yield self._data(particle_level_data=particle_level_data)
+                # Update the chunk size when requested
+                if result is not None:
+                    chunk_size = result
+                particle_level_data = particle_level_iter.send(chunk_size)
+        except StopIteration:
+            pass
+
 
 
 #def _iterable_from_sized_source_data(obj: SourceWithChunkSize, chunk_size: int) -> Iterable[ak.Array]:
@@ -394,7 +405,7 @@ class PythiaSource:
     _default_chunk_size: Union[int, ChunkSizeSentinel] = attr.field(default=ChunkSizeSentinel.FIXED_SIZE)
     metadata: MutableMapping[str, Any] = attr.Factory(dict)
 
-    def gen_data(self, chunk_size: T_ChunkSize = ChunkSizeSentinel.SOURCE_DEFAULT) -> Generator[ak.Array, T_ChunkSize, None]:
+    def gen_data(self, chunk_size: T_ChunkSize = ChunkSizeSentinel.SOURCE_DEFAULT) -> Generator[ak.Array, Optional[T_ChunkSize], None]:
         raise NotImplementedError("Working on it...")
 
 
@@ -406,8 +417,8 @@ class ThermalModelParameters:
 
 
 THERMAL_MODEL_SETTINGS = {
-    "central": ThermalModelParameters(mean=2500, sigma=500),
-    "semi_central": ThermalModelParameters(mean=1000, sigma=40),
+    "5020_central": ThermalModelParameters(mean=2500, sigma=500),
+    "5020_semi_central": ThermalModelParameters(mean=1000, sigma=40),
 }
 
 
@@ -434,7 +445,7 @@ class ThermalModelExponential:
     _default_chunk_size: Union[int, ChunkSizeSentinel] = attr.field(default=ChunkSizeSentinel.FIXED_SIZE)
     metadata: MutableMapping[str, Any] = attr.Factory(dict)
 
-    def gen_data(self, chunk_size: T_ChunkSize = ChunkSizeSentinel.SOURCE_DEFAULT) -> Generator[ak.Array, T_ChunkSize, None]:
+    def gen_data(self, chunk_size: T_ChunkSize = ChunkSizeSentinel.SOURCE_DEFAULT) -> Generator[ak.Array, Optional[T_ChunkSize], None]:
         # Setup
         rng = np.random.default_rng()
 
@@ -442,6 +453,8 @@ class ThermalModelExponential:
             # Validation
             # We put it inside the for loop because it could change from loop to loop
             chunk_size = _validate_chunk_size(chunk_size=chunk_size, source_default_chunk_size=self._default_chunk_size)
+
+            self.metadata["n_entries"] = chunk_size
 
             # Determine overall event parameters.
             # NOTE: This is effectively jagged, since the number of particles per event varies
@@ -474,7 +487,7 @@ class ThermalModelExponential:
             # Finally, add the particle structure at the end.
             # NOTE: We return it wrapped in the "data" key because the framework
             #       expects that every source has some kind of particle column name.
-            res = yield ak.Array({
+            _result = yield ak.Array({
                 self._particle_column_prefix: ak.unflatten(
                     ak.Array(
                         {
@@ -488,8 +501,10 @@ class ThermalModelExponential:
                 )
             })
             # Update the chunk size if necessary
-            if res is not None:
-                chunk_size = res
+            if _result is not None:
+                chunk_size = _validate_chunk_size(
+                    chunk_size=_result, source_default_chunk_size=self._default_chunk_size,
+                )
 
             # If we want to stop after one iteration, we need to do it now
             if self._stop_iterating_after_one_chunk:
@@ -567,19 +582,13 @@ class MultiSource:
     #            remaining_data = _data[remaining_n_events:]
     #            yield _data[:remaining_n_events]
 
-    def gen_data(self, chunk_size: T_ChunkSize = ChunkSizeSentinel.SOURCE_DEFAULT) -> Generator[ak.Array, T_ChunkSize, None]:
+    def gen_data(self, chunk_size: T_ChunkSize = ChunkSizeSentinel.SOURCE_DEFAULT) -> Generator[ak.Array, Optional[T_ChunkSize], None]:
         # Validation
         if chunk_size is ChunkSizeSentinel.SOURCE_DEFAULT:
             chunk_size = self._default_chunk_size
-        # We need to change the chunk size, but this will depend on the input, so we put the changing
-        # chunk size into a separate variable.
-        _chunk_size_determined = chunk_size
-        # This would be _all_ sources put together
-        if chunk_size is ChunkSizeSentinel.FULL_SOURCE:
-            _chunk_size_determined = _FULL_SOURCE_SIZE
-        # This would be a single source. We will pass on FULL_SOURCE so that each source loads the full file.
-        if chunk_size is ChunkSizeSentinel.SINGLE_FILE:
-            _chunk_size_determined = ChunkSizeSentinel.FULL_SOURCE
+        # Need to keep track of this separately because we handle the single file case separately.
+        is_single_file_at_a_time = chunk_size is ChunkSizeSentinel.SINGLE_FILE
+        chunk_size = _validate_chunk_size(chunk_size=chunk_size, source_default_chunk_size=self._default_chunk_size)
 
         if self.repeat:
             # See: https://stackoverflow.com/a/24225372/12907985
@@ -587,152 +596,167 @@ class MultiSource:
         else:
             source_iter = iter(self.sources)
 
-        # Regardless of where we end up, the number of entries must be equal to the chunk size
-        # TODO: Add back in...
-        #self.metadata["n_entries"] = chunk_size
-
         # We need to hang on to any additional data that we may not use that the moment
         _remaining_data_from_last_loop = []
         _remaining_data_from_last_loop_size = 0
         #_additional_chunks = []
 
+        _result = None
         for source in source_iter:
             _current_data_iter = source.gen_data(chunk_size=chunk_size)
-            for _current_data in _current_data_iter:
-                # Need to determine the chunk size as an int to determine if we need more data
-                # If we're going one file at a time, the chunk size is correct by definition
-                if chunk_size is ChunkSizeSentinel.SINGLE_FILE:
-                    _chunk_size_determined = len(_current_data)
-                else:
-                    assert isinstance(_chunk_size_determined, int)
-                    ...
+            try:
+                _current_data = next(_current_data_iter)
+                while True:
+                    # Need to determine the chunk size as an int to determine if we need more data
+                    # If we're going one file at a time, the chunk size is correct by definition
+                    if is_single_file_at_a_time:
+                        chunk_size = len(_current_data)
+                    logger.warning(f"MulitSource chunk size: {chunk_size}")
 
-                # Keep the chunk size
-                #_remaining_data_from_last_loop_size = len(_remaining_data_from_last_loop) if _remaining_data_from_last_loop is not None else 0
-                #_data_size = _remaining_data_from_last_loop + len(_current_data)
-                #if _data_size == chunk_size:
-                #    if _remaining_data_from_last_loop:
-                #        yield ak.concatenate(
-                #            [_remaining_data_from_last_loop, _current_data],
-                #            axis=0,
-                #        )
-                #        _remaining_data_from_last_loop = None
-                #    else:
-                #        yield _current_data
-                #elif _data_size > chunk_size:
-                #    _remaining_n_events = self.chunk_size - len(_data)
-                #    _remaining_data_from_last_loop = _data[_remaining_n_events:]
-                #    yield _current_data[:_remaining_n_events]
-                #else:
-                #    n_events_still_needed = self.chunk_size - _data_size
-                #    ...
+                    # Keep track of the size
+                    self.metadata["n_entries"] = chunk_size
 
-
-                # TODO: Should be correct...
-                #if not _remaining_data_from_last_loop:
-                #    # Since we call the data_iter from the underlying source and there's no remaining
-                #    # data, the only question is whether there was sufficient data to get to the chunk size
-                #    # (ie. it can never be larger).
-                #    if len(_current_data) < chunk_size:
-                #        # Store for next round
-                #        _remaining_data_from_last_loop.append(_current_data)
-                #        _remaining_data_from_last_loop_size += len(_current_data)
-                #    else:
-                #        yield _current_data
-                #else:
-                # We need to account for the left over data from the previous loop.
-                _data_size = len(_current_data) + _remaining_data_from_last_loop_size
-                if _data_size < chunk_size:
-                    # Need another iteration. Store the current data
-                    _remaining_data_from_last_loop.append(_current_data)
-                    _remaining_data_from_last_loop_size += len(_current_data)
-                else:
-                    # We intentionally want a negative number since we will index from the end.
-                    _index_to_slice_current_data = chunk_size - _data_size
-                    if _index_to_slice_current_data != 0:
-                        _remaining_data_from_last_loop.append(_current_data[:_index_to_slice_current_data])
-                    else:
-                        _remaining_data_from_last_loop.append(_current_data)
-
-                    #_remaining_data_from_last_loop.append(
-                    #    _current_data[:_index_to_slice_current_data]
-                    #    if _index_to_slice_current_data != 0
-                    #    else _current_data
-                    #)
-                    # Just to keep it up to date.
-                    _remaining_data_from_last_loop_size += np.abs(_index_to_slice_current_data)
-                    #if _index_to_slice_current_data == 0:
-                    #    _slice_to_yield = slice(None, None)
-                    #    _slice_to_keep_for_next_iteration = None
-                    #else:
-                    #    _slice_to_yield = slice(None, _index_to_slice_current_data)
-                    #    _slice_to_keep_for_next_iteration = slice(_index_to_slice_current_data, None)
-
-                    #_remaining_data_from_last_loop.append(_current_data[:_index_to_slice_current_data])
-                    #_remaining_data_from_last_loop_size += np.abs(_index_to_slice_current_data)
-                    if len(_remaining_data_from_last_loop) > 1:
-                        # NOTE: we merge everything together before grabbing the remaining data because
-                        #       in principle, it could go over more than just the current data
-                        yield ak.concatenate(_remaining_data_from_last_loop, axis=0)
-                    else:
-                        yield _remaining_data_from_last_loop[0]
-
-                    # Cleanup
-                    # NOTE: Assign rather than append because we now used all of the previously stored data.
-                    if _index_to_slice_current_data != 0:
-                        _remaining_data_from_last_loop = [
-                            _current_data[_index_to_slice_current_data:]
-                        ]
-                    else:
-                        _remaining_data_from_last_loop = []
-                    # It's negative, so we need to take abs
-                    _remaining_data_from_last_loop_size = np.abs(_index_to_slice_current_data)
-
-                    #if _data_size > chunk_size:
-                    #    # We have more data than we need. yield what we need, and store the rest.
-                    #    # We intentionally want a negative number since we will index from the end.
-                    #    _remaining_data_index_for_next_iteration = chunk_size - _data_size
-                    #    _remaining_data_from_last_loop.append(_current_data[:_remaining_data_index_for_next_iteration])
-                    #    _remaining_data_from_last_loop += np.abs(_remaining_data_index_for_next_iteration)
-                    #    if len(_remaining_data_from_last_loop) > 1:
-                    #        # NOTE: we merge everything together before grabbing the remaining data because
-                    #        #       in principle, it could go over more than just the current data
-                    #        yield ak.concatenate(_remaining_data_from_last_loop, axis=0)
-                    #    else:
-                    #        yield _remaining_data_from_last_loop[0]
-                    #elif _data_size == chunk_size:
-                    #    if _remaining_data_from_last_loop_size > 0:
+                    # Keep the chunk size
+                    #_remaining_data_from_last_loop_size = len(_remaining_data_from_last_loop) if _remaining_data_from_last_loop is not None else 0
+                    #_data_size = _remaining_data_from_last_loop + len(_current_data)
+                    #if _data_size == chunk_size:
+                    #    if _remaining_data_from_last_loop:
                     #        yield ak.concatenate(
-                    #            [*_remaining_data_from_last_loop, _current_data],
+                    #            [_remaining_data_from_last_loop, _current_data],
                     #            axis=0,
                     #        )
+                    #        _remaining_data_from_last_loop = None
                     #    else:
                     #        yield _current_data
-                    #    # Cleanup
-                    #    _remaining_data_from_last_loop = []
-                    #    _remaining_data_from_last_loop_size = 0
+                    #elif _data_size > chunk_size:
+                    #    _remaining_n_events = self.chunk_size - len(_data)
+                    #    _remaining_data_from_last_loop = _data[_remaining_n_events:]
+                    #    yield _current_data[:_remaining_n_events]
                     #else:
-                    #    # We have more data than we need. yield what we need, and store the rest.
-                    #    # We intentionally want a negative number since we will index from the end.
-                    #    _n_events_to_store_for_next_iteration = chunk_size - _data_size
-                    #    if _remaining_data_from_last_loop_size > 0:
-                    #        # NOTE: we merge everything together before grabbing the remaining data because
-                    #        #       in principle, it could go over more than just the current data
-                    #        yield ak.concatenate(
-                    #            [*_remaining_data_from_last_loop, _current_data[:_n_events_to_store_for_next_iteration]],
-                    #            axis=0,
-                    #        )
-                    #    else:
-                    #        yield _current_data[:_n_events_to_store_for_next_iteration]
-                    #    # Cleanup
-                    #    # NOTE: Assign rather than append because we now used all of the previously stored data.
-                    #    _remaining_data_from_last_loop = [
-                    #        _current_data[_n_events_to_store_for_next_iteration:]
-                    #    ]
-                    #    # It's negative, so we need to take abs
-                    #    _remaining_data_from_last_loop_size = np.abs(_n_events_to_store_for_next_iteration)
-                # TODO END: Should be correct...
+                    #    n_events_still_needed = self.chunk_size - _data_size
+                    #    ...
 
+
+                    # TODO: Should be correct...
+                    #if not _remaining_data_from_last_loop:
+                    #    # Since we call the data_iter from the underlying source and there's no remaining
+                    #    # data, the only question is whether there was sufficient data to get to the chunk size
+                    #    # (ie. it can never be larger).
+                    #    if len(_current_data) < chunk_size:
+                    #        # Store for next round
+                    #        _remaining_data_from_last_loop.append(_current_data)
+                    #        _remaining_data_from_last_loop_size += len(_current_data)
+                    #    else:
+                    #        yield _current_data
+                    #else:
+                    # We need to account for the left over data from the previous loop.
+                    _data_size = len(_current_data) + _remaining_data_from_last_loop_size
+                    if _data_size < chunk_size:
+                        # Need another iteration. Store the current data
+                        _remaining_data_from_last_loop.append(_current_data)
+                        _remaining_data_from_last_loop_size += len(_current_data)
+                        # We need to try to move to the next source
+                        break
+                    else:
+                        # We intentionally want a negative number since we will index from the end.
+                        _index_to_slice_current_data = chunk_size - _data_size
+                        if _index_to_slice_current_data != 0:
+                            _remaining_data_from_last_loop.append(_current_data[:_index_to_slice_current_data])
+                        else:
+                            _remaining_data_from_last_loop.append(_current_data)
+
+                        #_remaining_data_from_last_loop.append(
+                        #    _current_data[:_index_to_slice_current_data]
+                        #    if _index_to_slice_current_data != 0
+                        #    else _current_data
+                        #)
+                        # Just to keep it up to date.
+                        _remaining_data_from_last_loop_size += np.abs(_index_to_slice_current_data)
+                        #if _index_to_slice_current_data == 0:
+                        #    _slice_to_yield = slice(None, None)
+                        #    _slice_to_keep_for_next_iteration = None
+                        #else:
+                        #    _slice_to_yield = slice(None, _index_to_slice_current_data)
+                        #    _slice_to_keep_for_next_iteration = slice(_index_to_slice_current_data, None)
+
+                        #_remaining_data_from_last_loop.append(_current_data[:_index_to_slice_current_data])
+                        #_remaining_data_from_last_loop_size += np.abs(_index_to_slice_current_data)
+                        if len(_remaining_data_from_last_loop) > 1:
+                            # NOTE: we merge everything together before grabbing the remaining data because
+                            #       in principle, it could go over more than just the current data
+                            _result = yield ak.concatenate(_remaining_data_from_last_loop, axis=0)
+                        else:
+                            _result = yield _remaining_data_from_last_loop[0]
+
+                        # Cleanup
+                        # NOTE: Assign rather than append because we now used all of the previously stored data.
+                        if _index_to_slice_current_data != 0:
+                            _remaining_data_from_last_loop = [
+                                _current_data[_index_to_slice_current_data:]
+                            ]
+                        else:
+                            _remaining_data_from_last_loop = []
+                        # It's negative, so we need to take abs
+                        _remaining_data_from_last_loop_size = np.abs(_index_to_slice_current_data)
+
+                    if _result is not None:
+                        chunk_size = _validate_chunk_size(chunk_size=_result, source_default_chunk_size=source._default_chunk_size)
+                    _current_data = _current_data_iter.send(_result)
+
+                        #if _data_size > chunk_size:
+                        #    # We have more data than we need. yield what we need, and store the rest.
+                        #    # We intentionally want a negative number since we will index from the end.
+                        #    _remaining_data_index_for_next_iteration = chunk_size - _data_size
+                        #    _remaining_data_from_last_loop.append(_current_data[:_remaining_data_index_for_next_iteration])
+                        #    _remaining_data_from_last_loop += np.abs(_remaining_data_index_for_next_iteration)
+                        #    if len(_remaining_data_from_last_loop) > 1:
+                        #        # NOTE: we merge everything together before grabbing the remaining data because
+                        #        #       in principle, it could go over more than just the current data
+                        #        yield ak.concatenate(_remaining_data_from_last_loop, axis=0)
+                        #    else:
+                        #        yield _remaining_data_from_last_loop[0]
+                        #elif _data_size == chunk_size:
+                        #    if _remaining_data_from_last_loop_size > 0:
+                        #        yield ak.concatenate(
+                        #            [*_remaining_data_from_last_loop, _current_data],
+                        #            axis=0,
+                        #        )
+                        #    else:
+                        #        yield _current_data
+                        #    # Cleanup
+                        #    _remaining_data_from_last_loop = []
+                        #    _remaining_data_from_last_loop_size = 0
+                        #else:
+                        #    # We have more data than we need. yield what we need, and store the rest.
+                        #    # We intentionally want a negative number since we will index from the end.
+                        #    _n_events_to_store_for_next_iteration = chunk_size - _data_size
+                        #    if _remaining_data_from_last_loop_size > 0:
+                        #        # NOTE: we merge everything together before grabbing the remaining data because
+                        #        #       in principle, it could go over more than just the current data
+                        #        yield ak.concatenate(
+                        #            [*_remaining_data_from_last_loop, _current_data[:_n_events_to_store_for_next_iteration]],
+                        #            axis=0,
+                        #        )
+                        #    else:
+                        #        yield _current_data[:_n_events_to_store_for_next_iteration]
+                        #    # Cleanup
+                        #    # NOTE: Assign rather than append because we now used all of the previously stored data.
+                        #    _remaining_data_from_last_loop = [
+                        #        _current_data[_n_events_to_store_for_next_iteration:]
+                        #    ]
+                        #    # It's negative, so we need to take abs
+                        #    _remaining_data_from_last_loop_size = np.abs(_n_events_to_store_for_next_iteration)
+                    # TODO END: Should be correct...
+            except StopIteration:
+                pass
+
+        # We're out of data. Provide what's left
+        if len(_remaining_data_from_last_loop) > 1:
+            # NOTE: we merge everything together before grabbing the remaining data because
+            #       in principle, it could go over more than just the current data
+            _result = yield ak.concatenate(_remaining_data_from_last_loop, axis=0)
+        else:
+            _result = yield _remaining_data_from_last_loop[0]
 
 
                 ## We don't have enough data - we need to go onto the next source
@@ -916,14 +940,14 @@ class CombineSources:
     #def data(self) -> ak.Array:
     #    return next(self.gen_data(chunk_size=ChunkSizeSentinel.FULL_SOURCE))
 
-    def gen_data(self, chunk_size: T_ChunkSize = ChunkSizeSentinel.SOURCE_DEFAULT) -> Generator[ak.Array, T_ChunkSize, None]:
+    def gen_data(self, chunk_size: T_ChunkSize = ChunkSizeSentinel.SOURCE_DEFAULT) -> Generator[ak.Array, Optional[T_ChunkSize], None]:
         if chunk_size is ChunkSizeSentinel.SOURCE_DEFAULT:
             chunk_size = self._default_chunk_size
         # Grab the iter from the constrained size source first
         constrained_size_source_name = next(iter(self._constrained_size_source))
         constrained_size_source_generator = self._constrained_size_source[constrained_size_source_name].gen_data(chunk_size=chunk_size)
 
-        unconstrained_size_sources_generators: Dict[str, Generator[ak.Array, T_ChunkSize, None]] = {}
+        unconstrained_size_sources_generators: Dict[str, Generator[ak.Array, Optional[T_ChunkSize], None]] = {}
 
         for constrained_size_data in constrained_size_source_generator:
             determined_chunk_size = len(constrained_size_data)
@@ -950,16 +974,18 @@ class CombineSources:
 
             # NOTE: We're safe to blindly combine these here because the class validates that there
             #       are no overlapping keys between the fixed size and chunked data.
-            res = yield ak.zip(
+            _result = yield ak.zip(
                 {
                     **{constrained_size_source_name: constrained_size_data},
                     **unconstrained_size_sources_data
                 },
                 depth_limit=1
             )
-            if res:
+            if _result is not None:
+                # NOTE: If there was a need, we could update the constrained source.
+                #       However, as of March 2022, I don't see a need.
                 raise ValueError(
-                    f"Cannot send value to CombineSources - it's already specified by the constrained source. Sent: {res}"
+                    f"Cannot send value to CombineSources - it's already specified by the constrained source. Sent: {_result}"
                 )
 
 
