@@ -660,9 +660,10 @@ def analysis_embedding(
         hybrid_level_mask = ak.unflatten(_hybrid_level_mask_np, ak.num(arrays["hybrid"]))
 
         # Cross check that it worked.
-        # However, I don't have this as an assert because if there aren't _that_ many particles and the efficiency
-        # is high, I suppose it's possible that this fails, and I don't want to kill jobs for that reason.
-        if ak.all(hybrid_level_mask == True) is False:
+        # If the entire hybrid mask is True, then it means that no particles were removed.
+        # NOTE: I don't have this as an assert because if there aren't _that_ many particles and the efficiency
+        #       is high, I suppose it's possible that this fails, and I don't want to kill jobs for that reason.
+        if ak.all(hybrid_level_mask == True):
             logger.warning(
                 "No particles were removed in the artificial tracking efficiency."
                 " This is possible, but not super likely. Please check your settings!"
