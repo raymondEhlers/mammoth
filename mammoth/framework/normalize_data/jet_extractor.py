@@ -5,98 +5,102 @@
 
 import logging
 from pathlib import Path
-from typing import Any, MutableMapping, Optional, Tuple
+from typing import Any, Dict, Generator, MutableMapping, Optional
 
-import attr
+import attrs
 import awkward as ak
 
-from mammoth.framework import sources
+from mammoth.framework import sources, utils
 
 logger = logging.getLogger(__name__)
 
 
-@attr.define
-class JEWELSource:
-    _filename: Path = attr.field(converter=Path)
-    metadata: MutableMapping[str, Any] = attr.Factory(dict)
+@attrs.frozen
+class Columns:
+    event_level: Dict[str, str]
+    particle_level: Dict[str, str]
 
-    def __len__(self) -> int:
-        """Number of entries in the source."""
-        if "n_entries" in self.metadata:
-            return int(self.metadata["n_entries"])
-        raise ValueError("N entries not yet available.")
-
-    def data(self) -> ak.Array:
-        """Return data from the source.
-
-        Returns:
-            Data in an awkward array.
-        """
-        if "parquet" not in self._filename.suffix:
-            arrays = jet_extractor_to_awkward(
-                filename=self._filename,
-                # We always want to pull in as many tracks as possible, so take the largest possible R
-                jet_R=0.6,
-            )
-        else:
-            source = sources.ParquetSource(
-                filename=self._filename,
-            )
-            arrays = source.data()
-        self.metadata["n_entries"] = len(arrays)
-        return arrays
-
-
-def jet_extractor_to_awkward(
-    filename: Path,
-    jet_R: float,
-    entry_range: Optional[Tuple[int, int]] = None,
-) -> ak.Array:
-    # For JEWEL, these were the only meaningful columns
-    event_level_columns = {
-        "Event_Weight": "event_weight",
-        "Event_ImpactParameter": "event_impact_parameter",
-        # Hannah needs this for the extractor bin scaling
-        "Jet_Pt": "jet_pt_original",
-    }
-    particle_columns = {
-        "Jet_Track_Pt": "pt",
-        "Jet_Track_Eta": "eta",
-        "Jet_Track_Phi": "phi",
-        "Jet_Track_Charge": "charged",
-        "Jet_Track_Label": "label",
-    }
-
-    additional_uproot_source_kwargs = {}
-    if entry_range is not None:
-        additional_uproot_source_kwargs = {
-            "entry_range": entry_range
+    @classmethod
+    def create(cls) -> "Columns":
+        # For JEWEL, these were the only meaningful columns
+        event_level_columns = {
+            "Event_Weight": "event_weight",
+            "Event_ImpactParameter": "event_impact_parameter",
+            # Hannah needs this for the extractor bin scaling
+            "Jet_Pt": "jet_pt_original",
+        }
+        particle_columns = {
+            "Jet_Track_Pt": "pt",
+            "Jet_Track_Eta": "eta",
+            "Jet_Track_Phi": "phi",
+            "Jet_Track_Charge": "charged",
+            "Jet_Track_Label": "label",
         }
 
-    data = sources.UprootSource(
-        filename=filename,
-        tree_name=f"JetTree_AliAnalysisTaskJetExtractor_JetPartLevel_AKTChargedR{round(jet_R * 100):03}_mctracks_pT0150_E_scheme_allJets",
-        columns=list(event_level_columns) + list(particle_columns),
-        **additional_uproot_source_kwargs,  # type: ignore
-    ).data()
+        return cls(
+            event_level=event_level_columns,
+            particle_level=particle_columns,
+        )
 
-    return ak.Array({
-        "part_level": ak.zip(
-            dict(
-                zip(
-                    #[c.replace("Jet_T", "t").lower() for c in list(particle_columns)],
-                    list(particle_columns.values()),
-                    ak.unzip(data[particle_columns]),
-                )
-            )
-        ),
-        **dict(
-            zip(
-                list(event_level_columns.values()),
-                ak.unzip(data[event_level_columns]),
-            )
-        ),
-    })
+
+@attrs.define
+class JEWELFileSource:
+    _filename: Path = attrs.field(converter=Path)
+    # We always want to pull in as many tracks as possible, so take the largest possible R
+    _extractor_jet_R: float = attrs.field(default=0.6)
+    _entry_range: utils.Range = attrs.field(converter=sources.convert_sequence_to_range, default=utils.Range(None, None))
+    _default_chunk_size: sources.T_ChunkSize = attrs.field(default=sources.ChunkSizeSentinel.FULL_SOURCE)
+    metadata: MutableMapping[str, Any] = attrs.Factory(dict)
+
+    def gen_data(self, chunk_size: sources.T_ChunkSize = sources.ChunkSizeSentinel.SOURCE_DEFAULT) -> Generator[ak.Array, Optional[sources.T_ChunkSize], None]:
+        """A iterator over a fixed size of data from the source.
+
+        Returns:
+            Iterable containing chunk size data in an awkward array.
+        """
+        columns = Columns.create()
+        source = sources.UprootSource(
+            filename=self._filename,
+            tree_name=f"JetTree_AliAnalysisTaskJetExtractor_JetPartLevel_AKTChargedR{round(self._extractor_jet_R * 100):03}_mctracks_pT0150_E_scheme_allJets",
+            entry_range=self._entry_range,
+            columns=list(columns.event_level) + list(columns.particle_level),
+        )
+        return _transform_output(
+            gen_data=source.gen_data(chunk_size=chunk_size),
+        )
+
+
+def _transform_output(
+    gen_data: Generator[ak.Array, Optional[sources.T_ChunkSize], None],
+) -> Generator[ak.Array, Optional[sources.T_ChunkSize], None]:
+    _columns = Columns.create()
+
+    try:
+        data = next(gen_data)
+        while True:
+            # NOTE: The return values are formatted in this manner to avoid unnecessary copies of the data.
+            _result = yield ak.Array({
+                "part_level": ak.zip(
+                    dict(
+                        zip(
+                            #[c.replace("Jet_T", "t").lower() for c in list(particle_columns)],
+                            list(_columns.particle_level.values()),
+                            ak.unzip(data[_columns.particle_level]),
+                        )
+                    )
+                ),
+                **dict(
+                    zip(
+                        list(_columns.event_level.values()),
+                        ak.unzip(data[_columns.event_level]),
+                    )
+                ),
+            })
+
+            # Update for next step
+            data = gen_data.send(_result)
+    except StopIteration:
+        pass
 
 
 def write_to_parquet(arrays: ak.Array, filename: Path) -> bool:
@@ -179,14 +183,15 @@ if __name__ == "__main__":
             end = start + chunk_size
             logger.info(f"Processing file {filename}, chunk {index} from {start}-{end}")
 
-            arrays = jet_extractor_to_awkward(
+            source = JEWELFileSource(
                 filename=filename,
                 # Use jet R = 0.6 because this will contain more of the JEWEL particles.
                 # We should be safe to use this for embedding for smaller R jets too, since they
                 # should be encompassed within the R = 0.6 jet.
-                jet_R=0.6,
+                extractor_jet_R=0.6,
                 entry_range=(start, end),
             )
+            arrays = next(source.gen_data(chunk_size=sources.ChunkSizeSentinel.FULL_SOURCE))
             # Just for confirmation that it matches the chunk size (or is smaller)
             logger.debug(f"Array length: {len(arrays)}")
 

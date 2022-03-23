@@ -58,7 +58,8 @@ def test_full_embedding() -> None:
 
     # Now, just zip them together, effectively.
     combined_source = sources.CombineSources(
-        sources={"signal": pythia_source, "background": PbPb_source},
+        constrained_size_source={"background": PbPb_source},
+        unconstrained_size_sources={"signal": pythia_source},
         source_index_identifiers={"signal": 0, "background": 100_000},
     )
 

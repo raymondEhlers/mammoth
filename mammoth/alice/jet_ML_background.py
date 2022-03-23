@@ -5,7 +5,7 @@
 
 import logging
 from pathlib import Path
-from typing import Any, Dict, Mapping, Tuple, Union
+from typing import Dict, Mapping, Tuple, Union
 
 import awkward as ak
 import numpy as np
@@ -17,40 +17,47 @@ from mammoth.framework.normalize_data import jet_extractor, track_skim
 logger = logging.getLogger(__name__)
 
 
-def load_embedding(signal_filename: Path, background_filename: Path, background_collision_system_tag: str) -> Tuple[Dict[str, int], ak.Array]:
+def load_embedding(
+    signal_filename: Path,
+    background_filename: Path,
+    background_collision_system_tag: str,
+) -> Tuple[Dict[str, int], ak.Array]:
     # Setup
     logger.info("Loading embedded data")
     source_index_identifiers = {"signal": 0, "background": 100_000}
 
     # Signal
-    signal_source = jet_extractor.JEWELSource(
-        filename=signal_filename,
-    )
-    fast_sim_source = sources.ChunkSource(
-        # The chunk size will be determined by the number of background events
-        chunk_size=-1,
-        sources=sources.ALICEFastSimTrackingEfficiency(
-            particle_level_data=signal_source.data(),
-            fast_sim_parameters=models.ALICEFastSimParameters(
-                event_activity=models.ALICETrackingEfficiencyEventActivity.central_00_10,
-                period=models.ALICETrackingEfficiencyPeriod.LHC15o,
-            )
+    # We'll have the JEWEL source repeat as necessary, but the fast sim can vary from
+    # one iteration to the next
+    signal_source = sources.MultiSource(
+        sources=jet_extractor.JEWELFileSource(
+            filename=signal_filename,
         ),
         repeat=True,
     )
+    fast_sim_source = sources.ALICEFastSimTrackingEfficiency(
+        particle_level_source=signal_source,
+        fast_sim_parameters=models.ALICEFastSimParameters(
+            event_activity=models.ALICETrackingEfficiencyEventActivity.central_00_10,
+            period=models.ALICETrackingEfficiencyPeriod.LHC15o,
+        )
+    )
     # Background
     # For embedding, we will always be embedding into PbPb
-    background_source = track_skim.FileSource(filename=background_filename, collision_system=background_collision_system_tag)
+    background_source = track_skim.FileSource(
+        filename=background_filename,
+        collision_system=background_collision_system_tag
+    )
 
     # Now, just zip them together, effectively.
-    combined_source = sources.MultipleSources(
-        fixed_size_sources={"background": background_source},
-        chunked_sources={"signal": fast_sim_source},
+    combined_source = sources.CombineSources(
+        constrained_size_source={"background": background_source},
+        unconstrained_size_sources={"signal": fast_sim_source},
         source_index_identifiers=source_index_identifiers,
     )
 
     logger.info("Transforming embedded")
-    arrays = combined_source.data()
+    arrays = next(combined_source.gen_data(chunk_size=sources.ChunkSizeSentinel.FULL_SOURCE))
     # Empty mask
     mask = np.ones(len(arrays)) > 0
     # First, require that there are particles for each event at part_level, det_level, and hybrid

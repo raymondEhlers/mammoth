@@ -4,11 +4,69 @@
 """
 
 from pathlib import Path
+from typing import Dict
 
+import attrs
 import awkward as ak
 import numpy as np
 
 from mammoth.framework import sources, utils
+
+
+@attrs.frozen
+class Columns:
+    """
+    NOTE:
+        This isn't implemented yet. I haven't gone through the steps because they're not yet needed,
+        but this is the start.
+    """
+    identifiers: Dict[str, str]
+    event_level: Dict[str, str]
+    particle_level: Dict[str, str]
+
+    @classmethod
+    def create(cls, collision_system: str) -> "Columns":
+        # Identifiers for reconstructing the event structure
+        # According to James:
+        # Both data and MC need run_number and ev_id.
+        # Data additionally needs ev_id_ext
+        identifiers = {
+            "run_number": "run_number",
+            "ev_id": "ev_id",
+        }
+        if collision_system in ["pp", "PbPb"]:
+            identifiers.update({
+                "ev_id_ext": "ev_id_ext"
+            })
+
+        # Event level properties
+        event_level_columns = {
+            "z_vtx_reco": "z_vtx_reco",
+            "is_ev_rej": "is_ev_rej"
+        }
+        # Collision system customization
+        if collision_system == "PbPb":
+            event_level_columns.update({
+                "centrality": "centrality"
+            })
+            # For the future, perhaps can add:
+            # - event plane angle (but doesn't seem to be in HF tree output :-( )
+
+        # Particle columns and names.
+        particle_level_columns = {
+            **identifiers,
+            **{
+                "ParticlePt": "pt",
+                "ParticleEta": "eta",
+                "ParticlePhi": "phi",
+            },
+        }
+
+        return cls(
+            identifiers=identifiers,
+            event_level=event_level_columns,
+            particle_level=particle_level_columns,
+        )
 
 
 def hf_tree_to_awkward_MC(
@@ -69,10 +127,16 @@ def hf_tree_to_awkward_MC(
 
     # Convert the flat arrays into jagged arrays by grouping by the identifiers.
     # This allows us to work with the data as expected.
-    det_level_tracks = utils.group_by(array=det_level_tracks_source.data(), by=identifiers)
-    part_level_tracks = utils.group_by(array=part_level_tracks_source.data(), by=identifiers)
+    det_level_tracks = utils.group_by(
+        array=next(det_level_tracks_source.gen_data(chunk_size=sources.ChunkSizeSentinel.FULL_SOURCE)),
+        by=identifiers,
+    )
+    part_level_tracks = utils.group_by(
+        array=next(part_level_tracks_source.gen_data(chunk_size=sources.ChunkSizeSentinel.FULL_SOURCE)),
+        by=identifiers,
+    )
     # There is one entry per event, so we don't need to do any group by steps.
-    event_properties = event_properties_source.data()
+    event_properties = next(event_properties_source.gen_data(chunk_size=sources.ChunkSizeSentinel.FULL_SOURCE))
 
     # Event selection
     # We apply the event selection implicitly to the particles by requiring the identifiers
@@ -208,9 +272,12 @@ def hf_tree_to_awkward_data(
 
     # Convert the flat arrays into jagged arrays by grouping by the identifiers.
     # This allows us to work with the data as expected.
-    det_level_tracks = utils.group_by(array=det_level_tracks_source.data(), by=identifiers)
+    det_level_tracks = utils.group_by(
+        array=next(det_level_tracks_source.gen_data(chunk_size=sources.ChunkSizeSentinel.FULL_SOURCE)),
+        by=identifiers,
+    )
     # There is one entry per event, so we don't need to do any group by steps.
-    event_properties = event_properties_source.data()
+    event_properties = next(event_properties_source.gen_data(chunk_size=sources.ChunkSizeSentinel.FULL_SOURCE))
 
     # Event selection
     # We apply the event selection implicitly to the particles by requiring the identifiers
@@ -277,7 +344,7 @@ def write_to_parquet(arrays: ak.Array, filename: Path, collision_system: str) ->
     In this form, they should be ready to analyze.
     """
     # Determine the types for improved compression when writing
-    # Ideally, we would determine these dyanmically, but it's unclear how to do this at
+    # Ideally, we would determine these dynamically, but it's unclear how to do this at
     # the moment with awkward, so for now we specify them by hand...
     # float_types = [np.float32, np.float64]
     # float_columns = list(self.output_dataframe.select_dtypes(include=float_types).keys())

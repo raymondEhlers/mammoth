@@ -38,7 +38,7 @@ def load_data(filename: Path) -> ak.Array:
     source = sources.ParquetSource(
         filename=filename,
     )
-    arrays = source.data()
+    arrays = next(source.gen_data(chunk_size=sources.ChunkSizeSentinel.FULL_SOURCE))
     logger.info("Transforming data")
     return transform.data(arrays=arrays, rename_prefix={"data": "particles"})
 
