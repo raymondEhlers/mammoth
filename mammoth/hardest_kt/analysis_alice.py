@@ -72,19 +72,7 @@ def load_data(
         collision_system=collision_system,
         rename_prefix=rename_prefix,
     )
-    return  _transform_data_iter if chunk_size is not sources.ChunkSizeSentinel.FULL_SOURCE else next(_transform_data_iter)
-    #arrays = source.data()
-
-    ## If we are renaming one of the prefixes to "data", that means that we want to treat it
-    ## as if it were standard data rather than pythia.
-    #if collision_system in ["pythia"] and "data" not in list(rename_prefix.keys()):
-    #    logger.info("Transforming as MC")
-    #    return transform.mc(arrays=arrays, rename_prefix=rename_prefix)
-
-    ## If not pythia, we don't need to handle it separately - it's all just data
-    ## All the rest of the collision systems would be embedded together separately by other functions
-    #logger.info("Transforming as data")
-    #return transform.data(arrays=arrays, rename_prefix=rename_prefix)
+    return _transform_data_iter if chunk_size is not sources.ChunkSizeSentinel.FULL_SOURCE else next(_transform_data_iter)
 
 
 def analysis_MC(arrays: ak.Array, jet_R: float, min_jet_pt: Mapping[str, float], validation_mode: bool = False) -> ak.Array:
@@ -491,7 +479,7 @@ def load_embedding(
         repeat=repeat_signal_when_needed_for_statistics,
     )
     # Background
-    pbpb_source=track_skim.FileSource(
+    pbpb_source = track_skim.FileSource(
         filename=background_filename,
         collision_system="PbPb",
     )
@@ -503,21 +491,11 @@ def load_embedding(
         source_index_identifiers=source_index_identifiers,
     )
 
-    #def _iter_data() -> Iterable[ak.Array]:
-    #    for arrays_chunk in combined_source.gen_data(chunk_size=processing_chunk_size):
-    #        yield _event_select_and_transform_embedding(
-    #            arrays=arrays_chunk, source_index_identifiers=source_index_identifiers
-    #        )
-    #return source_index_identifiers, _iter_data() if processing_chunk_size is not sources.ChunkSizeSentinel.FULL_SOURCE else next(_iter_data())
-
     _transform_data_iter = _event_select_and_transform_embedding(
         gen_data=combined_source.gen_data(chunk_size=chunk_size),
         source_index_identifiers=source_index_identifiers
     )
     return source_index_identifiers, _transform_data_iter if chunk_size is not sources.ChunkSizeSentinel.FULL_SOURCE else next(_transform_data_iter)
-
-    #arrays = combined_source.data()
-    #return source_index_identifiers, _event_select_and_transform_embedding(arrays=arrays, source_index_identifiers=source_index_identifiers)
 
 
 def load_embed_thermal_model(
@@ -545,8 +523,7 @@ def load_embed_thermal_model(
     else:
         signal_filenames = list(signal_input)
     # Setup
-    #logger.info(f"Loading embed thermal model with processing chunk size {processing_chunk_size}")
-    logger.warning(f"Loading embed thermal model with processing chunk size {chunk_size}")
+    logger.info(f"Loading embed thermal model with processing chunk size {chunk_size}")
     source_index_identifiers = {"signal": 0, "background": 100_000}
 
     # Signal
@@ -572,98 +549,11 @@ def load_embed_thermal_model(
         source_index_identifiers=source_index_identifiers,
     )
 
-    #def _iter_data() -> Iterable[ak.Array]:
-    #    for arrays_chunk in combined_source.gen_data(chunk_size=processing_chunk_size):
-    #        yield _event_select_and_transform_embedding(
-    #            arrays=arrays_chunk, source_index_identifiers=source_index_identifiers
-    #        )
-
-    #return source_index_identifiers, _iter_data() if processing_chunk_size is not sources.ChunkSizeSentinel.FULL_SOURCE else next(_iter_data())
     _transform_data_iter = _event_select_and_transform_embedding(
         gen_data=combined_source.gen_data(chunk_size=chunk_size),
         source_index_identifiers=source_index_identifiers
     )
     return source_index_identifiers, _transform_data_iter if chunk_size is not sources.ChunkSizeSentinel.FULL_SOURCE else next(_transform_data_iter)
-
-    #if processing_chunk_size is not sources.ChunkSizeSentinel.FULL_SOURCE:
-    #    #return source_index_identifiers, combined_source.gen_data(chunk_size=processing_chunk_size)
-    #return source_index_identifiers, _event_select_and_transform_embedding(
-    #    arrays=next(combined_source.gen_data(chunk_size=processing_chunk_size),
-    #    source_index_identifiers=source_index_identifiers
-    #)
-
-    #if processing_chunk_size is not sources.ChunkSizeSentinel.FULL_SOURCE:
-    #    #return source_index_identifiers, combined_source.gen_data(chunk_size=processing_chunk_size)
-    #    def _iter_data() -> Iterable[ak.Array]:
-    #        for arrays_chunk in combined_source.gen_data(chunk_size=processing_chunk_size)
-    #            yield _event_select_and_transform_embedding(
-    #                arrays=arrays_chunk, source_index_identifiers=source_index_identifiers
-    #            )
-
-    #        #while True:
-    #        #    try:
-    #        #        # NOTE: Will eventually throw a StopIteration, which we want to propagate up
-    #        #        #       so that it will stop the iteration
-    #        #        arrays_chunk = combined_source.data()
-    #        #        yield _event_select_and_transform_embedding(
-    #        #            arrays=arrays_chunk, source_index_identifiers=source_index_identifiers
-    #        #        )
-    #        #    except StopIteration:
-    #        #        return
-
-    #    #return source_index_identifiers, (
-    #    #    yield _event_select_and_transform_embedding(
-    #    #        arrays=arrays_chunk, source_index_identifiers=source_index_identifiers
-    #    #    )
-    #    #    for arrays_chunk in combined_source.data()
-    #    #)
-    #    return source_index_identifiers, _iter_data()
-    #return source_index_identifiers, _event_select_and_transform_embedding(
-    #    arrays=next(combined_source.gen_data(chunk_size=processing_chunk_size),
-    #    source_index_identifiers=source_index_identifiers
-    #)
-    #return source_index_identifiers, _event_select_and_transform_embedding(
-    #    arrays=combined_source.data(),
-    #    source_index_identifiers=source_index_identifiers
-    #)
-
-    #arrays = combined_source.data()
-    #for arrays_chunk in combined_source.data():
-    #    yield _event_select_and_transform_embedding(
-    #        arrays=arrays_chunk, source_index_identifiers=source_index_identifiers
-    #    )
-
-
-
-# TODO: Remove after testing...
-#def _load_embed_thermal_model(
-#    signal_filename: Path,
-#    thermal_model_parameters: sources.ThermalModelParameters,
-#) -> Tuple[Dict[str, int], ak.Array]:
-#    # Setup
-#    source_index_identifiers = {"signal": 0, "background": 100_000}
-#
-#    # Signal
-#    pythia_source = track_skim.FileSource(
-#        filename=signal_filename,
-#        collision_system="pythia",
-#    )
-#    # Background
-#    thermal_source = sources.ThermalModelExponential(
-#        # Chunk size will be set when combining the sources.
-#        chunk_size=-1,
-#        thermal_model_parameters=thermal_model_parameters,
-#    )
-#
-#    # Now, just zip them together, effectively.
-#    combined_source = sources.CombineSources(
-#        fixed_size_sources={"signal": pythia_source},
-#        chunked_sources={"background": thermal_source},
-#        source_index_identifiers=source_index_identifiers,
-#    )
-#
-#    arrays = combined_source.data()
-#    return source_index_identifiers, _event_select_and_transform_embedding(arrays=arrays, source_index_identifiers=source_index_identifiers)
 
 
 def analysis_embedding(

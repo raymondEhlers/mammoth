@@ -15,8 +15,6 @@ from typing import (
     Dict,
     Final,
     Generator,
-    Iterable,
-    Iterator,
     List,
     Mapping,
     MutableMapping,
@@ -63,33 +61,13 @@ class Source(Protocol):
     _default_chunk_size: T_ChunkSize
     metadata: MutableMapping[str, Any]
 
-    #def __len__(self) -> int:
-    #    """Number of entries in the source."""
-    #    ...
-
-    #def data(self) -> ak.Array:
-    #    """Return data from the source.
-
-    #    Returns:
-    #        Data in an awkward array.
-    #    """
-    #    ...
-
-    #def data_iter(self, chunk_size: ChunkSizeType) -> Iterable[ak.Array]:
-    def gen_data(self, chunk_size: T_ChunkSize = ChunkSizeSentinel.SOURCE_DEFAULT) -> Generator[ak.Array, Optional[T_ChunkSize], None]:
+    def gen_data(self, chunk_size: T_ChunkSize = ChunkSizeSentinel.SOURCE_DEFAULT) -> T_GenData:
         """A iterator over a fixed size of data from the source.
 
         Returns:
             Iterable containing chunk size data in an awkward array.
         """
         ...
-
-
-
-class SourceWithChunkSize(Source, Protocol):
-    """A source that operates with a fixed size."""
-
-    chunk_size: int
 
 
 def convert_sequence_to_range(entry_range: Union[utils.Range, Sequence[float]]) -> utils.Range:
@@ -127,7 +105,8 @@ def generator_from_existing_data(
     data: ak.Array,
     chunk_size: T_ChunkSize,
     source_default_chunk_size: T_ChunkSize,
-    warn_on_not_enough_data: bool = False) -> Generator[ak.Array, Optional[T_ChunkSize], None]:
+    warn_on_not_enough_data: bool = False
+) -> T_GenData:
     # Validation
     # Chunk size
     chunk_size = _validate_chunk_size(chunk_size=chunk_size, source_default_chunk_size=source_default_chunk_size)
@@ -175,11 +154,6 @@ class UprootSource:
     _default_chunk_size: Union[int, ChunkSizeSentinel] = attr.field(default=ChunkSizeSentinel.FULL_SOURCE)
     metadata: MutableMapping[str, Any] = attr.Factory(dict)
 
-    #def __len__(self) -> int:
-    #    if "n_entries" in self.metadata:
-    #        return int(self.metadata["n_entries"])
-    #    raise ValueError("N entries not yet available.")
-
     def _data(self) -> ak.Array:
         with uproot.open(self._filename) as f:
             # Allow for star matching in tree_name
@@ -221,7 +195,7 @@ class UprootSource:
 
             return tree.arrays(**reading_kwargs)
 
-    def gen_data(self, chunk_size: T_ChunkSize = ChunkSizeSentinel.SOURCE_DEFAULT) -> Generator[ak.Array, Optional[T_ChunkSize], None]:
+    def gen_data(self, chunk_size: T_ChunkSize = ChunkSizeSentinel.SOURCE_DEFAULT) -> T_GenData:
         # NOTE: This is somewhat less efficient than it could be. We load all of the data and then chunk it afterwards.
         #       This isn't currently (March 2022) a big issue, but if that changes, we could rewrite this to become
         #       more efficient by reading and yielding chunks of the requested size directly from uproot.
@@ -279,11 +253,6 @@ class ParquetSource:
     _default_chunk_size: Union[int, ChunkSizeSentinel] = attr.field(default=ChunkSizeSentinel.FULL_SOURCE)
     metadata: MutableMapping[str, Any] = attr.Factory(dict)
 
-    #def __len__(self) -> int:
-    #    if "n_entries" in self.metadata:
-    #        return int(self.metadata["n_entries"])
-    #    raise ValueError("N entries not yet available.")
-
     def _data(self) -> ak.Array:
         arrays = ak.from_parquet(
             self._filename,
@@ -297,7 +266,7 @@ class ParquetSource:
 
         return arrays
 
-    def gen_data(self, chunk_size: T_ChunkSize = ChunkSizeSentinel.SOURCE_DEFAULT) -> Generator[ak.Array, Optional[T_ChunkSize], None]:
+    def gen_data(self, chunk_size: T_ChunkSize = ChunkSizeSentinel.SOURCE_DEFAULT) -> T_GenData:
         return generator_from_existing_data(
             data=self._data(), chunk_size=chunk_size, source_default_chunk_size=self._default_chunk_size,
         )
@@ -313,11 +282,6 @@ class ALICEFastSimTrackingEfficiency:
     fast_sim_parameters: models.ALICEFastSimParameters
     _default_chunk_size: Union[int, ChunkSizeSentinel] = attr.field(default=ChunkSizeSentinel.FULL_SOURCE)
     metadata: MutableMapping[str, Any] = attr.Factory(dict)
-
-    #def __len__(self) -> int:
-    #    if "n_entries" in self.metadata:
-    #        return int(self.metadata["n_entries"])
-    #    raise ValueError("N entries not yet available.")
 
     def _data(self, particle_level_data: ak.Array) -> ak.Array:
         # Setup
@@ -364,12 +328,7 @@ class ALICEFastSimTrackingEfficiency:
             }
         )
 
-    #def data(self) -> ak.Array:
-    #    return self._data(
-    #        particle_level_data=self.particle_level_source.data()
-    #    )
-
-    def gen_data(self, chunk_size: T_ChunkSize = ChunkSizeSentinel.SOURCE_DEFAULT) -> Generator[ak.Array, Optional[T_ChunkSize], None]:
+    def gen_data(self, chunk_size: T_ChunkSize = ChunkSizeSentinel.SOURCE_DEFAULT) -> T_GenData:
         # The particle source should take care of the chunk size, so we don't worry about taking
         # extra care of it here.
         particle_level_iter = self.particle_level_source.gen_data(chunk_size=chunk_size)
@@ -385,27 +344,13 @@ class ALICEFastSimTrackingEfficiency:
             pass
 
 
-
-#def _iterable_from_sized_source_data(obj: SourceWithChunkSize, chunk_size: int) -> Iterable[ak.Array]:
-#    """Iterable over data from source with size."""
-#    # Since the data will be generated inherently has a fixed size, the most efficient approach
-#    # is most likely to set the chunk size directly. (For example, if it's a generator, then we should
-#    # only generate what is strictly necessary for that chunk).
-#    # NOTE: We store the original chunk size because it feels a bit awkward for this call to be mutable.
-#    _original_chunk_size = obj.chunk_size
-#    obj.chunk_size = chunk_size
-#    result = [obj.data()]
-#    obj.chunk_size = _original_chunk_size
-#    return result
-
-
 @attr.define
 class PythiaSource:
     config: Path = attr.field(converter=Path)
     _default_chunk_size: Union[int, ChunkSizeSentinel] = attr.field(default=ChunkSizeSentinel.FIXED_SIZE)
     metadata: MutableMapping[str, Any] = attr.Factory(dict)
 
-    def gen_data(self, chunk_size: T_ChunkSize = ChunkSizeSentinel.SOURCE_DEFAULT) -> Generator[ak.Array, Optional[T_ChunkSize], None]:
+    def gen_data(self, chunk_size: T_ChunkSize = ChunkSizeSentinel.SOURCE_DEFAULT) -> T_GenData:
         raise NotImplementedError("Working on it...")
 
 
@@ -445,7 +390,7 @@ class ThermalModelExponential:
     _default_chunk_size: Union[int, ChunkSizeSentinel] = attr.field(default=ChunkSizeSentinel.FIXED_SIZE)
     metadata: MutableMapping[str, Any] = attr.Factory(dict)
 
-    def gen_data(self, chunk_size: T_ChunkSize = ChunkSizeSentinel.SOURCE_DEFAULT) -> Generator[ak.Array, Optional[T_ChunkSize], None]:
+    def gen_data(self, chunk_size: T_ChunkSize = ChunkSizeSentinel.SOURCE_DEFAULT) -> T_GenData:
         # Setup
         rng = np.random.default_rng()
 
@@ -523,66 +468,8 @@ class MultiSource:
     repeat: bool = attr.field(default=False)
     _default_chunk_size: Union[int, ChunkSizeSentinel] = attr.field(default=ChunkSizeSentinel.FULL_SOURCE)
     metadata: MutableMapping[str, Any] = attr.Factory(dict)
-    #_iter_with_data_func: Iterator[ak.Array] = attr.field(init=False, default=None)
 
-    #def __len__(self) -> int:
-    #    if "n_entries" in self.metadata:
-    #        return int(self.metadata["n_entries"])
-    #    raise ValueError("N entries not yet available.")
-
-    #def data(self) -> ak.Array:
-    #    """Retrieve data to satisfy the given chunk size."""
-    #    return next(
-    #        iter(self.data_iter(chunk_size=self.chunk_size))
-    #    )
-
-    #def data_iter_old(self) -> Iterable[ak.Array]:
-    #    if self.repeat:
-    #        # See: https://stackoverflow.com/a/24225372/12907985
-    #        source_iter = itertools.chain.from_iterable(itertools.repeat(self.sources))
-    #    else:
-    #        source_iter = iter(self.sources)
-    #    remaining_data = None
-
-    #    while True:
-    #        if remaining_data is not None:
-    #            _data = remaining_data
-    #            remaining_data = None
-    #        else:
-    #            try:
-    #                _data = next(source_iter).data()
-    #            except StopIteration:
-    #                return ak.Array({})
-    #                #raise StopIteration
-
-    #        # Regardless of where we end up, the number of entries must be equal to the chunk size
-    #        self.metadata["n_entries"] = self.chunk_size
-
-    #        # Now, figure out how to get all of the required data.
-    #        if len(_data) == self.chunk_size:
-    #            yield _data
-    #        elif len(_data) < self.chunk_size:
-    #            additional_chunks = []
-    #            remaining_n_events = self.chunk_size - len(_data)
-    #            for _more_data_source in source_iter:
-    #                _more_data = _more_data_source.data()
-    #                remaining_n_events -= len(_more_data)
-    #                if remaining_n_events < 0:
-    #                    # Slice the remaining data and store for the next iteration
-    #                    additional_chunks.append(_more_data[:remaining_n_events])
-    #                    remaining_data = _more_data[remaining_n_events:]
-    #                    break
-    #                additional_chunks.append(_more_data)
-    #            yield ak.concatenate(
-    #                [_data, *additional_chunks],
-    #                axis=0,
-    #            )
-    #        else:
-    #            remaining_n_events = self.chunk_size - len(_data)
-    #            remaining_data = _data[remaining_n_events:]
-    #            yield _data[:remaining_n_events]
-
-    def gen_data(self, chunk_size: T_ChunkSize = ChunkSizeSentinel.SOURCE_DEFAULT) -> Generator[ak.Array, Optional[T_ChunkSize], None]:
+    def gen_data(self, chunk_size: T_ChunkSize = ChunkSizeSentinel.SOURCE_DEFAULT) -> T_GenData:
         # Validation
         if chunk_size is ChunkSizeSentinel.SOURCE_DEFAULT:
             chunk_size = self._default_chunk_size
@@ -599,11 +486,12 @@ class MultiSource:
         # We need to hang on to any additional data that we may not use that the moment
         _remaining_data_from_last_loop = []
         _remaining_data_from_last_loop_size = 0
-        #_additional_chunks = []
 
         _result = None
         for source in source_iter:
             try:
+                # We're going to start working with the current source.
+                # Grab an iterator and the first chunk of data from it.
                 _current_data_iter = source.gen_data(chunk_size=chunk_size)
                 _current_data = next(_current_data_iter)
                 while True:
@@ -632,25 +520,14 @@ class MultiSource:
                         else:
                             _remaining_data_from_last_loop.append(_current_data)
 
-                        #_remaining_data_from_last_loop.append(
-                        #    _current_data[:_index_to_slice_current_data]
-                        #    if _index_to_slice_current_data != 0
-                        #    else _current_data
-                        #)
                         # Just to keep it up to date.
                         _remaining_data_from_last_loop_size += np.abs(_index_to_slice_current_data)
-                        #if _index_to_slice_current_data == 0:
-                        #    _slice_to_yield = slice(None, None)
-                        #    _slice_to_keep_for_next_iteration = None
-                        #else:
-                        #    _slice_to_yield = slice(None, _index_to_slice_current_data)
-                        #    _slice_to_keep_for_next_iteration = slice(_index_to_slice_current_data, None)
 
-                        #_remaining_data_from_last_loop.append(_current_data[:_index_to_slice_current_data])
-                        #_remaining_data_from_last_loop_size += np.abs(_index_to_slice_current_data)
+                        # Provide the data.
+                        # NOTE: In principle, we could always just use concatenate even if there's only
+                        #       item in the list, but I don't know if there's a short circuit for a list
+                        #       of one entry, and concatenate could potentially be quite expensive.
                         if len(_remaining_data_from_last_loop) > 1:
-                            # NOTE: we merge everything together before grabbing the remaining data because
-                            #       in principle, it could go over more than just the current data
                             _result = yield ak.concatenate(_remaining_data_from_last_loop, axis=0)
                         else:
                             _result = yield _remaining_data_from_last_loop[0]
@@ -666,20 +543,23 @@ class MultiSource:
                         # It's negative, so we need to take abs
                         _remaining_data_from_last_loop_size = np.abs(_index_to_slice_current_data)
 
+                    # Update the chunk size if received a new one
                     if _result is not None:
                         chunk_size = _validate_chunk_size(chunk_size=_result, source_default_chunk_size=source._default_chunk_size)
+                    # And keep going with the current source
                     _current_data = _current_data_iter.send(_result)
             except StopIteration:
                 pass
 
         # We're out of data. Provide what's left if there is any
+        # NOTE: In principle, we could always just use concatenate even if there's only
+        #       item in the list, but I don't know if there's a short circuit for a list
+        #       of one entry, and concatenate could potentially be quite expensive.
         if len(_remaining_data_from_last_loop) > 1:
-            # NOTE: we merge everything together before grabbing the remaining data because
-            #       in principle, it could go over more than just the current data
             _result = yield ak.concatenate(_remaining_data_from_last_loop, axis=0)
         elif len(_remaining_data_from_last_loop) == 1:
             _result = yield _remaining_data_from_last_loop[0]
-        logger.warning("Done!")
+        #logger.info("Done!")
         # Done!
 
 
@@ -733,100 +613,6 @@ def _has_offset_per_source(
         )
 
 
-#@attr.define
-#class CombineSourcesOld:
-#    """Combine multiple data sources together.
-#
-#    Think: Embedding into data, embedding into thermal model, etc.
-#
-#    Attributes:
-#        _fixed_size_sources: Sources which are of a fixed size. These sources determine the size
-#            of the chunk that will be provided.
-#        _chunked_sources: Sources which can provide chunks of data of a specified size. The size
-#            of these chunks is determined by the fixed sized sources and is set when retrieveing
-#            the data.
-#        _source_index_identifiers: Map containing an integer identifier for each source.
-#    """
-#
-#    _fixed_size_sources: Mapping[str, Source] = attr.field(validator=[_no_overlapping_keys])
-#    _chunked_sources: Mapping[str, SourceWithChunkSize] = attr.field(validator=[_no_overlapping_keys])
-#    _source_index_identifiers: Mapping[str, int] = attr.field(
-#        factory=dict,
-#        validator=[_contains_signal_and_background, _has_offset_per_source],
-#    )
-#    metadata: MutableMapping[str, Any] = attr.Factory(dict)
-#
-#    def __len__(self) -> int:
-#        if "n_entries" in self.metadata:
-#            return int(self.metadata["n_entries"])
-#        raise ValueError("N entries not yet available.")
-#
-#    def data(self) -> ak.Array:
-#        # Grab the events from the fixed size sources first
-#        # NOTE: Sometimes these are already awkward arrays, so we explicitly check for this case for safety
-#        fixed_sized_data = {
-#            k: v if isinstance(v, ak.Array) else v.data()
-#            for k, v in self._fixed_size_sources.items()
-#        }
-#
-#        # Cross check that we have the right sizes for all data sources
-#        lengths = [len(v) for v in fixed_sized_data.values()]
-#        if lengths.count(lengths[0]) != len(lengths):
-#            raise ValueError(f"Length of data doesn't match: {lengths}")
-#
-#        # Set the length of the chunked source based on the size of the fixed size sources
-#        for v in self._chunked_sources.values():
-#            v.chunk_size = lengths[0]
-#        # Now that the chunked data source is well defined, extract the chunked data
-#        chunked_data = {k: v.data() for k, v in self._chunked_sources.items()}
-#
-#        # Add metadata
-#        self.metadata["n_entries"] = lengths[0]
-#
-#        # NOTE: We're safe to blindly combine these here because the class validates that there
-#        #       are no overlapping keys between the fixed size and chunked data.
-#        return ak.zip({**fixed_sized_data, **chunked_data}, depth_limit=1)
-#
-#    def data_iter(self, chunk_size) -> Iterable[ak.Array]:
-#        # Grab the iter from the constrained size source first
-#        constrained_sized_iter = {
-#            k: v.data_iter(chunk_size=chunk_size)
-#            for k, v in self._constrainted_sized_sources.items()
-#        }
-#
-#        # Grab the events from the fixed size sources first
-#        fixed_sized_data_iter = {
-#            k: v.data_iter(chunk_size=chunk_size)
-#            for k, v in self._fixed_size_sources.items()
-#        }
-#        chunked_data_iter = {
-#            k: v.data_iter(chunk_size=chunk_size)
-#            for k, v in self._chunked_sources.items()
-#        }
-#        # HOW DO I DECIDE ON THIS SIZE???? MAYBE TAKE ONE FILE AT A TIME FOR THE FIXED? (needs a change in data())
-#
-#        # Cross check that we have the right sizes for all data sources
-#        lengths = [len(v) for v in fixed_sized_data.values()]
-#        if lengths.count(lengths[0]) != len(lengths):
-#            raise ValueError(f"Length of data doesn't match: {lengths}")
-#
-#        # Set the length of the chunked source based on the size of the fixed size sources
-#        for v in self._chunked_sources.values():
-#            v.chunk_size = lengths[0]
-#        # Now that the chunked data source is well defined, extract the chunked data
-#        chunked_data = {k: v.data() for k, v in self._chunked_sources.items()}
-#
-#        # Add metadata
-#        self.metadata["n_entries"] = lengths[0]
-#
-#        # NOTE: We're safe to blindly combine these here because the class validates that there
-#        #       are no overlapping keys between the fixed size and chunked data.
-#        return ak.zip({**fixed_sized_data, **chunked_data}, depth_limit=1)
-#
-#    def __getitem__(self, val: Any) -> ak.Array:
-#        ...
-
-
 @attr.define
 class CombineSources:
     """Combine multiple data sources together.
@@ -855,14 +641,14 @@ class CombineSources:
     #def data(self) -> ak.Array:
     #    return next(self.gen_data(chunk_size=ChunkSizeSentinel.FULL_SOURCE))
 
-    def gen_data(self, chunk_size: T_ChunkSize = ChunkSizeSentinel.SOURCE_DEFAULT) -> Generator[ak.Array, Optional[T_ChunkSize], None]:
+    def gen_data(self, chunk_size: T_ChunkSize = ChunkSizeSentinel.SOURCE_DEFAULT) -> T_GenData:
         if chunk_size is ChunkSizeSentinel.SOURCE_DEFAULT:
             chunk_size = self._default_chunk_size
         # Grab the iter from the constrained size source first
         constrained_size_source_name = next(iter(self._constrained_size_source))
         constrained_size_source_generator = self._constrained_size_source[constrained_size_source_name].gen_data(chunk_size=chunk_size)
 
-        unconstrained_size_sources_generators: Dict[str, Generator[ak.Array, Optional[T_ChunkSize], None]] = {}
+        unconstrained_size_sources_generators: Dict[str, T_GenData] = {}
 
         for constrained_size_data in constrained_size_source_generator:
             determined_chunk_size = len(constrained_size_data)
@@ -902,9 +688,3 @@ class CombineSources:
                 raise ValueError(
                     f"Cannot send value to CombineSources - it's already specified by the constrained source. Sent: {_result}"
                 )
-
-
-
-
-
-

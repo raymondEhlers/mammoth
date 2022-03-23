@@ -15,34 +15,6 @@ from mammoth.framework import sources
 logger = logging.getLogger(__name__)
 
 
-#@attr.define
-#class FileSourceOld:
-#    _filename: Path = attr.field(converter=Path)
-#    _collision_system: str
-#    _default_chunk_size: sources.T_ChunkSize = attr.field(default=sources.ChunkSizeSentinel.FULL_SOURCE)
-#    metadata: MutableMapping[str, Any] = attr.Factory(dict)
-#
-#    def gen_data(self, chunk_size: sources.T_ChunkSize = sources.ChunkSizeSentinel.SOURCE_DEFAULT) -> Generator[ak.Array, Optional[sources.T_ChunkSize], None]:
-#        """A iterator over a fixed size of data from the source.
-#
-#        Returns:
-#            Iterable containing chunk size data in an awkward array.
-#        """
-#        if "parquet" not in self._filename.suffix:
-#            arrays = to_awkward(
-#                filename=self._filename,
-#                collision_system=self._collision_system,
-#            )
-#        else:
-#            source = sources.ParquetSource(
-#                filename=self._filename,
-#            )
-#            arrays = source.data()
-#        return sources.generator_from_existing_data(
-#            data=arrays, chunk_size=chunk_size, source_default_chunk_size=self._default_chunk_size
-#        )
-
-
 @attr.frozen
 class Columns:
     event_level: List[str]
@@ -185,100 +157,6 @@ def _transform_output(
         pass
 
 
-#def to_awkward(
-#    filename: Path,
-#    collision_system: str,
-#) -> ak.Array:
-#    # First, event level properties
-#    event_level_columns = [
-#        "run_number",
-#        "trigger_bit_INT7",
-#    ]
-#    if collision_system == "PbPb":
-#        event_level_columns += [
-#            "centrality",
-#            "event_plane_V0M",
-#            "trigger_bit_central",
-#            "trigger_bit_semi_central",
-#        ]
-#    # Next, particle level columns
-#    _base_particle_columns = [
-#        "pt", "eta", "phi"
-#    ]
-#    _MC_particle_columns = [
-#        "particle_ID", "label",
-#    ]
-#    particle_columns = [f"particle_data_{c}" for c in _base_particle_columns]
-#    # Pick up the extra columns in the case of pythia
-#    if collision_system == "pythia":
-#        particle_columns += [f"particle_data_{c}" for c in _MC_particle_columns]
-#        # We skip particle_ID for the detector level
-#        particle_columns.pop(particle_columns.index("particle_data_particle_ID"))
-#        # And then do the same for particle_gen
-#        particle_columns += [f"particle_gen_{c}" for c in _base_particle_columns]
-#        particle_columns += [f"particle_gen_{c}" for c in _MC_particle_columns]
-#
-#    data = sources.UprootSource(
-#        filename=filename,
-#        tree_name="AliAnalysisTaskTrackSkim_*_tree",
-#        columns=event_level_columns + particle_columns,
-#    ).data()
-#
-#    # NOTE: If there are no accepted tracks, we don't bother storing the event.
-#    #       However, we attempt to preclude this at the AnalysisTask level by not filling events
-#    #       where there are no accepted tracks in the first collection.
-#
-#    # NOTE: The return values are formatted in this manner to avoid unnecessary copies of the data.
-#    particle_data_columns = [c for c in particle_columns if "particle_data" in c]
-#    if collision_system == "pythia":
-#        particle_gen_columns = [c for c in particle_columns if "particle_gen" in c]
-#        return ak.Array(
-#            {
-#                "det_level": ak.zip(
-#                    dict(
-#                        zip(
-#                            [c.replace("particle_data_", "") for c in list(particle_data_columns)],
-#                            ak.unzip(data[particle_data_columns]),
-#                        )
-#                    )
-#                ),
-#                "part_level": ak.zip(
-#                    dict(
-#                        zip(
-#                            [c.replace("particle_gen_", "") for c in list(particle_gen_columns)],
-#                            ak.unzip(data[particle_gen_columns]),
-#                        )
-#                    )
-#                ),
-#                **dict(
-#                    zip(
-#                        event_level_columns,
-#                        ak.unzip(data[event_level_columns]),
-#                    )
-#                ),
-#            },
-#        )
-#
-#    return ak.Array(
-#        {
-#            "data": ak.zip(
-#                dict(
-#                    zip(
-#                        [c.replace("particle_data_", "") for c in list(particle_data_columns)],
-#                        ak.unzip(data[particle_data_columns]),
-#                    )
-#                )
-#            ),
-#            **dict(
-#                zip(
-#                    event_level_columns,
-#                    ak.unzip(data[event_level_columns]),
-#                )
-#            ),
-#        },
-#    )
-
-
 def write_to_parquet(arrays: ak.Array, filename: Path, collision_system: str) -> bool:
     """Write the jagged track skim arrays to parquet.
 
@@ -376,12 +254,6 @@ if __name__ == "__main__":
             collision_system=collision_system,
         )
         arrays = next(source.gen_data(chunk_size=sources.ChunkSizeSentinel.FULL_SOURCE))
-        #arrays = to_awkward(
-        #    filename=Path(
-        #        f"/software/rehlers/dev/mammoth/projects/framework/{collision_system}/AnalysisResults.root"
-        #    ),
-        #    collision_system=collision_system,
-        #)
 
         write_to_parquet(
             arrays=arrays,
