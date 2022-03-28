@@ -229,7 +229,7 @@ def run() -> None:
     #       it's super verbose and a huge pain to turn off. Note that by passing on the storage messages,
     #       we don't actually lose any info.
     config, facility_config, stored_messages = job_utils.config(
-        facility="ORNL_b587_vip",
+        facility="ORNL_b587_long",
         task_config=task_config,
         n_tasks=n_cores_to_allocate,
         walltime=walltime,

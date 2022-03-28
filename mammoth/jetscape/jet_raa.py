@@ -66,7 +66,7 @@ def find_jets_for_analysis(arrays: ak.Array, jet_R_values: Sequence[float], part
 
     # We want to analyze both charged and full jets
     particles_signal = arrays[particle_column_name][signal_particles_mask]
-    particles_signal_charged = arrays[particle_column_name][signal_particles_mask & charged_particles_mask]
+    particles_signal_charged = arrays[particle_column_name][(signal_particles_mask & charged_particles_mask)]
     particles_holes = arrays[particle_column_name][holes_mask]
 
     # Finally, require that we have particles for each event
@@ -95,7 +95,9 @@ def find_jets_for_analysis(arrays: ak.Array, jet_R_values: Sequence[float], part
                     R=jet_R,
                     algorithm="anti-kt",
                     pt_range=jet_finding.pt_range(pt_min=min_jet_pt),
-                    eta_range=jet_finding.eta_range(jet_R=jet_R, fiducial_acceptance=True),
+                    eta_range=jet_finding.eta_range(jet_R=jet_R, fiducial_acceptance=True,
+                                                    eta_min=-0.7 if label == "full" else -0.9,
+                                                    eta_max=0.7 if label == "full" else 0.9),
                     # Always use the pp jet area because we aren't going to do subtraction via fastjet
                     area_settings=jet_finding.AreaPP(),
                 )
@@ -122,13 +124,6 @@ def find_jets_for_analysis(arrays: ak.Array, jet_R_values: Sequence[float], part
         jets[jet_label]["cross_section"] = arrays["cross_section"][
                 event_has_particles_signal_charged if jet_label.label == "charged" else event_has_particles_signal
             ]
-
-    # Apply jet level cuts.
-    # Fiducial cuts for ALICE full jets
-    for jet_label, jet_collection in jets.items():
-        if jet_label.label == "full":
-            fiducial_mask = np.abs(jet_collection.eta) <= (0.7 - jet_label.jet_R)
-            jets[jet_label] = jet_collection[fiducial_mask]
 
     return jets
 
