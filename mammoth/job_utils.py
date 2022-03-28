@@ -19,6 +19,7 @@ from parsl.addresses import address_by_hostname
 from parsl.config import Config
 from parsl.dataflow.futures import AppFuture
 from parsl.executors import HighThroughputExecutor
+from parsl.executors.high_throughput.errors import WorkerLost
 from parsl.providers import LocalProvider, SlurmProvider
 from parsl.launchers import SingleNodeLauncher, SrunLauncher
 from parsl.launchers.launchers import Launcher
@@ -538,6 +539,9 @@ def provide_results_as_completed(input_futures: Sequence[AppFuture], timeout: Op
                     try:
                         yield done.pop().result()
                     except concurrent.futures.CancelledError:
+                        pass
+                    except WorkerLost as e:
+                        logger.warning(f"Lost worker: {e}")
                         pass
             except KeyboardInterrupt as e:
                 for job in futures:
