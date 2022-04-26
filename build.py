@@ -2,6 +2,7 @@
 Adapted from https://github.com/pybind/cmake_example
 """
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -36,7 +37,8 @@ class CMakeBuild(build_ext):  # type: ignore
         if not extdir.endswith(os.path.sep):
             extdir += os.path.sep
 
-        cfg = "Debug" if self.debug else "Release"
+        debug = int(os.environ.get("DEBUG", 0)) if self.debug is None else self.debug
+        cfg = "Debug" if debug else "Release"
 
         # CMake lets you override the generator - we need to check this.
         # Can be set with Conda-Build, for example.
@@ -63,7 +65,12 @@ class CMakeBuild(build_ext):  # type: ignore
             # Users can override the generator with CMAKE_GENERATOR in CMake
             # 3.15+.
             if not cmake_generator:
-                cmake_args += ["-GNinja"]
+                try:
+                    import ninja  # type: ignore # noqa: F401
+
+                    cmake_args += ["-GNinja"]
+                except ImportError:
+                    pass
 
         else:
 
@@ -86,6 +93,12 @@ class CMakeBuild(build_ext):  # type: ignore
                 ]
                 build_args += ["--config", cfg]
 
+        if sys.platform.startswith("darwin"):
+            # Cross-compile support for macOS - respect ARCHFLAGS if set
+            archs = re.findall(r"-arch (\S+)", os.environ.get("ARCHFLAGS", ""))
+            if archs:
+                cmake_args += ["-DCMAKE_OSX_ARCHITECTURES={}".format(";".join(archs))]
+
         # Set CMAKE_BUILD_PARALLEL_LEVEL to control the parallel build level
         # across all generators.
         if "CMAKE_BUILD_PARALLEL_LEVEL" not in os.environ:
@@ -95,14 +108,16 @@ class CMakeBuild(build_ext):  # type: ignore
                 # CMake 3.12+ only.
                 build_args += ["-j{}".format(self.parallel)]
 
-        if not os.path.exists(self.build_temp):
-            os.makedirs(self.build_temp)
+        build_temp = os.path.join(self.build_temp, ext.name)
+        print(f"{build_temp=}")
+        if not os.path.exists(build_temp):
+            os.makedirs(build_temp)
 
         subprocess.check_call(
-            ["cmake", ext.sourcedir] + cmake_args, cwd=self.build_temp
+            ["cmake", ext.sourcedir] + cmake_args, cwd=build_temp
         )
         subprocess.check_call(
-            ["cmake", "--build", "."] + build_args, cwd=self.build_temp
+            ["cmake", "--build", "."] + build_args, cwd=build_temp
         )
 
 
