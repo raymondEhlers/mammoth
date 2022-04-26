@@ -183,7 +183,7 @@ def _default_parsl_config_kwargs(workflow_name: str, enable_monitoring: bool = T
     if enable_monitoring:
         config_kwargs["monitoring"] = MonitoringHub(
             hub_address=address_by_hostname(),
-            hub_port=55055,
+            hub_port=55056,
             monitoring_debug=False,
             resource_monitoring_interval=10,
             workflow_name=workflow_name,
