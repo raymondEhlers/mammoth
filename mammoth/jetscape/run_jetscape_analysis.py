@@ -258,7 +258,7 @@ def run() -> None:
                 setup_RAA_analysis(
                     system=system,
                     parquet_input_dir=_system_to_base_path[system] / "skim",
-                    read_jet_skim_from_file=True,
+                    read_jet_skim_from_file=False,
                     jet_R_values=jet_R_values,
                     min_jet_pt=5,
                     write_jets_to_tree=True,
