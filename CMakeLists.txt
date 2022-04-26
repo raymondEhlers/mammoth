@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.14..3.18)
+cmake_minimum_required(VERSION 3.15..3.18)
 project(mammoth
     LANGUAGES
         CXX
@@ -24,6 +24,11 @@ endif()
 set(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake")
 
 message(STATUS "Build type: ${CMAKE_BUILD_TYPE}")
+
+# First, setup python, using the new FindPython mode
+# Added according to this ref: https://pybind11.readthedocs.io/en/stable/cmake/index.html#new-findpython-mode
+# As a plus, it also fixes an issue in vscode running CMake
+find_package(Python COMPONENTS Interpreter Development)
 
 # pybind11 from PyPI
 #execute_process(
