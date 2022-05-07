@@ -6,7 +6,7 @@
 import collections
 import logging
 from pathlib import Path
-from typing import Any, Dict, Iterable, Mapping, Optional, Sequence, Tuple, Union
+from typing import Any, Dict, Iterable, List, Mapping, Optional, Sequence, Tuple, Union
 
 import awkward as ak
 import numpy as np
@@ -448,6 +448,84 @@ def _event_select_and_transform_embedding(
         yield transform.embedding(
             arrays=arrays, source_index_identifiers=source_index_identifiers
         )
+
+
+def _validate_potential_list_of_inputs(inputs: Union[Path, Sequence[Path]]) -> List[Path]:
+    filenames = []
+    if not isinstance(inputs, collections.abc.Iterable):
+        filenames = [inputs]
+    else:
+        filenames = list(inputs)
+    return filenames
+
+
+def load_embedding_multiple_sources(
+    signal_input: Union[Path, Sequence[Path]],
+    background_input: Union[Path, Sequence[Path]],
+    chunk_size: sources.T_ChunkSize = sources.ChunkSizeSentinel.FULL_SOURCE,
+    repeat_unconstrained_when_needed_for_statistics: bool = True,
+    background_is_constrained_source: bool = True,
+) -> Union[Tuple[Dict[str, int], ak.Array], Tuple[Dict[str, int], Iterable[ak.Array]]]:
+    # Validation
+    # We allow for multiple signal filenames
+    signal_filenames = _validate_potential_list_of_inputs(signal_input)
+    # And also for background
+    background_filenames = _validate_potential_list_of_inputs(background_input)
+
+    # Setup
+    logger.info("Loading embedded data")
+    source_index_identifiers = {"signal": 0, "background": 100_000}
+
+    # By default, the signal will be the unconstrained source
+    if background_is_constrained_source:
+        unconstrained_source_filenames = signal_filenames
+        unconstrained_source_collision_system = "pythia"
+        unconstrained_source_label = "signal"
+        constrained_source_filenames = background_filenames
+        constrained_source_collision_system = "PbPb"
+        constrained_source_label = "background"
+    else:
+        unconstrained_source_filenames = background_filenames
+        unconstrained_source_collision_system = "PbPb"
+        unconstrained_source_label = "background"
+        constrained_source_filenames = signal_filenames
+        constrained_source_collision_system = "pythia"
+        constrained_source_label = "signal"
+
+    # Unconstrained source
+    unconstrained_source = sources.MultiSource(
+        sources=[
+            track_skim.FileSource(
+                filename=_filename,
+                collision_system=unconstrained_source_collision_system,
+            )
+            for _filename in unconstrained_source_filenames
+        ],
+        repeat=repeat_unconstrained_when_needed_for_statistics,
+    )
+    # Constrained source
+    constrained_source = sources.MultiSource(
+        sources=[
+            track_skim.FileSource(
+                filename=_filename,
+                collision_system=constrained_source_collision_system,
+            )
+            for _filename in constrained_source_filenames
+        ],
+    )
+
+    # Now, just zip them together, effectively.
+    combined_source = sources.CombineSources(
+        constrained_size_source={constrained_source_label: constrained_source},
+        unconstrained_size_sources={unconstrained_source_label: unconstrained_source},
+        source_index_identifiers=source_index_identifiers,
+    )
+
+    _transform_data_iter = _event_select_and_transform_embedding(
+        gen_data=combined_source.gen_data(chunk_size=chunk_size),
+        source_index_identifiers=source_index_identifiers
+    )
+    return source_index_identifiers, _transform_data_iter if chunk_size is not sources.ChunkSizeSentinel.FULL_SOURCE else next(_transform_data_iter)
 
 
 def load_embedding(
