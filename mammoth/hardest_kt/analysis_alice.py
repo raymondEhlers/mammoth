@@ -476,48 +476,48 @@ def load_embedding_multiple_sources(
     logger.info("Loading embedded data")
     source_index_identifiers = {"signal": 0, "background": 100_000}
 
-    # By default, the signal will be the unconstrained source
+    # We only want to pass this to the unconstrained kwargs
+    unconstrained_source_kwargs = {"repeat": repeat_unconstrained_when_needed_for_statistics}
+    pythia_source_kwargs: Dict[str, Any] = {}
+    pbpb_source_kwargs: Dict[str, Any] = {}
     if background_is_constrained_source:
-        unconstrained_source_filenames = signal_filenames
-        unconstrained_source_collision_system = "pythia"
-        unconstrained_source_label = "signal"
-        constrained_source_filenames = background_filenames
-        constrained_source_collision_system = "PbPb"
-        constrained_source_label = "background"
+        pythia_source_kwargs = unconstrained_source_kwargs
     else:
-        unconstrained_source_filenames = background_filenames
-        unconstrained_source_collision_system = "PbPb"
-        unconstrained_source_label = "background"
-        constrained_source_filenames = signal_filenames
-        constrained_source_collision_system = "pythia"
-        constrained_source_label = "signal"
+        pbpb_source_kwargs = unconstrained_source_kwargs
 
-    # Unconstrained source
-    unconstrained_source = sources.MultiSource(
+    # Signal
+    pythia_source = sources.MultiSource(
         sources=[
             track_skim.FileSource(
                 filename=_filename,
-                collision_system=unconstrained_source_collision_system,
+                collision_system="pythia",
             )
-            for _filename in unconstrained_source_filenames
+            for _filename in signal_filenames
         ],
-        repeat=repeat_unconstrained_when_needed_for_statistics,
+        **pythia_source_kwargs,
     )
-    # Constrained source
-    constrained_source = sources.MultiSource(
+    # Background
+    pbpb_source = sources.MultiSource(
         sources=[
             track_skim.FileSource(
                 filename=_filename,
-                collision_system=constrained_source_collision_system,
+                collision_system="PbPb",
             )
-            for _filename in constrained_source_filenames
+            for _filename in background_filenames
         ],
+        **pbpb_source_kwargs,
     )
+    # By default the background is the constrained source
+    constrained_size_source = {"background": pbpb_source}
+    unconstrained_size_source = {"signal": pythia_source}
+    # Swap when the signal is the contrained source
+    if not background_is_constrained_source:
+        unconstrained_size_source, constrained_size_source = constrained_size_source, unconstrained_size_source
 
     # Now, just zip them together, effectively.
     combined_source = sources.CombineSources(
-        constrained_size_source={constrained_source_label: constrained_source},
-        unconstrained_size_sources={unconstrained_source_label: unconstrained_source},
+        constrained_size_source=constrained_size_source,
+        unconstrained_size_sources=unconstrained_size_source,
         source_index_identifiers=source_index_identifiers,
     )
 
