@@ -815,7 +815,7 @@ def analysis_embedding(
     # Requires at least 60% of possible area.
     # **************
     min_area = jet_finding.area_percentage(60, jet_R)
-    part_level_mask = jets["part_level", "area"] > min_area
+    part_level_mask = part_level_mask & (jets["part_level", "area"] > min_area)
     det_level_mask = det_level_mask & (jets["det_level", "area"] > min_area)
     hybrid_mask = hybrid_mask & (jets["hybrid", "area"] > min_area)
 
