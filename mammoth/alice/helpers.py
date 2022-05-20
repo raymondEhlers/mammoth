@@ -11,7 +11,7 @@ from typing import Final, List, Optional, Sequence
 import awkward as ak
 import numpy as np
 
-from mammoth.framework import particle_ID
+from mammoth.framework import jet_finding, particle_ID
 
 
 logger = logging.getLogger(__name__)
@@ -48,6 +48,35 @@ def standard_event_selection(arrays: ak.Array) -> ak.Array:
 
     return arrays
 
+
+def _determine_particle_column_names(arrays: ak.Array, selected_particle_column_name: str) -> List[str]:
+    """ Determine particle column names
+
+    Args:
+        arrays: Input array.
+        selected_particle_column_name: Name of the selected particle column. If it's empty, then we automatically
+            extract the column names from the array based on the expected names.
+    Returns:
+        List of particle column names.
+    """
+    particle_columns = []
+    if not selected_particle_column_name:
+        # If no particle column is selected, then automatically detect the columns to use.
+        if "part_level" in arrays:
+            particle_columns.append("part_level")
+        if "det_level" in arrays:
+            particle_columns.append("det_level")
+        if "hybrid" in arrays:
+            particle_columns.append("hybrid")
+
+        # Double check that we got something
+        if not particle_columns:
+            raise ValueError(f"No particle columns found in the array. Double check your inputs. columns: {ak.fields(arrays)}")
+    else:
+        particle_columns = [selected_particle_column_name]
+    return particle_columns
+
+
 def standard_track_selection(arrays: ak.Array,
                              require_at_least_one_particle_in_each_collection_per_event: bool,
                              selected_particle_column_name: str = "",
@@ -73,23 +102,21 @@ def standard_track_selection(arrays: ak.Array,
         Since the HF Tree and TrackSkim tasks use track containers, the min pt is usually applied
         by default.  However, we apply it explicitly to be certain.
 
+    Args:
+        arrays: Input particle level arrays
+        require_at_least_one_particle_in_each_collection_per_event: If True, require at least one
+            particle in each collection per event.
+        selected_particle_column_name: If specified, only apply the track selection to this column. Default: all available columns.
+        columns_to_explicitly_select_charged_particles: If specified, apply the charged particle selection
+            on these columns. This requires the particle ID to be available.
+        charged_hadron_PIDs: Charged hadron PIDs to select. If not specified, use the default ALICE selection.
+    Returns:
+        The array with the track selection applied.
     """
     # Validation
-    particle_columns = []
-    if not selected_particle_column_name:
-        # If no particle column is selected, then automatically detect the columns to use.
-        if "part_level" in arrays:
-            particle_columns.append("part_level")
-        if "det_level" in arrays:
-            particle_columns.append("det_level")
-        if "hybrid" in arrays:
-            particle_columns.append("hybrid")
-
-        # Double check that we got something
-        if not particle_columns:
-            raise ValueError(f"No particle columns found in the array. Double check your inputs. columns: {ak.fields(arrays)}")
-    else:
-        particle_columns = [selected_particle_column_name]
+    particle_columns = _determine_particle_column_names(
+        arrays=arrays, selected_particle_column_name=selected_particle_column_name
+    )
     # Charged particle selection
     # If nothing is passed, we don't want to explicitly select charged particles.
     # For most ALICE skims, this selection has already been done, so we don't need to do anything here.
@@ -134,3 +161,82 @@ def standard_track_selection(arrays: ak.Array,
         logger.debug(f"post requiring a particle in every event n events: {len(arrays)}")
 
     return arrays
+
+def standard_jet_selection(jets: ak.Array,
+                           jet_R: float,
+                           collision_system: str,
+                           substructure_constituent_requirements: bool,
+                           selected_particle_column_name: str = "",
+                           ) -> ak.Array:
+    """Standard ALICE jet selection
+
+    Includes selections on:
+
+    - Remove detector level jets with constituents with pt > 100 GeV
+    - Require jet area greater than 60% of jet_R
+    - If requested, remove jets with insufficient constituents for substructure. Regardless of the request,
+      this will only be performed in some datasets (pp or det level).
+
+    Args:
+        jets: Jets array
+        jet_R: Jet resolution parameter
+        collision_system: Collision system
+        substructure_constituent_requirements: If True, require certain jets to have sufficient constituents
+            for non-trivial substructure. Implements the requirement on pp data or at det level.
+        selected_particle_column_name: If specified, only apply the track selection to this column. Default: all available columns.
+
+    Returns:
+        Jets array with the jet selection applied.
+    """
+    # Validation
+    particle_columns = _determine_particle_column_names(
+        arrays=jets, selected_particle_column_name=selected_particle_column_name
+    )
+
+    # Start with all true mask
+    masks = {
+        column_name: np.ones(len(jets[column_name])) > 0 for column_name in particle_columns
+    }
+
+    # Apply jet level cuts.
+    # We only specify the cuts that aren't equal to 100 GeV, which is the default.
+    _max_constituent_pt_values = {
+        "part_level": 1000.0,
+    }
+    for column_name in masks:
+        # **************
+        # Remove detector level jets with constituents with pt > 100 GeV
+        # Those tracks are almost certainly fake at detector level.
+        # NOTE: For part level, we set it to 1000 GeV as a convention because it doesn't share these
+        #       detector effects. It should be quite rare that it has an effect, but it's included for consistency.
+        # NOTE: We apply this _after_ jet finding because applying it before jet finding would bias the z distribution.
+        # **************
+        masks[column_name] = (masks[column_name]) & (
+            ~ak.any(jets[column_name].constituents.pt > _max_constituent_pt_values.get(column_name, 100), axis=-1)
+        )
+        logger.info(f"{column_name}: max track constituent max accepted: {np.count_nonzero(np.asarray(ak.flatten(masks[column_name] == True, axis=None)))}")
+        # **************
+        # Apply area cut
+        # Requires at least 60% of possible area.
+        # **************
+        min_area = jet_finding.area_percentage(60, jet_R)
+        masks[column_name] = (masks[column_name]) & (jets[column_name, "area"] > min_area)
+        logger.info(f"{column_name}: add area cut n accepted: {np.count_nonzero(np.asarray(ak.flatten(masks[column_name] == True, axis=None)))}")
+
+        # *************
+        # Require more than one constituent at detector level (or in data) if we're not in PbPb.
+        # This basically requires there to be non-trivial substructure in these systems (pp and pythia).
+        # Matches a cut in AliAnalysisTaskJetDynamicalGrooming
+        # We generically associate it with substructure.
+        # *************
+        if substructure_constituent_requirements and collision_system not in ["PbPb"] and "embed" not in collision_system:
+            # We only want to apply this to det_level or data, so skip both "part_level" and "hybrid"
+            if column_name not in ["part_level", "hybrid"]:
+                masks[column_name] = (masks[column_name]) & (ak.num(jets[column_name, "constituents"], axis=2) > 1)
+                logger.info(f"{column_name}: require more than one constituent n accepted: {np.count_nonzero(np.asarray(ak.flatten(masks[column_name] == True, axis=None)))}")
+
+    # Actually apply the masks
+    for column_name, mask in masks.items():
+        jets[column_name] = jets[column_name][mask]
+
+    return jets
