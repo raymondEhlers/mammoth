@@ -12,7 +12,7 @@ import numpy as np
 import uproot
 
 from mammoth.framework import jet_finding, models, sources, transform
-from mammoth.framework.normalize_data import jet_extractor, track_skim
+from mammoth.framework.specialization import jet_extractor, track_skim
 
 logger = logging.getLogger(__name__)
 

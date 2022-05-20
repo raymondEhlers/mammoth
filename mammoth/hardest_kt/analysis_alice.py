@@ -14,7 +14,7 @@ import vector
 
 from mammoth import helpers
 from mammoth.framework import jet_finding, sources, transform
-from mammoth.framework.normalize_data import track_skim
+from mammoth.framework.specialization import track_skim
 
 
 logger = logging.getLogger(__name__)

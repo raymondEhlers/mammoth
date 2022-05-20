@@ -29,7 +29,7 @@ def convert_jetscape_files(
 ) -> AppFuture:
     from pathlib import Path
 
-    from mammoth.framework.normalize_data import jetscape
+    from mammoth.framework.specialization import jetscape
 
     try:
         jetscape.parse_to_parquet(
@@ -52,7 +52,7 @@ def setup_convert_jetscape_files(
     input_filename_template: str = "JetscapeHadronListBin{pt_hat_bin}",
     output_filename_template: str = "",
 ) -> List[AppFuture]:
-    from mammoth.framework.normalize_data import jetscape
+    from mammoth.framework.specialization import jetscape
 
     # Strictly speaking, I don't think it's necessary to control this in so much detail
     # (ie. just searching the directory would be fine too), but it seems convenient to

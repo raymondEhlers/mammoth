@@ -11,6 +11,7 @@ import awkward as ak
 import boost_histogram as bh
 import matplotlib.pyplot as plt
 import numpy as np
+import numpy.typing as npt
 import pachyderm.plot
 import uproot
 import vector
@@ -18,7 +19,7 @@ from pachyderm import binned_data
 
 
 from mammoth.framework import particle_ID
-from mammoth.framework.normalize_data import jetscape as normalize_jetscape
+from mammoth.framework.specialization import jetscape as jetscape_specialization
 
 
 pachyderm.plot.configure()
@@ -31,15 +32,15 @@ class ReferenceData:
     _sys_errors: binned_data.BinnedData
 
     @property
-    def values(self) -> np.ndarray:
+    def values(self) -> npt.NDArray[np.float64]:
         return self.data.values
 
     @property
-    def stat_errors(self) -> np.ndarray:
+    def stat_errors(self) -> npt.NDArray[np.float64]:
         return self._stat_errors.errors
 
     @property
-    def sys_errors(self) -> np.ndarray:
+    def sys_errors(self) -> npt.NDArray[np.float64]:
         return self._sys_errors.errors
 
 
@@ -83,7 +84,7 @@ def load_reference_data() -> Dict[str, binned_data.BinnedData]:
 
 
 def setup() -> None:
-    normalize_jetscape.parse_to_parquet(
+    jetscape_specialization.parse_to_parquet(
         base_output_filename="skim/output.parquet",
         store_only_necessary_columns=True,
         input_filename=f"final_state_hadrons.out",
