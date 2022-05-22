@@ -19,7 +19,7 @@ from pachyderm import binned_data
 
 
 from mammoth.framework import particle_ID
-from mammoth.framework.specialization import jetscape as jetscape_specialization
+from mammoth.framework.io import jetscape as jetscape_io
 
 
 pachyderm.plot.configure()
@@ -84,7 +84,7 @@ def load_reference_data() -> Dict[str, binned_data.BinnedData]:
 
 
 def setup() -> None:
-    jetscape_specialization.parse_to_parquet(
+    jetscape_io.parse_to_parquet(
         base_output_filename="skim/output.parquet",
         store_only_necessary_columns=True,
         input_filename=f"final_state_hadrons.out",
