@@ -3,15 +3,18 @@
 .. codeauthor:: Raymond Ehlers <raymond.ehlers@cern.ch>, ORNL
 """
 
+import collections
+import functools
 import logging
-from typing import Mapping, Optional, Union
+from pathlib import Path
+from typing import Any, Callable, Dict, Iterable, List, Sequence, Mapping, Optional, Tuple, Union
 
 import awkward as ak
 import numpy as np
 import numpy.typing as npt
 import vector
 
-from mammoth.framework import particle_ID
+from mammoth.framework import particle_ID, sources
 
 logger = logging.getLogger(__name__)
 
@@ -25,7 +28,16 @@ _default_particle_columns = {
 }
 
 
-def data(
+def _validate_potential_list_of_inputs(inputs: Union[Path, Sequence[Path]]) -> List[Path]:
+    filenames = []
+    if not isinstance(inputs, collections.abc.Iterable):
+        filenames = [inputs]
+    else:
+        filenames = list(inputs)
+    return filenames
+
+
+def normalize_for_data(
     arrays: ak.Array,
     rename_prefix: Optional[Mapping[str, str]] = None,
     mass_hypothesis: Union[float, Mapping[str, float]] = 0.139,
@@ -80,7 +92,7 @@ def data(
     )
 
 
-def mc(
+def normalize_for_MC(
     arrays: ak.Array,
     rename_prefix: Optional[Mapping[str, str]] = None,
     mass_hypothesis: Union[float, Mapping[str, float]] = 0.139,
@@ -148,7 +160,70 @@ def mc(
     )
 
 
-def embedding(
+def _transform_data(
+    gen_data: sources.T_GenData,
+    collision_system: str,
+    rename_prefix: Mapping[str, str],
+) -> sources.T_GenData:
+    for arrays in gen_data:
+        # If we are renaming one of the prefixes to "data", that means that we want to treat it
+        # as if it were standard data rather than pythia.
+        if collision_system in ["pythia"] and "data" not in list(rename_prefix.keys()):
+            logger.info("Transforming as MC")
+            yield normalize_for_MC(arrays=arrays, rename_prefix=rename_prefix)
+
+        # If not pythia, we don't need to handle it separately - it's all just data
+        # All the rest of the collision systems would be embedded together separately by other functions
+        logger.info("Transforming as data")
+        yield normalize_for_data(arrays=arrays, rename_prefix=rename_prefix)
+
+
+def load_data(
+    data_input: Union[Path, Sequence[Path]],
+    data_source: Callable[[Path], sources.Source],
+    collision_system: str,
+    rename_prefix: Mapping[str, str],
+    chunk_size: sources.T_ChunkSize = sources.ChunkSizeSentinel.FULL_SOURCE,
+) -> Union[ak.Array, Iterable[ak.Array]]:
+    """ Load data for ALICE analysis from the track skim task output.
+
+    Could come from a ROOT file or a converted parquet file.
+
+    Args:
+        data_input: Filenames containing the data.
+        data_source: Data source to be used to load the data stored at the filenames.
+        collision_system: Collision system corresponding to the data to load.
+        rename_prefix: Prefix to label the data, and any mapping that we might need to perform. Note: the mapping
+            goes from value -> key!
+    Returns:
+        The loaded data, transformed as appropriate based on the collision system
+    """
+    # Validation
+    if "embed" in collision_system:
+        raise ValueError("This function doesn't handle embedding. Please call the dedicated functions.")
+    logger.info(f"Loading \"{collision_system}\" data")
+    # We allow for multiple filenames
+    filenames = _validate_potential_list_of_inputs(data_input)
+
+    source = sources.MultiSource(
+        sources=[
+            # NOTE: partial doesn't forward the typing information on kwargs
+            data_source(  # type: ignore
+                filename=_filename,
+            )
+            for _filename in filenames
+        ],
+    )
+
+    _transform_data_iter = _transform_data(
+        gen_data=source.gen_data(chunk_size=chunk_size),
+        collision_system=collision_system,
+        rename_prefix=rename_prefix,
+    )
+    return _transform_data_iter if chunk_size is not sources.ChunkSizeSentinel.FULL_SOURCE else next(_transform_data_iter)
+
+
+def normalize_for_embedding(
     arrays: ak.Array,
     source_index_identifiers: Mapping[str, int],
     mass_hypothesis: Union[float, Mapping[str, float]] = 0.139,
@@ -251,3 +326,109 @@ def embedding(
             },
         }
     )
+
+
+def _event_select_and_transform_embedding(
+    gen_data: sources.T_GenData,
+    source_index_identifiers: Mapping[str, int],
+) -> sources.T_GenData:
+    for arrays in gen_data:
+        # Apply some basic requirements on the data
+        mask = np.ones(len(arrays)) > 0
+        # Require there to be particles for each level of particle collection for each event.
+        # Although this will need to be repeated after the track cuts, it's good to start here since
+        # it will avoid wasting signal or background events on events which aren't going to succeed anyway.
+        mask = mask & (ak.num(arrays["signal", "part_level"], axis=1) > 0)
+        mask = mask & (ak.num(arrays["signal", "det_level"], axis=1) > 0)
+        mask = mask & (ak.num(arrays["background", "data"], axis=1) > 0)
+
+        # Signal event selection
+        # NOTE: We can apply the signal selections in the analysis task below, so we don't apply it here
+
+        # Apply background event selection
+        # We have to apply this here because we don't keep track of the background associated quantities.
+        background_event_selection = np.ones(len(arrays)) > 0
+        background_fields = ak.fields(arrays["background"])
+        if "is_ev_rej" in background_fields:
+            background_event_selection = background_event_selection & (arrays["background", "is_ev_rej"] == 0)
+        if "z_vtx_reco" in background_fields:
+            background_event_selection = background_event_selection & (np.abs(arrays["background", "z_vtx_reco"]) < 10)
+
+        # Finally, apply the masks
+        arrays = arrays[(mask & background_event_selection)]
+
+        logger.info("Transforming embedded")
+        yield normalize_for_embedding(
+            arrays=arrays, source_index_identifiers=source_index_identifiers
+        )
+
+
+def load_embedding(
+    signal_input: Union[Path, Sequence[Path]],
+    background_input: Union[Path, Sequence[Path]],
+    chunk_size: sources.T_ChunkSize = sources.ChunkSizeSentinel.FULL_SOURCE,
+    repeat_unconstrained_when_needed_for_statistics: bool = True,
+    background_is_constrained_source: bool = True,
+    signal_source: Callable[[Path], sources.Source] = functools.partial(track_skim.FileSource, collision_system="pythia"),
+    background_source: Callable[[Path], sources.Source] = functools.partial(track_skim.FileSource, collision_system="PbPb"),
+) -> Union[Tuple[Dict[str, int], ak.Array], Tuple[Dict[str, int], Iterable[ak.Array]]]:
+    # Validation
+    # We allow for multiple signal filenames
+    signal_filenames = _validate_potential_list_of_inputs(signal_input)
+    # And also for background
+    background_filenames = _validate_potential_list_of_inputs(background_input)
+
+    # Setup
+    logger.info("Loading embedded data")
+    source_index_identifiers = {"signal": 0, "background": 100_000}
+
+    # We only want to pass this to the unconstrained kwargs
+    unconstrained_source_kwargs = {"repeat": repeat_unconstrained_when_needed_for_statistics}
+    pythia_source_kwargs: Dict[str, Any] = {}
+    pbpb_source_kwargs: Dict[str, Any] = {}
+    if background_is_constrained_source:
+        pythia_source_kwargs = unconstrained_source_kwargs
+    else:
+        pbpb_source_kwargs = unconstrained_source_kwargs
+
+    # Signal
+    pythia_source = sources.MultiSource(
+        sources=[
+            # NOTE: partial doesn't forward the typing information on kwargs
+            signal_source(  # type: ignore
+                filename=_filename,
+            )
+            for _filename in signal_filenames
+        ],
+        **pythia_source_kwargs,
+    )
+    # Background
+    pbpb_source = sources.MultiSource(
+        sources=[
+            # NOTE: partial doesn't forward the typing information on kwargs
+            background_source(  # type: ignore
+                filename=_filename,
+            )
+            for _filename in background_filenames
+        ],
+        **pbpb_source_kwargs,
+    )
+    # By default the background is the constrained source
+    constrained_size_source = {"background": pbpb_source}
+    unconstrained_size_source = {"signal": pythia_source}
+    # Swap when the signal is the constrained source
+    if not background_is_constrained_source:
+        unconstrained_size_source, constrained_size_source = constrained_size_source, unconstrained_size_source
+
+    # Now, just zip them together, effectively.
+    combined_source = sources.CombineSources(
+        constrained_size_source=constrained_size_source,
+        unconstrained_size_sources=unconstrained_size_source,
+        source_index_identifiers=source_index_identifiers,
+    )
+
+    _transform_data_iter = _event_select_and_transform_embedding(
+        gen_data=combined_source.gen_data(chunk_size=chunk_size),
+        source_index_identifiers=source_index_identifiers
+    )
+    return source_index_identifiers, _transform_data_iter if chunk_size is not sources.ChunkSizeSentinel.FULL_SOURCE else next(_transform_data_iter)

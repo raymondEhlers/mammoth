@@ -11,8 +11,8 @@ import awkward as ak
 import numpy as np
 import uproot
 
-from mammoth.framework import jet_finding, models, sources, transform
-from mammoth.framework.specialization import jet_extractor, track_skim
+from mammoth.framework import jet_finding, load_data, models, sources
+from mammoth.framework.io import jet_extractor, track_skim
 
 logger = logging.getLogger(__name__)
 
@@ -83,7 +83,7 @@ def load_embedding(
     logger.info(f"Removing {n_events_removed} events out of {len(arrays)} total events ({round(n_events_removed / len(arrays) * 100, 2)}%) due to event selection")
     arrays = arrays[mask]
 
-    return source_index_identifiers, transform.embedding(
+    return source_index_identifiers, load_data.normalize_for_embedding(
         arrays=arrays, source_index_identifiers=source_index_identifiers,
         # NOTE: We set a fixed background index value because it's required for the ML framework.
         #       In principle, we could do this later during the analysis, but assignment gets tricky

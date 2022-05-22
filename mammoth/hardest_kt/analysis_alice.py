@@ -13,8 +13,9 @@ import numpy as np
 import vector
 
 from mammoth import helpers
-from mammoth.framework import jet_finding, sources, transform
-from mammoth.framework.specialization import track_skim
+from mammoth.alice import helpers as alice_helpers
+from mammoth.framework import analysis_tools, jet_finding, load_data, sources
+from mammoth.framework.io import track_skim
 
 
 logger = logging.getLogger(__name__)
@@ -31,12 +32,12 @@ def _transform_data(
         # as if it were standard data rather than pythia.
         if collision_system in ["pythia"] and "data" not in list(rename_prefix.keys()):
             logger.info("Transforming as MC")
-            yield transform.mc(arrays=arrays, rename_prefix=rename_prefix)
+            yield load_data.normalize_for_MC(arrays=arrays, rename_prefix=rename_prefix)
 
         # If not pythia, we don't need to handle it separately - it's all just data
         # All the rest of the collision systems would be embedded together separately by other functions
         logger.info("Transforming as data")
-        yield transform.data(arrays=arrays, rename_prefix=rename_prefix)
+        yield load_data.normalize_for_data(arrays=arrays, rename_prefix=rename_prefix)
 
 
 def load_data(
@@ -78,40 +79,13 @@ def load_data(
 def analysis_MC(arrays: ak.Array, jet_R: float, min_jet_pt: Mapping[str, float], validation_mode: bool = False) -> ak.Array:
     logger.info("Start analyzing")
     # Event selection
-    logger.warning(f"pre event sel n events: {len(arrays)}")
-    event_level_mask = np.ones(len(arrays)) > 0
-    if "is_ev_rej" in ak.fields(arrays):
-        event_level_mask = event_level_mask & (arrays["is_ev_rej"] == 0)
-    if "z_vtx_reco" in ak.fields(arrays):
-        event_level_mask = event_level_mask & (np.abs(arrays["z_vtx_reco"]) < 10)
-    arrays = arrays[event_level_mask]
-    logger.warning(f"post event sel n events: {len(arrays)}")
+    arrays = alice_helpers.standard_event_selection(arrays=arrays)
 
     # Track cuts
-    logger.info("Track level cuts")
-    # Particle level track cuts:
-    # - min: 150 MeV (from the EMCal container)
-    part_track_pt_mask = arrays["part_level"].pt >= 0.150
-    arrays["part_level"] = arrays["part_level"][part_track_pt_mask]
-    # Detector level track cuts:
-    # - min: 150 MeV
-    # NOTE: Since the HF Tree uses track containers, the min is usually applied by default
-    det_track_pt_mask = arrays["det_level"].pt >= 0.150
-    arrays["det_level"] = arrays["det_level"][det_track_pt_mask]
-    # NOTE: We don't need to explicitly select charged particles here because when creating
-    #       the alice track skims, we explicitly select charged particles there.
-    #       However, this would be required for separate MC (eg. jetscape, herwig, etc) productions.
-    #       This is probably best served by some switch somewhere.
-    logger.warning(f"post track cuts n events: {len(arrays)}")
-
-    # Finally, require that we have part and det level particles for each event
-    # NOTE: We have to do it in a separate mask because the above is masked as the particle level,
-    #       but here we need to mask at the event level. (If you try to mask at the particle, you'll
-    #       end up with empty events)
-    # NOTE: Remember that the lengths of det and particle level need to match up, so be careful with the mask!
-    event_has_particles_mask = (ak.num(arrays["part_level"], axis=1) > 0) & (ak.num(arrays["det_level"], axis=1) > 0)
-    arrays = arrays[event_has_particles_mask]
-    logger.warning(f"post requiring a particle in every event n events: {len(arrays)}")
+    arrays = alice_helpers.standard_track_selection(
+        arrays=arrays,
+        require_at_least_one_particle_in_each_collection_per_event=True
+    )
 
     # Jet finding
     logger.info("Find jets")
@@ -158,37 +132,17 @@ def analysis_MC(arrays: ak.Array, jet_R: float, min_jet_pt: Mapping[str, float],
     logger.warning(f"Found det_level n jets: {np.count_nonzero(np.asarray(ak.flatten(jets['det_level'].px, axis=None)))}")
 
     # Apply jet level cuts.
-    # **************
-    # Remove detector level jets with constituents with pt > 100 GeV
-    # Those tracks are almost certainly fake at detector level.
-    # NOTE: We skip at part level because it doesn't share these detector effects.
-    # NOTE: We need to do it after jet finding to avoid a z bias.
-    # **************
-    det_level_mask = ~ak.any(jets["det_level"].constituents.pt > 100, axis=-1)
-    logger.warning(f"max track constituent max accepted: {np.count_nonzero(np.asarray(ak.flatten(det_level_mask == True, axis=None)))}")
-    # **************
-    # Apply area cut
-    # Requires at least 60% of possible area.
-    # **************
-    min_area = jet_finding.area_percentage(60, jet_R)
-    part_level_mask = jets["part_level", "area"] > min_area
-    det_level_mask = det_level_mask & (jets["det_level", "area"] > min_area)
-    logger.warning(f"add area cut n accepted: {np.count_nonzero(np.asarray(ak.flatten(det_level_mask == True, axis=None)))}")
-    # *************
-    # Require more than one constituent at detector level if we're not in PbPb
-    # Matches a cut in AliAnalysisTaskJetDynamicalGrooming
-    # *************
-    det_level_mask = det_level_mask & (ak.num(jets["det_level", "constituents"], axis=2) > 1)
-    logger.warning(f"more than one constituent n accepted: {np.count_nonzero(np.asarray(ak.flatten(det_level_mask == True, axis=None)))}")
-
-    # Apply the cuts
-    jets["part_level"] = jets["part_level"][part_level_mask]
-    jets["det_level"] = jets["det_level"][det_level_mask]
+    jets = alice_helpers.standard_jet_selection(
+        jets=jets,
+        jet_R=jet_R,
+        collision_system=collision_system,
+        substructure_constituent_requirements=True,
+    )
     logger.warning(f"all jet cuts n accepted: {np.count_nonzero(np.asarray(ak.flatten(jets['det_level'].px, axis=None)))}")
 
     # Jet matching
     logger.info("Matching jets")
-    jets = _jet_matching_MC(
+    jets = analysis_tools.jet_matching_MC(
         jets=jets,
         # NOTE: This is larger than the matching distance that I would usually use (where we usually use 0.3 =
         #       in embedding), but this is apparently what we use in pythia. So just go with it.
@@ -227,65 +181,6 @@ def analysis_MC(arrays: ak.Array, jet_R: float, min_jet_pt: Mapping[str, float],
     return jets
 
 
-def _jet_matching_MC(jets: ak.Array,
-                     part_level_det_level_max_matching_distance: float = 1.0,
-                     ) -> ak.Array:
-    """Geometrical jet matching for MC
-
-    Note:
-        The default matching distance is larger than the matching distance that I would have
-        expected to use (eg. we usually use 0.3 = in embedding), but this is apparently what
-        we use in pythia. So just go with it.
-
-    Args:
-        jets: Array containing the jets to match
-        part_level_det_level_max_matching distance: Maximum matching distance
-            between part and det level. Default: 1.0
-    Returns:
-        jets array containing only the matched jets
-    """
-    # First, actually perform the geometrical matching
-    jets["part_level", "matching"], jets["det_level", "matching"] = jet_finding.jet_matching_geometrical(
-        jets_base=jets["part_level"],
-        jets_tag=jets["det_level"],
-        max_matching_distance=part_level_det_level_max_matching_distance,
-    )
-
-    # Now, use matching info
-    # First, require that there are jets in an event. If there are jets, further require that there
-    # is a valid match (further below).
-    # NOTE: These can't be combined into one mask because they operate at different levels: events and jets
-    logger.info("Using matching info")
-    jets_present_mask = (ak.num(jets["part_level"], axis=1) > 0) & (ak.num(jets["det_level"], axis=1) > 0)
-    jets = jets[jets_present_mask]
-    logger.warning(f"post jets present mask n accepted: {np.count_nonzero(np.asarray(ak.flatten(jets['det_level'].px, axis=None)))}")
-
-    # Now, onto the individual jet collections
-    # We want to require valid matched jet indices. The strategy here is to lead via the detector
-    # level jets. The procedure is as follows:
-    #
-    # 1. Identify all of the detector level jets with valid matches.
-    # 2. Apply that mask to the detector level jets.
-    # 3. Use the matching indices from the detector level jets to index the particle level jets.
-    # 4. We should be done and ready to flatten. Note that the matching indices will refer to
-    #    the original arrays, not the masked ones. In principle, this should be updated, but
-    #    I'm unsure if they'll be used again, so we wait to update them until it's clear that
-    #    it's required.
-    #
-    # The other benefit to this approach is that it should reorder the particle level matches
-    # to be the same shape as the detector level jets, so they are already paired together.
-    #
-    # NOTE: This method doesn't check that particle level jets match to the detector level jets.
-    #       However, it doesn't need to do so because the matching is bijective, so it already
-    #       must be the case.
-    det_level_matched_jets_mask = jets["det_level"]["matching"] > -1
-    jets["det_level"] = jets["det_level"][det_level_matched_jets_mask]
-    jets["part_level"] = jets["part_level"][jets["det_level", "matching"]]
-    logger.warning(f"post requiring valid matches n accepted: {np.count_nonzero(np.asarray(ak.flatten(jets['det_level'].px, axis=None)))}")
-
-    return jets
-
-
 def analysis_data(
     collision_system: str, arrays: ak.Array, jet_R: float, min_jet_pt: Mapping[str, float],
     particle_column_name: str = "data",
@@ -298,14 +193,7 @@ def analysis_data(
 
     logger.info("Start analyzing")
     # Event selection
-    logger.warning(f"pre event sel n events: {len(arrays)}")
-    event_level_mask = np.ones(len(arrays)) > 0
-    if "is_ev_rej" in ak.fields(arrays):
-        event_level_mask = event_level_mask & (arrays["is_ev_rej"] == 0)
-    if "z_vtx_reco" in ak.fields(arrays):
-        event_level_mask = event_level_mask & (np.abs(arrays["z_vtx_reco"]) < 10)
-    arrays = arrays[event_level_mask]
-    logger.warning(f"post event sel n events: {len(arrays)}")
+    arrays = alice_helpers.standard_event_selection(arrays=arrays)
 
     # Track cuts
     logger.info("Track level cuts")
@@ -445,7 +333,7 @@ def _event_select_and_transform_embedding(
         arrays = arrays[(mask & background_event_selection)]
 
         logger.info("Transforming embedded")
-        yield transform.embedding(
+        yield load_data.normalize_for_embedding(
             arrays=arrays, source_index_identifiers=source_index_identifiers
         )
 
@@ -826,7 +714,7 @@ def analysis_embedding(
 
     # Jet matching
     logger.info("Matching jets")
-    jets = _jet_matching_embedding(
+    jets = analysis_tools.jet_matching_embedding(
         jets=jets,
         det_level_hybrid_max_matching_distance=0.3,
         part_level_det_level_max_matching_distance=0.3,
@@ -880,84 +768,6 @@ def analysis_embedding(
         jets = jets[shared_momentum_fraction_mask]
 
     # Now, the final transformation into a form that can be used to skim into a flat tree.
-    return jets
-
-
-def _jet_matching_embedding(jets: ak.Array,
-                            det_level_hybrid_max_matching_distance: float = 0.3,
-                            part_level_det_level_max_matching_distance: float = 0.3,
-                            ) -> ak.Array:
-    """Jet matching for embedding."""
-
-    # NOTE: This is a bit of a departure from the AliPhysics constituent subtraction method.
-    #       Namely, in AliPhysics, we doing an additional matching step between hybrid sub
-    #       and hybrid unsubtracted (and then matching hybrid unsubtracted to det level, etc).
-    #       However, since we have the the additional jet constituent indexing info, we can
-    #       figure out the matching directly between hybrid sub and det level. So we don't include
-    #       the intermediate matching.
-    jets["det_level", "matching"], jets["hybrid", "matching"] = jet_finding.jet_matching_geometrical(
-        jets_base=jets["det_level"],
-        jets_tag=jets["hybrid"],
-        max_matching_distance=det_level_hybrid_max_matching_distance,
-    )
-    jets["part_level", "matching"], jets["det_level", "matching"] = jet_finding.jet_matching_geometrical(
-        jets_base=jets["part_level"],
-        jets_tag=jets["det_level"],
-        max_matching_distance=part_level_det_level_max_matching_distance,
-    )
-
-    # Now, use matching info
-    # First, require that there are jets in an event. If there are jets, and require that there
-    # is a valid match.
-    # NOTE: These can't be combined into one mask because they operate at different levels: events and jets
-    logger.info("Using matching info")
-    jets_present_mask = (
-        (ak.num(jets["part_level"], axis=1) > 0)
-        & (ak.num(jets["det_level"], axis=1) > 0)
-        & (ak.num(jets["hybrid"], axis=1) > 0)
-    )
-    jets = jets[jets_present_mask]
-
-    # Now, onto the individual jet collections
-    # We want to require valid matched jet indices. The strategy here is to lead via the detector
-    # level jets. The procedure is as follows:
-    #
-    # 1. Identify all of the detector level jets with valid matches.
-    # 2. Apply that mask to the detector level jets.
-    # 3. Use the matching indices from the detector level jets to index the particle level jets.
-    # 4. We should be done and ready to flatten. Note that the matching indices will refer to
-    #    the original arrays, not the masked ones. In principle, this should be updated, but
-    #    I'm unsure if they'll be used again, so we wait to update them until it's clear that
-    #    it's required.
-    #
-    # The other benefit to this approach is that it should reorder the particle level matches
-    # to be the same shape as the detector level jets (same for hybrid, etc), so they are already
-    # all paired together.
-    #
-    # NOTE: This method doesn't check that particle level jets match to the detector level jets.
-    #       However, it doesn't need to do so because the matching is bijective, so it already
-    #       must be the case.
-    hybrid_to_det_level_valid_matches = jets["hybrid", "matching"] > -1
-    det_to_part_level_valid_matches = jets["det_level", "matching"] > -1
-    hybrid_to_det_level_including_det_to_part_level_valid_matches = det_to_part_level_valid_matches[jets["hybrid", "matching"][hybrid_to_det_level_valid_matches]]
-    # First, restrict the hybrid level, requiring hybrid to det_level valid matches and
-    # det_level to part_level valid matches.
-    jets["hybrid"] = jets["hybrid"][hybrid_to_det_level_valid_matches][hybrid_to_det_level_including_det_to_part_level_valid_matches]
-    # Next, restrict the det_level. Since we've restricted the hybrid to only valid matches, we should be able
-    # to directly apply the masking indices.
-    jets["det_level"] = jets["det_level"][jets["hybrid", "matching"]]
-    # Same reasoning here.
-    jets["part_level"] = jets["part_level"][jets["det_level", "matching"]]
-
-    # After all of these gymnastics, we may not have jets at all levels, so require there to a jet of each type.
-    # In principle, we've done this twice now, but logically this seems to be clearest.
-    jets_present_mask = (
-        (ak.num(jets["part_level"], axis=1) > 0)
-        & (ak.num(jets["det_level"], axis=1) > 0)
-        & (ak.num(jets["hybrid"], axis=1) > 0)
-    )
-    jets = jets[jets_present_mask]
-
     return jets
 
 

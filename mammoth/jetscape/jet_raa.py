@@ -17,7 +17,7 @@ import numpy.typing as npt
 import uproot
 
 from mammoth import helpers
-from mammoth.framework import jet_finding, particle_ID, sources, transform
+from mammoth.framework import jet_finding, load_data, particle_ID, sources
 from mammoth.jetscape import utils
 
 
@@ -40,7 +40,7 @@ def load_data(filename: Path) -> ak.Array:
     )
     arrays = next(source.gen_data(chunk_size=sources.ChunkSizeSentinel.FULL_SOURCE))
     logger.info("Transforming data")
-    return transform.data(arrays=arrays, rename_prefix={"data": "particles"})
+    return load_data.normalize_for_data(arrays=arrays, rename_prefix={"data": "particles"})
 
 
 def find_jets_for_analysis(arrays: ak.Array, jet_R_values: Sequence[float], particle_column_name: str = "data", min_jet_pt: float = 30) -> Dict[JetLabel, ak.Array]:
