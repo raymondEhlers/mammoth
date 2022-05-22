@@ -4,6 +4,7 @@
 """
 
 import collections
+import functools
 import logging
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Mapping, Optional, Sequence, Tuple, Union
@@ -40,7 +41,7 @@ def _transform_data(
         yield load_data.normalize_for_data(arrays=arrays, rename_prefix=rename_prefix)
 
 
-def load_data(
+def load_data_old(
     filename: Path,
     collision_system: str,
     rename_prefix: Mapping[str, str],
@@ -789,10 +790,11 @@ if __name__ == "__main__":
         logger.info(f"Analyzing \"{collision_system}\"")
         jets = analysis_data(
             collision_system=collision_system,
-            arrays=load_data(
-                filename=Path(
+            arrays=load_data.load_data(
+                data_input=Path(
                     f"/software/rehlers/dev/mammoth/projects/framework/{collision_system}/AnalysisResults_track_skim.parquet"
                 ),
+                data_source=functools.partial(track_skim.FileSource, collision_system=collision_system),
                 collision_system=collision_system,
                 rename_prefix={"data": "data"} if collision_system != "pythia" else {"data": "det_level"},
             ),

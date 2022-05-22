@@ -365,13 +365,38 @@ def _event_select_and_transform_embedding(
 
 def load_embedding(
     signal_input: Union[Path, Sequence[Path]],
+    signal_source: Callable[[Path], sources.Source],
     background_input: Union[Path, Sequence[Path]],
+    background_source: Callable[[Path], sources.Source],
     chunk_size: sources.T_ChunkSize = sources.ChunkSizeSentinel.FULL_SOURCE,
     repeat_unconstrained_when_needed_for_statistics: bool = True,
     background_is_constrained_source: bool = True,
-    signal_source: Callable[[Path], sources.Source] = functools.partial(track_skim.FileSource, collision_system="pythia"),
-    background_source: Callable[[Path], sources.Source] = functools.partial(track_skim.FileSource, collision_system="PbPb"),
 ) -> Union[Tuple[Dict[str, int], ak.Array], Tuple[Dict[str, int], Iterable[ak.Array]]]:
+    """Load data for embedding.
+
+    Note:
+        The signal and background sources are only constructed with the Path. If you need
+        to pass additional arguments, you can do so by defining a closure around the source.
+        For the simplest examples, it could be something like:
+
+        ```python
+        signal_source=functools.partial(track_skim.FileSource, collision_system="pythia")
+        background_source=functools.partial(track_skim.FileSource, collision_system="PbPb")
+        ```
+
+    Args:
+        signal_input: Path to the input file(s) for the signal.
+        signal_source: File source to load the signal data.
+        background_input: Path to the input file(s) for the background.
+        background_source: File source to load the background data.
+        chunk_size: Chunk size to use when loading the data. Default: Full source.
+        repeated_unconstrained_when_needed_for_statistics: Whether to repeat unconstrained events source
+            when the unconstrained has fewer events than the constrained. Default: True
+        background_is_constrained_source: Whether the background is a constrained source. Default: True
+    Returns:
+        A tuple of the source index identifiers and the data. The data is an iterator if we don't ask
+            for the full source via the chunk size.
+    """
     # Validation
     # We allow for multiple signal filenames
     signal_filenames = _validate_potential_list_of_inputs(signal_input)
