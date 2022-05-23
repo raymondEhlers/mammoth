@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 
 _DEFAULT_CHARGED_HADRON_PIDs: Final[List[int]] = [11, 13, 211, 321, 2212, 3222, 3112, 3312, 3334]
 
-def standard_event_selection(arrays: ak.Array) -> ak.Array:
+def standard_event_selection(arrays: ak.Array, return_mask: bool = False) -> ak.Array:
     """ALICE standard event selection
 
     Includes selections on:
@@ -33,8 +33,9 @@ def standard_event_selection(arrays: ak.Array) -> ak.Array:
     Args:
         arrays: The array to apply the event selection to. If there are multiple classes (eg. embedding before
             combining), then you can pass the selected array and assign the result.
+        return_mask: If True, return the mask rather than applying it to the array.
     Returns:
-        The array with the event selection applied.
+        The array with the event selection applied, or the mask if return_mask is True.
     """
     # Event selection
     logger.debug(f"pre  event sel n events: {len(arrays)}")
@@ -43,6 +44,11 @@ def standard_event_selection(arrays: ak.Array) -> ak.Array:
         event_level_mask = event_level_mask & (arrays["is_ev_rej"] == 0)
     if "z_vtx_reco" in ak.fields(arrays):
         event_level_mask = event_level_mask & (np.abs(arrays["z_vtx_reco"]) < 10)
+
+    # Return early with just the mask if requested.
+    if return_mask:
+        return event_level_mask
+
     arrays = arrays[event_level_mask]
     logger.debug(f"post event sel n events: {len(arrays)}")
 
