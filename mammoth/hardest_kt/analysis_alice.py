@@ -794,7 +794,7 @@ if __name__ == "__main__":
                 data_input=Path(
                     f"/software/rehlers/dev/mammoth/projects/framework/{collision_system}/AnalysisResults_track_skim.parquet"
                 ),
-                data_source=track_skim.FileSource.create_source_from_filename(collision_system=collision_system),
+                data_source=track_skim.FileSource.create_deferred_source(collision_system=collision_system),
                 collision_system=collision_system,
                 rename_prefix={"data": "data"} if collision_system != "pythia" else {"data": "det_level"},
             ),

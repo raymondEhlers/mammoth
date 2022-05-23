@@ -88,10 +88,10 @@ class FileSource:
             return source.gen_data(chunk_size=chunk_size)
 
     @classmethod
-    def create_source_from_filename(cls,
-                                    collision_system: str,
-                                    default_chunk_size: sources.T_ChunkSize = sources.ChunkSizeSentinel.FULL_SOURCE,
-                                    ) -> sources.SourceFromFilename:
+    def create_deferred_source(cls,
+                               collision_system: str,
+                               default_chunk_size: sources.T_ChunkSize = sources.ChunkSizeSentinel.FULL_SOURCE,
+                               ) -> sources.SourceFromFilename:
         """Create a FileSource with a closure such that all arguments are set except for the filename.
 
         Args:
