@@ -47,6 +47,14 @@ class ChunkSizeSentinel(enum.Enum):
 T_ChunkSize = Union[int, ChunkSizeSentinel]
 T_GenData = Generator[ak.Array, Optional[T_ChunkSize], None]
 
+class SourceFromFilename(Protocol):
+    """Create a source from a filename.
+
+    This is used for loading data, but it's much more convenient if it's available from the sources.
+    """
+    def __call__(self, filename: Path) -> Source: ...
+
+
 # Allows loading all chunks by picking a number larger than any possible (set of) file(s).
 _FULL_SOURCE_SIZE: Final[int] = int(1e10)
 
@@ -626,7 +634,7 @@ class CombineSources:
             the combined data.
         _unconstrained_size_sources: Sources which will provide data of a specified size.
             The size of these chunks is determined by the constrained size source and is
-            set when retrieveing the data.
+            set when retrieving the data.
         _source_index_identifiers: Map containing an integer identifier for each source.
     """
     _constrained_size_source: Mapping[str, Source] = attr.field(validator=[_only_one_source, _no_overlapping_keys])

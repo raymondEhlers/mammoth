@@ -180,7 +180,7 @@ def _transform_data(
 
 def data(
     data_input: Union[Path, Sequence[Path]],
-    data_source: Callable[[Path], sources.Source],
+    data_source: sources.SourceFromFilename,
     collision_system: str,
     rename_prefix: Mapping[str, str],
     chunk_size: sources.T_ChunkSize = sources.ChunkSizeSentinel.FULL_SOURCE,
@@ -208,8 +208,7 @@ def data(
 
     source = sources.MultiSource(
         sources=[
-            # NOTE: partial doesn't forward the typing information on kwargs
-            data_source(  # type: ignore
+            data_source(
                 filename=_filename,
             )
             for _filename in filenames
@@ -368,9 +367,9 @@ def _event_select_and_transform_embedding(
 
 def embedding(
     signal_input: Union[Path, Sequence[Path]],
-    signal_source: Callable[[Path], sources.Source],
+    signal_source: sources.SourceFromFilename,
     background_input: Union[Path, Sequence[Path]],
-    background_source: Callable[[Path], sources.Source],
+    background_source: sources.SourceFromFilename,
     chunk_size: sources.T_ChunkSize = sources.ChunkSizeSentinel.FULL_SOURCE,
     repeat_unconstrained_when_needed_for_statistics: bool = True,
     background_is_constrained_source: bool = True,
@@ -425,8 +424,7 @@ def embedding(
     # Signal
     pythia_source = sources.MultiSource(
         sources=[
-            # NOTE: partial doesn't forward the typing information on kwargs
-            signal_source(  # type: ignore
+            signal_source(
                 filename=_filename,
             )
             for _filename in signal_filenames
@@ -436,8 +434,7 @@ def embedding(
     # Background
     pbpb_source = sources.MultiSource(
         sources=[
-            # NOTE: partial doesn't forward the typing information on kwargs
-            background_source(  # type: ignore
+            background_source(
                 filename=_filename,
             )
             for _filename in background_filenames
