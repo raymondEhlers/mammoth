@@ -331,6 +331,7 @@ def normalize_for_embedding(
 def _event_select_and_transform_embedding(
     gen_data: sources.T_GenData,
     source_index_identifiers: Mapping[str, int],
+    use_alice_standard_event_selection_on_background: bool = True,
 ) -> sources.T_GenData:
     for arrays in gen_data:
         # Apply some basic requirements on the data
@@ -347,12 +348,13 @@ def _event_select_and_transform_embedding(
 
         # Apply background event selection
         # We have to apply this here because we don't keep track of the background associated quantities.
-        background_event_selection = np.ones(len(arrays)) > 0
-        background_fields = ak.fields(arrays["background"])
-        if "is_ev_rej" in background_fields:
-            background_event_selection = background_event_selection & (arrays["background", "is_ev_rej"] == 0)
-        if "z_vtx_reco" in background_fields:
-            background_event_selection = background_event_selection & (np.abs(arrays["background", "z_vtx_reco"]) < 10)
+        if use_alice_standard_event_selection_on_background:
+            # Use delayed import here. It's admittedly odd to import from the alice module, but it's super
+            # convenient here, so we just run with it.
+            from mammoth.alice import helpers as alice_helpers
+            background_event_selection = alice_helpers.standard_event_selection(arrays["background"], return_mask=True)
+        else:
+            background_event_selection = np.ones(len(arrays)) > 0
 
         # Finally, apply the masks
         arrays = arrays[(mask & background_event_selection)]
@@ -363,7 +365,7 @@ def _event_select_and_transform_embedding(
         )
 
 
-def load_embedding(
+def embedding(
     signal_input: Union[Path, Sequence[Path]],
     signal_source: Callable[[Path], sources.Source],
     background_input: Union[Path, Sequence[Path]],
@@ -371,6 +373,7 @@ def load_embedding(
     chunk_size: sources.T_ChunkSize = sources.ChunkSizeSentinel.FULL_SOURCE,
     repeat_unconstrained_when_needed_for_statistics: bool = True,
     background_is_constrained_source: bool = True,
+    use_alice_standard_event_selection_on_background: bool = True,
 ) -> Union[Tuple[Dict[str, int], ak.Array], Tuple[Dict[str, int], Iterable[ak.Array]]]:
     """Load data for embedding.
 
@@ -393,6 +396,8 @@ def load_embedding(
         repeated_unconstrained_when_needed_for_statistics: Whether to repeat unconstrained events source
             when the unconstrained has fewer events than the constrained. Default: True
         background_is_constrained_source: Whether the background is a constrained source. Default: True
+        use_alice_standard_event_selection_on_background: Whether to use the ALICE standard event selection
+            on the background source.
     Returns:
         A tuple of the source index identifiers and the data. The data is an iterator if we don't ask
             for the full source via the chunk size.
@@ -454,6 +459,7 @@ def load_embedding(
 
     _transform_data_iter = _event_select_and_transform_embedding(
         gen_data=combined_source.gen_data(chunk_size=chunk_size),
-        source_index_identifiers=source_index_identifiers
+        source_index_identifiers=source_index_identifiers,
+        use_alice_standard_event_selection_on_background=use_alice_standard_event_selection_on_background,
     )
     return source_index_identifiers, _transform_data_iter if chunk_size is not sources.ChunkSizeSentinel.FULL_SOURCE else next(_transform_data_iter)
