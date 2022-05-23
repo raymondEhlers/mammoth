@@ -101,9 +101,9 @@ class FileSource:
         Returns:
             A Callable which takes the filename and creates the FileSource.
         """
-        def wrap(_filename: Path) -> "FileSource":
+        def wrap(filename: Path) -> "FileSource":
             return cls(
-                filename=_filename,
+                filename=filename,
                 collision_system=collision_system,
                 default_chunk_size=default_chunk_size,
             )
