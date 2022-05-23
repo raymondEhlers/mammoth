@@ -69,6 +69,7 @@ ReclusteringJetFindingSettings = functools.partial(
 )
 
 DISTANCE_DELTA: Final[float] = 0.01
+VALIDATION_MODE_RANDOM_SEED: Final[List[int]] = [12345, 67890]
 
 def pt_range(pt_min: float = 0.0, pt_max: float = 10000.) -> Tuple[float, float]:
     """Helper to create the pt range, including common default values.
@@ -153,7 +154,8 @@ def shared_momentum_fraction_for_flat_array(
     generator_like_jet_pts: ak.Array,
     generator_like_jet_constituents: ak.Array,
     measured_like_jet_constituents: ak.Array,
-    match_using_distance: bool = False
+    match_using_distance: bool = False,
+    max_matching_distance: float = DISTANCE_DELTA,
 ) -> npt.NDArray[np.float32]:
     """Calculate shared momentum fraction for a flat jet array
 
@@ -171,6 +173,7 @@ def shared_momentum_fraction_for_flat_array(
         generator_like_jet_constituents: Generator-like jet constituents.
         measured_like_jet_constituents: Measured-like jet constituents.
         match_using_distance: If True, match using distance instead of index. Default: False.
+        max_matching_distance: Maximum matching distance if matching using distance. Default: DISTANCE_DELTA (0.01).
     Return:
         Fraction of generator-like jet momentum contained in the measured-like jet.
     """
@@ -605,7 +608,7 @@ def find_jets(
         # Finally, we'll handle the subtracted constituents if relevant
         subtracted_info = res.subtracted_info
         if subtracted_info:
-            # Unpack and store the substracted constituent four vector
+            # Unpack and store the subtracted constituent four vector
             subtracted_constituents["px"].append(subtracted_info[0][0])
             subtracted_constituents["py"].append(subtracted_info[0][1])
             subtracted_constituents["pz"].append(subtracted_info[0][2])

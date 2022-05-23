@@ -93,7 +93,7 @@ def analysis_MC(arrays: ak.Array, jet_R: float, min_jet_pt: Mapping[str, float],
     # First, setup what is needed for validation mode if enabled
     area_kwargs = {}
     if validation_mode:
-        area_kwargs["random_seed"] = [12345, 67890]
+        area_kwargs["random_seed"] = jet_finding.VALIDATION_MODE_RANDOM_SEED
     jets = ak.zip(
         {
             "part_level": jet_finding.find_jets(
@@ -208,7 +208,7 @@ def analysis_data(
     # First, setup what is needed for validation mode if enabled
     area_kwargs = {}
     if validation_mode:
-        area_kwargs["random_seed"] = [12345, 67890]
+        area_kwargs["random_seed"] = jet_finding.VALIDATION_MODE_RANDOM_SEED
 
     area_settings = jet_finding.AreaPP(**area_kwargs)
     additional_kwargs: Dict[str, Any] = {}
@@ -399,7 +399,7 @@ def load_embedding_multiple_sources(
     # By default the background is the constrained source
     constrained_size_source = {"background": pbpb_source}
     unconstrained_size_source = {"signal": pythia_source}
-    # Swap when the signal is the contrained source
+    # Swap when the signal is the constrained source
     if not background_is_constrained_source:
         unconstrained_size_source, constrained_size_source = constrained_size_source, unconstrained_size_source
 
@@ -582,7 +582,7 @@ def analysis_embedding(
     # First, setup what is needed for validation mode if enabled
     area_kwargs = {}
     if validation_mode:
-        area_kwargs["random_seed"] = [12345, 67890]
+        area_kwargs["random_seed"] = jet_finding.VALIDATION_MODE_RANDOM_SEED
     # We usually calculate rho only using the PbPb particles (ie. not including the embedded det_level),
     # so we need to select only them.
     # NOTE: The most general approach would be some divisor argument to select the signal source indexed
