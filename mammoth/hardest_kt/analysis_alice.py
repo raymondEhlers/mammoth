@@ -790,11 +790,11 @@ if __name__ == "__main__":
         logger.info(f"Analyzing \"{collision_system}\"")
         jets = analysis_data(
             collision_system=collision_system,
-            arrays=load_data.load_data(
+            arrays=load_data.data(
                 data_input=Path(
                     f"/software/rehlers/dev/mammoth/projects/framework/{collision_system}/AnalysisResults_track_skim.parquet"
                 ),
-                data_source=functools.partial(track_skim.FileSource, collision_system=collision_system),
+                data_source=track_skim.FileSource.create_source_from_filename(collision_system=collision_system),
                 collision_system=collision_system,
                 rename_prefix={"data": "data"} if collision_system != "pythia" else {"data": "det_level"},
             ),
