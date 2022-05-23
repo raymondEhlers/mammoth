@@ -122,7 +122,7 @@ def setup_logging_and_parsl(
     # Just in case, try to reset parsl to a reasonable level. It probably won't work,
     # but it doesn't hurt.
     logging.getLogger("parsl").setLevel(logging.WARNING)
-    # And then log the stored messsages, so they have a chance to emit at the desired level
+    # And then log the stored messages, so they have a chance to emit at the desired level
     for message in stored_messages:
         message.log()
 
