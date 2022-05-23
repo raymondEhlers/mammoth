@@ -178,7 +178,7 @@ def _transform_data(
         yield normalize_for_data(arrays=arrays, rename_prefix=rename_prefix)
 
 
-def load_data(
+def data(
     data_input: Union[Path, Sequence[Path]],
     data_source: Callable[[Path], sources.Source],
     collision_system: str,
@@ -195,6 +195,7 @@ def load_data(
         collision_system: Collision system corresponding to the data to load.
         rename_prefix: Prefix to label the data, and any mapping that we might need to perform. Note: the mapping
             goes from value -> key!
+        chunk_size: Chunk size to use when loading the data. Default: Full source.
     Returns:
         The loaded data, transformed as appropriate based on the collision system
     """
