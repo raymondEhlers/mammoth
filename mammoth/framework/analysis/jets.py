@@ -1,4 +1,4 @@
-""" General analysis tools.
+""" Jet related analysis tools.
 
 These all build on various aspects of the framework, but are at a higher level than the basic framework
 functionality itself.
@@ -8,12 +8,13 @@ functionality itself.
 
 import logging
 from pathlib import Path
+from typing import Any
 
 import awkward as ak
 import numpy as np
+from pachyderm import binned_data
 
-from mammoth.framework import jet_finding, load_data, sources
-from mammoth.framework.io import track_skim
+from mammoth.framework import jet_finding
 
 
 logger = logging.getLogger(__name__)
