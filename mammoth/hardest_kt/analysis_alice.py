@@ -15,7 +15,8 @@ import vector
 
 from mammoth import helpers
 from mammoth.alice import helpers as alice_helpers
-from mammoth.framework import analysis_tools, jet_finding, load_data, sources
+from mammoth.framework import jet_finding, load_data, sources
+from mammoth.framework.analysis_tools import jets
 from mammoth.framework.io import track_skim
 
 
@@ -143,7 +144,7 @@ def analysis_MC(arrays: ak.Array, jet_R: float, min_jet_pt: Mapping[str, float],
 
     # Jet matching
     logger.info("Matching jets")
-    jets = analysis_tools.jet_matching_MC(
+    jets = jets.jet_matching_MC(
         jets=jets,
         # NOTE: This is larger than the matching distance that I would usually use (where we usually use 0.3 =
         #       in embedding), but this is apparently what we use in pythia. So just go with it.
@@ -715,7 +716,7 @@ def analysis_embedding(
 
     # Jet matching
     logger.info("Matching jets")
-    jets = analysis_tools.jet_matching_embedding(
+    jets = jets.jet_matching_embedding(
         jets=jets,
         det_level_hybrid_max_matching_distance=0.3,
         part_level_det_level_max_matching_distance=0.3,
