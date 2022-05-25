@@ -91,7 +91,7 @@ def _describe_production_software(
     return output
 
 
-def read_full_config(config_path: Optional[Path] = None) -> Dict[str, Any]:
+def _read_full_config(config_path: Optional[Path] = None) -> Dict[str, Any]:
     """Read full YAML configuration file.
 
     Args:
@@ -120,32 +120,6 @@ class ProductionSpecialization(Protocol):
     def tasks_to_execute(self, collision_system: str) -> List[str]:
         ...
 
-
-@attrs.frozen()
-class HardestKtProductionSpecialization:
-    def customize_identifier(self, analysis_settings: Mapping[str, Any]) -> str:
-        name = ""
-        # Selection of splittings
-        splittings_selection_value = SplittingsSelection[analysis_settings["splittings_selection"]]
-        name += f"_{str(splittings_selection_value)}"
-        return name
-
-    def tasks_to_execute(self, collision_system: str) -> List[str]:
-        _tasks = []
-
-        # Skim task
-        _base_name = "calculate_{label}_skim"
-        _label_map = {
-            "pp": "data",
-            "pythia": "data",
-            "PbPb": "data",
-            "embedPythia": "embed_pythia",
-            "embed_thermal_model": "embed_thermal_model",
-        }
-        _tasks.append(
-            _base_name.format(label=_label_map[collision_system])
-        )
-        return _tasks
 
 
 _possible_collision_systems = [
@@ -239,8 +213,17 @@ class ProductionSettings:
             self.config["metadata"]["dataset"]["files"]
         )
 
+    @property
+    def has_scale_factors(self) -> bool:
+        return (
+            "signal_dataset" in self.config["metadata"]
+            or "n_pt_hat_bins" in self.config["metadata"]["dataset"]
+        ) and (
+            self.collision_system in _collision_systems_with_scale_factors
+        )
+
     def input_files_per_pt_hat(self) -> Dict[int, List[Path]]:
-        if self.collision_system not in ["pythia", "embedPythia", "embed_thermal_model"]:
+        if self.has_scale_factors:
             raise ValueError(f"Asking for input files per pt hat doesn't make sense for collision system {self.collision_system}")
 
         # Will be signal_dataset if embedded, but otherwise will be the standard "dataset" key
@@ -259,16 +242,9 @@ class ProductionSettings:
         return _files
 
     @property
-    def has_scale_factors(self) -> bool:
-        return (
-            "signal_dataset" in self.config["metadata"]
-            or "n_pt_hat_bins" in self.config["metadata"]["dataset"]
-        )
-
-    @property
     def scale_factors_filename(self) -> Path:
         # Validation
-        if self.collision_system not in _collision_systems_with_scale_factors:
+        if not self.has_scale_factors:
             raise ValueError(f"Invalid collision system for extracting scale factors: {self.collision_system}")
 
         dataset_key = "signal_dataset" if "signal_dataset" in self.config["metadata"] else "dataset"
@@ -357,7 +333,7 @@ class ProductionSettings:
 
     @classmethod
     def read_config(cls, collision_system: str, number: int, specialization: ProductionSpecialization, track_skim_config_filename: Optional[Path] = None) -> "ProductionSettings":
-        track_skim_config = read_full_config(track_skim_config_filename)
+        track_skim_config = _read_full_config(track_skim_config_filename)
         config = track_skim_config["productions"][collision_system][number]
 
         return cls(
