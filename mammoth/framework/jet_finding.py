@@ -15,11 +15,15 @@ import vector
 
 import mammoth._ext
 from mammoth._ext import (
-    AreaSettings, JetFindingSettings,
-    JetMedianBackgroundEstimator, GridMedianBackgroundEstimator,  # noqa: F401
-    BackgroundSubtractionType, RhoSubtractor, ConstituentSubtractor,  # noqa: F401
+    AreaSettings,
+    JetFindingSettings,
+    JetMedianBackgroundEstimator,
+    GridMedianBackgroundEstimator,  # noqa: F401
+    BackgroundSubtractionType,
+    RhoSubtractor,
+    ConstituentSubtractor,  # noqa: F401
     BackgroundSubtraction,
-    DEFAULT_RAPIDITY_MAX  # noqa: F401
+    DEFAULT_RAPIDITY_MAX,  # noqa: F401
 )
 
 logger = logging.getLogger(__name__)
@@ -46,7 +50,7 @@ JetMedianJetFindingSettings = functools.partial(
     algorithm="kt",
     recombination_scheme="E_scheme",
     strategy="Best",
-    pt_range=(0., 10000.),
+    pt_range=(0.0, 10000.0),
     eta_range=(-0.9 + 0.2, 0.9 - 0.2),
     area_settings=AreaAA(),
 )
@@ -64,14 +68,15 @@ ReclusteringJetFindingSettings = functools.partial(
     algorithm="CA",
     recombination_scheme="E_scheme",
     strategy="Best",
-    pt_range=(0.0, 10000.),
-    eta_range=(-5., 5.),
+    pt_range=(0.0, 10000.0),
+    eta_range=(-5.0, 5.0),
 )
 
 DISTANCE_DELTA: Final[float] = 0.01
 VALIDATION_MODE_RANDOM_SEED: Final[List[int]] = [12345, 67890]
 
-def pt_range(pt_min: float = 0.0, pt_max: float = 10000.) -> Tuple[float, float]:
+
+def pt_range(pt_min: float = 0.0, pt_max: float = 10000.0) -> Tuple[float, float]:
     """Helper to create the pt range, including common default values.
 
     Args:
@@ -84,7 +89,9 @@ def pt_range(pt_min: float = 0.0, pt_max: float = 10000.) -> Tuple[float, float]
     return float(pt_min), float(pt_max)
 
 
-def eta_range(jet_R: float, fiducial_acceptance: bool, eta_min: float = -0.9, eta_max: float = 0.9) -> Tuple[float, float]:
+def eta_range(
+    jet_R: float, fiducial_acceptance: bool, eta_min: float = -0.9, eta_max: float = 0.9
+) -> Tuple[float, float]:
     """Helper to create the eta range, including common default values.
 
     Args:
@@ -108,9 +115,9 @@ def _shared_momentum_fraction_for_flat_array_implementation(
     generator_like_jet_constituent_indices: ak.Array,
     measured_like_jet_constituents: ak.Array,
     measured_like_jet_constituent_indices: ak.Array,
-    match_using_distance: bool = False
+    match_using_distance: bool = False,
 ) -> npt.NDArray[np.float32]:
-    """ Implementation of the shared momentum fraction
+    """Implementation of the shared momentum fraction
 
     Why passed the indices separately? Because when awkward has a momentum field, it doesn't seem to pass
     the other fields along. So we workaround it by passing it separately so we can use it now, at the cost
@@ -120,28 +127,43 @@ def _shared_momentum_fraction_for_flat_array_implementation(
     delta = DISTANCE_DELTA
     shared_momentum_fraction = np.zeros(len(generator_like_jet_constituents), dtype=np.float32)
 
-    for i, (generator_like_jet_pt, generator_like_constituents, generator_like_constituent_indices, measured_like_constituents, measured_like_constituent_indices) in \
-        enumerate(zip(generator_like_jet_pts,
-                      generator_like_jet_constituents, generator_like_jet_constituent_indices,
-                      measured_like_jet_constituents, measured_like_jet_constituent_indices)):
+    for i, (
+        generator_like_jet_pt,
+        generator_like_constituents,
+        generator_like_constituent_indices,
+        measured_like_constituents,
+        measured_like_constituent_indices,
+    ) in enumerate(
+        zip(
+            generator_like_jet_pts,
+            generator_like_jet_constituents,
+            generator_like_jet_constituent_indices,
+            measured_like_jet_constituents,
+            measured_like_jet_constituent_indices,
+        )
+    ):
         sum_pt = 0
-        for generator_like_constituent, generator_like_constituent_index in zip(generator_like_constituents, generator_like_constituent_indices):
-            #print(f"generator: index: {generator_like_constituent.index}, pt: {generator_like_constituent.pt}")
-            for measured_like_constituent, measured_like_constituent_index in zip(measured_like_constituents, measured_like_constituent_indices):
-                #print(f"measured: index: {measured_like_constituent.index}, pt: {measured_like_constituent.pt}")
+        for generator_like_constituent, generator_like_constituent_index in zip(
+            generator_like_constituents, generator_like_constituent_indices
+        ):
+            # print(f"generator: index: {generator_like_constituent.index}, pt: {generator_like_constituent.pt}")
+            for measured_like_constituent, measured_like_constituent_index in zip(
+                measured_like_constituents, measured_like_constituent_indices
+            ):
+                # print(f"measured: index: {measured_like_constituent.index}, pt: {measured_like_constituent.pt}")
                 if match_using_distance:
                     if np.abs(measured_like_constituent.eta - generator_like_constituent.eta) > delta:
                         continue
                     if np.abs(measured_like_constituent.phi - generator_like_constituent.phi) > delta:
                         continue
                 else:
-                    #if generator_like_constituent.index != measured_like_constituent.index:
-                    #if generator_like_constituent["index"] != measured_like_constituent["index"]:
+                    # if generator_like_constituent.index != measured_like_constituent.index:
+                    # if generator_like_constituent["index"] != measured_like_constituent["index"]:
                     if generator_like_constituent_index != measured_like_constituent_index:
                         continue
 
                 sum_pt += generator_like_constituent.pt
-                #print(f"Right after sum_pt: {sum_pt}")
+                # print(f"Right after sum_pt: {sum_pt}")
                 # We've matched once - no need to match again.
                 # Otherwise, the run the risk of summing a generator-like constituent pt twice.
                 break
@@ -324,7 +346,7 @@ def _jet_matching(
 
 
 def jet_matching_geometrical(jets_base: ak.Array, jets_tag: ak.Array, max_matching_distance: float) -> ak.Array:
-    """ Main interface for geometrical jet matching
+    """Main interface for geometrical jet matching
 
     Matches are required to be bijective (ie. base <-> tag).
 
@@ -345,19 +367,22 @@ def jet_matching_geometrical(jets_base: ak.Array, jets_tag: ak.Array, max_matchi
 
     # These messages were useful for debugging, but we're quite noisy. We don't need them anymore, so they're
     # commented out, but they're left here in case they're needed in the future
-    #logger.debug(
+    # logger.debug(
     #    f"base_to_tag_matching_np: {base_to_tag_matching_np}, tag_to_base_matching_np: {tag_to_base_matching_np}"
-    #)
-    #logger.debug(f"base_to_tag_matching: {base_to_tag_matching}, tag_to_base_matching: {tag_to_base_matching}")
+    # )
+    # logger.debug(f"base_to_tag_matching: {base_to_tag_matching}, tag_to_base_matching: {tag_to_base_matching}")
 
     return base_to_tag_matching, tag_to_base_matching
 
 
 @nb.njit  # type: ignore
 def _calculate_unsubtracted_constituent_max_pt(
-    input_arrays: ak.Array, input_arrays_indices: ak.Array, input_constituents_indices: ak.Array, builder: ak.ArrayBuilder
+    input_arrays: ak.Array,
+    input_arrays_indices: ak.Array,
+    input_constituents_indices: ak.Array,
+    builder: ak.ArrayBuilder,
 ) -> ak.ArrayBuilder:
-    """ Implementation of calculating the unsubtracted constituent max pt
+    """Implementation of calculating the unsubtracted constituent max pt
 
     Since matching all of the indices, etc is a pain, we just implement via numba, where it appears to
     be fast enough.
@@ -373,8 +398,9 @@ def _calculate_unsubtracted_constituent_max_pt(
     Returns:
         ArrayBuilder containing the unsubtracted max pt for each jet.
     """
-    for particles_in_event, particles_indices_in_event, jets_constituents_indices_in_event in \
-        zip(input_arrays, input_arrays_indices, input_constituents_indices):
+    for particles_in_event, particles_indices_in_event, jets_constituents_indices_in_event in zip(
+        input_arrays, input_arrays_indices, input_constituents_indices
+    ):
         builder.begin_list()
         for constituents_indices in jets_constituents_indices_in_event:
             unsubtracted_constituent_pt = []
@@ -389,7 +415,7 @@ def _calculate_unsubtracted_constituent_max_pt(
 
 
 def calculate_unsubtracted_constituent_max_pt(arrays: ak.Array, constituents: ak.Array) -> ak.Array:
-    """ Calculate the unsubtracted constituent max pt
+    """Calculate the unsubtracted constituent max pt
 
     This function is used for calculating the unsubtracted constituent max pt when performing constituent
     subtraction.
@@ -406,13 +432,11 @@ def calculate_unsubtracted_constituent_max_pt(arrays: ak.Array, constituents: ak
         input_arrays=arrays,
         input_arrays_indices=arrays.index,
         input_constituents_indices=constituents.index,
-        builder=ak.ArrayBuilder()
+        builder=ak.ArrayBuilder(),
     ).snapshot()
 
 
-def _apply_constituent_indices_to_expanded_array(
-    array_to_expand: ak.Array, constituent_indices: ak.Array
-) -> ak.Array:
+def _apply_constituent_indices_to_expanded_array(array_to_expand: ak.Array, constituent_indices: ak.Array) -> ak.Array:
     """Expand array by duplicating entries and then apply the constituent indices to select from that array.
 
     We end up with doubly-jagged constituent indices, but singly-jagged arrays (`array_to_expand`).
@@ -576,7 +600,9 @@ def find_jets(
         "E": [],
     }
     subtracted_to_unsubtracted_indices = []
-    for lower, upper, background_lower, background_upper in zip(sum_counts[:-1], sum_counts[1:], background_sum_counts[:-1], background_sum_counts[1:]):
+    for lower, upper, background_lower, background_upper in zip(
+        sum_counts[:-1], sum_counts[1:], background_sum_counts[:-1], background_sum_counts[1:]
+    ):
         # Run the actual jet finding.
         res = mammoth._ext.find_jets(
             px=px[lower:upper],
@@ -751,14 +777,8 @@ def recluster_jets(
     offsets_constituents = np.cumsum(np.asarray(ak.flatten(num_constituents, axis=1)))
     offsets_constituents = np.insert(offsets_constituents, 0, 0)  # type: ignore
     # Then into starts and stops
-    starts_constituents = ak.unflatten(
-        offsets_constituents[:-1],
-        ak.num(num_constituents, axis=1)
-    )
-    stops_constituents = ak.unflatten(
-        offsets_constituents[1:],
-        ak.num(num_constituents, axis=1)
-    )
+    starts_constituents = ak.unflatten(offsets_constituents[:-1], ak.num(num_constituents, axis=1))
+    stops_constituents = ak.unflatten(offsets_constituents[1:], ak.num(num_constituents, axis=1))
 
     # Now, setup the constituents themselves.
     # It would be nice to flatten them and then assign the components like for standard jet
@@ -810,14 +830,12 @@ def recluster_jets(
 
     return ak.zip(
         {
-            "jet_splittings": ak.zip(
-                event_splittings
-            ),
+            "jet_splittings": ak.zip(event_splittings),
             "subjets": ak.zip(
                 event_subjets,
                 # zip over events, jets, and subjets (but can't go all the way due to the constituent indices)
                 depth_limit=3,
-            )
+            ),
         },
-        depth_limit=2
+        depth_limit=2,
     )

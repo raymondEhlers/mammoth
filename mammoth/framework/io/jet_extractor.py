@@ -48,11 +48,15 @@ class JEWELFileSource:
     _filename: Path = attrs.field(converter=Path)
     # We always want to pull in as many tracks as possible, so take the largest possible R
     _extractor_jet_R: float = attrs.field(default=0.6)
-    _entry_range: utils.Range = attrs.field(converter=sources.convert_sequence_to_range, default=utils.Range(None, None))
+    _entry_range: utils.Range = attrs.field(
+        converter=sources.convert_sequence_to_range, default=utils.Range(None, None)
+    )
     _default_chunk_size: sources.T_ChunkSize = attrs.field(default=sources.ChunkSizeSentinel.FULL_SOURCE)
     metadata: MutableMapping[str, Any] = attrs.Factory(dict)
 
-    def gen_data(self, chunk_size: sources.T_ChunkSize = sources.ChunkSizeSentinel.SOURCE_DEFAULT) -> Generator[ak.Array, Optional[sources.T_ChunkSize], None]:
+    def gen_data(
+        self, chunk_size: sources.T_ChunkSize = sources.ChunkSizeSentinel.SOURCE_DEFAULT
+    ) -> Generator[ak.Array, Optional[sources.T_ChunkSize], None]:
         """A iterator over a fixed size of data from the source.
 
         Returns:
@@ -79,23 +83,25 @@ def _transform_output(
         data = next(gen_data)
         while True:
             # NOTE: The return values are formatted in this manner to avoid unnecessary copies of the data.
-            _result = yield ak.Array({
-                "part_level": ak.zip(
-                    dict(
-                        zip(
-                            #[c.replace("Jet_T", "t").lower() for c in list(particle_columns)],
-                            list(_columns.particle_level.values()),
-                            ak.unzip(data[_columns.particle_level]),
+            _result = yield ak.Array(
+                {
+                    "part_level": ak.zip(
+                        dict(
+                            zip(
+                                # [c.replace("Jet_T", "t").lower() for c in list(particle_columns)],
+                                list(_columns.particle_level.values()),
+                                ak.unzip(data[_columns.particle_level]),
+                            )
                         )
-                    )
-                ),
-                **dict(
-                    zip(
-                        list(_columns.event_level.values()),
-                        ak.unzip(data[_columns.event_level]),
-                    )
-                ),
-            })
+                    ),
+                    **dict(
+                        zip(
+                            list(_columns.event_level.values()),
+                            ak.unzip(data[_columns.event_level]),
+                        )
+                    ),
+                }
+            )
 
             # Update for next step
             data = gen_data.send(_result)
@@ -148,6 +154,7 @@ def write_to_parquet(arrays: ak.Array, filename: Path) -> bool:
 
 if __name__ == "__main__":
     import mammoth.helpers
+
     mammoth.helpers.setup_logging(level=logging.INFO)
 
     # Setup
@@ -173,7 +180,9 @@ if __name__ == "__main__":
         "60_80",
         "80_140",
     ]:
-        filename = Path(f"/alf/data/rehlers/skims/JEWEL_PbPb_no_recoil/JEWEL_{JEWEL_identifier}_PtHard{pt_hat_bin}.root")
+        filename = Path(
+            f"/alf/data/rehlers/skims/JEWEL_PbPb_no_recoil/JEWEL_{JEWEL_identifier}_PtHard{pt_hat_bin}.root"
+        )
 
         # Keep track of iteration
         start = 0
@@ -199,7 +208,7 @@ if __name__ == "__main__":
             output_dir.mkdir(parents=True, exist_ok=True)
             write_to_parquet(
                 arrays=arrays,
-                filename=(output_dir / f"{filename.stem}_{index:03}").with_suffix('.parquet'),
+                filename=(output_dir / f"{filename.stem}_{index:03}").with_suffix(".parquet"),
             )
 
             if len(arrays) < (end - start):
@@ -212,4 +221,4 @@ if __name__ == "__main__":
 
         logger.info(f"Finished at index {index} for pt hat bin {pt_hat_bin}")
 
-    #import IPython; IPython.start_ipython(user_ns={**globals(),**locals()})
+    # import IPython; IPython.start_ipython(user_ns={**globals(),**locals()})

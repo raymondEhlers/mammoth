@@ -20,6 +20,7 @@ class Columns:
         This isn't implemented yet. I haven't gone through the steps because they're not yet needed,
         but this is the start.
     """
+
     identifiers: Dict[str, str]
     event_level: Dict[str, str]
     particle_level: Dict[str, str]
@@ -35,20 +36,13 @@ class Columns:
             "ev_id": "ev_id",
         }
         if collision_system in ["pp", "PbPb"]:
-            identifiers.update({
-                "ev_id_ext": "ev_id_ext"
-            })
+            identifiers.update({"ev_id_ext": "ev_id_ext"})
 
         # Event level properties
-        event_level_columns = {
-            "z_vtx_reco": "z_vtx_reco",
-            "is_ev_rej": "is_ev_rej"
-        }
+        event_level_columns = {"z_vtx_reco": "z_vtx_reco", "is_ev_rej": "is_ev_rej"}
         # Collision system customization
         if collision_system == "PbPb":
-            event_level_columns.update({
-                "centrality": "centrality"
-            })
+            event_level_columns.update({"centrality": "centrality"})
             # For the future, perhaps can add:
             # - event plane angle (but doesn't seem to be in HF tree output :-( )
 

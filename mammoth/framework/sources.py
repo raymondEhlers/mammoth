@@ -47,12 +47,15 @@ class ChunkSizeSentinel(enum.Enum):
 T_ChunkSize = Union[int, ChunkSizeSentinel]
 T_GenData = Generator[ak.Array, Optional[T_ChunkSize], None]
 
+
 class SourceFromFilename(Protocol):
     """Create a source from a filename.
 
     This is used for loading data, but it's much more convenient if it's available from the sources.
     """
-    def __call__(self, filename: Path) -> Source: ...
+
+    def __call__(self, filename: Path) -> Source:
+        ...
 
 
 # Allows loading all chunks by picking a number larger than any possible (set of) file(s).
@@ -95,7 +98,9 @@ def _validate_chunk_size(chunk_size: T_ChunkSize, source_default_chunk_size: T_C
     # Initial validation
     if chunk_size is ChunkSizeSentinel.SOURCE_DEFAULT:
         chunk_size = source_default_chunk_size
-        assert chunk_size is not ChunkSizeSentinel.SOURCE_DEFAULT, "The default chunk size for a source cannot be SOURCE_DEFAULT"
+        assert (
+            chunk_size is not ChunkSizeSentinel.SOURCE_DEFAULT
+        ), "The default chunk size for a source cannot be SOURCE_DEFAULT"
 
     # Full validation
     # Perform the rest of the validation now that we know the chunk size input
@@ -113,7 +118,7 @@ def generator_from_existing_data(
     data: ak.Array,
     chunk_size: T_ChunkSize,
     source_default_chunk_size: T_ChunkSize,
-    warn_on_not_enough_data: bool = False
+    warn_on_not_enough_data: bool = False,
 ) -> T_GenData:
     # Validation
     # Chunk size
@@ -144,9 +149,7 @@ def generator_from_existing_data(
         _result = yield data[:_remaining_n_events]
         # If we received a send argument, use this to update the chunk_size
         if _result is not None:
-            chunk_size = _validate_chunk_size(
-                chunk_size=_result, source_default_chunk_size=source_default_chunk_size
-            )
+            chunk_size = _validate_chunk_size(chunk_size=_result, source_default_chunk_size=source_default_chunk_size)
         data = data[_remaining_n_events:]
 
     # And indicate we're done. Not necessarily required, but I want to be quite explicit here.
@@ -208,7 +211,9 @@ class UprootSource:
         #       This isn't currently (March 2022) a big issue, but if that changes, we could rewrite this to become
         #       more efficient by reading and yielding chunks of the requested size directly from uproot.
         return generator_from_existing_data(
-            data=self._data(), chunk_size=chunk_size, source_default_chunk_size=self._default_chunk_size,
+            data=self._data(),
+            chunk_size=chunk_size,
+            source_default_chunk_size=self._default_chunk_size,
         )
 
 
@@ -276,16 +281,19 @@ class ParquetSource:
 
     def gen_data(self, chunk_size: T_ChunkSize = ChunkSizeSentinel.SOURCE_DEFAULT) -> T_GenData:
         return generator_from_existing_data(
-            data=self._data(), chunk_size=chunk_size, source_default_chunk_size=self._default_chunk_size,
+            data=self._data(),
+            chunk_size=chunk_size,
+            source_default_chunk_size=self._default_chunk_size,
         )
 
 
 @attr.define
 class ALICEFastSimTrackingEfficiency:
-    """ ALICE fast simulation based on tracking efficiency
+    """ALICE fast simulation based on tracking efficiency
 
     This is definitely a poor man's implementation, but it's fine for a first look.
     """
+
     particle_level_source: Source
     fast_sim_parameters: models.ALICEFastSimParameters
     _default_chunk_size: Union[int, ChunkSizeSentinel] = attr.field(default=ChunkSizeSentinel.FULL_SOURCE)
@@ -429,7 +437,7 @@ class ThermalModelExponential:
                 x_min=0,
                 x_max=400,
             )
-            #eta = rng.uniform(low=-1, high=1, size=total_n_samples)
+            # eta = rng.uniform(low=-1, high=1, size=total_n_samples)
             # We want to match the ALICE TPC acceptance
             eta = rng.uniform(low=-0.9, high=0.9, size=total_n_samples)
             phi = rng.uniform(low=-np.pi, high=np.pi, size=total_n_samples)
@@ -440,23 +448,26 @@ class ThermalModelExponential:
             # Finally, add the particle structure at the end.
             # NOTE: We return it wrapped in the "data" key because the framework
             #       expects that every source has some kind of particle column name.
-            _result = yield ak.Array({
-                self._particle_column_prefix: ak.unflatten(
-                    ak.Array(
-                        {
-                            "px": pt * np.cos(phi),
-                            "py": pt * np.sin(phi),
-                            "pz": pz,
-                            "E": np.sqrt(pt ** 2 + pz ** 2),
-                        }
-                    ),
-                    counts=n_particles_per_event,
-                )
-            })
+            _result = yield ak.Array(
+                {
+                    self._particle_column_prefix: ak.unflatten(
+                        ak.Array(
+                            {
+                                "px": pt * np.cos(phi),
+                                "py": pt * np.sin(phi),
+                                "pz": pz,
+                                "E": np.sqrt(pt**2 + pz**2),
+                            }
+                        ),
+                        counts=n_particles_per_event,
+                    )
+                }
+            )
             # Update the chunk size if necessary
             if _result is not None:
                 chunk_size = _validate_chunk_size(
-                    chunk_size=_result, source_default_chunk_size=self._default_chunk_size,
+                    chunk_size=_result,
+                    source_default_chunk_size=self._default_chunk_size,
                 )
 
             # If we want to stop after one iteration, we need to do it now
@@ -543,9 +554,7 @@ class MultiSource:
                         # Cleanup
                         # NOTE: Assign rather than append because we now used all of the previously stored data.
                         if _index_to_slice_current_data != 0:
-                            _remaining_data_from_last_loop = [
-                                _current_data[_index_to_slice_current_data:]
-                            ]
+                            _remaining_data_from_last_loop = [_current_data[_index_to_slice_current_data:]]
                         else:
                             _remaining_data_from_last_loop = []
                         # It's negative, so we need to take abs
@@ -553,7 +562,9 @@ class MultiSource:
 
                     # Update the chunk size if received a new one
                     if _result is not None:
-                        chunk_size = _validate_chunk_size(chunk_size=_result, source_default_chunk_size=source._default_chunk_size)
+                        chunk_size = _validate_chunk_size(
+                            chunk_size=_result, source_default_chunk_size=source._default_chunk_size
+                        )
                     # And keep going with the current source
                     _current_data = _current_data_iter.send(_result)
             except StopIteration:
@@ -567,7 +578,7 @@ class MultiSource:
             _result = yield ak.concatenate(_remaining_data_from_last_loop, axis=0)
         elif len(_remaining_data_from_last_loop) == 1:
             _result = yield _remaining_data_from_last_loop[0]
-        #logger.info("Done!")
+        # logger.info("Done!")
         # Done!
 
 
@@ -577,9 +588,8 @@ def _only_one_source(
     value: Mapping[str, int],
 ) -> None:
     if len(instance._constrained_size_source) != 1:
-        raise ValueError(
-            f"Only one constrained source allow! Provided: {instance._constrained_size_source}"
-        )
+        raise ValueError(f"Only one constrained source allow! Provided: {instance._constrained_size_source}")
+
 
 def _no_overlapping_keys(
     instance: "CombineSources",
@@ -615,7 +625,9 @@ def _has_offset_per_source(
     attribute: attr.Attribute[Mapping[str, int]],
     value: Mapping[str, int],
 ) -> None:
-    if (set(instance._constrained_size_source) | set(instance._unconstrained_size_sources)) != set(instance._source_index_identifiers):
+    if (set(instance._constrained_size_source) | set(instance._unconstrained_size_sources)) != set(
+        instance._source_index_identifiers
+    ):
         raise ValueError(
             f"Mismatch in sources and offsets. Constrained size sources: {list(instance._constrained_size_source)}, unconstrained sources: {list(instance._unconstrained_size_sources)}, offsets: {list(instance._source_index_identifiers)}"
         )
@@ -637,6 +649,7 @@ class CombineSources:
             set when retrieving the data.
         _source_index_identifiers: Map containing an integer identifier for each source.
     """
+
     _constrained_size_source: Mapping[str, Source] = attr.field(validator=[_only_one_source, _no_overlapping_keys])
     _unconstrained_size_sources: Mapping[str, Source] = attr.field(validator=[_no_overlapping_keys])
     _source_index_identifiers: Mapping[str, int] = attr.field(
@@ -646,7 +659,7 @@ class CombineSources:
     _default_chunk_size: T_ChunkSize = attr.field(default=ChunkSizeSentinel.SOURCE_DEFAULT)
     metadata: MutableMapping[str, Any] = attr.Factory(dict)
 
-    #def data(self) -> ak.Array:
+    # def data(self) -> ak.Array:
     #    return next(self.gen_data(chunk_size=ChunkSizeSentinel.FULL_SOURCE))
 
     def gen_data(self, chunk_size: T_ChunkSize = ChunkSizeSentinel.SOURCE_DEFAULT) -> T_GenData:
@@ -654,7 +667,9 @@ class CombineSources:
             chunk_size = self._default_chunk_size
         # Grab the iter from the constrained size source first
         constrained_size_source_name = next(iter(self._constrained_size_source))
-        constrained_size_source_generator = self._constrained_size_source[constrained_size_source_name].gen_data(chunk_size=chunk_size)
+        constrained_size_source_generator = self._constrained_size_source[constrained_size_source_name].gen_data(
+            chunk_size=chunk_size
+        )
 
         unconstrained_size_sources_generators: Dict[str, T_GenData] = {}
 
@@ -664,18 +679,13 @@ class CombineSources:
             # We need data of a fixed size, so set that size for each of the other iterators.
             if not unconstrained_size_sources_generators:
                 unconstrained_size_sources_generators = {
-                    k: v.gen_data(chunk_size=determined_chunk_size)
-                    for k, v in self._unconstrained_size_sources.items()
+                    k: v.gen_data(chunk_size=determined_chunk_size) for k, v in self._unconstrained_size_sources.items()
                 }
-                unconstrained_size_sources_data = {
-                    k: next(v)
-                    for k, v in unconstrained_size_sources_generators.items()
-                }
+                unconstrained_size_sources_data = {k: next(v) for k, v in unconstrained_size_sources_generators.items()}
             else:
                 # Using the existing generator, send the chunk size that we need.
                 unconstrained_size_sources_data = {
-                    k: v.send(determined_chunk_size)
-                    for k, v in unconstrained_size_sources_generators.items()
+                    k: v.send(determined_chunk_size) for k, v in unconstrained_size_sources_generators.items()
                 }
 
             # Add metadata
@@ -684,11 +694,8 @@ class CombineSources:
             # NOTE: We're safe to blindly combine these here because the class validates that there
             #       are no overlapping keys between the fixed size and chunked data.
             _result = yield ak.zip(
-                {
-                    **{constrained_size_source_name: constrained_size_data},
-                    **unconstrained_size_sources_data
-                },
-                depth_limit=1
+                {**{constrained_size_source_name: constrained_size_data}, **unconstrained_size_sources_data},
+                depth_limit=1,
             )
             if _result is not None:
                 # NOTE: If there was a need, we could update the constrained source.

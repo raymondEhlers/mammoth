@@ -38,7 +38,7 @@ class Columns:
             "partphi": "phi",
             "partm": "m",
             "partc": "charge",
-            "parts": "scattering_center"
+            "parts": "scattering_center",
         }
 
         return cls(
@@ -50,11 +50,15 @@ class Columns:
 @attrs.define
 class FileSource:
     _filename: Path = attrs.field(converter=Path)
-    _entry_range: utils.Range = attrs.field(converter=sources.convert_sequence_to_range, default=utils.Range(None, None))
+    _entry_range: utils.Range = attrs.field(
+        converter=sources.convert_sequence_to_range, default=utils.Range(None, None)
+    )
     _default_chunk_size: sources.T_ChunkSize = attrs.field(default=sources.ChunkSizeSentinel.FULL_SOURCE)
     metadata: MutableMapping[str, Any] = attrs.Factory(dict)
 
-    def gen_data(self, chunk_size: sources.T_ChunkSize = sources.ChunkSizeSentinel.SOURCE_DEFAULT) -> Generator[ak.Array, Optional[sources.T_ChunkSize], None]:
+    def gen_data(
+        self, chunk_size: sources.T_ChunkSize = sources.ChunkSizeSentinel.SOURCE_DEFAULT
+    ) -> Generator[ak.Array, Optional[sources.T_ChunkSize], None]:
         """A iterator over a fixed size of data from the source.
 
         Returns:
@@ -81,22 +85,24 @@ def _transform_output(
         data = next(gen_data)
         while True:
             # NOTE: The return values are formatted in this manner to avoid unnecessary copies of the data.
-            _result = yield ak.Array({
-                "part_level": ak.zip(
-                    dict(
-                        zip(
-                            list(_columns.particle_level.values()),
-                            ak.unzip(data[_columns.particle_level]),
+            _result = yield ak.Array(
+                {
+                    "part_level": ak.zip(
+                        dict(
+                            zip(
+                                list(_columns.particle_level.values()),
+                                ak.unzip(data[_columns.particle_level]),
+                            )
                         )
-                    )
-                ),
-                **dict(
-                    zip(
-                        list(_columns.event_level.values()),
-                        ak.unzip(data[_columns.event_level]),
-                    )
-                ),
-            })
+                    ),
+                    **dict(
+                        zip(
+                            list(_columns.event_level.values()),
+                            ak.unzip(data[_columns.event_level]),
+                        )
+                    ),
+                }
+            )
 
             # Update for next step
             data = gen_data.send(_result)

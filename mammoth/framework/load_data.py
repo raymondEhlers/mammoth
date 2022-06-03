@@ -87,7 +87,11 @@ def normalize_for_data(
             # Include the rest of the non particle related fields (ie. event level info)
             # NOTE: We also intentionally skip the name of the value associated with "data" in the rename
             #       prefix to avoid copying both the original and the renamed into the same array.
-            **{k: v for k, v in zip(ak.fields(arrays), ak.unzip(arrays)) if k not in _prefixes + [rename_prefix["data"]]},
+            **{
+                k: v
+                for k, v in zip(ak.fields(arrays), ak.unzip(arrays))
+                if k not in _prefixes + [rename_prefix["data"]]
+            },
         }
     )
 
@@ -185,7 +189,7 @@ def data(
     rename_prefix: Mapping[str, str],
     chunk_size: sources.T_ChunkSize = sources.ChunkSizeSentinel.FULL_SOURCE,
 ) -> Union[ak.Array, Iterable[ak.Array]]:
-    """ Load data for ALICE analysis from the track skim task output.
+    """Load data for ALICE analysis from the track skim task output.
 
     Could come from a ROOT file or a converted parquet file.
 
@@ -202,7 +206,7 @@ def data(
     # Validation
     if "embed" in collision_system:
         raise ValueError("This function doesn't handle embedding. Please call the dedicated functions.")
-    logger.info(f"Loading \"{collision_system}\" data")
+    logger.info(f'Loading "{collision_system}" data')
     # We allow for multiple filenames
     filenames = _validate_potential_list_of_inputs(data_input)
 
@@ -220,7 +224,9 @@ def data(
         collision_system=collision_system,
         rename_prefix=rename_prefix,
     )
-    return _transform_data_iter if chunk_size is not sources.ChunkSizeSentinel.FULL_SOURCE else next(_transform_data_iter)
+    return (
+        _transform_data_iter if chunk_size is not sources.ChunkSizeSentinel.FULL_SOURCE else next(_transform_data_iter)
+    )
 
 
 def normalize_for_embedding(
@@ -352,6 +358,7 @@ def _event_select_and_transform_embedding(
             # Use delayed import here. It's admittedly odd to import from the alice module, but it's super
             # convenient here, so we just run with it.
             from mammoth.alice import helpers as alice_helpers
+
             background_event_selection = alice_helpers.standard_event_selection(arrays["background"], return_mask=True)
         else:
             background_event_selection = np.ones(len(arrays)) > 0
@@ -360,9 +367,7 @@ def _event_select_and_transform_embedding(
         arrays = arrays[(mask & background_event_selection)]
 
         logger.info("Transforming embedded")
-        yield normalize_for_embedding(
-            arrays=arrays, source_index_identifiers=source_index_identifiers
-        )
+        yield normalize_for_embedding(arrays=arrays, source_index_identifiers=source_index_identifiers)
 
 
 def embedding(
@@ -460,4 +465,7 @@ def embedding(
         source_index_identifiers=source_index_identifiers,
         use_alice_standard_event_selection_on_background=use_alice_standard_event_selection_on_background,
     )
-    return source_index_identifiers, _transform_data_iter if chunk_size is not sources.ChunkSizeSentinel.FULL_SOURCE else next(_transform_data_iter)
+    return (
+        source_index_identifiers,
+        _transform_data_iter if chunk_size is not sources.ChunkSizeSentinel.FULL_SOURCE else next(_transform_data_iter),
+    )

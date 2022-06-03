@@ -20,9 +20,10 @@ from mammoth.framework import jet_finding
 logger = logging.getLogger(__name__)
 
 
-def jet_matching_MC(jets: ak.Array,
-                     part_level_det_level_max_matching_distance: float = 1.0,
-                     ) -> ak.Array:
+def jet_matching_MC(
+    jets: ak.Array,
+    part_level_det_level_max_matching_distance: float = 1.0,
+) -> ak.Array:
     """Geometrical jet matching for MC
 
     Note:
@@ -55,7 +56,9 @@ def jet_matching_MC(jets: ak.Array,
     logger.info("Using matching info")
     jets_present_mask = (ak.num(jets["part_level"], axis=1) > 0) & (ak.num(jets["det_level"], axis=1) > 0)
     jets = jets[jets_present_mask]
-    logger.warning(f"post jets present mask n accepted: {np.count_nonzero(np.asarray(ak.flatten(jets['det_level'].px, axis=None)))}")
+    logger.warning(
+        f"post jets present mask n accepted: {np.count_nonzero(np.asarray(ak.flatten(jets['det_level'].px, axis=None)))}"
+    )
 
     # Now, onto the individual jet collections
     # We want to require valid matched jet indices. The strategy here is to lead via the detector
@@ -78,15 +81,18 @@ def jet_matching_MC(jets: ak.Array,
     det_level_matched_jets_mask = jets["det_level"]["matching"] > -1
     jets["det_level"] = jets["det_level"][det_level_matched_jets_mask]
     jets["part_level"] = jets["part_level"][jets["det_level", "matching"]]
-    logger.warning(f"post requiring valid matches n accepted: {np.count_nonzero(np.asarray(ak.flatten(jets['det_level'].px, axis=None)))}")
+    logger.warning(
+        f"post requiring valid matches n accepted: {np.count_nonzero(np.asarray(ak.flatten(jets['det_level'].px, axis=None)))}"
+    )
 
     return jets
 
 
-def jet_matching_embedding(jets: ak.Array,
-                            det_level_hybrid_max_matching_distance: float = 0.3,
-                            part_level_det_level_max_matching_distance: float = 0.3,
-                            ) -> ak.Array:
+def jet_matching_embedding(
+    jets: ak.Array,
+    det_level_hybrid_max_matching_distance: float = 0.3,
+    part_level_det_level_max_matching_distance: float = 0.3,
+) -> ak.Array:
     """Jet matching for embedding.
 
     Note:
@@ -153,10 +159,14 @@ def jet_matching_embedding(jets: ak.Array,
     #       must be the case.
     hybrid_to_det_level_valid_matches = jets["hybrid", "matching"] > -1
     det_to_part_level_valid_matches = jets["det_level", "matching"] > -1
-    hybrid_to_det_level_including_det_to_part_level_valid_matches = det_to_part_level_valid_matches[jets["hybrid", "matching"][hybrid_to_det_level_valid_matches]]
+    hybrid_to_det_level_including_det_to_part_level_valid_matches = det_to_part_level_valid_matches[
+        jets["hybrid", "matching"][hybrid_to_det_level_valid_matches]
+    ]
     # First, restrict the hybrid level, requiring hybrid to det_level valid matches and
     # det_level to part_level valid matches.
-    jets["hybrid"] = jets["hybrid"][hybrid_to_det_level_valid_matches][hybrid_to_det_level_including_det_to_part_level_valid_matches]
+    jets["hybrid"] = jets["hybrid"][hybrid_to_det_level_valid_matches][
+        hybrid_to_det_level_including_det_to_part_level_valid_matches
+    ]
     # Next, restrict the det_level. Since we've restricted the hybrid to only valid matches, we should be able
     # to directly apply the masking indices.
     jets["det_level"] = jets["det_level"][jets["hybrid", "matching"]]

@@ -686,7 +686,9 @@ def full_events_to_only_necessary_columns_E_px_py_pz(arrays: ak.Array) -> ak.Arr
             **{k: v for k, v in zip(ak.fields(arrays), ak.unzip(arrays)) if k != "particles"},
             "particles": ak.zip(
                 {
-                    name: arrays["particles", name] for name in ak.fields(arrays["particles"]) if name not in columns_to_drop
+                    name: arrays["particles", name]
+                    for name in ak.fields(arrays["particles"])
+                    if name not in columns_to_drop
                 }
             ),
         },
@@ -755,7 +757,9 @@ def parse_to_parquet(
         # by use_dictionary. Apparently it can't handle this automatically, we so we have to define it
         # ourselves. This is a bit brittle if fields change, but they don't change so often, and
         # it's simpler than parsing field types, so it should be fine for now.
-        dict_fields = [field for field in ak.fields(arrays) if field not in possible_event_level_fields_containing_floats]
+        dict_fields = [
+            field for field in ak.fields(arrays) if field not in possible_event_level_fields_containing_floats
+        ]
         dict_fields.extend(
             # Add particle fields which contain ints
             [
@@ -798,77 +802,78 @@ def find_production_pt_hat_bins_in_filenames(ascii_output_dir: Path, filename_te
 if __name__ == "__main__":
     # For convenience
     from mammoth import helpers
+
     helpers.setup_logging(level=logging.INFO)
     # Extracted via find_production_pt_hard_bins_in_filename from the 5 TeV pp production
     # However, we keep them separate here because it's more conveneint than looking up every time
     # (and requires fewer metadata queries).
     pt_hat_bins = [
-        '1000_1100',
-        '100_110',
-        '1100_1200',
-        '110_120',
-        '11_13',
-        '1200_1300',
-        '120_130',
-        '1300_1400',
-        '130_140',
-        '13_15',
-        '1400_1500',
-        '140_150',
-        '1500_1600',
-        '150_160',
-        '15_17',
-        '1600_1700',
-        '160_170',
-        '1700_1800',
-        '170_180',
-        '17_20',
-        '1800_1900',
-        '180_190',
-        '1900_2000',
-        '190_200',
-        '1_2',
-        '2000_2200',
-        '200_210',
-        '20_25',
-        '210_220',
-        '2200_2400',
-        '220_230',
-        '230_240',
-        '2400_2510',
-        '240_250',
-        '250_260',
-        '25_30',
-        '260_270',
-        '270_280',
-        '280_290',
-        '290_300',
-        '2_3',
-        '300_350',
-        '30_35',
-        '350_400',
-        '35_40',
-        '3_4',
-        '400_450',
-        '40_45',
-        '450_500',
-        '45_50',
-        '4_5',
-        '500_550',
-        '50_55',
-        '550_600',
-        '55_60',
-        '5_7',
-        '600_700',
-        '60_70',
-        '700_800',
-        '70_80',
-        '7_9',
-        '800_900',
-        '80_90',
-        '900_1000',
-        '90_100',
-        '9_11'
+        "1000_1100",
+        "100_110",
+        "1100_1200",
+        "110_120",
+        "11_13",
+        "1200_1300",
+        "120_130",
+        "1300_1400",
+        "130_140",
+        "13_15",
+        "1400_1500",
+        "140_150",
+        "1500_1600",
+        "150_160",
+        "15_17",
+        "1600_1700",
+        "160_170",
+        "1700_1800",
+        "170_180",
+        "17_20",
+        "1800_1900",
+        "180_190",
+        "1900_2000",
+        "190_200",
+        "1_2",
+        "2000_2200",
+        "200_210",
+        "20_25",
+        "210_220",
+        "2200_2400",
+        "220_230",
+        "230_240",
+        "2400_2510",
+        "240_250",
+        "250_260",
+        "25_30",
+        "260_270",
+        "270_280",
+        "280_290",
+        "290_300",
+        "2_3",
+        "300_350",
+        "30_35",
+        "350_400",
+        "35_40",
+        "3_4",
+        "400_450",
+        "40_45",
+        "450_500",
+        "45_50",
+        "4_5",
+        "500_550",
+        "50_55",
+        "550_600",
+        "55_60",
+        "5_7",
+        "600_700",
+        "60_70",
+        "700_800",
+        "70_80",
+        "7_9",
+        "800_900",
+        "80_90",
+        "900_1000",
+        "90_100",
+        "9_11",
     ]
     # for pt_hat_bin in pt_hat_bins:
     for pt_hat_bin in ["45_50"]:
@@ -879,6 +884,6 @@ if __name__ == "__main__":
             base_output_filename=f"/alf/data/rehlers/jetscape/osiris/AAPaperData/MATTER_LBT_RunningAlphaS_Q2qhat/5020_PbPb_5-10_0.30_2.0_1/skim/test/{filename}.parquet",
             store_only_necessary_columns=True,
             events_per_chunk=5000,
-            #events_per_chunk=50,
-            #max_chunks=1,
+            # events_per_chunk=50,
+            # max_chunks=1,
         )

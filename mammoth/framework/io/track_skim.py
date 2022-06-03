@@ -35,11 +35,10 @@ class Columns:
                 "trigger_bit_semi_central",
             ]
         # Next, particle level columns
-        _base_particle_columns = [
-            "pt", "eta", "phi"
-        ]
+        _base_particle_columns = ["pt", "eta", "phi"]
         _MC_particle_columns = [
-            "particle_ID", "label",
+            "particle_ID",
+            "label",
         ]
         particle_columns = [f"particle_data_{c}" for c in _base_particle_columns]
         # Pick up the extra columns in the case of pythia
@@ -64,7 +63,9 @@ class FileSource:
     _default_chunk_size: sources.T_ChunkSize = attr.field(default=sources.ChunkSizeSentinel.FULL_SOURCE)
     metadata: MutableMapping[str, Any] = attr.Factory(dict)
 
-    def gen_data(self, chunk_size: sources.T_ChunkSize = sources.ChunkSizeSentinel.SOURCE_DEFAULT) -> Generator[ak.Array, Optional[sources.T_ChunkSize], None]:
+    def gen_data(
+        self, chunk_size: sources.T_ChunkSize = sources.ChunkSizeSentinel.SOURCE_DEFAULT
+    ) -> Generator[ak.Array, Optional[sources.T_ChunkSize], None]:
         """A iterator over a fixed size of data from the source.
 
         Returns:
@@ -88,10 +89,11 @@ class FileSource:
             return source.gen_data(chunk_size=chunk_size)
 
     @classmethod
-    def create_deferred_source(cls,
-                               collision_system: str,
-                               default_chunk_size: sources.T_ChunkSize = sources.ChunkSizeSentinel.FULL_SOURCE,
-                               ) -> sources.SourceFromFilename:
+    def create_deferred_source(
+        cls,
+        collision_system: str,
+        default_chunk_size: sources.T_ChunkSize = sources.ChunkSizeSentinel.FULL_SOURCE,
+    ) -> sources.SourceFromFilename:
         """Create a FileSource with a closure such that all arguments are set except for the filename.
 
         Args:
@@ -101,12 +103,14 @@ class FileSource:
         Returns:
             A Callable which takes the filename and creates the FileSource.
         """
+
         def wrap(filename: Path) -> "FileSource":
             return cls(
                 filename=filename,
                 collision_system=collision_system,
                 default_chunk_size=default_chunk_size,
             )
+
         return wrap
 
 
@@ -264,15 +268,14 @@ def write_to_parquet(arrays: ak.Array, filename: Path, collision_system: str) ->
 
 if __name__ == "__main__":
     from mammoth import helpers
+
     helpers.setup_logging(level=logging.INFO)
 
     # for collision_system in ["pythia"]:
     for collision_system in ["pp", "pythia", "PbPb"]:
         logger.info(f"Converting collision system {collision_system}")
         source = FileSource(
-            filename=Path(
-                f"/software/rehlers/dev/mammoth/projects/framework/{collision_system}/AnalysisResults.root"
-            ),
+            filename=Path(f"/software/rehlers/dev/mammoth/projects/framework/{collision_system}/AnalysisResults.root"),
             collision_system=collision_system,
         )
         arrays = next(source.gen_data(chunk_size=sources.ChunkSizeSentinel.FULL_SOURCE))

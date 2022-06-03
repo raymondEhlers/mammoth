@@ -32,10 +32,11 @@ def _git_hash_from_module(module: Any) -> str:
     Returns:
         The git hash associated with the module.
     """
-    return subprocess.run(
-        ["git", "rev-parse", "HEAD"], cwd=Path(module.__file__).parent.parent,
-        capture_output=True
-    ).stdout.decode("ascii").strip()
+    return (
+        subprocess.run(["git", "rev-parse", "HEAD"], cwd=Path(module.__file__).parent.parent, capture_output=True)
+        .stdout.decode("ascii")
+        .strip()
+    )
 
 
 def _installed_python_software() -> List[str]:
@@ -54,14 +55,17 @@ def _installed_python_software() -> List[str]:
         List of str, which each entry specifying a package + version.
     """
     import sys
-    return subprocess.run(
-        [sys.executable, "-m", "pip", "freeze"], capture_output=True
-    ).stdout.decode("ascii").strip("\n").split("\n")
+
+    return (
+        subprocess.run([sys.executable, "-m", "pip", "freeze"], capture_output=True)
+        .stdout.decode("ascii")
+        .strip("\n")
+        .split("\n")
+    )
 
 
 def _describe_production_software(
-    production_config: Mapping[str, Any],
-    modules_to_record: Optional[Sequence[str]] = None
+    production_config: Mapping[str, Any], modules_to_record: Optional[Sequence[str]] = None
 ) -> Dict[str, Any]:
     # Validation
     if modules_to_record is None:
@@ -78,12 +82,15 @@ def _describe_production_software(
     # location of the git repo
     output["software"]["hashes"] = {}
     import importlib
+
     for module_name in modules_to_record:
         try:
             _m = importlib.import_module(module_name)
             output["software"]["hashes"][module_name] = _git_hash_from_module(_m)
         except ImportError:
-            logger.info(f"Skipping recording module {module_name} in the production details because it's not available.")
+            logger.info(
+                f"Skipping recording module {module_name} in the production details because it's not available."
+            )
 
     # We also want a full pip freeze. We'll store each package as an entry in a list
     output["software"]["packages"] = _installed_python_software()
@@ -107,11 +114,13 @@ def _read_full_config(config_path: Optional[Path] = None) -> Dict[str, Any]:
     # (eg. anchors don't seem to resolve correctly because we only rewrite the subset, there
     # are some stray comments that we don't really want to keep, etc)
     import ruamel.yaml
+
     y = ruamel.yaml.YAML(typ="safe")
     with open(config_path, "r") as f:
         full_config: Dict[str, Any] = y.load(f)
 
     return full_config
+
 
 class ProductionSpecialization(Protocol):
     def customize_identifier(self, analysis_settings: Mapping[str, Any]) -> str:
@@ -119,7 +128,6 @@ class ProductionSpecialization(Protocol):
 
     def tasks_to_execute(self, collision_system: str) -> List[str]:
         ...
-
 
 
 _possible_collision_systems = [
@@ -209,22 +217,19 @@ class ProductionSettings:
             return _files
 
         # Otherwise, we just can blindly expand
-        return utils.ensure_and_expand_paths(
-            self.config["metadata"]["dataset"]["files"]
-        )
+        return utils.ensure_and_expand_paths(self.config["metadata"]["dataset"]["files"])
 
     @property
     def has_scale_factors(self) -> bool:
         return (
-            "signal_dataset" in self.config["metadata"]
-            or "n_pt_hat_bins" in self.config["metadata"]["dataset"]
-        ) and (
-            self.collision_system in _collision_systems_with_scale_factors
-        )
+            "signal_dataset" in self.config["metadata"] or "n_pt_hat_bins" in self.config["metadata"]["dataset"]
+        ) and (self.collision_system in _collision_systems_with_scale_factors)
 
     def input_files_per_pt_hat(self) -> Dict[int, List[Path]]:
         if self.has_scale_factors:
-            raise ValueError(f"Asking for input files per pt hat doesn't make sense for collision system {self.collision_system}")
+            raise ValueError(
+                f"Asking for input files per pt hat doesn't make sense for collision system {self.collision_system}"
+            )
 
         # Will be signal_dataset if embedded, but otherwise will be the standard "dataset" key
         dataset_key = "signal_dataset" if "signal_dataset" in self.config["metadata"] else "dataset"
@@ -233,10 +238,7 @@ class ProductionSettings:
         _files = {}
         for pt_hat_bin in range(1, self.config["metadata"][dataset_key]["n_pt_hat_bins"] + 1):
             _files[pt_hat_bin] = utils.ensure_and_expand_paths(
-                [
-                    Path(s.format(pt_hat_bin=pt_hat_bin)) for s in
-                    self.config["metadata"][dataset_key]["files"]
-                ]
+                [Path(s.format(pt_hat_bin=pt_hat_bin)) for s in self.config["metadata"][dataset_key]["files"]]
             )
 
         return _files
@@ -265,9 +267,7 @@ class ProductionSettings:
         if self.collision_system not in _collision_systems_with_scale_factors:
             raise ValueError(f"Invalid collision system for extracting scale factors: {self.collision_system}")
 
-        scale_factors = analysis_objects.read_extracted_scale_factors(
-            self.scale_factors_filename
-        )
+        scale_factors = analysis_objects.read_extracted_scale_factors(self.scale_factors_filename)
         return scale_factors
 
     @functools.cached_property
@@ -288,26 +288,18 @@ class ProductionSettings:
         _tasks.extend(self.specialization.tasks_to_execute(collision_system=self.collision_system))
         return _tasks
 
-    def store_production_parameters(
-        self
-    ) -> None:
+    def store_production_parameters(self) -> None:
         output: Dict[str, Any] = {}
         output["identifier"] = self.identifier
-        output["date"] = datetime.datetime.utcnow().strftime('%Y-%m-%d')
+        output["date"] = datetime.datetime.utcnow().strftime("%Y-%m-%d")
         output["config"] = dict(self.config)
-        output["input_filenames"] = [
-            str(p) for p in self.input_files()
-        ]
+        output["input_filenames"] = [str(p) for p in self.input_files()]
         if "signal_dataset" in self.config["metadata"]:
             output["signal_filenames"] = [
-                str(_filename)
-                for filenames in self.input_files_per_pt_hat().values()
-                for _filename in filenames
+                str(_filename) for filenames in self.input_files_per_pt_hat().values() for _filename in filenames
             ]
         # Add description of the software
-        output.update(
-            _describe_production_software(production_config=self.config)
-        )
+        output.update(_describe_production_software(production_config=self.config))
 
         # If we've already run this production before, we don't want to overwrite the existing production.yaml
         # Instead, we want to add a new production file with the new parameters (which should be the same as before,
@@ -332,7 +324,13 @@ class ProductionSettings:
                 break
 
     @classmethod
-    def read_config(cls, collision_system: str, number: int, specialization: ProductionSpecialization, track_skim_config_filename: Optional[Path] = None) -> "ProductionSettings":
+    def read_config(
+        cls,
+        collision_system: str,
+        number: int,
+        specialization: ProductionSpecialization,
+        track_skim_config_filename: Optional[Path] = None,
+    ) -> "ProductionSettings":
         track_skim_config = _read_full_config(track_skim_config_filename)
         config = track_skim_config["productions"][collision_system][number]
 

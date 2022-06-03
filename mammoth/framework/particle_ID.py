@@ -1,4 +1,3 @@
-
 """ Base analysis functionality
 
 .. codeauthor:: Raymond Ehlers <raymond.ehlers@cern.ch>, ORNL
@@ -13,9 +12,10 @@ import numba as nb
 import numpy as np
 import particle
 
+
 @functools.lru_cache()
 def _pdg_id_to_mass(pdg_id: int) -> float:
-    """ Convert PDG ID to mass.
+    """Convert PDG ID to mass.
 
     We cache the result to speed it up.
 
@@ -32,11 +32,13 @@ def _pdg_id_to_mass(pdg_id: int) -> float:
 
 
 @nb.njit  # type: ignore
-def _determine_mass_from_PDG(arrays: ak.Array,
-                             builder: ak.ArrayBuilder,
-                             pdg_id_to_mass: Mapping[int, float],
-                             particle_ID_column_name: str = "particle_ID") -> ak.Array:
-    """ Determine the mass for each particle based on the PID.
+def _determine_mass_from_PDG(
+    arrays: ak.Array,
+    builder: ak.ArrayBuilder,
+    pdg_id_to_mass: Mapping[int, float],
+    particle_ID_column_name: str = "particle_ID",
+) -> ak.Array:
+    """Determine the mass for each particle based on the PID.
 
     These masses are in the same shape as the given array so they can be stored alongside them.
 
@@ -88,10 +90,12 @@ def particle_masses_from_particle_ID(arrays: ak.Array, particle_ID_column_name: 
     return _determine_mass_from_PDG(arrays=arrays, builder=ak.ArrayBuilder(), pdg_id_to_mass=pdg_id_to_mass).snapshot()
 
 
-def build_PID_selection_mask(arrays: ak.Array,
-                             absolute_pids: Optional[Sequence[int]] = None,
-                             single_pids: Optional[Sequence[int]] = None,
-                             particle_ID_column_name: str = "particle_ID") -> ak.Array:
+def build_PID_selection_mask(
+    arrays: ak.Array,
+    absolute_pids: Optional[Sequence[int]] = None,
+    single_pids: Optional[Sequence[int]] = None,
+    particle_ID_column_name: str = "particle_ID",
+) -> ak.Array:
     """Build selection for particles based on particle ID.
 
     Args:
@@ -111,12 +115,8 @@ def build_PID_selection_mask(arrays: ak.Array,
 
     # Since it's unclear how to do an `in` test for a list in a vectorized way, and we
     # aren't likely to have _so_ many PIDS, we'll just take the hit and iterate over them.
-    pid_cuts = [
-        np.abs(arrays[particle_ID_column_name]) == pid for pid in absolute_pids
-    ]
-    pid_cuts.extend([
-        arrays[particle_ID_column_name] == pid for pid in single_pids
-    ])
+    pid_cuts = [np.abs(arrays[particle_ID_column_name]) == pid for pid in absolute_pids]
+    pid_cuts.extend([arrays[particle_ID_column_name] == pid for pid in single_pids])
     # To combine them, we want an OR here - if the particle is selected by any of the PIDs,
     # we want to keep it
     return functools.reduce(operator.or_, pid_cuts)
