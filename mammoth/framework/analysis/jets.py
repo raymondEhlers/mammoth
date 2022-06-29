@@ -7,12 +7,10 @@ functionality itself.
 """
 
 import logging
-from pathlib import Path
-from typing import Any
+from typing import Mapping
 
 import awkward as ak
 import numpy as np
-from pachyderm import binned_data
 
 from mammoth.framework import jet_finding
 
@@ -183,3 +181,84 @@ def jet_matching_embedding(
     jets = jets[jets_present_mask]
 
     return jets
+
+
+def select_only_background_particles_from_hybrid(
+    arrays: ak.Array,
+    source_index_identifiers: Mapping[str, int],
+) -> ak.Array:
+    """Select only background particles from the hybrid particle collection.
+
+    Args:
+        arrays: Input particle level arrays
+        source_index_identifiers: Index offset map for each source. Provided by the embedding.
+    Returns:
+        Mask selected only the background particles.
+    """
+    background_only_particles_mask = ~(arrays["hybrid", "index"] < source_index_identifiers["background"])
+    return background_only_particles_mask
+
+
+def hybrid_level_particles_mask_for_jet_finding(
+    arrays: ak.Array,
+    det_level_artificial_tracking_efficiency: float,
+    source_index_identifiers: Mapping[str, int],
+    validation_mode: bool,
+) -> ak.Array:
+    """Select only background particles from the hybrid particle collection.
+
+    Args:
+        arrays: Input particle level arrays
+        source_index_identifiers: Index offset map for each source. Provided by the embedding.
+    Returns:
+        Mask to apply to the hybrid level particles during jet finding, mask selecting only the background particles.
+    """
+    background_particles_only_mask = select_only_background_particles_from_hybrid(
+        arrays=arrays, source_index_identifiers=source_index_identifiers
+    )
+
+    # First, start with an all True mask
+    hybrid_level_mask = (arrays["hybrid"].pt >= 0)
+    if det_level_artificial_tracking_efficiency < 1.0:
+        if validation_mode:
+            raise ValueError("Cannot apply artificial tracking efficiency during validation mode. The randomness will surely break the validation.")
+
+        # Here, we focus in on the detector level particles.
+        # We want to select only them, determine whether they will be rejected, and then assign back
+        # to the full hybrid mask. However, since awkward arrays are immutable, we need to do all of
+        # this in numpy, and then unflatten.
+        # First, we determine the total number of det_level particles to determine how many random
+        # numbers to generate (plus, the info needed to unflatten later)
+        _n_det_level_particles_per_event = ak.num(arrays["hybrid"][~background_particles_only_mask], axis=1)
+        _total_n_det_level_particles = ak.sum(_n_det_level_particles_per_event)
+
+        # Next, drop particles if their random values that are higher than the tracking efficiency
+        _rng = np.random.default_rng()
+        random_values = _rng.uniform(low=0.0, high=1.0, size=_total_n_det_level_particles)
+        _drop_particles_mask = random_values > det_level_artificial_tracking_efficiency
+        # NOTE: The check above will assign `True` when the random value is higher than the tracking efficiency.
+        #       However, since we to remove those particles and keep ones below, we need to invert this selection.
+        _det_level_particles_to_keep_mask = ~_drop_particles_mask
+
+        # Now, we need to integrate it into the hybrid_level_mask
+        # First, flatten that hybrid list into a numpy array, as well as the mask that selects det_level particles only
+        _hybrid_level_mask_np = ak.to_numpy(ak.flatten(hybrid_level_mask))
+        _det_level_particles_mask_np = ak.to_numpy(ak.flatten(~background_particles_only_mask))
+        # Then, we can use the mask selecting det level particles only to assign whether to keep each det level
+        # particle due to the tracking efficiency. Since the mask does the assignment
+        _hybrid_level_mask_np[_det_level_particles_mask_np] = _det_level_particles_to_keep_mask
+
+        # Unflatten so we can apply the mask to the existing particles
+        hybrid_level_mask = ak.unflatten(_hybrid_level_mask_np, ak.num(arrays["hybrid"]))
+
+        # Cross check that it worked.
+        # If the entire hybrid mask is True, then it means that no particles were removed.
+        # NOTE: I don't have this as an assert because if there aren't _that_ many particles and the efficiency
+        #       is high, I suppose it's possible that this fails, and I don't want to kill jobs for that reason.
+        if ak.all(hybrid_level_mask == True):
+            logger.warning(
+                "No particles were removed in the artificial tracking efficiency."
+                " This is possible, but not super likely. Please check your settings!"
+            )
+
+    return hybrid_level_mask, background_particles_only_mask

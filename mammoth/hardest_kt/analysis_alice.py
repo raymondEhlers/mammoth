@@ -16,7 +16,7 @@ import vector
 from mammoth import helpers
 from mammoth.alice import helpers as alice_helpers
 from mammoth.framework import jet_finding, load_data, sources
-from mammoth.framework.analysis_tools import jets
+from mammoth.framework.analysis import jets as analysis_jets
 from mammoth.framework.io import track_skim
 
 
@@ -144,7 +144,7 @@ def analysis_MC(arrays: ak.Array, jet_R: float, min_jet_pt: Mapping[str, float],
 
     # Jet matching
     logger.info("Matching jets")
-    jets = jets.jet_matching_MC(
+    jets = analysis_jets.jet_matching_MC(
         jets=jets,
         # NOTE: This is larger than the matching distance that I would usually use (where we usually use 0.3 =
         #       in embedding), but this is apparently what we use in pythia. So just go with it.
@@ -198,11 +198,11 @@ def analysis_data(
     arrays = alice_helpers.standard_event_selection(arrays=arrays)
 
     # Track cuts
-    logger.info("Track level cuts")
-    # Data track cuts:
-    # - min: 150 MeV (default from the EMCal container)
-    data_track_pt_mask = arrays[particle_column_name].pt >= 0.150
-    arrays[particle_column_name] = arrays[particle_column_name][data_track_pt_mask]
+    arrays = alice_helpers.standard_track_selection(
+        arrays=arrays,
+        require_at_least_one_particle_in_each_collection_per_event=False,
+        selected_particle_column_name=particle_column_name,
+    )
 
     # Jet finding
     logger.info("Find jets")
@@ -247,31 +247,13 @@ def analysis_data(
     logger.warning(f"Found n jets: {np.count_nonzero(np.asarray(ak.flatten(jets[particle_column_name].px, axis=None)))}")
 
     # Apply jet level cuts.
-    # **************
-    # Remove jets with constituents with pt > 100 GeV
-    # Those tracks are almost certainly fake at detector level.
-    # NOTE: We need to do it after jet finding to avoid a z bias.
-    # **************
-    mask = ~ak.any(jets[particle_column_name].constituents.pt > 100, axis=-1)
-    logger.warning(f"max track constituent max accepted: {np.count_nonzero(np.asarray(ak.flatten(mask == True, axis=None)))}")
-    # **************
-    # Apply area cut
-    # Requires at least 60% of possible area.
-    # **************
-    min_area = jet_finding.area_percentage(60, jet_R)
-    #logger.warning(f"min area: {np.count_nonzero(np.asarray(ak.flatten((jets[particle_column_name, 'area'] > min_area) == True, axis=None)))}")
-    mask = mask & (jets[particle_column_name, "area"] > min_area)
-    logger.warning(f"add area cut accepted: {np.count_nonzero(np.asarray(ak.flatten(mask == True, axis=None)))}")
-    # *************
-    # Require more than one constituent at detector level if we're not in PbPb
-    # Matches a cut in AliAnalysisTaskJetDynamicalGrooming
-    # *************
-    if collision_system not in ["PbPb", "embedPythia", "embed_pythia", "embed_thermal_model"]:
-        mask = mask & (ak.num(jets[particle_column_name].constituents, axis=2) > 1)
-
-    # Apply the cuts
-    jets[particle_column_name] = jets[particle_column_name][mask]
-
+    jets = alice_helpers.standard_jet_selection(
+        jets=jets,
+        jet_R=jet_R,
+        collision_system=collision_system,
+        substructure_constituent_requirements=True,
+        selected_particle_column_name=particle_column_name,
+    )
     # Check for any jets. If there are none, we probably want to bail out.
     # We need some variable to avoid flattening into a record, so select px arbitrarily.
     if len(ak.flatten(jets[particle_column_name].px, axis=None)) == 0:
@@ -540,43 +522,13 @@ def analysis_embedding(
 
     # Event selection
     # This would apply to the signal events, because this is what we propagate from the embedding transform
-    event_level_mask = np.ones(len(arrays)) > 0
-    if "is_ev_rej" in ak.fields(arrays):
-        event_level_mask = event_level_mask & (arrays["is_ev_rej"] == 0)
-    if "z_vtx_reco" in ak.fields(arrays):
-        event_level_mask = event_level_mask & (np.abs(arrays["z_vtx_reco"]) < 10)
-    arrays = arrays[event_level_mask]
+    arrays = alice_helpers.standard_event_selection(arrays=arrays)
 
     # Track cuts
-    logger.info("Track level cuts")
-    # Particle level track cuts:
-    # - min: 150 MeV (from the EMCal container)
-    part_track_pt_mask = arrays["part_level"].pt >= 0.150
-    arrays["part_level"] = arrays["part_level"][part_track_pt_mask]
-    # Detector level track cuts:
-    # - min: 150 MeV
-    # NOTE: Since the HF Tree uses track containers, the min is usually applied by default
-    det_track_pt_mask = arrays["det_level"].pt >= 0.150
-    arrays["det_level"] = arrays["det_level"][det_track_pt_mask]
-    # Hybrid level track cuts:
-    # - min: 150 MeV
-    # NOTE: Since the HF Tree uses track containers, the min is usually applied by default
-    hybrid_track_pt_mask = arrays["hybrid"].pt >= 0.150
-    arrays["hybrid"] = arrays["hybrid"][hybrid_track_pt_mask]
-
-    # Finally, require that particles for all particle collections for each event
-    # NOTE: We have to do it in a separate mask because the above is masked as the particle level,
-    #       but here we need to mask at the event level. (If you try to mask at the particle, you'll
-    #       end up with empty events)
-    # NOTE: Remember that the lengths of particle collections need to match up, so be careful with the mask!
-    logger.warning(f"pre requiring a particle in every event n events: {len(arrays)}")
-    event_has_particles_mask = (
-        (ak.num(arrays["part_level"], axis=1) > 0)
-        & (ak.num(arrays["det_level"], axis=1) > 0)
-        & (ak.num(arrays["hybrid"], axis=1) > 0)
+    arrays = alice_helpers.standard_track_selection(
+        arrays=arrays,
+        require_at_least_one_particle_in_each_collection_per_event=True
     )
-    arrays = arrays[event_has_particles_mask]
-    logger.warning(f"post requiring a particle in every event n events: {len(arrays)}")
 
     # Jet finding
     logger.info("Find jets")
@@ -584,8 +536,15 @@ def analysis_embedding(
     area_kwargs = {}
     if validation_mode:
         area_kwargs["random_seed"] = jet_finding.VALIDATION_MODE_RANDOM_SEED
-    # We usually calculate rho only using the PbPb particles (ie. not including the embedded det_level),
-    # so we need to select only them.
+
+    # Calculate the relevant masks for hybrid level particles:
+    # 2. We usually calculate rho only using the PbPb particles (ie. not including the embedded det_level),
+    #    so we need to select only them.
+
+    # TODO: Finish the refactor here...
+
+
+
     # NOTE: The most general approach would be some divisor argument to select the signal source indexed
     #       particles, but since the background has the higher source index, we can just select particles
     #       with an index smaller than that offset.
@@ -716,7 +675,7 @@ def analysis_embedding(
 
     # Jet matching
     logger.info("Matching jets")
-    jets = jets.jet_matching_embedding(
+    jets = analysis_jets.jet_matching_embedding(
         jets=jets,
         det_level_hybrid_max_matching_distance=0.3,
         part_level_det_level_max_matching_distance=0.3,
