@@ -262,7 +262,7 @@ def hybrid_level_particles_mask_for_jet_finding(
         # If the entire hybrid mask is True, then it means that no particles were removed.
         # NOTE: I don't have this as an assert because if there aren't _that_ many particles and the efficiency
         #       is high, I suppose it's possible that this fails, and I don't want to kill jobs for that reason.
-        if ak.all(hybrid_level_mask == True):
+        if ak.all(hybrid_level_mask == True):  # noqa: E712
             logger.warning(
                 "No particles were removed in the artificial tracking efficiency."
                 " This is possible, but not super likely. Please check your settings!"

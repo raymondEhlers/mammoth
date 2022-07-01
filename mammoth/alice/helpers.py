@@ -6,7 +6,7 @@
 import logging
 import functools
 import operator
-from typing import Final, List, Optional, Sequence
+from typing import Final, List, Mapping, Optional, Sequence
 
 import awkward as ak
 import numpy as np
@@ -139,7 +139,7 @@ def standard_track_selection(arrays: ak.Array,
         particle_mask = arrays[column_name].pt >= 0.150
         # Optionally apply selection of only charged particles if requested
         if column_name in columns_to_explicitly_select_charged_particles:
-            if not "particle_ID" in ak.fields(arrays["column_name"]):
+            if "particle_ID" not in ak.fields(arrays["column_name"]):
                 raise ValueError(
                     f"Cannot select charged particles for {column_name} because the particle_ID column is not present."
                 )
