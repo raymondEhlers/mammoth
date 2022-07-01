@@ -168,17 +168,19 @@ def standard_track_selection(arrays: ak.Array,
 
     return arrays
 
+
 def standard_jet_selection(jets: ak.Array,
                            jet_R: float,
                            collision_system: str,
                            substructure_constituent_requirements: bool,
                            selected_particle_column_name: str = "",
+                           max_constituent_pt_values: Mapping[str, float] = None,
                            ) -> ak.Array:
     """Standard ALICE jet selection
 
     Includes selections on:
 
-    - Remove detector level jets with constituents with pt > 100 GeV
+    - Remove detector level jets with constituents with pt > 100 GeV for det and hybrid level (1000 GeV for part level). This is configurable.
     - Require jet area greater than 60% of jet_R
     - If requested, remove jets with insufficient constituents for substructure. Regardless of the request,
       this will only be performed in some datasets (pp or det level).
@@ -190,6 +192,8 @@ def standard_jet_selection(jets: ak.Array,
         substructure_constituent_requirements: If True, require certain jets to have sufficient constituents
             for non-trivial substructure. Implements the requirement on pp data or at det level.
         selected_particle_column_name: If specified, only apply the track selection to this column. Default: all available columns.
+        max_constituent_pt_values: Max constituent pt values to apply to the jet collections. Default:
+            100 GeV for det level and hybrid, 1000 GeV for part level.
 
     Returns:
         Jets array with the jet selection applied.
@@ -198,6 +202,13 @@ def standard_jet_selection(jets: ak.Array,
     particle_columns = _determine_particle_column_names(
         arrays=jets, selected_particle_column_name=selected_particle_column_name
     )
+    if max_constituent_pt_values is not None:
+        _max_constituent_pt_values = dict(max_constituent_pt_values)
+    else:
+        # We only nned to specify the cuts that aren't equal to 100 GeV, which is the default.
+        _max_constituent_pt_values = {
+            "part_level": 1000.0,
+        }
 
     # Start with all true mask
     masks = {
@@ -205,10 +216,6 @@ def standard_jet_selection(jets: ak.Array,
     }
 
     # Apply jet level cuts.
-    # We only specify the cuts that aren't equal to 100 GeV, which is the default.
-    _max_constituent_pt_values = {
-        "part_level": 1000.0,
-    }
     for column_name in masks:
         # **************
         # Remove detector level jets with constituents with pt > 100 GeV

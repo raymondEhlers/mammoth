@@ -602,34 +602,18 @@ def analysis_embedding(
     )
 
     # Apply jet level cuts.
-    # **************
-    # Remove detector level jets with constituents with pt > 100 GeV
-    # Those tracks are almost certainly fake at detector level.
-    # NOTE: We skip at part level because it doesn't share these detector effects.
-    # NOTE: We need to do it after jet finding to avoid a z bias.
-    # **************
-    det_level_mask = ~ak.any(jets["det_level"].constituents.pt > 100., axis=-1)
-    hybrid_mask = ~ak.any(jets["hybrid"].constituents.pt > 100., axis=-1)
-    # For part level, we set a cut of 1000. It should be quite rare that it has an effect, but included for consistency
-    part_level_mask = ~ak.any(jets["part_level"].constituents.pt > 1000., axis=-1)
-    # **************
-    # Apply area cut
-    # Requires at least 60% of possible area.
-    # **************
-    min_area = jet_finding.area_percentage(60, jet_R)
-    part_level_mask = part_level_mask & (jets["part_level", "area"] > min_area)
-    det_level_mask = det_level_mask & (jets["det_level", "area"] > min_area)
-    hybrid_mask = hybrid_mask & (jets["hybrid", "area"] > min_area)
-
-    # Apply the cuts
-    jets["part_level"] = jets["part_level"][part_level_mask]
-    jets["det_level"] = jets["det_level"][det_level_mask]
-    jets["hybrid"] = jets["hybrid"][hybrid_mask]
+    jets = alice_helpers.standard_jet_selection(
+        jets=jets,
+        jet_R=jet_R,
+        collision_system=collision_system,
+        substructure_constituent_requirements=True,
+    )
 
     # Jet matching
     logger.info("Matching jets")
     jets = analysis_jets.jet_matching_embedding(
         jets=jets,
+        # Values match those used in previous substructure analyses
         det_level_hybrid_max_matching_distance=0.3,
         part_level_det_level_max_matching_distance=0.3,
     )
