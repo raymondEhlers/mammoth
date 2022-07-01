@@ -7,7 +7,7 @@ functionality itself.
 """
 
 import logging
-from typing import Mapping
+from typing import Mapping, Tuple
 
 import awkward as ak
 import numpy as np
@@ -183,7 +183,7 @@ def jet_matching_embedding(
     return jets
 
 
-def select_only_background_particles_from_hybrid(
+def hybrid_background_particles_only_mask(
     arrays: ak.Array,
     source_index_identifiers: Mapping[str, int],
 ) -> ak.Array:
@@ -195,6 +195,9 @@ def select_only_background_particles_from_hybrid(
     Returns:
         Mask selected only the background particles.
     """
+    # NOTE: The most general approach would be some divisor argument to select the signal source indexed
+    #       particles, but since the background has the higher source index, we can just select particles
+    #       with an index smaller than that offset.
     background_only_particles_mask = ~(arrays["hybrid", "index"] < source_index_identifiers["background"])
     return background_only_particles_mask
 
@@ -204,7 +207,7 @@ def hybrid_level_particles_mask_for_jet_finding(
     det_level_artificial_tracking_efficiency: float,
     source_index_identifiers: Mapping[str, int],
     validation_mode: bool,
-) -> ak.Array:
+) -> Tuple[ak.Array, ak.Array]:
     """Select only background particles from the hybrid particle collection.
 
     Args:
@@ -213,10 +216,14 @@ def hybrid_level_particles_mask_for_jet_finding(
     Returns:
         Mask to apply to the hybrid level particles during jet finding, mask selecting only the background particles.
     """
-    background_particles_only_mask = select_only_background_particles_from_hybrid(
+    # We need the bacgkround only particles mask for the tracking inefficiency,
+    # so we calculate it first
+    background_particles_only_mask = hybrid_background_particles_only_mask(
         arrays=arrays, source_index_identifiers=source_index_identifiers
     )
 
+    # Create an artificial tracking efficiency for detector level particles
+    # To apply this, we want to select all background tracks + the subset of det level particles to keep
     # First, start with an all True mask
     hybrid_level_mask = (arrays["hybrid"].pt >= 0)
     if det_level_artificial_tracking_efficiency < 1.0:
