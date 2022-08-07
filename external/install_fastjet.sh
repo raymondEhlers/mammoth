@@ -27,12 +27,12 @@ mkdir -p fastjet
 cd fastjet
 
 if [ ! -d fastjet-${fastjet_version} ]; then
-    wget http://fastjet.fr/repo/fastjet-${fastjet_version}.tar.gz
+    curl -O -J -L http://fastjet.fr/repo/fastjet-${fastjet_version}.tar.gz
     tar xfz fastjet-${fastjet_version}.tar.gz
 fi
 
 if [ ! -d fjcontrib-${fjcontrib_version} ]; then
-    wget http://fastjet.hepforge.org/contrib/downloads/fjcontrib-${fjcontrib_version}.tar.gz
+    curl -O -J -L http://fastjet.hepforge.org/contrib/downloads/fjcontrib-${fjcontrib_version}.tar.gz
     tar xfz fjcontrib-${fjcontrib_version}.tar.gz
 fi
 
