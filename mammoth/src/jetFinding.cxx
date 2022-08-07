@@ -585,7 +585,7 @@ void Subjets::AddSubjet(const unsigned short splittingNodeIndex, const bool part
  *
  * @return std::string containing information about the task.
  */
-std::string Subjets::toString() const
+std::string Subjets::to_string() const
 {
   std::stringstream tempSS;
   tempSS << std::boolalpha;
@@ -607,7 +607,7 @@ std::string Subjets::toString() const
  */
 std::ostream& Subjets::Print(std::ostream& in) const
 {
-  in << toString();
+  in << to_string();
   return in;
 }
 
@@ -676,7 +676,7 @@ std::tuple<float, float, float, short> JetSplittings::GetSplitting(int i) const
  *
  * @return std::string containing information about the task.
  */
-std::string JetSplittings::toString() const
+std::string JetSplittings::to_string() const
 {
   std::stringstream tempSS;
   tempSS << std::boolalpha;
@@ -698,7 +698,7 @@ std::string JetSplittings::toString() const
  */
 std::ostream& JetSplittings::Print(std::ostream& in) const
 {
-  in << toString();
+  in << to_string();
   return in;
 }
 
@@ -782,7 +782,7 @@ std::tuple<unsigned short, bool, const std::vector<unsigned short>> JetSubstruct
  *
  * @return std::string containing information about the task.
  */
-std::string JetSubstructureSplittings::toString() const
+std::string JetSubstructureSplittings::to_string() const
 {
   std::stringstream tempSS;
   tempSS << std::boolalpha;
@@ -800,8 +800,28 @@ std::string JetSubstructureSplittings::toString() const
  */
 std::ostream& JetSubstructureSplittings::Print(std::ostream& in) const
 {
-  in << toString();
+  in << to_string();
   return in;
+}
+
+/**
+  * operator<< for printing objects.
+  */
+
+std::ostream& operator<<(std::ostream& in, const Subjets& myTask)
+{
+  std::ostream& result = myTask.Print(in);
+  return result;
+}
+std::ostream& operator<<(std::ostream& in, const JetSplittings& myTask)
+{
+  std::ostream& result = myTask.Print(in);
+  return result;
+}
+std::ostream& operator<<(std::ostream& in, const JetSubstructureSplittings& myTask)
+{
+  std::ostream& result = myTask.Print(in);
+  return result;
 }
 
 } /* namespace JetSubstructure */
@@ -856,72 +876,58 @@ void ExtractJetSplittings(
     }
 }
 
-} // namespace mammoth
-
 /**
   * operator<< for printing objects.
   */
 
-std::ostream& operator<<(std::ostream& in, const mammoth::JetSubstructure::Subjets& myTask)
-{
-  std::ostream& result = myTask.Print(in);
-  return result;
-}
-std::ostream& operator<<(std::ostream& in, const mammoth::JetSubstructure::JetSplittings& myTask)
-{
-  std::ostream& result = myTask.Print(in);
-  return result;
-}
-std::ostream& operator<<(std::ostream& in, const mammoth::JetSubstructure::JetSubstructureSplittings& myTask)
-{
-  std::ostream& result = myTask.Print(in);
-  return result;
-}
-
-std::ostream& operator<<(std::ostream& in, const mammoth::AreaSettings & c) {
+std::ostream& operator<<(std::ostream& in, const AreaSettings & c) {
   in << c.to_string();
   return in;
 }
 
-std::ostream& operator<<(std::ostream& in, const mammoth::JetFindingSettings & c) {
+std::ostream& operator<<(std::ostream& in, const JetFindingSettings & c) {
   in << c.to_string();
   return in;
 }
 
-std::ostream& operator<<(std::ostream& in, const mammoth::BackgroundEstimator & c) {
+std::ostream& operator<<(std::ostream& in, const BackgroundEstimator & c) {
   in << c.to_string();
   return in;
 }
-std::ostream& operator<<(std::ostream& in, const mammoth::JetMedianBackgroundEstimator & c) {
+std::ostream& operator<<(std::ostream& in, const JetMedianBackgroundEstimator & c) {
   in << c.to_string();
   return in;
 }
-std::ostream& operator<<(std::ostream& in, const mammoth::GridMedianBackgroundEstimator & c) {
+std::ostream& operator<<(std::ostream& in, const GridMedianBackgroundEstimator & c) {
   in << c.to_string();
   return in;
 }
 
-std::ostream& operator<<(std::ostream& in, const mammoth::BackgroundSubtractor & c) {
+std::ostream& operator<<(std::ostream& in, const BackgroundSubtractor & c) {
   in << c.to_string();
   return in;
 }
-std::ostream& operator<<(std::ostream& in, const mammoth::BackgroundSubtraction_t& c) {
+std::ostream& operator<<(std::ostream& in, const BackgroundSubtraction_t& c) {
   in << mammoth::to_string(c);
   return in;
 }
-std::ostream& operator<<(std::ostream& in, const mammoth::RhoSubtractor& c) {
+std::ostream& operator<<(std::ostream& in, const RhoSubtractor& c) {
   in << c.to_string();
   return in;
 }
-std::ostream& operator<<(std::ostream& in, const mammoth::ConstituentSubtractor& c) {
+std::ostream& operator<<(std::ostream& in, const ConstituentSubtractor& c) {
   in << c.to_string();
   return in;
 }
 
-std::ostream& operator<<(std::ostream& in, const mammoth::BackgroundSubtraction& c) {
+std::ostream& operator<<(std::ostream& in, const BackgroundSubtraction& c) {
   in << c.to_string();
   return in;
 }
+
+
+} // namespace mammoth
+
 
 /**
  * Swap function for jet substructure tasks. Created using guide described here: https://stackoverflow.com/a/3279550.
