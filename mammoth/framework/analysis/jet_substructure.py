@@ -29,8 +29,79 @@ logger = logging.getLogger(__name__)
 
 
 # Typing helpers
-_T = TypeVar("_T")
-AwkwardArray_T = Collection[_T]
+# Generic
+_T = TypeVar("_T", covariant=True)
+# Generic numpy scalar
+ScalarType = TypeVar("ScalarType", bound=np.generic, covariant=True)
+
+#class AwkwardArray(Protocol, Generic[_T]):
+# Using `class AwkwardArray_T(Protocol[_T]):` caused mypy to hang as of August 2022, but
+# for some reason, Collection is fine. Presumably there's a bug somewhere, but not worth worrying about,
+# especially given that Collection sems to work okay too
+class AwkwardArray_T(Collection[_T]):
+    @typing.overload
+    def __getitem__(self, key: AwkwardArray_T[bool]) -> AwkwardArray_T[_T]:
+        ...
+
+    @typing.overload
+    def __getitem__(self, key: AwkwardArray_T[int]) -> AwkwardArray_T[_T]:
+        ...
+
+    @typing.overload
+    def __getitem__(self, key: Tuple[slice, slice]) -> AwkwardArray_T[_T]:
+        ...
+
+    @typing.overload
+    def __getitem__(self, key: npt.NDArray[ScalarType]) -> AwkwardArray_T[_T]:
+        ...
+
+    @typing.overload
+    def __getitem__(self, key: bool) -> _T:
+        ...
+
+    @typing.overload
+    def __getitem__(self, key: int) -> _T:
+        ...
+
+    def __getitem__(self, key):  # type: ignore
+        raise NotImplementedError("Just typing information.")
+
+    def __add__(self, other: Union[AwkwardArray_T[_T], int, float]) -> AwkwardArray_T[_T]:
+        raise NotImplementedError("Just typing information.")
+
+    def __radd__(self, other: Union[AwkwardArray_T[_T], int, float]) -> AwkwardArray_T[_T]:
+        raise NotImplementedError("Just typing information.")
+
+    def __sub__(self, other: Union[AwkwardArray_T[_T], int, float]) -> AwkwardArray_T[_T]:
+        raise NotImplementedError("Just typing information.")
+
+    def __rsub__(self, other: Union[AwkwardArray_T[_T], int, float]) -> AwkwardArray_T[_T]:
+        raise NotImplementedError("Just typing information.")
+
+    def __mul__(self, other: Union[AwkwardArray_T[_T], int, float]) -> AwkwardArray_T[_T]:
+        raise NotImplementedError("Just typing information.")
+
+    def __rmul__(self, other: Union[AwkwardArray_T[_T], int, float]) -> AwkwardArray_T[_T]:
+        raise NotImplementedError("Just typing information.")
+
+    def __truediv__(self, other: Union[float, AwkwardArray_T[_T]]) -> AwkwardArray_T[_T]:
+        raise NotImplementedError("Just typing information.")
+
+    def __lt__(self, other: Union[AwkwardArray_T[_T], float]) -> AwkwardArray_T[bool]:
+        raise NotImplementedError("Just typing information.")
+
+    def __le__(self, other: Union[AwkwardArray_T[_T], float]) -> AwkwardArray_T[bool]:
+        raise NotImplementedError("Just typing information.")
+
+    def __gt__(self, other: Union[AwkwardArray_T[_T], float]) -> AwkwardArray_T[bool]:
+        raise NotImplementedError("Just typing information.")
+
+    def __ge__(self, other: Union[AwkwardArray_T[_T], float]) -> AwkwardArray_T[bool]:
+        raise NotImplementedError("Just typing information.")
+
+#AwkwardArray_T = Iterable[_T]
+#AwkwardArray_T = Collection[_T]
+#AwkwardArray_T = Mapping[str, _T]
 ArrayOrScalar = Union[AwkwardArray_T[_T], _T]
 
 
@@ -42,8 +113,8 @@ DISTANCE_DELTA: Final[float] = 0.01
 
 @typing.overload
 def _dynamical_hardness_measure(
-    delta_R: AwkwardArray_T[float], z: AwkwardArray_T[float], parent_pt: AwkwardArray_T[float], R: float, a: float
-) -> AwkwardArray_T[float]:
+    delta_R: AwkwardArray_T[ScalarType], z: AwkwardArray_T[ScalarType], parent_pt: AwkwardArray_T[ScalarType], R: float, a: float
+) -> AwkwardArray_T[ScalarType]:
     ...
 
 
@@ -118,8 +189,6 @@ Args:
 Returns:
     The hardness of the splitting according to the measure.
 """
-
-ScalarType = TypeVar("ScalarType", bound=np.generic, covariant=True)
 
 def find_leading(values: AwkwardArray_T[ScalarType]) -> Tuple[npt.NDArray[ScalarType], AwkwardArray_T[int]]:
     """Calculate hardest value given a set of values.
@@ -396,7 +465,7 @@ class JetSplittingArray(ak.Array, JetSplittingCommon):  # type: ignore
         """
         return cast(SubjetArray, self[subjets.iterative_splitting_index])
 
-    def dynamical_core(self, R: float) -> Tuple[np.ndarray, AwkwardArray_T[int], AwkwardArray_T[int]]:
+    def dynamical_core(self, R: float) -> Tuple[npt.NDArray[ScalarType], AwkwardArray_T[int], AwkwardArray_T[int]]:
         """Dynamical core of the jet splittings.
 
         Args:
@@ -407,7 +476,7 @@ class JetSplittingArray(ak.Array, JetSplittingCommon):  # type: ignore
         values, indices = find_leading(dynamical_core(self.delta_R, self.z, self.parent_pt, R))
         return values, indices, ak.local_index(self.z, axis=-1)
 
-    def dynamical_z(self, R: float) -> Tuple[np.ndarray, AwkwardArray_T[int], AwkwardArray_T[int]]:
+    def dynamical_z(self, R: float) -> Tuple[npt.NDArray[ScalarType], AwkwardArray_T[int], AwkwardArray_T[int]]:
         """Dynamical z of the jet splittings.
 
         Args:
@@ -418,7 +487,7 @@ class JetSplittingArray(ak.Array, JetSplittingCommon):  # type: ignore
         values, indices = find_leading(dynamical_z(self.delta_R, self.z, self.parent_pt, R))
         return values, indices, ak.local_index(self.z, axis=-1)
 
-    def dynamical_kt(self, R: float) -> Tuple[np.ndarray, AwkwardArray_T[int], AwkwardArray_T[int]]:
+    def dynamical_kt(self, R: float) -> Tuple[npt.NDArray[ScalarType], AwkwardArray_T[int], AwkwardArray_T[int]]:
         """Dynamical kt of the jet splittings.
 
         Args:
@@ -429,7 +498,7 @@ class JetSplittingArray(ak.Array, JetSplittingCommon):  # type: ignore
         values, indices = find_leading(dynamical_kt(self.delta_R, self.z, self.parent_pt, R))
         return values, indices, ak.local_index(self.z, axis=-1)
 
-    def dynamical_time(self, R: float) -> Tuple[np.ndarray, AwkwardArray_T[int], AwkwardArray_T[int]]:
+    def dynamical_time(self, R: float) -> Tuple[npt.NDArray[ScalarType], AwkwardArray_T[int], AwkwardArray_T[int]]:
         """Dynamical time of the jet splittings.
 
         Args:
@@ -440,7 +509,7 @@ class JetSplittingArray(ak.Array, JetSplittingCommon):  # type: ignore
         values, indices = find_leading(dynamical_time(self.delta_R, self.z, self.parent_pt, R))
         return values, indices, ak.local_index(self.z, axis=-1)
 
-    def leading_kt(self, z_cutoff: Optional[float] = None) -> Tuple[np.ndarray, AwkwardArray_T[int], AwkwardArray_T[int]]:
+    def leading_kt(self, z_cutoff: Optional[float] = None) -> Tuple[npt.NDArray[ScalarType], AwkwardArray_T[int], AwkwardArray_T[int]]:
         """Leading kt of the jet splittings.
 
         Args:
