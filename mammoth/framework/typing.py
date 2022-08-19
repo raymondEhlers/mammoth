@@ -32,6 +32,9 @@ Number = Union[float, int, np.number]
 #       > class as a mapping (and Sequence for sequences, etc.). This is because mypy doesn’t use
 #       > structural subtyping for these ABCs, unlike simpler protocols like Iterable, which use
 #       > structural subtyping.
+# NOTE: Some further useful info is:
+#       - https://stackoverflow.com/a/48314895/12907985
+#       - https://mypy.readthedocs.io/en/stable/generics.html#generic-protocols
 class AwkwardArray(Collection[_T]):
     @typing.overload
     def __getitem__(self, key: AwkwardArray[bool]) -> AwkwardArray[_T]: ...
