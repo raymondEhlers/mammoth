@@ -7,15 +7,15 @@ from __future__ import annotations
 
 import functools
 import logging
+import sys
 import typing
 from pathlib import Path
-from typing import Any, Collection, Dict, List, Mapping, Optional, Sequence, Tuple, TypeVar, Union, cast
+from typing import Any, Dict, List, Mapping, Optional, Sequence, Tuple, TypeVar, cast
 
-
-try:
+if sys.version_info >= (3, 8):
     from typing import Final
-except ImportError:
-    from typing_extensions import Final  # type: ignore
+else:
+    from typing_extensions import Final
 
 import awkward as ak
 import numpy as np
