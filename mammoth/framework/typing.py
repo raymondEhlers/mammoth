@@ -25,6 +25,13 @@ Number = Union[float, int, np.number]
 # for some reason, Collection is fine. Presumably there's a bug somewhere, but not worth worrying about,
 # especially given that Collection sems to work okay too
 # NOTE: Protocol[_T] is equivalent to `class AwkwardArray(Protocol, Generic[_T])``
+# NOTE: Perhaps it's because Collections may be treated in a special way. See the note under
+#       the example here: https://mypy.readthedocs.io/en/stable/generics.html#defining-sub-classes-of-generic-classes .
+#       The note is copied below:
+#       > You have to add an explicit Mapping base class if you want mypy to consider a user-defined
+#       > class as a mapping (and Sequence for sequences, etc.). This is because mypy doesn’t use
+#       > structural subtyping for these ABCs, unlike simpler protocols like Iterable, which use
+#       > structural subtyping.
 class AwkwardArray(Collection[_T]):
     @typing.overload
     def __getitem__(self, key: AwkwardArray[bool]) -> AwkwardArray[_T]: ...
