@@ -453,7 +453,7 @@ class JetSplittingArray(ak.Array, JetSplittingCommon):  # type: ignore
         values, indices = find_leading(self.kt[indices_passing_cutoff])
         return values, indices_passing_cutoff[indices], indices_passing_cutoff
 
-    def soft_drop(self, z_cutoff: float) -> Tuple[AwkwardArray[float], AwkwardArray[int], AwkwardArray[int]]:
+    def soft_drop(self, z_cutoff: float) -> Tuple[npt.NDArray[Scalar], AwkwardArray[int], AwkwardArray[int]]:
         """Calculate soft drop of the splittings.
 
         Note:

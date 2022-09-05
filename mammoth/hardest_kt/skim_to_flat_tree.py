@@ -11,7 +11,7 @@ import functools
 import logging
 import warnings
 from pathlib import Path
-from typing import Dict, Iterable, List, Mapping, Optional, Tuple
+from typing import Dict, Iterable, List, Mapping, Optional, Tuple, cast
 
 import attr
 import awkward as ak
@@ -25,9 +25,9 @@ from pachyderm import yaml
 from mammoth.framework import analysis
 
 from mammoth.framework.analysis import jet_substructure as analysis_jet_substructure
-from mammoth.framework.typing import AwkwardArray
+from mammoth.framework.typing import AwkwardArray, Scalar
 
-from jet_substructure.base import new_methods, skim_analysis_objects
+from jet_substructure.base import skim_analysis_objects
 
 
 logger = logging.getLogger(__name__)
@@ -46,17 +46,17 @@ class Calculation:
     input_jets: ak.Array = attr.field()
     input_splittings: analysis_jet_substructure.JetSplittingArray = attr.field()
     input_splittings_indices: AwkwardArray[int] = attr.field()
-    values: AwkwardArray[float] = attr.field()
+    values: npt.NDArray[np.float32] = attr.field()
     indices: AwkwardArray[int] = attr.field()
     # If there's no additional grooming selection, then this will be identical to input_splittings_indices.
     possible_indices: AwkwardArray[int] = attr.field()
 
     @property
-    def splittings(self) -> new_methods.JetSplittingArray:
+    def splittings(self) -> analysis_jet_substructure.JetSplittingArray:
         try:
             return self._restricted_splittings
         except AttributeError:
-            self._restricted_splittings: new_methods.JetSplittingArray = self.input_splittings[self.indices]
+            self._restricted_splittings: analysis_jet_substructure.JetSplittingArray = self.input_splittings[self.indices]
         return self._restricted_splittings
 
     @property
@@ -95,7 +95,7 @@ class MaskedJets:
     """
 
     jets: ak.Array = attr.ib()
-    selected_splittings: new_methods.JetSplittingArray = attr.ib()
+    selected_splittings: analysis_jet_substructure.JetSplittingArray = attr.ib()
     selected_splittings_index: AwkwardArray[int] = attr.ib()
 
 
@@ -121,7 +121,7 @@ class GroomingResultForTree:
 def _define_calculation_functions(
     jet_R: float,
     iterative_splittings: bool,
-) -> Dict[str, functools.partial[Tuple[AwkwardArray[float], AwkwardArray[int], AwkwardArray[int]]]]:
+) -> Dict[str, functools.partial[Tuple[npt.NDArray[Scalar], AwkwardArray[int], AwkwardArray[int]]]]:
     """Define the calculation functions of interest.
 
     Note:
@@ -135,27 +135,27 @@ def _define_calculation_functions(
         dynamical_core, dynamical_z, dynamical_kt, dynamical_time, leading_kt, leading_kt z>0.2, leading_kt z>0.4, SD z>0.2, SD z>0.4
     """
     functions = {
-        "dynamical_core": functools.partial(new_methods.JetSplittingArray.dynamical_core, R=jet_R),
-        "dynamical_z": functools.partial(new_methods.JetSplittingArray.dynamical_z, R=jet_R),
-        "dynamical_kt": functools.partial(new_methods.JetSplittingArray.dynamical_kt, R=jet_R),
-        "dynamical_time": functools.partial(new_methods.JetSplittingArray.dynamical_time, R=jet_R),
+        "dynamical_core": functools.partial(analysis_jet_substructure.JetSplittingArray.dynamical_core, R=jet_R),
+        "dynamical_z": functools.partial(analysis_jet_substructure.JetSplittingArray.dynamical_z, R=jet_R),
+        "dynamical_kt": functools.partial(analysis_jet_substructure.JetSplittingArray.dynamical_kt, R=jet_R),
+        "dynamical_time": functools.partial(analysis_jet_substructure.JetSplittingArray.dynamical_time, R=jet_R),
         "leading_kt": functools.partial(
-            new_methods.JetSplittingArray.leading_kt,
+            analysis_jet_substructure.JetSplittingArray.leading_kt,
         ),
-        "leading_kt_z_cut_02": functools.partial(new_methods.JetSplittingArray.leading_kt, z_cutoff=0.2),
-        "leading_kt_z_cut_04": functools.partial(new_methods.JetSplittingArray.leading_kt, z_cutoff=0.4),
+        "leading_kt_z_cut_02": functools.partial(analysis_jet_substructure.JetSplittingArray.leading_kt, z_cutoff=0.2),
+        "leading_kt_z_cut_04": functools.partial(analysis_jet_substructure.JetSplittingArray.leading_kt, z_cutoff=0.4),
     }
     # TODO: This currently only works for iterative splittings...
     #       Calculating recursive is way harder in any array-like manner.
     if iterative_splittings:
-        functions["soft_drop_z_cut_02"] = functools.partial(new_methods.JetSplittingArray.soft_drop, z_cutoff=0.2)
-        functions["soft_drop_z_cut_04"] = functools.partial(new_methods.JetSplittingArray.soft_drop, z_cutoff=0.4)
+        functions["soft_drop_z_cut_02"] = functools.partial(analysis_jet_substructure.JetSplittingArray.soft_drop, z_cutoff=0.2)
+        functions["soft_drop_z_cut_04"] = functools.partial(analysis_jet_substructure.JetSplittingArray.soft_drop, z_cutoff=0.4)
     return functions
 
 
 def _select_and_retrieve_splittings(
     jets: ak.Array, mask: AwkwardArray[bool], iterative_splittings: bool
-) -> Tuple[ak.Array, new_methods.JetSplittingArray, AwkwardArray[int]]:
+) -> Tuple[ak.Array, analysis_jet_substructure.JetSplittingArray, AwkwardArray[int]]:
     """Generalization of the function in analyze_tree to add the splitting index."""
     # Ensure that there are sufficient counts
     restricted_jets = jets[mask]
@@ -180,9 +180,9 @@ def _select_and_retrieve_splittings(
 
 @nb.njit  # type: ignore # noqa: C901
 def calculate_splitting_number(  # noqa: C901
-    all_splittings: new_methods.JetSplittingArray,
-    selected_splittings: new_methods.JetSplittingArray,
-    restricted_splittings_indices: AwkwardArray[int],
+    all_splittings: analysis_jet_substructure.JetSplittingArray,
+    selected_splittings: analysis_jet_substructure.JetSplittingArray,
+    restricted_splittings_indices: AwkwardArray[AwkwardArray[int]],
     debug: bool = False,
 ) -> npt.NDArray[np.int16]:
     # NOTE: Could fit inside of a uint8, but we use int16 because uint8 wasn't written properly
@@ -192,6 +192,10 @@ def calculate_splitting_number(  # noqa: C901
     for i, (selected_splitting, restricted_splitting_indices, available_splittings_parents) in enumerate(
         zip(selected_splittings, restricted_splittings_indices, all_splittings.parent_index)
     ):
+        # This would be to help out mypy, but it will probably interfere with numba, so we
+        # just tell it to ignore the type. The point here is that parent_index of all_splittings is
+        # equivalent to two levels of AwkwardArrays, but it's not so easy to type it that way.
+        #available_splittings_parents = cast(AwkwardAray[int], available_splittings_parents_temp)
         # restricted_splitting_indices = restricted_splittings_indices[i]
         # available_splittings_parents = all_splittings[i].parent_index
 
@@ -220,14 +224,14 @@ def calculate_splitting_number(  # noqa: C901
                             print("Found parent index:", index)
                         output[i] += 1
                         # import IPython; IPython.embed()
-                        parent_index = available_splittings_parents[parent_index]
+                        parent_index = available_splittings_parents[parent_index]  # type: ignore
                         if debug:
                             print("New parent index:", parent_index)
                         # print("Breaking...")
                         break
                 else:
                     # We didn't find it, but we need to advance forward.
-                    parent_index = available_splittings_parents[parent_index]
+                    parent_index = available_splittings_parents[parent_index]  # type: ignore
 
             if debug:
                 print("output[i]", output[i])
@@ -236,7 +240,7 @@ def calculate_splitting_number(  # noqa: C901
 
 
 @nb.njit  # type: ignore
-def _find_contributing_subjets(input_jet: ak.Array, groomed_index: int) -> List[ak.Array]:
+def _find_contributing_subjets(input_jet: ak.Array, groomed_index: int) -> List[analysis_jet_substructure.Subjet]:
     """Find subjets which contribute to a given grooming index.
 
     Args:
@@ -254,7 +258,7 @@ def _find_contributing_subjets(input_jet: ak.Array, groomed_index: int) -> List[
 
 
 @nb.njit  # type: ignore
-def _sort_subjets(input_jet: ak.Array, input_subjets: List[ak.Array]) -> Tuple[ak.Array, ak.Array]:
+def _sort_subjets(input_jet: ak.Array, input_subjets: List[analysis_jet_substructure.Subjet]) -> Tuple[analysis_jet_substructure.Subjet, analysis_jet_substructure.Subjet]:
     pts = []
     for sj in input_subjets:
         px = 0
@@ -276,14 +280,14 @@ def _sort_subjets(input_jet: ak.Array, input_subjets: List[ak.Array]) -> Tuple[a
 
 @nb.njit  # type: ignore
 def _subjet_shared_momentum(
-    generator_like_subjet,
-    generator_like_jet,
-    measured_like_subjet,
-    measured_like_jet,
+    generator_like_subjet: analysis_jet_substructure.Subjet,
+    generator_like_jet: ak.Array,
+    measured_like_subjet: analysis_jet_substructure.Subjet,
+    measured_like_jet: ak.Array,
     match_using_distance: bool = False,
 ) -> float:
     sum_pt = 0
-    delta = new_methods.DISTANCE_DELTA
+    delta = analysis_jet_substructure.DISTANCE_DELTA
 
     for generator_like_constituent_index in generator_like_subjet.constituent_indices:
         generator_like_constituent = generator_like_jet.jet_constituents[generator_like_constituent_index]
@@ -307,28 +311,33 @@ def _subjet_shared_momentum(
 
 
 @nb.njit  # type: ignore
-def subjet_pt(subjet, jet) -> float:
-    px = 0
-    py = 0
-    # pt = 0
+def _subjet_pt(subjet: analysis_jet_substructure.Subjet, jet: ak.Array) -> float:
+    """ Calculate subjet pt by hand.
+
+    Since we have the full vectors, we calculate the vectors and then take the magnitude.
+
+    Note:
+        This would have been natural to do with vector. However, when it was written, vector
+        wasn't available, so we did it by hand.
+    """
+    px: float = 0.
+    py: float = 0.
     for constituent_index in subjet.constituent_indices:
         constituent = jet.jet_constituents[constituent_index]
         px += constituent.pt * np.cos(constituent.phi)
         py += constituent.pt * np.sin(constituent.phi)
-        # pt += constituent.pt
-    # return pt
-    return np.sqrt(px ** 2 + py ** 2)
+    return np.sqrt(px ** 2 + py ** 2)  # type: ignore
 
 
 @nb.njit  # type: ignore
 def _subjet_contained_in_subjet(
-    generator_like_subjet,
-    generator_like_jet,
-    measured_like_subjet,
-    measured_like_jet,
+    generator_like_subjet: analysis_jet_substructure.Subjet,
+    generator_like_jet: ak.Array,
+    measured_like_subjet: analysis_jet_substructure.Subjet,
+    measured_like_jet: ak.Array,
     match_using_distance: bool = False,
 ) -> bool:
-    return (
+    return (  # type: ignore
         _subjet_shared_momentum(
             generator_like_subjet=generator_like_subjet,
             generator_like_jet=generator_like_jet,
@@ -336,18 +345,18 @@ def _subjet_contained_in_subjet(
             measured_like_jet=measured_like_jet,
             match_using_distance=match_using_distance,
         )
-        / subjet_pt(generator_like_subjet, generator_like_jet)
+        / _subjet_pt(generator_like_subjet, generator_like_jet)
     ) > 0.5
 
 
 @nb.njit  # type: ignore
 def determine_matched_jets_numba(
     generator_like_jets: ak.Array,
-    generator_like_splittings: new_methods.JetSplittingArray,
+    generator_like_splittings: analysis_jet_substructure.JetSplittingArray,
     generator_like_groomed_values: AwkwardArray[float],
     generator_like_groomed_indices: AwkwardArray[int],
     measured_like_jets: ak.Array,
-    measured_like_splittings: new_methods.JetSplittingArray,
+    measured_like_splittings: analysis_jet_substructure.JetSplittingArray,
     measured_like_groomed_values: AwkwardArray[float],
     measured_like_groomed_indices: AwkwardArray[int],
     match_using_distance: bool,
@@ -497,11 +506,11 @@ def prong_matching_numba_wrapper(
     return grooming_results
 
 
-@nb.njit
+@nb.njit  # type: ignore
 def _subjet_momentum_fraction_in_jet(
-    generator_like_subjet,
-    generator_like_jet,
-    measured_like_jet,
+    generator_like_subjet: analysis_jet_substructure.Subjet,
+    generator_like_jet: ak.Array,
+    measured_like_jet: ak.Array,
     match_using_distance: bool = False,
 ) -> float:
     """Calculate subjet momentum fraction contained within another jet.
@@ -510,8 +519,8 @@ def _subjet_momentum_fraction_in_jet(
     the interfaces vary between jet constituents and subjet constituents. We could refactor them,
     but the code is simple enough that it's easier just to implement the different versions.
     """
-    sum_pt = 0
-    delta = new_methods.DISTANCE_DELTA
+    sum_pt: float = 0.
+    delta = analysis_jet_substructure.DISTANCE_DELTA
 
     for generator_like_constituent_index in generator_like_subjet.constituent_indices:
         generator_like_constituent = generator_like_jet.jet_constituents[generator_like_constituent_index]
@@ -530,15 +539,15 @@ def _subjet_momentum_fraction_in_jet(
             # Otherwise, the run the risk of summing a generator-like constituent pt twice.
             break
 
-    return sum_pt / subjet_pt(generator_like_subjet, generator_like_jet)
+    return sum_pt / _subjet_pt(generator_like_subjet, generator_like_jet)  # type: ignore
 
 
-@nb.njit
+@nb.njit  # type: ignore
 def generator_subjet_momentum_fraction_in_measured_jet_numba(
-    generator_like_jets,
-    generator_like_splittings,
-    generator_like_groomed_indices,
-    measured_like_jets,
+    generator_like_jets: ak.Array,
+    generator_like_splittings: analysis_jet_substructure.JetSplittingArray,
+    generator_like_groomed_indices: AwkwardArray[AwkwardArray[int]],
+    measured_like_jets: ak.Array,
 ) -> Tuple[npt.NDArray[np.float32], npt.NDArray[np.float32]]:
     """Determine the generator-like subjet momentum fraction stored in a measured-like jet.
 
@@ -628,7 +637,7 @@ def generator_subjet_momentum_fraction_in_measured_jet_numba_wrapper(
 
 
 def _calculate_jet_kinematics(
-    constituents: new_methods.JetConstituentArray, float_type: Optional[npt.DTypeLike] = None
+    constituents: analysis_jet_substructure.JetConstituentArray, float_type: Optional[npt.DTypeLike] = None
 ) -> Tuple[ak.Array, ak.Array]:
     """Calculate jet kinematics.
 
@@ -642,9 +651,9 @@ def _calculate_jet_kinematics(
     """
     # jet_four_vec = jets.jet_constituents.four_vectors().sum()
     # Since vector isn't ready yet, just do this by hand...
-    px = ak.sum(constituents.pt * np.cos(constituents.phi), axis=1)
-    py = ak.sum(constituents.pt * np.sin(constituents.phi), axis=1)
-    pz = ak.sum(constituents.pt * np.sinh(constituents.eta), axis=1)
+    px = ak.sum(constituents.pt * np.cos(constituents.phi), axis=1)  # type: ignore
+    py = ak.sum(constituents.pt * np.sin(constituents.phi), axis=1)  # type: ignore
+    pz = ak.sum(constituents.pt * np.sinh(constituents.eta), axis=1)  # type: ignore
     # Formulas just from inverting the above.
     eta = np.arcsinh(pz / np.sqrt(px ** 2 + py ** 2))
     phi = np.arctan2(py, px)
@@ -754,7 +763,7 @@ def calculate_embedding_skim_impl(  # noqa: C901
             grooming_results[leading_track_name] = to_float(ak.max(input_jets.jets.jet_constituents.pt, axis=1))
 
         # Perform our calculations.
-        functions = _define_calculation_functions(jet_R=jet_R, iterative_splittings=iterative_splittings)
+        functions: Dict[str, functools.partial[Tuple[npt.NDArray[np.float32], AwkwardArray[int], AwkwardArray[int]]]] = _define_calculation_functions(jet_R=jet_R, iterative_splittings=iterative_splittings)
         for func_name, func in functions.items():
             logger.debug(f"func_name: {func_name}")
             calculations = {
@@ -792,13 +801,13 @@ def calculate_embedding_skim_impl(  # noqa: C901
                 grooming_result = GroomingResultForTree(
                     grooming_method=func_name,
                     delta_R=to_float(
-                        ak.flatten(ak.fill_none(ak.pad_none(groomed_splittings.delta_R, 1), new_methods.UNFILLED_VALUE))
+                        ak.flatten(ak.fill_none(ak.pad_none(groomed_splittings.delta_R, 1), analysis_jet_substructure.UNFILLED_VALUE))
                     ),
                     z=to_float(
-                        ak.flatten(ak.fill_none(ak.pad_none(groomed_splittings.z, 1), new_methods.UNFILLED_VALUE))
+                        ak.flatten(ak.fill_none(ak.pad_none(groomed_splittings.z, 1), analysis_jet_substructure.UNFILLED_VALUE))
                     ),
                     kt=to_float(
-                        ak.flatten(ak.fill_none(ak.pad_none(groomed_splittings.kt, 1), new_methods.UNFILLED_VALUE))
+                        ak.flatten(ak.fill_none(ak.pad_none(groomed_splittings.kt, 1), analysis_jet_substructure.UNFILLED_VALUE))
                     ),
                     # All of the numbers are already flattened. 0 means untagged.
                     n_to_split=n_to_split,
@@ -863,7 +872,7 @@ def calculate_embedding_skim_impl(  # noqa: C901
                 mask_jets_of_interest = (
                     (hybrid_det_level_leading_matching.properly & hybrid_det_level_subleading_matching.failed)
                     & (masked_jets["hybrid"].jets.jet_pt > 80)
-                    & (calculations["det_level"].splittings.kt > 10).flatten()
+                    & ak.flatten(calculations["det_level"].splittings.kt > 10)
                 )
 
                 # Look at most the first 5 jets.
@@ -956,7 +965,7 @@ def calculate_embedding_skim(  # noqa: C901
 
     # Jets setup.
     logger.info(f"Skimming tree from file {input_filename}")
-    all_jets = new_methods.parquet_to_substructure_analysis(filename=input_filename, prefixes=prefixes)
+    all_jets = analysis_jet_substructure.parquet_to_substructure_analysis(filename=input_filename, prefixes=prefixes)
 
     return calculate_embedding_skim_impl(
         all_jets=all_jets,
@@ -1044,7 +1053,7 @@ def calculate_data_skim_impl(  # noqa: C901
             grooming_results[leading_track_name] = to_float(ak.max(input_jets.jets.jet_constituents.pt, axis=1))
 
             # Perform our calculations.
-            functions = _define_calculation_functions(jet_R=jet_R, iterative_splittings=iterative_splittings)
+            functions: Dict[str, functools.partial[Tuple[npt.NDArray[np.float32], AwkwardArray[int], AwkwardArray[int]]]]  = _define_calculation_functions(jet_R=jet_R, iterative_splittings=iterative_splittings)
             for func_name, func in functions.items():
                 logger.debug(f"prefix: {prefix}, grooming function: {func_name}")
                 calculation = Calculation(
@@ -1077,13 +1086,13 @@ def calculate_data_skim_impl(  # noqa: C901
                 grooming_result = GroomingResultForTree(
                     grooming_method=func_name,
                     delta_R=to_float(
-                        ak.flatten(ak.fill_none(ak.pad_none(groomed_splittings.delta_R, 1), new_methods.UNFILLED_VALUE))
+                        ak.flatten(ak.fill_none(ak.pad_none(groomed_splittings.delta_R, 1), analysis_jet_substructure.UNFILLED_VALUE))
                     ),
                     z=to_float(
-                        ak.flatten(ak.fill_none(ak.pad_none(groomed_splittings.z, 1), new_methods.UNFILLED_VALUE))
+                        ak.flatten(ak.fill_none(ak.pad_none(groomed_splittings.z, 1), analysis_jet_substructure.UNFILLED_VALUE))
                     ),
                     kt=to_float(
-                        ak.flatten(ak.fill_none(ak.pad_none(groomed_splittings.kt, 1), new_methods.UNFILLED_VALUE))
+                        ak.flatten(ak.fill_none(ak.pad_none(groomed_splittings.kt, 1), analysis_jet_substructure.UNFILLED_VALUE))
                     ),
                     # All of the numbers are already flattened. 0 means untagged.
                     n_to_split=n_to_split,
@@ -1166,7 +1175,7 @@ def calculate_data_skim(  # noqa: C901
     # Jets setup
     logger.info(f"Skimming tree from file {input_filename}")
     # Careful, this can return general columns, not just jets in prefixes (for example, the pt_hard in pythia)
-    all_jets = new_methods.parquet_to_substructure_analysis(filename=input_filename, prefixes=prefixes)
+    all_jets = analysis_jet_substructure.parquet_to_substructure_analysis(filename=input_filename, prefixes=prefixes)
 
     return calculate_data_skim_impl(
         all_jets=all_jets,
@@ -1291,7 +1300,7 @@ def skim_cross_check_task_to_uniform_output(
 
 if __name__ == "__main__":
     # An example for testing...
-    from jet_substructure.base import helpers
+    from mammoth import helpers
 
     helpers.setup_logging()
     # res = calculate_embedding_skim(
