@@ -32,7 +32,7 @@ vector = ">=0.8.5"
 parsl = {git = "https://github.com/Parsl/parsl.git", rev = "6d1f9160d487b3265f6e9d65ebb357837a437c30", extras = ["monitoring"]}
 rich = ">=11.2"
 
-[tool.poetry.dev-dependencies]
+[tool.poetry.group.dev.dependencies]
 flake8 = ">=3.8.3"
 black = ">=22.1.0"
 mypy = ">=0.931"
@@ -46,5 +46,5 @@ line-length = 120
 target-version = ["py38"]
 
 [build-system]
-requires = ["poetry_core>=1.0.0", "setuptools>=42", "ninja", "cmake>=3.15"]
+requires = ["poetry_core>=1.1.0", "setuptools>=42", "ninja", "cmake>=3.15"]
 build-backend = "poetry.core.masonry.api"
