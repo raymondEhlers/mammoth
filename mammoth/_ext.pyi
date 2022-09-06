@@ -133,6 +133,8 @@ class OutputWrapperDouble:
     @property
     def jets_area(self) -> npt.NDArray[np.float64]: ...
     @property
+    def rho_value(self) -> np.float64: ...
+    @property
     def subtracted_info(
         self,
     ) -> Optional[
@@ -152,6 +154,8 @@ class OutputWrapperFloat:
     ) -> Tuple[npt.NDArray[np.float32], npt.NDArray[np.float32], npt.NDArray[np.float32], npt.NDArray[np.float32]]: ...
     @property
     def jets_area(self) -> npt.NDArray[np.float32]: ...
+    @property
+    def rho_value(self) -> np.float32: ...
     @property
     def subtracted_info(
         self,
