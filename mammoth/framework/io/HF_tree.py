@@ -163,26 +163,26 @@ def hf_tree_to_awkward_MC(
     # NOTE: isin doesn't work for a standard 2D array because a 2D array in the second argument will
     #       be flattened by numpy.  However, it works as expected if it's a structured array (which
     #       is the default approach for Array conversion, so we get a bit lucky here).
-    det_level_tracks_mask = np.isin(  # type: ignore
+    det_level_tracks_mask = np.isin(
         np.asarray(det_level_tracks_identifiers),
         np.asarray(part_level_tracks_identifiers),
-    ) & np.isin(  # type: ignore
+    ) & np.isin(
         np.asarray(det_level_tracks_identifiers),
         np.asarray(event_properties_identifiers),
     )
     det_level_tracks = det_level_tracks[det_level_tracks_mask]
-    part_level_tracks_mask = np.isin(  # type: ignore
+    part_level_tracks_mask = np.isin(
         np.asarray(part_level_tracks_identifiers),
         np.asarray(det_level_tracks_identifiers),
-    ) & np.isin(  # type: ignore
+    ) & np.isin(
         np.asarray(part_level_tracks_identifiers),
         np.asarray(event_properties_identifiers),
     )
     part_level_tracks = part_level_tracks[part_level_tracks_mask]
-    event_properties_mask = np.isin(  # type: ignore
+    event_properties_mask = np.isin(
         np.asarray(event_properties_identifiers),
         np.asarray(det_level_tracks_identifiers),
-    ) & np.isin(  # type: ignore
+    ) & np.isin(
         np.asarray(event_properties_identifiers),
         np.asarray(part_level_tracks_identifiers),
     )
@@ -303,12 +303,12 @@ def hf_tree_to_awkward_data(
     # NOTE: isin doesn't work for a standard 2D array because a 2D array in the second argument will
     #       be flattened by numpy.  However, it works as expected if it's a structured array (which
     #       is the default approach for Array conversion, so we get a bit lucky here).
-    det_level_tracks_mask = np.isin(  # type: ignore
+    det_level_tracks_mask = np.isin(
         np.asarray(det_level_tracks_identifiers),
         np.asarray(event_properties_identifiers),
     )
     det_level_tracks = det_level_tracks[det_level_tracks_mask]
-    event_properties_mask = np.isin(  # type: ignore
+    event_properties_mask = np.isin(
         np.asarray(event_properties_identifiers),
         np.asarray(det_level_tracks_identifiers),
     )
