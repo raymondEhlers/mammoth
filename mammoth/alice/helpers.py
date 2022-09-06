@@ -174,7 +174,7 @@ def standard_jet_selection(jets: ak.Array,
                            collision_system: str,
                            substructure_constituent_requirements: bool,
                            selected_particle_column_name: str = "",
-                           max_constituent_pt_values: Mapping[str, float] = None,
+                           max_constituent_pt_values: Optional[Mapping[str, float]] = None,
                            ) -> ak.Array:
     """Standard ALICE jet selection
 

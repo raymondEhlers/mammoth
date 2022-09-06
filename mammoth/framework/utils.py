@@ -43,7 +43,7 @@ def ensure_and_expand_paths(paths: Sequence[Union[str, Path]]) -> List[Path]:
 
 def _lexsort_for_groupby(array: ak.Array, columns: Sequence[Union[str, int]]) -> ak.Array:
     """Sort for groupby."""
-    sort = np.lexsort(tuple(np.asarray(array[:, col]) for col in reversed(columns)))  # type: ignore
+    sort = np.lexsort(tuple(np.asarray(array[:, col]) for col in reversed(columns)))
     return array[sort]
 
 
@@ -71,16 +71,16 @@ def group_by(array: ak.Array, by: Sequence[Union[str, int]]) -> ak.Array:
     # We can match them up more easily by using the starting index of each run.
     run_starts = [np.cumsum(np.asarray(l)) for l in run_lengths]  # noqa: E741
     # Combine all of the indices together into one array. Note that this isn't unique.
-    combined = np.concatenate(run_starts)  # type: ignore
+    combined = np.concatenate(run_starts)
     # NOTE: Unique can be done more efficient than using the naive implementation.
     #       See: https://stackoverflow.com/a/12427633/12907985
     #       However, it's not worth messing around with at the moment (May 2022).
-    combined = np.unique(combined)  # type: ignore
+    combined = np.unique(combined)
 
     run_length = np.zeros(len(combined), dtype=np.int64)
     run_length[0] = combined[0]
     # run_length[1:] = combined[1:] - combined[:-1]
-    run_length[1:] = np.diff(combined)  # type: ignore
+    run_length[1:] = np.diff(combined)
 
     # And then construct the array
     return ak.unflatten(

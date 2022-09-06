@@ -493,7 +493,7 @@ def _indices_for_event_boundaries(array: ak.Array) -> npt.NDArray[np.int64]:
     sum_counts = np.cumsum(np.asarray(counts))
     # However, to use as slices, we need one more entry than the number of events. We
     # account for this by inserting 0 at the beginning since the first indices starts at 0.
-    sum_counts = np.insert(sum_counts, 0, 0)  # type: ignore
+    sum_counts = np.insert(sum_counts, 0, 0)
     return sum_counts
 
 
@@ -583,7 +583,7 @@ def find_jets(
     # NOTE: If this gets too slow, we can do the jet finding over multiple events in c++ like what
     #       is done in the new fj bindings. I skip this for now because my existing code seems to
     #       be good enough.
-    jets: Dict[str, List[npt.NDArray[Union[np.float32, np.float64]]]] = {
+    jets: Dict[str, List[Union[np.float32, np.float64, npt.NDArray[Union[np.float32, np.float64]]]]] = {
         "px": [],
         "py": [],
         "pz": [],
@@ -775,7 +775,7 @@ def recluster_jets(
     num_constituents = ak.num(jets.constituents, axis=2)
     # Convert to offsets
     offsets_constituents = np.cumsum(np.asarray(ak.flatten(num_constituents, axis=1)))
-    offsets_constituents = np.insert(offsets_constituents, 0, 0)  # type: ignore
+    offsets_constituents = np.insert(offsets_constituents, 0, 0)
     # Then into starts and stops
     starts_constituents = ak.unflatten(offsets_constituents[:-1], ak.num(num_constituents, axis=1))
     stops_constituents = ak.unflatten(offsets_constituents[1:], ak.num(num_constituents, axis=1))

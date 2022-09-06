@@ -15,6 +15,7 @@ from typing import (
     Dict,
     Final,
     Generator,
+    Iterator,
     List,
     Mapping,
     MutableMapping,
@@ -498,7 +499,7 @@ class MultiSource:
 
         if self.repeat:
             # See: https://stackoverflow.com/a/24225372/12907985
-            source_iter = itertools.chain.from_iterable(itertools.repeat(self.sources))
+            source_iter: Iterator[Source] = itertools.chain.from_iterable(itertools.repeat(self.sources))
         else:
             source_iter = iter(self.sources)
 

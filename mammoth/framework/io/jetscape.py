@@ -363,7 +363,7 @@ class ChunkGenerator:
         self._require_chunk_ready()
         # NOTE: We skip the last header due to the way that np.split works.
         #       It will go from the last index to the end of the array.
-        return np.cumsum([header.n_particles for header in self._headers])[:-1]  # type: ignore
+        return np.cumsum([header.n_particles for header in self._headers])[:-1]
 
     @property
     def incomplete_chunk(self) -> bool:
@@ -553,7 +553,7 @@ def _parse_with_numpy(chunk_generator: Iterator[str]) -> npt.NDArray[Any]:
     Returns:
         Array of the particles.
     """
-    return np.loadtxt(chunk_generator)  # type: ignore
+    return np.loadtxt(chunk_generator)
 
 
 def read(filename: Union[Path, str], events_per_chunk: int, parser: str = "pandas") -> Iterator[ak.Array]:

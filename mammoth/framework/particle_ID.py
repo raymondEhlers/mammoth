@@ -77,7 +77,7 @@ def particle_masses_from_particle_ID(arrays: ak.Array, particle_ID_column_name: 
     """
     # Add the masses based on the PDG code.
     # First, determine all possible PDG codes, and then retrieve their masses for a lookup table.
-    all_particle_IDs = np.unique(ak.to_numpy(ak.flatten(arrays[particle_ID_column_name])))  # type: ignore
+    all_particle_IDs = np.unique(ak.to_numpy(ak.flatten(arrays[particle_ID_column_name])))
     # NOTE: We need to use this special typed dict with numba.
     pdg_id_to_mass = nb.typed.Dict.empty(
         key_type=nb.core.types.int64,
