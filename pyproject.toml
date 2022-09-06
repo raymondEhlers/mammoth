@@ -39,6 +39,7 @@ mypy = ">=0.931"
 ipython = ">=8.0"
 pytest = ">=6.2.4"
 flake8-colors = ">=0.1.9"
+ipykernel = ">=6.15.1"
 
 [tool.black]
 line-length = 120
