@@ -1,6 +1,6 @@
-#!/usr/bin/env python3
+"""Skim full splitting tree to flat tree for further analysis
 
-"""
+Applies a variety of grooming algorithms, including SoftDrop + Dynamical Grooming
 
 .. codeauthor:: Raymond Ehlers <raymond.ehlers@cern.ch>, ORNL
 """
@@ -9,25 +9,19 @@ from __future__ import annotations
 
 import functools
 import logging
-import warnings
 from pathlib import Path
 from typing import Dict, Iterable, List, Mapping, Optional, Tuple, cast
 
 import attr
 import awkward as ak
-from networkx.drawing.nx_pylab import draw
 import numba as nb
 import numpy as np
 import numpy.typing as npt
-import uproot
-
 from pachyderm import yaml
-from mammoth.framework import analysis
+import uproot
 
 from mammoth.framework.analysis import jet_substructure as analysis_jet_substructure
 from mammoth.framework.typing import AwkwardArray, Scalar
-
-from jet_substructure.base import skim_analysis_objects
 
 
 logger = logging.getLogger(__name__)
@@ -145,7 +139,7 @@ def _define_calculation_functions(
         "leading_kt_z_cut_02": functools.partial(analysis_jet_substructure.JetSplittingArray.leading_kt, z_cutoff=0.2),
         "leading_kt_z_cut_04": functools.partial(analysis_jet_substructure.JetSplittingArray.leading_kt, z_cutoff=0.4),
     }
-    # TODO: This currently only works for iterative splittings...
+    # NOTE: This currently only works for iterative splittings...
     #       Calculating recursive is way harder in any array-like manner.
     if iterative_splittings:
         functions["soft_drop_z_cut_02"] = functools.partial(analysis_jet_substructure.JetSplittingArray.soft_drop, z_cutoff=0.2)
@@ -866,6 +860,7 @@ def calculate_embedding_skim_impl(  # noqa: C901
                 and func_name == "leading_kt"
                 and ak.any((hybrid_det_level_leading_matching == 1) & (hybrid_det_level_subleading_matching == 3))
             ):
+                from networkx.drawing.nx_pylab import draw
                 from jet_substructure.analysis import draw_splitting
 
                 # Find a sufficiently interesting jet (ie high enough pt)
@@ -1233,71 +1228,6 @@ def cross_check_task_names_to_export(
     return branch_names
 
 
-def skim_cross_check_task_to_uniform_output(
-    input_filename: Path,
-    grooming_method: str,
-    input_tree_name: str,
-    scale_factor: float,
-    prefixes: Mapping[str, str],
-    output_filename: Path,
-    output_tree_name: str = "tree",
-) -> bool:
-    """Skim the cross-check task to uniform names and types.
-
-    Args:
-        input_filename: Input filename. Expected to be in the main directory.
-        grooming_method: Name of the grooming method.
-        input_tree_name: Name of the input tree.
-        scale_factor: Scale factor to be written to the tree. We assume it is
-            constant for the given file (ie. suitable for embedding trains).
-        prefixes: Mapping from our standard names to those which are used in
-            the stored data.
-        output_filename: Output filename. It's expected to be stored in the
-            "skim" directory.
-        output_tree_name: Name of the output tree. Default: "tree".
-
-    Returns:
-        True if successful.
-    """
-    filename = f"{str(input_filename)}:{input_tree_name}"
-    # Iterate over relatively small sizes to ensure that we don't blow up the memory usage.
-    for i, array in enumerate(uproot.iterate(filename, step_size="200 MB")):
-        renames = skim_analysis_objects.cross_check_task_branch_name_shim(
-            grooming_method=grooming_method,
-            input_branches=ak.fields(array),
-        )
-        # This shouldn't cause a copy (hopefully...)
-        for k, v in renames.items():
-            array[k] = array[v]
-
-        # Use array[k] as a convenient way to access the length of the tree.
-        array["scale_factor"] = np.full(len(array[k]), scale_factor, dtype=np.float32)
-
-        # Determine the branch names to export. It's basically the same as in the
-        # original files, but with uniform names and types.
-        branch_names = cross_check_task_names_to_export(grooming_method=grooming_method, prefixes=prefixes)
-
-        # For extra safety
-        output_filename.parent.mkdir(parents=True, exist_ok=True)
-        # Remap from "00" -> "index number" (may still be "00")
-        # NOTE: It's super important that we include the punctuation. Otherwise, it may pick
-        #       up other instances of "00", such as in a train number!
-        _output_filename = Path(str(output_filename).replace(".00_", f".{i:02d}_"))
-
-        # Setup outputs and write the tree.
-        outputs = {}
-        for k, v in branch_names.items():
-            outputs[k] = ak.values_astype(array[k], to=v)
-        outputs_np = {k: np.asarray(v) for k, v in outputs.items()}
-        logger.info(f"Writing cross check task skim to {_output_filename}")
-        # Write with uproot
-        with uproot.recreate(output_filename) as output_file:
-            # Write all of the calculations
-            output_file[output_tree_name] = outputs_np
-
-    return True
-
-
 if __name__ == "__main__":
     # An example for testing...
     from mammoth import helpers
@@ -1340,16 +1270,5 @@ if __name__ == "__main__":
         write_parquet=True,
         write_feather=True,
     )
-    # Skim cross check task.
-    # res = skim_cross_check_task_to_uniform_output(
-    #     # n_cores=2,
-    #     # input_filenames=[Path("trains/embedPythia/6458/AnalysisResults.18q.root")],
-    #     input_filename=Path("trains/embedPythia/6474/AnalysisResults.18q.root"),
-    #     grooming_method="dynamical_core",
-    #     scale_factor=16.1,
-    #     input_tree_name="AliAnalysisTaskJetHardestKt_hybridLevelJets_AKTChargedR020_tracks_pT0150_E_schemeConstSub_RawTree_EventSub_Incl",
-    #     prefixes={"hybrid": "data", "true": "matched", "det_level": "det_level"},
-    #     output_filename=Path("trains/embedPythia/6474/skim/AnalysisResults.18q.root"),
-    # )
     logger.info(res)
     # import IPython; IPython.start_ipython(user_ns=locals())
