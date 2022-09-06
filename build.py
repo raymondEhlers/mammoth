@@ -30,7 +30,7 @@ class CMakeExtension(Extension):  # type: ignore
 
 
 class CMakeBuild(build_ext):  # type: ignore
-    def build_extension(self, ext: CMakeExtension) -> None:
+    def build_extension(self, ext: CMakeExtension) -> None:  # noqa: C901
         extdir = os.path.abspath(os.path.dirname(self.get_ext_fullpath(ext.name)))
 
         # required for auto-detection of auxiliary "native" libs
