@@ -37,46 +37,46 @@ Number = Union[float, int, np.number]
 #       - https://mypy.readthedocs.io/en/stable/generics.html#generic-protocols
 class AwkwardArray(Collection[_T]):
     @typing.overload
-    def __getitem__(self, key: AwkwardArray[bool]) -> AwkwardArray[_T]: ...
+    def __getitem__(self, key: AwkwardArray[bool]) -> AwkwardArray[_T]: ...  # noqa: E704
 
     @typing.overload
-    def __getitem__(self, key: AwkwardArray[int]) -> AwkwardArray[_T]: ...
+    def __getitem__(self, key: AwkwardArray[int]) -> AwkwardArray[_T]: ...  # noqa: E704
 
     @typing.overload
-    def __getitem__(self, key: Tuple[slice, slice]) -> AwkwardArray[_T]: ...
+    def __getitem__(self, key: Tuple[slice, slice]) -> AwkwardArray[_T]: ...  # noqa: E704
 
     @typing.overload
-    def __getitem__(self, key: npt.NDArray[Scalar]) -> AwkwardArray[_T]: ...
+    def __getitem__(self, key: npt.NDArray[Scalar]) -> AwkwardArray[_T]: ...  # noqa: E704
 
     @typing.overload
-    def __getitem__(self, key: bool) -> _T: ...
+    def __getitem__(self, key: bool) -> _T: ...  # noqa: E704
 
     @typing.overload
-    def __getitem__(self, key: int) -> _T: ...
+    def __getitem__(self, key: int) -> _T: ...  # noqa: E704
 
-    def __getitem__(self, key): ...  # type: ignore
+    def __getitem__(self, key): ...  # type: ignore # noqa: E704
 
-    def __add__(self, other: Union[AwkwardArray[_T], int, float]) -> AwkwardArray[_T]: ...
+    def __add__(self, other: Union[AwkwardArray[_T], int, float]) -> AwkwardArray[_T]: ...  # noqa: E704
 
-    def __radd__(self, other: Union[AwkwardArray[_T], int, float]) -> AwkwardArray[_T]: ...
+    def __radd__(self, other: Union[AwkwardArray[_T], int, float]) -> AwkwardArray[_T]: ...  # noqa: E704
 
-    def __sub__(self, other: Union[AwkwardArray[_T], int, float]) -> AwkwardArray[_T]: ...
+    def __sub__(self, other: Union[AwkwardArray[_T], int, float]) -> AwkwardArray[_T]: ...  # noqa: E704
 
-    def __rsub__(self, other: Union[AwkwardArray[_T], int, float]) -> AwkwardArray[_T]: ...
+    def __rsub__(self, other: Union[AwkwardArray[_T], int, float]) -> AwkwardArray[_T]: ...  # noqa: E704
 
-    def __mul__(self, other: Union[AwkwardArray[_T], int, float]) -> AwkwardArray[_T]: ...
+    def __mul__(self, other: Union[AwkwardArray[_T], int, float]) -> AwkwardArray[_T]: ...  # noqa: E704
 
-    def __rmul__(self, other: Union[AwkwardArray[_T], int, float]) -> AwkwardArray[_T]: ...
+    def __rmul__(self, other: Union[AwkwardArray[_T], int, float]) -> AwkwardArray[_T]: ...  # noqa: E704
 
-    def __truediv__(self, other: Union[AwkwardArray[_T], float]) -> AwkwardArray[_T]: ...
+    def __truediv__(self, other: Union[AwkwardArray[_T], float]) -> AwkwardArray[_T]: ...  # noqa: E704
 
-    def __lt__(self, other: Union[AwkwardArray[_T], float]) -> AwkwardArray[bool]: ...
+    def __lt__(self, other: Union[AwkwardArray[_T], float]) -> AwkwardArray[bool]: ...  # noqa: E704
 
-    def __le__(self, other: Union[AwkwardArray[_T], float]) -> AwkwardArray[bool]: ...
+    def __le__(self, other: Union[AwkwardArray[_T], float]) -> AwkwardArray[bool]: ...  # noqa: E704
 
-    def __gt__(self, other: Union[AwkwardArray[_T], float]) -> AwkwardArray[bool]: ...
+    def __gt__(self, other: Union[AwkwardArray[_T], float]) -> AwkwardArray[bool]: ...  # noqa: E704
 
-    def __ge__(self, other: Union[AwkwardArray[_T], float]) -> AwkwardArray[bool]: ...
+    def __ge__(self, other: Union[AwkwardArray[_T], float]) -> AwkwardArray[bool]: ...  # noqa: E704
 
 # Sometimes, it could be either
 ArrayOrScalar = Union[AwkwardArray[_T], _T]

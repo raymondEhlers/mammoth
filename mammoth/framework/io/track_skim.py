@@ -5,7 +5,7 @@
 
 import logging
 from pathlib import Path
-from typing import Any, Callable, Generator, List, Optional, MutableMapping
+from typing import Any, Generator, List, Optional, MutableMapping
 
 import attr
 import awkward as ak

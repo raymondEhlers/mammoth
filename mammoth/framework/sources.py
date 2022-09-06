@@ -489,7 +489,7 @@ class MultiSource:
     _default_chunk_size: Union[int, ChunkSizeSentinel] = attr.field(default=ChunkSizeSentinel.FULL_SOURCE)
     metadata: MutableMapping[str, Any] = attr.Factory(dict)
 
-    def gen_data(self, chunk_size: T_ChunkSize = ChunkSizeSentinel.SOURCE_DEFAULT) -> T_GenData:
+    def gen_data(self, chunk_size: T_ChunkSize = ChunkSizeSentinel.SOURCE_DEFAULT) -> T_GenData:  # noqa: C901
         # Validation
         if chunk_size is ChunkSizeSentinel.SOURCE_DEFAULT:
             chunk_size = self._default_chunk_size

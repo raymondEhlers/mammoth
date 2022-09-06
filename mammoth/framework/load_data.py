@@ -4,10 +4,9 @@
 """
 
 import collections
-import functools
 import logging
 from pathlib import Path
-from typing import Any, Callable, Dict, Iterable, List, Sequence, Mapping, Optional, Tuple, Union
+from typing import Any, Dict, Iterable, List, Sequence, Mapping, Optional, Tuple, Union
 
 import awkward as ak
 import numpy as np

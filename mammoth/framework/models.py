@@ -6,12 +6,12 @@ import numpy as np
 import numpy.typing as npt
 from scipy.interpolate import interp1d
 
-from mammoth._ext import (
+from mammoth._ext import (  # noqa: F401
     TrackingEfficiencyPeriod as ALICETrackingEfficiencyPeriod,
     TrackingEfficiencyEventActivity as ALICETrackingEfficiencyEventActivity,
     find_event_activity,
     fast_sim_tracking_efficiency as alice_fast_sim_tracking_efficiency,
-)  # noqa: F401
+)
 
 
 def inverse_sample_decorator(

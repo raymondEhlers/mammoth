@@ -30,7 +30,6 @@ from mammoth.framework.typing import AwkwardArray, ArrayOrScalar, Scalar
 logger = logging.getLogger(__name__)
 
 
-
 # Constants
 # This value corresponds to an unidentified splitting.
 UNFILLED_VALUE: Final[float] = -0.005

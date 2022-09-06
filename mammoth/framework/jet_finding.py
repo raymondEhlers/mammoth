@@ -14,13 +14,13 @@ import numpy.typing as npt
 import vector
 
 import mammoth._ext
-from mammoth._ext import (
+from mammoth._ext import (  # noqa: F401
     AreaSettings,
     JetFindingSettings,
-    JetMedianBackgroundEstimator,
+    JetMedianBackgroundEstimator,  # noqa: F401
     GridMedianBackgroundEstimator,  # noqa: F401
     BackgroundSubtractionType,
-    RhoSubtractor,
+    RhoSubtractor,  # noqa: F401
     ConstituentSubtractor,  # noqa: F401
     BackgroundSubtraction,
     DEFAULT_RAPIDITY_MAX,  # noqa: F401
@@ -487,7 +487,7 @@ def _indices_for_event_boundaries(array: ak.Array) -> npt.NDArray[np.int64]:
         Cumulative sum of indices of event boundaries (eg. [0, 3, 7, 11, ..] for 3, 4, 4
             particles in 3 total events)
     """
-    counts = ak.num(array, axis=1)
+    counts: npt.NDArray[np.int64] = ak.num(array, axis=1)
     # To use for indexing, we need to keep track of the cumulative sum. That way, we can
     # slice using these indices.
     sum_counts = np.cumsum(np.asarray(counts))
