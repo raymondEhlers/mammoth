@@ -1,0 +1,100 @@
+1: !ScaleFactor
+  cross_section: 16.154245406389236
+  n_trials_total: 8703000
+  n_entries: 960
+  n_accepted_events: 6375023
+2: !ScaleFactor
+  cross_section: 4.632326355196321
+  n_trials_total: 8439250
+  n_entries: 972
+  n_accepted_events: 6512628
+3: !ScaleFactor
+  cross_section: 2.1603022076952176
+  n_trials_total: 8262750
+  n_entries: 1016
+  n_accepted_events: 6506550
+4: !ScaleFactor
+  cross_section: 0.8058454547623161
+  n_trials_total: 8272218
+  n_entries: 1256
+  n_accepted_events: 6600494
+5: !ScaleFactor
+  cross_section: 0.2662661047125885
+  n_trials_total: 8285750
+  n_entries: 1026
+  n_accepted_events: 6667966
+6: !ScaleFactor
+  cross_section: 0.09772389540771234
+  n_trials_total: 8287965
+  n_entries: 14037
+  n_accepted_events: 6709900
+7: !ScaleFactor
+  cross_section: 0.02946118972885709
+  n_trials_total: 8543400
+  n_entries: 13743
+  n_accepted_events: 6953264
+8: !ScaleFactor
+  cross_section: 0.01005229012774396
+  n_trials_total: 8470712
+  n_entries: 1532
+  n_accepted_events: 6918176
+9: !ScaleFactor
+  cross_section: 0.004067312353713192
+  n_trials_total: 8313000
+  n_entries: 1124
+  n_accepted_events: 6808888
+10: !ScaleFactor
+  cross_section: 0.0013609014280680227
+  n_trials_total: 8629000
+  n_entries: 1149
+  n_accepted_events: 7083672
+11: !ScaleFactor
+  cross_section: 0.0005331045776394258
+  n_trials_total: 8588750
+  n_entries: 1203
+  n_accepted_events: 7052276
+12: !ScaleFactor
+  cross_section: 0.0001894638747227917
+  n_trials_total: 8079182
+  n_entries: 1826
+  n_accepted_events: 6631399
+13: !ScaleFactor
+  cross_section: 9.327025849306836e-05
+  n_trials_total: 8392821
+  n_entries: 10264
+  n_accepted_events: 6903913
+14: !ScaleFactor
+  cross_section: 4.2815921609973425e-05
+  n_trials_total: 8460473
+  n_entries: 1435
+  n_accepted_events: 6960211
+15: !ScaleFactor
+  cross_section: 2.102606381276447e-05
+  n_trials_total: 8544750
+  n_entries: 1229
+  n_accepted_events: 7023016
+16: !ScaleFactor
+  cross_section: 1.0663232932839017e-05
+  n_trials_total: 8277000
+  n_entries: 1213
+  n_accepted_events: 6798937
+17: !ScaleFactor
+  cross_section: 5.781575736534243e-06
+  n_trials_total: 8367250
+  n_entries: 1230
+  n_accepted_events: 6859664
+18: !ScaleFactor
+  cross_section: 3.018564617075505e-06
+  n_trials_total: 8292250
+  n_entries: 1258
+  n_accepted_events: 6781812
+19: !ScaleFactor
+  cross_section: 1.624470686881444e-06
+  n_trials_total: 8489750
+  n_entries: 1268
+  n_accepted_events: 6929672
+20: !ScaleFactor
+  cross_section: 2.108866907976149e-06
+  n_trials_total: 8106000
+  n_entries: 1253
+  n_accepted_events: 6566922

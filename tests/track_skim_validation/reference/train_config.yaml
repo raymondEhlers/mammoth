@@ -1,0 +1,5 @@
+# This is a mocked up `config.yaml` file for use with the `calculate_embedding_skim` function
+# The only value that matters here is the pt_hard_bin, which must correspond with the pt_hard_bin
+# that we embedded.
+number: 1234
+pt_hard_bin: 12
