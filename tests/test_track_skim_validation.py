@@ -35,7 +35,16 @@ logger = logging.getLogger(__name__)
 _here = Path(__file__).parent
 _track_skim_base_path = _here / "track_skim_validation"
 
-def _aliphysics_to_analysis_results(collision_system: str, jet_R: float) -> Path:
+def _aliphysics_to_analysis_results(collision_system: str, collision_system_label: str, jet_R: float, input_files: Sequence[Path]) -> Path:
+    # First, validate input files
+    # They might be missing since they're too large to store in the repo
+    missing_files = [not f.exists() for f in input_files]
+    if missing_files:
+        raise RuntimeError(
+            "Cannot generate AliPhysics reference due to missing inputs files."
+            f" Missing: {[f for f, missing in zip(input_files, missing_files) if missing]}"
+        )
+
     # First, call the run macro
     from mammoth.hardest_kt import run_macro
 
@@ -57,12 +66,12 @@ def _aliphysics_to_analysis_results(collision_system: str, jet_R: float) -> Path
         })
     run_macro.run(
         analysis_mode=collision_system, jet_R=jet_R, validation_mode=True,
-        input_files=_collision_system_to_aod_files[collision_system],
+        input_files=input_files,
         **optional_kwargs
     )
     # Next, we need to rename the output
     output_file = Path("AnalysisResults.root")
-    output_file.rename(_track_skim_base_path / "reference" / f"AnalysisResults_{collision_system}_jet_R_{round(jet_R*100):03}.root")
+    output_file.rename(_track_skim_base_path / "reference" / f"AnalysisResults_{collision_system_label}_jet_R_{round(jet_R*100):03}.root")
 
     return output_file
 
@@ -143,8 +152,18 @@ def _analysis_results_to_parquet(filename: Path, collision_system: str, jet_R: f
     return output_filename
 
 
-def track_skim_to_flat_tree(filename: Path) -> ak.Array:
-    ...
+def _track_skim_to_parquet(input_filename: Path, output_filename: Path, collision_system: str) -> None:
+    source = io_track_skim.FileSource(
+        filename=input_filename,
+        collision_system=collision_system,
+    )
+    arrays = next(source.gen_data(chunk_size=sources.ChunkSizeSentinel.FULL_SOURCE))
+    io_track_skim.write_to_parquet(
+        arrays=arrays,
+        filename=output_filename,
+        collision_system=collision_system,
+    )
+
 
 # NOTE: These files are too large to store in the git repo.
 #       I've stored them multiple places to attempt to ensure that they're not lost entirely.
@@ -157,6 +176,8 @@ _collision_system_to_aod_files = {
         _track_skim_base_path / "input/alice/data/2017/LHC17p/000282343/pass1_FAST/AOD234/0002/AliAOD.root",
         _track_skim_base_path / "input/alice/data/2017/LHC17p/000282343/pass1_FAST/AOD234/0003/AliAOD.root",
     ],
+    # Strictly speaking, this should be LHC18b8 to correctly correspond to LHC17pq, but for these
+    # purposes, it's fine.
     "pythia": [
         _track_skim_base_path / "input/alice/sim/2020/LHC20g4/12/296191/AOD/001/AliAOD.root",
     ],
@@ -246,18 +267,7 @@ def test_track_skim_validation(caplog: Any, jet_R: float, collision_system: str,
             skim_aliphysics_parquet = True
 
     if generate_aliphysics_results:
-        # First, validate input files
-        # They might be missing since they're too large to store in the repo
-        aod_input_files = _collision_system_to_aod_files[collision_system]
-        missing_files = [not f.exists() for f in aod_input_files]
-        if missing_files:
-            raise RuntimeError(
-                "Cannot generate AliPhysics reference due to missing inputs files."
-                f" Missing: {[f for f, missing in zip(aod_input_files, missing_files) if missing]}"
-            )
-
-        # Now actually execute the run macro
-        _aliphysics_to_analysis_results(collision_system=collision_system, jet_R=jet_R)
+        _aliphysics_to_analysis_results(collision_system=collision_system, collision_system_label=collision_system, jet_R=jet_R, input_files=_collision_system_to_aod_files[collision_system])
 
     if convert_aliphysics_to_parquet or generate_aliphysics_results:
         # We need to generate the parquet if we've just executed the run macro
@@ -298,6 +308,12 @@ def test_track_skim_validation(caplog: Any, jet_R: float, collision_system: str,
 
     # For mammoth:
     # 1. Convert track skim to parquet
+    #    - This isn't so trivial, since we need separate conversions for embed_pythia (PbPb + pythia)
+    #    - The PbPb should be the same, but the pythia doesn't need to be, and I'm willnig to be it will
+    #      be different at some point
+    #     - So we need:
+    #       - pp, pythia, PbPb: Run macro, skim analysis results, etc + track_skim -> flat skim
+    #       - embed_pythia: PbPb + pythia: Run macro + track_skim -> flat_skim embedded
     # 2. Analyze parquet track skim to generate flat tree
     track_skim_filenames = TrackSkimValidationFilenames(
         base_path=_track_skim_base_path,
@@ -306,30 +322,34 @@ def test_track_skim_validation(caplog: Any, jet_R: float, collision_system: str,
     )
     if generate_aliphysics_results:
         # Convert track skim to parquet
-        logger.info(f"Converting collision system {collision_system}")
-        source = io_track_skim.FileSource(
-            filename=reference_filenames.analysis_output,
-            collision_system=collision_system,
+        _track_skim_to_parquet(
+            input_filename=reference_filenames.analysis_output,
+            output_filename=track_skim_filenames.parquet_output,
+            collision_system=collision_system
         )
-        arrays = next(source.gen_data(chunk_size=sources.ChunkSizeSentinel.FULL_SOURCE))
-        io_track_skim.write_to_parquet(
-            arrays=arrays,
-            filename=track_skim_filenames.parquet_output,
-            collision_system=collision_system,
-        )
+    if collision_system == "embed_pythia":
+        # Need to ensure that the pythia files to embed are also converted
+        pythia_for_embedding_analysis_results_filename = Path(str(reference_filenames.analysis_output).replace("embed_pythia", "embed_pythia__pythia"))
+        # Attempt to execute the run macro if needed for this addition file
+        if not pythia_for_embedding_analysis_results_filename.exists():
+            # Here, we're running pythia, and it should be treated as such.
+            # We just label it as "embed_pythia__pythia" to denote that it should be used for embedding
+            # (same as we label the PbPb as "embed_pythia" when we run the embedding run macro, even though
+            # the track skim just sees the PbPb).
+            _aliphysics_to_analysis_results(
+                collision_system="pythia",
+                collision_system_label="embed_pythia__pythia", jet_R=jet_R,
+                input_files=_collision_system_to_aod_files["embed_pythia__pythia"]
+            )
+            # And then extract the corresponding parquet
+            _track_skim_to_parquet(
+                input_filename=pythia_for_embedding_analysis_results_filename,
+                output_filename=track_skim_filenames.parquet_output,
+                collision_system=collision_system
+            )
 
-    # For embedding, we need to go to the separate signal and background files themselves.
-    for collision_system in ["pythia", "PbPb"]:
-        logger.info(f"Converting collision system {collision_system} for embedding")
-
-        write_to_parquet(
-            arrays=arrays,
-            filename=Path(
-                f"/software/rehlers/dev/mammoth/projects/framework/embedPythia/AnalysisResults_{collision_system}_track_skim.parquet"
-            ),
-            collision_system=collision_system,
-        )
-
+    # Now we can finally analyze the track_skim
+    # We always want to run this, since this is what we're validating
 
 
 @attr.s
