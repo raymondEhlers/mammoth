@@ -141,7 +141,7 @@ class AnalysisMode(enum.Enum):
     pp = enum.auto()
     pythia = enum.auto()
     PbPb = enum.auto()
-    embedPythia = enum.auto()
+    embed_pythia = enum.auto()
 
 
 def _run_add_task_macro(task_path: Union[str, Path], task_class_name: str, *args: Any) -> Any:
@@ -268,7 +268,7 @@ def run_dynamical_grooming(  # noqa: C901
 
     # Setup
     # pt hard binning is for pp MC, embedding
-    if analysis_mode in [AnalysisMode.pythia, AnalysisMode.embedPythia]:
+    if analysis_mode in [AnalysisMode.pythia, AnalysisMode.embed_pythia]:
         # Unfortunately, we have to pass a TArrayI because that is the only accepted type...
         pt_hard_binning = np.array(
             [0, 5, 7, 9, 12, 16, 21, 28, 36, 45, 57, 70, 85, 99, 115, 132, 150, 169, 190, 212, 235, 1000],
@@ -603,7 +603,7 @@ def run_dynamical_grooming(  # noqa: C901
         constUtil.SetMaxDelR(0.25)
 
     # Particle level jet finder
-    if analysis_mode in [AnalysisMode.pythia, AnalysisMode.embedPythia]:
+    if analysis_mode in [AnalysisMode.pythia, AnalysisMode.embed_pythia]:
         # JetFinderAKTChargedMC_R04_Escheme
         akt_particle_level_jet_finder = ROOT.AliEmcalJetTask.AddTaskEmcalJet(
             "mcparticles",
@@ -624,7 +624,7 @@ def run_dynamical_grooming(  # noqa: C901
         _handle_special_event_selection_for_pythia(period=period, task=akt_particle_level_jet_finder)
 
     # Pythia detector to particle level tagger
-    if analysis_mode in [AnalysisMode.pythia, AnalysisMode.embedPythia]:
+    if analysis_mode in [AnalysisMode.pythia, AnalysisMode.embed_pythia]:
         # Tagger
         # JetTaggerMCChargedR{jet_R_str}
         tagger = _run_add_task_macro(
@@ -757,7 +757,7 @@ def run_dynamical_grooming(  # noqa: C901
             ROOT.PWGJE.EMCALJetTasks.AliAnalysisTaskJetDynamicalGrooming.kInclusive,
         )
     dynamical_grooming.SelectCollisionCandidates(physics_selection)
-    if analysis_mode in [AnalysisMode.pythia, AnalysisMode.embedPythia]:
+    if analysis_mode in [AnalysisMode.pythia, AnalysisMode.embed_pythia]:
         _handle_special_event_selection_for_pythia(period=period, task=dynamical_grooming)
         dynamical_grooming.SetNumberOfPtHardBins(len(pt_hard_binning) - 1)
         dynamical_grooming.SetUserPtHardBinning(pt_hard_binning_root)
@@ -891,7 +891,7 @@ def run_dynamical_grooming(  # noqa: C901
             ROOT.PWGJE.EMCALJetTasks.AliAnalysisTaskJetHardestKt.kInclusive,
         )
     hardest_kt.SelectCollisionCandidates(physics_selection)
-    if analysis_mode in [AnalysisMode.pythia, AnalysisMode.embedPythia]:
+    if analysis_mode in [AnalysisMode.pythia, AnalysisMode.embed_pythia]:
         _handle_special_event_selection_for_pythia(period=period, task=hardest_kt)
         hardest_kt.SetNumberOfPtHardBins(len(pt_hard_binning) - 1)
         hardest_kt.SetUserPtHardBinning(pt_hard_binning_root)
@@ -997,7 +997,7 @@ def run_dynamical_grooming_embedding(  # noqa: C901
 
     # Setup
     # pt hard binning is for pp MC, embedding
-    if analysis_mode in [AnalysisMode.pythia, AnalysisMode.embedPythia]:
+    if analysis_mode in [AnalysisMode.pythia, AnalysisMode.embed_pythia]:
         # Unfortunately, we have to pass a TArrayI because that is the only accepted type...
         pt_hard_binning = np.array(
             [0, 5, 7, 9, 12, 16, 21, 28, 36, 45, 57, 70, 85, 99, 115, 132, 150, 169, 190, 212, 235, 1000],
@@ -1087,7 +1087,7 @@ def run_dynamical_grooming_embedding(  # noqa: C901
     ghost_area = 0.005
 
     # Rho related
-    # Appears to be the same for PbPb and embedPythia.
+    # Appears to be the same for PbPb and embed_pythia.
     # Jet finder for rho. Wagon name: "JetFinderKtCharged_R02_EschemeNew"
     kt_jet_finder = ROOT.AliEmcalJetTask.AddTaskEmcalJet(
         "usedefault",
@@ -1750,8 +1750,8 @@ default_analysis_parameters = {
             # ),
         ],
     ),
-    "embedPythia": AnalysisModeParameters(
-        analysis_mode=AnalysisMode.embedPythia,
+    "embed_pythia": AnalysisModeParameters(
+        analysis_mode=AnalysisMode.embed_pythia,
         period_name="LHC18q",
         # NOTE: For some reason, kAnyINT will include some events where the centrality seems to be uncalibrated.
         #       It's unclear why this occurs, but since we're only interested in semi-central at the moment, it
@@ -1803,7 +1803,7 @@ def run(
     data_type = DataType.AOD
     ROOT.AliTrackContainer.SetDefTrackCutsPeriod(period)
 
-    if validated_analysis_mode == AnalysisMode.embedPythia:
+    if validated_analysis_mode == AnalysisMode.embed_pythia:
         # If there is an explicit file list, create a temporary file containing
         # the filenames os we can pass that into the run macro.
         embed_input_filename = Path("embedding/embedding_file_list.txt")
@@ -1846,8 +1846,8 @@ def run(
 
 
 if __name__ == "__main__":
-    run(analysis_mode="embedPythia", jet_R=0.4, validation_mode=True)
-    #analysis_mode = AnalysisMode.embedPythia
+    run(analysis_mode="embed_pythia", jet_R=0.4, validation_mode=True)
+    #analysis_mode = AnalysisMode.embed_pythia
     #jet_R = 0.4
     #validation_mode = True
     #if analysis_mode == AnalysisMode.PbPb:
@@ -1936,7 +1936,7 @@ if __name__ == "__main__":
     #            # Path("/Users/re239/code/alice/data/LHC16j5/5/246945/AOD200/0006/AliAOD.root"),
     #        ],
     #    )
-    #if analysis_mode == AnalysisMode.embedPythia:
+    #if analysis_mode == AnalysisMode.embed_pythia:
     #    # This is different enough that we'll use a different entry point.
     #    _run_embedding_analysis(
     #        analysis_mode=analysis_mode,
