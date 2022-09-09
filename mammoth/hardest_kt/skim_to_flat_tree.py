@@ -10,7 +10,7 @@ from __future__ import annotations
 import functools
 import logging
 from pathlib import Path
-from typing import Dict, Iterable, List, Mapping, Optional, Tuple, cast
+from typing import Dict, Iterable, List, Mapping, Optional, Tuple
 
 import attr
 import awkward as ak
@@ -860,8 +860,8 @@ def calculate_embedding_skim_impl(  # noqa: C901
                 and func_name == "leading_kt"
                 and ak.any((hybrid_det_level_leading_matching == 1) & (hybrid_det_level_subleading_matching == 3))
             ):
-                from networkx.drawing.nx_pylab import draw
-                from jet_substructure.analysis import draw_splitting
+                from networkx.drawing.nx_pylab import draw  # noqa: F401
+                from jet_substructure.analysis import draw_splitting  # pyright: ignore [reportMissingImports]
 
                 # Find a sufficiently interesting jet (ie high enough pt)
                 mask_jets_of_interest = (
@@ -1048,7 +1048,7 @@ def calculate_data_skim_impl(  # noqa: C901
             grooming_results[leading_track_name] = to_float(ak.max(input_jets.jets.jet_constituents.pt, axis=1))
 
             # Perform our calculations.
-            functions: Dict[str, functools.partial[Tuple[npt.NDArray[np.float32], AwkwardArray[int], AwkwardArray[int]]]]  = _define_calculation_functions(jet_R=jet_R, iterative_splittings=iterative_splittings)
+            functions: Dict[str, functools.partial[Tuple[npt.NDArray[np.float32], AwkwardArray[int], AwkwardArray[int]]]] = _define_calculation_functions(jet_R=jet_R, iterative_splittings=iterative_splittings)
             for func_name, func in functions.items():
                 logger.debug(f"prefix: {prefix}, grooming function: {func_name}")
                 calculation = Calculation(
