@@ -87,6 +87,18 @@ def _reference_aliphyiscs_tree_name(collision_system: str, jet_R: float, dyg_tas
     return f"AliAnalysisTaskJetDynamicalGrooming_{_jet_labels[collision_system]}_AKTChargedR{round(jet_R*100):03}_tracks_pT0150_E_scheme{_tags[collision_system]}"
 
 
+def _get_scale_factors_for_test() -> Dict[int, float]:
+    # NOTE: This assumes that the validation uses LHC20g4_AOD. However, we do this consistently,
+    #       so that's a reasonable assumption.
+    # NOTE: These scale factors need to be determined externally. These were extracted separately
+    #       from the main analysis. In principle, the scale factors for this validation just need to
+    #       be consistent, but since we have them available, we may as well use them.
+    scale_factors = analysis_objects.read_extracted_scale_factors(
+        path=_track_skim_base_path / "input" / "LHC20g4_AOD_2640_scale_factors.yaml"
+    )
+    return scale_factors
+
+
 @attr.define
 class ConvertTreeToParquetArguments:
     """Trivial class to help organize arguments for converting AliPhysics output trees to parquet files."""
@@ -252,20 +264,26 @@ class TrackSkimValidationFilenames:
     @property
     def skim(self) -> Path:
         iterative_splittings_label = "iterative" if self.iterative_splittings else "recursive"
-        return self.base_path / self.filename_type / f"skim_{self._label}__{iterative_splittings_label}_splittings.root"
+        return self.base_path / self.filename_type / f"skim__{self._label}__{iterative_splittings_label}_splittings.root"
 
 
 # TODO: Re-enable 0.2
 # TODO: Refactor...
 #@pytest.mark.parametrize("jet_R", [0.2, 0.4])
+#@pytest.mark.parametrize("collision_system", ["pp", "pythia", "PbPb", "embed_pythia"])
 @pytest.mark.parametrize("jet_R", [0.4])
-@pytest.mark.parametrize("collision_system", ["pp", "pythia", "PbPb", "embed_pythia"])
-def test_track_skim_validation(caplog: Any, jet_R: float, collision_system: str, iterative_splittings: bool = True) -> None:
+@pytest.mark.parametrize("collision_system", ["pp"])
+def test_track_skim_validation(
+    caplog: Any,
+    jet_R: float,
+    collision_system: str,
+    iterative_splittings: bool = True
+) -> None:
     # NOTE: There's some inefficiency since we store the same track skim info with the
     #       R = 0.2 and R = 0.4 outputs. However, it's much simpler conceptually, so we
     #       just accept it
     # Setup
-    caplog.set_level(logging.DEBUG)
+    caplog.set_level(logging.INFO)
 
     reference_filenames = TrackSkimValidationFilenames(
         base_path=_track_skim_base_path,
@@ -302,14 +320,7 @@ def test_track_skim_validation(caplog: Any, jet_R: float, collision_system: str,
 
     # Need to post process regenerated outputs
     if skim_aliphysics_parquet or convert_aliphysics_to_parquet or generate_aliphysics_results:
-        # NOTE: This assumes that the validation uses LHC20g4_AOD. However, we do this consistently,
-        #       so that's a reasonable assumption.
-        # NOTE: These scale factors need to be determined externally. These were extracted separately
-        #       from the main analysis. In principle, the scale factors for this validation just need to
-        #       be consistent, but since we have them available, we may as well use them.
-        scale_factors = analysis_objects.read_extracted_scale_factors(
-            path=_track_skim_base_path / "input" / "LHC20g4_AOD_2640_scale_factors.yaml"
-        )
+        scale_factors = _get_scale_factors_for_test()
         if collision_system != "embed_pythia":
             res = skim_to_flat_tree.calculate_data_skim(
                 input_filename=reference_filenames.parquet_output,
@@ -326,7 +337,7 @@ def test_track_skim_validation(caplog: Any, jet_R: float, collision_system: str,
                 iterative_splittings=iterative_splittings,
                 prefixes=_all_analysis_parameters[collision_system].reference_analysis_prefixes,
                 scale_factors=scale_factors,
-                train_directory=_track_skim_base_path / "reference" / "train_config.yaml",
+                train_directory=_track_skim_base_path / "reference",
                 jet_R=jet_R,
                 output_filename=reference_filenames.skim,
             )
@@ -347,7 +358,7 @@ def test_track_skim_validation(caplog: Any, jet_R: float, collision_system: str,
         filename_type="track_skim",
         collision_system=collision_system, jet_R=jet_R, iterative_splittings=iterative_splittings,
     )
-    if generate_aliphysics_results:
+    if not track_skim_filenames.parquet_output.exists() or generate_aliphysics_results:
         # Convert track skim to parquet
         _track_skim_to_parquet(
             input_filename=reference_filenames.analysis_output,
@@ -390,6 +401,7 @@ def test_track_skim_validation(caplog: Any, jet_R: float, collision_system: str,
             f", min jet pt dict: {_analysis_parameters.min_jet_pt_by_prefix}"
         )
 
+    scale_factors = _get_scale_factors_for_test()
     if collision_system != "embed_pythia":
         result = analysis_track_skim_to_flat_tree.hardest_kt_data_skim(
             input_filename=track_skim_filenames.parquet_output,
@@ -811,12 +823,14 @@ def run(collision_system: str, prefixes: Optional[Sequence[str]] = None) -> None
 
 
 if __name__ == "__main__":
-    collision_system = "embed_pythia"
+    #collision_system = "embed_pythia"
 
-    _prefixes = {
-        "pp": ["data"],
-        "pythia": ["data", "true"],
-        "PbPb": ["data"],
-        "embed_pythia": ["hybrid", "det_level", "true"],
-    }
-    run(collision_system=collision_system, prefixes=_prefixes[collision_system])
+    #_prefixes = {
+    #    "pp": ["data"],
+    #    "pythia": ["data", "true"],
+    #    "PbPb": ["data"],
+    #    "embed_pythia": ["hybrid", "det_level", "true"],
+    #}
+    #run(collision_system=collision_system, prefixes=_prefixes[collision_system])
+
+    test_track_skim_validation(jet_R=0.4, collision_system="pp")
