@@ -58,17 +58,26 @@ class CMakeBuild(build_ext):  # type: ignore
         ]
         build_args = []
 
+        # Adding CMake arguments set as environment variable
+        # (needed e.g. to build for ARM OSx on conda-forge)
+        if "CMAKE_ARGS" in os.environ:
+            cmake_args += [item for item in os.environ["CMAKE_ARGS"].split(" ") if item]
+
         if self.compiler.compiler_type != "msvc":
             # Using Ninja-build since it a) is available as a wheel and b)
             # multithreads automatically. MSVC would require all variables be
             # exported for Ninja to pick it up, which is a little tricky to do.
             # Users can override the generator with CMAKE_GENERATOR in CMake
             # 3.15+.
-            if not cmake_generator:
+            if not cmake_generator or cmake_generator == "Ninja":
                 try:
-                    import ninja  # type: ignore # noqa: F401
+                    import ninja  # noqa: F401
 
-                    cmake_args += ["-GNinja"]
+                    ninja_executable_path = os.path.join(ninja.BIN_DIR, "ninja")
+                    cmake_args += [
+                        "-GNinja",
+                        f"-DCMAKE_MAKE_PROGRAM:FILEPATH={ninja_executable_path}",
+                    ]
                 except ImportError:
                     pass
 
