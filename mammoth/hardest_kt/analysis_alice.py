@@ -4,7 +4,6 @@
 """
 
 import collections
-import functools
 import logging
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Mapping, Optional, Sequence, Tuple, Union
