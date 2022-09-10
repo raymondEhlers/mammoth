@@ -44,6 +44,8 @@ class Calculation:
     indices: AwkwardArray[int] = attr.field()
     # If there's no additional grooming selection, then this will be identical to input_splittings_indices.
     possible_indices: AwkwardArray[int] = attr.field()
+    # NOTE: We don't initialize here because we want to cache the calculation of the selected set of splittings
+    _restricted_splittings: analysis_jet_substructure.JetSplittingArray = attr.field(init=False)
 
     @property
     def splittings(self) -> analysis_jet_substructure.JetSplittingArray:
