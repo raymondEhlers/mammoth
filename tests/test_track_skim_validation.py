@@ -17,9 +17,7 @@ import numpy as np
 import pachyderm.plot
 import pytest
 import uproot
-from pachyderm import binned_data
-
-from jet_substructure.analysis import plot_base as pb
+from pachyderm import binned_data, plot as pb
 
 from mammoth.framework import sources
 from mammoth.framework.io import track_skim as io_track_skim
