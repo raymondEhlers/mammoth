@@ -6,7 +6,7 @@
 import logging
 import pprint
 from pathlib import Path
-from typing import Any, List, Optional, Sequence
+from typing import Any, Dict, List, Optional, Sequence
 
 import attr
 import awkward as ak
@@ -24,8 +24,7 @@ from jet_substructure.analysis import plot_base as pb
 from mammoth.framework import sources
 from mammoth.framework.io import track_skim as io_track_skim
 from mammoth.framework.analysis import jet_substructure as analysis_jet_substructure, objects as analysis_objects
-from mammoth.hardest_kt import skim_to_flat_tree
-
+from mammoth.hardest_kt import analysis_track_skim_to_flat_tree, run_macro, skim_to_flat_tree
 
 pachyderm.plot.configure()
 
@@ -44,9 +43,6 @@ def _aliphysics_to_analysis_results(collision_system: str, collision_system_labe
             "Cannot generate AliPhysics reference due to missing inputs files."
             f" Missing: {[f for f, missing in zip(input_files, missing_files) if missing]}"
         )
-
-    # First, call the run macro
-    from mammoth.hardest_kt import run_macro
 
     # Need this to be available to use the run macro
     # Strictly speaking, we need AliPHysics, so we then try to grab a value from AliPhysics
@@ -120,22 +116,22 @@ def _analysis_results_to_parquet(filename: Path, collision_system: str, jet_R: f
     ]
     _args = {
         "pp": ConvertTreeToParquetArguments(
-            prefixes=list(_collision_system_prefixes[collision_system].values()),
+            prefixes=list(_all_analysis_parameters[collision_system].reference_analysis_prefixes.values()),
             branches=[],
             prefix_branches=_prefix_branches,
         ),
         "pythia": ConvertTreeToParquetArguments(
-            prefixes=list(_collision_system_prefixes[collision_system].values()),
+            prefixes=list(_all_analysis_parameters[collision_system].reference_analysis_prefixes.values()),
             branches=["ptHard", "ptHardBin"],
             prefix_branches=_prefix_branches,
         ),
         "PbPb": ConvertTreeToParquetArguments(
-            prefixes=list(_collision_system_prefixes[collision_system].values()),
+            prefixes=list(_all_analysis_parameters[collision_system].reference_analysis_prefixes.values()),
             branches=[],
             prefix_branches=_prefix_branches,
         ),
         "embed_pythia": ConvertTreeToParquetArguments(
-            prefixes=list(_collision_system_prefixes[collision_system].values()),
+            prefixes=list(_all_analysis_parameters[collision_system].reference_analysis_prefixes.values()),
             branches=[],
             prefix_branches=_prefix_branches,
         ),
@@ -192,23 +188,48 @@ _collision_system_to_aod_files = {
     ],
 }
 
-_collision_system_prefixes = {
-    "pp": {
-        "data": "data",
-    },
-    "pythia": {
-        "data": "data",
-        "true": "matched",
-    },
-    "PbPb": {
-        "data": "data",
-    },
-    "embed_pythia": {
-        "hybrid": "data",
-        "true": "matched",
-        "det_level": "detLevel",
-    },
+@attr.define
+class AnalysisParameters:
+    reference_analysis_prefixes: Dict[str, str]
+    track_skim_loading_data_rename_prefix: Dict[str, str]
+    track_skim_convert_data_format_prefixes: Dict[str, str]
+    min_jet_pt_by_prefix: Dict[str, float]
+    pt_hat_bin: Optional[int] = None
+
+_all_analysis_parameters = {
+    "pp": AnalysisParameters(
+        reference_analysis_prefixes={
+            "data": "data",
+        },
+        track_skim_loading_data_rename_prefix={"data": "data"},
+        track_skim_convert_data_format_prefixes={"data": "data"},
+        min_jet_pt_by_prefix={"data": 5.},
+    ),
+    "pythia": AnalysisParameters(
+        reference_analysis_prefixes={"data": "data", "true": "matched"},
+        track_skim_loading_data_rename_prefix={},
+        track_skim_convert_data_format_prefixes={"det_level": "data", "part_level": "true"},
+        min_jet_pt_by_prefix={"det_level": 20.},
+        pt_hat_bin=12,
+    ),
+    "PbPb": AnalysisParameters(
+        reference_analysis_prefixes={
+            "data": "data",
+        },
+        track_skim_loading_data_rename_prefix={"data": "data"},
+        track_skim_convert_data_format_prefixes={"data": "data"},
+        min_jet_pt_by_prefix={"data": 20.},
+    ),
+    "embed_pythia": AnalysisParameters(
+        reference_analysis_prefixes={"hybrid": "data", "true": "matched", "det_level": "detLevel"},
+        # NOTE: This field is not meaningful for embedding
+        track_skim_loading_data_rename_prefix={},
+        track_skim_convert_data_format_prefixes={"hybrid": "hybrid", "det_level": "det_level", "part_level": "true"},
+        min_jet_pt_by_prefix={"hybrid": 20.},
+        pt_hat_bin=12,
+    ),
 }
+
 
 @attr.define
 class TrackSkimValidationFilenames:
@@ -288,7 +309,7 @@ def test_track_skim_validation(caplog: Any, jet_R: float, collision_system: str,
                 input_filename=reference_filenames.parquet_output,
                 collision_system=collision_system,
                 iterative_splittings=iterative_splittings,
-                prefixes=_collision_system_prefixes[collision_system],
+                prefixes=_all_analysis_parameters[collision_system].reference_analysis_prefixes,
                 jet_R=jet_R,
                 output_filename=reference_filenames.skim,
                 scale_factors=scale_factors,
@@ -297,7 +318,7 @@ def test_track_skim_validation(caplog: Any, jet_R: float, collision_system: str,
             res = skim_to_flat_tree.calculate_embedding_skim(
                 input_filename=reference_filenames.parquet_output,
                 iterative_splittings=iterative_splittings,
-                prefixes=_collision_system_prefixes[collision_system],
+                prefixes=_all_analysis_parameters[collision_system].reference_analysis_prefixes,
                 scale_factors=scale_factors,
                 train_directory=_track_skim_base_path / "reference" / "train_config.yaml",
                 jet_R=jet_R,
@@ -350,7 +371,55 @@ def test_track_skim_validation(caplog: Any, jet_R: float, collision_system: str,
 
     # Now we can finally analyze the track_skim
     # We always want to run this, since this is what we're validating
+    # Need to grab relevant analysis parameters
+    _run_macro_default_analysis_parmateres = run_macro.default_analysis_parameters[collision_system]
+    _analysis_parameters = _all_analysis_parameters[collision_system]
+    # Validate min jet pt
+    _min_jet_pt_from_run_macro = _run_macro_default_analysis_parmateres.grooming_jet_pt_threshold
+    _values_align = [_min_jet_pt_from_run_macro == v for v in _analysis_parameters.min_jet_pt_by_prefix.values()]
+    if not all(_values_align):
+        raise RuntimeError(
+            "Misalignment between min pt cuts!"
+            f" min jet pt from run macro: {_min_jet_pt_from_run_macro}"
+            f", min jet pt dict: {_analysis_parameters.min_jet_pt_by_prefix}"
+        )
 
+    if collision_system != "embed_pythia":
+        result = analysis_track_skim_to_flat_tree.hardest_kt_data_skim(
+            input_filename=track_skim_filenames.parquet_output,
+            collision_system=collision_system,
+            jet_R=jet_R,
+            min_jet_pt=_analysis_parameters.min_jet_pt_by_prefix,
+            iterative_splittings=iterative_splittings,
+            loading_data_rename_prefix=_analysis_parameters.track_skim_loading_data_rename_prefix,
+            convert_data_format_prefixes=_analysis_parameters.track_skim_convert_data_format_prefixes,
+            output_filename=track_skim_filenames.skim,
+            scale_factors=scale_factors,
+            pt_hat_bin=_analysis_parameters.pt_hat_bin,
+            validation_mode=True,
+        )
+    else:
+        # Help out typing...
+        assert _analysis_parameters.pt_hat_bin is not None
+
+        signal_filename = track_skim_filenames.parquet_output.parent / str(track_skim_filenames.parquet_output.name).replace("embed_pythia", "embed_pythia__pythia")
+        result = analysis_track_skim_to_flat_tree.hardest_kt_embedding_skim(
+            collision_system=collision_system,
+            # Repeat the signal file to ensure that we have enough events to exhaust the background
+            signal_input=[signal_filename, signal_filename, signal_filename],
+            background_input_filename=track_skim_filenames.parquet_output,
+            jet_R=jet_R,
+            min_jet_pt=_analysis_parameters.min_jet_pt_by_prefix,
+            iterative_splittings=iterative_splittings,
+            output_filename=track_skim_filenames.skim,
+            convert_data_format_prefixes=_analysis_parameters.track_skim_convert_data_format_prefixes,
+            scale_factor=scale_factors[_analysis_parameters.pt_hat_bin],
+            background_subtraction={"r_max": 0.25},
+            det_level_artificial_tracking_efficiency=1.0,
+            validation_mode=True,
+        )
+    if not result[0]:
+        raise ValueError(f"Skim failed for {collision_system}, {jet_R}")
 
 @attr.s
 class Input:
