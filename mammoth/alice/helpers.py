@@ -68,11 +68,11 @@ def _determine_particle_column_names(arrays: ak.Array, selected_particle_column_
     particle_columns = []
     if not selected_particle_column_name:
         # If no particle column is selected, then automatically detect the columns to use.
-        if "part_level" in arrays:
+        if "part_level" in ak.fields(arrays):
             particle_columns.append("part_level")
-        if "det_level" in arrays:
+        if "det_level" in ak.fields(arrays):
             particle_columns.append("det_level")
-        if "hybrid" in arrays:
+        if "hybrid" in ak.fields(arrays):
             particle_columns.append("hybrid")
 
         # Double check that we got something
