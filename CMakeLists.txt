@@ -17,10 +17,13 @@ if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
   set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
   # Use RPath on Mac OS.
-  set(CMAKE_MACOSX_RPATH 1)
+  # Commented out as of September 2022. It maybe causes issues with newer macOS versions (I seem memory corruption with an unclear cause
+  # since it doesn't appear on linux). If it comes back, or RPATH appears to be required, check out using an address sanitizer.
+  # See: https://stackoverflow.com/questions/44320465/whats-the-proper-way-to-enable-addresssanitizer-in-cmake-that-works-in-xcode
+  #set(CMAKE_MACOSX_RPATH 1)
 endif()
 
-# Path to additonal modules
+# Path to additional modules
 set(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake")
 
 message(STATUS "Build type: ${CMAKE_BUILD_TYPE}")
