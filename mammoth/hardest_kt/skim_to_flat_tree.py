@@ -191,7 +191,7 @@ def calculate_splitting_number(  # noqa: C901
         # This would be to help out mypy, but it will probably interfere with numba, so we
         # just tell it to ignore the type. The point here is that parent_index of all_splittings is
         # equivalent to two levels of AwkwardArrays, but it's not so easy to type it that way.
-        #available_splittings_parents = cast(AwkwardAray[int], available_splittings_parents_temp)
+        #available_splittings_parents = cast(AwkwardArray[int], available_splittings_parents_temp)
         # restricted_splitting_indices = restricted_splittings_indices[i]
         # available_splittings_parents = all_splittings[i].parent_index
 
@@ -754,7 +754,7 @@ def calculate_embedding_skim_impl(  # noqa: C901
                 # First, store the unsubtracted (which we use for the double counting cut) as the normal leading track pt.
                 if "leading_track_pt" in ak.fields(input_jets.jets):
                     grooming_results[leading_track_name] = to_float(input_jets.jets["leading_track_pt"])
-                # Then update the name for the substracted constituents in data.
+                # Then update the name for the subtracted constituents in data.
                 leading_track_name = f"{prefix}_leading_track_pt_sub"
             grooming_results[leading_track_name] = to_float(ak.max(input_jets.jets.jet_constituents.pt, axis=1))
 
