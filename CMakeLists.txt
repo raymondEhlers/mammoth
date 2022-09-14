@@ -4,14 +4,19 @@ project(mammoth
         CXX
     )
 
+# Ensure c++17
+# We specify this down below with an apparently preferred way (see: https://cliutils.gitlab.io/modern-cmake/chapters/features/cpp11.html)
+# However, as of September 2022, this different way doesn't always seem to work as expected (maybe), so I keep these
+# options enabled here, since they do always seem to work. If I made this into a proper library, this would be an issue
+# and should be resolved in that case. But since this is just for my own use, there's no need to go further
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED true)
+
 # Only do these if this is the main project, and not if it is included through
 # add_subdirectory
 if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
   # Optionally set things like CMAKE_CXX_STANDARD,
   # CMAKE_POSITION_INDEPENDENT_CODE here
-
-  # Let's ensure -std=c++xx instead of -std=g++xx
-  set(CMAKE_CXX_EXTENSIONS OFF)
 
   # Let's nicely support folders in IDE's
   set_property(GLOBAL PROPERTY USE_FOLDERS ON)
@@ -50,10 +55,15 @@ add_subdirectory(external/pybind11)
 # Require fastjet
 find_package(FastJet REQUIRED)
 
+# If we need to enable address sanitization
+#add_compile_options(-fno-omit-frame-pointer -fsanitize=address)
+#add_link_options(-fno-omit-frame-pointer -fsanitize=address)
+
 # Setup mammothExt, which includes jet finding functionality.
 # c++17 is required for std::optional
 add_library(mammothext SHARED mammoth/src/jetFinding.cxx mammoth/src/aliceFastSim.cxx)
 target_compile_features(mammothext PUBLIC cxx_std_17)
+set_target_properties(mammothext PROPERTIES CXX_EXTENSIONS OFF)
 # Add warnings
 target_compile_options(mammothext PRIVATE -Wall -Wextra -pedantic -Werror)
 target_link_libraries(mammothext PUBLIC FastJet::FastJet FastJet::Contrib)
@@ -61,7 +71,9 @@ target_include_directories(mammothext PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/includ
 
 # Create the pybind11 bindings
 pybind11_add_module(_ext mammoth/src/_ext.cxx)
-target_link_libraries(_ext PUBLIC mammothext)
+target_compile_features(_ext PUBLIC cxx_std_17)
+set_target_properties(_ext PROPERTIES CXX_EXTENSIONS OFF)
 # Add warnings
 target_compile_options(_ext PRIVATE -Wall -Wextra -pedantic -Werror)
+target_link_libraries(_ext PUBLIC mammothext)
 target_include_directories(_ext PUBLIC mammothext)
