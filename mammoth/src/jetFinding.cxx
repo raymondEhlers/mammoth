@@ -44,7 +44,7 @@ protected:
 template<typename QuantityType>
 class SW_QuantityMin : public fastjet::SelectorWorker {
 public:
-  /// detfault ctor (initialises the pt cut)
+  /// default ctor (initialises the pt cut)
   SW_QuantityMin(double qmin) : _qmin(qmin) {}
 
   /// returns true is the given object passes the selection pt cut
@@ -69,7 +69,7 @@ protected:
 template<typename QuantityType>
 class SW_QuantityMax : public fastjet::SelectorWorker {
 public:
-  /// detfault ctor (initialises the pt cut)
+  /// default ctor (initialises the pt cut)
   SW_QuantityMax(double qmax) : _qmax(qmax) {}
 
   /// returns true is the given object passes the selection pt cut
@@ -95,7 +95,7 @@ protected:
 template<typename QuantityType>
 class SW_QuantityRange : public fastjet::SelectorWorker {
 public:
-  /// detfault ctor (initialises the pt cut)
+  /// default ctor (initialises the pt cut)
   SW_QuantityRange(double qmin, double qmax) : _qmin(qmin), _qmax(qmax) {}
 
   /// returns true is the given object passes the selection pt cut
@@ -266,22 +266,6 @@ fastjet::Selector JetFindingSettings::selectorPtEtaNonGhost() const {
                                   );
   return selectJets;
 }
-
-/*fastjet::ClusterSequence* JetFindingSettings::create(std::vector<fastjet::PseudoJet> particlePseudoJets) const {
-  if (this->areaSettings) {
-    std::cerr << "-> Creating CSA\n";
-    return new fastjet::ClusterSequenceArea(
-      particlePseudoJets,
-      this->definition(),
-      this->areaSettings->areaDefinition()
-    );
-  }
-  std::cerr << "-> Creating CS\n";
-  return new fastjet::ClusterSequence(
-    particlePseudoJets,
-    this->definition()
-  );
-}*/
 
 std::string JetFindingSettings::to_string() const
 {

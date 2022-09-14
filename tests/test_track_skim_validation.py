@@ -50,7 +50,7 @@ def _aliphysics_to_analysis_results(collision_system: str, collision_system_labe
     except AttributeError:
         pytest.skip(
             "Need AliPhysics for generating reference file, but it appears that you only have ROOT."
-            " Please check your configuration to ensure that AliPhysics is availablek"
+            " Please check your configuration to ensure that AliPhysics is available"
         )
 
     optional_kwargs = {}
@@ -108,7 +108,7 @@ class ConvertTreeToParquetArguments:
 
 
 def _analysis_results_to_parquet(filename: Path, collision_system: str, jet_R: float) -> Path:
-    # Esentially porting some parsl functionality, so trying to keep this as simple as possible
+    # Essentially porting some parsl functionality, so trying to keep this as simple as possible
     # Shared between all outputs
     _prefix_branches = [
         "{prefix}.fJetPt",
@@ -173,7 +173,7 @@ def _track_skim_to_parquet(input_filename: Path, output_filename: Path, collisio
 
 # NOTE: These files are too large to store in the git repo.
 #       I've stored them multiple places to attempt to ensure that they're not lost entirely.
-#       Since the AliEn path is provided, they can always be retireved (in principle).
+#       Since the AliEn path is provided, they can always be retrieved (in principle).
 # NOTE: All were stored in archives (see the pachyderm dataset def for the particular archive names),
 #       and then were extracted for simplicity.
 _collision_system_to_aod_files = {
@@ -351,7 +351,7 @@ def test_track_skim_validation(
     # For mammoth:
     # 1. Convert track skim to parquet
     #    - This isn't so trivial, since we need separate conversions for embed_pythia (PbPb + pythia)
-    #    - The PbPb should be the same, but the pythia doesn't need to be, and I'm willnig to be it will
+    #    - The PbPb should be the same, but the pythia doesn't need to be, and I'm willing to be it will
     #      be different at some point
     #     - So we need:
     #       - pp, pythia, PbPb: Run macro, skim analysis results, etc + track_skim -> flat skim
@@ -396,10 +396,10 @@ def test_track_skim_validation(
     # Now we can finally analyze the track_skim
     # We always want to run this, since this is what we're validating
     # Need to grab relevant analysis parameters
-    _run_macro_default_analysis_parmateres = run_macro.default_analysis_parameters[collision_system]
+    _run_macro_default_analysis_parameters = run_macro.default_analysis_parameters[collision_system]
     _analysis_parameters = _all_analysis_parameters[collision_system]
     # Validate min jet pt
-    _min_jet_pt_from_run_macro = _run_macro_default_analysis_parmateres.grooming_jet_pt_threshold
+    _min_jet_pt_from_run_macro = _run_macro_default_analysis_parameters.grooming_jet_pt_threshold
     _values_align = [_min_jet_pt_from_run_macro == v for v in _analysis_parameters.min_jet_pt_by_prefix.values()]
     if not all(_values_align):
         raise RuntimeError(
@@ -409,7 +409,7 @@ def test_track_skim_validation(
         )
 
     scale_factors = _get_scale_factors_for_test()
-    # TODO: Need to short cirucit the already created check here since we want it to always
+    # TODO: Need to short circuit the already created check here since we want it to always
     #       create the output. Maybe easiest is just to make sure we rm the output?
     if collision_system != "embed_pythia":
         result = analysis_track_skim_to_flat_tree.hardest_kt_data_skim(
@@ -608,7 +608,7 @@ def compare(collision_system: str, prefixes: Sequence[str], standard_filename: P
         standard_jet_pt = standard[f"{prefix}_jet_pt"]
         track_skim_jet_pt = track_skim[f"{prefix}_jet_pt"]
 
-        # Sometimes it's useful to start at this, but sometimes it's just overwhelming, so uncomment as necessasry
+        # Sometimes it's useful to start at this, but sometimes it's just overwhelming, so uncomment as necessary
         #logger.info(f"standard_jet_pt: {standard_jet_pt.to_list()}")
         #logger.info(f"track_skim_jet_pt: {track_skim_jet_pt.to_list()}")
 
@@ -622,7 +622,7 @@ def compare(collision_system: str, prefixes: Sequence[str], standard_filename: P
                 _arr = ak.zip({"s": standard_jet_pt, "t": track_skim_jet_pt})
                 logger.info(pprint.pformat(_arr.to_list()))
                 is_not_close_jet_pt = np.where(~np.isclose(ak.to_numpy(standard_jet_pt), ak.to_numpy(track_skim_jet_pt)))
-                logger.info(f"Indicies where not close: {is_not_close_jet_pt}")
+                logger.info(f"Indices where not close: {is_not_close_jet_pt}")
         except ValueError as e:
             logger.exception(e)
 
@@ -674,7 +674,7 @@ def compare(collision_system: str, prefixes: Sequence[str], standard_filename: P
             standard_kt = standard[f"{grooming_method}_{prefix}_kt"]
             track_skim_kt = track_skim[f"{grooming_method}_{prefix}_kt"]
 
-            # Sometimes it's useful to start at this, but sometimes it's just overwhelming, so uncomment as necessasry
+            # Sometimes it's useful to start at this, but sometimes it's just overwhelming, so uncomment as necessary
             #logger.info(f"standard_kt: {standard_kt.to_list()}")
             #logger.info(f"track_skim_kt: {track_skim_kt.to_list()}")
 
@@ -686,7 +686,7 @@ def compare(collision_system: str, prefixes: Sequence[str], standard_filename: P
                     _arr = ak.zip({"s": standard_kt, "t": track_skim_kt})
                     logger.info(pprint.pformat(_arr.to_list()))
                     is_not_close_kt = np.where(~np.isclose(ak.to_numpy(standard_kt), ak.to_numpy(track_skim_kt)))
-                    logger.info(f"Indicies where not close: {is_not_close_kt}")
+                    logger.info(f"Indices where not close: {is_not_close_kt}")
             except ValueError as e:
                 logger.exception(e)
 
@@ -735,7 +735,7 @@ def compare(collision_system: str, prefixes: Sequence[str], standard_filename: P
             standard_rg = standard[f"{grooming_method}_{prefix}_delta_R"]
             track_skim_rg = track_skim[f"{grooming_method}_{prefix}_delta_R"]
 
-            # Sometimes it's useful to start at this, but sometimes it's just overwhelming, so uncomment as necessasry
+            # Sometimes it's useful to start at this, but sometimes it's just overwhelming, so uncomment as necessary
             #logger.info(f"standard_zg: {standard_zg.to_list()}")
             #logger.info(f"track_skim_zg: {track_skim_zg.to_list()}")
 
@@ -747,7 +747,7 @@ def compare(collision_system: str, prefixes: Sequence[str], standard_filename: P
                     _arr = ak.zip({"s": standard_rg, "t": track_skim_rg})
                     logger.info(pprint.pformat(_arr.to_list()))
                     is_not_close_rg = np.where(~np.isclose(ak.to_numpy(standard_rg), ak.to_numpy(track_skim_rg)))
-                    logger.info(f"Indicies where not close: {is_not_close_rg}")
+                    logger.info(f"Indices where not close: {is_not_close_rg}")
             except ValueError as e:
                 logger.exception(e)
 
@@ -802,7 +802,7 @@ def compare(collision_system: str, prefixes: Sequence[str], standard_filename: P
             standard_zg = standard[f"{grooming_method}_{prefix}_z"]
             track_skim_zg = track_skim[f"{grooming_method}_{prefix}_z"]
 
-            # Sometimes it's useful to start at this, but sometimes it's just overwhelming, so uncomment as necessasry
+            # Sometimes it's useful to start at this, but sometimes it's just overwhelming, so uncomment as necessary
             #logger.info(f"standard_zg: {standard_zg.to_list()}")
             #logger.info(f"track_skim_zg: {track_skim_zg.to_list()}")
 

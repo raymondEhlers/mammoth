@@ -320,7 +320,7 @@ struct JetMedianBackgroundEstimator : public BackgroundEstimator {
    * @param _computeRhoM If True, compute Rho_M
    * @param _useAreaFourVector If True, use area four vector
    * @param _excludeNHardestJets Number of hardest jets to exclude
-   * @param _constituentPtMax Maximum constitunet pt to allow in a selected jet
+   * @param _constituentPtMax Maximum constituent pt to allow in a selected jet
    */
   JetMedianBackgroundEstimator(JetFindingSettings _settings, bool _computeRhoM, bool _useAreaFourVector, int _excludeNHardestJets, double _constituentPtMax):
       settings(_settings), computeRhoM(_computeRhoM), useAreaFourVector(_useAreaFourVector),
@@ -406,7 +406,7 @@ enum class BackgroundSubtraction_t {
   rho= 1,
   /// Event-wise constituent subtraction
   eventWiseCS = 2,
-  /// Jet-wise consituent subtraction (never tested as of Feb 2022, so it should be verified)
+  /// Jet-wise constituent subtraction (never tested as of Feb 2022, so it should be verified)
   jetWiseCS = 3,
 };
 
@@ -555,8 +555,8 @@ struct FindJetsImplementationOutputWrapper {
    * @param _backgroundEstimator Background estimator
    * @param _jets Jets found by cluster sequence
    * @param _particles Particles used for jet finding. May be just the input particles, or
-   *                   those subtracted by event-wise constituent subtraction. Depends on the setttings.
-   * @param _subtractedToUnsubtractedIndices Map from subtracted to unsubtracted indicies. Only propulated
+   *                   those subtracted by event-wise constituent subtraction. Depends on the settings.
+   * @param _subtractedToUnsubtractedIndices Map from subtracted to unsubtracted indicies. Only populated
    *                    if using event-wise constituent subtraction.
    */
   FindJetsImplementationOutputWrapper(std::shared_ptr<fastjet::ClusterSequence> _cs,

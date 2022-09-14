@@ -216,7 +216,7 @@ def hybrid_level_particles_mask_for_jet_finding(
     Returns:
         Mask to apply to the hybrid level particles during jet finding, mask selecting only the background particles.
     """
-    # We need the bacgkround only particles mask for the tracking inefficiency,
+    # We need the background only particles mask for the tracking inefficiency,
     # so we calculate it first
     background_particles_only_mask = hybrid_background_particles_only_mask(
         arrays=arrays, source_index_identifiers=source_index_identifiers

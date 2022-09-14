@@ -339,7 +339,7 @@ PYBIND11_MODULE(_ext, m) {
     .def_readonly("z", &mammoth::JetSubstructure::ColumnarSplittings::z)
     .def_readonly("parent_index", &mammoth::JetSubstructure::ColumnarSplittings::parentIndex)
   ;
-  py::class_<mammoth::JetSubstructure::ColumnarSubjets>(m, "ColumnarSubjest", "Columnar splittings output")
+  py::class_<mammoth::JetSubstructure::ColumnarSubjets>(m, "ColumnarSubjets", "Columnar splittings output")
     .def_readonly("splitting_node_index", &mammoth::JetSubstructure::ColumnarSubjets::splittingNodeIndex)
     .def_readonly("part_of_iterative_splitting", &mammoth::JetSubstructure::ColumnarSubjets::partOfIterativeSplitting)
     .def_readonly("constituent_indices", &mammoth::JetSubstructure::ColumnarSubjets::constituentIndices)
