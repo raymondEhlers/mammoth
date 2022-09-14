@@ -355,7 +355,7 @@ def hardest_kt_embed_thermal_model_skim(
 def hardest_kt_embedding_skim(
     collision_system: str,
     signal_input: Union[Path, Sequence[Path]],
-    background_input_filename: Path,
+    background_input: Union[Path, Sequence[Path]],
     convert_data_format_prefixes: Mapping[str, str],
     jet_R: float,
     min_jet_pt: Mapping[str, float],
@@ -365,6 +365,7 @@ def hardest_kt_embedding_skim(
     output_filename: Path,
     scale_factor: float,
     validation_mode: bool = False,
+    background_is_constrained_source: bool = True,
 ) -> Tuple[bool, str]:
     # Validation
     signal_input_filenames = []
@@ -372,12 +373,17 @@ def hardest_kt_embedding_skim(
         signal_input_filenames = [signal_input]
     else:
         signal_input_filenames = list(signal_input)
+    background_input_filenames = []
+    if not isinstance(background_input, collections.abc.Iterable):
+        background_input_filenames = [background_input]
+    else:
+        background_input_filenames = list(background_input)
     # Try to bail out early to avoid reprocessing if possible.
     _description = _description_from_parameters(
         parameters={
             "collision_system": collision_system, "R": jet_R,
             "signal_input_filenames": str([str(_filename) for _filename in signal_input_filenames]),
-            "background_input_filename": background_input_filename,
+            "background_input_filename": str([str(_filename) for _filename in background_input_filenames]),
         }
     )
     res = _check_for_output_file(output_filename=output_filename, description=_description)
@@ -387,8 +393,9 @@ def hardest_kt_embedding_skim(
     source_index_identifiers, arrays = load_data.embedding(
         signal_input=signal_input_filenames,
         signal_source=track_skim.FileSource.create_deferred_source(collision_system="pythia"),
-        background_input=background_input_filename,
+        background_input=background_input_filenames,
         background_source=track_skim.FileSource.create_deferred_source(collision_system="PbPb"),
+        background_is_constrained_source=background_is_constrained_source,
     )
 
     jets = analysis_alice.analysis_embedding(
@@ -413,7 +420,7 @@ def hardest_kt_embedding_skim(
         jets=jets,
         # NOTE: This argument is only for logging messages. Since the PbPb is the constraining factor,
         #       we focus on processing those files.
-        input_filename=background_input_filename,
+        input_filename=background_input_filenames[0],
         jet_R=jet_R,
         iterative_splittings=iterative_splittings,
         scale_factor=scale_factor,
@@ -530,7 +537,7 @@ if __name__ == "__main__":
     result = hardest_kt_embedding_skim(
         collision_system="embedPythia",
         signal_input=[signal_path, signal_path, signal_path],
-        background_input_filename=background_path,
+        background_input=background_path,
         jet_R=jet_R,
         min_jet_pt=_min_jet_pt["embedPythia"],
         iterative_splittings=True,
