@@ -267,19 +267,21 @@ fastjet::Selector JetFindingSettings::selectorPtEtaNonGhost() const {
   return selectJets;
 }
 
-std::unique_ptr<fastjet::ClusterSequence> JetFindingSettings::create(std::vector<fastjet::PseudoJet> particlePseudoJets) const {
+/*fastjet::ClusterSequence* JetFindingSettings::create(std::vector<fastjet::PseudoJet> particlePseudoJets) const {
   if (this->areaSettings) {
-    return std::make_unique<fastjet::ClusterSequenceArea>(
+    std::cerr << "-> Creating CSA\n";
+    return new fastjet::ClusterSequenceArea(
       particlePseudoJets,
       this->definition(),
       this->areaSettings->areaDefinition()
     );
   }
-  return std::make_unique<fastjet::ClusterSequence>(
+  std::cerr << "-> Creating CS\n";
+  return new fastjet::ClusterSequence(
     particlePseudoJets,
     this->definition()
   );
-}
+}*/
 
 std::string JetFindingSettings::to_string() const
 {

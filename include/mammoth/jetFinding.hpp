@@ -235,7 +235,7 @@ struct JetFindingSettings {
    * @return std::unique_ptr<fastjet::ClusterSequence> The cluster sequence, ready to cluster
    *                                                   particles into jets.
    */
-  std::shared_ptr<fastjet::ClusterSequence> create(std::vector<fastjet::PseudoJet> particlePseudoJets) const;
+  std::unique_ptr<fastjet::ClusterSequence> create(std::vector<fastjet::PseudoJet> particlePseudoJets) const;
 
   /**
    * Prints information about the settings.
@@ -253,17 +253,17 @@ struct JetFindingSettings {
   static const std::map<std::string, fastjet::Strategy> strategies;
 };
 
-std::shared_ptr<fastjet::ClusterSequence> JetFindingSettings::create(std::vector<fastjet::PseudoJet> particlePseudoJets) const {
+std::unique_ptr<fastjet::ClusterSequence> JetFindingSettings::create(std::vector<fastjet::PseudoJet> particlePseudoJets) const {
   if (this->areaSettings) {
-    std::cerr << "-> Creating CSA\n";
-    return std::make_shared<fastjet::ClusterSequenceArea>(
+    //std::cerr << "-> Creating CSA\n";
+    return std::make_unique<fastjet::ClusterSequenceArea>(
       particlePseudoJets,
       this->definition(),
       this->areaSettings->areaDefinition()
     );
   }
-  std::cerr << "-> Creating CS\n";
-  return std::make_shared<fastjet::ClusterSequence>(
+  //std::cerr << "-> Creating CS\n";
+  return std::make_unique<fastjet::ClusterSequence>(
     particlePseudoJets,
     this->definition()
   );
@@ -954,6 +954,8 @@ FindJetsImplementationOutputWrapper findJetsImplementation(
   // Convert column vector input to pseudo jets.
   auto particlePseudoJets = vectorsToPseudoJets(columnFourVectors);
 
+  std::cerr << "Before printing\n";
+
   // Notify about the settings for the jet finding.
   // NOTE: This can be removed eventually. For now (July 2021), it will be routed to debug level
   //       so we can be 100% sure about what is being calculated.
@@ -966,6 +968,8 @@ FindJetsImplementationOutputWrapper findJetsImplementation(
     << "\tBackground estimator using " << (std::get<0>(backgroundEstimatorFourVectors).size() > 0 ? "background" : "input") << " particles\n"
     << "\tBackground subtraction: " << backgroundSubtraction
     << "\n";
+
+  std::cerr << "After printing\n";
 
   // First start with a background estimator, if we're running one.
   std::shared_ptr<fastjet::BackgroundEstimatorBase> backgroundEstimator;
@@ -1049,15 +1053,15 @@ FindJetsImplementationOutputWrapper findJetsImplementation(
   //  mainJetFinder.definition(),
   //  mainJetFinder.areaSettings->areaDefinition()
   //);
-  std::shared_ptr<fastjet::ClusterSequence> cs_separate = make_test(particlePseudoJets, mainJetFinder);
+  //std::shared_ptr<fastjet::ClusterSequence> cs_separate = make_test(particlePseudoJets, mainJetFinder);
 
-  std::shared_ptr<fastjet::ClusterSequenceArea> csa_separate = std::dynamic_pointer_cast<fastjet::ClusterSequenceArea>(cs_separate);
-  if (csa_separate) {
-    std::cout << "==> csa_separate valid\n";
-  }
-  else {
-    std::cout << "==> csa_separate invalid\n";
-  }
+  //std::shared_ptr<fastjet::ClusterSequenceArea> csa_separate = std::dynamic_pointer_cast<fastjet::ClusterSequenceArea>(cs_separate);
+  //if (csa_separate) {
+  //  std::cout << "==> csa_separate valid\n";
+  //}
+  //else {
+  //  std::cout << "==> csa_separate invalid\n";
+  //}
 
   // Perform jet finding on signal
   std::shared_ptr<fastjet::ClusterSequence> cs(mainJetFinder.create(particlePseudoJets));
@@ -1098,14 +1102,14 @@ FindJetsImplementationOutputWrapper findJetsImplementation(
   }
   //auto temp = cs.get();
 
-  auto csa = std::dynamic_pointer_cast<fastjet::ClusterSequenceArea>(cs);
+  /*auto csa = std::dynamic_pointer_cast<fastjet::ClusterSequenceArea>(cs);
   if (!csa) {
     std::stringstream ss;
     //ss << "Pre-validation check: ClusterSequenceArea is invalid! csa=" << static_cast<void*>(csa) << ", cs: " << static_cast<void*>(cs.get());
     ss << "Pre-validation check: ClusterSequenceArea is invalid! csa=" << static_cast<void*>(csa.get()) << ", cs: " << static_cast<void*>(cs.get());
     //ss << "Pre-validation check: ClusterSequenceArea is invalid! csa=" << static_cast<void*>(csa.get()) << ", cs: " << static_cast<void*>(cs);
     throw std::runtime_error(ss.str());
-  }
+  }*/
   auto jets = cs->inclusive_jets(mainJetFinder.minJetPt());
 
   //throw std::runtime_error("stop");
