@@ -136,7 +136,7 @@ def analysis_MC(arrays: ak.Array, jet_R: float, min_jet_pt: Mapping[str, float],
     jets = alice_helpers.standard_jet_selection(
         jets=jets,
         jet_R=jet_R,
-        collision_system=collision_system,
+        collision_system="pythia",
         substructure_constituent_requirements=True,
     )
     logger.warning(f"all jet cuts n accepted: {np.count_nonzero(np.asarray(ak.flatten(jets['det_level'].px, axis=None)))}")
