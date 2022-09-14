@@ -230,6 +230,9 @@ struct JetFindingSettings {
    * @brief Create cluster sequence based on the stored settings.
    *
    * It will only create a ClusterSequenceArea if AreaSettings were provided.
+   * For some reason, casting the returned object to ClusterSequenceArea will fail
+   * unless this method is defined in the header. Perhaps it loses visibility into the
+   * types somehow?
    *
    * @param particlePseudoJets Particles to be clustered together.
    * @return std::unique_ptr<fastjet::ClusterSequence> The cluster sequence, ready to cluster
@@ -253,16 +256,16 @@ struct JetFindingSettings {
   static const std::map<std::string, fastjet::Strategy> strategies;
 };
 
+// As noted above, this _must_ be defined in the header, or we will lose the ability
+// to dynamic_cast into ClusterSequenceArea. I don't understand why, but won't overthink it
 std::unique_ptr<fastjet::ClusterSequence> JetFindingSettings::create(std::vector<fastjet::PseudoJet> particlePseudoJets) const {
   if (this->areaSettings) {
-    //std::cerr << "-> Creating CSA\n";
     return std::make_unique<fastjet::ClusterSequenceArea>(
       particlePseudoJets,
       this->definition(),
       this->areaSettings->areaDefinition()
     );
   }
-  //std::cerr << "-> Creating CS\n";
   return std::make_unique<fastjet::ClusterSequence>(
     particlePseudoJets,
     this->definition()
