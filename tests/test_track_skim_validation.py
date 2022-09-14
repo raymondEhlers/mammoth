@@ -272,7 +272,7 @@ class TrackSkimValidationFilenames:
 #@pytest.mark.parametrize("jet_R", [0.2, 0.4])
 #@pytest.mark.parametrize("collision_system", ["pp", "pythia", "PbPb", "embed_pythia"])
 @pytest.mark.parametrize("jet_R", [0.4])
-@pytest.mark.parametrize("collision_system", ["pp"])
+@pytest.mark.parametrize("collision_system", ["pp", "pythia", "PbPb"])
 def test_track_skim_validation(
     caplog: Any,
     jet_R: float,
@@ -282,8 +282,12 @@ def test_track_skim_validation(
     # NOTE: There's some inefficiency since we store the same track skim info with the
     #       R = 0.2 and R = 0.4 outputs. However, it's much simpler conceptually, so we
     #       just accept it
+    # TODO: The track skim doesn't run in the embedding, so we need to potentially have to
+    #       generate those files separately :-(
     # Setup
     caplog.set_level(logging.INFO)
+    # But keep numba quieter...
+    caplog.set_level(logging.INFO, logger="numba")
 
     reference_filenames = TrackSkimValidationFilenames(
         base_path=_track_skim_base_path,
@@ -386,6 +390,9 @@ def test_track_skim_validation(
                 collision_system=collision_system
             )
 
+    import warnings
+    warnings.filterwarnings("error")
+
     # Now we can finally analyze the track_skim
     # We always want to run this, since this is what we're validating
     # Need to grab relevant analysis parameters
@@ -402,6 +409,8 @@ def test_track_skim_validation(
         )
 
     scale_factors = _get_scale_factors_for_test()
+    # TODO: Need to short cirucit the already created check here since we want it to always
+    #       create the output. Maybe easiest is just to make sure we rm the output?
     if collision_system != "embed_pythia":
         result = analysis_track_skim_to_flat_tree.hardest_kt_data_skim(
             input_filename=track_skim_filenames.parquet_output,
@@ -438,6 +447,9 @@ def test_track_skim_validation(
         )
     if not result[0]:
         raise ValueError(f"Skim failed for {collision_system}, {jet_R}")
+
+    # TODO: Actually compare the results...
+    assert False
 
 @attr.s
 class Input:
