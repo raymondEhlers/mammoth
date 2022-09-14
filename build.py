@@ -150,6 +150,14 @@ def build(setup_kwargs: Mapping[str, Any]) -> None:
                         [p for output_dir in output_directories for p in Path(output_dir).glob("lib*")]
     for output in libraries_to_move:
         relative_extension = os.path.relpath(output, cmd.build_lib)
+        # First, remove the existing to avoid any conflicts with compilers...
+        # This is redundant, but for some reason, it seems to make segfaults less common on macOS.
+        # Best guess is that by removing and copying, it perhaps invalidates some cache mechanism that isn't
+        # invalidated when just copying. But this is pure speculation. Since it works, it's not worth worrying
+        # about further
+        Path(relative_extension).unlink(missing_ok=True)
+
+        # And now actually copy
         print(f"Copying {output} to {relative_extension}")
         shutil.copyfile(output, relative_extension)
         mode = os.stat(relative_extension).st_mode
