@@ -270,9 +270,8 @@ class TrackSkimValidationFilenames:
 # TODO: Re-enable 0.2
 # TODO: Refactor...
 #@pytest.mark.parametrize("jet_R", [0.2, 0.4])
-#@pytest.mark.parametrize("collision_system", ["pp", "pythia", "PbPb", "embed_pythia"])
 @pytest.mark.parametrize("jet_R", [0.4])
-@pytest.mark.parametrize("collision_system", ["pp", "pythia", "PbPb"])
+@pytest.mark.parametrize("collision_system", ["pp", "pythia", "PbPb", "embed_pythia"])
 def test_track_skim_validation(
     caplog: Any,
     jet_R: float,
@@ -371,7 +370,7 @@ def test_track_skim_validation(
         )
     if collision_system == "embed_pythia":
         # Need to ensure that the pythia files to embed are also converted
-        pythia_for_embedding_analysis_results_filename = Path(str(reference_filenames.analysis_output).replace("embed_pythia", "embed_pythia-pythia"))
+        pythia_for_embedding_analysis_results_filename = reference_filenames.analysis_output.parent / str(reference_filenames.analysis_output.name).replace("embed_pythia", "embed_pythia-pythia")
         # Attempt to execute the run macro if needed for this addition file
         if not pythia_for_embedding_analysis_results_filename.exists():
             # Here, we're running pythia, and it should be treated as such.
@@ -384,9 +383,27 @@ def test_track_skim_validation(
                 input_files=_collision_system_to_aod_files["embed_pythia-pythia"]
             )
             # And then extract the corresponding parquet
+            _output_filename = track_skim_filenames.parquet_output.parent / str(track_skim_filenames.parquet_output.name).replace("embed_pythia", "embed_pythia-pythia")
             _track_skim_to_parquet(
                 input_filename=pythia_for_embedding_analysis_results_filename,
-                output_filename=track_skim_filenames.parquet_output,
+                output_filename=_output_filename,
+                collision_system=collision_system
+            )
+        PbPb_for_embedding_analysis_results_filename = reference_filenames.analysis_output.parent / str(reference_filenames.analysis_output.name).replace("embed_pythia", "embed_pythia-PbPb")
+        # Attempt to execute the run macro if needed for this addition file
+        if not PbPb_for_embedding_analysis_results_filename.exists():
+            # We need to do the same for the background, but instead we will treat it as PbPb
+            _aliphysics_to_analysis_results(
+                collision_system="PbPb",
+                collision_system_label="embed_pythia-PbPb", jet_R=jet_R,
+                # We want the embed_pythia files, which are the (background) PbPb files
+                input_files=_collision_system_to_aod_files["embed_pythia"]
+            )
+            # And then extract the corresponding parquet
+            _output_filename = track_skim_filenames.parquet_output.parent / str(track_skim_filenames.parquet_output.name).replace("embed_pythia", "embed_pythia-PbPb")
+            _track_skim_to_parquet(
+                input_filename=PbPb_for_embedding_analysis_results_filename,
+                output_filename=_output_filename,
                 collision_system=collision_system
             )
 
@@ -409,8 +426,10 @@ def test_track_skim_validation(
         )
 
     scale_factors = _get_scale_factors_for_test()
-    # TODO: Need to short circuit the already created check here since we want it to always
-    #       create the output. Maybe easiest is just to make sure we rm the output?
+    # The skim task will skip the calculation if the output file already exists.
+    # However, that's exactly what we want to create, so we intentionally remove it here
+    # to ensure that the test actually runs.
+    track_skim_filenames.skim.unlink(missing_ok=True)
     if collision_system != "embed_pythia":
         result = analysis_track_skim_to_flat_tree.hardest_kt_data_skim(
             input_filename=track_skim_filenames.parquet_output,
@@ -430,11 +449,12 @@ def test_track_skim_validation(
         assert _analysis_parameters.pt_hat_bin is not None
 
         signal_filename = track_skim_filenames.parquet_output.parent / str(track_skim_filenames.parquet_output.name).replace("embed_pythia", "embed_pythia-pythia")
+        background_filename = track_skim_filenames.parquet_output.parent / str(track_skim_filenames.parquet_output.name).replace("embed_pythia", "embed_pythia-PbPb")
         result = analysis_track_skim_to_flat_tree.hardest_kt_embedding_skim(
             collision_system=collision_system,
             # Repeat the signal file to ensure that we have enough events to exhaust the background
             signal_input=[signal_filename, signal_filename, signal_filename],
-            background_input_filename=track_skim_filenames.parquet_output,
+            background_input=background_filename,
             jet_R=jet_R,
             min_jet_pt=_analysis_parameters.min_jet_pt_by_prefix,
             iterative_splittings=iterative_splittings,
@@ -448,8 +468,16 @@ def test_track_skim_validation(
     if not result[0]:
         raise ValueError(f"Skim failed for {collision_system}, {jet_R}")
 
-    # TODO: Actually compare the results...
-    assert False
+    compare(
+        collision_system=collision_system,
+        # There's something odd about the pythia convention, which I don't remember the immediate reason for.
+        # We just hard code it to be done with it
+        prefixes=list(_analysis_parameters.track_skim_convert_data_format_prefixes) if collision_system != "pythia" else ["data", "true"],
+        standard_filename=reference_filenames.skim,
+        track_skim_filename=track_skim_filenames.skim,
+        base_output_dir=_track_skim_base_path / "plot",
+    )
+    #assert False
 
 @attr.s
 class Input:
@@ -513,9 +541,9 @@ def plot_attribute_compare(
     ax_ratio.errorbar(
         ratio.axes[0].bin_centers, ratio.values, xerr=ratio.axes[0].bin_widths / 2, yerr=ratio.errors, linestyle=""
     )
-    print(f"ratio sum: {np.sum(ratio.values)}")
-    print(f"other: {np.sum(other_hist.values)}")
-    print(f"mine: {np.sum(mine_hist.values)}")
+    logger.info(f"ratio sum: {np.sum(ratio.values)}")
+    logger.info(f"other: {np.sum(other_hist.values)}")
+    logger.info(f"mine: {np.sum(mine_hist.values)}")
 
     # Apply the PlotConfig
     plot_config.apply(fig=fig, axes=[ax, ax_ratio])
@@ -526,7 +554,7 @@ def plot_attribute_compare(
     plt.close(fig)
 
 
-def compare(collision_system: str, prefixes: Sequence[str], standard_filename: Path, track_skim_filename: Path) -> None:
+def compare(collision_system: str, prefixes: Sequence[str], standard_filename: Path, track_skim_filename: Path, base_output_dir: Path = Path("comparison/track_skim")) -> None:
     #standard_tree_name = "AliAnalysisTaskJetHardestKt_Jet_AKTChargedR040_tracks_pT0150_E_schemeConstSub_RawTree_Data_ConstSub_Incl"
     #if collision_system == "pp":
     #    standard_tree_name = "AliAnalysisTaskJetHardestKt_Jet_AKTChargedR040_tracks_pT0150_E_scheme_RawTree_Data_NoSub_Incl"
@@ -535,8 +563,8 @@ def compare(collision_system: str, prefixes: Sequence[str], standard_filename: P
     standard_tree_name = "tree"
     standard = uproot.open(standard_filename)[standard_tree_name].arrays()
     track_skim = uproot.open(track_skim_filename)["tree"].arrays()
-    print(f"standard.type: {standard.type}")
-    print(f"track_skim.type: {track_skim.type}")
+    logger.info(f"standard.type: {standard.type}")
+    logger.info(f"track_skim.type: {track_skim.type}")
 
     # For whatever reason, the sorting of the jets is inconsistent for embedding compared to all other datasets.
     # So we just apply a mask here to swap the one event where we have two jets.
@@ -556,9 +584,10 @@ def compare(collision_system: str, prefixes: Sequence[str], standard_filename: P
         #       this remapping here.
         #       ***********************************************************************************
 
-    output_dir = Path("comparison") / "trackSkim" / collision_system
+    output_dir = base_output_dir / collision_system
     output_dir.mkdir(parents=True, exist_ok=True)
 
+    all_success = True
     for prefix in prefixes:
         logger.info(f"Comparing prefix '{prefix}'")
 
@@ -623,8 +652,10 @@ def compare(collision_system: str, prefixes: Sequence[str], standard_filename: P
                 logger.info(pprint.pformat(_arr.to_list()))
                 is_not_close_jet_pt = np.where(~np.isclose(ak.to_numpy(standard_jet_pt), ak.to_numpy(track_skim_jet_pt)))
                 logger.info(f"Indices where not close: {is_not_close_jet_pt}")
+                all_success = False
         except ValueError as e:
             logger.exception(e)
+            all_success = False
 
         for grooming_method in ["dynamical_kt", "soft_drop_z_cut_02"]:
             logger.info(f"Plotting method \"{grooming_method}\"")
@@ -687,8 +718,10 @@ def compare(collision_system: str, prefixes: Sequence[str], standard_filename: P
                     logger.info(pprint.pformat(_arr.to_list()))
                     is_not_close_kt = np.where(~np.isclose(ak.to_numpy(standard_kt), ak.to_numpy(track_skim_kt)))
                     logger.info(f"Indices where not close: {is_not_close_kt}")
+                    all_success = False
             except ValueError as e:
                 logger.exception(e)
+                all_success = False
 
             plot_attribute_compare(
                 other=Input(arrays=standard, attribute=f"{grooming_method}_{prefix}_delta_R", name="Standard"),
@@ -748,8 +781,10 @@ def compare(collision_system: str, prefixes: Sequence[str], standard_filename: P
                     logger.info(pprint.pformat(_arr.to_list()))
                     is_not_close_rg = np.where(~np.isclose(ak.to_numpy(standard_rg), ak.to_numpy(track_skim_rg)))
                     logger.info(f"Indices where not close: {is_not_close_rg}")
+                    all_success = False
             except ValueError as e:
                 logger.exception(e)
+                all_success = False
 
             #import IPython; IPython.embed()
 
@@ -813,8 +848,12 @@ def compare(collision_system: str, prefixes: Sequence[str], standard_filename: P
                     logger.info("z")
                     _arr = ak.zip({"s": standard_zg, "t": track_skim_zg})
                     logger.info(pprint.pformat(_arr.to_list()))
+                    all_success = False
             except ValueError as e:
                 logger.exception(e)
+                all_success = False
+
+    assert all_success is True
 
 
 def run(collision_system: str, prefixes: Optional[Sequence[str]] = None) -> None:
