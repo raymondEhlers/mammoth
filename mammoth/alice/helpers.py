@@ -205,7 +205,7 @@ def standard_jet_selection(jets: ak.Array,
     if max_constituent_pt_values is not None:
         _max_constituent_pt_values = dict(max_constituent_pt_values)
     else:
-        # We only nned to specify the cuts that aren't equal to 100 GeV, which is the default.
+        # We only need to specify the cuts that aren't equal to 100 GeV, which is the default.
         _max_constituent_pt_values = {
             "part_level": 1000.0,
         }
@@ -240,7 +240,8 @@ def standard_jet_selection(jets: ak.Array,
         # Require more than one constituent at detector level (or in data) if we're not in PbPb.
         # This basically requires there to be non-trivial substructure in these systems (pp and pythia).
         # Matches a cut in AliAnalysisTaskJetDynamicalGrooming
-        # We generically associate it with substructure.
+        # We generically associate it with substructure, so we describe the switch for it as:
+        # `substructure_constituent_requirements`
         # *************
         if substructure_constituent_requirements and collision_system not in ["PbPb"] and "embed" not in collision_system:
             # We only want to apply this to det_level or data, so skip both "part_level" and "hybrid"
