@@ -203,6 +203,7 @@ class AnalysisParameters:
     reference_analysis_prefixes: Dict[str, str]
     track_skim_loading_data_rename_prefix: Dict[str, str]
     track_skim_convert_data_format_prefixes: Dict[str, str]
+    comparison_prefixes: List[str]
     min_jet_pt_by_prefix: Dict[str, float]
     pt_hat_bin: Optional[int] = None
 
@@ -213,12 +214,14 @@ _all_analysis_parameters = {
         },
         track_skim_loading_data_rename_prefix={"data": "data"},
         track_skim_convert_data_format_prefixes={"data": "data"},
+        comparison_prefixes=["data"],
         min_jet_pt_by_prefix={"data": 5.},
     ),
     "pythia": AnalysisParameters(
         reference_analysis_prefixes={"data": "data", "true": "matched"},
         track_skim_loading_data_rename_prefix={},
         track_skim_convert_data_format_prefixes={"det_level": "data", "part_level": "true"},
+        comparison_prefixes=["data", "true"],
         min_jet_pt_by_prefix={"det_level": 20.},
         pt_hat_bin=12,
     ),
@@ -228,6 +231,7 @@ _all_analysis_parameters = {
         },
         track_skim_loading_data_rename_prefix={"data": "data"},
         track_skim_convert_data_format_prefixes={"data": "data"},
+        comparison_prefixes=["data"],
         min_jet_pt_by_prefix={"data": 20.},
     ),
     "embed_pythia": AnalysisParameters(
@@ -235,6 +239,7 @@ _all_analysis_parameters = {
         # NOTE: This field is not meaningful for embedding
         track_skim_loading_data_rename_prefix={},
         track_skim_convert_data_format_prefixes={"hybrid": "hybrid", "det_level": "det_level", "part_level": "true"},
+        comparison_prefixes=["hybrid", "det_level", "true"],
         min_jet_pt_by_prefix={"hybrid": 20.},
         pt_hat_bin=12,
     ),
@@ -249,22 +254,21 @@ class TrackSkimValidationFilenames:
     jet_R: float
     iterative_splittings: bool
 
-    @property
-    def _label(self) -> str:
-        return f"{self.collision_system}__jet_R{round(self.jet_R*100):03}"
+    def _label(self, extra_collision_system_label: str = "") -> str:
+        collision_system = self.collision_system
+        if extra_collision_system_label:
+            collision_system = f"{collision_system}-{extra_collision_system_label}"
+        return f"{collision_system}__jet_R{round(self.jet_R*100):03}"
 
-    @property
-    def analysis_output(self) -> Path:
-        return self.base_path / self.filename_type / f"AnalysisResults__{self._label}.root"
+    def analysis_output(self, extra_collision_system_label: str = "") -> Path:
+        return self.base_path / self.filename_type / f"AnalysisResults__{self._label(extra_collision_system_label)}.root"
 
-    @property
-    def parquet_output(self) -> Path:
-        return self.base_path / self.filename_type / f"AnalysisResults__{self._label}.parquet"
+    def parquet_output(self, extra_collision_system_label: str = "") -> Path:
+        return self.base_path / self.filename_type / f"AnalysisResults__{self._label(extra_collision_system_label)}.parquet"
 
-    @property
-    def skim(self) -> Path:
+    def skim(self, extra_collision_system_label: str = "") -> Path:
         iterative_splittings_label = "iterative" if self.iterative_splittings else "recursive"
-        return self.base_path / self.filename_type / f"skim__{self._label}__{iterative_splittings_label}_splittings.root"
+        return self.base_path / self.filename_type / f"skim__{self._label(extra_collision_system_label)}__{iterative_splittings_label}_splittings.root"
 
 
 # TODO: Re-enable 0.2
@@ -303,10 +307,10 @@ def test_track_skim_validation(
     convert_aliphysics_to_parquet = False
     skim_aliphysics_parquet = False
     # Determine which reference tasks need to be run
-    if not reference_filenames.skim.exists():
-        if not reference_filenames.parquet_output.exists():
-            if not reference_filenames.analysis_output.exists():
-                logger.info(f"{reference_filenames.analysis_output}")
+    if not reference_filenames.skim().exists():
+        if not reference_filenames.parquet_output().exists():
+            if not reference_filenames.analysis_output().exists():
+                logger.info(f"{reference_filenames.analysis_output()}")
                 generate_aliphysics_results = True
             else:
                 convert_aliphysics_to_parquet = True
@@ -319,30 +323,30 @@ def test_track_skim_validation(
 
     if convert_aliphysics_to_parquet or generate_aliphysics_results:
         # We need to generate the parquet if we've just executed the run macro
-        _analysis_results_to_parquet(filename=reference_filenames.analysis_output, collision_system=collision_system, jet_R=jet_R)
+        _analysis_results_to_parquet(filename=reference_filenames.analysis_output(), collision_system=collision_system, jet_R=jet_R)
 
     # Need to post process regenerated outputs
     if skim_aliphysics_parquet or convert_aliphysics_to_parquet or generate_aliphysics_results:
         scale_factors = _get_scale_factors_for_test()
         if collision_system != "embed_pythia":
             res = skim_to_flat_tree.calculate_data_skim(
-                input_filename=reference_filenames.parquet_output,
+                input_filename=reference_filenames.parquet_output(),
                 collision_system=collision_system,
                 iterative_splittings=iterative_splittings,
                 prefixes=_all_analysis_parameters[collision_system].reference_analysis_prefixes,
                 jet_R=jet_R,
-                output_filename=reference_filenames.skim,
+                output_filename=reference_filenames.skim(),
                 scale_factors=scale_factors,
             )
         else:
             res = skim_to_flat_tree.calculate_embedding_skim(
-                input_filename=reference_filenames.parquet_output,
+                input_filename=reference_filenames.parquet_output(),
                 iterative_splittings=iterative_splittings,
                 prefixes=_all_analysis_parameters[collision_system].reference_analysis_prefixes,
                 scale_factors=scale_factors,
                 train_directory=_track_skim_base_path / "reference",
                 jet_R=jet_R,
-                output_filename=reference_filenames.skim,
+                output_filename=reference_filenames.skim(),
             )
         if not res[0]:
             raise ValueError(f"Failed to generate reference for {collision_system}, {jet_R}")
@@ -361,51 +365,60 @@ def test_track_skim_validation(
         filename_type="track_skim",
         collision_system=collision_system, jet_R=jet_R, iterative_splittings=iterative_splittings,
     )
-    if not track_skim_filenames.parquet_output.exists() or generate_aliphysics_results:
-        # Convert track skim to parquet
-        _track_skim_to_parquet(
-            input_filename=reference_filenames.analysis_output,
-            output_filename=track_skim_filenames.parquet_output,
-            collision_system=collision_system
+    if generate_aliphysics_results or (
+        collision_system == "embed_pythia"
+        and (
+            not track_skim_filenames.analysis_output(extra_collision_system_label="pythia").exists()
+            or not track_skim_filenames.analysis_output(extra_collision_system_label="PbPb").exists()
         )
-    if collision_system == "embed_pythia":
-        # Need to ensure that the pythia files to embed are also converted
-        pythia_for_embedding_analysis_results_filename = reference_filenames.analysis_output.parent / str(reference_filenames.analysis_output.name).replace("embed_pythia", "embed_pythia-pythia")
-        # Attempt to execute the run macro if needed for this addition file
-        if not pythia_for_embedding_analysis_results_filename.exists():
-            # Here, we're running pythia, and it should be treated as such.
-            # We just label it as "embed_pythia-pythia" to denote that it should be used for embedding
-            # (same as we label the PbPb as "embed_pythia" when we run the embedding run macro, even though
-            # the track skim just sees the PbPb).
-            _aliphysics_to_analysis_results(
-                collision_system="pythia",
-                collision_system_label="embed_pythia-pythia", jet_R=jet_R,
-                input_files=_collision_system_to_aod_files["embed_pythia-pythia"]
-            )
-            # And then extract the corresponding parquet
-            _output_filename = track_skim_filenames.parquet_output.parent / str(track_skim_filenames.parquet_output.name).replace("embed_pythia", "embed_pythia-pythia")
+    ) or (
+        collision_system != "embed_pythia"
+        and not track_skim_filenames.parquet_output().exists()
+    ):
+        if collision_system != "embed_pythia":
+            # Convert track skim to parquet
             _track_skim_to_parquet(
-                input_filename=pythia_for_embedding_analysis_results_filename,
-                output_filename=_output_filename,
+                input_filename=reference_filenames.analysis_output(),
+                output_filename=track_skim_filenames.parquet_output(),
                 collision_system=collision_system
             )
-        PbPb_for_embedding_analysis_results_filename = reference_filenames.analysis_output.parent / str(reference_filenames.analysis_output.name).replace("embed_pythia", "embed_pythia-PbPb")
-        # Attempt to execute the run macro if needed for this addition file
-        if not PbPb_for_embedding_analysis_results_filename.exists():
-            # We need to do the same for the background, but instead we will treat it as PbPb
-            _aliphysics_to_analysis_results(
-                collision_system="PbPb",
-                collision_system_label="embed_pythia-PbPb", jet_R=jet_R,
-                # We want the embed_pythia files, which are the (background) PbPb files
-                input_files=_collision_system_to_aod_files["embed_pythia"]
-            )
-            # And then extract the corresponding parquet
-            _output_filename = track_skim_filenames.parquet_output.parent / str(track_skim_filenames.parquet_output.name).replace("embed_pythia", "embed_pythia-PbPb")
-            _track_skim_to_parquet(
-                input_filename=PbPb_for_embedding_analysis_results_filename,
-                output_filename=_output_filename,
-                collision_system=collision_system
-            )
+        else:
+            # Attempt to execute the run macro if needed for this addition file
+            if not reference_filenames.analysis_output(extra_collision_system_label="pythia").exists():
+                logger.info(f'{reference_filenames.analysis_output(extra_collision_system_label="pythia")=}')
+                # Here, we're running pythia, and it should be treated as such.
+                # We just label it as "embed_pythia-pythia" to denote that it should be used for embedding
+                # (same as we label the PbPb as "embed_pythia" when we run the embedding run macro, even though
+                # the track skim just sees the PbPb).
+                _aliphysics_to_analysis_results(
+                    collision_system="pythia",
+                    collision_system_label="embed_pythia-pythia", jet_R=jet_R,
+                    input_files=_collision_system_to_aod_files["embed_pythia-pythia"]
+                )
+                # And then extract the corresponding parquet
+            if not track_skim_filenames.parquet_output(extra_collision_system_label="pythia").exists():
+                logger.info("Parquet pythia")
+                _track_skim_to_parquet(
+                    input_filename=reference_filenames.analysis_output(extra_collision_system_label="pythia"),
+                    output_filename=track_skim_filenames.parquet_output(extra_collision_system_label="pythia"),
+                    collision_system="pythia",
+                )
+            # Attempt to execute the run macro if needed for this addition file
+            if not reference_filenames.analysis_output(extra_collision_system_label="PbPb").exists():
+                # We need to do the same for the background, but instead we will treat it as PbPb
+                _aliphysics_to_analysis_results(
+                    collision_system="PbPb",
+                    collision_system_label="embed_pythia-PbPb", jet_R=jet_R,
+                    # We want the embed_pythia files, which are the (background) PbPb files
+                    input_files=_collision_system_to_aod_files["embed_pythia"]
+                )
+            if not track_skim_filenames.parquet_output(extra_collision_system_label="PbPb").exists():
+                # And then extract the corresponding parquet
+                _track_skim_to_parquet(
+                    input_filename=reference_filenames.analysis_output(extra_collision_system_label="PbPb"),
+                    output_filename=track_skim_filenames.parquet_output(extra_collision_system_label="PbPb"),
+                    collision_system="PbPb",
+                )
 
     import warnings
     warnings.filterwarnings("error")
@@ -429,17 +442,17 @@ def test_track_skim_validation(
     # The skim task will skip the calculation if the output file already exists.
     # However, that's exactly what we want to create, so we intentionally remove it here
     # to ensure that the test actually runs.
-    track_skim_filenames.skim.unlink(missing_ok=True)
+    track_skim_filenames.skim().unlink(missing_ok=True)
     if collision_system != "embed_pythia":
         result = analysis_track_skim_to_flat_tree.hardest_kt_data_skim(
-            input_filename=track_skim_filenames.parquet_output,
+            input_filename=track_skim_filenames.parquet_output(),
             collision_system=collision_system,
             jet_R=jet_R,
             min_jet_pt=_analysis_parameters.min_jet_pt_by_prefix,
             iterative_splittings=iterative_splittings,
             loading_data_rename_prefix=_analysis_parameters.track_skim_loading_data_rename_prefix,
             convert_data_format_prefixes=_analysis_parameters.track_skim_convert_data_format_prefixes,
-            output_filename=track_skim_filenames.skim,
+            output_filename=track_skim_filenames.skim(),
             scale_factors=scale_factors,
             pt_hat_bin=_analysis_parameters.pt_hat_bin,
             validation_mode=True,
@@ -448,8 +461,8 @@ def test_track_skim_validation(
         # Help out typing...
         assert _analysis_parameters.pt_hat_bin is not None
 
-        signal_filename = track_skim_filenames.parquet_output.parent / str(track_skim_filenames.parquet_output.name).replace("embed_pythia", "embed_pythia-pythia")
-        background_filename = track_skim_filenames.parquet_output.parent / str(track_skim_filenames.parquet_output.name).replace("embed_pythia", "embed_pythia-PbPb")
+        signal_filename = track_skim_filenames.parquet_output(extra_collision_system_label="pythia")
+        background_filename = track_skim_filenames.parquet_output(extra_collision_system_label="PbPb")
         result = analysis_track_skim_to_flat_tree.hardest_kt_embedding_skim(
             collision_system=collision_system,
             # Repeat the signal file to ensure that we have enough events to exhaust the background
@@ -458,7 +471,7 @@ def test_track_skim_validation(
             jet_R=jet_R,
             min_jet_pt=_analysis_parameters.min_jet_pt_by_prefix,
             iterative_splittings=iterative_splittings,
-            output_filename=track_skim_filenames.skim,
+            output_filename=track_skim_filenames.skim(),
             convert_data_format_prefixes=_analysis_parameters.track_skim_convert_data_format_prefixes,
             scale_factor=scale_factors[_analysis_parameters.pt_hat_bin],
             background_subtraction={"r_max": 0.25},
@@ -470,11 +483,9 @@ def test_track_skim_validation(
 
     compare(
         collision_system=collision_system,
-        # There's something odd about the pythia convention, which I don't remember the immediate reason for.
-        # We just hard code it to be done with it
-        prefixes=list(_analysis_parameters.track_skim_convert_data_format_prefixes) if collision_system != "pythia" else ["data", "true"],
-        standard_filename=reference_filenames.skim,
-        track_skim_filename=track_skim_filenames.skim,
+        prefixes=_analysis_parameters.comparison_prefixes,
+        standard_filename=reference_filenames.skim(),
+        track_skim_filename=track_skim_filenames.skim(),
         base_output_dir=_track_skim_base_path / "plot",
     )
     #assert False
