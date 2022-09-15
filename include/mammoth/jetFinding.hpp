@@ -930,16 +930,6 @@ inline const T median(const C &the_container)
     }
 }
 
-
-std::shared_ptr<fastjet::ClusterSequence> make_test(std::vector<fastjet::PseudoJet> particlePseudoJets, const JetFindingSettings & mainJetFinder)
-{
-  return std::make_shared<fastjet::ClusterSequenceArea>(
-    particlePseudoJets,
-    mainJetFinder.definition(),
-    mainJetFinder.areaSettings->areaDefinition()
-  );
-}
-
 template<typename T>
 FindJetsImplementationOutputWrapper findJetsImplementation(
   FourVectorTuple<T> & columnFourVectors,
@@ -957,8 +947,6 @@ FindJetsImplementationOutputWrapper findJetsImplementation(
   // Convert column vector input to pseudo jets.
   auto particlePseudoJets = vectorsToPseudoJets(columnFourVectors);
 
-  std::cerr << "Before printing\n";
-
   // Notify about the settings for the jet finding.
   // NOTE: This can be removed eventually. For now (July 2021), it will be routed to debug level
   //       so we can be 100% sure about what is being calculated.
@@ -971,8 +959,6 @@ FindJetsImplementationOutputWrapper findJetsImplementation(
     << "\tBackground estimator using " << (std::get<0>(backgroundEstimatorFourVectors).size() > 0 ? "background" : "input") << " particles\n"
     << "\tBackground subtraction: " << backgroundSubtraction
     << "\n";
-
-  std::cerr << "After printing\n";
 
   // First start with a background estimator, if we're running one.
   std::shared_ptr<fastjet::BackgroundEstimatorBase> backgroundEstimator;
@@ -1005,19 +991,19 @@ FindJetsImplementationOutputWrapper findJetsImplementation(
       std::shared_ptr<JetMedianBackgroundEstimator> jetMedianSettings = std::dynamic_pointer_cast<JetMedianBackgroundEstimator>(backgroundSubtraction.estimator);
       // This should always work, but double check for safety
       if (!jetMedianSettings) {
-        throw std::runtime_error("Failed to retrieve jet median settings! How?");
+        throw std::runtime_error("Failed to retrieve jet median settings! What?");
       }
       // Create the CS and convert to a CSA. We need to do this in two steps to avoid running
       // into issues due to returning a unique_ptr
-      std::shared_ptr<fastjet::ClusterSequence> tempCSBkg(jetMedianSettings->settings.create(
+      std::shared_ptr<fastjet::ClusterSequence> tempCSBkg = jetMedianSettings->settings.create(
         possibleBackgroundEstimatorParticles.size() > 0
         ? possibleBackgroundEstimatorParticles
         : particlePseudoJets
-      ));
+      );
       auto csBkg = std::dynamic_pointer_cast<fastjet::ClusterSequenceArea>(tempCSBkg);
       // This should always work, but double check for safety
       if (!csBkg) {
-        throw std::runtime_error("Failed to cast to ClusterSequenceArea! How?");
+        throw std::runtime_error("Failed to cast to ClusterSequenceArea for background subtraction! What?");
       }
       // Finally, create the JetMedianBackgroundEstimator separately
       fastjet::JetMedianBackgroundEstimator bgeWithExistingCS(jetMedianSettings->selector(), *csBkg);
@@ -1045,77 +1031,15 @@ FindJetsImplementationOutputWrapper findJetsImplementation(
     // Need to cast to CS object so we can actually do the event-wise subtraction
     auto constituentSubtractor = std::dynamic_pointer_cast<fastjet::contrib::ConstituentSubtractor>(subtractor);
     if (!constituentSubtractor) {
-      throw std::runtime_error("Failed to cast to subtractor to CS object!");
+      throw std::runtime_error("Failed to cast to subtractor to ConstituentSubtraction object! What?");
     }
     particlePseudoJets = constituentSubtractor->subtract_event(particlePseudoJets);
     subtractedToUnsubtractedIndices = updateSubtractedConstituentIndices(particlePseudoJets);
   }
 
-  //std::shared_ptr<fastjet::ClusterSequence> cs_separate = std::make_shared<fastjet::ClusterSequenceArea>(
-  //  particlePseudoJets,
-  //  mainJetFinder.definition(),
-  //  mainJetFinder.areaSettings->areaDefinition()
-  //);
-  //std::shared_ptr<fastjet::ClusterSequence> cs_separate = make_test(particlePseudoJets, mainJetFinder);
-
-  //std::shared_ptr<fastjet::ClusterSequenceArea> csa_separate = std::dynamic_pointer_cast<fastjet::ClusterSequenceArea>(cs_separate);
-  //if (csa_separate) {
-  //  std::cout << "==> csa_separate valid\n";
-  //}
-  //else {
-  //  std::cout << "==> csa_separate invalid\n";
-  //}
-
   // Perform jet finding on signal
-  std::shared_ptr<fastjet::ClusterSequence> cs(mainJetFinder.create(particlePseudoJets));
-  //fastjet::ClusterSequence * cs_raw = mainJetFinder.create(particlePseudoJets);
-  fastjet::ClusterSequence * cs_raw = cs.get();
-  //std::shared_ptr<fastjet::ClusterSequence> cs(cs_raw);
-  auto res = fastjet::cast_if_derived<fastjet::ClusterSequence>(cs_raw);
-  if (res) {
-    std::cout << "==> res valid\n";
-  }
-  else {
-    std::cout << "==> res invalid\n";
-  }
-
-  //auto csa_static = std::static_pointer_cast<fastjet::ClusterSequenceArea>(cs);
-  //if (!csa_static) {
-  //  std::cout << "--> csa_static invalid\n";
-  //}
-  //else {
-  //  std::cout << "--> csa_static value: " << csa_static->area_def().description() << "\n";
-  //}
-  //auto csa_base = std::dynamic_pointer_cast<fastjet::ClusterSequenceAreaBase>(cs);
-  //if (!csa_base) {
-  //  std::cout << "--> csa_base invalid\n";
-  //}
-  //else {
-  //  std::cout << "--> csa_base valid\n";
-  //}
-
-  // dynamic_cast
-  //auto csa_dyn = dynamic_cast<fastjet::ClusterSequenceArea*>(cs.get());
-  auto csa_dyn = dynamic_cast<fastjet::ClusterSequenceArea*>(cs_raw);
-  if (!csa_dyn) {
-    std::cout << "--> csa_dyn invalid\n";
-  }
-  else {
-    std::cout << "--> csa_dyn valid\n";
-  }
-  //auto temp = cs.get();
-
-  /*auto csa = std::dynamic_pointer_cast<fastjet::ClusterSequenceArea>(cs);
-  if (!csa) {
-    std::stringstream ss;
-    //ss << "Pre-validation check: ClusterSequenceArea is invalid! csa=" << static_cast<void*>(csa) << ", cs: " << static_cast<void*>(cs.get());
-    ss << "Pre-validation check: ClusterSequenceArea is invalid! csa=" << static_cast<void*>(csa.get()) << ", cs: " << static_cast<void*>(cs.get());
-    //ss << "Pre-validation check: ClusterSequenceArea is invalid! csa=" << static_cast<void*>(csa.get()) << ", cs: " << static_cast<void*>(cs);
-    throw std::runtime_error(ss.str());
-  }*/
+  std::shared_ptr<fastjet::ClusterSequence> cs = mainJetFinder.create(particlePseudoJets);
   auto jets = cs->inclusive_jets(mainJetFinder.minJetPt());
-
-  //throw std::runtime_error("stop");
 
   // Validate that the seed is fixed
   // NOTE: We don't want to do this all of the time because the seed needs to be set very carefully,
@@ -1124,11 +1048,12 @@ FindJetsImplementationOutputWrapper findJetsImplementation(
     std::vector<int> checkFixedSeed;
     // NOTE: Need to retrieve it from the CSA because we pass copies of objects, not by reference
     auto csa = std::dynamic_pointer_cast<fastjet::ClusterSequenceArea>(cs);
-    //std::shared_ptr<fastjet::ClusterSequenceArea> csa(dynamic_cast<fastjet::ClusterSequenceArea*>(cs.get()));
     if (!csa) {
+      // We use a ss here because we want to see the address of the base CS to ensure that it isn't
+      // null too. This is probably redundant since it seems unlikely to fully fail to define a CS,
+      // but it helps me think about the debugging conceptually, so I will leave it.
       std::stringstream ss;
-      ss << "ClusterSequenceArea is invalid! csa=" << static_cast<void*>(csa.get()) << ", cs: " << static_cast<void*>(cs.get());
-      //ss << "ClusterSequenceArea is invalid! csa=" << static_cast<void*>(csa.get()) << ", cs: " << static_cast<void*>(cs_raw);
+      ss << "ClusterSequenceArea for validation is invalid! csa=" << static_cast<void*>(csa.get()) << ", cs: " << static_cast<void*>(cs.get());
       throw std::runtime_error(ss.str());
     }
     csa->area_def().ghost_spec().get_last_seed(checkFixedSeed);
