@@ -17,7 +17,6 @@ import attr
 
 from parsl.addresses import address_by_hostname
 from parsl.config import Config
-from parsl.dataflow.futures import AppFuture
 from parsl.executors import HighThroughputExecutor
 from parsl.executors.high_throughput.errors import WorkerLost
 from parsl.providers import LocalProvider, SlurmProvider
@@ -461,7 +460,7 @@ def _define_local_config(
                 label=f"Jetscape_{facility.name}_HTEX",
                 address=address_by_hostname(),
                 cores_per_worker=task_config.n_cores_per_task,
-                provider=LocalProvider(
+                provider=LocalProvider(  # type: ignore
                     # One block is one node.
                     nodes_per_block=1,
                     # We want n_blocks initially because we will have work for everything immediately.
@@ -485,7 +484,7 @@ def _define_local_config(
     return local_config, facility, log_messages
 
 
-def _cancel_future(job: AppFuture) -> None:
+def _cancel_future(job: concurrent.futures.Future[Any]) -> None:
     """Cancel the given app future
 
     Taken from `coffea.processor.executor`
@@ -500,7 +499,7 @@ def _cancel_future(job: AppFuture) -> None:
         pass
 
 
-def provide_results_as_completed(input_futures: Sequence[AppFuture], timeout: Optional[float] = None, running_with_parsl: bool = False) -> Iterable[Any]:
+def provide_results_as_completed(input_futures: Sequence[concurrent.futures.Future[Any]], timeout: Optional[float] = None, running_with_parsl: bool = False) -> Iterable[Any]:  # noqa: C901
     """Provide results as futures are completed.
 
     Taken from `coffea.processor.executor`, with small modifications for parsl specific issues

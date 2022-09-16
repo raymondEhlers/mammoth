@@ -6,7 +6,7 @@
 import logging
 import itertools
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, Mapping, Sequence, Union
+from typing import Any, Dict, Iterable, List, Sequence
 
 import attr
 import IPython
@@ -17,7 +17,6 @@ from parsl.app.app import bash_app, python_app
 from parsl.data_provider.files import File
 from parsl.dataflow.futures import AppFuture
 from rich.progress import Progress
-
 
 
 logger = logging.getLogger(__name__)
@@ -44,7 +43,7 @@ class Dataset:
     geometry: Path
 
 
-@bash_app  # type: ignore
+@bash_app
 def run_ecce_afterburner_bash(
     tree_processing_code_directory: Path,
     output_identifier: str,
@@ -96,7 +95,7 @@ def run_ecce_afterburner_bash(
     return s
 
 
-@python_app  # type: ignore
+@python_app
 def run_ecce_afterburner(
     tree_processing_code_directory: Path,
     output_identifier: str,
@@ -229,7 +228,7 @@ def setup_ecce_afterburner(
     return futures
 
 
-def run() -> None:
+def run() -> None:  # noqa: C901
     # Basic setup
     afterburner_dir = Path("/software/rehlers/dev/eic/analysis_software_EIC")
     output_dir = Path("/alf/data/rehlers/eic/afterburner/ReA/2022-01-12/min_p_cut_EPPS")

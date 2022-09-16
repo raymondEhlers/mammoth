@@ -9,7 +9,7 @@ import numba as nb
 @nb.njit  # type: ignore
 def subtract_holes_from_jet_pt(jets: ak.Array, particles_holes: ak.Array, jet_R: float, builder: ak.ArrayBuilder) -> ak.ArrayBuilder:
     """Subtract holes from the jet pt
-    
+
     Args:
         jets: Jets found (grouped by events).
         particles_holes: Holes included (grouped by events).

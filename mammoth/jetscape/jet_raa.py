@@ -7,13 +7,12 @@
 
 import logging
 from pathlib import Path
-from typing import Any, Dict, List, Mapping, Optional, Sequence
+from typing import Dict, List, Mapping, Optional, Sequence
 
 import attr
 import awkward as ak
 import hist
 import numpy as np
-import numpy.typing as npt
 import uproot
 
 from mammoth import helpers
@@ -33,7 +32,7 @@ class JetLabel:
         return f"{self.label}_jetR{round(self.jet_R * 100):03}"
 
 
-def load_data(filename: Path) -> ak.Array:
+def _load_data(filename: Path) -> ak.Array:
     logger.info("Loading data")
     source = sources.ParquetSource(
         filename=filename,
@@ -122,8 +121,8 @@ def find_jets_for_analysis(arrays: ak.Array, jet_R_values: Sequence[float], part
         # NOTE: There can be different number of events for full vs charged jets, so we need
         #       to apply the appropriate event mask to the holes
         jets[jet_label]["cross_section"] = arrays["cross_section"][
-                event_has_particles_signal_charged if jet_label.label == "charged" else event_has_particles_signal
-            ]
+            event_has_particles_signal_charged if jet_label.label == "charged" else event_has_particles_signal
+        ]
 
     return jets
 
@@ -313,7 +312,7 @@ if __name__ == "__main__":
     helpers.setup_logging(level=logging.INFO)
 
     hists = run(
-        arrays=load_data(
+        arrays=_load_data(
             #Path(f"/alf/data/rehlers/jetscape/osiris/AAPaperData/5020_PP_Colorless/skim/test/JetscapeHadronListBin7_9_00.parquet")
             #Path("/alf/data/rehlers/jetscape/osiris/AAPaperData/5020_PP_Colorless/skim/JetscapeHadronListBin270_280_01.parquet")
             #Path("/alf/data/rehlers/jetscape/osiris/AAPaperData/MATTER_LBT_RunningAlphaS_Q2qhat/5020_PbPb_40-50_0.30_2.0_1/skim/JetscapeHadronListBin7_9_01.parquet"),

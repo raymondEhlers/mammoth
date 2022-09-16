@@ -64,7 +64,6 @@ def load_hists(filename: Path, filter: Optional[str] = "", filters: Optional[Seq
     return hists
 
 
-
 @attr.frozen
 class DatasetSpec:
     site: str

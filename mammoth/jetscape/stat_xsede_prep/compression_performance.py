@@ -3,7 +3,6 @@
 
 """
 
-import base64
 import tarfile
 import timeit
 from pathlib import Path
@@ -13,7 +12,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pachyderm.plot
 
-from mammoth import parse_ascii
+from mammoth.framework.io import jetscape as parse_ascii
 
 
 pachyderm.plot.configure()
@@ -24,11 +23,12 @@ def setup(filename: str, events_per_chunk: int, base_output_dir: Path) -> None:
 
     directory_name = "5020_PbPb_0-10_0R25_1R0_1"
     full_filename = f"../phys_paper/AAPaperData/{directory_name}/{filename}.out"
-    max_chunks = 1
+    #max_chunks = 1
 
-    print("First ieration - saving with awkawrd")
-    for i, (chunk_generator, event_split_index, event_header_info) in enumerate(parse_ascii.read_events_in_chunks(filename=full_filename, events_per_chunk=events_per_chunk)):
+    print("First iteration - saving with awkward")
+    for i, chunk_generator in enumerate(parse_ascii.read_events_in_chunks(filename=Path(full_filename), events_per_chunk=events_per_chunk)):
         print("Loading chunk")
+        event_split_index = chunk_generator.event_split_index()
         start_time = timeit.default_timer()
 
         hadrons = np.loadtxt(chunk_generator)
@@ -48,10 +48,10 @@ def setup(filename: str, events_per_chunk: int, base_output_dir: Path) -> None:
     #       Plus, I'd like to get a reasonable estimate for the np.loadtxt performance alone.
     print("Second iteration - saving text file")
     lines = []
-    for i, (chunk_generator, event_split_index, event_header_info) in enumerate(parse_ascii.read_events_in_chunks(filename=full_filename, events_per_chunk=events_per_chunk)):
+    for i, chunk_generator in enumerate(parse_ascii.read_events_in_chunks(filename=Path(full_filename), events_per_chunk=events_per_chunk)):
         print("Loading chunk")
         start_time = timeit.default_timer()
-        lines.extend([l for l in chunk_generator])
+        lines.extend([el for el in chunk_generator])
         elapsed = timeit.default_timer() - start_time
         print(f"Loading {events_per_chunk} events with text: {elapsed}")
 
@@ -64,23 +64,23 @@ def setup(filename: str, events_per_chunk: int, base_output_dir: Path) -> None:
         f.write("".join(lines))
     # Write the tars here for convenience.
     with tarfile.open(output_filename.with_suffix(".tar.gz"), "w:gz") as tar:
-        tar.add(output_filename, arcname=output_filename.name)  # type: ignore
+        tar.add(output_filename, arcname=output_filename.name)
 
     # Try also writing in binary encoding with utf-8
     output_filename = output_dir / f"{filename}_{events_per_chunk}_00_binary_utf-8.out"
     with open(output_filename, "wb") as f_bytes:
-        f.write("".join(lines).encode("utf-8"))  # type: ignore
+        f_bytes.write("".join(lines).encode("utf-8"))
     # Write the tars here for convenience.
     with tarfile.open(output_filename.with_suffix(".tar.gz"), "w:gz") as tar:
-        tar.add(output_filename, arcname=output_filename.name)  # type: ignore
+        tar.add(output_filename, arcname=output_filename.name)
 
     # Try also writing in binary encoding with ascii
     output_filename = output_dir / f"{filename}_{events_per_chunk}_00_binary_ascii.out"
     with open(output_filename, "wb") as f_bytes:
-        f.write("".join(lines).encode("ascii"))  # type: ignore
+        f_bytes.write("".join(lines).encode("ascii"))
     # Write the tars here for convenience.
     with tarfile.open(output_filename.with_suffix(".tar.gz"), "w:gz") as tar:
-        tar.add(output_filename, arcname=output_filename.name)  # type: ignore
+        tar.add(output_filename, arcname=output_filename.name)
 
 
 def write_trees_with_root(arrays: ak.Array, base_output_dir: Path, tag: str = "") -> None:
@@ -90,7 +90,7 @@ def write_trees_with_root(arrays: ak.Array, base_output_dir: Path, tag: str = ""
     output_dir = base_output_dir / "ROOT"
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    import ROOT  # type: ignore
+    import ROOT  # pyright: ignore [reportMissingImports]
 
     # ROOT intuition from https://root-forum.cern.ch/t/new-compression-algorithm/27769/3:
     #
@@ -101,20 +101,21 @@ def write_trees_with_root(arrays: ak.Array, base_output_dir: Path, tag: str = ""
     # If you’re interested in LZ4, try kLZ4 as the algorithm and 4 as the level.
 
     #for level in [2, 3, 4, 5, 7]:
-        #for name, compression in [(f"zlib_{level}", ROOT.ROOT.RCompressionSetting.EAlgorithm.kZLIB),
-        #                          (f"lzma_{level}", ROOT.ROOT.RCompressionSetting.EAlgorithm.kLZMA),
-        #                          (f"lz4_{level}", ROOT.ROOT.RCompressionSetting.EAlgorithm.kLZ4),
-        #                          (f"zstd_{level}", ROOT.ROOT.RCompressionSetting.EAlgorithm.kZSTD)]:
+    #    for name, compression in [(f"zlib_{level}", ROOT.ROOT.RCompressionSetting.EAlgorithm.kZLIB),
+    #                              (f"lzma_{level}", ROOT.ROOT.RCompressionSetting.EAlgorithm.kLZMA),
+    #                              (f"lz4_{level}", ROOT.ROOT.RCompressionSetting.EAlgorithm.kLZ4),
+    #                              (f"zstd_{level}", ROOT.ROOT.RCompressionSetting.EAlgorithm.kZSTD)]:
     # Better, use the ROOT default levels...
     # If the case of uncompressed, the algorithm shouldn't matter.
-    for name, compression, level in [#("none_{level}", ROOT.ROOT.RCompressionSetting.EAlgorithm.kZLIB, ROOT.ROOT.RCompressionSetting.ELevel.kUncompressed),
-                                     ("zlib_{level}", ROOT.ROOT.RCompressionSetting.EAlgorithm.kZLIB, ROOT.ROOT.RCompressionSetting.ELevel.kDefaultZLIB),
+    for name, compression, level in [("zlib_{level}", ROOT.ROOT.RCompressionSetting.EAlgorithm.kZLIB, ROOT.ROOT.RCompressionSetting.ELevel.kDefaultZLIB),
                                      ("lzma_{level}", ROOT.ROOT.RCompressionSetting.EAlgorithm.kLZMA, ROOT.ROOT.RCompressionSetting.ELevel.kDefaultLZMA),
                                      ("lz4_{level}", ROOT.ROOT.RCompressionSetting.EAlgorithm.kLZ4, ROOT.ROOT.RCompressionSetting.ELevel.kDefaultLZ4),
-                                     ("zstd_{level}", ROOT.ROOT.RCompressionSetting.EAlgorithm.kZSTD, ROOT.ROOT.RCompressionSetting.ELevel.kDefaultZSTD)]:
+                                     #("none_{level}", ROOT.ROOT.RCompressionSetting.EAlgorithm.kZLIB, ROOT.ROOT.RCompressionSetting.ELevel.kUncompressed),
+                                     #("zstd_{level}", ROOT.ROOT.RCompressionSetting.EAlgorithm.kZSTD, ROOT.ROOT.RCompressionSetting.ELevel.kDefaultZSTD),
+                                     ]:
         # Setup
         name = name.format(level=level)
-        compress =  ROOT.ROOT.CompressionSettings(compression, level)
+        compress = ROOT.ROOT.CompressionSettings(compression, level)
         start_time = timeit.default_timer()
         filename = output_dir / f"{name}{tag}.root"
         print(f"Setup: ROOT {name}")
@@ -190,7 +191,7 @@ def data_distribution(arrays: ak.Array, events_per_chunk: int, pt_hat_range: str
     output_dir = base_output_dir / "parquet_data_distribution"
     output_dir.mkdir(parents=True, exist_ok=True)
     # Valid values: {‘NONE’, ‘SNAPPY’, ‘GZIP’, ‘LZO’, ‘BROTLI’, ‘LZ4’, ‘ZSTD’}.
-    fig, ax = plt.subplots(figsize=(8,6))
+    fig, ax = plt.subplots(figsize=(8, 6))
     for compression in ["snappy",
                         "gzip",
                         # Skip lz4 due to some bug, apparently. The package reports the issue.
@@ -214,8 +215,8 @@ def data_distribution(arrays: ak.Array, events_per_chunk: int, pt_hat_range: str
             elapsed = timeit.default_timer() - start_time
             print(f"Parquet data distribution: {compression}, tag: \"{tag[1:]}\": {elapsed}")
 
-            x.append(high - (high-low)/2)
-            x_err.append((high-low)/2)
+            x.append(high - (high - low) / 2)
+            x_err.append((high - low) / 2)
             # Divide by 1000 to get kb, and then divide by events_per_chunk to get kb/event
             y.append(filename.stat().st_size / 1000 / events_per_chunk)
 
@@ -269,7 +270,7 @@ def write_ascii_ish(arrays: ak.Array, base_output_dir: Path, tag: str = "") -> N
 
     # Write the tar here for convenience.
     with tarfile.open(filename.with_suffix(".tar.gz"), "w:gz") as tar:
-        tar.add(filename, arcname=filename.name)  # type: ignore
+        tar.add(filename, arcname=filename.name)
 
 
 if __name__ == "__main__":

@@ -13,7 +13,7 @@ import uproot
 import vector
 from pachyderm import binned_data, yaml
 
-from mammoth.framework import jet_finding, particle_ID
+from mammoth.framework import jet_finding
 
 
 def jet_R_to_str(jet_R: float) -> str:
@@ -92,7 +92,7 @@ def run(event_properties: ak.Array,
         # Run the jet finder
         jets = jet_finding.find_jets(
             particles=particles,
-            jet_findingsettings=jet_finding.JetFindingSettings(
+            jet_finding_settings=jet_finding.JetFindingSettings(
                 R=jet_R,
                 algorithm="anti_kt",
                 pt_range=jet_finding.pt_range(),
@@ -104,7 +104,7 @@ def run(event_properties: ak.Array,
         # Select forward jets.
         jets_eta_mask = (jets.eta > jet_eta_limits[0] + jet_R) & (jets.eta < jet_eta_limits[1] - jet_R)
         jets = jets[jets_eta_mask]
-        constituent_indices = constituent_indices[jets_eta_mask]
+        constituent_indices = jets.constituent_indices[jets_eta_mask]
 
         # Take only the leading jet.
         jets = ak.firsts(jets)
@@ -135,7 +135,8 @@ def run(event_properties: ak.Array,
             hists[jet_R_str]["x"].fill(ak.flatten(jets.p, axis=None), sample=ak.flatten(event_properties_R_dependent.x2, axis=None))
         except ValueError as e:
             print(f"Womp womp: {e}")
-            import IPython; IPython.embed()
+            import IPython
+            IPython.embed()
 
 
 def setup_hists() -> Dict[str, bh.Histogram]:
@@ -216,5 +217,6 @@ if __name__ == "__main__":
         output["means"] = means
         y.dump(output, f)
 
-    import IPython; IPython.embed()
+    import IPython
+    IPython.embed()
 

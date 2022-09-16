@@ -4,7 +4,6 @@
 """
 
 import logging
-from mammoth.jetscape.jet_raa import write_hists
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence
 
@@ -124,7 +123,7 @@ def run_RAA_analysis(
             write_hists_filename=write_hists_filename,
         )
         result = True, f"success for {system}, {inputs[0].filepath}", system, hists
-    except Exception as e:
+    except Exception:
         result = False, f"failure for {system}, {inputs[0].filepath} with: \n{traceback.format_exc()}", system, {}
     return result
 

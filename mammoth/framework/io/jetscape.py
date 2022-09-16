@@ -425,7 +425,7 @@ def read_events_in_chunks(filename: Path, events_per_chunk: int = int(1e5)) -> I
         # Use this if the file doesn't fit in memory (fairly likely for these type of files)
         read_lines = iter(f)
 
-        # Check for file format version indcating how we should parse it.
+        # Check for file format version indicating how we should parse it.
         file_format_version = -1
         first_line = next(read_lines)
         first_line_split = first_line.split("\t")
@@ -805,7 +805,7 @@ if __name__ == "__main__":
 
     helpers.setup_logging(level=logging.INFO)
     # Extracted via find_production_pt_hard_bins_in_filename from the 5 TeV pp production
-    # However, we keep them separate here because it's more conveneint than looking up every time
+    # However, we keep them separate here because it's more convenient than looking up every time
     # (and requires fewer metadata queries).
     pt_hat_bins = [
         "1000_1100",

@@ -4,7 +4,7 @@
 .. codeauthor:: Raymond Ehlers <raymond.ehlers@cern.ch> ORNL
 """
 
-from typing import Mapping, Sequence, Tuple
+from typing import Dict, Mapping, Sequence, Tuple
 
 import matplotlib
 import matplotlib.pyplot as plt
@@ -22,16 +22,19 @@ matplotlib.rcParams["xtick.minor.top"] = True
 matplotlib.rcParams["ytick.right"] = True
 matplotlib.rcParams["ytick.minor.right"] = True
 
-def error_prop_divide(num_value, num_delta, denom_value, denom_delta) -> float:
+def error_prop_divide(num_value: np.float64, num_delta: np.float64, denom_value: np.float64, denom_delta: np.float64) -> Tuple[np.float64, np.float64]:
     val = num_value / denom_value
     delta = val * np.sqrt((num_delta / num_value) ** 2 + (denom_delta / denom_value) ** 2)
     return (val, delta)
 
 
-def determine_scaling_values(scaling_info: Mapping[str, Mapping[str, Sequence[float]]]):
+def determine_scaling_values(scaling_info: Mapping[str, Mapping[str, Sequence[float]]]) -> Tuple[
+    Dict[int, Tuple[np.float64, np.float64]],
+    Dict[int, Tuple[np.float64, np.float64, np.float64, np.float64]]
+]:
     model = "matter_lbt"
 
-    values = {}
+    values: Dict[int, Tuple[np.float64, np.float64]] = {}
     # Extract the values
     for n_cores in [1, 6, 20, 36, 42, 48]:
         # This is the runtime in seconds.
@@ -53,13 +56,13 @@ def determine_scaling_values(scaling_info: Mapping[str, Mapping[str, Sequence[fl
     return values, normalized_values
 
 
-def plot(scaling: Mapping[int, Tuple[float, ...]]) -> None:
-    # Extrat values
+def plot(scaling: Mapping[int, Tuple[np.float64, np.float64, np.float64, np.float64]]) -> None:
+    # Extract values
     x_values = list(scaling.keys())
     y_values = [v[0] for v in scaling.values()]
-    y_stat_error = [v[1] for v in scaling.values()]
+    y_stat_error = [v[1] for v in scaling.values()]  # noqa: F841
     y_stochastic_5 = np.array([v[2] for v in scaling.values()])
-    y_stochastic_10 = np.array([v[3] for v in scaling.values()])
+    y_stochastic_10 = np.array([v[3] for v in scaling.values()])  # noqa: F841
 
     fig, ax = plt.subplots(figsize=(8, 6))
 
@@ -75,17 +78,17 @@ def plot(scaling: Mapping[int, Tuple[float, ...]]) -> None:
         label="Mean",
     )
 
-    # Basically just need an error box, so we have to give it soem x width...
+    # Basically just need an error box, so we have to give it some x width...
     x_error = np.array([1] * len(x_values))
-    error_5 = pachyderm.plot.error_boxes(
+    pachyderm.plot.error_boxes(
         ax=ax,
-        x_data=x_values,
-        y_data=y_values,
+        x_data=x_values,  # type: ignore
+        y_data=y_values,  # type: ignore
         x_errors=x_error,
         y_errors=y_stochastic_5,
         color="green",
         linewidth=0,
-        label="Stochastic 5\% error",
+        label=r"Stochastic 5\% error",
         zorder=6,
     )
     #error_10 = pachyderm.plot.error_boxes(
@@ -109,7 +112,7 @@ def plot(scaling: Mapping[int, Tuple[float, ...]]) -> None:
 
     legend_info = [
         data,
-        mpatches.Patch(color='green', alpha=0.5, label="Stochastic 5\% error"),
+        mpatches.Patch(color='green', alpha=0.5, label=r"Stochastic 5\% error"),
         #mpatches.Patch(color='blue', alpha=0.5, label="Stochastic 10\% error"),
     ]
 

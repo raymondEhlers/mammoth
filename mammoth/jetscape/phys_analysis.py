@@ -10,7 +10,6 @@ import awkward as ak
 import numba as nb
 import numpy as np
 import vector
-from pachyderm import binned_data
 
 from mammoth.framework import jet_finding, particle_ID
 
@@ -34,8 +33,8 @@ def _delta_R(eta_one: float, phi_one: float, eta_two: float, phi_two: float) -> 
 
 @nb.njit  # type: ignore
 def _subtract_holes_from_jets_pt(jets_pt: ak.Array, jets_eta: ak.Array, jets_phi: ak.Array,
-                              particles_holes_pt: ak.Array, particles_holes_eta: ak.Array, particles_holes_phi: ak.Array,
-                              jet_R: float, builder: ak.ArrayBuilder) -> ak.Array:
+                                 particles_holes_pt: ak.Array, particles_holes_eta: ak.Array, particles_holes_phi: ak.Array,
+                                 jet_R: float, builder: ak.ArrayBuilder) -> ak.Array:
     for jets_pt_in_event, jets_eta_in_event, jets_phi_in_event, holes_pt_in_event, holes_eta_in_event, holes_phi_in_event in \
             zip(jets_pt, jets_eta, jets_phi, particles_holes_pt, particles_holes_eta, particles_holes_phi):
         builder.begin_list()
@@ -101,8 +100,8 @@ def run(particles: ak.Array) -> None:
     # Charged hadrons: (pi+, K+, p+, Sigma+, Sigma-, Xi-, Omega-)
     # NOTE: They apparently exclude: e-, mu- (11, 13). Quoting from the AN:
     #       Since the main observables in this analysis are the charged hadron spectra, leptons arising from the decays of heavy vector bosons
-    #       are excluded from the measured spectra.  Tracks forming part of reconstructedmuons  are  identified  and  the  contribution  from
-    #       stable  leptons  is  subtracted  twice  from  the  measuredspectra, assuming that electrons contribute the same as muons.
+    #       are excluded from the measured spectra.  Tracks forming part of reconstructed muons  are identified  and the contribution  from
+    #       stable  leptons  is  subtracted  twice  from  the  measured spectra, assuming that electrons contribute the same as muons.
     atlas_charged_hadrons = particles_signal[particle_ID.build_PID_selection_mask(particles_signal, absolute_pids=_default_charged_hadron_PID[2:])]
     # Eta selection
     atlas_charged_hadrons = atlas_charged_hadrons[np.abs(atlas_charged_hadrons.eta) < 2.5]
@@ -143,7 +142,7 @@ def run(particles: ak.Array) -> None:
 
     # Select jets
     # ATLAS
-    atlas_jets = jets[np.abs(jets.rapidity) < 2.8]
+    #atlas_jets = jets[np.abs(jets.rapidity) < 2.8]
     # ALICE
     # Full jets, so max eta is 0.7
     alice_jets_eta_mask = np.abs(jets.eta) < 0.7 - jet_R
@@ -159,9 +158,10 @@ def run(particles: ak.Array) -> None:
     ).snapshot()
     alice_jets = alice_jets[leading_track_cut_mask]
     # CMS
-    cms_jets = jets[np.abs(jets.eta) < 2.0]
+    #cms_jets = jets[np.abs(jets.eta) < 2.0]
 
-    import IPython; IPython.embed()
+    import IPython
+    IPython.embed()
 
 
 if __name__ == "__main__":

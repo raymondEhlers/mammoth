@@ -10,7 +10,6 @@ import boost_histogram as bh
 import mplhep
 import matplotlib
 import matplotlib.pyplot as plt
-import matplotlib.patches as mpatches
 import numpy as np
 import numpy.typing as npt
 import pachyderm.plot
@@ -122,7 +121,7 @@ def plot_jet_p(
     )
 
     fig.tight_layout()
-    fig.savefig(output_dir / f"p_jet_pythia6_ep.pdf")
+    fig.savefig(output_dir / "p_jet_pythia6_ep.pdf")
     plt.close(fig)
 
     return True
@@ -331,7 +330,7 @@ def plot_qt(hist: binned_data.BinnedData,
     return True
 
 
-def plot_qt_pt_as_function_of_p(hist: binned_data.BinnedData,
+def plot_qt_pt_as_function_of_p(hist: binned_data.BinnedData,  # noqa: C901
                                 label: str,
                                 base_plot_label: str,
                                 jet_R: float,
@@ -412,7 +411,7 @@ def plot_qt_pt_as_function_of_p(hist: binned_data.BinnedData,
 
                 # RMS from ROOT
                 try:
-                    import ROOT
+                    import ROOT  # noqa: F401
                     h_ROOT = h.to_ROOT()
                     #fu = ROOT.TF1("fu", "[2] * TMath::Gaus(x,[0],[1])")
                     #fu.SetParameters(0, 0.1, 0.1)
@@ -469,7 +468,7 @@ def plot_qt_pt_as_function_of_p(hist: binned_data.BinnedData,
         ax.set_xlim([min_x, 0.4])
         # Ensure we stop at 0, so it displays the same as a step plot.
         ax.set_ylim([0, None])
-        leg = ax.legend(
+        ax.legend(
             loc="upper right",
             frameon=False,
             bbox_to_anchor=(0.97, 0.68),

@@ -5,23 +5,16 @@
 .. codeauthor:: Raymond Ehlers <raymond.ehlers@cern.ch>, ORNL
 """
 
-import itertools
 import logging
 from pathlib import Path
-from typing import Dict, Mapping, Sequence, Tuple
+from typing import Dict, Sequence
 
-import attr
 import hist
-import matplotlib
-import matplotlib.pyplot as plt
-import numpy as np
 import pachyderm.plot as pb
-import seaborn as sns
-import uproot
+
 from mammoth import helpers
 from mammoth.eic import base as ecce_base
 from mammoth.eic import plot_ecce_track_comparison, run_ecce_analysis
-from pachyderm import binned_data
 
 
 pb.configure()
@@ -29,7 +22,7 @@ pb.configure()
 logger = logging.getLogger(__name__)
 
 
-def _load_results(input_specs: Sequence[run_ecce_analysis.DatasetSpec], input_dir: Path, filename: str, filter: str ="hist") -> Dict[str, Dict[str, hist.Hist]]:
+def _load_results(input_specs: Sequence[run_ecce_analysis.DatasetSpec], input_dir: Path, filename: str, filter: str = "hist") -> Dict[str, Dict[str, hist.Hist]]:
     output_hists = {}
     for spec in input_specs:
         logger.info(f"Loading hists from {input_dir / str(spec) / filename}")
@@ -41,8 +34,7 @@ def _load_results(input_specs: Sequence[run_ecce_analysis.DatasetSpec], input_di
     return output_hists
 
 
-
-def run() -> None:
+def run() -> None:  # noqa: C901
     helpers.setup_logging()
 
     input_dir = Path("/Volumes/data/eic/trackingComparison/2021-10-13")
@@ -158,21 +150,21 @@ def run() -> None:
 
     # Setup
     _input_spec_labels = {
-        f"production-pythia8-10x100-q2-1-to-100": "2 LGAD layers",
-        f"production-pythia8-10x100-q2-100": "2 LGAD layers",
-        f"production-pythia8-10x100-q2-1-to-100-0layer": "No LGADs",
-        f"production-pythia8-10x100-q2-100-0layer": "No LGADs",
-        f"cades-pythia8-10x100-q2-1-to-100-geoOption5": "1 LGAD layer, $30 \mu$m",
-        f"cades-pythia8-10x100-q2-100-geoOption5": "1 LGAD layer, $30 \mu$m",
-        f"cades-pythia8-10x100-q2-1-to-100-geoOption6": "1 LGAD layer, $55 \mu$m",
-        f"cades-pythia8-10x100-q2-100-geoOption6": "1 LGAD layer, $55 \mu$m",
+        "production-pythia8-10x100-q2-1-to-100": "2 LGAD layers",
+        "production-pythia8-10x100-q2-100": "2 LGAD layers",
+        "production-pythia8-10x100-q2-1-to-100-0layer": "No LGADs",
+        "production-pythia8-10x100-q2-100-0layer": "No LGADs",
+        "cades-pythia8-10x100-q2-1-to-100-geoOption5": r"1 LGAD layer, $30 \mu$m",
+        "cades-pythia8-10x100-q2-100-geoOption5": r"1 LGAD layer, $30 \mu$m",
+        "cades-pythia8-10x100-q2-1-to-100-geoOption6": r"1 LGAD layer, $55 \mu$m",
+        "cades-pythia8-10x100-q2-100-geoOption6": r"1 LGAD layer, $55 \mu$m",
     }
     for particle in ["Pion", "Electron"]:
         _input_spec_labels.update({
             f"production-single{particle}-p-0-to-20": "2 LGAD layers",
             f"production-single{particle}-p-0-to-20-0layer": "No LGADs",
-            f"cades-single{particle}-p-0.3-to-20-geoOption5": "1 LGAD layer, $30 \mu$m",
-            f"cades-single{particle}-p-0.3-to-20-geoOption6": "1 LGAD layer, $55 \mu$m",
+            f"cades-single{particle}-p-0.3-to-20-geoOption5": r"1 LGAD layer, $30 \mu$m",
+            f"cades-single{particle}-p-0.3-to-20-geoOption6": r"1 LGAD layer, $55 \mu$m",
         })
 
     output_hists = _load_results(
@@ -187,7 +179,7 @@ def run() -> None:
         filename="output_TRKRS.root",
     )
 
-    hist_name = "h_tracks_reso_p_{primary_track_source}_{name_reso_add}_{mc_particles_selection}_{eta_region}"
+    #hist_name = "h_tracks_reso_p_{primary_track_source}_{name_reso_add}_{mc_particles_selection}_{eta_region}"
     # Example:   h_tracks_reso_p_0_All_All_6
 
     #int nEta = 15
@@ -205,7 +197,7 @@ def run() -> None:
     backward_regions = list(range(1, 5))
     barrel_regions = list(range(5, 10))
     forward_regions = list(range(10, 14))
-    all = [15]
+    #all = [15]
 
     #hist_name = "histPResol_Electron_FitMean_15"
     hist_name_template = "histPResol_{particle}_FitMean_{eta_region_index}"
@@ -217,12 +209,13 @@ def run() -> None:
     # - [x] Same as above, but switch forward -> backward
     # - [x] Pythia in four forward regions for each config
 
-    from importlib import reload
-    import IPython; IPython.embed()
+    from importlib import reload  # noqa: F401
+    import IPython
+    IPython.embed()
 
     # Single particle productions
     for regions_label, region_indices in [("forward", forward_regions), ("barrel", barrel_regions), ("backward", backward_regions)]:
-        for selected_particle, latex_label in [("pion", "$\pi$"), ("electron", "$e^{\pm}$")]:
+        for selected_particle, latex_label in [("pion", r"$\pi$"), ("electron", r"$e^{\pm}$")]:
             for input_spec in input_specs:
                 if input_spec.particle != selected_particle:
                     continue
@@ -262,7 +255,7 @@ def run() -> None:
 
     for regions_label, region_indices in [("forward", forward_regions), ("barrel", barrel_regions), ("backward", backward_regions)]:
         # Now, the comparison for each eta region
-        for selected_particle, latex_label in [("pion", "$\pi$"), ("electron", "$e^{\pm}$")]:
+        for selected_particle, latex_label in [("pion", r"$\pi$"), ("electron", r"$e^{\pm}$")]:
             #plot_input_specs = [input_spec for input_spec in input_specs if input_spec.particle == selected_particle]
             plot_input_specs = []
             for input_spec in input_specs:
@@ -308,16 +301,15 @@ def run() -> None:
                     output_dir=output_dir,
                 )
 
-
     # Pythia
     for regions_label, region_indices in [("forward", forward_regions), ("barrel", barrel_regions), ("backward", backward_regions)]:
-        for selected_particle, latex_label in [("all", ""), ("pion", "$\pi$"), ("electron", "$e^{\pm}$")]:
+        for selected_particle, latex_label in [("all", ""), ("pion", r"$\pi$"), ("electron", r"$e^{\pm}$")]:
             for input_spec in pythia_input_specs:
                 output_dir_for_input_spec = output_dir / str(input_spec)
                 output_dir_for_input_spec.mkdir(parents=True, exist_ok=True)
                 text = "ECCE Simulation"
                 text += "\n" + _input_spec_labels[str(input_spec)]
-                text += "\n" + "PYTHIA 8 10x100, " +  (latex_label + "," if latex_label else "") + f"${input_spec.q2_display}$"
+                text += "\n" + "PYTHIA 8 10x100, " + (latex_label + "," if latex_label else "") + f"${input_spec.q2_display}$"
 
                 hist_name_template = "histPResol_{particle}_FitMean_{eta_region_index}"
                 plot_ecce_track_comparison.plot_tracking_comparison(
@@ -348,7 +340,7 @@ def run() -> None:
                 )
 
         # Now, the comparison for each eta region
-        for selected_particle, latex_label in [("all", ""), ("pion", "$\pi$"), ("electron", "$e^{\pm}$")]:
+        for selected_particle, latex_label in [("all", ""), ("pion", r"$\pi$"), ("electron", r"$e^{\pm}$")]:
             #plot_input_specs = [input_spec for input_spec in input_specs if input_spec.particle == selected_particle]
             for q2_selection in ["q2-1-to-100", "q2-100"]:
                 plot_input_specs = []
@@ -365,7 +357,7 @@ def run() -> None:
                 for i in region_indices:
                     # Labels
                     text = "ECCE Simulation"
-                    text += "\n" + "PYTHIA 8 10x100, " +  (latex_label + "," if latex_label else "") + f"${input_spec.q2_display}$"
+                    text += "\n" + "PYTHIA 8 10x100, " + (latex_label + "," if latex_label else "") + f"${input_spec.q2_display}$"
                     text += "\n" + plot_ecce_track_comparison.get_eta_label(eta_ranges[i])
 
                     hist_name_template = "histPResol_{particle}_FitMean_{eta_region_index}"
@@ -519,7 +511,6 @@ def run() -> None:
                             output_dir=_jet_output_dir,
                         )
 
-
                         #hist_name_template = "histPResol_{particle}_FitMean_{eta_region_index}"
                         #plot_ecce_track_comparison.plot_tracking_comparison(
                         #    input_specs=plot_input_specs,
@@ -552,7 +543,8 @@ def run() -> None:
                         #    output_dir=_jet_output_dir,
                         #)
 
-    import IPython; IPython.embed()
+    import IPython
+    IPython.embed()
 
     #for label, regions in [("backward", backward_regions), ("barrel", barrel_regions), ("forward", forward_regions)]:
     #for i in range(0, len(eta_ranges)):

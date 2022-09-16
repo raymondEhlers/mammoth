@@ -5,11 +5,9 @@ from typing import Dict, Mapping, Sequence, Tuple
 
 import cycler
 import hist
-import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
 import pachyderm.plot as pb
-from mammoth.eic import base as ecce_base
 from mammoth.eic import run_ecce_analysis
 
 pb.configure()
@@ -133,18 +131,18 @@ def plot_tracking_comparison(input_specs: Sequence[run_ecce_analysis.DatasetSpec
         plot_config=pb.PlotConfig(
             name=f"{plot_name}_{regions_label}_{'_'.join([str(v) for v in regions_index])}",
             panels=pb.Panel(
-                    axes=[
-                        pb.AxisConfig("x", label=x_label, font_size=22, log=(plot_jets == False), range=x_range),
-                        pb.AxisConfig(
-                            "y",
-                            label=y_label,
-                            range=y_range,
-                            font_size=22,
-                        ),
-                    ],
-                    text=pb.TextConfig(x=0.97, y=0.97, text=text, font_size=22),
-                    legend=pb.LegendConfig(location="upper left", font_size=22),
-                ),
+                axes=[
+                    pb.AxisConfig("x", label=x_label, font_size=22, log=(plot_jets is False), range=x_range),
+                    pb.AxisConfig(
+                        "y",
+                        label=y_label,
+                        range=y_range,
+                        font_size=22,
+                    ),
+                ],
+                text=pb.TextConfig(x=0.97, y=0.97, text=text, font_size=22),
+                legend=pb.LegendConfig(location="upper left", font_size=22),
+            ),
             figure=pb.Figure(edge_padding=dict(left=0.10 if "width" in plot_name else 0.13, bottom=0.10)),
         ),
         output_dir=output_dir,

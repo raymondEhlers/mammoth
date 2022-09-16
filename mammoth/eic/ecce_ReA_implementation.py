@@ -1,10 +1,9 @@
 
 import logging
-from typing import Any, Dict, List, Mapping, Sequence
+from typing import Any, Dict, List, Mapping
 
 import attr
 import hist
-import numpy as np
 
 logger = logging.getLogger(__name__)
 
@@ -49,7 +48,6 @@ class JetParameters:
 
     def __str__(self) -> str:
         return self.name_eA
-
 
 
 def scale_jets(input_hists: Dict[str, Dict[str, hist.Hist]],

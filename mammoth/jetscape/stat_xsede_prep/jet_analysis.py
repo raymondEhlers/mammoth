@@ -9,7 +9,7 @@ a bit of useful functionality inside of all the other stuff (normalizing phi ran
 """
 
 from pathlib import Path
-from typing import Any, Tuple
+from typing import Tuple
 
 import awkward as ak
 import boost_histogram as bh
@@ -93,7 +93,7 @@ def particle_pt_by_status(arrays: ak.Array, pt_hat_bin: Tuple[int, int], base_ou
             hist.axes[0].bin_centers,
             hist.values,
             xerr=hist.axes[0].bin_widths / 2,
-            label=f"Status = {status_code}, {int(fraction_of_particles * 100)}\%",
+            label=fr"Status = {status_code}, {int(fraction_of_particles * 100)}\%",
             marker="o",
             linestyle="",
         )
@@ -363,7 +363,7 @@ def angular_distribution_around_jet(jets: ak.Array, arrays: ak.Array, pt_hat_bin
         h_all.axes[0].bin_centers,
         h_all.values,
         xerr=h_all.axes[0].bin_widths / 2,
-        label=f"Sum",
+        label="Sum",
         marker="o",
         linestyle="",
     )
@@ -373,7 +373,7 @@ def angular_distribution_around_jet(jets: ak.Array, arrays: ak.Array, pt_hat_bin
         h_fj_all.axes[0].bin_centers,
         h_fj_all.values,
         xerr=h_fj_all.axes[0].bin_widths / 2,
-        label=f"Sum",
+        label="Sum",
         marker="o",
         linestyle="",
     )

@@ -4,7 +4,7 @@
 """
 
 from pathlib import Path
-from typing import Any, Dict, Mapping
+from typing import Dict, Mapping
 
 import attr
 import awkward as ak
@@ -55,22 +55,22 @@ def load_reference_data() -> Dict[str, binned_data.BinnedData]:
     # I average the measurements and add the statistical and systematic errors in quadrature
     with uproot.open(input_data_path / "STAR" / "HEPData-ins709170-v1-Table_2.root") as f:
         print(f.keys())
-        data = binned_data.BinnedData.from_existing_data(f["Table 2"][f"Hist1D_y1"])
-        stat_errors = binned_data.BinnedData.from_existing_data(f["Table 2"][f"Hist1D_y1_e1"])
-        sys_errors = binned_data.BinnedData.from_existing_data(f["Table 2"][f"Hist1D_y1_e2"])
+        data = binned_data.BinnedData.from_existing_data(f["Table 2"]["Hist1D_y1"])
+        stat_errors = binned_data.BinnedData.from_existing_data(f["Table 2"]["Hist1D_y1_e1"])
+        sys_errors = binned_data.BinnedData.from_existing_data(f["Table 2"]["Hist1D_y1_e2"])
         reference_data["star_pi_plus"] = ReferenceData(
             data = data, stat_errors = stat_errors, sys_errors = sys_errors
         )
 
     with uproot.open(input_data_path / "STAR" / "HEPData-ins709170-v1-Table_7.root") as f:
-        data = binned_data.BinnedData.from_existing_data(f["Table 7"][f"Hist1D_y1"])
-        stat_errors = binned_data.BinnedData.from_existing_data(f["Table 7"][f"Hist1D_y1_e1"])
-        sys_errors = binned_data.BinnedData.from_existing_data(f["Table 7"][f"Hist1D_y1_e2"])
+        data = binned_data.BinnedData.from_existing_data(f["Table 7"]["Hist1D_y1"])
+        stat_errors = binned_data.BinnedData.from_existing_data(f["Table 7"]["Hist1D_y1_e1"])
+        sys_errors = binned_data.BinnedData.from_existing_data(f["Table 7"]["Hist1D_y1_e2"])
         reference_data["star_pi_minus"] = ReferenceData(
             data = data, stat_errors = stat_errors, sys_errors = sys_errors
         )
 
-    return_data["STAR $\pi^{\pm}$"] = binned_data.BinnedData(
+    return_data[r"STAR $\pi^{\pm}$"] = binned_data.BinnedData(
         axes=reference_data["star_pi_plus"].data.axes[0].bin_edges,
         values=(reference_data["star_pi_plus"].values + reference_data["star_pi_minus"].values) / 2,
         # Add statistical and systematics errors in quadrature.
@@ -87,7 +87,7 @@ def setup() -> None:
     jetscape_io.parse_to_parquet(
         base_output_filename="skim/output.parquet",
         store_only_necessary_columns=True,
-        input_filename=f"final_state_hadrons.out",
+        input_filename="final_state_hadrons.out",
         events_per_chunk=10000,
         #max_chunks=1,
     )
@@ -140,7 +140,7 @@ def analyze(output_dir: Path, reference_data: Mapping[str, binned_data.BinnedDat
         yerr=h_pt.errors,
         marker=".",
         linestyle="",
-        label="JS PP19 $\pi^{\pm}$",
+        label=r"JS PP19 $\pi^{\pm}$",
     )
 
     # Reference data

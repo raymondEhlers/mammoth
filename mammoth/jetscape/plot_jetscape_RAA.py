@@ -17,8 +17,7 @@ import pachyderm.plot
 import seaborn as sns
 import uproot
 from pachyderm import binned_data
-
-from jet_substructure.analysis import plot_base as pb
+from pachyderm import plot as pb
 
 
 pachyderm.plot.configure()
@@ -54,11 +53,11 @@ def combine_spectra_in_cent_bins(hists: Mapping[str, hist.Hist], jet_type: str, 
     name = f"{jet_type}_jetR{format_R(jet_R)}_n_events_weighted"
     #name = "n_events_weighted"
 
-    a_n_events = hists[f"PbPb_{a}"][name]
-    b_n_events = hists[f"PbPb_{b}"][name]
+    a_n_events: hist.Hist = hists[f"PbPb_{a}"][name]
+    b_n_events: hist.Hist = hists[f"PbPb_{b}"][name]
     name = f"{jet_type}_jetR{format_R(jet_R)}_jet_pt"
-    a_jet_pt = hists[f"PbPb_{a}"][name]
-    b_jet_pt = hists[f"PbPb_{b}"][name]
+    a_jet_pt: hist.Hist = hists[f"PbPb_{a}"][name]
+    b_jet_pt: hist.Hist = hists[f"PbPb_{b}"][name]
 
     # See Laura's note on adding
     #return ((a_jet_pt / a_n_events.values()[0]) + (b_jet_pt / b_n_events.values()[0])) / 2
@@ -86,11 +85,11 @@ def _ML_jet_binning(system: str, jet_R: float) -> npt.NDArray[np.float64]:
     new_bins = np.concatenate([np.arange(min_pt_values[system][jet_R], 70, 10),
                                np.arange(70, 100, 15),
                                # + 0.1 to make sure that we include the end point.
-                               np.arange(100, max_pt_values[system]+0.1, 20)])
+                               np.arange(100, max_pt_values[system] + 0.1, 20)])
     return new_bins
 
 
-def plot(output_dir: Path,
+def plot(output_dir: Path,  # noqa: C901
          jet_R_values: Optional[Sequence[float]] = None,
          jet_types: Optional[Sequence[str]] = None,
          write_hists: bool = False,
@@ -121,7 +120,7 @@ def plot(output_dir: Path,
         "PbPb_30_50": r"30-50\% Pb-Pb",
     }
 
-    RAA_hists = {
+    RAA_hists: Dict[str, Dict[str, binned_data.BinnedData]] = {
         "PbPb_00_10": {},
         "PbPb_30_50": {},
     }
@@ -359,7 +358,7 @@ def plot(output_dir: Path,
                         if jet_R_label != "_requested":
                             # 10 GeV wide bins up to 100 GeV, followed by 100 GeV wide bins beyond there.
                             #new_bins = np.concatenate([np.arange(10, 100, 10), np.arange(100, 1100, 100)])
-                            new_bins = np.concatenate([np.arange(10, 80, 10), np.arange(80, 200, 20), np.arange(200, 500, 100), np.arange(500, 1000+0.1, 500)])
+                            new_bins = np.concatenate([np.arange(10, 80, 10), np.arange(80, 200, 20), np.arange(200, 500, 100), np.arange(500, 1000 + 0.1, 500)])
                         else:
                             min_pt_values = {
                                 "PbPb_00_10": {
@@ -380,7 +379,7 @@ def plot(output_dir: Path,
                             new_bins = np.concatenate([np.arange(min_pt_values[system][jet_R], 70, 10),
                                                        np.arange(70, 100, 15),
                                                        # + 0.1 to make sure that we include the end point.
-                                                       np.arange(100, max_pt_values[system]+0.1, 20)])
+                                                       np.arange(100, max_pt_values[system] + 0.1, 20)])
                         #original_bin_width = 10
                         original_bin_width = 1
 
@@ -400,7 +399,7 @@ def plot(output_dir: Path,
                         #    print(h_RAA[60j:140j].values)
                         #    import IPython; IPython.embed()
 
-                        p = ax.errorbar(
+                        ax.errorbar(
                             h_RAA.axes[0].bin_centers,
                             h_RAA.values,
                             xerr=h_RAA.axes[0].bin_widths / 2,
@@ -489,7 +488,7 @@ def plot(output_dir: Path,
                     #    print(h_RAA[60j:140j].values)
                     #    import IPython; IPython.embed()
 
-                    p = ax.errorbar(
+                    ax.errorbar(
                         h_ratio.axes[0].bin_centers,
                         h_ratio.values,
                         xerr=h_ratio.axes[0].bin_widths / 2,

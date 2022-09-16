@@ -2,7 +2,7 @@
 
 import logging
 from pathlib import Path
-from typing import Dict, Iterable, List, Mapping, Optional, Sequence
+from typing import Dict, Iterable, Mapping, Optional, Sequence
 
 import attr
 import cycler
@@ -11,8 +11,6 @@ import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
 import pachyderm.plot as pb
-import seaborn as sns
-import uproot
 from mammoth import helpers
 from mammoth.eic import base as ecce_base
 from mammoth.eic import ecce_ReA_implementation
@@ -138,7 +136,7 @@ def calculate_ReA(input_hists: Dict[str, Dict[str, hist.Hist]],
     return ReA_hists
 
 
-def calculate_double_ratio(ReA_hists: Dict[str, Dict[str, hist.Hist]],
+def calculate_double_ratio(ReA_hists: Dict[str, Dict[str, hist.Hist]],  # noqa: C901
                            sim_config: SimulationConfig,
                            analysis_config: ecce_ReA_implementation.AnalysisConfig,
                            rebin_factor: int = 1,
@@ -157,10 +155,11 @@ def calculate_double_ratio(ReA_hists: Dict[str, Dict[str, hist.Hist]],
                         # Retrieve the relevant hists
                         fixed_region_ReA_hists = {
                             k: v
-                            for k, v in ReA_hists[input_spec.n_PDF_name].items() if k.variable == variable
-                                                                                 and k.jet_type == jet_type
-                                                                                 and k.region == region
-                                                                                 and k.variation == variation
+                            for k, v in ReA_hists[input_spec.n_PDF_name].items()
+                            if k.variable == variable
+                            and k.jet_type == jet_type
+                            and k.region == region
+                            and k.variation == variation
                         }
 
                         # Then, find the ratio reference
@@ -186,7 +185,6 @@ def calculate_double_ratio(ReA_hists: Dict[str, Dict[str, hist.Hist]],
                                     (binned_data.BinnedData.from_existing_data(v))
                                     / reference
                                 ).to_boost_histogram()[::hist.rebin(rebin_factor)] / (rebin_factor * 1.0))
-
 
                         #import IPython; IPython.start_ipython(user_ns={**globals(),**locals()})
 
@@ -433,7 +431,7 @@ _jet_type_display_label = {
 }
 
 
-def plot_ReA(sim_config: SimulationConfig, analysis_config: ecce_ReA_implementation.AnalysisConfig, input_hists: Dict[str, Dict[str, hist.Hist]],
+def plot_ReA(sim_config: SimulationConfig, analysis_config: ecce_ReA_implementation.AnalysisConfig, input_hists: Dict[str, Dict[str, hist.Hist]],  # noqa: C901
              cross_section: float, scale_jets_by_expected_luminosity: bool = False, expected_luminosities: Mapping[str, float] = None, skip_slow_2D_plots: bool = False) -> None:
     scaled_hists = {}
     input_spectra_hists = input_hists
@@ -487,19 +485,19 @@ def plot_ReA(sim_config: SimulationConfig, analysis_config: ecce_ReA_implementat
                                 plot_config=pb.PlotConfig(
                                     name=f"{n_PDF_name}_{name}_Q2",
                                     panels=pb.Panel(
-                                            axes=[
-                                                pb.AxisConfig("x", label=r"$p" + variable_label + r"^{\text{jet}}\:(\text{GeV}/c)$", font_size=22, range=x_range),
-                                                pb.AxisConfig(
-                                                    "y",
-                                                    label=r"$Q^{2}\:(\text{GeV}^{2})$",
-                                                    log=True,
-                                                    font_size=22,
-                                                    range=(45, 1100),
-                                                ),
-                                            ],
-                                            text=pb.TextConfig(x=0.97, y=0.03, text=text, font_size=22),
-                                            #legend=pb.LegendConfig(location="lower left", font_size=22),
-                                        ),
+                                        axes=[
+                                            pb.AxisConfig("x", label=r"$p" + variable_label + r"^{\text{jet}}\:(\text{GeV}/c)$", font_size=22, range=x_range),
+                                            pb.AxisConfig(
+                                                "y",
+                                                label=r"$Q^{2}\:(\text{GeV}^{2})$",
+                                                log=True,
+                                                font_size=22,
+                                                range=(45, 1100),
+                                            ),
+                                        ],
+                                        text=pb.TextConfig(x=0.97, y=0.03, text=text, font_size=22),
+                                        #legend=pb.LegendConfig(location="lower left", font_size=22),
+                                    ),
                                     figure=pb.Figure(edge_padding=dict(left=0.125, bottom=0.1)),
                                 ),
                                 output_dir=sim_config.output_dir,
@@ -532,19 +530,19 @@ def plot_ReA(sim_config: SimulationConfig, analysis_config: ecce_ReA_implementat
                                 plot_config=pb.PlotConfig(
                                     name=f"{n_PDF_name}_{name}_x",
                                     panels=pb.Panel(
-                                            axes=[
-                                                pb.AxisConfig("x", label=r"$p" + variable_label + r"^{\text{jet}}\:(\text{GeV}/c)$", font_size=22, range=x_range),
-                                                pb.AxisConfig(
-                                                    "y",
-                                                    label=r"$x$",
-                                                    log=True,
-                                                    font_size=22,
-                                                    range=(8e-3, 1),
-                                                ),
-                                            ],
-                                            text=pb.TextConfig(x=0.97, y=0.03, text=text, font_size=22),
-                                            #legend=pb.LegendConfig(location="lower left", font_size=22),
-                                        ),
+                                        axes=[
+                                            pb.AxisConfig("x", label=r"$p" + variable_label + r"^{\text{jet}}\:(\text{GeV}/c)$", font_size=22, range=x_range),
+                                            pb.AxisConfig(
+                                                "y",
+                                                label=r"$x$",
+                                                log=True,
+                                                font_size=22,
+                                                range=(8e-3, 1),
+                                            ),
+                                        ],
+                                        text=pb.TextConfig(x=0.97, y=0.03, text=text, font_size=22),
+                                        #legend=pb.LegendConfig(location="lower left", font_size=22),
+                                    ),
                                     figure=pb.Figure(edge_padding=dict(left=0.125, bottom=0.1)),
                                 ),
                                 output_dir=sim_config.output_dir,
@@ -610,20 +608,20 @@ def plot_ReA(sim_config: SimulationConfig, analysis_config: ecce_ReA_implementat
                         plot_config=pb.PlotConfig(
                             name=n_PDF_name + "_" + next(iter(spectra_hists)).name_eA.replace("jetR030_", ""),
                             panels=pb.Panel(
-                                    axes=[
-                                        pb.AxisConfig("x", label=r"$p" + variable_label + r"^{\text{jet}}\:(\text{GeV}/c)$", font_size=22, range=x_range),
-                                        pb.AxisConfig(
-                                            "y",
-                                            label=r"$\frac{\text{d}^{2}\sigma}{\text{d}y\text{d}p" + variable_label + r"^{\text{jet}}}\:(\text{fb}\:c/\text{GeV})$",
-                                            log=True,
-                                            # Reduce this range for p to make to easier to see
-                                            range=(1e8, 1e11) if variable == "p" else None,
-                                            font_size=22,
-                                        ),
-                                    ],
-                                    text=pb.TextConfig(x=0.97, y=0.97, text=text, font_size=22),
-                                    legend=pb.LegendConfig(location="lower left", font_size=22),
-                                ),
+                                axes=[
+                                    pb.AxisConfig("x", label=r"$p" + variable_label + r"^{\text{jet}}\:(\text{GeV}/c)$", font_size=22, range=x_range),
+                                    pb.AxisConfig(
+                                        "y",
+                                        label=r"$\frac{\text{d}^{2}\sigma}{\text{d}y\text{d}p" + variable_label + r"^{\text{jet}}}\:(\text{fb}\:c/\text{GeV})$",
+                                        log=True,
+                                        # Reduce this range for p to make to easier to see
+                                        range=(1e8, 1e11) if variable == "p" else None,
+                                        font_size=22,
+                                    ),
+                                ],
+                                text=pb.TextConfig(x=0.97, y=0.97, text=text, font_size=22),
+                                legend=pb.LegendConfig(location="lower left", font_size=22),
+                            ),
                             figure=pb.Figure(edge_padding=dict(left=0.125, bottom=0.1)),
                         ),
                         output_dir=sim_config.output_dir,
@@ -671,20 +669,20 @@ def plot_ReA(sim_config: SimulationConfig, analysis_config: ecce_ReA_implementat
                                     # [:variations_index] removes the variations number, since we'll show all variations here
                                     name=input_spec.n_PDF_name + "_" + next(iter(variation_hists)).name_eA[:variations_index] + "_variations",
                                     panels=pb.Panel(
-                                            axes=[
-                                                pb.AxisConfig("x", label=r"$p" + variable_label + r"^{\text{jet}}\:(\text{GeV}/c)$", font_size=22, range=x_range),
-                                                pb.AxisConfig(
-                                                    "y",
-                                                    label=r"$\frac{\text{d}^{2}\sigma}{\text{d}y\text{d}p" + variable_label + r"^{\text{jet}}}\:(\text{fb}\:c/\text{GeV})$",
-                                                    log=True,
-                                                    # Reduce this range for p to make to easier to see
-                                                    range=(1e8, 1e11) if variable == "p" else None,
-                                                    font_size=22,
-                                                ),
-                                            ],
-                                            text=pb.TextConfig(x=0.97, y=0.97, text=text, font_size=22),
-                                            legend=pb.LegendConfig(location="lower left", font_size=22),
-                                        ),
+                                        axes=[
+                                            pb.AxisConfig("x", label=r"$p" + variable_label + r"^{\text{jet}}\:(\text{GeV}/c)$", font_size=22, range=x_range),
+                                            pb.AxisConfig(
+                                                "y",
+                                                label=r"$\frac{\text{d}^{2}\sigma}{\text{d}y\text{d}p" + variable_label + r"^{\text{jet}}}\:(\text{fb}\:c/\text{GeV})$",
+                                                log=True,
+                                                # Reduce this range for p to make to easier to see
+                                                range=(1e8, 1e11) if variable == "p" else None,
+                                                font_size=22,
+                                            ),
+                                        ],
+                                        text=pb.TextConfig(x=0.97, y=0.97, text=text, font_size=22),
+                                        legend=pb.LegendConfig(location="lower left", font_size=22),
+                                    ),
                                     figure=pb.Figure(edge_padding=dict(left=0.125, bottom=0.1)),
                                 ),
                                 output_dir=sim_config.output_dir,
@@ -750,21 +748,21 @@ def plot_ReA(sim_config: SimulationConfig, analysis_config: ecce_ReA_implementat
                         plot_config=pb.PlotConfig(
                             name=input_spec.n_PDF_name + "_" + next(iter(fixed_region_ReA_hists)).name_eA.replace("jetR030_", ""),
                             panels=pb.Panel(
-                                    axes=[
-                                        pb.AxisConfig("x", label=r"$p" + variable_label + r"^{\text{jet}}\:(\text{GeV}/c)$", font_size=22, range=x_range),
-                                        pb.AxisConfig(
-                                            "y",
-                                            label=r"$R_{\text{eA}}$",
-                                            range=(0, 1.4),
-                                            font_size=22,
-                                        ),
-                                    ],
-                                    text=[
-                                        pb.TextConfig(x=0.97, y=0.97, text=text, font_size=22),
-                                        pb.TextConfig(x=0.97, y=0.03, text=expected_luminosities_display_text(expected_luminosities), font_size=22),
-                                    ],
-                                    legend=pb.LegendConfig(location="lower left", font_size=22),
-                                ),
+                                axes=[
+                                    pb.AxisConfig("x", label=r"$p" + variable_label + r"^{\text{jet}}\:(\text{GeV}/c)$", font_size=22, range=x_range),
+                                    pb.AxisConfig(
+                                        "y",
+                                        label=r"$R_{\text{eA}}$",
+                                        range=(0, 1.4),
+                                        font_size=22,
+                                    ),
+                                ],
+                                text=[
+                                    pb.TextConfig(x=0.97, y=0.97, text=text, font_size=22),
+                                    pb.TextConfig(x=0.97, y=0.03, text=expected_luminosities_display_text(expected_luminosities), font_size=22),
+                                ],
+                                legend=pb.LegendConfig(location="lower left", font_size=22),
+                            ),
                             figure=pb.Figure(edge_padding=dict(left=0.12, bottom=0.1)),
                         ),
                         output_dir=sim_config.output_dir,
@@ -808,21 +806,21 @@ def plot_ReA(sim_config: SimulationConfig, analysis_config: ecce_ReA_implementat
                                 # [:variations_index] removes the variations number, since we'll show all variations here
                                 name=input_spec.n_PDF_name + "_" + next(iter(variation_hists)).name_eA.replace("jetR030_", "")[:variations_index] + "_variations",
                                 panels=pb.Panel(
-                                        axes=[
-                                            pb.AxisConfig("x", label=r"$p" + variable_label + r"^{\text{jet}}\:(\text{GeV}/c)$", font_size=22, range=x_range),
-                                            pb.AxisConfig(
-                                                "y",
-                                                label=r"$R_{\text{eA}}$",
-                                                range=(0, 1.4),
-                                                font_size=22,
-                                            ),
-                                        ],
-                                        text=[
-                                            pb.TextConfig(x=0.97, y=0.97, text=text, font_size=22),
-                                            pb.TextConfig(x=0.97, y=0.03, text=expected_luminosities_display_text(expected_luminosities), font_size=22),
-                                        ],
-                                        legend=pb.LegendConfig(location="lower left", font_size=22),
-                                    ),
+                                    axes=[
+                                        pb.AxisConfig("x", label=r"$p" + variable_label + r"^{\text{jet}}\:(\text{GeV}/c)$", font_size=22, range=x_range),
+                                        pb.AxisConfig(
+                                            "y",
+                                            label=r"$R_{\text{eA}}$",
+                                            range=(0, 1.4),
+                                            font_size=22,
+                                        ),
+                                    ],
+                                    text=[
+                                        pb.TextConfig(x=0.97, y=0.97, text=text, font_size=22),
+                                        pb.TextConfig(x=0.97, y=0.03, text=expected_luminosities_display_text(expected_luminosities), font_size=22),
+                                    ],
+                                    legend=pb.LegendConfig(location="lower left", font_size=22),
+                                ),
                                 figure=pb.Figure(edge_padding=dict(left=0.125, bottom=0.1)),
                             ),
                             output_dir=sim_config.output_dir,
@@ -893,21 +891,21 @@ def plot_ReA(sim_config: SimulationConfig, analysis_config: ecce_ReA_implementat
                         plot_config=pb.PlotConfig(
                             name=input_spec.n_PDF_name + "_" + next(iter(double_ratio_hists)).name_eA.replace("jetR030_", "") + "_ratio",
                             panels=pb.Panel(
-                                    axes=[
-                                        pb.AxisConfig("x", label=r"$p" + variable_label + r"^{\text{jet}}\:(\text{GeV}/c)$", font_size=22, range=x_range),
-                                        pb.AxisConfig(
-                                            "y",
-                                            label=r"$R_{\text{eA}}(R) / R_{\text{eA}}(R=1.0)$",
-                                            range=(0.5, 1.4),
-                                            font_size=22,
-                                        ),
-                                    ],
-                                    text=[
-                                        pb.TextConfig(x=0.97, y=0.97, text=text, font_size=22),
-                                        pb.TextConfig(x=0.97, y=0.03, text=expected_luminosities_display_text(expected_luminosities), font_size=22),
-                                    ],
-                                    legend=pb.LegendConfig(location="lower left", font_size=22),
-                                ),
+                                axes=[
+                                    pb.AxisConfig("x", label=r"$p" + variable_label + r"^{\text{jet}}\:(\text{GeV}/c)$", font_size=22, range=x_range),
+                                    pb.AxisConfig(
+                                        "y",
+                                        label=r"$R_{\text{eA}}(R) / R_{\text{eA}}(R=1.0)$",
+                                        range=(0.5, 1.4),
+                                        font_size=22,
+                                    ),
+                                ],
+                                text=[
+                                    pb.TextConfig(x=0.97, y=0.97, text=text, font_size=22),
+                                    pb.TextConfig(x=0.97, y=0.03, text=expected_luminosities_display_text(expected_luminosities), font_size=22),
+                                ],
+                                legend=pb.LegendConfig(location="lower left", font_size=22),
+                            ),
                             figure=pb.Figure(edge_padding=dict(left=0.12, bottom=0.1)),
                         ),
                         output_dir=sim_config.output_dir,
@@ -952,28 +950,29 @@ def plot_ReA(sim_config: SimulationConfig, analysis_config: ecce_ReA_implementat
                                     # [:variations_index] removes the variations number, since we'll show all variations here
                                     name=input_spec.n_PDF_name + "_" + next(iter(variation_hists)).name_eA.replace("jetR030_", "") + "_ratio_variations",
                                     panels=pb.Panel(
-                                            axes=[
-                                                pb.AxisConfig("x", label=r"$p" + variable_label + r"^{\text{jet}}\:(\text{GeV}/c)$", font_size=22, range=x_range),
-                                                pb.AxisConfig(
-                                                    "y",
-                                                    label=r"$R_{\text{eA}}(R) / R_{\text{eA}}(R=1.0)$",
-                                                    range=(0, 1.4),
-                                                    font_size=22,
-                                                ),
-                                            ],
-                                            text=[
-                                                pb.TextConfig(x=0.97, y=0.97, text=text, font_size=22),
-                                                pb.TextConfig(x=0.97, y=0.03, text=expected_luminosities_display_text(expected_luminosities), font_size=22),
-                                            ],
-                                            legend=pb.LegendConfig(location="lower left", font_size=22),
-                                        ),
+                                        axes=[
+                                            pb.AxisConfig("x", label=r"$p" + variable_label + r"^{\text{jet}}\:(\text{GeV}/c)$", font_size=22, range=x_range),
+                                            pb.AxisConfig(
+                                                "y",
+                                                label=r"$R_{\text{eA}}(R) / R_{\text{eA}}(R=1.0)$",
+                                                range=(0, 1.4),
+                                                font_size=22,
+                                            ),
+                                        ],
+                                        text=[
+                                            pb.TextConfig(x=0.97, y=0.97, text=text, font_size=22),
+                                            pb.TextConfig(x=0.97, y=0.03, text=expected_luminosities_display_text(expected_luminosities), font_size=22),
+                                        ],
+                                        legend=pb.LegendConfig(location="lower left", font_size=22),
+                                    ),
                                     figure=pb.Figure(edge_padding=dict(left=0.12, bottom=0.1)),
                                 ),
                                 output_dir=sim_config.output_dir,
                             )
     except Exception as e:
         logger.info(f"Plotting n_PDF_variations for double ratio failed with {e}")
-        import IPython; IPython.start_ipython(user_ns={**globals(),**locals()})
+        import IPython
+        IPython.start_ipython(user_ns={**globals(), **locals()})
 
     ######################################################
     # Compare true vs det level to see the importance of unfolding
@@ -1021,27 +1020,28 @@ def plot_ReA(sim_config: SimulationConfig, analysis_config: ecce_ReA_implementat
                                 #name=next(iter(fixed_region_ReA_hists)).name_eA.replace("jetR030_", "") + "_ratio",
                                 name=input_spec.n_PDF_name + "_" + next(iter(true_hists)).name_eA + "_ReA_true_vs_det",
                                 panels=pb.Panel(
-                                        axes=[
-                                            pb.AxisConfig("x", label=r"$p" + variable_label + r"^{\text{jet}}\:(\text{GeV}/c)$", font_size=22, range=x_range),
-                                            pb.AxisConfig(
-                                                "y",
-                                                label=r"$R_{\text{eA}}$",
-                                                range=(0, 1.4),
-                                                font_size=22,
-                                            ),
-                                        ],
-                                        text=[
-                                            pb.TextConfig(x=0.97, y=0.97, text=text, font_size=22),
-                                            pb.TextConfig(x=0.97, y=0.03, text=expected_luminosities_display_text(expected_luminosities), font_size=22),
-                                        ],
-                                        legend=pb.LegendConfig(location="lower left", font_size=22),
-                                    ),
+                                    axes=[
+                                        pb.AxisConfig("x", label=r"$p" + variable_label + r"^{\text{jet}}\:(\text{GeV}/c)$", font_size=22, range=x_range),
+                                        pb.AxisConfig(
+                                            "y",
+                                            label=r"$R_{\text{eA}}$",
+                                            range=(0, 1.4),
+                                            font_size=22,
+                                        ),
+                                    ],
+                                    text=[
+                                        pb.TextConfig(x=0.97, y=0.97, text=text, font_size=22),
+                                        pb.TextConfig(x=0.97, y=0.03, text=expected_luminosities_display_text(expected_luminosities), font_size=22),
+                                    ],
+                                    legend=pb.LegendConfig(location="lower left", font_size=22),
+                                ),
                                 figure=pb.Figure(edge_padding=dict(left=0.12, bottom=0.1)),
                             ),
                             output_dir=sim_config.output_dir,
                         )
 
-    import IPython; IPython.start_ipython(user_ns={**globals(),**locals()})
+    import IPython
+    IPython.start_ipython(user_ns={**globals(), **locals()})
     #import IPython; IPython.embed()
 
 
@@ -1125,7 +1125,7 @@ def run() -> None:
     _luminosity_projections = {
         "ep": 10.0,
         # Scaling according to the recommendations
-        "eA": 10 * 1.0/197,
+        "eA": 10 * 1.0 / 197,
     }
 
     logger.info(f"Analyzing {label}")
