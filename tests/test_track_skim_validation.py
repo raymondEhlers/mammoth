@@ -4,27 +4,16 @@
 """
 
 import logging
-import pprint
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence
 
 import attr
-import awkward as ak
-import boost_histogram as bh
-import mammoth.helpers
-import matplotlib.pyplot as plt
-import numpy as np
-import pachyderm.plot
 import pytest
-import uproot
-from pachyderm import binned_data, plot as pb
 
 from mammoth.framework import sources
 from mammoth.framework.io import track_skim as io_track_skim
 from mammoth.framework.analysis import jet_substructure as analysis_jet_substructure, objects as analysis_objects
-from mammoth.hardest_kt import analysis_track_skim_to_flat_tree, run_macro, skim_to_flat_tree
-
-pachyderm.plot.configure()
+from mammoth.hardest_kt import analysis_track_skim_to_flat_tree, run_macro, skim_to_flat_tree, substructure_comparison_tools
 
 
 logger = logging.getLogger(__name__)
@@ -32,10 +21,128 @@ logger = logging.getLogger(__name__)
 _here = Path(__file__).parent
 _track_skim_base_path = _here / "track_skim_validation"
 
+# ALICE data files to use for the validation
+# NOTE: These files are too large to store in the git repo.
+#       I've stored them multiple places to attempt to ensure that they're not lost entirely.
+#       Since the AliEn path is provided, they can always be retrieved (in principle).
+# NOTE: All were stored in archives (see the pachyderm dataset def for the particular archive names),
+#       and then were extracted for simplicity.
+_collision_system_to_aod_files = {
+    "pp": [
+        _track_skim_base_path / "input/alice/data/2017/LHC17p/000282343/pass1_FAST/AOD234/0001/AliAOD.root",
+        _track_skim_base_path / "input/alice/data/2017/LHC17p/000282343/pass1_FAST/AOD234/0002/AliAOD.root",
+        _track_skim_base_path / "input/alice/data/2017/LHC17p/000282343/pass1_FAST/AOD234/0003/AliAOD.root",
+    ],
+    # Strictly speaking, this should be LHC18b8 to correctly correspond to LHC17pq, but for these
+    # purposes, it's fine.
+    "pythia": [
+        _track_skim_base_path / "input/alice/sim/2020/LHC20g4/12/296191/AOD/001/AliAOD.root",
+    ],
+    "PbPb": [
+        _track_skim_base_path / "input/alice/data/2018/LHC18q/000296550/pass3/AOD252/AOD/001/AliAOD.root",
+    ],
+    "embed_pythia": [
+        _track_skim_base_path / "input/alice/data/2018/LHC18q/000296550/pass3/AOD252/AOD/001/AliAOD.root",
+    ],
+    "embed_pythia-pythia": [
+        _track_skim_base_path / "input/alice/sim/2020/LHC20g4/12/296191/AOD/001/aod_archive.zip#AliAOD.root",
+    ],
+}
+# For convenience
+_collision_system_to_aod_files["embed_pythia-PbPb"] = _collision_system_to_aod_files["embed_pythia"]
+
+@attr.define
+class AnalysisParameters:
+    """Centralize some general track skim validation parameters"""
+    reference_analysis_prefixes: Dict[str, str]
+    track_skim_loading_data_rename_prefix: Dict[str, str]
+    track_skim_convert_data_format_prefixes: Dict[str, str]
+    comparison_prefixes: List[str]
+    min_jet_pt_by_prefix: Dict[str, float]
+    pt_hat_bin: Optional[int] = None
+
+# Stores the parameters together. Organizing them this way somehow seems to make sense
+# Hard coding them is generally less than ideal, but they're supposed to be fixed
+# parameters for the validation, so it makes sense in this context.
+_all_analysis_parameters = {
+    "pp": AnalysisParameters(
+        reference_analysis_prefixes={
+            "data": "data",
+        },
+        track_skim_loading_data_rename_prefix={"data": "data"},
+        track_skim_convert_data_format_prefixes={"data": "data"},
+        comparison_prefixes=["data"],
+        min_jet_pt_by_prefix={"data": 5.0},
+    ),
+    "pythia": AnalysisParameters(
+        reference_analysis_prefixes={"data": "data", "true": "matched"},
+        track_skim_loading_data_rename_prefix={},
+        track_skim_convert_data_format_prefixes={"det_level": "data", "part_level": "true"},
+        comparison_prefixes=["data", "true"],
+        min_jet_pt_by_prefix={"det_level": 20.0},
+        pt_hat_bin=12,
+    ),
+    "PbPb": AnalysisParameters(
+        reference_analysis_prefixes={
+            "data": "data",
+        },
+        track_skim_loading_data_rename_prefix={"data": "data"},
+        track_skim_convert_data_format_prefixes={"data": "data"},
+        comparison_prefixes=["data"],
+        min_jet_pt_by_prefix={"data": 20.0},
+    ),
+    "embed_pythia": AnalysisParameters(
+        reference_analysis_prefixes={"hybrid": "data", "true": "matched", "det_level": "detLevel"},
+        # NOTE: This field is not meaningful for embedding
+        track_skim_loading_data_rename_prefix={},
+        track_skim_convert_data_format_prefixes={"hybrid": "hybrid", "det_level": "det_level", "part_level": "true"},
+        comparison_prefixes=["hybrid", "det_level", "true"],
+        min_jet_pt_by_prefix={"hybrid": 20.0},
+        pt_hat_bin=12,
+    ),
+}
+
+
+@attr.define
+class TrackSkimValidationFilenames:
+    """Helper to generate relevant filenames"""
+    base_path: Path
+    filename_type: str
+    collision_system: str
+    jet_R: float
+    iterative_splittings: bool
+
+    def _label(self, extra_collision_system_label: str = "") -> str:
+        collision_system = self.collision_system
+        if extra_collision_system_label:
+            collision_system = f"{collision_system}-{extra_collision_system_label}"
+        return f"{collision_system}__jet_R{round(self.jet_R*100):03}"
+
+    def analysis_output(self, extra_collision_system_label: str = "") -> Path:
+        return (
+            self.base_path / self.filename_type / f"AnalysisResults__{self._label(extra_collision_system_label)}.root"
+        )
+
+    def parquet_output(self, extra_collision_system_label: str = "") -> Path:
+        return (
+            self.base_path
+            / self.filename_type
+            / f"AnalysisResults__{self._label(extra_collision_system_label)}.parquet"
+        )
+
+    def skim(self, extra_collision_system_label: str = "") -> Path:
+        iterative_splittings_label = "iterative" if self.iterative_splittings else "recursive"
+        return (
+            self.base_path
+            / self.filename_type
+            / f"skim__{self._label(extra_collision_system_label)}__{iterative_splittings_label}_splittings.root"
+        )
+
 
 def _aliphysics_to_analysis_results(
-    collision_system: str, collision_system_label: str, jet_R: float, input_files: Sequence[Path]
+    collision_system: str, jet_R: float, input_files: Sequence[Path], validation_mode: bool = True, filename_to_rename_output_to: Optional[Path] = None,
 ) -> Path:
+    """Helper to execute run macro"""
     # First, validate input files
     # They might be missing since they're too large to store in the repo
     missing_files = [not f.exists() for f in input_files]
@@ -64,20 +171,20 @@ def _aliphysics_to_analysis_results(
             }
         )
     run_macro.run(
-        analysis_mode=collision_system, jet_R=jet_R, validation_mode=True, input_files=input_files, **optional_kwargs
+        analysis_mode=collision_system, jet_R=jet_R, validation_mode=validation_mode, input_files=input_files, **optional_kwargs
     )
     # Next, we need to rename the output
     output_file = Path("AnalysisResults.root")
-    output_file.rename(
-        _track_skim_base_path
-        / "reference"
-        / f"AnalysisResults_{collision_system_label}_jet_R_{round(jet_R*100):03}.root"
-    )
+    if filename_to_rename_output_to:
+        output_file.rename(
+            filename_to_rename_output_to
+        )
 
     return output_file
 
 
 def _reference_aliphysics_tree_name(collision_system: str, jet_R: float, dyg_task: bool = True) -> str:
+    """Determine the AliPhysics reference task tree name"""
     _jet_labels = {
         "pp": "Jet",
         "pythia": "Jet",
@@ -115,7 +222,8 @@ class ConvertTreeToParquetArguments:
     prefix_branches: List[str]
 
 
-def _analysis_results_to_parquet(filename: Path, collision_system: str, jet_R: float) -> Path:
+def _dyg_analysis_results_to_parquet(filename: Path, collision_system: str, jet_R: float) -> Path:
+    """Convert DyG AnalysisResults to parquet"""
     # Essentially porting some parsl functionality, so trying to keep this as simple as possible
     # Shared between all outputs
     _prefix_branches = [
@@ -165,8 +273,34 @@ def _analysis_results_to_parquet(filename: Path, collision_system: str, jet_R: f
     )
     return output_filename
 
+def _generate_track_skim_task_parquet_outputs_for_embedding(
+    jet_R: float,
+    reference_filenames: TrackSkimValidationFilenames,
+    track_skim_filenames: TrackSkimValidationFilenames,
+    collision_system_to_generate: str
+) -> None:
+    if not reference_filenames.analysis_output(extra_collision_system_label=collision_system_to_generate).exists():
+        # Here, we're running pythia, and it should be treated as such.
+        # We just label it as "embed_pythia-pythia" to denote that it should be used for embedding
+        # (same as we label the PbPb as "embed_pythia" when we run the embedding run macro, even though
+        # the track skim just sees the PbPb).
+        _aliphysics_to_analysis_results(
+            collision_system=collision_system_to_generate,
+            jet_R=jet_R,
+            input_files=_collision_system_to_aod_files[f"embed_pythia-{collision_system_to_generate}"],
+            filename_to_rename_output_to=reference_filenames.analysis_output(),
+        )
+        # And then extract the corresponding parquet
+    if not track_skim_filenames.parquet_output(extra_collision_system_label=collision_system_to_generate).exists():
+        _track_skim_to_parquet(
+            input_filename=reference_filenames.analysis_output(extra_collision_system_label=collision_system_to_generate),
+            output_filename=track_skim_filenames.parquet_output(extra_collision_system_label=collision_system_to_generate),
+            collision_system=collision_system_to_generate,
+        )
+
 
 def _track_skim_to_parquet(input_filename: Path, output_filename: Path, collision_system: str) -> None:
+    """Convert track skim task output to parquet"""
     source = io_track_skim.FileSource(
         filename=input_filename,
         collision_system=collision_system,
@@ -179,124 +313,12 @@ def _track_skim_to_parquet(input_filename: Path, output_filename: Path, collisio
     )
 
 
-# NOTE: These files are too large to store in the git repo.
-#       I've stored them multiple places to attempt to ensure that they're not lost entirely.
-#       Since the AliEn path is provided, they can always be retrieved (in principle).
-# NOTE: All were stored in archives (see the pachyderm dataset def for the particular archive names),
-#       and then were extracted for simplicity.
-_collision_system_to_aod_files = {
-    "pp": [
-        _track_skim_base_path / "input/alice/data/2017/LHC17p/000282343/pass1_FAST/AOD234/0001/AliAOD.root",
-        _track_skim_base_path / "input/alice/data/2017/LHC17p/000282343/pass1_FAST/AOD234/0002/AliAOD.root",
-        _track_skim_base_path / "input/alice/data/2017/LHC17p/000282343/pass1_FAST/AOD234/0003/AliAOD.root",
-    ],
-    # Strictly speaking, this should be LHC18b8 to correctly correspond to LHC17pq, but for these
-    # purposes, it's fine.
-    "pythia": [
-        _track_skim_base_path / "input/alice/sim/2020/LHC20g4/12/296191/AOD/001/AliAOD.root",
-    ],
-    "PbPb": [
-        _track_skim_base_path / "input/alice/data/2018/LHC18q/000296550/pass3/AOD252/AOD/001/AliAOD.root",
-    ],
-    "embed_pythia": [
-        _track_skim_base_path / "input/alice/data/2018/LHC18q/000296550/pass3/AOD252/AOD/001/AliAOD.root",
-    ],
-    "embed_pythia-pythia": [
-        _track_skim_base_path / "input/alice/sim/2020/LHC20g4/12/296191/AOD/001/aod_archive.zip#AliAOD.root",
-    ],
-}
-
-
-@attr.define
-class AnalysisParameters:
-    reference_analysis_prefixes: Dict[str, str]
-    track_skim_loading_data_rename_prefix: Dict[str, str]
-    track_skim_convert_data_format_prefixes: Dict[str, str]
-    comparison_prefixes: List[str]
-    min_jet_pt_by_prefix: Dict[str, float]
-    pt_hat_bin: Optional[int] = None
-
-
-_all_analysis_parameters = {
-    "pp": AnalysisParameters(
-        reference_analysis_prefixes={
-            "data": "data",
-        },
-        track_skim_loading_data_rename_prefix={"data": "data"},
-        track_skim_convert_data_format_prefixes={"data": "data"},
-        comparison_prefixes=["data"],
-        min_jet_pt_by_prefix={"data": 5.0},
-    ),
-    "pythia": AnalysisParameters(
-        reference_analysis_prefixes={"data": "data", "true": "matched"},
-        track_skim_loading_data_rename_prefix={},
-        track_skim_convert_data_format_prefixes={"det_level": "data", "part_level": "true"},
-        comparison_prefixes=["data", "true"],
-        min_jet_pt_by_prefix={"det_level": 20.0},
-        pt_hat_bin=12,
-    ),
-    "PbPb": AnalysisParameters(
-        reference_analysis_prefixes={
-            "data": "data",
-        },
-        track_skim_loading_data_rename_prefix={"data": "data"},
-        track_skim_convert_data_format_prefixes={"data": "data"},
-        comparison_prefixes=["data"],
-        min_jet_pt_by_prefix={"data": 20.0},
-    ),
-    "embed_pythia": AnalysisParameters(
-        reference_analysis_prefixes={"hybrid": "data", "true": "matched", "det_level": "detLevel"},
-        # NOTE: This field is not meaningful for embedding
-        track_skim_loading_data_rename_prefix={},
-        track_skim_convert_data_format_prefixes={"hybrid": "hybrid", "det_level": "det_level", "part_level": "true"},
-        comparison_prefixes=["hybrid", "det_level", "true"],
-        min_jet_pt_by_prefix={"hybrid": 20.0},
-        pt_hat_bin=12,
-    ),
-}
-
-
-@attr.define
-class TrackSkimValidationFilenames:
-    base_path: Path
-    filename_type: str
-    collision_system: str
-    jet_R: float
-    iterative_splittings: bool
-
-    def _label(self, extra_collision_system_label: str = "") -> str:
-        collision_system = self.collision_system
-        if extra_collision_system_label:
-            collision_system = f"{collision_system}-{extra_collision_system_label}"
-        return f"{collision_system}__jet_R{round(self.jet_R*100):03}"
-
-    def analysis_output(self, extra_collision_system_label: str = "") -> Path:
-        return (
-            self.base_path / self.filename_type / f"AnalysisResults__{self._label(extra_collision_system_label)}.root"
-        )
-
-    def parquet_output(self, extra_collision_system_label: str = "") -> Path:
-        return (
-            self.base_path
-            / self.filename_type
-            / f"AnalysisResults__{self._label(extra_collision_system_label)}.parquet"
-        )
-
-    def skim(self, extra_collision_system_label: str = "") -> Path:
-        iterative_splittings_label = "iterative" if self.iterative_splittings else "recursive"
-        return (
-            self.base_path
-            / self.filename_type
-            / f"skim__{self._label(extra_collision_system_label)}__{iterative_splittings_label}_splittings.root"
-        )
-
-
 # TODO: Re-enable 0.2
 # TODO: Refactor...
 # @pytest.mark.parametrize("jet_R", [0.2, 0.4])
 @pytest.mark.parametrize("jet_R", [0.4])
 @pytest.mark.parametrize("collision_system", ["pp", "pythia", "PbPb", "embed_pythia"])
-def test_track_skim_validation(
+def test_track_skim_validation(  # noqa: C901
     caplog: Any, jet_R: float, collision_system: str, iterative_splittings: bool = True
 ) -> None:
     # NOTE: There's some inefficiency since we store the same track skim info with the
@@ -350,15 +372,15 @@ def test_track_skim_validation(
     if generate_aliphysics_results:
         _aliphysics_to_analysis_results(
             collision_system=collision_system,
-            collision_system_label=collision_system,
             jet_R=jet_R,
             input_files=_collision_system_to_aod_files[collision_system],
+            filename_to_rename_output_to=reference_filenames.analysis_output(),
         )
 
     # Step 2
     if convert_aliphysics_to_parquet or generate_aliphysics_results:
         # We need to generate the parquet if we've just executed the run macro
-        _analysis_results_to_parquet(
+        _dyg_analysis_results_to_parquet(
             filename=reference_filenames.analysis_output(), collision_system=collision_system, jet_R=jet_R
         )
 
@@ -417,6 +439,12 @@ def test_track_skim_validation(
         jet_R=jet_R,
         iterative_splittings=iterative_splittings,
     )
+
+    # Here, we want to execute for two possible cases:
+    # 1. The relevant AliPhysics run macro was already executed
+    # 2. If any relevant analysis outputs are missing.  This conditions is complicated because
+    #    they're different from embedding vs the other cases, so we end up splitting these into
+    #    two separate conditions, which means there are three total
     if (
         generate_aliphysics_results
         or (
@@ -429,6 +457,7 @@ def test_track_skim_validation(
         or (collision_system != "embed_pythia" and not track_skim_filenames.parquet_output().exists())
     ):
         if collision_system != "embed_pythia":
+            # Step 2, which depends on the AliPhysics run macro for the reference running first
             # Convert track skim to parquet
             _track_skim_to_parquet(
                 input_filename=reference_filenames.analysis_output(),
@@ -436,48 +465,21 @@ def test_track_skim_validation(
                 collision_system=collision_system,
             )
         else:
-            # Attempt to execute the run macro if needed for this addition file
-            if not reference_filenames.analysis_output(extra_collision_system_label="pythia").exists():
-                logger.info(f'{reference_filenames.analysis_output(extra_collision_system_label="pythia")=}')
-                # Here, we're running pythia, and it should be treated as such.
-                # We just label it as "embed_pythia-pythia" to denote that it should be used for embedding
-                # (same as we label the PbPb as "embed_pythia" when we run the embedding run macro, even though
-                # the track skim just sees the PbPb).
-                _aliphysics_to_analysis_results(
-                    collision_system="pythia",
-                    collision_system_label="embed_pythia-pythia",
-                    jet_R=jet_R,
-                    input_files=_collision_system_to_aod_files["embed_pythia-pythia"],
-                )
-                # And then extract the corresponding parquet
-            if not track_skim_filenames.parquet_output(extra_collision_system_label="pythia").exists():
-                logger.info("Parquet pythia")
-                _track_skim_to_parquet(
-                    input_filename=reference_filenames.analysis_output(extra_collision_system_label="pythia"),
-                    output_filename=track_skim_filenames.parquet_output(extra_collision_system_label="pythia"),
-                    collision_system="pythia",
-                )
-            # Attempt to execute the run macro if needed for this addition file
-            if not reference_filenames.analysis_output(extra_collision_system_label="PbPb").exists():
-                # We need to do the same for the background, but instead we will treat it as PbPb
-                _aliphysics_to_analysis_results(
-                    collision_system="PbPb",
-                    collision_system_label="embed_pythia-PbPb",
-                    jet_R=jet_R,
-                    # We want the embed_pythia files, which are the (background) PbPb files
-                    input_files=_collision_system_to_aod_files["embed_pythia"],
-                )
-            if not track_skim_filenames.parquet_output(extra_collision_system_label="PbPb").exists():
-                # And then extract the corresponding parquet
-                _track_skim_to_parquet(
-                    input_filename=reference_filenames.analysis_output(extra_collision_system_label="PbPb"),
-                    output_filename=track_skim_filenames.parquet_output(extra_collision_system_label="PbPb"),
-                    collision_system="PbPb",
-                )
-
-    import warnings
-
-    warnings.filterwarnings("error")
+            # Step 1 + 2
+            # Generate outputs for pythia
+            _generate_track_skim_task_parquet_outputs_for_embedding(
+                jet_R=jet_R,
+                reference_filenames=reference_filenames,
+                track_skim_filenames=track_skim_filenames,
+                collision_system_to_generate="pythia"
+            )
+            # And then for PbPb
+            _generate_track_skim_task_parquet_outputs_for_embedding(
+                jet_R=jet_R,
+                reference_filenames=reference_filenames,
+                track_skim_filenames=track_skim_filenames,
+                collision_system_to_generate="PbPb"
+            )
 
     # Now we can finally analyze the track_skim
     # We always want to run this, since this is what we're validating
@@ -537,414 +539,12 @@ def test_track_skim_validation(
     if not result[0]:
         raise ValueError(f"Skim failed for {collision_system}, {jet_R}")
 
-    compare_flat_substructure(
+    comparison_result = substructure_comparison_tools.compare_flat_substructure(
         collision_system=collision_system,
         prefixes=_analysis_parameters.comparison_prefixes,
         standard_filename=reference_filenames.skim(),
         track_skim_filename=track_skim_filenames.skim(),
         base_output_dir=_track_skim_base_path / "plot",
     )
-    # assert False
+    assert comparison_result
 
-
-@attr.s
-class Input:
-    name: str = attr.ib()
-    arrays: ak.Array = attr.ib()
-    attribute: str = attr.ib()
-
-
-def arrays_to_hist(
-    arrays: ak.Array, attribute: str, axis: bh.axis.Regular = bh.axis.Regular(30, 0, 150)
-) -> binned_data.BinnedData:
-    bh_hist = bh.Histogram(axis, storage=bh.storage.Weight())
-    bh_hist.fill(ak.flatten(arrays[attribute], axis=None))
-
-    return binned_data.BinnedData.from_existing_data(bh_hist)
-
-
-def plot_attribute_compare(
-    other: Input,
-    mine: Input,
-    plot_config: pb.PlotConfig,
-    output_dir: Path,
-    axis: bh.axis.Regular = bh.axis.Regular(30, 0, 150),
-    normalize: bool = False,
-) -> None:
-    # Plot
-    fig, (ax, ax_ratio) = plt.subplots(
-        2,
-        1,
-        figsize=(8, 6),
-        gridspec_kw={"height_ratios": [3, 1]},
-        sharex=True,
-    )
-    other_hist = arrays_to_hist(arrays=other.arrays, attribute=other.attribute, axis=axis)
-    mine_hist = arrays_to_hist(arrays=mine.arrays, attribute=mine.attribute, axis=axis)
-    # Normalize
-    if normalize:
-        other_hist /= np.sum(other_hist.values)
-        mine_hist /= np.sum(mine_hist.values)
-
-    ax.errorbar(
-        other_hist.axes[0].bin_centers,
-        other_hist.values,
-        xerr=other_hist.axes[0].bin_widths / 2,
-        yerr=other_hist.errors,
-        label=other.name,
-        linestyle="",
-        alpha=0.8,
-    )
-    ax.errorbar(
-        mine_hist.axes[0].bin_centers,
-        mine_hist.values,
-        xerr=mine_hist.axes[0].bin_widths / 2,
-        yerr=mine_hist.errors,
-        label=mine.name,
-        linestyle="",
-        alpha=0.8,
-    )
-
-    ratio = mine_hist / other_hist
-    ax_ratio.errorbar(
-        ratio.axes[0].bin_centers, ratio.values, xerr=ratio.axes[0].bin_widths / 2, yerr=ratio.errors, linestyle=""
-    )
-    logger.info(f"ratio sum: {np.sum(ratio.values)}")
-    logger.info(f"other: {np.sum(other_hist.values)}")
-    logger.info(f"mine: {np.sum(mine_hist.values)}")
-
-    # Apply the PlotConfig
-    plot_config.apply(fig=fig, axes=[ax, ax_ratio])
-
-    # filename = f"{plot_config.name}_{jet_pt_bin}{grooming_methods_filename_label}_{identifiers}_iterative_splittings"
-    filename = f"{plot_config.name}"
-    fig.savefig(output_dir / f"{filename}.pdf")
-    plt.close(fig)
-
-
-def compare_flat_substructure(
-    collision_system: str,
-    prefixes: Sequence[str],
-    standard_filename: Path,
-    track_skim_filename: Path,
-    base_output_dir: Path = Path("comparison/track_skim"),
-) -> None:
-    # standard_tree_name = "AliAnalysisTaskJetHardestKt_Jet_AKTChargedR040_tracks_pT0150_E_schemeConstSub_RawTree_Data_ConstSub_Incl"
-    # if collision_system == "pp":
-    #    standard_tree_name = "AliAnalysisTaskJetHardestKt_Jet_AKTChargedR040_tracks_pT0150_E_scheme_RawTree_Data_NoSub_Incl"
-    # if collision_system == "pythia":
-    #    standard_tree_name = "AliAnalysisTaskJetHardestKt_Jet_AKTChargedR040_tracks_pT0150_E_schemeTree_PythiaDef_NoSub_Incl"
-    standard_tree_name = "tree"
-    standard = uproot.open(standard_filename)[standard_tree_name].arrays()
-    track_skim = uproot.open(track_skim_filename)["tree"].arrays()
-    logger.info(f"standard.type: {standard.type}")
-    logger.info(f"track_skim.type: {track_skim.type}")
-
-    # For whatever reason, the sorting of the jets is inconsistent for embedding compared to all other datasets.
-    # So we just apply a mask here to swap the one event where we have two jets.
-    # NOTE: AliPhysics is actually the one that gets the sorting wrong here...
-    # NOTE: This is a super specialized thing, but better to do it here instead of messing around with
-    #       the actual mammoth analysis code.
-    if collision_system == "embed_pythia":
-        # NOTE: I derived this mask by hand. It swaps index -2 and -3 (== swapping index 15 and 16)
-        #       It can be double checked by looking at the jet pt. The precision makes
-        #       it quite obvious which should go with which.
-        reorder_mask = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 16, 15, 17]
-        track_skim = track_skim[reorder_mask]
-        # NOTE: ***********************************************************************************
-        #       The canonical file actually did go through the steps of making the order in mammoth
-        #       match AliPhysics by turning off sorting. But since we're more likely to be
-        #       testing in the future with new files to do validation, it's better that we apply
-        #       this remapping here.
-        #       ***********************************************************************************
-
-    output_dir = base_output_dir / collision_system
-    output_dir.mkdir(parents=True, exist_ok=True)
-
-    all_success = True
-    for prefix in prefixes:
-        logger.info(f"Comparing prefix '{prefix}'")
-
-        text = f"{collision_system.replace('_', ' ')}: {prefix.replace('_', ' ')}"
-        plot_attribute_compare(
-            other=Input(arrays=standard, attribute=f"{prefix}_jet_pt", name="Standard"),
-            mine=Input(arrays=track_skim, attribute=f"{prefix}_jet_pt", name="Track skim"),
-            plot_config=pb.PlotConfig(
-                name=f"{prefix}_jet_pt",
-                panels=[
-                    # Main panel
-                    pb.Panel(
-                        axes=[
-                            pb.AxisConfig(
-                                "y",
-                                label="Prob.",
-                                log=True,
-                                font_size=22,
-                            ),
-                        ],
-                        text=pb.TextConfig(x=0.97, y=0.97, text=text, font_size=22),
-                        legend=pb.LegendConfig(location="center right", anchor=(0.985, 0.52), font_size=22),
-                    ),
-                    # Data ratio
-                    pb.Panel(
-                        axes=[
-                            pb.AxisConfig(
-                                "x",
-                                label=r"$p_{\text{T,ch jet}}$ (GeV/$c$)",
-                                font_size=22,
-                            ),
-                            pb.AxisConfig(
-                                "y",
-                                label=r"Track skim/Standard",
-                                range=(0.6, 1.4),
-                                font_size=22,
-                            ),
-                        ],
-                    ),
-                ],
-                figure=pb.Figure(edge_padding=dict(left=0.13, bottom=0.115)),
-            ),
-            output_dir=output_dir,
-            axis=bh.axis.Regular(50, 0, 100),
-            normalize=True,
-        )
-        standard_jet_pt = standard[f"{prefix}_jet_pt"]
-        track_skim_jet_pt = track_skim[f"{prefix}_jet_pt"]
-
-        # Sometimes it's useful to start at this, but sometimes it's just overwhelming, so uncomment as necessary
-        # logger.info(f"standard_jet_pt: {standard_jet_pt.to_list()}")
-        # logger.info(f"track_skim_jet_pt: {track_skim_jet_pt.to_list()}")
-
-        try:
-            all_close_jet_pt = np.allclose(ak.to_numpy(standard_jet_pt), ak.to_numpy(track_skim_jet_pt))
-
-            logger.info(f"jet_pt all close? {all_close_jet_pt}")
-            # import IPython; IPython.embed()
-            if not all_close_jet_pt:
-                logger.info("jet pt")
-                _arr = ak.zip({"s": standard_jet_pt, "t": track_skim_jet_pt})
-                logger.info(pprint.pformat(_arr.to_list()))
-                is_not_close_jet_pt = np.where(
-                    ~np.isclose(ak.to_numpy(standard_jet_pt), ak.to_numpy(track_skim_jet_pt))
-                )
-                logger.info(f"Indices where not close: {is_not_close_jet_pt}")
-                all_success = False
-        except ValueError as e:
-            logger.exception(e)
-            all_success = False
-
-        for grooming_method in ["dynamical_kt", "soft_drop_z_cut_02"]:
-            logger.info(f'Plotting method "{grooming_method}"')
-            plot_attribute_compare(
-                other=Input(arrays=standard, attribute=f"{grooming_method}_{prefix}_kt", name="Standard"),
-                mine=Input(arrays=track_skim, attribute=f"{grooming_method}_{prefix}_kt", name="Track skim"),
-                plot_config=pb.PlotConfig(
-                    name=f"{grooming_method}_{prefix}_kt",
-                    panels=[
-                        # Main panel
-                        pb.Panel(
-                            axes=[
-                                pb.AxisConfig(
-                                    "y",
-                                    label="Prob.",
-                                    log=True,
-                                    font_size=22,
-                                ),
-                            ],
-                            text=pb.TextConfig(x=0.97, y=0.97, text=text, font_size=22),
-                            legend=pb.LegendConfig(location="center right", anchor=(0.985, 0.52), font_size=22),
-                        ),
-                        # Data ratio
-                        pb.Panel(
-                            axes=[
-                                pb.AxisConfig(
-                                    "x",
-                                    label=r"$k_{\text{T,g}}$ (GeV/$c$)",
-                                    font_size=22,
-                                ),
-                                pb.AxisConfig(
-                                    "y",
-                                    label=r"Track skim/Standard",
-                                    range=(0.6, 1.4),
-                                    font_size=22,
-                                ),
-                            ],
-                        ),
-                    ],
-                    figure=pb.Figure(edge_padding=dict(left=0.13, bottom=0.115)),
-                ),
-                normalize=True,
-                axis=bh.axis.Regular(50, 0, 10),
-                output_dir=output_dir,
-            )
-
-            standard_kt = standard[f"{grooming_method}_{prefix}_kt"]
-            track_skim_kt = track_skim[f"{grooming_method}_{prefix}_kt"]
-
-            # Sometimes it's useful to start at this, but sometimes it's just overwhelming, so uncomment as necessary
-            # logger.info(f"standard_kt: {standard_kt.to_list()}")
-            # logger.info(f"track_skim_kt: {track_skim_kt.to_list()}")
-
-            try:
-                all_close_kt = np.allclose(ak.to_numpy(standard_kt), ak.to_numpy(track_skim_kt), rtol=1e-4)
-                logger.info(f"kt all close? {all_close_kt}")
-                if not all_close_kt:
-                    logger.info("kt")
-                    _arr = ak.zip({"s": standard_kt, "t": track_skim_kt})
-                    logger.info(pprint.pformat(_arr.to_list()))
-                    is_not_close_kt = np.where(~np.isclose(ak.to_numpy(standard_kt), ak.to_numpy(track_skim_kt)))
-                    logger.info(f"Indices where not close: {is_not_close_kt}")
-                    all_success = False
-            except ValueError as e:
-                logger.exception(e)
-                all_success = False
-
-            plot_attribute_compare(
-                other=Input(arrays=standard, attribute=f"{grooming_method}_{prefix}_delta_R", name="Standard"),
-                mine=Input(arrays=track_skim, attribute=f"{grooming_method}_{prefix}_delta_R", name="Track skim"),
-                plot_config=pb.PlotConfig(
-                    name=f"{grooming_method}_{prefix}_delta_R",
-                    panels=[
-                        # Main panel
-                        pb.Panel(
-                            axes=[
-                                pb.AxisConfig(
-                                    "y",
-                                    label="Prob.",
-                                    log=True,
-                                    font_size=22,
-                                ),
-                            ],
-                            text=pb.TextConfig(x=0.97, y=0.97, text=text, font_size=22),
-                            legend=pb.LegendConfig(location="upper left", font_size=22),
-                        ),
-                        # Data ratio
-                        pb.Panel(
-                            axes=[
-                                pb.AxisConfig(
-                                    "x",
-                                    label=r"$R_{\text{g}}$",
-                                    font_size=22,
-                                ),
-                                pb.AxisConfig(
-                                    "y",
-                                    label=r"Track skim/Standard",
-                                    range=(0.6, 1.4),
-                                    font_size=22,
-                                ),
-                            ],
-                        ),
-                    ],
-                    figure=pb.Figure(edge_padding=dict(left=0.13, bottom=0.115)),
-                ),
-                output_dir=output_dir,
-                axis=bh.axis.Regular(50, 0, 0.6),
-                normalize=True,
-            )
-            standard_rg = standard[f"{grooming_method}_{prefix}_delta_R"]
-            track_skim_rg = track_skim[f"{grooming_method}_{prefix}_delta_R"]
-
-            # Sometimes it's useful to start at this, but sometimes it's just overwhelming, so uncomment as necessary
-            # logger.info(f"standard_zg: {standard_zg.to_list()}")
-            # logger.info(f"track_skim_zg: {track_skim_zg.to_list()}")
-
-            try:
-                all_close_rg = np.allclose(ak.to_numpy(standard_rg), ak.to_numpy(track_skim_rg), rtol=1e-4)
-                logger.info(f"Rg all close? {all_close_rg}")
-                if not all_close_rg:
-                    logger.info("delta_R")
-                    _arr = ak.zip({"s": standard_rg, "t": track_skim_rg})
-                    logger.info(pprint.pformat(_arr.to_list()))
-                    is_not_close_rg = np.where(~np.isclose(ak.to_numpy(standard_rg), ak.to_numpy(track_skim_rg)))
-                    logger.info(f"Indices where not close: {is_not_close_rg}")
-                    all_success = False
-            except ValueError as e:
-                logger.exception(e)
-                all_success = False
-
-            # import IPython; IPython.embed()
-
-            # logger.info(f"standard_rg: {standard_rg.to_list()}")
-            # logger.info(f"track_skim_rg: {track_skim_rg.to_list()}")
-
-            plot_attribute_compare(
-                other=Input(arrays=standard, attribute=f"{grooming_method}_{prefix}_z", name="Standard"),
-                mine=Input(arrays=track_skim, attribute=f"{grooming_method}_{prefix}_z", name="Track skim"),
-                plot_config=pb.PlotConfig(
-                    name=f"{grooming_method}_{prefix}_z",
-                    panels=[
-                        # Main panel
-                        pb.Panel(
-                            axes=[
-                                pb.AxisConfig(
-                                    "y",
-                                    label="Prob.",
-                                    log=True,
-                                    font_size=22,
-                                ),
-                            ],
-                            text=pb.TextConfig(x=0.97, y=0.97, text=text, font_size=22),
-                            legend=pb.LegendConfig(location="upper left", font_size=22),
-                        ),
-                        # Data ratio
-                        pb.Panel(
-                            axes=[
-                                pb.AxisConfig(
-                                    "x",
-                                    label=r"$z_{\text{g}}$",
-                                    font_size=22,
-                                ),
-                                pb.AxisConfig(
-                                    "y",
-                                    label=r"Track skim/Standard",
-                                    range=(0.6, 1.4),
-                                    font_size=22,
-                                ),
-                            ],
-                        ),
-                    ],
-                    figure=pb.Figure(edge_padding=dict(left=0.13, bottom=0.115)),
-                ),
-                normalize=True,
-                axis=bh.axis.Regular(50, 0, 0.5),
-                output_dir=output_dir,
-            )
-
-            standard_zg = standard[f"{grooming_method}_{prefix}_z"]
-            track_skim_zg = track_skim[f"{grooming_method}_{prefix}_z"]
-
-            # Sometimes it's useful to start at this, but sometimes it's just overwhelming, so uncomment as necessary
-            # logger.info(f"standard_zg: {standard_zg.to_list()}")
-            # logger.info(f"track_skim_zg: {track_skim_zg.to_list()}")
-
-            try:
-                all_close_zg = np.allclose(ak.to_numpy(standard_zg), ak.to_numpy(track_skim_zg))
-                logger.info(f"zg all close? {all_close_zg}")
-                if not all_close_zg:
-                    logger.info("z")
-                    _arr = ak.zip({"s": standard_zg, "t": track_skim_zg})
-                    logger.info(pprint.pformat(_arr.to_list()))
-                    all_success = False
-            except ValueError as e:
-                logger.exception(e)
-                all_success = False
-
-    assert all_success is True
-
-
-def run(collision_system: str, prefixes: Optional[Sequence[str]] = None) -> None:
-    if prefixes is None:
-        prefixes = ["data"]
-    mammoth.helpers.setup_logging()
-    logger.info(f"Running {collision_system} with prefixes {prefixes}")
-    path_to_mammoth = Path(mammoth.helpers.__file__).parent.parent
-    standard_base_filename = "AnalysisResults"
-    if collision_system == "pythia":
-        standard_base_filename += ".12"
-    compare_flat_substructure(
-        collision_system=collision_system,
-        prefixes=prefixes,
-        standard_filename=path_to_mammoth
-        / f"projects/framework/{collision_system}/1/skim/{standard_base_filename}.repaired.00_iterative_splittings.root",
-        track_skim_filename=path_to_mammoth / f"projects/framework/{collision_system}/1/skim/skim_output.root",
-    )
