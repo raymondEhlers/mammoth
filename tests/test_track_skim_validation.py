@@ -408,7 +408,7 @@ def test_track_skim_validation(
               embed_pythia-pythia and embed_pythia-PbPb)
         - From each of those outputs, we then convert as appropriate to parquet
     2. Convert track skim output to parquet
-    2. Analyze parquet track skim to generate flat tree
+    3. Analyze parquet track skim to generate flat tree
     """
     track_skim_filenames = TrackSkimValidationFilenames(
         base_path=_track_skim_base_path,
