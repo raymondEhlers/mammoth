@@ -70,7 +70,7 @@ def _aliphysics_to_analysis_results(collision_system: str, collision_system_labe
     return output_file
 
 
-def _reference_aliphyiscs_tree_name(collision_system: str, jet_R: float, dyg_task: bool = True) -> str:
+def _reference_aliphysics_tree_name(collision_system: str, jet_R: float, dyg_task: bool = True) -> str:
     _jet_labels = {
         "pp": "Jet",
         "pythia": "Jet",
@@ -150,7 +150,7 @@ def _analysis_results_to_parquet(filename: Path, collision_system: str, jet_R: f
 
     _, output_filename = analysis_jet_substructure.convert_tree_to_parquet(
         filename=filename,
-        tree_name=_reference_aliphyiscs_tree_name(collision_system=collision_system, jet_R=jet_R),
+        tree_name=_reference_aliphysics_tree_name(collision_system=collision_system, jet_R=jet_R),
         prefixes=arguments.prefixes,
         branches=arguments.branches,
         prefix_branches=arguments.prefix_branches,
@@ -287,6 +287,7 @@ def test_track_skim_validation(
     #       just accept it
     # TODO: The track skim doesn't run in the embedding, so we need to potentially have to
     #       generate those files separately :-(
+    # TODO: Make another pass through the comments to figure out what can be updated, refactored, etc
     # Setup
     caplog.set_level(logging.INFO)
     # But keep numba quieter...
@@ -481,7 +482,7 @@ def test_track_skim_validation(
     if not result[0]:
         raise ValueError(f"Skim failed for {collision_system}, {jet_R}")
 
-    compare(
+    compare_flat_substructure(
         collision_system=collision_system,
         prefixes=_analysis_parameters.comparison_prefixes,
         standard_filename=reference_filenames.skim(),
@@ -565,7 +566,7 @@ def plot_attribute_compare(
     plt.close(fig)
 
 
-def compare(collision_system: str, prefixes: Sequence[str], standard_filename: Path, track_skim_filename: Path, base_output_dir: Path = Path("comparison/track_skim")) -> None:
+def compare_flat_substructure(collision_system: str, prefixes: Sequence[str], standard_filename: Path, track_skim_filename: Path, base_output_dir: Path = Path("comparison/track_skim")) -> None:
     #standard_tree_name = "AliAnalysisTaskJetHardestKt_Jet_AKTChargedR040_tracks_pT0150_E_schemeConstSub_RawTree_Data_ConstSub_Incl"
     #if collision_system == "pp":
     #    standard_tree_name = "AliAnalysisTaskJetHardestKt_Jet_AKTChargedR040_tracks_pT0150_E_scheme_RawTree_Data_NoSub_Incl"
@@ -876,23 +877,9 @@ def run(collision_system: str, prefixes: Optional[Sequence[str]] = None) -> None
     standard_base_filename = "AnalysisResults"
     if collision_system == "pythia":
         standard_base_filename += ".12"
-    compare(
+    compare_flat_substructure(
         collision_system=collision_system,
         prefixes=prefixes,
         standard_filename=path_to_mammoth / f"projects/framework/{collision_system}/1/skim/{standard_base_filename}.repaired.00_iterative_splittings.root",
         track_skim_filename=path_to_mammoth / f"projects/framework/{collision_system}/1/skim/skim_output.root",
     )
-
-
-if __name__ == "__main__":
-    #collision_system = "embed_pythia"
-
-    #_prefixes = {
-    #    "pp": ["data"],
-    #    "pythia": ["data", "true"],
-    #    "PbPb": ["data"],
-    #    "embed_pythia": ["hybrid", "det_level", "true"],
-    #}
-    #run(collision_system=collision_system, prefixes=_prefixes[collision_system])
-
-    test_track_skim_validation(jet_R=0.4, collision_system="pp")
