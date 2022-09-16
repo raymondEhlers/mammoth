@@ -301,13 +301,16 @@ def test_track_skim_validation(
 
     # For the AliPhysics reference:
     # 1. Run AliPhysics run macro
-    # 2. Convert DyG outputs to parquet
+    # 2. Convert DyG output to parquet
     # 3. Convert DyG parquet to flat tree
-    # NOTE: This isn't so trivial, since I have to port a good deal of code :-(
+    # NOTE: When the run macro is executed, it will also run the track skim task
+    #       (except for the embedding - see below!)
     generate_aliphysics_results = False
     convert_aliphysics_to_parquet = False
     skim_aliphysics_parquet = False
-    # Determine which reference tasks need to be run
+    # Try to run the minimal number of preparation steps for the AliPhysics reference
+    # Ideally, these files are already available, but we may need to regenerate them
+    # from time to time.
     if not reference_filenames.skim().exists():
         if not reference_filenames.parquet_output().exists():
             if not reference_filenames.analysis_output().exists():
@@ -317,8 +320,8 @@ def test_track_skim_validation(
                 convert_aliphysics_to_parquet = True
         else:
             skim_aliphysics_parquet = True
-
     logger.info(f"{generate_aliphysics_results=}, {convert_aliphysics_to_parquet=}, {skim_aliphysics_parquet=}")
+
     if generate_aliphysics_results:
         _aliphysics_to_analysis_results(collision_system=collision_system, collision_system_label=collision_system, jet_R=jet_R, input_files=_collision_system_to_aod_files[collision_system])
 
