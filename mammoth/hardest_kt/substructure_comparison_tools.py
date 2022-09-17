@@ -136,6 +136,11 @@ def _pretty_print_flat_type(s: str) -> str:
     return "\n".join(s.split(","))
 
 
+@attrs.define
+class TrackSkimParameters:
+    jet_R: float
+
+
 def compare_flat_substructure(
     collision_system: str,
     prefixes: Sequence[str],
@@ -143,6 +148,8 @@ def compare_flat_substructure(
     track_skim_filename: Path,
     standard_tree_name: str = "tree",
     base_output_dir: Path = Path("comparison/track_skim"),
+    track_skim_validation_mode: bool = True,
+    track_skim_parameters: Optional[TrackSkimParameters] = None,
 ) -> bool:
     standard = uproot.open(standard_filename)[standard_tree_name].arrays()
     track_skim = uproot.open(track_skim_filename)["tree"].arrays()
@@ -150,23 +157,29 @@ def compare_flat_substructure(
     logger.info(f"standard.type: {_pretty_print_flat_type(str(standard.type))}")
     logger.info(f"track_skim.type: {_pretty_print_flat_type(str(track_skim.type))}")
 
-    # For whatever reason, the sorting of the jets is inconsistent for embedding compared to all other datasets.
-    # So we just apply a mask here to swap the one event where we have two jets.
+    # For the track skim validation:
+    # - For whatever reason, the sorting of the jets is inconsistent for embedding compared to all other datasets.
+    # - So we just apply a mask here to swap the one event where we have two jets.
     # NOTE: AliPhysics is actually the one that gets the sorting wrong here...
     # NOTE: This is a super specialized thing, but better to do it here instead of messing around with
     #       the actual mammoth analysis code.
-    if collision_system == "embed_pythia":
-        # NOTE: I derived this mask by hand. It swaps index -2 and -3 (== swapping index 15 and 16)
-        #       It can be double checked by looking at the jet pt. The precision makes
-        #       it quite obvious which should go with which.
-        reorder_mask = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 16, 15, 17]
-        track_skim = track_skim[reorder_mask]
-        # NOTE: ***********************************************************************************
-        #       The canonical file actually did go through the steps of making the order in mammoth
-        #       match AliPhysics by turning off sorting. But since we're more likely to be
-        #       testing in the future with new files to do validation, it's better that we apply
-        #       this remapping here.
-        #       ***********************************************************************************
+    if track_skim_validation_mode:
+        if (
+            collision_system == "embed_pythia"
+            and track_skim_parameters
+            and track_skim_parameters.jet_R == 0.4
+        ):
+            # NOTE: I derived this mask by hand. It swaps index -2 and -3 (== swapping index 15 and 16)
+            #       It can be double checked by looking at the jet pt. The precision makes
+            #       it quite obvious which should go with which.
+            reorder_mask = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 16, 15, 17]
+            track_skim = track_skim[reorder_mask]
+            # NOTE: ***********************************************************************************
+            #       The canonical file actually did go through the steps of making the order in mammoth
+            #       match AliPhysics by turning off sorting. But since we're more likely to be
+            #       testing in the future with new files to do validation, it's better that we apply
+            #       this remapping here.
+            #       ***********************************************************************************
 
     output_dir = base_output_dir / collision_system
     output_dir.mkdir(parents=True, exist_ok=True)
