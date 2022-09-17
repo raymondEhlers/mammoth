@@ -29,22 +29,27 @@ _track_skim_base_path = _here / "track_skim_validation"
 #       and then were extracted for simplicity.
 _collision_system_to_aod_files = {
     "pp": [
-        _track_skim_base_path / "input/alice/data/2017/LHC17p/000282343/pass1_FAST/AOD234/0001/AliAOD.root",
-        _track_skim_base_path / "input/alice/data/2017/LHC17p/000282343/pass1_FAST/AOD234/0002/AliAOD.root",
-        _track_skim_base_path / "input/alice/data/2017/LHC17p/000282343/pass1_FAST/AOD234/0003/AliAOD.root",
+        # 17p
+        _track_skim_base_path / "input/alice/data/2017/LHC17p/000282343/pass1_FAST/AOD234/0001/root_archive.zip#AliAOD.root",
+        _track_skim_base_path / "input/alice/data/2017/LHC17p/000282343/pass1_FAST/AOD234/0002/root_archive.zip#AliAOD.root",
+        _track_skim_base_path / "input/alice/data/2017/LHC17p/000282343/pass1_FAST/AOD234/0003/root_archive.zip#AliAOD.root",
     ],
     # Strictly speaking, this should be LHC18b8 to correctly correspond to LHC17pq, but for these
     # purposes, it's fine.
     "pythia": [
+        # LHC20g4
         _track_skim_base_path / "input/alice/sim/2020/LHC20g4/12/296191/AOD/001/AliAOD.root",
     ],
     "PbPb": [
+        # LHC18q
         _track_skim_base_path / "input/alice/data/2018/LHC18q/000296550/pass3/AOD252/AOD/001/AliAOD.root",
     ],
     "embed_pythia": [
+        # LHC18q
         _track_skim_base_path / "input/alice/data/2018/LHC18q/000296550/pass3/AOD252/AOD/001/AliAOD.root",
     ],
     "embed_pythia-pythia": [
+        # LHC20g4
         _track_skim_base_path / "input/alice/sim/2020/LHC20g4/12/296191/AOD/001/aod_archive.zip#AliAOD.root",
     ],
 }
@@ -139,13 +144,29 @@ class TrackSkimValidationFilenames:
         )
 
 
+def _check_for_alice_input_files(input_files: Sequence[Path]) -> List[bool]:
+    """Check for whether input ALICE data files exist.
+
+    Supports "#" in filenames for compressed archives.
+    """
+    missing_files = []
+    for input_file in input_files:
+        file_to_check = input_file
+        input_file_str = str(input_file)
+        if "#" in input_file_str:
+            file_to_check = Path(input_file_str[:input_file_str.find("#")])
+        missing_files.append(not file_to_check.exists())
+
+    return missing_files
+
+
 def _aliphysics_to_analysis_results(
     collision_system: str, jet_R: float, input_files: Sequence[Path], validation_mode: bool = True, filename_to_rename_output_to: Optional[Path] = None,
 ) -> Path:
     """Helper to execute run macro"""
     # First, validate input files
     # They might be missing since they're too large to store in the repo
-    missing_files = [not f.exists() for f in input_files]
+    missing_files = _check_for_alice_input_files(input_files=input_files)
     if missing_files:
         raise RuntimeError(
             "Cannot generate AliPhysics reference due to missing inputs files."
@@ -165,13 +186,25 @@ def _aliphysics_to_analysis_results(
 
     optional_kwargs = {}
     if collision_system == "embed_pythia":
+        missing_files = _check_for_alice_input_files(input_files=_collision_system_to_aod_files["embed_pythia-pythia"])
+        if missing_files:
+            raise RuntimeError(
+                "Cannot generate AliPhysics reference due to missing embedding inputs files."
+                f" Missing: {[f for f, missing in zip(input_files, missing_files) if missing]}"
+            )
         optional_kwargs.update(
             {
                 "embed_input_files": _collision_system_to_aod_files["embed_pythia-pythia"],
             }
         )
     run_macro.run(
-        analysis_mode=collision_system, jet_R=jet_R, validation_mode=validation_mode, input_files=input_files, **optional_kwargs
+        analysis_mode=collision_system,
+        jet_R=jet_R,
+        validation_mode=validation_mode,
+        input_files=input_files,
+        # Select a large enough number that we'll exhaust any given input files
+        n_events=100_000,
+        **optional_kwargs
     )
     # Next, we need to rename the output
     output_file = Path("AnalysisResults.root")
