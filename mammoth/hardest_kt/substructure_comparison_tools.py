@@ -39,6 +39,35 @@ def arrays_to_hist(
 
     return binned_data.BinnedData.from_existing_data(h_hist)
 
+def compare_branch(standard: ak.Array, track_skim: ak.Array, key: str, variable_name: str) -> bool:
+    # Setup
+    success = True
+    standard_array = standard[key]
+    track_skim_array = track_skim[key]
+
+    try:
+        is_array_all_close = np.allclose(ak.to_numpy(standard_array), ak.to_numpy(track_skim_array), rtol=1e-4)
+        logger.info(f"{variable_name}  all close? {is_array_all_close}")
+        if not is_array_all_close:
+            _arr = ak.zip({"s": standard_array, "t": track_skim_array})
+            logger.info(pprint.pformat(_arr.to_list()))
+            is_not_close_array = np.where(~np.isclose(ak.to_numpy(standard_array), ak.to_numpy(track_skim_array)))
+            logger.info(f"Indices where not close: {is_not_close_array}")
+            success = False
+    except ValueError as e:
+        logger.exception(e)
+        success = False
+
+    # If the above failed, print the entire branch.
+    # Sometimes it's useful to start at this, but sometimes it's just overwhelming, so uncomment as necessary
+    if not success:
+        logger.info("Values from above:")
+        logger.info(f"standard_{variable_name}: {standard_array.to_list()}")
+        logger.info(f"track_skim_{variable_name}: {track_skim_array.to_list()}")
+        logger.info("**************************")
+
+    return success
+
 
 def plot_attribute_compare(
     other: Input,
@@ -97,6 +126,7 @@ def plot_attribute_compare(
     filename = f"{plot_config.name}"
     fig.savefig(output_dir / f"{filename}.pdf")
     plt.close(fig)
+
 
 def _pretty_print_flat_type(s: str) -> str:
     """ Dumb pretty print function.
@@ -188,30 +218,13 @@ def compare_flat_substructure(
             axis=hist.axis.Regular(50, 0, 100),
             normalize=True,
         )
-        standard_jet_pt = standard[f"{prefix}_jet_pt"]
-        track_skim_jet_pt = track_skim[f"{prefix}_jet_pt"]
-
-        # Sometimes it's useful to start at this, but sometimes it's just overwhelming, so uncomment as necessary
-        # logger.info(f"standard_jet_pt: {standard_jet_pt.to_list()}")
-        # logger.info(f"track_skim_jet_pt: {track_skim_jet_pt.to_list()}")
-
-        try:
-            all_close_jet_pt = np.allclose(ak.to_numpy(standard_jet_pt), ak.to_numpy(track_skim_jet_pt))
-
-            logger.info(f"jet_pt all close? {all_close_jet_pt}")
-            # import IPython; IPython.embed()
-            if not all_close_jet_pt:
-                logger.info("jet pt")
-                _arr = ak.zip({"s": standard_jet_pt, "t": track_skim_jet_pt})
-                logger.info(pprint.pformat(_arr.to_list()))
-                is_not_close_jet_pt = np.where(
-                    ~np.isclose(ak.to_numpy(standard_jet_pt), ak.to_numpy(track_skim_jet_pt))
-                )
-                logger.info(f"Indices where not close: {is_not_close_jet_pt}")
-                all_success = False
-        except ValueError as e:
-            logger.exception(e)
-            all_success = False
+        result = compare_branch(
+            standard=standard, track_skim=track_skim, key=f"{prefix}_jet_pt", variable_name="jet_pt"
+        )
+        # We only want to assign the result if it's false because we don't want to accidentally overwrite
+        # a failure with a success at the end
+        if not result:
+            all_success = result
 
         for grooming_method in ["dynamical_kt", "soft_drop_z_cut_02"]:
             logger.info(f'Plotting method "{grooming_method}"')
@@ -258,26 +271,13 @@ def compare_flat_substructure(
                 output_dir=output_dir,
             )
 
-            standard_kt = standard[f"{grooming_method}_{prefix}_kt"]
-            track_skim_kt = track_skim[f"{grooming_method}_{prefix}_kt"]
-
-            # Sometimes it's useful to start at this, but sometimes it's just overwhelming, so uncomment as necessary
-            # logger.info(f"standard_kt: {standard_kt.to_list()}")
-            # logger.info(f"track_skim_kt: {track_skim_kt.to_list()}")
-
-            try:
-                all_close_kt = np.allclose(ak.to_numpy(standard_kt), ak.to_numpy(track_skim_kt), rtol=1e-4)
-                logger.info(f"kt all close? {all_close_kt}")
-                if not all_close_kt:
-                    logger.info("kt")
-                    _arr = ak.zip({"s": standard_kt, "t": track_skim_kt})
-                    logger.info(pprint.pformat(_arr.to_list()))
-                    is_not_close_kt = np.where(~np.isclose(ak.to_numpy(standard_kt), ak.to_numpy(track_skim_kt)))
-                    logger.info(f"Indices where not close: {is_not_close_kt}")
-                    all_success = False
-            except ValueError as e:
-                logger.exception(e)
-                all_success = False
+            result = compare_branch(
+                standard=standard, track_skim=track_skim, key=f"{grooming_method}_{prefix}_kt", variable_name="kt"
+            )
+            # We only want to assign the result if it's false because we don't want to accidentally overwrite
+            # a failure with a success at the end
+            if not result:
+                all_success = result
 
             plot_attribute_compare(
                 other=Input(arrays=standard, attribute=f"{grooming_method}_{prefix}_delta_R", name="Standard"),
@@ -321,31 +321,14 @@ def compare_flat_substructure(
                 axis=hist.axis.Regular(50, 0, 0.6),
                 normalize=True,
             )
-            standard_rg = standard[f"{grooming_method}_{prefix}_delta_R"]
-            track_skim_rg = track_skim[f"{grooming_method}_{prefix}_delta_R"]
 
-            # Sometimes it's useful to start at this, but sometimes it's just overwhelming, so uncomment as necessary
-            # logger.info(f"standard_zg: {standard_zg.to_list()}")
-            # logger.info(f"track_skim_zg: {track_skim_zg.to_list()}")
-
-            try:
-                all_close_rg = np.allclose(ak.to_numpy(standard_rg), ak.to_numpy(track_skim_rg), rtol=1e-4)
-                logger.info(f"Rg all close? {all_close_rg}")
-                if not all_close_rg:
-                    logger.info("delta_R")
-                    _arr = ak.zip({"s": standard_rg, "t": track_skim_rg})
-                    logger.info(pprint.pformat(_arr.to_list()))
-                    is_not_close_rg = np.where(~np.isclose(ak.to_numpy(standard_rg), ak.to_numpy(track_skim_rg)))
-                    logger.info(f"Indices where not close: {is_not_close_rg}")
-                    all_success = False
-            except ValueError as e:
-                logger.exception(e)
-                all_success = False
-
-            # import IPython; IPython.embed()
-
-            # logger.info(f"standard_rg: {standard_rg.to_list()}")
-            # logger.info(f"track_skim_rg: {track_skim_rg.to_list()}")
+            result = compare_branch(
+                standard=standard, track_skim=track_skim, key=f"{grooming_method}_{prefix}_delta_R", variable_name="delta_R"
+            )
+            # We only want to assign the result if it's false because we don't want to accidentally overwrite
+            # a failure with a success at the end
+            if not result:
+                all_success = result
 
             plot_attribute_compare(
                 other=Input(arrays=standard, attribute=f"{grooming_method}_{prefix}_z", name="Standard"),
@@ -390,24 +373,13 @@ def compare_flat_substructure(
                 output_dir=output_dir,
             )
 
-            standard_zg = standard[f"{grooming_method}_{prefix}_z"]
-            track_skim_zg = track_skim[f"{grooming_method}_{prefix}_z"]
-
-            # Sometimes it's useful to start at this, but sometimes it's just overwhelming, so uncomment as necessary
-            # logger.info(f"standard_zg: {standard_zg.to_list()}")
-            # logger.info(f"track_skim_zg: {track_skim_zg.to_list()}")
-
-            try:
-                all_close_zg = np.allclose(ak.to_numpy(standard_zg), ak.to_numpy(track_skim_zg))
-                logger.info(f"zg all close? {all_close_zg}")
-                if not all_close_zg:
-                    logger.info("z")
-                    _arr = ak.zip({"s": standard_zg, "t": track_skim_zg})
-                    logger.info(pprint.pformat(_arr.to_list()))
-                    all_success = False
-            except ValueError as e:
-                logger.exception(e)
-                all_success = False
+            result = compare_branch(
+                standard=standard, track_skim=track_skim, key=f"{grooming_method}_{prefix}_z", variable_name="zg"
+            )
+            # We only want to assign the result if it's false because we don't want to accidentally overwrite
+            # a failure with a success at the end
+            if not result:
+                all_success = result
 
     return all_success
 
