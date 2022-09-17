@@ -347,7 +347,6 @@ def _track_skim_to_parquet(input_filename: Path, output_filename: Path, collisio
 
 
 # TODO: Re-enable 0.2
-# TODO: Refactor...
 # @pytest.mark.parametrize("jet_R", [0.2, 0.4])
 @pytest.mark.parametrize("jet_R", [0.4])
 @pytest.mark.parametrize("collision_system", ["pp", "pythia", "PbPb", "embed_pythia"])
@@ -357,9 +356,6 @@ def test_track_skim_validation(  # noqa: C901
     # NOTE: There's some inefficiency since we store the same track skim info with the
     #       R = 0.2 and R = 0.4 outputs. However, it's much simpler conceptually, so we
     #       just accept it
-    # TODO: The track skim doesn't run in the embedding, so we need to potentially have to
-    #       generate those files separately :-(
-    # TODO: Make another pass through the comments to figure out what can be updated, refactored, etc
     # Setup
     caplog.set_level(logging.INFO)
     # But allow us to debug mammoth more precisely
