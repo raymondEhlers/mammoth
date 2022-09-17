@@ -1780,6 +1780,7 @@ def run(
     validation_mode: bool,
     input_files: Optional[Sequence[Path]] = None,
     embed_input_files: Optional[Sequence[Path]] = None,
+    n_events: int = 1000,
 ) -> None:
     # Let the user know that ROOT is required if it's not available
     try:
@@ -1841,8 +1842,13 @@ def run(
             validation_mode=validation_mode,
         )
 
-    # Actuallty run the analysis
-    start_analysis_manager(analysis_manager=analysis_manager, mode="local", n_events=1000, input_files=input_files)
+    # Actually run the analysis
+    start_analysis_manager(
+        analysis_manager=analysis_manager,
+        mode="local",
+        n_events=n_events,
+        input_files=input_files
+    )
 
 
 if __name__ == "__main__":
