@@ -31,8 +31,8 @@ _collision_system_to_aod_files = {
     "pp": [
         # 17p
         _track_skim_base_path / "input/alice/data/2017/LHC17p/000282343/pass1_FAST/AOD234/0001/root_archive.zip#AliAOD.root",
-        _track_skim_base_path / "input/alice/data/2017/LHC17p/000282343/pass1_FAST/AOD234/0002/root_archive.zip#AliAOD.root",
-        _track_skim_base_path / "input/alice/data/2017/LHC17p/000282343/pass1_FAST/AOD234/0003/root_archive.zip#AliAOD.root",
+        # Default to using less statistics to keep the runtime down, but can run more if it's warrented
+        # _track_skim_base_path / "input/alice/data/2017/LHC17p/000282343/pass1_FAST/AOD234/0002/root_archive.zip#AliAOD.root",
     ],
     # Strictly speaking, this should be LHC18b8 to correctly correspond to LHC17pq, but for these
     # purposes, it's fine.
@@ -203,7 +203,7 @@ def _aliphysics_to_analysis_results(
         validation_mode=validation_mode,
         input_files=input_files,
         # Select a large enough number that we'll exhaust any given input files
-        n_events=100_000,
+        n_events=500_000,
         **optional_kwargs
     )
     # Next, we need to rename the output
