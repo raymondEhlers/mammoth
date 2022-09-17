@@ -4,7 +4,9 @@
 .. codeauthor:: Raymond Ehlers <raymond.ehlers@cern.ch>, ORNL
 """
 
+import argparse
 import enum
+import pprint
 import tempfile
 import uuid
 from pathlib import Path
@@ -1850,9 +1852,90 @@ def run(
         input_files=input_files
     )
 
+def entry_point() -> None:
+    parser = argparse.ArgumentParser(description="Execute the run macro")
+
+    parser.add_argument(
+        "-a",
+        "--analysis-mode",
+        "-c",
+        "--collision-system",
+        action="store",
+        dest="analysis_mode",
+        type=str,
+        required=True,
+        help="Collision system",
+    )
+    parser.add_argument(
+        "-r",
+        "-R",
+        "--jet-R",
+        action="store",
+        type=float,
+        required=True,
+        help="Jet R",
+    )
+    parser.add_argument(
+        "--validation-mode",
+        action="store_true",
+        required=True,
+        help="Run with validation mode",
+    )
+    parser.add_argument(
+        "-f",
+        "--input-file",
+        action="store",
+        dest="input_files",
+        required=False,
+        nargs="+",
+        default=None,
+        help="Input files",
+    )
+    parser.add_argument(
+        "-e",
+        "--embed-input-file",
+        action="store",
+        dest="embed_input_files",
+        required=False,
+        nargs="+",
+        default=None,
+        help="Embedded input files",
+    )
+    parser.add_argument(
+        "-n",
+        "--n-events",
+        action="store",
+        type=int,
+        required=True,
+        default=1000,
+        help="Number of events to run",
+    )
+    args = parser.parse_args()
+
+    # Validation
+    if args.input_files:
+        args.input_files = [Path(p) for p in args.input_files]
+    if args.embed_input_files:
+        args.embed_input_files = [Path(p) for p in args.embed_input_files]
+
+    # For user convenience
+    pprint.pprint(f"Settings: {args}")
+
+    # And then we're actually ready to go
+    run(
+        analysis_mode=args.analysis_mode,
+        jet_R=args.jet_R,
+        validation_mode=args.validation_mode,
+        input_files=args.input_files,
+        embed_input_files=args.embed_input_files,
+        n_events=args.n_events
+    )
+
 
 if __name__ == "__main__":
-    run(analysis_mode="embed_pythia", jet_R=0.4, validation_mode=True)
+    entry_point()
+    #run(analysis_mode="embed_pythia", jet_R=0.4, validation_mode=True)
+
     #analysis_mode = AnalysisMode.embed_pythia
     #jet_R = 0.4
     #validation_mode = True
