@@ -167,7 +167,7 @@ def _aliphysics_to_analysis_results(
     # First, validate input files
     # They might be missing since they're too large to store in the repo
     missing_files = _check_for_alice_input_files(input_files=input_files)
-    if missing_files:
+    if any(missing_files):
         raise RuntimeError(
             "Cannot generate AliPhysics reference due to missing inputs files."
             f" Missing: {[f for f, missing in zip(input_files, missing_files) if missing]}"
@@ -187,7 +187,7 @@ def _aliphysics_to_analysis_results(
     optional_kwargs = {}
     if collision_system == "embed_pythia":
         missing_files = _check_for_alice_input_files(input_files=_collision_system_to_aod_files["embed_pythia-pythia"])
-        if missing_files:
+        if any(missing_files):
             raise RuntimeError(
                 "Cannot generate AliPhysics reference due to missing embedding inputs files."
                 f" Missing: {[f for f, missing in zip(input_files, missing_files) if missing]}"
