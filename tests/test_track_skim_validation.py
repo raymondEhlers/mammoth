@@ -362,8 +362,8 @@ def test_track_skim_validation(  # noqa: C901
     # TODO: Make another pass through the comments to figure out what can be updated, refactored, etc
     # Setup
     caplog.set_level(logging.INFO)
-    # But keep numba quieter...
-    caplog.set_level(logging.INFO, logger="numba")
+    # But allow us to debug mammoth more precisely
+    caplog.set_level(logging.DEBUG, logger="mammoth")
 
     reference_filenames = TrackSkimValidationFilenames(
         base_path=_track_skim_base_path,
