@@ -31,22 +31,22 @@ _collision_system_to_aod_files = {
     "pp": [
         # 17p
         _track_skim_base_path / "input/alice/data/2017/LHC17p/000282343/pass1_FAST/AOD234/0001/root_archive.zip#AliAOD.root",
-        # Default to using less statistics to keep the runtime down, but can run more if it's warrented
+        # Default to using less statistics to keep the runtime down, but can run more if it's warranted
         # _track_skim_base_path / "input/alice/data/2017/LHC17p/000282343/pass1_FAST/AOD234/0002/root_archive.zip#AliAOD.root",
     ],
     # Strictly speaking, this should be LHC18b8 to correctly correspond to LHC17pq, but for these
     # purposes, it's fine.
     "pythia": [
         # LHC20g4
-        _track_skim_base_path / "input/alice/sim/2020/LHC20g4/12/296191/AOD/001/AliAOD.root",
+        _track_skim_base_path / "input/alice/sim/2020/LHC20g4/12/296191/AOD/001/aod_archive.zip#AliAOD.root",
     ],
     "PbPb": [
         # LHC18q
-        _track_skim_base_path / "input/alice/data/2018/LHC18q/000296550/pass3/AOD252/AOD/001/AliAOD.root",
+        _track_skim_base_path / "input/alice/data/2018/LHC18q/000296550/pass3/AOD252/AOD/001/aod_archive.zip#AliAOD.root",
     ],
     "embed_pythia": [
         # LHC18q
-        _track_skim_base_path / "input/alice/data/2018/LHC18q/000296550/pass3/AOD252/AOD/001/AliAOD.root",
+        _track_skim_base_path / "input/alice/data/2018/LHC18q/000296550/pass3/AOD252/AOD/001/aod_archive.zip#AliAOD.root",
     ],
     "embed_pythia-pythia": [
         # LHC20g4
