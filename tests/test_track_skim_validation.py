@@ -5,6 +5,7 @@
 
 import logging
 from pathlib import Path
+from subprocess import check_output
 from typing import Any, Dict, List, Optional, Sequence
 
 import attr
@@ -162,8 +163,25 @@ def _check_for_alice_input_files(input_files: Sequence[Path]) -> List[bool]:
 
 def _aliphysics_to_analysis_results(
     collision_system: str, jet_R: float, input_files: Sequence[Path], validation_mode: bool = True, filename_to_rename_output_to: Optional[Path] = None,
+    allow_multiple_executions_of_run_macro: bool = True
 ) -> Path:
-    """Helper to execute run macro"""
+    """Helper to execute run macro
+
+    NOTE:
+        If ROOT is executed multiple times in one process, it will sgefault. I suppose it's
+        probably because it tries to load identical run macros multiple times. But in general,
+        running multiple times is always going to be risky. So to avoid this, we add an option
+        to execute in a subprocess, which avoids this issue. This option is the default.
+
+    Args:
+        collision_system: Collision system
+        jet_R: Jet R
+        input_files: Input files to process
+        validation_mode: If True, enable validation mode
+        filename_to_rename_output_to: Full path we should rename `AnalysisResults.root` to.
+        allow_multiple_executions_of_run_macro: Allow ROOT to be executed more than once.
+            See note above. Default: True
+    """
     # First, validate input files
     # They might be missing since they're too large to store in the repo
     missing_files = _check_for_alice_input_files(input_files=input_files)
@@ -184,6 +202,9 @@ def _aliphysics_to_analysis_results(
             " Please check your configuration to ensure that AliPhysics is available"
         )
 
+    # Select a large enough number that we'll exhaust any given input files
+    n_events = 500_000
+    # Further parameters
     optional_kwargs = {}
     if collision_system == "embed_pythia":
         missing_files = _check_for_alice_input_files(input_files=_collision_system_to_aod_files["embed_pythia-pythia"])
@@ -197,15 +218,34 @@ def _aliphysics_to_analysis_results(
                 "embed_input_files": _collision_system_to_aod_files["embed_pythia-pythia"],
             }
         )
-    run_macro.run(
-        analysis_mode=collision_system,
-        jet_R=jet_R,
-        validation_mode=validation_mode,
-        input_files=input_files,
-        # Select a large enough number that we'll exhaust any given input files
-        n_events=500_000,
-        **optional_kwargs
-    )
+
+    if allow_multiple_executions_of_run_macro:
+        # See the note in the docstring for why we bother with this.
+        # It lets us work around ROOT issues
+        import subprocess
+        args = [
+            "python3",
+            "-m", "mammoth.hardest_kt.run_macro",
+            "-c", f"{collision_system}",
+            "-R", f"{jet_R}",
+            "--validation-mode",
+            "--input-files", f"{' '.join([str(_f) for _f in input_files])}",
+            "--n-events", f"{n_events}",
+        ]
+        if "embed_input_files" in optional_kwargs:
+            args.extend([
+                "--embed-input-files", f"{' '.join([str(_f) for _f in optional_kwargs['embed_input_files']])}"
+            ])
+        subprocess.run(args, check=True, capture_output=True)
+    else:
+        run_macro.run(
+            analysis_mode=collision_system,
+            jet_R=jet_R,
+            validation_mode=validation_mode,
+            input_files=input_files,
+            n_events=n_events,
+            **optional_kwargs
+        )
     # Next, we need to rename the output
     output_file = Path("AnalysisResults.root")
     if filename_to_rename_output_to:

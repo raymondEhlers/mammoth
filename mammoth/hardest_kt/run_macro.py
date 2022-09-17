@@ -1883,23 +1883,21 @@ def entry_point() -> None:
     )
     parser.add_argument(
         "-f",
-        "--input-file",
+        "--input-files",
         action="store",
-        dest="input_files",
         required=False,
         nargs="+",
         default=None,
-        help="Input files",
+        help="Input files. Optional (will use default if not specified)",
     )
     parser.add_argument(
         "-e",
-        "--embed-input-file",
+        "--embed-input-files",
         action="store",
-        dest="embed_input_files",
         required=False,
         nargs="+",
         default=None,
-        help="Embedded input files",
+        help="Embedded input files. Optional (will use default if not specified)",
     )
     parser.add_argument(
         "-n",
