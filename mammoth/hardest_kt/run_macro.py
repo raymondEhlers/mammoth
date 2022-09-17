@@ -159,7 +159,7 @@ def _run_add_task_macro(task_path: Union[str, Path], task_class_name: str, *args
     Returns:
         The task returned by the AddTask.
     """
-    # Delay import to avoid explicit depdendence
+    # Delay import to avoid explicit dependence
     import ROOT  # pyright: ignore [reportMissingImports]
     # Validation
     task_path = Path(task_path)
@@ -188,7 +188,7 @@ def _run_add_task_macro(task_path: Union[str, Path], task_class_name: str, *args
 
 
 def _add_physics_selection(is_MC: bool, beam_type: BeamType) -> AnalysisTask:
-    # Delay import to avoid explicit depdendence
+    # Delay import to avoid explicit dependence
     import ROOT  # pyright: ignore [reportMissingImports]
     # Enable pileup rejection (second argument) for pp
     # physics_selection_task = _run_add_task_macro(
@@ -200,7 +200,7 @@ def _add_physics_selection(is_MC: bool, beam_type: BeamType) -> AnalysisTask:
 
 
 def _add_mult_selection(is_run2_data: bool, physics_selection: int) -> Optional[AnalysisTask]:
-    # Delay import to avoid explicit depdendence
+    # Delay import to avoid explicit dependence
     import ROOT  # pyright: ignore [reportMissingImports]
     # Works for both pp and PbPb for the periods that it is calibrated
     # However, I seem to have trouble with pp MCs
@@ -257,7 +257,7 @@ def run_dynamical_grooming(  # noqa: C901
     Returns:
         The analysis manager.
     """
-    # Delay import to avoid explicit depdendence
+    # Delay import to avoid explicit dependence
     import ROOT  # pyright: ignore [reportMissingImports]  # pyright: ignore [reportMissingImports]
     # Validation
     period = _normalize_period(period)
@@ -289,7 +289,7 @@ def run_dynamical_grooming(  # noqa: C901
     if validation_mode:
         # In the past, we've run the AliPhysics analysis tasks with min of 0. However, as of Feb 2022, the track
         # skims tend to go down to 150 MeV even at track level to keep the data volume reasonable. For the sake
-        # of validation, we set the AliPhysics tasks to go a min of 150 MeV, and can consider a reskim later.
+        # of validation, we set the AliPhysics tasks to go a min of 150 MeV, and can consider a re-skim later.
         particle_level_min_pt = 0.15
     particle_level_min_pt_str = f"{round(particle_level_min_pt*1000):04}"
 
@@ -986,7 +986,7 @@ def run_dynamical_grooming_embedding(  # noqa: C901
     Returns:
         The analysis manager.
     """
-    # Delay import to avoid explicit depdendence
+    # Delay import to avoid explicit dependence
     import ROOT  # pyright: ignore [reportMissingImports]
     # Validation
     period = _normalize_period(period)
@@ -1017,7 +1017,7 @@ def run_dynamical_grooming_embedding(  # noqa: C901
     if validation_mode:
         # In the past, we've run the AliPhysics analysis tasks with min of 0. However, as of Feb 2022, the track
         # skims tend to go down to 150 MeV even at track level to keep the data volume reasonable. For the sake
-        # of validation, we set the AliPhysics tasks to go a min of 150 MeV, and can consider a reskim later.
+        # of validation, we set the AliPhysics tasks to go a min of 150 MeV, and can consider a re-skim later.
         particle_level_min_pt = 0.15
     particle_level_min_pt_str = f"{round(particle_level_min_pt*1000):04}"
 
@@ -1229,7 +1229,7 @@ def run_dynamical_grooming_embedding(  # noqa: C901
     truth_tracks = akt_particle_level_jet_finder.GetMCParticleContainer(0)
     truth_tracks.SetIsEmbedding(True)
 
-    # Detecor level jet finder: JetFinderAKTCharged_R04_EschemeDetLevelNew
+    # Detector level jet finder: JetFinderAKTCharged_R04_EschemeDetLevelNew
     akt_detector_level_jet_finder = ROOT.AliEmcalJetTask.AddTaskEmcalJet(
         "usedefault",
         "",
@@ -1565,7 +1565,7 @@ def start_analysis_manager(
     Returns:
         None. The analysis manager is executed.
     """
-    # Delay import to avoid explicit depdendence
+    # Delay import to avoid explicit dependence
     import ROOT  # pyright: ignore [reportMissingImports]
 
     if mode == "local":
