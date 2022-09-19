@@ -197,7 +197,7 @@ def analysis_embedding(source_index_identifiers: Mapping[str, int],
     event_level_mask_for_jets = []
 
     # Add some event level quantities.
-    # Unfortunately, because we often mask each jet level seprately, the bookkeeping can be
+    # Unfortunately, because we often mask each jet level separately, the bookkeeping can be
     # quite a pain in the ass.
     # NOTE: We need these event level quantities to follow the shape of the jets, so we take
     #       the pt as a proxy for the shape. Since the eventual result will be that jets at
@@ -382,7 +382,9 @@ def analysis_embedding(source_index_identifiers: Mapping[str, int],
 def write_skim(jets: ak.Array, filename: Path) -> None:
     # Rename according to the expected conventions
     jets_renamed = {
+        # JEWEL specific
         "Jet_Pt_NoToy": jets["jet_pt_original"],
+        # Generic
         "Jet_Pt": jets["hybrid"].pt,
         "Jet_NumTracks": ak.num(jets["hybrid"].constituents, axis=1),
         "Jet_Track_Pt": jets["hybrid"].constituents.pt,
