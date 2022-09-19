@@ -137,20 +137,15 @@ def _pretty_print_flat_type(s: str) -> str:
     return "\n".join(s.split(","))
 
 
-@attrs.define
-class TrackSkimParameters:
-    jet_R: float
-
-
 def compare_flat_substructure(
     collision_system: str,
+    jet_R: float,
     prefixes: Sequence[str],
     standard_filename: Path,
     track_skim_filename: Path,
     standard_tree_name: str = "tree",
     base_output_dir: Path = Path("comparison/track_skim"),
     track_skim_validation_mode: bool = True,
-    track_skim_parameters: Optional[TrackSkimParameters] = None,
 ) -> bool:
     standard = uproot.open(standard_filename)[standard_tree_name].arrays()
     track_skim = uproot.open(track_skim_filename)["tree"].arrays()
@@ -167,9 +162,9 @@ def compare_flat_substructure(
     if track_skim_validation_mode:
         if (
             collision_system == "embed_pythia"
-            and track_skim_parameters
-            and track_skim_parameters.jet_R == 0.4
+            and jet_R == 0.4
         ):
+            # TODO: Keep this info around even when moving to the more general technique!
             # NOTE: I derived this mask by hand. It swaps index -2 and -3 (== swapping index 15 and 16)
             #       It can be double checked by looking at the jet pt. The precision makes
             #       it quite obvious which should go with which.
@@ -191,13 +186,14 @@ def compare_flat_substructure(
         # They disagree. We'll try to figure out if it's just a minor ordering issue.
         if not result:
             try:
+                # Describe the indices where there are disagreements
                 is_not_close_array = np.where(~np.isclose(ak.to_numpy(standard[f"{_prefix}_jet_pt"]), ak.to_numpy(track_skim[f"{_prefix}_jet_pt"])))
 
                 # To get the same indexing, we want to go:
                 # track_skim -> sorted track_skim (if same values, it's the same order as sorted standard)
                 # -> undo argsort of standard.
                 # To undo the argsort of the standard, we will argsort the argsort output.
-                # Think about it a while, and it makes sense.
+                # Think about it a while, and it makes sense. See also: https://stackoverflow.com/a/54799987/12907985
                 standard_arg_sort = ak.argsort(standard[f"{_prefix}_jet_pt"])
                 # NOTE: Even if you want to use ascending=False for the jet pt since it's conceptually nice to
                 #       think of those in descending order, we _don't_ use ascending=False for the undo step
@@ -223,7 +219,7 @@ def compare_flat_substructure(
                 # sort it out. So keep going instead of stopping here.
                 pass
 
-    output_dir = base_output_dir / collision_system
+    output_dir = base_output_dir / f"{collision_system}__jet_R{round(jet_R*100):03}"
     output_dir.mkdir(parents=True, exist_ok=True)
 
     all_success = True

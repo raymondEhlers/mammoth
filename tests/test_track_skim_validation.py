@@ -621,12 +621,12 @@ def test_track_skim_validation(  # noqa: C901
 
     comparison_result = substructure_comparison_tools.compare_flat_substructure(
         collision_system=collision_system,
+        jet_R=jet_R,
         prefixes=_analysis_parameters.comparison_prefixes,
         standard_filename=reference_filenames.skim(),
         track_skim_filename=track_skim_filenames.skim(),
         base_output_dir=_track_skim_base_path / "plot",
         track_skim_validation_mode=True,
-        track_skim_parameters=substructure_comparison_tools.TrackSkimParameters(jet_R=jet_R),
     )
     assert comparison_result, "Validation failed during comparison"
 
