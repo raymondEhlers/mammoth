@@ -6,6 +6,7 @@
 
 import argparse
 import enum
+import logging
 import pprint
 import tempfile
 import uuid
@@ -14,6 +15,9 @@ from typing import Any, List, Optional, Sequence, Type, TypeVar, Union
 
 import attr
 import numpy as np
+
+
+logger = logging.getLogger(__name__)
 
 # Type helpers
 # AnalysisTask = ROOT.AliAnalysisTaskSE
@@ -368,7 +372,7 @@ def run_dynamical_grooming(  # noqa: C901
             skim_task.Initialize()
 
     if enable_HF_tree:
-        # PID eesponse is a dependency
+        # PID response is a dependency
         pid_response = _run_add_task_macro(
             "$ALICE_ROOT/ANALYSIS/macros/AddTaskPIDResponse.C",
             "AliAnalysisTaskPIDResponse",
