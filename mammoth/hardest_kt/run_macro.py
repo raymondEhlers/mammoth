@@ -1824,6 +1824,9 @@ def run(
             embed_input_filename = Path(f_temp.name)
             # Write the filenames, one per line
             [f_temp.write(str(p)) for p in embed_input_files]
+            # Apparently other processes opening this file open it at the same seek point.
+            # Or at least it does in the case. So we need to seek to the beginning for it to be read
+            f_temp.seek(0)
 
         analysis_manager = run_dynamical_grooming_embedding(
             task_name=task_name,
