@@ -5,7 +5,6 @@
 
 import logging
 from pathlib import Path
-from subprocess import check_output
 from typing import Any, Dict, List, Optional, Sequence
 
 import attr
@@ -168,7 +167,7 @@ def _aliphysics_to_analysis_results(
     """Helper to execute run macro
 
     NOTE:
-        If ROOT is executed multiple times in one process, it will sgefault. I suppose it's
+        If ROOT is executed multiple times in one process, it will segfault. I suppose it's
         probably because it tries to load identical run macros multiple times. But in general,
         running multiple times is always going to be risky. So to avoid this, we add an option
         to execute in a subprocess, which avoids this issue. This option is the default.
@@ -216,6 +215,9 @@ def _aliphysics_to_analysis_results(
         optional_kwargs.update(
             {
                 "embed_input_files": _collision_system_to_aod_files["embed_pythia-pythia"],
+                # NOTE: This implicitly encodes the period. In practice, it only matters for the event selection,
+                #       but it shouldn't be forgot if later changes are made.
+                "embedding_helper_config_filename": _track_skim_base_path / "input" / "embeddingHelper_LHC18_LHC20g4_kSemiCentral.yaml"
             }
         )
 
@@ -236,7 +238,16 @@ def _aliphysics_to_analysis_results(
             args.extend([
                 "--embed-input-files", f"{' '.join([str(_f) for _f in optional_kwargs['embed_input_files']])}"
             ])
-        subprocess.run(args, check=True, capture_output=True)
+        if "embedding_helper_config_filename" in optional_kwargs:
+            args.extend([
+                "--embedding-helper-config-filename", str(optional_kwargs["embedding_helper_config_filename"])
+            ])
+        try:
+            subprocess.run(args, check=True, capture_output=True)
+        except subprocess.CalledProcessError as e:
+            logger.info(f"stdout: {e.stdout.decode()}")
+            logger.info(f"stderr: {e.stderr.decode()}")
+            raise RuntimeError("Failed to run subprocess") from e
     else:
         run_macro.run(
             analysis_mode=collision_system,

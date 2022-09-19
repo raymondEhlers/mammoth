@@ -1,0 +1,7 @@
+---
+name: "Embedding configuration for 30-50%, LHC19f4 embedded in PbPb, LHC18 - 5.02 TeV PYTHIA"
+internalEventSelection:
+    enabled: true
+    centralityRange: [30, 50]
+    physicsSelection:
+        - "kSemiCentral"
