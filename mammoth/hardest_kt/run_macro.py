@@ -967,6 +967,7 @@ def run_dynamical_grooming_embedding(  # noqa: C901
     grooming_jet_pt_threshold: float = 20,
     validation_mode: bool = True,
     embed_input_filename: Path = Path("embedding/embedding_file_list.txt"),
+    embedding_helper_config_filename: Optional[Path] = None,
 ) -> AnalysisManager:
     """Run dynamical grooming embedding.
 
@@ -996,6 +997,8 @@ def run_dynamical_grooming_embedding(  # noqa: C901
     is_run2_data = _is_run2_data(period) if not is_MC else False
     # Determine the beam type from the period.
     beam_type = BeamType.from_period(period)
+    if not embedding_helper_config_filename:
+        embedding_helper_config_filename = Path("embedding/embeddingHelper_LHC18_LHC20g4_kSemiCentral.yaml")
 
     # Setup
     # pt hard binning is for pp MC, embedding
@@ -1065,7 +1068,7 @@ def run_dynamical_grooming_embedding(  # noqa: C901
     # embedding_helper.SetConfigurationPath("alien:///alice/cern.ch/user/l/lhavener/embeddingHelper_LHC18_LHC19f4_kCentral.yaml")
     # NOTE: This is fine for LHC20g4 also - it's not at all MC specific.
     #       However, it is specific to the centrality range
-    embedding_helper.SetConfigurationPath("embedding/embeddingHelper_LHC18_LHC19f4_kSemiCentral.yaml")
+    embedding_helper.SetConfigurationPath(str(embedding_helper_config_filename))
     # Set the pt hard auto config identifier
     # embedding_helper.SetAutoConfigureIdentifier("20200514Raymond")
 
@@ -1782,6 +1785,7 @@ def run(
     validation_mode: bool,
     input_files: Optional[Sequence[Path]] = None,
     embed_input_files: Optional[Sequence[Path]] = None,
+    embedding_helper_config_filename: Optional[Path] = None,
     n_events: int = 1000,
 ) -> None:
     # Let the user know that ROOT is required if it's not available
@@ -1827,6 +1831,7 @@ def run(
             grooming_jet_pt_threshold=analysis_parameters.grooming_jet_pt_threshold,
             validation_mode=validation_mode,
             embed_input_filename=embed_input_filename,
+            embedding_helper_config_filename=embedding_helper_config_filename,
         )
         # Cleanup. We don't use a with statement here because we might want to pass an existing filename
         if f_temp:
@@ -1900,6 +1905,14 @@ def entry_point() -> None:
         help="Embedded input files. Optional (will use default if not specified)",
     )
     parser.add_argument(
+        "--embedding-helper-config-filename",
+        action="store",
+        required=False,
+        type=Path,
+        default=None,
+        help="Path to the embedding helper config",
+    )
+    parser.add_argument(
         "-n",
         "--n-events",
         action="store",
@@ -1926,6 +1939,7 @@ def entry_point() -> None:
         validation_mode=args.validation_mode,
         input_files=args.input_files,
         embed_input_files=args.embed_input_files,
+        embedding_helper_config_filename=args.embedding_helper_config_filename,
         n_events=args.n_events
     )
 
