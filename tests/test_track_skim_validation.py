@@ -247,7 +247,7 @@ def _aliphysics_to_analysis_results(
         except subprocess.CalledProcessError as e:
             logger.info(f"stdout: {e.stdout.decode()}")
             logger.info(f"stderr: {e.stderr.decode()}")
-            raise RuntimeError("Failed to run subprocess") from e
+            raise RuntimeError("Failed to execute run macro in subprocess") from e
     else:
         run_macro.run(
             analysis_mode=collision_system,
@@ -372,7 +372,7 @@ def _generate_track_skim_task_parquet_outputs_for_embedding(
             collision_system=collision_system_to_generate,
             jet_R=jet_R,
             input_files=_collision_system_to_aod_files[f"embed_pythia-{collision_system_to_generate}"],
-            filename_to_rename_output_to=reference_filenames.analysis_output(),
+            filename_to_rename_output_to=reference_filenames.analysis_output(extra_collision_system_label=collision_system_to_generate),
         )
         # And then extract the corresponding parquet
     if not track_skim_filenames.parquet_output(extra_collision_system_label=collision_system_to_generate).exists():
