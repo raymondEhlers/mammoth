@@ -5,6 +5,7 @@
 
 import logging
 import pprint
+import warnings
 from pathlib import Path
 from typing import Optional, Sequence
 
@@ -172,14 +173,55 @@ def compare_flat_substructure(
             # NOTE: I derived this mask by hand. It swaps index -2 and -3 (== swapping index 15 and 16)
             #       It can be double checked by looking at the jet pt. The precision makes
             #       it quite obvious which should go with which.
-            reorder_mask = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 16, 15, 17]
-            track_skim = track_skim[reorder_mask]
+            #reorder_mask = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 16, 15, 17]
+            #track_skim = track_skim[reorder_mask]
+            pass
             # NOTE: ***********************************************************************************
             #       The canonical file actually did go through the steps of making the order in mammoth
             #       match AliPhysics by turning off sorting. But since we're more likely to be
             #       testing in the future with new files to do validation, it's better that we apply
             #       this remapping here.
             #       ***********************************************************************************
+
+        # Take a peek with the jet pt, which should be easy to match
+        _prefix = prefixes[0]
+        result = compare_branch(
+            standard=standard, track_skim=track_skim, key=f"{_prefix}_jet_pt", variable_name="jet_pt"
+        )
+        # They disagree. We'll try to figure out if it's just a minor ordering issue.
+        if not result:
+            try:
+                is_not_close_array = np.where(~np.isclose(ak.to_numpy(standard[f"{_prefix}_jet_pt"]), ak.to_numpy(track_skim[f"{_prefix}_jet_pt"])))
+
+                # To get the same indexing, we want to go:
+                # track_skim -> sorted track_skim (if same values, it's the same order as sorted standard)
+                # -> undo argsort of standard.
+                # To undo the argsort of the standard, we will argsort the argsort output.
+                # Think about it a while, and it makes sense.
+                standard_arg_sort = ak.argsort(standard[f"{_prefix}_jet_pt"])
+                # NOTE: Even if you want to use ascending=False for the jet pt since it's conceptually nice to
+                #       think of those in descending order, we _don't_ use ascending=False for the undo step
+                #       since this argsort is working with indices, so we want ascending.
+                #       The ascending vs descending arguments only need to be symmetric for the jet_pt sort
+                undo_standard_arg_sort = ak.argsort(standard_arg_sort)
+                reorder_mask = ak.argsort(track_skim[f"{_prefix}_jet_pt"])[undo_standard_arg_sort]
+
+                warning_for_user = (
+                    "Order of standard and track_skim arrays appears to be different. Will attempt to put them in the same order."
+                    " Careful to check that this isn't somehow meaningful!"
+                    f"\nIndices of differences: {is_not_close_array}."
+                    f"\nNew mask: {reorder_mask}"
+                )
+                # log it in the correct place for convenience in understanding the logs
+                logger.warning(logging.warning)
+                # And further emit it in case the test passes so the user doesn't overlook this
+                warnings.warn(UserWarning(warning_for_user))
+                track_skim = track_skim[reorder_mask]
+            except ValueError:
+                # If this fails, it's probably because the arrays are different lengths.
+                # In that case, it's usually best to see the other values to help try to
+                # sort it out. So keep going instead of stopping here.
+                pass
 
     output_dir = base_output_dir / collision_system
     output_dir.mkdir(parents=True, exist_ok=True)
