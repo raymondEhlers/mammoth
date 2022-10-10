@@ -205,8 +205,8 @@ def compare_flat_substructure(
                 warning_for_user = (
                     "Order of standard and track_skim arrays appears to be different. Will attempt to put them in the same order."
                     " Careful to check that this isn't somehow meaningful!"
-                    f"\nIndices of differences: {is_not_close_array}."
-                    f"\nNew mask: {reorder_mask}"
+                    f"\nIndices of differences: {ak.to_list(is_not_close_array[0])}."
+                    f"\nNew mask: {ak.to_list(reorder_mask)}"
                 )
                 # log it in the correct place for convenience in understanding the logs
                 logger.warning(logging.warning)
