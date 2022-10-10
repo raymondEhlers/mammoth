@@ -942,11 +942,7 @@ def run_dynamical_grooming(  # noqa: C901
         task = tasks.At(i)
         if not task:
             continue
-        if task.InheritsFrom("AliAnalysisTaskEmcal"):
-            task.SetForceBeamType(beam_type.value)
-            print(f"Setting beam type {beam_type.name} for task {task.GetName()}")
-        if task.InheritsFrom("AliEmcalCorrectionTask"):
-            # TODO: This may not work because the typing isn't correct...
+        if task.InheritsFrom("AliAnalysisTaskEmcal") or task.InheritsFrom("AliEmcalCorrectionTask"):
             task.SetForceBeamType(beam_type.value)
             print(f"Setting beam type {beam_type.name} for task {task.GetName()}")
 
@@ -1533,11 +1529,7 @@ def run_dynamical_grooming_embedding(  # noqa: C901
         task = tasks.At(i)
         if not task:
             continue
-        if task.InheritsFrom("AliAnalysisTaskEmcal"):
-            task.SetForceBeamType(beam_type.value)
-            print(f"Setting beam type {beam_type.name} for task {task.GetName()}")
-        if task.InheritsFrom("AliEmcalCorrectionTask"):
-            # TODO: This may not work because the typing isn't correct...
+        if task.InheritsFrom("AliAnalysisTaskEmcal") or task.InheritsFrom("AliEmcalCorrectionTask"):
             task.SetForceBeamType(beam_type.value)
             print(f"Setting beam type {beam_type.name} for task {task.GetName()}")
 
