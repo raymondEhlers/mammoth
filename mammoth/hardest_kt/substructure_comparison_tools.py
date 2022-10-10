@@ -435,7 +435,7 @@ def compare_flat_substructure(
     return all_success
 
 
-def run(collision_system: str, prefixes: Optional[Sequence[str]] = None) -> None:
+def run(jet_R: float, collision_system: str, prefixes: Optional[Sequence[str]] = None) -> None:
     """Trivial helper for running the comparison.
 
     It's not very configurable, but it provides a reasonable example.
@@ -450,6 +450,7 @@ def run(collision_system: str, prefixes: Optional[Sequence[str]] = None) -> None
         standard_base_filename += ".12"
     compare_flat_substructure(
         collision_system=collision_system,
+        jet_R=jet_R,
         prefixes=prefixes,
         standard_filename=path_to_mammoth
         / f"projects/framework/{collision_system}/1/skim/{standard_base_filename}.repaired.00_iterative_splittings.root",
