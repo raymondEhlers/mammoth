@@ -11,7 +11,7 @@ import pprint
 import tempfile
 import uuid
 from pathlib import Path
-from typing import Any, List, Optional, Sequence, Type, TypeVar, Union
+from typing import Any, Dict, List, Optional, Sequence, Type, TypeVar, Union
 
 import attr
 import numpy as np
@@ -1671,7 +1671,8 @@ class AnalysisModeParameters:
     analysis_mode: AnalysisMode
     period_name: str
     _physics_selection: str
-    grooming_jet_pt_threshold: float
+    # As a function of jet_R
+    grooming_jet_pt_threshold: Dict[float, float]
     input_files: List[Path]
     embed_input_files: List[Path] = attr.Factory(list)
 
@@ -1686,7 +1687,10 @@ default_analysis_parameters = {
         analysis_mode=AnalysisMode.pp,
         period_name="LHC17q",
         physics_selection="kAnyINT",
-        grooming_jet_pt_threshold=5,
+        grooming_jet_pt_threshold={
+            0.2: 5,
+            0.4: 5,
+        },
         input_files=[
             Path(
                 "/alf/data/rehlers/data/alice/data/2017/LHC17p/000282343/pass1_FAST/AOD234/0001/root_archive.zip#AliAOD.root"
@@ -1704,7 +1708,10 @@ default_analysis_parameters = {
         period_name="LHC20g4",
         # physics_selection=0,
         physics_selection="kAnyINT",
-        grooming_jet_pt_threshold=20,
+        grooming_jet_pt_threshold={
+            0.2: 10,
+            0.4: 20,
+        },
         input_files=[
             Path(
                 "/alf/data/rehlers/data/alice/sim/2020/LHC20g4/12/296191/AOD/001/aod_archive.zip#AliAOD.root"
@@ -1743,7 +1750,10 @@ default_analysis_parameters = {
         physics_selection="kSemiCentral",
         # physics_selection=ROOT.AliVEvent.kSemiCentral | ROOT.AliVEvent.kINT7,
         # physics_selection=ROOT.AliVEvent.kCentral,
-        grooming_jet_pt_threshold=20,
+        grooming_jet_pt_threshold={
+            0.2: 10,
+            0.4: 20,
+        },
         input_files=[
             Path(
                 "/alf/data/rehlers/data/alice/data/2018/LHC18q/000296550/pass3/AOD252/AOD/001/aod_archive.zip#AliAOD.root"
@@ -1766,7 +1776,10 @@ default_analysis_parameters = {
         #       It's unclear why this occurs, but since we're only interested in semi-central at the moment, it
         #       doesn't matter.
         physics_selection="kSemiCentral",
-        grooming_jet_pt_threshold=20,
+        grooming_jet_pt_threshold={
+            0.2: 10,
+            0.4: 20,
+        },
         input_files=[
             Path(
                 "/alf/data/rehlers/data/alice/data/2018/LHC18q/000296550/pass3/AOD252/AOD/001/aod_archive.zip#AliAOD.root"
@@ -1835,7 +1848,7 @@ def run(
             physics_selection=analysis_parameters.physics_selection,
             data_type=data_type,
             jet_R=jet_R,
-            grooming_jet_pt_threshold=analysis_parameters.grooming_jet_pt_threshold,
+            grooming_jet_pt_threshold=analysis_parameters.grooming_jet_pt_threshold[jet_R],
             validation_mode=validation_mode,
             embed_input_filename=embed_input_filename,
             embedding_helper_config_filename=embedding_helper_config_filename,
@@ -1851,7 +1864,7 @@ def run(
             physics_selection=analysis_parameters.physics_selection,
             data_type=data_type,
             enable_track_skim=True,
-            grooming_jet_pt_threshold=analysis_parameters.grooming_jet_pt_threshold,
+            grooming_jet_pt_threshold=analysis_parameters.grooming_jet_pt_threshold[jet_R],
             jet_R=jet_R,
             validation_mode=validation_mode,
         )

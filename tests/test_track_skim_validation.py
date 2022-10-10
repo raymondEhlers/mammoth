@@ -63,10 +63,10 @@ class AnalysisParameters:
     track_skim_loading_data_rename_prefix: Dict[str, str]
     track_skim_convert_data_format_prefixes: Dict[str, str]
     comparison_prefixes: List[str]
-    min_jet_pt_by_prefix: Dict[str, float]
+    min_jet_pt_by_R_and_prefix: Dict[float, Dict[str, float]]
     pt_hat_bin: Optional[int] = None
 
-# Stores the parameters together. Organizing them this way somehow seems to make sense
+# Stores the parameters together. Organizing them this way somehow seems to make sense.
 # Hard coding them is generally less than ideal, but they're supposed to be fixed
 # parameters for the validation, so it makes sense in this context.
 _all_analysis_parameters = {
@@ -77,14 +77,20 @@ _all_analysis_parameters = {
         track_skim_loading_data_rename_prefix={"data": "data"},
         track_skim_convert_data_format_prefixes={"data": "data"},
         comparison_prefixes=["data"],
-        min_jet_pt_by_prefix={"data": 5.0},
+        min_jet_pt_by_R_and_prefix={
+            0.2: {"data": 5.0},
+            0.4: {"data": 5.0},
+        }
     ),
     "pythia": AnalysisParameters(
         reference_analysis_prefixes={"data": "data", "true": "matched"},
         track_skim_loading_data_rename_prefix={},
         track_skim_convert_data_format_prefixes={"det_level": "data", "part_level": "true"},
         comparison_prefixes=["data", "true"],
-        min_jet_pt_by_prefix={"det_level": 20.0},
+        min_jet_pt_by_R_and_prefix={
+            0.2: {"det_level": 10.0},
+            0.4: {"det_level": 20.0},
+        },
         pt_hat_bin=12,
     ),
     "PbPb": AnalysisParameters(
@@ -94,7 +100,10 @@ _all_analysis_parameters = {
         track_skim_loading_data_rename_prefix={"data": "data"},
         track_skim_convert_data_format_prefixes={"data": "data"},
         comparison_prefixes=["data"],
-        min_jet_pt_by_prefix={"data": 20.0},
+        min_jet_pt_by_R_and_prefix={
+            0.2: {"data": 10.0},
+            0.4: {"data": 20.0},
+        },
     ),
     "embed_pythia": AnalysisParameters(
         reference_analysis_prefixes={"hybrid": "data", "true": "matched", "det_level": "detLevel"},
@@ -102,7 +111,10 @@ _all_analysis_parameters = {
         track_skim_loading_data_rename_prefix={},
         track_skim_convert_data_format_prefixes={"hybrid": "hybrid", "det_level": "det_level", "part_level": "true"},
         comparison_prefixes=["hybrid", "det_level", "true"],
-        min_jet_pt_by_prefix={"hybrid": 20.0},
+        min_jet_pt_by_R_and_prefix={
+            0.2: {"hybrid": 10.0},
+            0.4: {"hybrid": 20.0},
+        },
         pt_hat_bin=12,
     ),
 }
@@ -567,13 +579,13 @@ def test_track_skim_validation(  # noqa: C901
     _run_macro_default_analysis_parameters = run_macro.default_analysis_parameters[collision_system]
     _analysis_parameters = _all_analysis_parameters[collision_system]
     # Validate min jet pt
-    _min_jet_pt_from_run_macro = _run_macro_default_analysis_parameters.grooming_jet_pt_threshold
-    _values_align = [_min_jet_pt_from_run_macro == v for v in _analysis_parameters.min_jet_pt_by_prefix.values()]
+    _min_jet_pt_from_run_macro = _run_macro_default_analysis_parameters.grooming_jet_pt_threshold[jet_R]
+    _values_align = [_min_jet_pt_from_run_macro == v for v in _analysis_parameters.min_jet_pt_by_R_and_prefix[jet_R].values()]
     if not all(_values_align):
         raise RuntimeError(
             "Misalignment between min pt cuts!"
             f" min jet pt from run macro: {_min_jet_pt_from_run_macro}"
-            f", min jet pt dict: {_analysis_parameters.min_jet_pt_by_prefix}"
+            f", min jet pt dict: {_analysis_parameters.min_jet_pt_by_R_and_prefix[jet_R]}"
         )
 
     scale_factors = _get_scale_factors_for_test()
@@ -586,7 +598,7 @@ def test_track_skim_validation(  # noqa: C901
             input_filename=track_skim_filenames.parquet_output(),
             collision_system=collision_system,
             jet_R=jet_R,
-            min_jet_pt=_analysis_parameters.min_jet_pt_by_prefix,
+            min_jet_pt=_analysis_parameters.min_jet_pt_by_R_and_prefix[jet_R],
             iterative_splittings=iterative_splittings,
             loading_data_rename_prefix=_analysis_parameters.track_skim_loading_data_rename_prefix,
             convert_data_format_prefixes=_analysis_parameters.track_skim_convert_data_format_prefixes,
@@ -607,7 +619,7 @@ def test_track_skim_validation(  # noqa: C901
             signal_input=[signal_filename, signal_filename, signal_filename],
             background_input=background_filename,
             jet_R=jet_R,
-            min_jet_pt=_analysis_parameters.min_jet_pt_by_prefix,
+            min_jet_pt=_analysis_parameters.min_jet_pt_by_R_and_prefix[jet_R],
             iterative_splittings=iterative_splittings,
             output_filename=track_skim_filenames.skim(),
             convert_data_format_prefixes=_analysis_parameters.track_skim_convert_data_format_prefixes,
