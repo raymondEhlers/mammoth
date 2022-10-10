@@ -216,7 +216,7 @@ def _aliphysics_to_analysis_results(
     # Select a large enough number that we'll exhaust any given input files
     n_events = 500_000
     # Further parameters
-    optional_kwargs = {}
+    optional_kwargs: Dict[str, Any] = {}
     if collision_system == "embed_pythia":
         missing_files = _check_for_alice_input_files(input_files=_collision_system_to_aod_files["embed_pythia-pythia"])
         if any(missing_files):
