@@ -1598,66 +1598,6 @@ def start_analysis_manager(
         raise RuntimeError("Not implemented yet!")
 
 
-#def _run_analysis(
-#    analysis_mode: AnalysisMode,
-#    period_name: str,
-#    physics_selection: int,
-#    input_files: Sequence[Path],
-#    grooming_jet_pt_threshold: float,
-#    jet_R: float,
-#    validation_mode: bool,
-#) -> None:
-#    # Setup and validation
-#    task_name = "DynamicalGrooming"
-#    period = _normalize_period(period_name)
-#    data_type = DataType.AOD
-#    ROOT.AliTrackContainer.SetDefTrackCutsPeriod(period)
-#
-#    analysis_manager = run_dynamical_grooming(
-#        task_name=task_name,
-#        analysis_mode=analysis_mode,
-#        period=period,
-#        physics_selection=physics_selection,
-#        data_type=data_type,
-#        enable_track_skim=True,
-#        grooming_jet_pt_threshold=grooming_jet_pt_threshold,
-#        jet_R=jet_R,
-#        validation_mode=validation_mode,
-#    )
-#
-#    start_analysis_manager(analysis_manager=analysis_manager, mode="local", n_events=1000, input_files=input_files)
-#
-#
-#def _run_embedding_analysis(
-#    analysis_mode: AnalysisMode,
-#    period_name: str,
-#    physics_selection: int,
-#    input_files: Sequence[Path],
-#    grooming_jet_pt_threshold: float,
-#    jet_R: float,
-#    validation_mode: bool,
-#    embed_input_files: Optional[Sequence[Path]] = None
-#) -> None:
-#    # Setup and validation
-#    task_name = "DynamicalGrooming"
-#    period = _normalize_period(period_name)
-#    data_type = DataType.AOD
-#    ROOT.AliTrackContainer.SetDefTrackCutsPeriod(period)
-#
-#    analysis_manager = run_dynamical_grooming_embedding(
-#        task_name=task_name,
-#        analysis_mode=analysis_mode,
-#        period=period,
-#        physics_selection=physics_selection,
-#        data_type=data_type,
-#        jet_R=jet_R,
-#        grooming_jet_pt_threshold=grooming_jet_pt_threshold,
-#        validation_mode=validation_mode,
-#    )
-#
-#    start_analysis_manager(analysis_manager=analysis_manager, mode="local", n_events=1000, input_files=input_files)
-
-
 @attr.define
 class AnalysisModeParameters:
     analysis_mode: AnalysisMode
