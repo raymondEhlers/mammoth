@@ -320,15 +320,6 @@ def run_dynamical_grooming(  # noqa: C901
     # Multiplicity selection task.
     _add_mult_selection(is_run2_data=is_run2_data, physics_selection=physics_selection)
 
-    ################
-    # Debug settings
-    ################
-    # ROOT.AliLog.SetClassDebugLevel("PWG::EMCAL::AliAODReducedBranchesInputHandler", ROOT.AliLog.kDebug-1)
-    # ROOT.AliLog.SetClassDebugLevel("AliEmcalCorrectionComponent", AliLog::kDebug+3)
-    # ROOT.AliLog.SetClassDebugLevel("AliAnalysisTaskEmcalJetHCorrelations", AliLog::kDebug+1)
-    # ROOT.AliLog.SetClassDebugLevel("PWGJE::EMCALJetTasks::AliAnalysisTaskJetDynamicalGrooming", ROOT.AliLog.kDebug-1)
-    # ROOT.AliLog.SetClassDebugLevel("AliJetContainer", AliLog::kDebug+7)
-
     if enable_track_skim:
         if analysis_mode == AnalysisMode.pp:
             skim_task = _run_add_task_macro(
@@ -1078,15 +1069,6 @@ def run_dynamical_grooming_embedding(  # noqa: C901
 
     embedding_helper.SetFileListFilename(str(embed_input_filename))
     embedding_helper.Initialize()
-
-    ################
-    # Debug settings
-    ################
-    # ROOT.AliLog.SetClassDebugLevel("AliEmcalCorrectionComponent", AliLog::kDebug+3)
-    # ROOT.AliLog.SetClassDebugLevel("AliAnalysisTaskEmcalJetHCorrelations", AliLog::kDebug+1)
-    # ROOT.AliLog.SetClassDebugLevel("PWGJE::EMCALJetTasks::AliAnalysisTaskJetDynamicalGrooming", ROOT.AliLog.kDebug-1)
-    # ROOT.AliLog.SetClassDebugLevel("PWGJE::EMCALJetTasks::AliAnalysisTaskJetDynamicalGrooming", ROOT.AliLog.kDebug-1)
-    # ROOT.AliLog.SetClassDebugLevel("AliJetContainer", AliLog::kDebug+7)
 
     # Shared jet finding settings
     ghost_area = 0.005
