@@ -954,7 +954,9 @@ def run_dynamical_grooming(  # noqa: C901
 
 
 def run_dynamical_grooming_embedding(  # noqa: C901
-    task_name: str, analysis_mode: AnalysisMode, period: str, physics_selection: int, data_type: DataType, jet_R: float = 0.2,
+    task_name: str, analysis_mode: AnalysisMode, period: str, physics_selection: int, data_type: DataType,
+    embedding_pt_hat_bin: int,
+    jet_R: float = 0.2,
     grooming_jet_pt_threshold: float = 20,
     validation_mode: bool = True,
     embed_input_filename: Path = Path("embedding/embedding_file_list.txt"),
@@ -972,6 +974,7 @@ def run_dynamical_grooming_embedding(  # noqa: C901
         period: Run period.
         physics_selection: Physics selection to apply to the analysis.
         data_type: ALICE data type over which the analysis will run.
+        embedding_pt_hat_bin: Pt hat bin. To be passed to the embedding helper.
         jet_R: Jet R. Default: 0.2
         grooming_jet_pt_threshold: Jet pt threshold for grooming tasks. Default: 20
         validation_mode: If True, adjust some settings to enable validation mode.
@@ -1036,7 +1039,7 @@ def run_dynamical_grooming_embedding(  # noqa: C901
     # From the ConfigureWagon
     # Use to configure test of a specific pT Hard bin
     # embedding_helper.SetAutoConfigurePtHardBins(true)
-    # embedding_helper.SetPtHardBin(14)
+    embedding_helper.SetPtHardBin(embedding_pt_hat_bin)
 
     embedding_helper.SetNPtHardBins(21)
     # embedding_helper.SetFilePattern("alien:///alice/sim/2019/LHC19f4_2/%d/")
@@ -1573,7 +1576,7 @@ def start_analysis_manager(
         # ROOT.AliLog.SetClassDebugLevel("AliAnalysisTaskEmcalEmbeddingHelper", ROOT.AliLog.kDebug+4)
         # ROOT.AliLog.SetClassDebugLevel("AliAnalysisTaskEmcal", 10)
         # ROOT.AliLog.SetClassDebugLevel("AliAnalysisTaskEmcal", ROOT.AliLog.kDebug+10)
-        # ROOT.AliLog.SetClassDebugLevel("PWGJE::EMCALJetTasks::AliAnalysisTaskJetDynamicalGrooming", ROOT.AliLog.kDebug+5)
+        # ROOT.AliLog.SetClassDebugLevel("PWGJE::EMCALJetTasks::AliAnalysisTaskJetDynamicalGrooming", ROOT.AliLog.kDebug + 5)
         # Start the analysis
         analysis_manager.StartAnalysis("local", chain, n_events)
     elif mode == "grid":
@@ -1717,6 +1720,7 @@ def run(
     input_files: Optional[Sequence[Path]] = None,
     embed_input_files: Optional[Sequence[Path]] = None,
     embedding_helper_config_filename: Optional[Path] = None,
+    embedding_pt_hat_bin: Optional[int] = None,
     n_events: int = 1000,
 ) -> None:
     # Let the user know that ROOT is required if it's not available
@@ -1742,6 +1746,9 @@ def run(
     ROOT.AliTrackContainer.SetDefTrackCutsPeriod(period)
 
     if validated_analysis_mode == AnalysisMode.embed_pythia:
+        # Validation
+        assert embedding_pt_hat_bin is not None
+
         # If there is an explicit file list, create a temporary file containing
         # the filenames os we can pass that into the run macro.
         embed_input_filename = Path("embedding/embedding_file_list.txt")
@@ -1766,6 +1773,7 @@ def run(
             validation_mode=validation_mode,
             embed_input_filename=embed_input_filename,
             embedding_helper_config_filename=embedding_helper_config_filename,
+            embedding_pt_hat_bin=embedding_pt_hat_bin,
         )
         # Cleanup. We don't use a with statement here because we might want to pass an existing filename
         if f_temp:
@@ -1847,6 +1855,14 @@ def entry_point() -> None:
         help="Path to the embedding helper config",
     )
     parser.add_argument(
+        "--embedding-pt-hat-bin",
+        action="store",
+        required=False,
+        type=int,
+        default=None,
+        help="Pt hat bin for the embedding helper",
+    )
+    parser.add_argument(
         "-n",
         "--n-events",
         action="store",
@@ -1874,6 +1890,7 @@ def entry_point() -> None:
         input_files=args.input_files,
         embed_input_files=args.embed_input_files,
         embedding_helper_config_filename=args.embedding_helper_config_filename,
+        embedding_pt_hat_bin=args.embedding_pt_hat_bin,
         n_events=args.n_events
     )
 

@@ -172,7 +172,7 @@ def _check_for_alice_input_files(input_files: Sequence[Path]) -> List[bool]:
     return missing_files
 
 
-def _aliphysics_to_analysis_results(
+def _aliphysics_to_analysis_results(  # noqa: C901
     collision_system: str, jet_R: float, input_files: Sequence[Path], validation_mode: bool = True, filename_to_rename_output_to: Optional[Path] = None,
     allow_multiple_executions_of_run_macro: bool = True
 ) -> Path:
@@ -214,10 +214,12 @@ def _aliphysics_to_analysis_results(
         )
 
     # Select a large enough number that we'll exhaust any given input files
-    n_events = 500_000
+    #n_events = 500_000
+    n_events = 50
     # Further parameters
     optional_kwargs: Dict[str, Any] = {}
     if collision_system == "embed_pythia":
+        _analysis_parameters = _all_analysis_parameters[collision_system]
         missing_files = _check_for_alice_input_files(input_files=_collision_system_to_aod_files["embed_pythia-pythia"])
         if any(missing_files):
             raise RuntimeError(
@@ -229,7 +231,8 @@ def _aliphysics_to_analysis_results(
                 "embed_input_files": _collision_system_to_aod_files["embed_pythia-pythia"],
                 # NOTE: This implicitly encodes the period. In practice, it only matters for the event selection,
                 #       but it shouldn't be forgot if later changes are made.
-                "embedding_helper_config_filename": _track_skim_base_path / "input" / "embeddingHelper_LHC18_LHC20g4_kSemiCentral.yaml"
+                "embedding_helper_config_filename": _track_skim_base_path / "input" / "embeddingHelper_LHC18_LHC20g4_kSemiCentral.yaml",
+                "pt_hat_bin": _analysis_parameters.pt_hat_bin,
             }
         )
 
@@ -253,6 +256,10 @@ def _aliphysics_to_analysis_results(
         if "embedding_helper_config_filename" in optional_kwargs:
             args.extend([
                 "--embedding-helper-config-filename", str(optional_kwargs["embedding_helper_config_filename"])
+            ])
+        if "pt_hat_bin" in optional_kwargs:
+            args.extend([
+                "--pt-hat-bin", str(optional_kwargs["pt_hat_bin"])
             ])
         try:
             subprocess.run(args, check=True, capture_output=True)
