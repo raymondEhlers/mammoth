@@ -28,6 +28,10 @@ def analysis_MC(arrays: ak.Array, jet_R: float, min_jet_pt: Mapping[str, float],
     # Event selection
     arrays = alice_helpers.standard_event_selection(arrays=arrays)
 
+    # TEMP
+    arrays = arrays[:50]
+    # ENDTEMP
+
     # Track cuts
     arrays = alice_helpers.standard_track_selection(
         arrays=arrays,
@@ -49,7 +53,8 @@ def analysis_MC(arrays: ak.Array, jet_R: float, min_jet_pt: Mapping[str, float],
                     algorithm="anti-kt",
                     # NOTE: We only want the minimum pt to apply to the detector level.
                     #       Otherwise, we'll bias our particle level jets.
-                    pt_range=jet_finding.pt_range(pt_min=min_jet_pt.get("part_level", 1)),
+                    #pt_range=jet_finding.pt_range(pt_min=min_jet_pt.get("part_level", 1)),
+                    pt_range=jet_finding.pt_range(pt_min=min_jet_pt.get("part_level", 0.15)),
                     eta_range=jet_finding.eta_range(
                         jet_R=jet_R,
                         # We will require the det level jets to be in the fiducial acceptance, which means
@@ -68,7 +73,8 @@ def analysis_MC(arrays: ak.Array, jet_R: float, min_jet_pt: Mapping[str, float],
                 jet_finding_settings=jet_finding.JetFindingSettings(
                     R=jet_R,
                     algorithm="anti-kt",
-                    pt_range=jet_finding.pt_range(pt_min=min_jet_pt["det_level"]),
+                    #pt_range=jet_finding.pt_range(pt_min=min_jet_pt["det_level"]),
+                    pt_range=jet_finding.pt_range(pt_min=0.15),
                     eta_range=jet_finding.eta_range(jet_R=jet_R, fiducial_acceptance=True),
                     area_settings=jet_finding.AreaPP(**area_kwargs),
                 )
@@ -96,6 +102,12 @@ def analysis_MC(arrays: ak.Array, jet_R: float, min_jet_pt: Mapping[str, float],
         part_level_det_level_max_matching_distance=1.0,
     )
 
+    # TEMP: Apply jet cut afterwards
+    _temp_mask = jets["det_level"].pt > min_jet_pt["det_level"]
+    _temp_mask = _temp_mask & (jets["part_level"].pt > min_jet_pt.get("part_level", 1.0))
+    jets = jets[_temp_mask]
+    # ENDTEMP
+
     # Reclustering
     logger.info("Reclustering jets...")
     for level in ["part_level", "det_level"]:
@@ -113,6 +125,10 @@ def analysis_MC(arrays: ak.Array, jet_R: float, min_jet_pt: Mapping[str, float],
 
     logger.warning(f"n events: {len(jets)}")
     logger.warning(f"n jets accepted: {np.count_nonzero(np.asarray(ak.flatten(jets['det_level'].px, axis=None)))}")
+
+    if ak.any(np.isclose(np.asarray(ak.flatten(jets["det_level"].pt)), 39.532742)):
+        #import IPython; IPython.embed()
+        ...
 
     # Next step for using existing skimming:
     # Flatten from events -> jets
@@ -353,7 +369,8 @@ def analysis_embedding(
                 jet_finding_settings=jet_finding.JetFindingSettings(
                     R=jet_R,
                     algorithm="anti-kt",
-                    pt_range=jet_finding.pt_range(pt_min=min_jet_pt.get("det_level", 5.)),
+                    # TODO: This is probably the issue...
+                    pt_range=jet_finding.pt_range(pt_min=min_jet_pt.get("det_level", 1.)),
                     # NOTE: We only want fiducial acceptance at the "data" level (ie. hybrid)
                     eta_range=jet_finding.eta_range(jet_R=jet_R, fiducial_acceptance=False),
                     area_settings=jet_finding.AreaPP(**area_kwargs),
