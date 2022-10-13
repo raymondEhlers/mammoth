@@ -1151,6 +1151,7 @@ JetSubstructure::JetSubstructureSplittings jetReclusteringNew(
   // put them into the expected output format.
   // First, extract the reclustered jet
   fastjet::PseudoJet jj = jets.at(0);
+  std::cout << "Reclustered jet pt=" << jj.pt() << "\n";
   // And store the jet splittings.
   JetSubstructure::JetSubstructureSplittings jetSplittings;
   int splittingNodeIndex = -1;
