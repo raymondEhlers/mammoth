@@ -480,6 +480,9 @@ def run_dynamical_grooming(  # noqa: C901
 
     # Shared jet finding settings
     ghost_area = 0.005
+    if analysis_mode in [AnalysisMode.pp, AnalysisMode.pythia]:
+        # We don't need such a dense area estimate for pp
+        ghost_area = 0.01
 
     # Rho
     if beam_type == BeamType.PbPb:
