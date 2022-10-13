@@ -88,7 +88,7 @@ _all_analysis_parameters = {
         track_skim_convert_data_format_prefixes={"det_level": "data", "part_level": "true"},
         comparison_prefixes=["data", "true"],
         min_jet_pt_by_R_and_prefix={
-            0.2: {"det_level": 10.0},
+            0.2: {"det_level": 20.0},
             0.4: {"det_level": 20.0},
         },
         pt_hat_bin=12,
@@ -214,8 +214,7 @@ def _aliphysics_to_analysis_results(  # noqa: C901
         )
 
     # Select a large enough number that we'll exhaust any given input files
-    #n_events = 500_000
-    n_events = 50
+    n_events = 500_000
     # Further parameters
     optional_kwargs: Dict[str, Any] = {}
     if collision_system == "embed_pythia":

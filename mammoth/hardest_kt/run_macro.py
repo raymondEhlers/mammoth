@@ -1052,8 +1052,7 @@ def run_dynamical_grooming_embedding(  # noqa: C901
 
     embedding_helper.SetNPtHardBins(21)
     # embedding_helper.SetFilePattern("alien:///alice/sim/2019/LHC19f4_2/%d/")
-    ##embedding_helper.SetInputFilename("*/AOD/*/aod_archive.zip")
-    # embedding_helper.SetInputFilename("*/AOD/*/AliAOD.root")
+    # embedding_helper.SetInputFilename("*/AOD/*/aod_archive.zip")
     # embedding_helper.SetInputFilename("*/AOD/*/AliAOD.root")
     if validation_mode:
         embedding_helper.SetTriggerMask(ROOT.AliVEvent.kAnyINT)  # Match what we expect from the skim
@@ -1614,8 +1613,8 @@ default_analysis_parameters = {
         period_name="LHC17q",
         physics_selection="kAnyINT",
         grooming_jet_pt_threshold={
-            0.2: 5,
-            0.4: 5,
+            0.2: 5.0,
+            0.4: 5.0,
         },
         input_files=[
             Path(
@@ -1635,8 +1634,8 @@ default_analysis_parameters = {
         # physics_selection=0,
         physics_selection="kAnyINT",
         grooming_jet_pt_threshold={
-            0.2: 10,
-            0.4: 20,
+            0.2: 20.0,
+            0.4: 20.0,
         },
         input_files=[
             Path(
@@ -1677,8 +1676,8 @@ default_analysis_parameters = {
         # physics_selection=ROOT.AliVEvent.kSemiCentral | ROOT.AliVEvent.kINT7,
         # physics_selection=ROOT.AliVEvent.kCentral,
         grooming_jet_pt_threshold={
-            0.2: 10,
-            0.4: 20,
+            0.2: 10.0,
+            0.4: 20.0,
         },
         input_files=[
             Path(
@@ -1703,8 +1702,8 @@ default_analysis_parameters = {
         #       doesn't matter.
         physics_selection="kSemiCentral",
         grooming_jet_pt_threshold={
-            0.2: 10,
-            0.4: 20,
+            0.2: 10.0,
+            0.4: 20.0,
         },
         input_files=[
             Path(
