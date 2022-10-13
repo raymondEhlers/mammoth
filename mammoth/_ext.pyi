@@ -21,6 +21,11 @@ class AreaSettings:
         random_seed: List[int] = ...,
     ) -> None: ...
 
+class NegativeEnergyRecombiner:
+    def __init__(self, identifier_index: int = ...) -> None: ...  # noqa: E301,E704
+    @property
+    def identifier_index(self) -> int: ...  # noqa: E301,E704
+
 class JetFindingSettings:
     R: float
     def __init__(
@@ -32,6 +37,7 @@ class JetFindingSettings:
         recombination_scheme: str = ...,
         strategy: str = ...,
         area_settings: Optional[AreaSettings] = ...,
+        recombiner: Optional[NegativeEnergyRecombiner] = ...,
     ) -> None: ...
 
 class JetMedianBackgroundEstimator:

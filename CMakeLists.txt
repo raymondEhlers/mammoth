@@ -61,7 +61,7 @@ find_package(FastJet REQUIRED)
 
 # Setup mammothExt, which includes jet finding functionality.
 # c++17 is required for std::optional
-add_library(mammothext SHARED mammoth/src/jetFinding.cxx mammoth/src/aliceFastSim.cxx)
+add_library(mammothext SHARED mammoth/src/jetFinding.cxx mammoth/src/jetFindingTools.cxx mammoth/src/aliceFastSim.cxx)
 target_compile_features(mammothext PUBLIC cxx_std_17)
 set_target_properties(mammothext PROPERTIES CXX_EXTENSIONS OFF)
 # Add warnings

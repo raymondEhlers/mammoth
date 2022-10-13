@@ -271,8 +271,11 @@ std::string JetFindingSettings::to_string() const
 {
   std::string result = "JetFindingSettings(R=" + std::to_string(this->R)
     + ", algorithm='" + this->algorithmName + "'"
-    + ", recombination_scheme='" + this->recombinationSchemeName + "'"
-    + ", strategy='" + this->strategyName + "'"
+    + ", recombination_scheme='" + this->recombinationSchemeName + "'";
+  if (this->recombiner) {
+    result += ", recombiner=" + this->recombiner->to_string();
+  }
+  result += ", strategy='" + this->strategyName + "'"
     + ", pt=(" + std::to_string(std::get<0>(this->ptRange)) + ", " + std::to_string(std::get<1>(this->ptRange)) + ")"
     + ", eta=(" + std::to_string(std::get<0>(this->etaRange)) + ", " + std::to_string(std::get<1>(this->etaRange)) + ")";
   // Add area if it's defined.
@@ -867,6 +870,10 @@ void ExtractJetSplittings(
   */
 
 std::ostream& operator<<(std::ostream& in, const AreaSettings & c) {
+  in << c.to_string();
+  return in;
+}
+std::ostream& operator<<(std::ostream& in, const Recombiner & c) {
   in << c.to_string();
   return in;
 }

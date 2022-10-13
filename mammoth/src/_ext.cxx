@@ -5,6 +5,7 @@
 #include <pybind11/iostream.h>
 
 #include "mammoth/jetFinding.hpp"
+#include "mammoth/jetFindingTools.hpp"
 #include "mammoth/aliceFastSim.hpp"
 
 namespace py = pybind11;
@@ -208,12 +209,26 @@ PYBIND11_MODULE(_ext, m) {
       return s.to_string();
     })
   ;
+  // Base recombiner. Just to make pybind11 aware of it
+  py::class_<mammoth::Recombiner, std::shared_ptr<mammoth::Recombiner>>(m, "Recombiner", "Base recombiner");
+  // Negative energy recombiner
+  py::class_<mammoth::NegativeEnergyRecombiner, mammoth::Recombiner, std::shared_ptr<mammoth::NegativeEnergyRecombiner>>(m, "NegativeEnergyRecombiner", "Negative energy recombiner")
+    .def(
+      py::init<const int >(),
+        "identifier_index"_a
+      )
+    .def_readonly("identifier_index", &mammoth::NegativeEnergyRecombiner::identifierIndex)
+    .def("__repr__", [](const mammoth::NegativeEnergyRecombiner &s) {
+      return s.to_string();
+    })
+  ;
   // Jet finding settings
   py::class_<mammoth::JetFindingSettings, std::shared_ptr<mammoth::JetFindingSettings>>(m, "JetFindingSettings", "Main settings related to jet finding")
     .def(
       py::init<
         double, std::string, std::tuple<double, double>, std::tuple<double, double>, std::string, std::string,
-        const std::optional<const mammoth::AreaSettings>
+        const std::optional<const mammoth::AreaSettings>,
+        const std::shared_ptr<const mammoth::Recombiner>
       >(),
         "R"_a,
         "algorithm"_a,
@@ -221,7 +236,8 @@ PYBIND11_MODULE(_ext, m) {
         "eta_range"_a,
         "recombination_scheme"_a = "E_scheme",
         "strategy"_a = "Best",
-        "area_settings"_a = std::nullopt
+        "area_settings"_a = std::nullopt,
+        "recombiner"_a = nullptr
       )
     .def_readwrite("R", &mammoth::JetFindingSettings::R)
     .def("__repr__", [](const mammoth::JetFindingSettings &s) {

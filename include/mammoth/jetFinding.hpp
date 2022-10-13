@@ -162,6 +162,36 @@ struct AreaSettings {
 };
 
 /**
+ * @brief Abstract case class for jet recombiner
+ *
+ * Provides a simple interface for creating recombiner classes.
+ */
+struct Recombiner {
+  /**
+   * @brief Create the recombiner on the stored settings.
+   *
+   * Note:
+   *    We can't use smart pointers here because they'll go out of scope here and deallocate when we're still
+   *    using the recombiner. Thus, we make the jet definition responsible for deallocating the memory of the recombiner
+   *
+   * @return fastjet::JetDefinition::Recombiner* The jet recombiner.
+   */
+  virtual fastjet::JetDefinition::Recombiner* create() const = 0;
+
+  /**
+   * Prints information about the recombiner.
+   *
+   * @return std::string containing information about the recombiner.
+   */
+  virtual std::string to_string() const = 0;
+
+  /**
+    * virtual destructor needs to be explicitly defined to avoid compiler warnings.
+    */
+  virtual ~Recombiner() = default;
+};
+
+/**
  * @brief Jet finding settings
  *
  * Contains the essential jet finding settings. Also contains helpers to create the relevant fastjet
@@ -179,6 +209,11 @@ struct JetFindingSettings {
   std::string recombinationSchemeName;
   std::string strategyName;
   const std::optional<const AreaSettings> areaSettings{std::nullopt};
+  // NOTE: We create the recombiner as a shared_ptr rather than an optional because the Recombiner is an abstract class
+  //       (which allows us to create derived types for different recombiners). We allow it to default to a nullptr
+  //       because if we don't explicitly set it, the default one will automatically be created, so we don't have to worry
+  //       about the details in that case.
+  const std::shared_ptr<const Recombiner> recombiner{nullptr};
 
   /**
    * @brief Helper to provide convenient access to the minimum jet pt.
@@ -223,7 +258,14 @@ struct JetFindingSettings {
    * @return fastjet::JetDefinition
    */
   fastjet::JetDefinition definition() const {
-    return fastjet::JetDefinition(this->algorithm(), this->R, this->recombinationScheme(), this->strategy());
+    fastjet::JetDefinition jetDefinition(this->algorithm(), this->R, this->recombinationScheme(), this->strategy());
+    if (this->recombiner) {
+      jetDefinition.set_recombiner(this->recombiner->create());
+      // We can't use smart pointers here because they'll go out of scope here and deallocate when we're still
+      // using the recombiner. Thus, we make the jet definition responsible for deallocating the memory of the recombiner
+      jetDefinition.delete_recombiner_when_unused();
+    }
+    return jetDefinition;
   }
 
   /**
@@ -258,7 +300,8 @@ struct JetFindingSettings {
 
 // As noted above, this _must_ be defined in the header, or we will lose the ability
 // to dynamic_cast into ClusterSequenceArea. I don't understand why, but won't overthink it
-std::unique_ptr<fastjet::ClusterSequence> JetFindingSettings::create(std::vector<fastjet::PseudoJet> particlePseudoJets) const {
+// NOTE: Needs to be inline to avoid being doubly defined. See: https://stackoverflow.com/a/3319310/12907985
+inline std::unique_ptr<fastjet::ClusterSequence> JetFindingSettings::create(std::vector<fastjet::PseudoJet> particlePseudoJets) const {
   if (this->areaSettings) {
     return std::make_unique<fastjet::ClusterSequenceArea>(
       particlePseudoJets,
