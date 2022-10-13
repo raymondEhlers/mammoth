@@ -51,7 +51,7 @@ namespace fastsim {
         kInvalid = 4,
     };
     /**
-     * @brief Lookup event activity class based on centraltiy value
+     * @brief Lookup event activity class based on centrality value
      *
      * @param eventActivity Centrality value
      * @return EventActivity_t Event activity class
