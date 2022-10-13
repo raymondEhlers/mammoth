@@ -569,7 +569,7 @@ def run_dynamical_grooming(  # noqa: C901
         ghost_area,
         ROOT.AliJetContainer.E_scheme,
         "Jet",
-        0,
+        grooming_jet_pt_threshold,
         False,
         False,
     )
@@ -613,7 +613,7 @@ def run_dynamical_grooming(  # noqa: C901
             ghost_area,
             ROOT.AliJetContainer.E_scheme,
             "Jet",
-            0,
+            1.0,
             False,
             False,
         )
@@ -634,7 +634,7 @@ def run_dynamical_grooming(  # noqa: C901
             "",
             "tracks",
             "",
-            "TPC",
+            "TPCfid",
             "",
             CppEnum("AliVEvent::kMB"),
             "",
@@ -765,7 +765,10 @@ def run_dynamical_grooming(  # noqa: C901
     cont.SetJetRadius(jet_R)
     cont.SetJetAcceptanceType(ROOT.AliJetContainer.kTPCfid)
     cont.SetMaxTrackPt(100)
-    cont.SetJetPtCut(0)
+    # This min pt cut isn't necessary (it's 0 vs 0.15, but we already cut higher than that during the initial jet finding)
+    # However, I leave it here commented out because it's in the LEGO train wagon, and it will look confusing or
+    # worrisome if I remove it here and forgot that it doesn't matter.
+    #cont.SetJetPtCut(0)
 
     print(f"beam_type: {beam_type}")
     # It only matters for embedding, but in any case, always disable double counting.
@@ -899,7 +902,10 @@ def run_dynamical_grooming(  # noqa: C901
     cont.SetJetRadius(jet_R)
     cont.SetJetAcceptanceType(ROOT.AliJetContainer.kTPCfid)
     cont.SetMaxTrackPt(100)
-    cont.SetJetPtCut(0)
+    # This min pt cut isn't necessary (it's 0 vs 0.15, but we already cut higher than that during the initial jet finding)
+    # However, I leave it here commented out because it's in the LEGO train wagon, and it will look confusing or
+    # worrisome if I remove it here and forgot that it doesn't matter.
+    #cont.SetJetPtCut(0)
 
     print(f"beam_type: {beam_type}")
     # It only matters for embedding, but in any case, always disable double counting.
@@ -1162,7 +1168,7 @@ def run_dynamical_grooming_embedding(  # noqa: C901
         ghost_area,
         ROOT.AliJetContainer.E_scheme,
         "hybridLevelJets",
-        0,
+        grooming_jet_pt_threshold,
         False,
         False,
     )
@@ -1208,7 +1214,7 @@ def run_dynamical_grooming_embedding(  # noqa: C901
         ghost_area,
         ROOT.AliJetContainer.E_scheme,
         "partLevelJets",
-        0,
+        1.0,
         False,
         False,
     )
@@ -1231,7 +1237,7 @@ def run_dynamical_grooming_embedding(  # noqa: C901
         ghost_area,
         ROOT.AliJetContainer.E_scheme,
         "detLevelJets",
-        0,
+        1.0,
         False,
         False,
     )

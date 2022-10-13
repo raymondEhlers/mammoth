@@ -6,7 +6,7 @@
 import collections
 import logging
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, Mapping, Optional, Sequence, Tuple, Union
+from typing import Any, Dict, Iterable, Mapping, Optional, Sequence, Tuple, Union
 
 import awkward as ak
 import numpy as np
@@ -28,10 +28,6 @@ def analysis_MC(arrays: ak.Array, jet_R: float, min_jet_pt: Mapping[str, float],
     # Event selection
     arrays = alice_helpers.standard_event_selection(arrays=arrays)
 
-    # TEMP
-    arrays = arrays[:50]
-    # ENDTEMP
-
     # Track cuts
     arrays = alice_helpers.standard_track_selection(
         arrays=arrays,
@@ -41,7 +37,7 @@ def analysis_MC(arrays: ak.Array, jet_R: float, min_jet_pt: Mapping[str, float],
     # Jet finding
     logger.info("Find jets")
     # First, setup what is needed for validation mode if enabled
-    area_kwargs = {}
+    area_kwargs: Dict[str, Any] = {}
     if validation_mode:
         area_kwargs["random_seed"] = jet_finding.VALIDATION_MODE_RANDOM_SEED
     jets = ak.zip(
@@ -53,8 +49,8 @@ def analysis_MC(arrays: ak.Array, jet_R: float, min_jet_pt: Mapping[str, float],
                     algorithm="anti-kt",
                     # NOTE: We only want the minimum pt to apply to the detector level.
                     #       Otherwise, we'll bias our particle level jets.
-                    #pt_range=jet_finding.pt_range(pt_min=min_jet_pt.get("part_level", 1)),
-                    pt_range=jet_finding.pt_range(pt_min=min_jet_pt.get("part_level", 0.15)),
+                    #       However, we keep a small pt cut to avoid mismatches to low pt garbage
+                    pt_range=jet_finding.pt_range(pt_min=min_jet_pt.get("part_level", 1.0)),
                     eta_range=jet_finding.eta_range(
                         jet_R=jet_R,
                         # We will require the det level jets to be in the fiducial acceptance, which means
@@ -73,8 +69,7 @@ def analysis_MC(arrays: ak.Array, jet_R: float, min_jet_pt: Mapping[str, float],
                 jet_finding_settings=jet_finding.JetFindingSettings(
                     R=jet_R,
                     algorithm="anti-kt",
-                    #pt_range=jet_finding.pt_range(pt_min=min_jet_pt["det_level"]),
-                    pt_range=jet_finding.pt_range(pt_min=0.15),
+                    pt_range=jet_finding.pt_range(pt_min=min_jet_pt["det_level"]),
                     eta_range=jet_finding.eta_range(jet_R=jet_R, fiducial_acceptance=True),
                     area_settings=jet_finding.AreaPP(**area_kwargs),
                 )
@@ -94,6 +89,10 @@ def analysis_MC(arrays: ak.Array, jet_R: float, min_jet_pt: Mapping[str, float],
     logger.warning(f"all jet cuts n accepted: {np.count_nonzero(np.asarray(ak.flatten(jets['det_level'].px, axis=None)))}")
 
     # Jet matching
+    # NOTE: There is small departure from the AliPhysics approach here because we apply the jet cuts
+    #       _before_ the matching, while AliPhysics does it after. However, I think removing really
+    #       soft jets before matching makes more sense - it can avoid a mismatch to something really
+    #       soft that just happens to be closer.
     logger.info("Matching jets")
     jets = analysis_jets.jet_matching_MC(
         jets=jets,
@@ -101,12 +100,6 @@ def analysis_MC(arrays: ak.Array, jet_R: float, min_jet_pt: Mapping[str, float],
         #       in embedding), but this is apparently what we use in pythia. So just go with it.
         part_level_det_level_max_matching_distance=1.0,
     )
-
-    # TEMP: Apply jet cut afterwards
-    _temp_mask = jets["det_level"].pt > min_jet_pt["det_level"]
-    _temp_mask = _temp_mask & (jets["part_level"].pt > min_jet_pt.get("part_level", 1.0))
-    jets = jets[_temp_mask]
-    # ENDTEMP
 
     # Reclustering
     logger.info("Reclustering jets...")
@@ -125,10 +118,6 @@ def analysis_MC(arrays: ak.Array, jet_R: float, min_jet_pt: Mapping[str, float],
 
     logger.warning(f"n events: {len(jets)}")
     logger.warning(f"n jets accepted: {np.count_nonzero(np.asarray(ak.flatten(jets['det_level'].px, axis=None)))}")
-
-    if ak.any(np.isclose(np.asarray(ak.flatten(jets["det_level"].pt)), 39.532742)):
-        #import IPython; IPython.embed()
-        ...
 
     # Next step for using existing skimming:
     # Flatten from events -> jets
@@ -196,7 +185,7 @@ def analysis_data(
                 jet_finding_settings=jet_finding.JetFindingSettings(
                     R=jet_R,
                     algorithm="anti-kt",
-                    pt_range=jet_finding.pt_range(pt_min=min_jet_pt.get(particle_column_name, 1.)),
+                    pt_range=jet_finding.pt_range(pt_min=min_jet_pt.get(particle_column_name, 1.0)),
                     eta_range=jet_finding.eta_range(jet_R=jet_R, fiducial_acceptance=True),
                     area_settings=area_settings,
                 ),
@@ -369,7 +358,8 @@ def analysis_embedding(
                 jet_finding_settings=jet_finding.JetFindingSettings(
                     R=jet_R,
                     algorithm="anti-kt",
-                    # TODO: This is probably the issue...
+                    # NOTE: We still keep this pt cut low, but not down to 0.15. We're trying to
+                    #       balance avoiding bias while avoiding mismatching with really soft jets
                     pt_range=jet_finding.pt_range(pt_min=min_jet_pt.get("det_level", 1.)),
                     # NOTE: We only want fiducial acceptance at the "data" level (ie. hybrid)
                     eta_range=jet_finding.eta_range(jet_R=jet_R, fiducial_acceptance=False),
@@ -411,6 +401,10 @@ def analysis_embedding(
     )
 
     # Jet matching
+    # NOTE: There is small departure from the AliPhysics approach here because we apply the jet cuts
+    #       _before_ the matching, while AliPhysics does it after. However, I think removing really
+    #       soft jets before matching makes more sense - it can avoid a mismatch to something really
+    #       soft that just happens to be closer.
     logger.info("Matching jets")
     jets = analysis_jets.jet_matching_embedding(
         jets=jets,
