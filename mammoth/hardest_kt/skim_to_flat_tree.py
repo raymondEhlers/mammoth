@@ -664,9 +664,6 @@ def calculate_embedding_skim_impl(  # noqa: C901
     input_filename: Path,
     iterative_splittings: bool,
     prefixes: Mapping[str, str],
-    # TODO: For full embedding with the track skim, this could be a problem.
-    #       However, it will be fine to the thermal model, since we only embed one pt hard bin
-    #scale_factors: Mapping[int, float],
     scale_factor: float,
     jet_R: float,
     output_filename: Path,

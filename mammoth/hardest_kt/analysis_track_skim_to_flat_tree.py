@@ -218,8 +218,9 @@ def _hardest_kt_embedding_skim(
         jets=jets, convert_data_format_prefixes=convert_data_format_prefixes,
     )
 
-    # For the thermal model.
-    # TODO: Probably should be an argument for embedding, but can start with this for the thermal model
+    # Define the prefixes for analysis. This should be fairly uniform for the track skim,
+    # so we hard code it for now.
+    # NOTE: If this becomes an issue, we can just make it an argument.
     prefixes = {
         "hybrid": "hybrid",
         #"part_level": "part_level",
@@ -418,9 +419,9 @@ def hardest_kt_embedding_skim(
 
     _hardest_kt_embedding_skim(
         jets=jets,
-        # NOTE: This argument is only for logging messages. Since the PbPb is the constraining factor,
-        #       we focus on processing those files.
-        input_filename=background_input_filenames[0],
+        # NOTE: This argument is only for logging messages. We want the filename to be the one which
+        #       is the constrained source.
+        input_filename=background_input_filenames[0] if background_is_constrained_source else signal_input_filenames[0],
         jet_R=jet_R,
         iterative_splittings=iterative_splittings,
         scale_factor=scale_factor,
