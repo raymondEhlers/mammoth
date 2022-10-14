@@ -1,17 +1,21 @@
 
-from functools import partial
 from pathlib import Path
 
-import pytest
+import pytest  # noqa: F401
 
 from mammoth.framework import sources
 
+_here = Path(__file__).parent
+_track_skim_base_path = _here / "track_skim_validation"
+
 def test_uproot_source() -> None:
-    uproot_source = partial(
-        sources.UprootSource,
-        tree_name="tree",
+    uproot_source = sources.UprootSource(
+        # Take as an arbitrary example file
+        filename=_track_skim_base_path / "reference" / "AnalysisResults__pythia__jet_R020.root",
+        tree_name="AliAnalysisTaskTrackSkim_*_tree",
     )
 
+    uproot_source.gen_data(chunk_size=sources.ChunkSizeSentinel.FULL_SOURCE)
     ...
 
 def test_thermal_embedding() -> None:
@@ -42,16 +46,19 @@ def test_full_embedding() -> None:
     chunk_size = 500
     pythia_source = sources.MultiSource(
         sources=sources.define_multiple_sources_from_single_root_file(
-            filename=Path("."),
-            tree_name="tree",
+            # Take as an arbitrary example file
+            filename=_track_skim_base_path / "reference" / "AnalysisResults__pythia__jet_R020.root",
+            # Apparently the wild card doesn't work here because we need to grab the number of entries, =
+            # so we just specify the name directly.
+            tree_name="AliAnalysisTaskTrackSkim_pythia_tree",
             chunk_size=chunk_size,
         ),
     )
 
     PbPb_source = sources.MultiSource(
         sources=sources.UprootSource(
-            filename=Path("."),
-            tree_name="tree",
+            filename=_track_skim_base_path / "reference" / "AnalysisResults__embed_pythia-PbPb__jet_R020.root",
+            tree_name="AliAnalysisTaskTrackSkim_*_tree",
         ),
         repeat=True
     )
