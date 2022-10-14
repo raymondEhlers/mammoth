@@ -1,6 +1,10 @@
 # ALICE input files
 *.zip
+# Or if a symlink
+input/alice
+
 # Output files
 *.parquet
+
 # Comparison plots
 *.pdf
