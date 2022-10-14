@@ -174,7 +174,8 @@ def _check_for_alice_input_files(input_files: Sequence[Path]) -> List[bool]:
 
 def _aliphysics_to_analysis_results(  # noqa: C901
     collision_system: str, jet_R: float, input_files: Sequence[Path], validation_mode: bool = True, filename_to_rename_output_to: Optional[Path] = None,
-    allow_multiple_executions_of_run_macro: bool = True
+    allow_multiple_executions_of_run_macro: bool = True,
+    write_logs_to_file: bool = False,
 ) -> Path:
     """Helper to execute run macro
 
@@ -192,6 +193,10 @@ def _aliphysics_to_analysis_results(  # noqa: C901
         filename_to_rename_output_to: Full path we should rename `AnalysisResults.root` to.
         allow_multiple_executions_of_run_macro: Allow ROOT to be executed more than once.
             See note above. Default: True
+        write_logs_to_file: If True, write the subprocess logs to file. This can be useful
+            if the logs are so long that you can't manage to scroll all the back through them.
+            However, that also means that the logs are rather large, so better not to always
+            write them. Default: False
     """
     # First, validate input files
     # They might be missing since they're too large to store in the repo
@@ -261,11 +266,20 @@ def _aliphysics_to_analysis_results(  # noqa: C901
                 "--embedding-pt-hat-bin", str(optional_kwargs["embedding_pt_hat_bin"])
             ])
         try:
-            subprocess.run(args, check=True, capture_output=True)
+            subprocess_result = subprocess.run(args, check=True, capture_output=True)
         except subprocess.CalledProcessError as e:
             logger.info(f"stdout: {e.stdout.decode()}")
             logger.info(f"stderr: {e.stderr.decode()}")
             raise RuntimeError("Failed to execute run macro in subprocess") from e
+        # Include as debug info in case we need to compare the reclustering, etc
+        logger.info(f"stdout: {subprocess_result.stdout.decode()}")
+        logger.info(f"stderr: {subprocess_result.stderr.decode()}")
+        # Further possible help by writing the logs to file (if enabled)
+        if write_logs_to_file and filename_to_rename_output_to:
+            with open(filename_to_rename_output_to.with_suffix(".stdout"), "w") as f_stdout:
+                f_stdout.write(subprocess_result.stdout.decode())
+            with open(filename_to_rename_output_to.with_suffix(".stderr"), "w") as f_stderr:
+                f_stderr.write(subprocess_result.stderr.decode())
     else:
         run_macro.run(
             analysis_mode=collision_system,
@@ -415,12 +429,11 @@ def _track_skim_to_parquet(input_filename: Path, output_filename: Path, collisio
     )
 
 
-# TODO: Re-enable 0.2
-# @pytest.mark.parametrize("jet_R", [0.2, 0.4])
-@pytest.mark.parametrize("jet_R", [0.4])
+@pytest.mark.parametrize("jet_R", [0.2, 0.4])
 @pytest.mark.parametrize("collision_system", ["pp", "pythia", "PbPb", "embed_pythia"])
 def test_track_skim_validation(  # noqa: C901
-    caplog: Any, jet_R: float, collision_system: str, iterative_splittings: bool = True
+    caplog: Any, jet_R: float, collision_system: str, iterative_splittings: bool = True,
+    write_aliphysics_reference_logs_to_file: bool = False,
 ) -> None:
     # NOTE: There's some inefficiency since we store the same track skim info with the
     #       R = 0.2 and R = 0.4 outputs. However, it's much simpler conceptually, so we
@@ -473,6 +486,7 @@ def test_track_skim_validation(  # noqa: C901
             jet_R=jet_R,
             input_files=_collision_system_to_aod_files[collision_system],
             filename_to_rename_output_to=reference_filenames.analysis_output(),
+            write_logs_to_file=write_aliphysics_reference_logs_to_file,
         )
 
     # Step 2
