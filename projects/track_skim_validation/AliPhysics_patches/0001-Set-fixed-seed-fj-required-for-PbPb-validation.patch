@@ -1,0 +1,47 @@
+From 35f5d94e90fcfe3b7f550628ead5d92f9cd9fa88 Mon Sep 17 00:00:00 2001
+From: Raymond Ehlers <raymond.ehlers@gmail.com>
+Date: Thu, 24 Feb 2022 15:45:23 +0100
+Subject: [PATCH 1/2] Set fixed seed fj required for PbPb validation
+
+Seed is used to see the ghosts, and appears to increment every time a CS
+is created. One shouldn't run with this permanently, but it's required
+for validation
+---
+ PWGJE/EMCALJetTasks/AliFJWrapper.h | 19 +++++++++++++++++--
+ 1 file changed, 17 insertions(+), 2 deletions(-)
+
+diff --git a/PWGJE/EMCALJetTasks/AliFJWrapper.h b/PWGJE/EMCALJetTasks/AliFJWrapper.h
+index 361d173057..fb90b0e6f6 100644
+--- a/PWGJE/EMCALJetTasks/AliFJWrapper.h
++++ b/PWGJE/EMCALJetTasks/AliFJWrapper.h
+@@ -749,10 +749,25 @@ Int_t AliFJWrapper::Run()
+   }
+ 
+   try {
+-    fClustSeq = new fj::ClusterSequenceArea(fInputVectors, *fJetDef, *fAreaDef);
++    // Specify a fixed seed by hand.
++    std::vector<int> fixedSeed{12345, 67890};
++    fClustSeq = new fj::ClusterSequenceArea(fInputVectors, *fJetDef, fAreaDef->with_fixed_seed(fixedSeed));
++    // Verify that we set it correctly.
++    std::vector<int> retrievedSeed;
++    fClustSeq->area_def().ghost_spec().get_last_seed(retrievedSeed);
++    assert(fixedSeed == retrievedSeed && "retrieved seed not equal to fixed seed for main ClusterSequence");
++    // Printing can also be helpful for debugging here.
++    //std::cout << "Fixed seed: ";
++    //for (auto & v : retrievedSeed) {
++    //  std::cout << " " << v;
++    //}
++    //std::cout << "\n";
+     if(fEventSub){
+       DoEventConstituentSubtraction();
+-      fClustSeqES = new fj::ClusterSequenceArea(fEventSubCorrectedVectors, *fJetDef, *fAreaDef);
++      // Also need to set the fixed seed here since it creates another cluster sequenece.
++      fClustSeqES = new fj::ClusterSequenceArea(fEventSubCorrectedVectors, *fJetDef, fAreaDef->with_fixed_seed(fixedSeed));
++      fClustSeq->area_def().ghost_spec().get_last_seed(retrievedSeed);
++      assert(fixedSeed == retrievedSeed && "retrieved seed not equal to fixed seed for event-wise constituent sub ClusterSequence");
+     }
+   } catch (fj::Error) {
+     AliError(" [w] FJ Exception caught.");
+-- 
+2.36.1
+

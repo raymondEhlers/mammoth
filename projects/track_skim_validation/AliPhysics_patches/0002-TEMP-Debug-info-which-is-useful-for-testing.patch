@@ -1,0 +1,95 @@
+From f479d669ca194b6bd754d669caaeafebb1fb22d7 Mon Sep 17 00:00:00 2001
+From: Raymond Ehlers <raymond.ehlers@gmail.com>
+Date: Wed, 9 Mar 2022 18:42:41 +0100
+Subject: [PATCH 2/2] TEMP: Debug info which is useful for testing
+
+---
+ .../AliAnalysisTaskJetDynamicalGrooming.cxx   | 24 +++++++++++++++++--
+ 1 file changed, 22 insertions(+), 2 deletions(-)
+
+diff --git a/PWGJE/EMCALJetTasks/UserTasks/AliAnalysisTaskJetDynamicalGrooming.cxx b/PWGJE/EMCALJetTasks/UserTasks/AliAnalysisTaskJetDynamicalGrooming.cxx
+index 6b72698780..bb41c0666c 100644
+--- a/PWGJE/EMCALJetTasks/UserTasks/AliAnalysisTaskJetDynamicalGrooming.cxx
++++ b/PWGJE/EMCALJetTasks/UserTasks/AliAnalysisTaskJetDynamicalGrooming.cxx
+@@ -918,6 +918,9 @@ Bool_t AliAnalysisTaskJetDynamicalGrooming::FillHistograms()
+   }
+ 
+   if (jetCont) {
++
++    std::cout << "rhoValue=" << GetRhoVal(0) << "\n";
++
+     for (auto jet1 : jetCont->accepted()) {
+       if (!jet1) {
+         continue;
+@@ -1058,7 +1061,7 @@ Bool_t AliAnalysisTaskJetDynamicalGrooming::FillHistograms()
+         if (!(fJetShapeSub == kConstSub))
+           jet3 = jet1->ClosestJet();
+         if (!jet3) {
+-          AliDebugStream(3) << "jet3 does not exist, returning\n";
++          AliDebugStream(3) << "jet3 does not exist, returning. jet1->Pt(): " << jet1->Pt() << "\n";
+           continue;
+         }
+ 
+@@ -1085,9 +1088,11 @@ Bool_t AliAnalysisTaskJetDynamicalGrooming::FillHistograms()
+         }
+       }
+ 
++      //std::cout << "jet pt=" << jet1->Pt() << ", rapidity=" << jet1->Y() << ", eta=" << jet1->Eta() << ", phi=" << jet1->Phi() << ", area=" << jet1->Area() << ", rhoValue=" << GetRhoVal(0) << "\n";
+       if (ptSubtracted < fPtThreshold) {
+         continue;
+       }
++      //std::cout << "ptSubtracted=" << ptSubtracted << "\n";
+ 
+       if ((fCentSelectOn == kFALSE) && (jet1->GetNumberOfTracks() <= 1)) {
+         continue;
+@@ -1161,6 +1166,7 @@ void AliAnalysisTaskJetDynamicalGrooming::IterativeParents(AliEmcalJet* jet,
+                               bool isDetLevelInEmbedding)
+ {
+   AliDebugStream(1) << "Beginning iteration through the splittings.\n";
++  std::cout << "jet pt=" << jet->Pt() << ", rapidity=" << jet->Y() << ", eta=" << jet->Eta() << ", phi=" << jet->Phi() << ", area=" << jet->Area() << ", rhoValue=" << GetRhoVal(0) << "\n";
+   std::vector<fastjet::PseudoJet> inputVectors;
+   fastjet::PseudoJet pseudoTrack;
+   for (int constituentIndex = 0; constituentIndex < jet->GetNumberOfTracks(); constituentIndex++) {
+@@ -1197,10 +1203,16 @@ void AliAnalysisTaskJetDynamicalGrooming::IterativeParents(AliEmcalJet* jet,
+     //  - Part level: Use true mass in AliVParticle. Called with isData == false, so will use true mass
+     double E = part->E();
+     if (isDetLevelInEmbedding || (isData && fJetShapeSub != kConstSub && fJetShapeSub != kEventSub)) {
+-      //std::cout << "using charged pion mass hypothesis. " << std::boolalpha << "isData=" << isData << ", isDetLevelInEmbedding=" << isDetLevelInEmbedding << "\n";
++      std::cout << "using charged pion mass hypothesis. " << std::boolalpha << "isData=" << isData << ", isDetLevelInEmbedding=" << isDetLevelInEmbedding << "\n";
+       E = std::sqrt(std::pow(part->P(), 2) + std::pow(0.139, 2));
+     }
+     pseudoTrack.reset(part->Px(), part->Py(), part->Pz(), E);
++    std::cout << "AV track " << constituentIndex << ": pt=" << part->Pt()
++                           << ", p=" << part->P()
++                           << ", eta=" << part->Eta()
++                           << ", rapidity=" << part->Y()
++                           << ", phi=" << part->Phi()
++                           << ", m=" << part->M() << "\n";
+     // NOTE: This must be the constituent index to allow the subjets to properly determine which constituents are included
+     //       in each subjet.
+     pseudoTrack.set_user_index(constituentIndex);
+@@ -1213,6 +1225,12 @@ void AliAnalysisTaskJetDynamicalGrooming::IterativeParents(AliEmcalJet* jet,
+     // and for the data (where it always equals -1), we use the global index (offset sufficiently) so it won't overlap with
+     // other values.
+     int id = part->GetLabel() != -1 ? part->GetLabel() : (jet->TrackAt(constituentIndex) + SubstructureTree::JetConstituents::GetGlobalIndexOffset());
++    std::cout << "fj track " << constituentIndex << ": pt=" << pseudoTrack.pt()
++                         << ", eta=" << pseudoTrack.eta()
++                         << ", rapidity=" << pseudoTrack.rapidity()
++                         << ", phi=" << pseudoTrack.phi_02pi()
++                         << ", m=" << pseudoTrack.m()
++                         << ", id=" << id << "\n";
+     jetSplittings.AddJetConstituent(part , id);
+   }
+ 
+@@ -1266,6 +1284,8 @@ void AliAnalysisTaskJetDynamicalGrooming::ExtractJetSplittings(SubstructureTree:
+   double z = j2.perp() / (j2.perp() + j1.perp());
+   double delta_R = j1.delta_R(j2);
+   double xkt = j2.perp() * sin(delta_R);
++  std::cout << "node index=" << splittingNodeIndex << ", followingIterativeSplitting=" << std::boolalpha << followingIterativeSplitting
++       << ": z=" << z << ", delta_R=" << delta_R << ", xkt=" << xkt << "\n";
+   // Add the splitting node.
+   jetSplittings.AddSplitting(xkt, delta_R, z, splittingNodeIndex);
+   // Determine which splitting parent the subjets will point to (ie. the one that
+-- 
+2.36.1
+
