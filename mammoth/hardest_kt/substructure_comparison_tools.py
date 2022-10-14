@@ -168,32 +168,47 @@ def compare_flat_substructure(
     logger.info(f"track_skim.type: {_pretty_print_flat_type(str(track_skim.type))}")
 
     # For the track skim validation:
-    # - For whatever reason, the sorting of the jets is inconsistent for embedding compared to all other datasets.
+    # - For whatever reason, the sorting of the jets is inconsistent for some collision_system + R (but not all).
+    #   It seems to happen when there are multiple jets in one event, although I can't pin it down precisely.
+    # - As a pragmatic approach, when doing the track skim validation, we allow the track skim to be reordered.
+    #   We have the tools here to determine the new order automatically based on the jet pt (since it's unlikely that
+    #   two jets will have precisely the same jet pt in our sample).
+    # - Once the new order has been determined, we can store it in the map here so that we don't continue to emit
+    #   warnings for expected differences.
     # - So we just apply a mask here to swap the one event where we have two jets.
-    # NOTE: AliPhysics is actually the one that gets the sorting wrong here...
-    # NOTE: This is a super specialized thing, but better to do it here instead of messing around with
-    #       the actual mammoth analysis code.
+    # NOTE: It appears that AliPhysics is actually the one that gets the sorting wrong here...
+    # NOTE: This is a super specialized thing for the validation, but better to do it here instead of messing around
+    #       with the actual mammoth analysis code.
     if track_skim_validation_mode:
-        # Use jet_pt to determine if the order is correct
-        if (
-            collision_system == "embed_pythia"
-            and jet_R == 0.4
-        ):
-            # TODO: Keep this info around even when moving to the more general technique!
-            # NOTE: I derived this mask by hand. It swaps index -2 and -3 (== swapping index 15 and 16)
-            #       It can be double checked by looking at the jet pt. The precision makes
-            #       it quite obvious which should go with which.
-            #reorder_mask = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 16, 15, 17]
-            #track_skim = track_skim[reorder_mask]
-            pass
-            # NOTE: ***********************************************************************************
-            #       The canonical file actually did go through the steps of making the order in mammoth
-            #       match AliPhysics by turning off sorting. But since we're more likely to be
-            #       testing in the future with new files to do validation, it's better that we apply
-            #       this remapping here.
-            #       ***********************************************************************************
+        # First, we deal with the known reorder map.
+        # If there are entries here, then we'll use them.
+        # The keys are (collision_system, jet_R)
+        reorder_map = {
+            # Indices of differences: [15, 16]
+            ("embed_pythia", 0.4): [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 16, 15, 17],
+            # Indices of differences: [1, 2, 4, 5, 14, 15, 19, 21, 25, 26, 28, 29]
+            ("embed_pythia", 0.2): [0, 2, 1, 3, 5, 4, 6, 7, 8, 9, 10, 11, 12, 13, 15, 14, 16, 17, 18, 21, 20, 19, 22, 23, 24, 26, 25, 27, 29, 28],
+            # Indices of differences: [6, 7]
+            ("PbPb", 0.2): [0, 1, 2, 3, 4, 5, 7, 6],
+        }
 
-        # Take a peek with the jet pt, which should be easy to match
+        if (collision_system, jet_R) in reorder_map:
+            # First, verify that they're the same length. If they're not, we don't want to mess with the mask
+            if len(track_skim) != len(standard):
+                warning_for_user = (
+                    "Cannot use predefined mask because track_skim and standard aren't the same length."
+                    f" len(standard)={len(standard)}, len(track_skim)={len(track_skim)}"
+                )
+                # log it in the correct place for convenience in understanding the logs
+                logger.warning(warning_for_user)
+                # And further emit it in case the test passes so the user doesn't overlook this
+                warnings.warn(UserWarning(warning_for_user))
+            else:
+                reorder_mask = reorder_map[(collision_system, jet_R)]
+                track_skim = track_skim[reorder_mask]
+
+        # Take a peek with the jet pt, which should be easy to match (and unlikely to have exact duplicates).
+        # This will allow us to determine the order (if it needs to be reordered)
         _prefix = prefixes[0]
         result = compare_branch(
             standard=standard, track_skim=track_skim, key=f"{_prefix}_jet_pt", variable_name="jet_pt",
@@ -225,14 +240,14 @@ def compare_flat_substructure(
                     f"\nNew mask: {ak.to_list(reorder_mask)}"
                 )
                 # log it in the correct place for convenience in understanding the logs
-                logger.warning(logging.warning)
+                logger.warning(warning_for_user)
                 # And further emit it in case the test passes so the user doesn't overlook this
                 warnings.warn(UserWarning(warning_for_user))
                 track_skim = track_skim[reorder_mask]
             except ValueError:
                 # If this fails, it's probably because the arrays are different lengths.
                 # In that case, it's usually best to see the other values to help try to
-                # sort it out. So keep going instead of stopping here.
+                # sort it out. So continue the comparison instead of stopping here.
                 pass
 
     output_dir = base_output_dir / f"{collision_system}__jet_R{round(jet_R*100):03}"
