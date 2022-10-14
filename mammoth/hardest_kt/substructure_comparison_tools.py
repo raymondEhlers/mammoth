@@ -139,7 +139,7 @@ def _pretty_print_flat_type(s: str) -> str:
     return "\n".join(s.split(","))
 
 
-def compare_flat_substructure(
+def compare_flat_substructure(  # noqa: C901
     collision_system: str,
     jet_R: float,
     prefixes: Sequence[str],
