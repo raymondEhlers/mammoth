@@ -659,6 +659,7 @@ def test_track_skim_validation(  # noqa: C901
         track_skim_filename=track_skim_filenames.skim(),
         base_output_dir=_track_skim_base_path / "plot",
         track_skim_validation_mode=True,
+        assert_false_on_failed_comparison_for_debugging_during_testing=True,
     )
     assert comparison_result, "Validation failed during comparison"
 

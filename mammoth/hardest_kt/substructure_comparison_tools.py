@@ -40,7 +40,7 @@ def arrays_to_hist(
 
     return binned_data.BinnedData.from_existing_data(h_hist)
 
-def compare_branch(standard: ak.Array, track_skim: ak.Array, key: str, variable_name: str) -> bool:
+def compare_branch(standard: ak.Array, track_skim: ak.Array, key: str, variable_name: str, assert_false_on_failed_comparison: bool = False) -> bool:
     # Setup
     success = True
     standard_array = standard[key]
@@ -58,6 +58,8 @@ def compare_branch(standard: ak.Array, track_skim: ak.Array, key: str, variable_
     except ValueError as e:
         logger.exception(e)
         success = False
+        if assert_false_on_failed_comparison:
+            assert False
 
     # If the above failed, print the entire branch.
     # Sometimes it's useful to start at this, but sometimes it's just overwhelming, so uncomment as necessary
@@ -146,7 +148,19 @@ def compare_flat_substructure(
     standard_tree_name: str = "tree",
     base_output_dir: Path = Path("comparison/track_skim"),
     track_skim_validation_mode: bool = True,
+    assert_false_on_failed_comparison_for_debugging_during_testing: bool = False,
 ) -> bool:
+    """ Compare flat substructure productions
+
+    Args:
+        ...
+        assert_false_on_failed_comparison_for_debugging_during_testing: If True, assert False
+            when a comparison fails. This is useful during tests because we can run pytest with
+            the `--pdb` option, which will automatically open a debugger at that failed line so
+            that we can investigate further. The test will fail later since we return False on
+            a failed comparison, but this is more convenient since it allows us to immediately
+            access the underlying arrays. Default: False.
+    """
     standard = uproot.open(standard_filename)[standard_tree_name].arrays()
     track_skim = uproot.open(track_skim_filename)["tree"].arrays()
     # Display the types for convenience in making the comparison
@@ -181,7 +195,8 @@ def compare_flat_substructure(
         # Take a peek with the jet pt, which should be easy to match
         _prefix = prefixes[0]
         result = compare_branch(
-            standard=standard, track_skim=track_skim, key=f"{_prefix}_jet_pt", variable_name="jet_pt"
+            standard=standard, track_skim=track_skim, key=f"{_prefix}_jet_pt", variable_name="jet_pt",
+            assert_false_on_failed_comparison=assert_false_on_failed_comparison_for_debugging_during_testing,
         )
         # They disagree. We'll try to figure out if it's just a minor ordering issue.
         if not result:
@@ -270,7 +285,8 @@ def compare_flat_substructure(
             normalize=True,
         )
         result = compare_branch(
-            standard=standard, track_skim=track_skim, key=f"{prefix}_jet_pt", variable_name="jet_pt"
+            standard=standard, track_skim=track_skim, key=f"{prefix}_jet_pt", variable_name="jet_pt",
+            assert_false_on_failed_comparison=assert_false_on_failed_comparison_for_debugging_during_testing,
         )
         # We only want to assign the result if it's false because we don't want to accidentally overwrite
         # a failure with a success at the end
@@ -323,7 +339,8 @@ def compare_flat_substructure(
             )
 
             result = compare_branch(
-                standard=standard, track_skim=track_skim, key=f"{grooming_method}_{prefix}_kt", variable_name="kt"
+                standard=standard, track_skim=track_skim, key=f"{grooming_method}_{prefix}_kt", variable_name="kt",
+                assert_false_on_failed_comparison=assert_false_on_failed_comparison_for_debugging_during_testing,
             )
             # We only want to assign the result if it's false because we don't want to accidentally overwrite
             # a failure with a success at the end
@@ -374,7 +391,8 @@ def compare_flat_substructure(
             )
 
             result = compare_branch(
-                standard=standard, track_skim=track_skim, key=f"{grooming_method}_{prefix}_delta_R", variable_name="delta_R"
+                standard=standard, track_skim=track_skim, key=f"{grooming_method}_{prefix}_delta_R", variable_name="delta_R",
+                assert_false_on_failed_comparison=assert_false_on_failed_comparison_for_debugging_during_testing,
             )
             # We only want to assign the result if it's false because we don't want to accidentally overwrite
             # a failure with a success at the end
@@ -425,7 +443,8 @@ def compare_flat_substructure(
             )
 
             result = compare_branch(
-                standard=standard, track_skim=track_skim, key=f"{grooming_method}_{prefix}_z", variable_name="zg"
+                standard=standard, track_skim=track_skim, key=f"{grooming_method}_{prefix}_z", variable_name="zg",
+                assert_false_on_failed_comparison=assert_false_on_failed_comparison_for_debugging_during_testing,
             )
             # We only want to assign the result if it's false because we don't want to accidentally overwrite
             # a failure with a success at the end
