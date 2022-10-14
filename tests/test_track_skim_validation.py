@@ -231,7 +231,7 @@ def _aliphysics_to_analysis_results(  # noqa: C901
                 # NOTE: This implicitly encodes the period. In practice, it only matters for the event selection,
                 #       but it shouldn't be forgot if later changes are made.
                 "embedding_helper_config_filename": _track_skim_base_path / "input" / "embeddingHelper_LHC18_LHC20g4_kSemiCentral.yaml",
-                "pt_hat_bin": _analysis_parameters.pt_hat_bin,
+                "embedding_pt_hat_bin": _analysis_parameters.pt_hat_bin,
             }
         )
 
@@ -256,9 +256,9 @@ def _aliphysics_to_analysis_results(  # noqa: C901
             args.extend([
                 "--embedding-helper-config-filename", str(optional_kwargs["embedding_helper_config_filename"])
             ])
-        if "pt_hat_bin" in optional_kwargs:
+        if "embedding_pt_hat_bin" in optional_kwargs:
             args.extend([
-                "--pt-hat-bin", str(optional_kwargs["pt_hat_bin"])
+                "--embedding-pt-hat-bin", str(optional_kwargs["embedding_pt_hat_bin"])
             ])
         try:
             subprocess.run(args, check=True, capture_output=True)
