@@ -1,0 +1,6 @@
+# ALICE input files
+*.zip
+# Output files
+*.parquet
+# Comparison plots
+*.pdf
