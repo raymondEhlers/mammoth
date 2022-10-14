@@ -198,6 +198,14 @@ def _aliphysics_to_analysis_results(  # noqa: C901
             However, that also means that the logs are rather large, so better not to always
             write them. Default: False
     """
+    # 0th, a warning / reminder. It's a little obnoxious to print this every time, but
+    # it seems to be easy to forget, so I would rather be super explicit to try to help
+    # my future self
+    logger.warning(
+        "You need a specialize AliPhysics build which fixes the fastjet area"
+        " random seed! Without it, this won't work! The branch is available here:"
+        " https://github.com/raymondEhlers/AliPhysics/tree/trackSkimValidation"
+    )
     # First, validate input files
     # They might be missing since they're too large to store in the repo
     missing_files = _check_for_alice_input_files(input_files=input_files)
@@ -459,7 +467,13 @@ def test_track_skim_validation(  # noqa: C901
     3. Convert DyG parquet to flat tree
 
     NOTE: When the run macro is executed, it will also run the track skim task
-          (except for the embedding - see below!)
+          (except for the embedding, which has to run separately - see below!)
+    NOTE: You need a specialize AliPhysics build which fixes the fastjet area
+          random seed! Without it, this won't work! The branch is available here:
+          https://github.com/raymondEhlers/AliPhysics/tree/trackSkimValidation .
+          The patch files are also available in `projects/track_skim_validation/AliPhysics_patches`.
+          (they are identical, but I wanted a way to store them with the rest of
+          the relevant code, so I generated the patch files from the branch).
     """
     generate_aliphysics_results = False
     convert_aliphysics_to_parquet = False

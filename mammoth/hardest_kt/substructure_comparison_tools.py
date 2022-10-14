@@ -174,6 +174,7 @@ def compare_flat_substructure(
     # NOTE: This is a super specialized thing, but better to do it here instead of messing around with
     #       the actual mammoth analysis code.
     if track_skim_validation_mode:
+        # Use jet_pt to determine if the order is correct
         if (
             collision_system == "embed_pythia"
             and jet_R == 0.4
