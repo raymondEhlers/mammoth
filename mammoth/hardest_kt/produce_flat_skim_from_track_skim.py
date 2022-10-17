@@ -765,6 +765,7 @@ def define_productions() -> List[production.ProductionSettings]:
     productions = []
 
     # Create and store production information
+    config_filename = Path("mammoth/alice/config/track_skim_config.yaml")
     productions.extend(
         [
             # production.ProductionSettings.read_config(
@@ -776,6 +777,7 @@ def define_productions() -> List[production.ProductionSettings]:
             production.ProductionSettings.read_config(
                 collision_system="embed_thermal_model", number=60,
                 specialization=HardestKtProductionSpecialization(),
+                track_skim_config_filename=config_filename,
             ),
         ]
     )
