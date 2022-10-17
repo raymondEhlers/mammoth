@@ -1,12 +1,13 @@
-"""Run analysis using PYTHIA + thermal model.
+"""Run ALICE analysis for substructure for pp, PbPb, MC, and embedding
 
-.. codeauthor:: Raymond Ehlers <raymond.ehlers@cern.ch>, ORNL
+Note that the embedding analysis supports analyzing embedding data as well as into the thermal model.
+
+.. codeauthor:: Raymond Ehlers <raymond.ehlers@cern.ch>, LBL/UCB
 """
 
-import collections
 import logging
 from pathlib import Path
-from typing import Any, Dict, Iterable, Mapping, Optional, Sequence, Tuple, Union
+from typing import Any, Dict, Mapping, Optional
 
 import awkward as ak
 import numpy as np
@@ -14,7 +15,7 @@ import vector
 
 from mammoth import helpers
 from mammoth.alice import helpers as alice_helpers
-from mammoth.framework import jet_finding, load_data, sources
+from mammoth.framework import jet_finding, load_data
 from mammoth.framework.analysis import jets as analysis_jets
 from mammoth.framework.io import track_skim
 
@@ -235,64 +236,6 @@ def analysis_data(
 
     # Now, the final transformation into a form that can be used to skim into a flat tree.
     return jets
-
-
-def load_embed_thermal_model(
-    signal_input: Union[Path, Sequence[Path]],
-    thermal_model_parameters: sources.ThermalModelParameters,
-    chunk_size: sources.T_ChunkSize = sources.ChunkSizeSentinel.FULL_SOURCE,
-    signal_collision_system: str = "pythia",
-) -> Union[Tuple[Dict[str, int], ak.Array], Tuple[Dict[str, int], Iterable[ak.Array]]]:
-    """Load data for embedding into a thermal model.
-
-    This is somewhat different than the other load_* functions because we have added the ability
-    to return data in chunks for processing.
-
-    Args:
-        signal_input: Signal input filenames.
-        thermal_model_parameters: Thermal model parameters.
-        chunk_size: Chunk size. Default: Everything in one chunk.
-        signal_collision_system: Name of the collision system of the input. Default: "pythia".
-    """
-    # Validation
-    # We allow for multiple signal filenames
-    signal_filenames = []
-    if not isinstance(signal_input, collections.abc.Iterable):
-        signal_filenames = [signal_input]
-    else:
-        signal_filenames = list(signal_input)
-    # Setup
-    logger.info(f"Loading embed thermal model with processing chunk size {chunk_size}")
-    source_index_identifiers = {"signal": 0, "background": 100_000}
-
-    # Signal
-    pythia_source = sources.MultiSource(
-        sources=[
-            track_skim.FileSource(
-                filename=_filename,
-                collision_system=signal_collision_system,
-            )
-            for _filename in signal_filenames
-        ],
-        repeat=False,
-    )
-    # Background
-    thermal_source = sources.ThermalModelExponential(
-        thermal_model_parameters=thermal_model_parameters,
-    )
-
-    # Now, just zip them together, effectively.
-    combined_source = sources.CombineSources(
-        constrained_size_source={"signal": pythia_source},
-        unconstrained_size_sources={"background": thermal_source},
-        source_index_identifiers=source_index_identifiers,
-    )
-
-    _transform_data_iter = _event_select_and_transform_embedding(
-        gen_data=combined_source.gen_data(chunk_size=chunk_size),
-        source_index_identifiers=source_index_identifiers
-    )
-    return source_index_identifiers, _transform_data_iter if chunk_size is not sources.ChunkSizeSentinel.FULL_SOURCE else next(_transform_data_iter)
 
 
 def analysis_embedding(

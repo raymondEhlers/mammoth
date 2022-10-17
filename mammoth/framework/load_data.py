@@ -371,9 +371,9 @@ def _event_select_and_transform_embedding(
 
 def embedding(
     signal_input: Union[Path, Sequence[Path]],
-    signal_source: sources.SourceFromFilename,
+    signal_source: Union[sources.SourceFromFilename, sources.DelayedSource],
     background_input: Union[Path, Sequence[Path]],
-    background_source: sources.SourceFromFilename,
+    background_source: Union[sources.SourceFromFilename, sources.DelayedSource],
     chunk_size: sources.T_ChunkSize = sources.ChunkSizeSentinel.FULL_SOURCE,
     repeat_unconstrained_when_needed_for_statistics: bool = True,
     background_is_constrained_source: bool = True,
@@ -467,4 +467,31 @@ def embedding(
     return (
         source_index_identifiers,
         _transform_data_iter if chunk_size is not sources.ChunkSizeSentinel.FULL_SOURCE else next(_transform_data_iter),
+    )
+
+
+def embedding_thermal_model(
+    signal_input: Union[Path, Sequence[Path]],
+    signal_source: sources.SourceFromFilename,
+    thermal_model_parameters: sources.ThermalModelParameters,
+    chunk_size: sources.T_ChunkSize = sources.ChunkSizeSentinel.FULL_SOURCE,
+) -> Union[Tuple[Dict[str, int], ak.Array], Tuple[Dict[str, int], Iterable[ak.Array]]]:
+    # Setup
+    logger.info("Loading thermal model for embedding")
+
+    return embedding(
+        signal_input=signal_input,
+        signal_source=signal_source,
+        background_input=[Path("dummy")],
+        background_source=sources.ThermalModelExponential.create_deferred_source(
+            thermal_model_parameters=thermal_model_parameters,
+        ),
+        chunk_size=chunk_size,
+        # Since we will set the chunk size for the thermal model, there's no need to repeat
+        # the background thermal model for more statistics - it will always be the right size.
+        repeat_unconstrained_when_needed_for_statistics=False,
+        # Background is generated, so the constraint is the signal
+        background_is_constrained_source=False,
+        # Not meaningful for thermal model, so disable
+        use_alice_standard_event_selection_on_background=False,
     )

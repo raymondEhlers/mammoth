@@ -49,8 +49,19 @@ T_ChunkSize = Union[int, ChunkSizeSentinel]
 T_GenData = Generator[ak.Array, Optional[T_ChunkSize], None]
 
 
+class DelayedSource(Protocol):
+    """Create a source via a function call.
+
+    This is used for loading data, but it's much more convenient if it's available from the sources.
+    """
+
+    def __call__(self, *args: Any, **kwargs: Any) -> Source:
+        ...
+
 class SourceFromFilename(Protocol):
     """Create a source from a filename.
+
+    This is effectively a specialization of a DelayedSource.
 
     This is used for loading data, but it's much more convenient if it's available from the sources.
     """
@@ -474,6 +485,34 @@ class ThermalModelExponential:
             # If we want to stop after one iteration, we need to do it now
             if self._stop_iterating_after_one_chunk:
                 return None
+
+    @classmethod
+    def create_deferred_source(
+        cls,
+        thermal_model_parameters: ThermalModelParameters,
+        particle_column_prefix: str = "data",
+        stop_iterating_after_one_chunk: bool = False,
+        default_chunk_size: T_ChunkSize = ChunkSizeSentinel.FIXED_SIZE,
+    ) -> DelayedSource:
+        """Create a FileSource with a closure such that all arguments are set except for the filename.
+
+        Args:
+            collision_system: The collision system of the data.
+            default_chunk_size: The default chunk size to use when generating data.
+
+        Returns:
+            A Callable which takes the filename and creates the FileSource.
+        """
+
+        def wrap(*args: Any, **kwargs: Any) -> "ThermalModelExponential":
+            return cls(
+                thermal_model_parameters=thermal_model_parameters,
+                particle_column_prefix=particle_column_prefix,
+                stop_iterating_after_one_chunk=stop_iterating_after_one_chunk,
+                default_chunk_size=default_chunk_size,
+            )
+
+        return wrap
 
 
 def _sources_to_list(sources: Union[Source, Sequence[Source]]) -> Sequence[Source]:
