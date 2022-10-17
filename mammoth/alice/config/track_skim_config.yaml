@@ -419,14 +419,14 @@ productions:
         background_subtraction:
           r_max: 0.05
         det_level_artificial_tracking_efficiency: 0.99
-    65:
+    66:
       # Background systematic, Rmax = 0.50
       metadata:
         <<: *base_metadata_embed
         dataset: *LHC18qr_PbPb_semi_central
         signal_dataset: *LHC20g4_pythia
         # Equivalent to train number, but a more general term makes more sense here.
-        production_number: 65
+        production_number: 66
         label: "embed_pythia_semi_central"
       settings:
         <<: *analysis_settings_embed_R02
