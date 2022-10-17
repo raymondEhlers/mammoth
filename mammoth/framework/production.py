@@ -228,7 +228,7 @@ class ProductionSettings:
         ) and (self.collision_system in _collision_systems_with_scale_factors)
 
     def input_files_per_pt_hat(self) -> Dict[int, List[Path]]:
-        if self.has_scale_factors:
+        if not self.has_scale_factors:
             raise ValueError(
                 f"Asking for input files per pt hat doesn't make sense for collision system {self.collision_system}"
             )
