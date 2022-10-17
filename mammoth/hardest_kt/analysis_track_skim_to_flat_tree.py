@@ -301,8 +301,9 @@ def hardest_kt_embed_thermal_model_skim(
     # However, the memory usage often gets too large, so this allows us to control the overall memory
     # size by breaking it up into chunks, such that we only generate the thermal model chunk
     # that's currently needed for processing
-    source_index_identifiers, iter_arrays = analysis_alice.load_embed_thermal_model(
+    source_index_identifiers, iter_arrays = load_data.embedding_thermal_model(
         signal_input=signal_input_filenames,
+        signal_source=track_skim.FileSource.create_deferred_source(collision_system="pythia"),
         thermal_model_parameters=thermal_model_parameters,
         chunk_size=chunk_size,
     )
