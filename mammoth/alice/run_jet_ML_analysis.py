@@ -7,7 +7,7 @@ import logging
 import secrets
 from collections import defaultdict
 from pathlib import Path
-from typing import Any, Dict, List, Mapping, Sequence
+from typing import Any, Dict, List, Mapping, Sequence, Tuple
 
 import IPython
 from parsl.app.app import python_app
@@ -20,7 +20,7 @@ from mammoth import helpers, job_utils
 logger = logging.getLogger(__name__)
 
 
-@python_app  # type: ignore
+@python_app
 def run_jet_background_ML_embedding_analysis(
     system_label: str,
     background_collision_system_tag: str,
@@ -30,7 +30,7 @@ def run_jet_background_ML_embedding_analysis(
     use_constituent_subtraction: bool = False,
     inputs: Sequence[File] = [],
     outputs: Sequence[File] = [],
-) -> AppFuture:
+) -> Tuple[bool, str]:
     import traceback
     from pathlib import Path
 
@@ -111,7 +111,7 @@ def setup_jet_background_ML_embedding_analysis(
     results = []
     logger.info("Creating embedding tasks. This may make time a minute...")
     for background_input_file in background_input_files:
-        # NOTE: We iterate first by jet_R because I want to avoid autocorrelations if we create
+        # NOTE: We iterate first by jet_R because I want to avoid auto-correlations if we create
         #       a ratio as a function of R. As it's configured here, the signal file will be random,
         #       but the background will be the same. That should be enough to avoid autocorrelation issues.
         for jet_R in jet_R_values:
