@@ -53,6 +53,7 @@ class HardestKtProductionSpecialization:
             "pythia": "data",
             "PbPb": "data",
             "embedPythia": "embed_pythia",
+            "embed_pythia": "embed_pythia",
             "embed_thermal_model": "embed_thermal_model",
         }
         _tasks.append(
