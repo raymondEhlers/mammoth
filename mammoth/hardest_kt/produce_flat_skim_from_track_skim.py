@@ -775,7 +775,7 @@ def define_productions() -> List[production.ProductionSettings]:
             #     collision_system="embedPythia", number=63,
             # ),
             production.ProductionSettings.read_config(
-                collision_system="embed_thermal_model", number=60,
+                collision_system="embed_pythia", number=64,
                 specialization=HardestKtProductionSpecialization(),
                 track_skim_config_filename=config_filename,
             ),
