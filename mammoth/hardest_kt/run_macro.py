@@ -264,7 +264,7 @@ def run_dynamical_grooming(  # noqa: C901
         The analysis manager.
     """
     # Delay import to avoid explicit dependence
-    import ROOT  # pyright: ignore [reportMissingImports]  # pyright: ignore [reportMissingImports]
+    import ROOT  # pyright: ignore [reportMissingImports]
     # Validation
     period = _normalize_period(period)
     is_MC = _is_MC(period)
