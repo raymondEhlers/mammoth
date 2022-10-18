@@ -1,6 +1,6 @@
 """Run mammoth skimming and analysis tasks via parsl
 
-.. codeauthor:: Raymond Ehlers <raymond.ehlers@cern.ch>, ORNL
+.. codeauthor:: Raymond Ehlers <raymond.ehlers@cern.ch>, LBL/UCB
 """
 
 from __future__ import annotations
@@ -9,7 +9,7 @@ import enum
 import logging
 import secrets
 from pathlib import Path
-from typing import Any, Dict, List, Mapping, Optional, Sequence, Tuple
+from typing import Any, Dict, Iterable, List, Mapping, Optional, Sequence, Tuple, Union
 
 import IPython
 import attrs
@@ -426,6 +426,8 @@ def _run_embedding_skim(
     det_level_artificial_tracking_efficiency: float,
     convert_data_format_prefixes: Mapping[str, str],
     scale_factor: float,
+    background_is_constrained_source: bool,
+    n_signal_input_files: int,
     inputs: Sequence[File] = [],
     outputs: Sequence[File] = [],
 ) -> Tuple[bool, str]:
@@ -439,9 +441,12 @@ def _run_embedding_skim(
             collision_system=collision_system,
             signal_input=[
                 Path(_input_file.filepath)
-                for _input_file in inputs[:-1]
+                for _input_file in inputs[:n_signal_input_files]
             ],
-            background_input=Path(inputs[-1].filepath),
+            background_input=[
+                Path(_input_file.filepath)
+                for _input_file in inputs[n_signal_input_files:]
+            ],
             convert_data_format_prefixes=convert_data_format_prefixes,
             jet_R=jet_R,
             min_jet_pt=min_jet_pt,
@@ -450,6 +455,7 @@ def _run_embedding_skim(
             det_level_artificial_tracking_efficiency=det_level_artificial_tracking_efficiency,
             output_filename=Path(outputs[0].filepath),
             scale_factor=scale_factor,
+            background_is_constrained_source=background_is_constrained_source,
         )
     except Exception:
         result = (
@@ -459,19 +465,10 @@ def _run_embedding_skim(
     return result
 
 
-def setup_calculate_embed_pythia_skim(
-    prod: production.ProductionSettings,
-    debug_mode: bool,
-) -> List[AppFuture]:
-    """Create futures to produce hardest kt embedded pythia skim"""
-    # Setup input and output
-    output_dir = prod.output_dir / "skim"
-    output_dir.mkdir(parents=True, exist_ok=True)
-    input_files = prod.input_files()
-    # We store the signal input files in a few different formats to enable sampling different ways.
-    # We can sample pt hat bins equally by sampling the pt hat bin, and then taking a random file
-    # from that bin. In this case, the pythia files _are not_ sampled equally.
-    signal_input_files_per_pt_hat = prod.input_files_per_pt_hat()
+def _extract_info_from_signal_file_list(
+    signal_input_files_per_pt_hat: Mapping[int, Sequence[Path]]
+) -> Tuple[List[int], List[Tuple[int, Path]]]:
+    """Helper to extract the pt hat bins and flatten the input list."""
     # And since we would sample the pt hat bins, it's better to keep track of them directly.
     pt_hat_bins = list(signal_input_files_per_pt_hat)
     # Or alternatively, we sample the pythia files directly. In this case, the PYTHIA files are sampled
@@ -485,13 +482,163 @@ def setup_calculate_embed_pythia_skim(
         for _signal_path in _signal_paths
     ]
 
-    # Setup for analysis and dataset settings
-    _metadata_config = prod.config["metadata"]
-    # Sample the pt hat equally, or directly sample the signal_input_files
-    sample_each_pt_hat_bin_equally = _metadata_config["sample_each_pt_hat_bin_equally"]
-    n_signal_files_to_provide = _metadata_config["n_signal_files_to_provide"]
-    _analysis_config = prod.config["settings"]
+    return pt_hat_bins, signal_input_files_flat
 
+
+def _determine_unconstrained_signal_input_files(
+    signal_input_files_per_pt_hat: Mapping[int, Sequence[Path]],
+    signal_input_files_flat: Sequence[Tuple[int, Path]],
+    pt_hat_bins: Sequence[int],
+    signal_input_config: Mapping[str, Any],
+) -> Tuple[int, List[Path]]:
+    """ Determine the signal input files for the unconstrained case.
+
+    We refactored this out since the logic is a bit complex to be inline.
+    """
+    # Sample the pt hat equally, or directly sample the signal_input_files
+    _sample_each_pt_hat_bin_equally = signal_input_config["sample_each_pt_hat_bin_equally"]
+    _n_files_to_use_per_task = signal_input_config["n_files_to_use_per_task"]
+
+    # Randomly select (in some manner) an input file to match up with the background input file.
+    # NOTE: The signal input file will repeat if there are more background events.
+    #       So far, this doesn't seem to be terribly common, but even if it was, it
+    #       would be perfectly fine as long as it doesn't happen too often.
+    signal_input = []
+    if _sample_each_pt_hat_bin_equally:
+        # Each pt hat bin will be equally likely, and then we select the file from
+        # those which are available.
+        # NOTE: This doesn't mean that the embedded statistics will still be the same in the end.
+        #       For example, if I compare a low and high pt hat bin, there are just going to be
+        #       more accepted jets in the high pt hat sample.
+        pt_hat_bin = secrets.choice(pt_hat_bins)
+        signal_input = [
+            secrets.choice(signal_input_files_per_pt_hat[pt_hat_bin])
+            for _ in range(_n_files_to_use_per_task)
+        ]
+    else:
+        # Directly sample the files. This probes the generator stats because
+        # the number of files is directly proportional to the generated statistics.
+        pt_hat_bin, _signal_input_filename = secrets.choice(signal_input_files_flat)
+        signal_input = [_signal_input_filename]
+        # Since we want to keep the same pt hat bin, use the pt hat ban to randomly select additional files
+        signal_input.extend([
+            secrets.choice(signal_input_files_per_pt_hat[pt_hat_bin])
+            # -1 since we already have a filename
+            for _ in range(_n_files_to_use_per_task - 1)
+        ])
+    return pt_hat_bin, signal_input
+
+
+def _select_files_for_source(
+    input_files: Sequence[Path],
+    selected_input_file: Path,
+    n_files_to_use: int,
+) -> List[Path]:
+    """ Select n files from a list of available files without replacement. """
+    _input = [selected_input_file]
+
+    _possible_additional_files = set([
+        secrets.choice(input_files)
+        # -1 since we already have a filename
+        # +5 since we'll remove any filenames if they're repeated
+        # NOTE: +5 is arbitrary, but should be sufficient. We could do more, but it would be a waste of cycles.
+        #       In any case, We'll double check below.
+        for _ in range(n_files_to_use - 1 + 5)
+    ])
+    # Remove the existing file, and then add to the list
+    _possible_additional_files.remove(selected_input_file)
+    _input.extend(_possible_additional_files[:n_files_to_use - 1])
+
+    # Validate that we didn't somehow end up with too few files
+    # This really shouldn't happen outside of exceptional cases
+    if len(_input) != n_files_to_use:
+        raise ValueError(
+            "You somehow don't have enough input files."
+            f" Requested: {n_files_to_use}, but only have {len(_input)} files available."
+            " Check your input configuration!"
+        )
+
+    return _input
+
+
+def _determine_embed_pythia_input_files(
+    signal_input_files_per_pt_hat: Mapping[int, Sequence[Path]],
+    background_input_files: Sequence[Path],
+    background_is_constrained_source: bool,
+    input_handling_config: Mapping[str, Any],
+) -> Iterable[int, Sequence[Path], Sequence[Path]]:
+    """Determine the input files for embedding with pythia."""
+    # Configuration setup
+    signal_input_config = input_handling_config["signal"]
+    background_input_config = input_handling_config["background"]
+
+    # Some convenient quantities for working with signal inputs
+    pt_hat_bins, signal_input_files_flat = _extract_info_from_signal_file_list(
+        signal_input_files_per_pt_hat=signal_input_files_per_pt_hat
+    )
+
+    if background_is_constrained_source:
+        for background_file in background_input_files:
+            # Determine the constrained input (background)
+            # Start with the file that we iterated with
+            background_input = _select_files_for_source(
+                input_files=background_input_files,
+                selected_input_file=background_file,
+                n_files_to_use=background_input_config["constrained_source"]["n_files_to_use_per_task"]
+            )
+
+            # Determine the unconstrained input (signal)
+            pt_hat_bin, signal_input = _determine_unconstrained_signal_input_files(
+                signal_input_files_per_pt_hat=signal_input_files_per_pt_hat,
+                signal_input_files_flat=signal_input_files_flat,
+                pt_hat_bins=pt_hat_bins,
+                signal_input_config=signal_input_config["unconstrained_source"],
+            )
+
+            yield pt_hat_bin, signal_input, background_input
+    else:
+        for pt_hat_bin, signal_file in signal_input_files_flat.items():
+            # Determine the constrained input (signal)
+            # Start with the file that we iterated with
+            signal_input = _select_files_for_source(
+                input_files=signal_input_files_per_pt_hat[pt_hat_bin],
+                selected_input_file=signal_file,
+                n_files_to_use=signal_input_config["constrained_source"]["n_files_to_use_per_task"],
+            )
+
+            # Determine unconstrained source (background)
+            background_input = [
+                secrets.choice(background_input_files)
+                for _ in range(background_input_config["unconstrained_source"]["n_files_to_use_per_task"])
+            ]
+
+            yield pt_hat_bin, signal_input, background_input
+
+
+def setup_calculate_embed_pythia_skim(
+    prod: production.ProductionSettings,
+    debug_mode: bool,
+) -> List[AppFuture]:
+    """Create futures to produce hardest kt embedded pythia skim"""
+    # Setup input and output
+    output_dir = prod.output_dir / "skim"
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    # Collect input files (signal and background)
+    background_input_files = prod.input_files()
+    # We store the signal input files in a few different formats to enable sampling different ways.
+    # We can sample pt hat bins equally by sampling the pt hat bin, and then taking a random file
+    # from that bin. In this case, the pythia files _are not_ sampled equally.
+    signal_input_files_per_pt_hat = prod.input_files_per_pt_hat()
+    pt_hat_bins, signal_input_files_flat = _extract_info_from_signal_file_list(signal_input_files_per_pt_hat=signal_input_files_per_pt_hat)
+
+    # Setup for dataset and input
+    _metadata_config: Dict[str, Any] = prod.config["metadata"]
+    _input_handling_config: Dict[str, Any] = _metadata_config["input_handling"]
+    _background_is_constrained_source: bool = (_input_handling_config["constrained_source"].lower() == "signal")
+
+    # Analysis settings
+    _analysis_config: Dict[str, Any] = prod.config["settings"]
     # Splitting selection (iterative vs recursive)
     splittings_selection = SplittingsSelection[_analysis_config["splittings_selection"]]
     # Scale factors
@@ -507,59 +654,60 @@ def setup_calculate_embed_pythia_skim(
             f"Mismatch between the pt hat bins in the scale factors ({set(scale_factors)}) and the pt hat bins ({set(pt_hat_bins)})"
         )
 
+    if _background_is_constrained_source:
+        input_files: Union[List[Path], List[Tuple[int, Path]]] = background_input_files
+    else:
+        input_files = signal_input_files_flat
+
     results = []
     _embedding_file_pairs = {}
-    for _file_counter, input_filename in enumerate(input_files):
+    # Keep track of output identifiers. If there is already an existing identifier, then we can try again to avoid overwriting it.
+    _output_identifiers = []
+    input_generator = _determine_embed_pythia_input_files(
+        signal_input_files_per_pt_hat=signal_input_files_per_pt_hat,
+        background_input_files=background_input_files,
+        background_is_constrained_source=_background_is_constrained_source,
+        input_handling_config=_input_handling_config,
+    )
+    for _file_counter, (pt_hat_bin, signal_input, background_input) in enumerate(input_generator):
         if _file_counter % 500 == 0:
-            logger.info(f"Adding {input_filename} for analysis")
+            logger.info(f"Adding {(background_input if _background_is_constrained_source else signal_input)[0]} for analysis")
 
         # For debugging
         if debug_mode and _file_counter > 1:
             break
 
-        # Randomly select (in some manner) an input file to match up with the background input file.
-        # NOTE: The signal input file will repeat if there are more background events.
-        #       So far, this doesn't seem to be terribly common, but even if it was, it
-        #       would be perfectly fine as long as it doesn't happen too often.
-        signal_input = []
-        if sample_each_pt_hat_bin_equally:
-            # Each pt hat bin will be equally likely, and then we select the file from
-            # those which are available.
-            # NOTE: This doesn't mean that the embedded statistics will still be the same in the end.
-            #       For example, if I compare a low and high pt hat bin, there are just going to be
-            #       more accepted jets in the high pt hat sample.
-            pt_hat_bin = secrets.choice(pt_hat_bins)
-            signal_input = [
-                secrets.choice(signal_input_files_per_pt_hat[pt_hat_bin])
-                for _ in range(n_signal_files_to_provide)
-            ]
-        else:
-            # Directly sample the files. This probes the generator stats because
-            # the number of files is directly proportional to the generated statistics.
-            pt_hat_bin, _signal_input_filename = secrets.choice(signal_input_files_flat)
-            signal_input = [_signal_input_filename]
-            # Since we want to keep the same pt hat bin, use the pt hat ban to randomly select additional files
-            signal_input.extend([
-                secrets.choice(signal_input_files_per_pt_hat[pt_hat_bin])
-                # -1 since we already have a filename
-                for _ in range(n_signal_files_to_provide - 1)
-            ])
-
         # Setup file I/O
         # We want to identify as: "{signal_identifier}__embedded_into__{background_identifier}"
-        # Take the first signal filename as the main identifier to the path.
+        # Take the first signal and first background filenames as the main identifier to the path.
         # Otherwise, the filename could become indefinitely long... (apparently there are file length limits in unix...)
         output_identifier = safe_output_filename_from_relative_path(filename=signal_input[0], output_dir=prod.output_dir)
         output_identifier += "__embedded_into__"
-        output_identifier += safe_output_filename_from_relative_path(filename=input_filename, output_dir=prod.output_dir)
+        output_identifier += safe_output_filename_from_relative_path(filename=background_input[0], output_dir=prod.output_dir)
+        # Finally, add the splittings selection
+        output_identifier += "_{str(splittings_selection)}"
+
+        # Ensure that we don't use an output identifier twice.
+        # If we've already used it, we add a counter to it
+        _modifiable_output_identifier = output_identifier
+        _output_identifier_counter = 0
+        _output_identifier_stored = False
+        while not _output_identifier_stored:
+            if _modifiable_output_identifier in _output_identifiers:
+                # If the identifier is in the list, try to add some counter to it.
+                _output_identifier_counter += 1
+                _modifiable_output_identifier = output_identifier + f"__{_output_identifier_counter:03}"
+            else:
+                output_identifier = _modifiable_output_identifier
+                _output_identifiers.append(output_identifier)
+                _output_identifier_stored = True
+
         #logger.info(f"output_identifier: {output_identifier}")
-        output_filename = output_dir / f"{output_identifier}_{str(splittings_selection)}.root"
+        output_filename = output_dir / f"{output_identifier}.root"
 
         # Store the file pairs for our records
         # The output identifier contains the first signal filename, as well as the background filename.
         # We use it here rather than _just_ the background filename because we may embed into data multiple times
-        # NOTE: In principle, if we're unlucky, we could overwrite entries here. However, it should be quite unlikely
-        #       given the large number of files that are embedded. So I won't worry about it for now (as of March 2022).
         _embedding_file_pairs[output_identifier] = [str(_filename) for _filename in signal_input]
 
         # And create the tasks
@@ -572,14 +720,16 @@ def setup_calculate_embed_pythia_skim(
                 background_subtraction=_analysis_config["background_subtraction"],
                 det_level_artificial_tracking_efficiency=_analysis_config["det_level_artificial_tracking_efficiency"],
                 convert_data_format_prefixes=_metadata_config["convert_data_format_prefixes"],
+                scale_factor=scale_factors[pt_hat_bin],
+                background_is_constrained_source=_background_is_constrained_source,
+                n_signal_input_files=len(signal_input),
                 inputs=[
                     *[File(str(_filename)) for _filename in signal_input],
-                    File(str(input_filename)),
+                    *[File(str(_filename)) for _filename in background_input],
                 ],
                 outputs=[
                     File(str(output_filename))
                 ],
-                scale_factor=scale_factors[pt_hat_bin],
             )
         )
 
@@ -804,7 +954,7 @@ def run() -> None:  # noqa: C901
     #n_cores_to_allocate = 2
     #walltime = "1:59:00"
     #n_cores_to_allocate = 10
-    debug_mode = False
+    debug_mode = True
 
     # Basic setup: logging and parsl.
     # First, need to figure out if we need additional environments such as ROOT

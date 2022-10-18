@@ -171,11 +171,23 @@ analysis_settings:
           hybrid: "hybrid"
           det_level: "det_level"
           part_level: "true"
-        # Sample pt hat bin distribution equally
-        sample_each_pt_hat_bin_equally: true
-        # Number of signal files to make available to a background file
-        # This ensures some additional diversity if we end up with a very small signal file
-        n_signal_files_to_provide: 3
+        input_handling:
+          constrained_source: "signal"
+          signal_parameters:
+            constrained_source:  # ie. signal is the constraint
+              n_files_to_use_per_task: 2
+            unconstrained_source:
+              # Sample pt hat bin distribution equally
+              # NOTE: This option isn't meaningful in the constrained source case
+              sample_each_pt_hat_bin_equally: true
+              # Number of signal files to make available to a background file
+              # This ensures some additional diversity if we end up with a very small signal file
+              n_files_to_use_per_task: 3
+          background_parameters:
+            constrained_source:  # ie. background is the constraint
+              n_files_to_use_per_task: 1
+            unconstrained_source:
+              n_files_to_use_per_task: 2
       settings: &_base_analysis_settings_embed
         splittings_selection: "iterative"
         # In GeV
@@ -390,7 +402,7 @@ productions:
         det_level_artificial_tracking_efficiency: 0.99
     # Start of validated track skim
     64:
-      # Nominal, Rmax = 0.1
+      # Nominal, r_max = 0.1
       metadata:
         <<: *base_metadata_embed
         dataset: *LHC18qr_PbPb_semi_central
@@ -405,7 +417,7 @@ productions:
           r_max: 0.1
         det_level_artificial_tracking_efficiency: 0.99
     65:
-      # Background systematic, Rmax = 0.05
+      # Background systematic, r_max = 0.05
       metadata:
         <<: *base_metadata_embed
         dataset: *LHC18qr_PbPb_semi_central
@@ -420,7 +432,7 @@ productions:
           r_max: 0.05
         det_level_artificial_tracking_efficiency: 0.99
     66:
-      # Background systematic, Rmax = 0.50
+      # Background systematic, r_max = 0.50
       metadata:
         <<: *base_metadata_embed
         dataset: *LHC18qr_PbPb_semi_central
