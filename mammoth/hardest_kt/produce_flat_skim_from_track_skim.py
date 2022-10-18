@@ -566,7 +566,7 @@ def _determine_embed_pythia_input_files(
     background_input_files: Sequence[Path],
     background_is_constrained_source: bool,
     input_handling_config: Mapping[str, Any],
-) -> Iterable[int, Sequence[Path], Sequence[Path]]:
+) -> Iterable[Tuple[int, Sequence[Path], Sequence[Path]]]:
     """Determine the input files for embedding with pythia."""
     # Configuration setup
     signal_input_config = input_handling_config["signal_parameters"]
@@ -655,11 +655,6 @@ def setup_calculate_embed_pythia_skim(
         )
 
     logger.info(f"Configuring embed pythia with {'background' if _background_is_constrained_source else 'signal'} as the constrained source.")
-
-    if _background_is_constrained_source:
-        input_files: Union[List[Path], List[Tuple[int, Path]]] = background_input_files
-    else:
-        input_files = signal_input_files_flat
 
     results = []
     _embedding_file_pairs = {}
