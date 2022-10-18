@@ -9,7 +9,7 @@ import enum
 import logging
 import secrets
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, Mapping, Optional, Sequence, Tuple, Union
+from typing import Any, Dict, Iterable, List, Mapping, Optional, Sequence, Tuple
 
 import IPython
 import attrs
