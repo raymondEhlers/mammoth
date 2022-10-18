@@ -952,10 +952,10 @@ def run() -> None:  # noqa: C901
     n_cores_to_allocate = 110
     #n_cores_to_allocate = 50
     walltime = "24:00:00"
-    n_cores_to_allocate = 2
+    #n_cores_to_allocate = 2
     #walltime = "1:59:00"
     #n_cores_to_allocate = 10
-    debug_mode = True
+    debug_mode = False
 
     # Basic setup: logging and parsl.
     # First, need to figure out if we need additional environments such as ROOT
