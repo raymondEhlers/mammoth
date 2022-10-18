@@ -546,8 +546,8 @@ def _select_files_for_source(
         for _ in range(n_files_to_use - 1 + 5)
     ])
     # Remove the existing file, and then add to the list
-    _possible_additional_files.remove(selected_input_file)
-    _input.extend(_possible_additional_files[:n_files_to_use - 1])
+    _possible_additional_files.discard(selected_input_file)
+    _input.extend(list(_possible_additional_files)[:n_files_to_use - 1])
 
     # Validate that we didn't somehow end up with too few files
     # This really shouldn't happen outside of exceptional cases
@@ -569,8 +569,8 @@ def _determine_embed_pythia_input_files(
 ) -> Iterable[int, Sequence[Path], Sequence[Path]]:
     """Determine the input files for embedding with pythia."""
     # Configuration setup
-    signal_input_config = input_handling_config["signal"]
-    background_input_config = input_handling_config["background"]
+    signal_input_config = input_handling_config["signal_parameters"]
+    background_input_config = input_handling_config["background_parameters"]
 
     # Some convenient quantities for working with signal inputs
     pt_hat_bins, signal_input_files_flat = _extract_info_from_signal_file_list(
@@ -597,7 +597,7 @@ def _determine_embed_pythia_input_files(
 
             yield pt_hat_bin, signal_input, background_input
     else:
-        for pt_hat_bin, signal_file in signal_input_files_flat.items():
+        for pt_hat_bin, signal_file in signal_input_files_flat:
             # Determine the constrained input (signal)
             # Start with the file that we iterated with
             signal_input = _select_files_for_source(
@@ -635,7 +635,7 @@ def setup_calculate_embed_pythia_skim(
     # Setup for dataset and input
     _metadata_config: Dict[str, Any] = prod.config["metadata"]
     _input_handling_config: Dict[str, Any] = _metadata_config["input_handling"]
-    _background_is_constrained_source: bool = (_input_handling_config["constrained_source"].lower() == "signal")
+    _background_is_constrained_source: bool = not (_input_handling_config["constrained_source"].lower() == "signal")
 
     # Analysis settings
     _analysis_config: Dict[str, Any] = prod.config["settings"]
@@ -653,6 +653,8 @@ def setup_calculate_embed_pythia_skim(
         raise ValueError(
             f"Mismatch between the pt hat bins in the scale factors ({set(scale_factors)}) and the pt hat bins ({set(pt_hat_bins)})"
         )
+
+    logger.info(f"Configuring embed pythia with {'background' if _background_is_constrained_source else 'signal'} as the constrained source.")
 
     if _background_is_constrained_source:
         input_files: Union[List[Path], List[Tuple[int, Path]]] = background_input_files
@@ -685,7 +687,7 @@ def setup_calculate_embed_pythia_skim(
         output_identifier += "__embedded_into__"
         output_identifier += safe_output_filename_from_relative_path(filename=background_input[0], output_dir=prod.output_dir)
         # Finally, add the splittings selection
-        output_identifier += "_{str(splittings_selection)}"
+        output_identifier += f"_{str(splittings_selection)}"
 
         # Ensure that we don't use an output identifier twice.
         # If we've already used it, we add a counter to it
@@ -708,7 +710,11 @@ def setup_calculate_embed_pythia_skim(
         # Store the file pairs for our records
         # The output identifier contains the first signal filename, as well as the background filename.
         # We use it here rather than _just_ the background filename because we may embed into data multiple times
-        _embedding_file_pairs[output_identifier] = [str(_filename) for _filename in signal_input]
+        _embedding_file_pairs[output_identifier] = [
+            str(_filename) for _filename in signal_input
+        ] + [
+            str(_filename) for _filename in background_input
+        ]
 
         # And create the tasks
         results.append(
@@ -837,7 +843,7 @@ def setup_calculate_embed_thermal_model_skim(
     # Reversed because the higher pt hard bins are of more importance to get done sooner.
     for pt_hat_bin, input_filenames in reversed(input_files.items()):
         for input_filename in input_filenames:
-            if _file_counter % 500 == 0:
+            if _file_counter % 500 == 0 or debug_mode:
                 logger.info(f"Adding {input_filename} for analysis")
 
             # For debugging
@@ -951,7 +957,7 @@ def run() -> None:  # noqa: C901
     n_cores_to_allocate = 110
     #n_cores_to_allocate = 50
     walltime = "24:00:00"
-    #n_cores_to_allocate = 2
+    n_cores_to_allocate = 2
     #walltime = "1:59:00"
     #n_cores_to_allocate = 10
     debug_mode = True
