@@ -175,7 +175,7 @@ analysis_settings:
           constrained_source: "signal"
           signal_parameters:
             constrained_source:  # ie. signal is the constraint
-              n_files_to_use_per_task: 2
+              n_files_to_use_per_task: 1
             unconstrained_source:
               # Sample pt hat bin distribution equally
               # NOTE: This option isn't meaningful in the constrained source case
@@ -187,7 +187,7 @@ analysis_settings:
             constrained_source:  # ie. background is the constraint
               n_files_to_use_per_task: 1
             unconstrained_source:
-              n_files_to_use_per_task: 2
+              n_files_to_use_per_task: 1
       settings: &_base_analysis_settings_embed
         splittings_selection: "iterative"
         # In GeV
