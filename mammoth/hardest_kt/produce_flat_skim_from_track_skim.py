@@ -279,7 +279,7 @@ def steer_extract_scale_factors(
         stored_scale_factors = prod.scale_factors()
         # We check if it's non-zero to avoid the case where it's accidentally empty
         if stored_scale_factors:
-            logger.debug("Scale factors already exist. Skipping extracting them again!")
+            logger.info("Scale factors already exist. Skipping extracting them again!")
             return []
     logger.info("Extracting scale factors...")
 
@@ -630,7 +630,12 @@ def setup_calculate_embed_pythia_skim(
     # We can sample pt hat bins equally by sampling the pt hat bin, and then taking a random file
     # from that bin. In this case, the pythia files _are not_ sampled equally.
     signal_input_files_per_pt_hat = prod.input_files_per_pt_hat()
-    pt_hat_bins, signal_input_files_flat = _extract_info_from_signal_file_list(signal_input_files_per_pt_hat=signal_input_files_per_pt_hat)
+
+    # If we want to debug some particular files, we can directly set them here
+    # if debug_mode:
+    #     background_input_files = [Path("trains/PbPb/645/run_by_run/LHC18q/296270/AnalysisResults.18q.179.root")]
+    #     signal_input_files_per_pt_hat = {1: [Path("trains/pythia/2640/run_by_run/LHC20g4/297132/1/AnalysisResults.20g4.013.root")]}
+    #     # signal_input_files_per_pt_hat = {12: [Path("trains/pythia/2640/run_by_run/LHC20g4/297132/12/AnalysisResults.20g4.013.root")]}
 
     # Setup for dataset and input
     _metadata_config: Dict[str, Any] = prod.config["metadata"]
@@ -649,10 +654,14 @@ def setup_calculate_embed_pythia_skim(
         raise ValueError("Check the embedding config - you need a signal dataset.")
 
     # Cross check
-    if set(scale_factors) != set(pt_hat_bins):
-        raise ValueError(
-            f"Mismatch between the pt hat bins in the scale factors ({set(scale_factors)}) and the pt hat bins ({set(pt_hat_bins)})"
-        )
+    # NOTE: We usually need to skip this during debug mode because we may not have all pt hat bins in the input,
+    #       so it will fail trivially.
+    if not debug_mode:
+        pt_hat_bins, _ = _extract_info_from_signal_file_list(signal_input_files_per_pt_hat=signal_input_files_per_pt_hat)
+        if set(scale_factors) != set(pt_hat_bins):
+            raise ValueError(
+                f"Mismatch between the pt hat bins in the scale factors ({set(scale_factors)}) and the pt hat bins ({set(pt_hat_bins)})"
+            )
 
     logger.info(f"Configuring embed pythia with {'background' if _background_is_constrained_source else 'signal'} as the constrained source.")
 
@@ -986,6 +995,7 @@ def run() -> None:  # noqa: C901
     all_results = []
     for prod in productions:
         tasks_to_execute = prod.tasks_to_execute
+        logger.info(f"Tasks to execute: {tasks_to_execute}")
 
         # Setup tasks
         system_results = []
