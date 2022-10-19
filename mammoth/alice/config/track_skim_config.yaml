@@ -342,6 +342,21 @@ productions:
         # 0-10% \approx .98
         # Apply only to embedded particles
         det_level_artificial_tracking_efficiency: 0.99
+    3:
+      # Nominal, r_max = 0.1
+      metadata:
+        <<: *base_metadata_embed
+        dataset: *LHC18qr_PbPb_semi_central
+        signal_dataset: *LHC20g4_pythia
+        # Equivalent to train number, but a more general term makes more sense here.
+        production_number: 3
+        label: "embed_pythia_semi_central"
+      settings:
+        <<: *analysis_settings_embed_R02
+        event_activity: "semi_central"
+        background_subtraction:
+          r_max: 0.1
+        det_level_artificial_tracking_efficiency: 0.99
     60:
       metadata:
         <<: *base_metadata_embed
