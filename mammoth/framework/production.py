@@ -289,6 +289,7 @@ class ProductionSettings:
         if self.collision_system in _collision_systems_with_scale_factors:
             # If we have the scale factors stored and available, no need to extract them again
             if self.scale_factors_filename.exists() and self.scale_factors():
+                logger.info("Scale factors already exist. Skipping extracting them again by not assigning the task!")
                 pass
             else:
                 _tasks.append("extract_scale_factors")
