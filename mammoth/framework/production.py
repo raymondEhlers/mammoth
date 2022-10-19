@@ -283,9 +283,15 @@ class ProductionSettings:
         # Could in principle be multiple tasks.
         _tasks = []
 
-        # Need scale factors
-        if self.collision_system in ["pythia"] or "embed" in self.collision_system:
-            _tasks.append("extract_scale_factors")
+        # Add scale factors extraction if needed
+        # NOTE: This is worth the extra effort because extracting the scale factors requires ROOT (as of 19 Oct 2022),
+        #       so it's much nicer if we can avoid that dependency!
+        if self.collision_system in _collision_systems_with_scale_factors:
+            # If we have the scale factors stored and available, no need to extract them again
+            if self.scale_factors_filename.exists() and self.scale_factors():
+                pass
+            else:
+                _tasks.append("extract_scale_factors")
 
         _tasks.extend(self.specialization.tasks_to_execute(collision_system=self.collision_system))
         return _tasks
