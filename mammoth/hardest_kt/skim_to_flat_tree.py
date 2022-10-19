@@ -175,7 +175,7 @@ def _select_and_retrieve_splittings(
 
 
 @nb.njit  # type: ignore # noqa: C901
-def calculate_splitting_number(  # noqa: C901
+def _calculate_splitting_number(  # noqa: C901
     all_splittings: analysis_jet_substructure.JetSplittingArray,
     selected_splittings: analysis_jet_substructure.JetSplittingArray,
     restricted_splittings_indices: AwkwardArray[AwkwardArray[int]],
@@ -233,6 +233,37 @@ def calculate_splitting_number(  # noqa: C901
                 print("output[i]", output[i])
 
     return output
+
+
+def calculate_splitting_number(
+    all_splittings: analysis_jet_substructure.JetSplittingArray,
+    selected_splittings: analysis_jet_substructure.JetSplittingArray,
+    restricted_splittings_indices: AwkwardArray[AwkwardArray[int]],
+    debug: bool = False,
+) -> npt.NDArray[np.int16]:
+    """Wrapper around calculating the splitting number
+
+    The wrapper takes care of the case where there are no jets with selected splittings.
+    In that case, the parent_index type in the awkward array is ambiguous (ie. n * "unknown"),
+    which then breaks numba compilation. This wrapper checks for this condition, and if it finds
+    it, immediately returns all 0s (ie. untagged).
+
+    Note that this may be convolving truly untagged with taking the first split. However, we're not
+    overly worried about this in Oct 2022, especially since we just look at these calculations for QA.
+    So nothing further is done for now. (I think it's convolved, but I'm not certain)
+    """
+    if ak.any(ak.num(selected_splittings.parent_index, axis=1) > 0):
+        return _calculate_splitting_number(
+            all_splittings=all_splittings,
+            selected_splittings=selected_splittings,
+            restricted_splittings_indices=restricted_splittings_indices,
+            debug=debug,
+        )
+    logger.warning(
+        "There were no jets with selected splittings, so we short circuited the splittings calculation."
+        " This avoids issues with slicing with numba. This should be most comment when working with low pt hat bins."
+    )
+    return np.zeros(len(selected_splittings), dtype=np.int16)
 
 
 @nb.njit  # type: ignore
@@ -778,8 +809,9 @@ def calculate_embedding_skim_impl(  # noqa: C901
                     selected_splittings=groomed_splittings,
                     # Need all splitting indices (unrestricted by any possible grooming selections).
                     restricted_splittings_indices=calculation.input_splittings_indices,
+                    debug=False,
                 )
-                logger.debug(f"Done with first splitting calculation, {prefix}")
+                logger.info(f"Done with first splitting calculation, {prefix}")
                 # Number of splittings which pass the grooming conditions until the selected splitting.
                 n_groomed_to_split = calculate_splitting_number(
                     all_splittings=calculation.input_jets.jet_splittings,
@@ -788,7 +820,7 @@ def calculate_embedding_skim_impl(  # noqa: C901
                     restricted_splittings_indices=calculation.possible_indices,
                     debug=False,
                 )
-                logger.debug(f"Done with second splitting calculation, {prefix}")
+                logger.info(f"Done with second splitting calculation, {prefix}")
 
                 # We pad with the UNFILLED_VALUE constant to account for any calculations that don't find a splitting.
                 grooming_result = GroomingResultForTree(
