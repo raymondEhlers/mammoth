@@ -811,7 +811,7 @@ def calculate_embedding_skim_impl(  # noqa: C901
                     restricted_splittings_indices=calculation.input_splittings_indices,
                     debug=False,
                 )
-                logger.info(f"Done with first splitting calculation, {prefix}")
+                logger.info(f"Done with first splitting calculation, {func_name}, {prefix}")
                 # Number of splittings which pass the grooming conditions until the selected splitting.
                 n_groomed_to_split = calculate_splitting_number(
                     all_splittings=calculation.input_jets.jet_splittings,
@@ -820,7 +820,7 @@ def calculate_embedding_skim_impl(  # noqa: C901
                     restricted_splittings_indices=calculation.possible_indices,
                     debug=False,
                 )
-                logger.info(f"Done with second splitting calculation, {prefix}")
+                logger.info(f"Done with second splitting calculation, {func_name}, {prefix}")
 
                 # We pad with the UNFILLED_VALUE constant to account for any calculations that don't find a splitting.
                 grooming_result = GroomingResultForTree(
