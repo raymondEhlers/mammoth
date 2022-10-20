@@ -16,7 +16,7 @@ import numpy as np
 import uproot
 
 from mammoth import helpers
-from mammoth.framework import jet_finding, load_data, particle_ID, sources
+from mammoth.framework import jet_finding, load_data as _load_data, particle_ID, sources
 from mammoth.jetscape import utils
 
 
@@ -32,14 +32,14 @@ class JetLabel:
         return f"{self.label}_jetR{round(self.jet_R * 100):03}"
 
 
-def _load_data(filename: Path) -> ak.Array:
+def load_data(filename: Path) -> ak.Array:
     logger.info("Loading data")
     source = sources.ParquetSource(
         filename=filename,
     )
     arrays = next(source.gen_data(chunk_size=sources.ChunkSizeSentinel.FULL_SOURCE))
     logger.info("Transforming data")
-    return load_data.normalize_for_data(arrays=arrays, rename_prefix={"data": "particles"})
+    return _load_data.normalize_for_data(arrays=arrays, rename_prefix={"data": "particles"})
 
 
 def find_jets_for_analysis(arrays: ak.Array, jet_R_values: Sequence[float], particle_column_name: str = "data", min_jet_pt: float = 30) -> Dict[JetLabel, ak.Array]:
@@ -312,7 +312,7 @@ if __name__ == "__main__":
     helpers.setup_logging(level=logging.INFO)
 
     hists = run(
-        arrays=_load_data(
+        arrays=load_data(
             #Path(f"/alf/data/rehlers/jetscape/osiris/AAPaperData/5020_PP_Colorless/skim/test/JetscapeHadronListBin7_9_00.parquet")
             #Path("/alf/data/rehlers/jetscape/osiris/AAPaperData/5020_PP_Colorless/skim/JetscapeHadronListBin270_280_01.parquet")
             #Path("/alf/data/rehlers/jetscape/osiris/AAPaperData/MATTER_LBT_RunningAlphaS_Q2qhat/5020_PbPb_40-50_0.30_2.0_1/skim/JetscapeHadronListBin7_9_01.parquet"),

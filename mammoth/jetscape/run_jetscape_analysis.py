@@ -5,8 +5,9 @@
 
 import logging
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Sequence
+from typing import Any, Dict, List, Optional, Sequence, Tuple
 
+import hist
 import IPython
 from parsl.app.app import python_app
 from parsl.data_provider.files import File
@@ -18,14 +19,14 @@ from mammoth import helpers, job_utils
 logger = logging.getLogger(__name__)
 
 
-@python_app  # type: ignore
+@python_app
 def convert_jetscape_files(
     output_filename_template: str,
     events_per_chunk: int,
     store_only_necessary_columns: bool,
     inputs: Sequence[File] = [],
     outputs: Sequence[File] = [],
-) -> AppFuture:
+) -> Tuple[bool, str]:
     from pathlib import Path
 
     from mammoth.framework.io import jetscape
@@ -68,7 +69,7 @@ def setup_convert_jetscape_files(
         input_file = File(
             str((ascii_output_dir / input_filename_template.format(pt_hat_bin=pt_hat_bin)).with_suffix(".out"))
         )
-        # Without knowning the number of events per file, we can't calculate the number of output files.
+        # Without knowing the number of events per file, we can't calculate the number of output files.
         # Fortunately, since we're not using parsl to stage the files, we just need one file as a proxy
         template_to_use_for_output = input_filename_template
         if output_filename_template:
@@ -95,7 +96,7 @@ def setup_convert_jetscape_files(
     return results
 
 
-@python_app  # type: ignore
+@python_app
 def run_RAA_analysis(
     system: str,
     jet_R_values: Sequence[float],
@@ -105,7 +106,7 @@ def run_RAA_analysis(
     write_hists_filename: Optional[Path] = None,
     inputs: Sequence[File] = [],
     outputs: Sequence[File] = [],
-) -> AppFuture:
+) -> Tuple[bool, str, str, Dict[str, hist.Hist]]:
     import traceback
     from pathlib import Path
 
