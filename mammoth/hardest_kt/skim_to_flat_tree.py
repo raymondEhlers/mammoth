@@ -39,11 +39,11 @@ class Calculation:
 
     input_jets: ak.Array = attr.field()
     input_splittings: analysis_jet_substructure.JetSplittingArray = attr.field()
-    input_splittings_indices: AwkwardArray[int] = attr.field()
+    input_splittings_indices: AwkwardArray[AwkwardArray[int]] = attr.field()
     values: npt.NDArray[np.float32] = attr.field()
     indices: AwkwardArray[int] = attr.field()
     # If there's no additional grooming selection, then this will be identical to input_splittings_indices.
-    possible_indices: AwkwardArray[int] = attr.field()
+    possible_indices: AwkwardArray[AwkwardArray[int]] = attr.field()
     # NOTE: We don't initialize here because we want to cache the calculation of the selected set of splittings
     _restricted_splittings: analysis_jet_substructure.JetSplittingArray = attr.field(init=False)
 
@@ -92,7 +92,7 @@ class MaskedJets:
 
     jets: ak.Array = attr.ib()
     selected_splittings: analysis_jet_substructure.JetSplittingArray = attr.ib()
-    selected_splittings_index: AwkwardArray[int] = attr.ib()
+    selected_splittings_index: AwkwardArray[AwkwardArray[int]] = attr.ib()
 
 
 @attr.s
@@ -117,7 +117,7 @@ class GroomingResultForTree:
 def _define_calculation_functions(
     jet_R: float,
     iterative_splittings: bool,
-) -> Dict[str, functools.partial[Tuple[npt.NDArray[Scalar], AwkwardArray[int], AwkwardArray[int]]]]:
+) -> Dict[str, functools.partial[Tuple[npt.NDArray[Scalar], AwkwardArray[int], AwkwardArray[AwkwardArray[int]]]]]:
     """Define the calculation functions of interest.
 
     Note:
@@ -151,7 +151,7 @@ def _define_calculation_functions(
 
 def _select_and_retrieve_splittings(
     jets: ak.Array, mask: AwkwardArray[bool], iterative_splittings: bool
-) -> Tuple[ak.Array, analysis_jet_substructure.JetSplittingArray, AwkwardArray[int]]:
+) -> Tuple[ak.Array, analysis_jet_substructure.JetSplittingArray, AwkwardArray[AwkwardArray[int]]]:
     """Generalization of the function in analyze_tree to add the splitting index."""
     # Ensure that there are sufficient counts
     restricted_jets = jets[mask]
@@ -253,7 +253,7 @@ def calculate_splitting_number(
     So nothing further is done for now. (I think it's convolved, but I'm not certain)
     """
     if ak.any(ak.num(selected_splittings.parent_index, axis=1) > 0):
-        return _calculate_splitting_number(
+        return _calculate_splitting_number(  # type: ignore
             all_splittings=all_splittings,
             selected_splittings=selected_splittings,
             restricted_splittings_indices=restricted_splittings_indices,
@@ -801,7 +801,7 @@ def calculate_embedding_skim_impl(  # noqa: C901
             grooming_results[leading_track_name] = to_float(ak.max(input_jets.jets.jet_constituents.pt, axis=1))
 
         # Perform our calculations.
-        functions: Dict[str, functools.partial[Tuple[npt.NDArray[np.float32], AwkwardArray[int], AwkwardArray[int]]]] = _define_calculation_functions(jet_R=jet_R, iterative_splittings=iterative_splittings)
+        functions: Dict[str, functools.partial[Tuple[npt.NDArray[np.float32], AwkwardArray[int], AwkwardArray[AwkwardArray[int]]]]] = _define_calculation_functions(jet_R=jet_R, iterative_splittings=iterative_splittings)
         for func_name, func in functions.items():
             logger.debug(f"func_name: {func_name}")
             calculations = {
@@ -1092,7 +1092,7 @@ def calculate_data_skim_impl(  # noqa: C901
             grooming_results[leading_track_name] = to_float(ak.max(input_jets.jets.jet_constituents.pt, axis=1))
 
             # Perform our calculations.
-            functions: Dict[str, functools.partial[Tuple[npt.NDArray[np.float32], AwkwardArray[int], AwkwardArray[int]]]] = _define_calculation_functions(jet_R=jet_R, iterative_splittings=iterative_splittings)
+            functions: Dict[str, functools.partial[Tuple[npt.NDArray[np.float32], AwkwardArray[int], AwkwardArray[AwkwardArray[int]]]]] = _define_calculation_functions(jet_R=jet_R, iterative_splittings=iterative_splittings)
             for func_name, func in functions.items():
                 logger.debug(f"prefix: {prefix}, grooming function: {func_name}")
                 calculation = Calculation(

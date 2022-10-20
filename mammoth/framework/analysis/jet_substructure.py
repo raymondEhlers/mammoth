@@ -390,7 +390,7 @@ class JetSplittingArray(ak.Array, JetSplittingCommon):  # type: ignore
         """
         return cast(SubjetArray, self[subjets.iterative_splitting_index])
 
-    def dynamical_core(self, R: float) -> Tuple[npt.NDArray[Scalar], AwkwardArray[int], AwkwardArray[int]]:
+    def dynamical_core(self, R: float) -> Tuple[npt.NDArray[Scalar], AwkwardArray[int], AwkwardArray[AwkwardArray[int]]]:
         """Dynamical core of the jet splittings.
 
         Args:
@@ -401,7 +401,7 @@ class JetSplittingArray(ak.Array, JetSplittingCommon):  # type: ignore
         values, indices = find_leading(dynamical_core(self.delta_R, self.z, self.parent_pt, R))
         return values, indices, ak.local_index(self.z, axis=-1)
 
-    def dynamical_z(self, R: float) -> Tuple[npt.NDArray[Scalar], AwkwardArray[int], AwkwardArray[int]]:
+    def dynamical_z(self, R: float) -> Tuple[npt.NDArray[Scalar], AwkwardArray[int], AwkwardArray[AwkwardArray[int]]]:
         """Dynamical z of the jet splittings.
 
         Args:
@@ -412,7 +412,7 @@ class JetSplittingArray(ak.Array, JetSplittingCommon):  # type: ignore
         values, indices = find_leading(dynamical_z(self.delta_R, self.z, self.parent_pt, R))
         return values, indices, ak.local_index(self.z, axis=-1)
 
-    def dynamical_kt(self, R: float) -> Tuple[npt.NDArray[Scalar], AwkwardArray[int], AwkwardArray[int]]:
+    def dynamical_kt(self, R: float) -> Tuple[npt.NDArray[Scalar], AwkwardArray[int], AwkwardArray[AwkwardArray[int]]]:
         """Dynamical kt of the jet splittings.
 
         Args:
@@ -423,7 +423,7 @@ class JetSplittingArray(ak.Array, JetSplittingCommon):  # type: ignore
         values, indices = find_leading(dynamical_kt(self.delta_R, self.z, self.parent_pt, R))
         return values, indices, ak.local_index(self.z, axis=-1)
 
-    def dynamical_time(self, R: float) -> Tuple[npt.NDArray[Scalar], AwkwardArray[int], AwkwardArray[int]]:
+    def dynamical_time(self, R: float) -> Tuple[npt.NDArray[Scalar], AwkwardArray[int], AwkwardArray[AwkwardArray[int]]]:
         """Dynamical time of the jet splittings.
 
         Args:
@@ -434,7 +434,7 @@ class JetSplittingArray(ak.Array, JetSplittingCommon):  # type: ignore
         values, indices = find_leading(dynamical_time(self.delta_R, self.z, self.parent_pt, R))
         return values, indices, ak.local_index(self.z, axis=-1)
 
-    def leading_kt(self, z_cutoff: Optional[float] = None) -> Tuple[npt.NDArray[Scalar], AwkwardArray[int], AwkwardArray[int]]:
+    def leading_kt(self, z_cutoff: Optional[float] = None) -> Tuple[npt.NDArray[Scalar], AwkwardArray[int], AwkwardArray[AwkwardArray[int]]]:
         """Leading kt of the jet splittings.
 
         Args:
@@ -452,7 +452,7 @@ class JetSplittingArray(ak.Array, JetSplittingCommon):  # type: ignore
         values, indices = find_leading(self.kt[indices_passing_cutoff])
         return values, indices_passing_cutoff[indices], indices_passing_cutoff
 
-    def soft_drop(self, z_cutoff: float) -> Tuple[npt.NDArray[Scalar], AwkwardArray[int], AwkwardArray[int]]:
+    def soft_drop(self, z_cutoff: float) -> Tuple[npt.NDArray[Scalar], AwkwardArray[int], AwkwardArray[AwkwardArray[int]]]:
         """Calculate soft drop of the splittings.
 
         Note:
