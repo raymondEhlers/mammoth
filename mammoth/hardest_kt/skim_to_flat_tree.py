@@ -439,7 +439,6 @@ def determine_matched_jets_numba(
         # Find the contributing subjets
         generator_like_subjets = _find_contributing_subjets(generator_like_jet, generator_like_groomed_index)
         measured_like_subjets = _find_contributing_subjets(measured_like_jet, measured_like_groomed_index)
-        # print(measured_like_subjets)
         # Sort
         generator_like_leading, generator_like_subleading = _sort_subjets(generator_like_jet, generator_like_subjets)
         measured_like_leading, measured_like_subleading = _sort_subjets(measured_like_jet, measured_like_subjets)
@@ -512,18 +511,36 @@ def prong_matching_numba_wrapper(
     """
     # Matching
     grooming_results = {}
-    logger.debug(f"Performing {measured_like_jets_label}-{generator_like_jets_label} matching for {grooming_method}")
-    leading_matching, subleading_matching = determine_matched_jets_numba(
-        generator_like_jets=generator_like_jets_calculation.input_jets,
-        generator_like_splittings=generator_like_jets_calculation.input_splittings,
-        generator_like_groomed_values=generator_like_jets_calculation.values,
-        generator_like_groomed_indices=generator_like_jets_calculation.indices,
-        measured_like_jets=measured_like_jets_calculation.input_jets,
-        measured_like_splittings=measured_like_jets_calculation.input_splittings,
-        measured_like_groomed_values=measured_like_jets_calculation.values,
-        measured_like_groomed_indices=measured_like_jets_calculation.indices,
-        match_using_distance=match_using_distance,
-    )
+    logger.info(f"Performing {measured_like_jets_label}-{generator_like_jets_label} matching for {grooming_method}")
+    # If there are only single particle jets, awkward cannot determine the proper type for the input_splittings,
+    # which then causes numba compilation to fail. To workaround this issue, we look for "unknown" in the type,
+    # and in that case, we skip the matching. The know that we can assign it to -1 because if there are no splittings
+    # (which must be the case for single particle jets), then the subjets can't possibly be matched to other subjets.
+    _contains_only_single_particle_jets = {
+        generator_like_jets_label: "unknown" in str(ak.type(generator_like_jets_calculation.input_splittings)),
+        measured_like_jets_label: "unknown" in str(ak.type(measured_like_jets_calculation.input_splittings)),
+    }
+    if any(_contains_only_single_particle_jets.values()):
+        logger.warning(
+            f"Only single particle jets for {','.join([k for k, v in _contains_only_single_particle_jets.items() if v])}, so we skip the subjet matching (there will be no matches)!"
+        )
+        # Initialize the full set of matching values to -1 to indicate that there is no match.
+        # NOTE: If the matched jets index conventions change, it must also be changed here!
+        n_jets = len(measured_like_jets_calculation.input_jets)
+        leading_matching = np.full(n_jets, -1, dtype=np.int16)
+        subleading_matching = np.full(n_jets, -1, dtype=np.int16)
+    else:
+        leading_matching, subleading_matching = determine_matched_jets_numba(
+            generator_like_jets=generator_like_jets_calculation.input_jets,
+            generator_like_splittings=generator_like_jets_calculation.input_splittings,
+            generator_like_groomed_values=generator_like_jets_calculation.values,
+            generator_like_groomed_indices=generator_like_jets_calculation.indices,
+            measured_like_jets=measured_like_jets_calculation.input_jets,
+            measured_like_splittings=measured_like_jets_calculation.input_splittings,
+            measured_like_groomed_values=measured_like_jets_calculation.values,
+            measured_like_groomed_indices=measured_like_jets_calculation.indices,
+            match_using_distance=match_using_distance,
+        )
 
     for label, matching in [("leading", leading_matching), ("subleading", subleading_matching)]:
         grooming_results[
