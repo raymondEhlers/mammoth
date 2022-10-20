@@ -126,7 +126,7 @@ def setup_logging_and_parsl(
     for message in stored_messages:
         message.log()
 
-    return dfk
+    return dfk  # type: ignore
 
 
 def setup_logging(
