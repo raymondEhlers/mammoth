@@ -31,7 +31,7 @@ def get_eta_label(eta_range: Tuple[float, float]) -> str:
     return fr"${eta_range[0]} < \eta < {eta_range[1]}$"
 
 
-def _plot_tracking_comparison(input_specs: Sequence[run_ecce_analysis.DatasetSpec], input_spec_labels: Mapping[str, str], hists: Mapping[str, Mapping[str, hist.Hist]],
+def _plot_tracking_comparison(input_specs: Sequence[run_ecce_analysis.DatasetSpec], input_spec_labels: Mapping[str, str], hists: Mapping[str, Mapping[int, hist.Hist]],
                               all_regions: Sequence[Tuple[float, float]], regions_index: Sequence[int],
                               plot_config: pb.PlotConfig, output_dir: Path) -> None:
     fig, ax = plt.subplots(figsize=(10, 7.5))
@@ -55,7 +55,7 @@ def _plot_tracking_comparison(input_specs: Sequence[run_ecce_analysis.DatasetSpe
             #else:
             #    # Inefficient, but I don't really care here - it doesn't need to be that fast.
             #    groups = [(k, sum(1 for i in g)) for k,g in itertools.groupby(m)]
-            #    # Max is three groups: Falses, followed by Trues, followed by Falses
+            #    # Max is three groups: False(s), followed by True(s), followed by False(s)
             #    if len(groups) > 3:
             #        logger.warning(f"Can't slice in a continuous range for {eta_index}, {str(input_spec)}. Groups: {groups}")
             #    # NOTE: Have to explicitly convert to int because they have an explicit isinstance on int, and apparently np.int64 doesn't count...
@@ -72,7 +72,7 @@ def _plot_tracking_comparison(input_specs: Sequence[run_ecce_analysis.DatasetSpe
                 h.axes[0].centers,
                 h.values(),
                 xerr=h.axes[0].widths / 2,
-                yerr=np.sqrt(h.variances()),
+                yerr=np.sqrt(h.variances()),  # type: ignore
                 label=input_spec_labels[str(input_spec)] if len(input_spec_hists) == 1 else get_eta_label(all_regions[eta_index]),
                 marker=markers[i_eta_index if len(input_spec_hists) > 1 else i_input_spec],
                 linestyle="",
@@ -107,7 +107,7 @@ def plot_tracking_comparison(input_specs: Sequence[run_ecce_analysis.DatasetSpec
     logger.info(f"hist_name_template: {hist_name_template}")
     logger.info(f"input_specs: {str(input_specs[0])}")
 
-    hists = {}
+    hists: Dict[str, Dict[int, hist.Hist]] = {}
     for input_spec in input_specs:
         hists[str(input_spec)] = {}
         for index in regions_index:

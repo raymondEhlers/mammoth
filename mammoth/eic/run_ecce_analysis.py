@@ -6,7 +6,7 @@
 import logging
 import itertools
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, Sequence
+from typing import Any, Dict, Iterable, List, Sequence, Tuple, Union
 
 import attr
 import IPython
@@ -62,9 +62,9 @@ def run_ecce_afterburner_bash(
     max_track_pt_in_jet: float = 30.0,
     inputs: Sequence[File] = [],
     outputs: Sequence[File] = [],
-    stdout: str = parsl.AUTO_LOGNAME,
-    stderr: str = parsl.AUTO_LOGNAME,
-) -> AppFuture:
+    stdout: Union[int, str] = parsl.AUTO_LOGNAME,
+    stderr: Union[int, str] = parsl.AUTO_LOGNAME,
+) -> str:
     import uuid
     from pathlib import Path
 
@@ -114,9 +114,9 @@ def run_ecce_afterburner(
     max_track_pt_in_jet: float = 30.0,
     inputs: Sequence[File] = [],
     outputs: Sequence[File] = [],
-    stdout: str = parsl.AUTO_LOGNAME,
-    stderr: str = parsl.AUTO_LOGNAME,
-) -> AppFuture:
+    stdout: Union[int, str] = parsl.AUTO_LOGNAME,
+    stderr: Union[int, str] = parsl.AUTO_LOGNAME,
+) -> Tuple[bool, str]:
     import traceback
     import tempfile
     from pathlib import Path

@@ -106,8 +106,8 @@ def calculate_ReA(input_hists: Dict[str, Dict[str, hist.Hist]],
                   analysis_config: ecce_ReA_implementation.AnalysisConfig,
                   narrow_rebin_factor: int = 2,
                   wide_rebin_factor: int = 5,
-                  ) -> Dict[JetParameters, hist.Hist]:
-    ReA_hists = {}
+                  ) -> Dict[str, Dict[JetParameters, hist.Hist]]:
+    ReA_hists: Dict[str, Dict[JetParameters, hist.Hist]] = {}
 
     for input_spec in sim_config.input_specs:
         if input_spec.n_PDF_name == "ep":
@@ -136,12 +136,12 @@ def calculate_ReA(input_hists: Dict[str, Dict[str, hist.Hist]],
     return ReA_hists
 
 
-def calculate_double_ratio(ReA_hists: Dict[str, Dict[str, hist.Hist]],  # noqa: C901
+def calculate_double_ratio(ReA_hists: Dict[str, Dict[JetParameters, hist.Hist]],  # noqa: C901
                            sim_config: SimulationConfig,
                            analysis_config: ecce_ReA_implementation.AnalysisConfig,
                            rebin_factor: int = 1,
-                           ) -> Dict[JetParameters, hist.Hist]:
-    double_ratio_hists = {}
+                           ) -> Dict[str, Dict[JetParameters, hist.Hist]]:
+    double_ratio_hists: Dict[str, Dict[JetParameters, hist.Hist]] = {}
 
     for input_spec in sim_config.input_specs:
         if input_spec.n_PDF_name == "ep":
@@ -280,7 +280,7 @@ def _plot_multiple_R(hists: Mapping[JetParameters, hist.Hist], is_ReA_related: b
             v.axes[0].centers,
             v.values(),
             xerr=v.axes[0].widths / 2,
-            yerr=np.sqrt(v.variances()),
+            yerr=np.sqrt(v.variances()),  # type: ignore
             linestyle="",
             label=f"$R = {round(int(k.jet_R) / 100, 2):01}$",
             marker="d",
@@ -373,7 +373,7 @@ def _plot_true_vs_det_level_ReA(true_hists: Mapping[JetParameters, hist.Hist], d
                 v.axes[0].centers,
                 v.values(),
                 xerr=v.axes[0].widths / 2,
-                yerr=np.sqrt(v.variances()),
+                yerr=np.sqrt(v.variances()),  # type: ignore
                 linestyle="",
                 #label=f"$R = {round(int(k.jet_R) / 100, 2):01}$",
                 label=k.jet_type.replace("_", " "),
@@ -432,10 +432,11 @@ _jet_type_display_label = {
 
 
 def plot_ReA(sim_config: SimulationConfig, analysis_config: ecce_ReA_implementation.AnalysisConfig, input_hists: Dict[str, Dict[str, hist.Hist]],  # noqa: C901
-             cross_section: float, scale_jets_by_expected_luminosity: bool = False, expected_luminosities: Mapping[str, float] = None, skip_slow_2D_plots: bool = False) -> None:
-    scaled_hists = {}
+             cross_section: float, scale_jets_by_expected_luminosity: bool = False, expected_luminosities: Optional[Mapping[str, float]] = None, skip_slow_2D_plots: bool = False) -> None:
     input_spectra_hists = input_hists
     if scale_jets_by_expected_luminosity:
+        # Help out mypy
+        assert expected_luminosities is not None
         logger.info("Scaling jet spectra by expected luminosity")
         # Replaces the input spectra hists with the scaled hists
         input_spectra_hists = ecce_ReA_implementation.scale_jets(
@@ -713,7 +714,7 @@ def plot_ReA(sim_config: SimulationConfig, analysis_config: ecce_ReA_implementat
                             )
 
     ####################################
-    # Plot ReA for nomainl PDF variation
+    # Plot ReA for nominal PDF variation
     ####################################
     # Multiple R are plotted on a single figure
     for input_spec in sim_config.input_specs:
@@ -1062,7 +1063,7 @@ def run() -> None:
         #variables = ["pt", "p"],
         # More minimal for speed + testing
         # NOTE: For the future, the number of hists is usually too large to load all of the into memory at once.
-        #       So instead, load some ofthem at a time, and take it in steps. One could do this with a shell script, etc.
+        #       So instead, load some of them at a time, and take it in steps. One could do this with a shell script, etc.
         #       (or carefully clear the memory in python). However, the easiest thing to do so have has been to deal
         #       with it by hand.
         jet_types=["charged", "true_charged"],

@@ -6,7 +6,7 @@
 """
 
 from pathlib import Path
-from typing import Dict, Mapping, Optional, Sequence
+from typing import Any, Dict, Mapping, Optional, Sequence
 
 import boost_histogram as bh
 import hist
@@ -325,7 +325,7 @@ def plot(output_dir: Path,  # noqa: C901
                 text += "\n" + r"anti-$k_{\text{T}}$ jets, $|\eta_{\text{jet}}| < " + str(jet_eta_range) + " - R$"
 
                 for jet_R_label, jet_R_values_to_iterate in [("", jet_R_values), ("_alice_comparison", [0.2, 0.4]), ("_requested", [0.2, 0.4, 0.6])]:
-                    x_axis_kwargs = {}
+                    x_axis_kwargs: Dict[str, Any] = {}
                     if restricted_range:
                         x_axis_kwargs = {"range": (15, 145)}
                         if jet_R_label == "_alice_comparison":
