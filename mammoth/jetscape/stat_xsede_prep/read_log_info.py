@@ -16,21 +16,21 @@ class Config:
     sqrts: int
     trigger: str
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"{self.sqrts}_{self.trigger}_trigger"
 
 
-def read_log_for_runtime(filename: Path) -> int:
+def read_log_for_runtime(filename: Path) -> float:
     """
 
     Returns:
-        Runtiem in seconds.
+        Runtime in seconds.
     """
 
     with open(filename, "r") as f:
         # The "Real time" output by JETSCAPE should be on the fourth to last line.
-        # It's slightly shorter than the full system time, but eaiser to parse,
-        # and should be good engouh.
+        # It's slightly shorter than the full system time, but easier to parse,
+        # and should be good enough.
         timing_line = f.readlines()[-4]
         real_time = float(timing_line.split()[2])
 
@@ -50,7 +50,7 @@ def read_logs(base_path: Path, model: str, tag: str, config: Config) -> List[flo
 
 
 def run(base_path: Path, models: Sequence[str], tags: Sequence[str], config: Config) -> Dict[str, Dict[str, List[float]]]:
-    output = {}
+    output: Dict[str, Dict[str, List[float]]] = {}
     for tag in tags:
         output[tag] = {}
         for model in models:
