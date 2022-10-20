@@ -748,11 +748,8 @@ def calculate_embedding_skim_impl(  # noqa: C901
 
     # Do the calculations
     # Do not mask on the number of constituents. This would prevent tagged <-> untagged migrations in the response.
-    # mask = (
-    #    (true_jets.constituents.counts > 1)
-    #    & (det_level_jets.constituents.counts > 1)
-    #    & (hybrid_jets.constituents.counts > 1)
-    # )
+    # _has_splittings_mask = [ak.num(_j.jet_constituents, axis=1) > 1 for _j in all_jets.values()]
+    # mask = functools.reduce(operator.and_, _has_splittings_mask)
     # Require that we have jets that aren't dominated by hybrid jets.
     # It's super important to be ">=". That allows the leading jet in the hybrid to be the same
     # as the leading jet in the true (which would be good - we've probably found the right jet).
@@ -862,9 +859,8 @@ def calculate_embedding_skim_impl(  # noqa: C901
                 grooming_results.update(grooming_result.asdict(prefix=prefix))
 
             logger.debug("Before prong matching")
-            # IPython.embed()
             # Hybrid-det level matching.
-            # We match using distance here because the labels don't align anymore due to the subtraction mixing the labels.
+            # We match using labels here because the we were able to propagate them through the subtraction.
             hybrid_det_level_matching_results = prong_matching_numba_wrapper(
                 measured_like_jets_calculation=calculations["hybrid"],
                 measured_like_jets_label="hybrid",
@@ -877,7 +873,7 @@ def calculate_embedding_skim_impl(  # noqa: C901
             logger.debug("Done with first prong matching")
             # Det level-true matching
             # We match using labels here because otherwise the reconstruction can cause the particles to move
-            # enough that they may not match within a particular distance.
+            # enough that they may not match within a particular distance. (plus, the labels work!)
             det_level_true_matching_results = prong_matching_numba_wrapper(
                 measured_like_jets_calculation=calculations["det_level"],
                 measured_like_jets_label="det_level",
