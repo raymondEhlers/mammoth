@@ -460,7 +460,7 @@ def _run_embedding_skim(
     except Exception:
         result = (
             False,
-            f"failure for {collision_system}, R={jet_R}, signal={[_f.filepath for _f in inputs[:-1]]}, background={inputs[1].filepath} with: \n{traceback.format_exc()}",
+            f"failure for {collision_system}, R={jet_R}, signal={[_f.filepath for _f in inputs[:n_signal_input_files]]}, background={[_f.filepath for _f in inputs[n_signal_input_files:]]} with: \n{traceback.format_exc()}",
         )
     return result
 
