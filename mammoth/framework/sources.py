@@ -186,7 +186,7 @@ class UprootSource:
                 _possible_tree_names = f.keys(cycle=False, filter_name=self._tree_name, filter_classname="TTree")
                 if len(_possible_tree_names) != 1:
                     raise ValueError(
-                        f"Ambiguous tree name '{self._tree_name}'. Please revise it as needed. Options: {_possible_tree_names}"
+                        f"Ambiguous tree name '{self._tree_name}'. Please revise it as needed. Possible tree names: {_possible_tree_names}. Filename: {self._filename}"
                     )
                 # We're good - let's keep going
                 self._tree_name = _possible_tree_names[0]
