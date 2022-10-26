@@ -172,7 +172,7 @@ analysis_settings:
           det_level: "det_level"
           part_level: "true"
         input_handling:
-          constrained_source: "signal"
+          constrained_source: "background"
           signal_parameters:
             constrained_source:  # ie. signal is the constraint
               n_files_to_use_per_task: 1
@@ -416,6 +416,8 @@ productions:
           r_max: 0.7
         det_level_artificial_tracking_efficiency: 0.99
     # Start of validated track skim
+    # NOTE: For now, we use background as the constraint, but we'll try to keep working on moving to the
+    #       signal as the constraint
     64:
       # Nominal, r_max = 0.1
       metadata:
