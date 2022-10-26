@@ -522,7 +522,7 @@ def prong_matching_numba_wrapper(
     }
     if any(_contains_only_single_particle_jets.values()):
         logger.warning(
-            f"Only single particle jets for {','.join([k for k, v in _contains_only_single_particle_jets.items() if v])}, so we skip the subjet matching (there will be no matches)!"
+            f"Only single particle jets for {' + '.join([repr(k) for k, v in _contains_only_single_particle_jets.items() if v])} so we skip the subjet matching (there will be no matches)!"
         )
         # Initialize the full set of matching values to -1 to indicate that there is no match.
         # NOTE: If the matched jets index conventions change, it must also be changed here!
@@ -659,12 +659,26 @@ def generator_subjet_momentum_fraction_in_measured_jet_numba_wrapper(
 ) -> Dict[str, npt.NDArray[np.float32]]:
     grooming_results = {}
 
-    leading_momentum_fraction, subleading_momentum_fraction = generator_subjet_momentum_fraction_in_measured_jet_numba(
-        generator_like_jets=generator_like_jets_calculation.input_jets,
-        generator_like_splittings=generator_like_jets_calculation.input_splittings,
-        generator_like_groomed_indices=generator_like_jets_calculation.indices,
-        measured_like_jets=measured_like_jets_calculation.input_jets,
-    )
+    _contains_only_single_particle_jets = {
+        generator_like_jets_label: "unknown" in str(ak.type(generator_like_jets_calculation.input_splittings)),
+        measured_like_jets_label: "unknown" in str(ak.type(measured_like_jets_calculation.input_splittings)),
+    }
+    if any(_contains_only_single_particle_jets.values()):
+        logger.warning(
+            f"Only single particle jets for {' + '.join([repr(k) for k, v in _contains_only_single_particle_jets.items() if v])} so we skip the subjet momentum fraction calculation (the fraction will always be zero if there are no subjets)!"
+        )
+        # Initialize the full set of matching values to -1 to indicate that there is no match.
+        # NOTE: If the matched jets index conventions change, it must also be changed here!
+        n_jets = len(measured_like_jets_calculation.input_jets)
+        leading_momentum_fraction = np.zeros(n_jets, dtype=np.float32)
+        subleading_momentum_fraction = np.zeros(n_jets, dtype=np.float32)
+    else:
+        leading_momentum_fraction, subleading_momentum_fraction = generator_subjet_momentum_fraction_in_measured_jet_numba(
+            generator_like_jets=generator_like_jets_calculation.input_jets,
+            generator_like_splittings=generator_like_jets_calculation.input_splittings,
+            generator_like_groomed_indices=generator_like_jets_calculation.indices,
+            measured_like_jets=measured_like_jets_calculation.input_jets,
+        )
 
     for label, momentum_fraction in [
         ("leading", leading_momentum_fraction),
