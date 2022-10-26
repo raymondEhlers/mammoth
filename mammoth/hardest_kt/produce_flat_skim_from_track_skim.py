@@ -632,10 +632,25 @@ def setup_calculate_embed_pythia_skim(
     signal_input_files_per_pt_hat = prod.input_files_per_pt_hat()
 
     # If we want to debug some particular files, we can directly set them here
-    # if debug_mode:
-    #     background_input_files = [Path("trains/PbPb/645/run_by_run/LHC18q/296270/AnalysisResults.18q.179.root")]
-    #     signal_input_files_per_pt_hat = {1: [Path("trains/pythia/2640/run_by_run/LHC20g4/297132/1/AnalysisResults.20g4.013.root")]}
-    #     # signal_input_files_per_pt_hat = {12: [Path("trains/pythia/2640/run_by_run/LHC20g4/297132/12/AnalysisResults.20g4.013.root")]}
+    if debug_mode:
+        background_input_files = [Path("trains/PbPb/645/run_by_run/LHC18q/296270/AnalysisResults.18q.179.root")]
+        #signal_input_files_per_pt_hat = {1: [Path("trains/pythia/2640/run_by_run/LHC20g4/297132/1/AnalysisResults.20g4.013.root")]}
+        #signal_input_files_per_pt_hat = {12: [Path("trains/pythia/2640/run_by_run/LHC20g4/297132/12/AnalysisResults.20g4.013.root")]}
+        #signal_input_files_per_pt_hat = {3: [
+        #    #Path("trains/pythia/2640/run_by_run/LHC20g4/295819/3/AnalysisResults.20g4.006.root"),
+        #    Path("trains/pythia/2640/run_by_run/LHC20g4/297317/3/AnalysisResults.20g4.013.root"),
+        #    #Path("trains/pythia/2640/run_by_run/LHC20g4/296935/3/AnalysisResults.20g4.009.root"),
+        #]}
+        #signal_input_files_per_pt_hat = {7: [
+        #    #Path('trains/pythia/2640/run_by_run/LHC20g4/296550/7/AnalysisResults.20g4.014.root'),
+        #    #Path('trains/pythia/2640/run_by_run/LHC20g4/296244/7/AnalysisResults.20g4.001.root'),
+        #    Path('trains/pythia/2640/run_by_run/LHC20g4/297379/7/AnalysisResults.20g4.002.root'),
+        #]}
+        signal_input_files_per_pt_hat = {11: [
+            #Path('trains/pythia/2640/run_by_run/LHC20g4/296191/11/AnalysisResults.20g4.007.root'),
+            #Path('trains/pythia/2640/run_by_run/LHC20g4/297132/11/AnalysisResults.20g4.008.root'),
+            #Path('trains/pythia/2640/run_by_run/LHC20g4/295612/11/AnalysisResults.20g4.008.root'),
+        ]}
 
     # Setup for dataset and input
     _metadata_config: Dict[str, Any] = prod.config["metadata"]
@@ -950,6 +965,10 @@ def define_productions() -> List[production.ProductionSettings]:
     return productions
 
 
+def _hours_in_walltime(walltime: str) -> int:
+    return int(walltime.split(":")[0])
+
+
 def run() -> None:  # noqa: C901
     # Job execution parameters
     productions = define_productions()
@@ -958,13 +977,14 @@ def run() -> None:  # noqa: C901
     # Job execution configuration
     task_config = job_utils.TaskConfig(name=task_name, n_cores_per_task=1)
     # n_cores_to_allocate = 120
-    n_cores_to_allocate = 110
-    #n_cores_to_allocate = 50
+    #n_cores_to_allocate = 110
+    n_cores_to_allocate = 50
     walltime = "24:00:00"
-    #n_cores_to_allocate = 2
-    #walltime = "1:59:00"
-    #n_cores_to_allocate = 10
     debug_mode = False
+    if debug_mode:
+        # Usually, we want to run in the short queue
+        n_cores_to_allocate = 2
+        walltime = "1:59:00"
 
     # Basic setup: logging and parsl.
     # First, need to figure out if we need additional environments such as ROOT
@@ -977,8 +997,7 @@ def run() -> None:  # noqa: C901
     #       it's super verbose and a huge pain to turn off. Note that by passing on the storage messages,
     #       we don't actually lose any info.
     config, facility_config, stored_messages = job_utils.config(
-        facility="ORNL_b587_long",
-        # facility="ORNL_b587_short",
+        facility="ORNL_b587_long" if _hours_in_walltime(walltime) >= 2 else "ORNL_b587_short",
         task_config=task_config,
         n_tasks=n_cores_to_allocate,
         walltime=walltime,
@@ -1032,6 +1051,11 @@ def run() -> None:  # noqa: C901
         logger.info(f"Accumulated {len(system_results)} futures for {prod.collision_system}")
 
     logger.info(f"Accumulated {len(all_results)} total futures")
+
+    # TEMP
+    #logger.warning(all_results[0][1])
+    #return
+    # ENDTEMP
 
     # Process the futures, showing processing progress
     # Since it returns the results, we can actually use this to accumulate results.
