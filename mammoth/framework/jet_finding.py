@@ -802,7 +802,7 @@ def recluster_jets(
         jets_splittings = _splittings_output()
         jets_subjets = _subjets_output()
         for lower, upper in zip(starts, stops):
-            res = mammoth._ext.recluster_jet_new(
+            res = mammoth._ext.recluster_jet(
                 px=px[lower:upper],
                 py=py[lower:upper],
                 pz=pz[lower:upper],

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from typing import ClassVar, List, Optional, Tuple, Union, overload
 
 import numpy as np
@@ -199,7 +201,7 @@ def find_jets(  # noqa: E704
     background_subtraction: BackgroundSubtraction,
 ) -> OutputWrapperDouble: ...
 @overload
-def recluster_jet_new(  # noqa: E704
+def recluster_jet(  # noqa: E704
     px: npt.NDArray[np.float32],
     py: npt.NDArray[np.float32],
     pz: npt.NDArray[np.float32],
@@ -208,7 +210,7 @@ def recluster_jet_new(  # noqa: E704
     store_recursive_splittings: bool = ...,
 ) -> JetSubstructureSplittings: ...
 @overload
-def recluster_jet_new(  # noqa: E704
+def recluster_jet(  # noqa: E704
     px: npt.NDArray[np.float64],
     py: npt.NDArray[np.float64],
     pz: npt.NDArray[np.float64],

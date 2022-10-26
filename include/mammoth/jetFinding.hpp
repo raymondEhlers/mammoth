@@ -702,7 +702,7 @@ FindJetsImplementationOutputWrapper findJetsImplementation(
  * @return OutputWrapper<T> Output from jet finding.
  */
 template<typename T>
-OutputWrapper<T> findJetsNew(
+OutputWrapper<T> findJets(
   FourVectorTuple<T> & columnFourVectors,
   const JetFindingSettings & mainJetFinder,
   FourVectorTuple<T> & backgroundEstimatorFourVectors,
@@ -894,7 +894,7 @@ void ExtractJetSplittings(
  * @return JetSubstructure::JetSubstructureSplittings Jet substructure splittings container
  */
 template<typename T>
-JetSubstructure::JetSubstructureSplittings jetReclusteringNew(
+JetSubstructure::JetSubstructureSplittings jetReclustering(
   FourVectorTuple<T> & columnFourVectors,
   const JetFindingSettings & mainJetFinder,
   const bool storeRecursiveSplittings
@@ -1137,7 +1137,7 @@ FindJetsImplementationOutputWrapper findJetsImplementation(
 }
 
 template<typename T>
-OutputWrapper<T> findJetsNew(
+OutputWrapper<T> findJets(
   FourVectorTuple<T> & columnFourVectors,
   const JetFindingSettings & mainJetFinder,
   FourVectorTuple<T> & backgroundEstimatorFourVectors,
@@ -1175,7 +1175,7 @@ OutputWrapper<T> findJetsNew(
 }
 
 template<typename T>
-JetSubstructure::JetSubstructureSplittings jetReclusteringNew(
+JetSubstructure::JetSubstructureSplittings jetReclustering(
   FourVectorTuple<T> & columnFourVectors,
   const JetFindingSettings & mainJetFinder,
   const bool storeRecursiveSplittings
