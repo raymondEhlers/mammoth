@@ -261,7 +261,7 @@ def calculate_splitting_number(
         )
     logger.warning(
         "There were no jets with selected splittings, so we short circuited the splittings calculation."
-        " This avoids issues with slicing with numba. This should be most comment when working with low pt hat bins."
+        " This avoids issues with slicing with numba. This should be most common when working with low pt hat bins."
     )
     return np.zeros(len(selected_splittings), dtype=np.int16)
 

@@ -558,7 +558,7 @@ class MultiSource:
                     # If we're going one file at a time, the chunk size is correct by definition
                     if is_single_file_at_a_time:
                         chunk_size = len(_current_data)
-                    logger.warning(f"MultiSource chunk size: {chunk_size}")
+                    logger.warning(f"MultiSource source: {source}, chunk size: {chunk_size}")
 
                     # Keep track of the size
                     self.metadata["n_entries"] = chunk_size
