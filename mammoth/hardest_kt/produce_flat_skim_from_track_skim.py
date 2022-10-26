@@ -615,7 +615,7 @@ def _determine_embed_pythia_input_files(
             yield pt_hat_bin, signal_input, background_input
 
 
-def setup_calculate_embed_pythia_skim(
+def setup_calculate_embed_pythia_skim(  # noqa: C901
     prod: production.ProductionSettings,
     debug_mode: bool,
 ) -> List[AppFuture]:
@@ -633,7 +633,7 @@ def setup_calculate_embed_pythia_skim(
 
     # If we want to debug some particular files, we can directly set them here
     if debug_mode:
-        background_input_files = [Path("trains/PbPb/645/run_by_run/LHC18q/296270/AnalysisResults.18q.179.root")]
+        #background_input_files = [Path("trains/PbPb/645/run_by_run/LHC18q/296270/AnalysisResults.18q.179.root")]
         #signal_input_files_per_pt_hat = {1: [Path("trains/pythia/2640/run_by_run/LHC20g4/297132/1/AnalysisResults.20g4.013.root")]}
         #signal_input_files_per_pt_hat = {12: [Path("trains/pythia/2640/run_by_run/LHC20g4/297132/12/AnalysisResults.20g4.013.root")]}
         #signal_input_files_per_pt_hat = {3: [
@@ -646,10 +646,16 @@ def setup_calculate_embed_pythia_skim(
         #    #Path('trains/pythia/2640/run_by_run/LHC20g4/296244/7/AnalysisResults.20g4.001.root'),
         #    Path('trains/pythia/2640/run_by_run/LHC20g4/297379/7/AnalysisResults.20g4.002.root'),
         #]}
-        signal_input_files_per_pt_hat = {11: [
-            #Path('trains/pythia/2640/run_by_run/LHC20g4/296191/11/AnalysisResults.20g4.007.root'),
-            #Path('trains/pythia/2640/run_by_run/LHC20g4/297132/11/AnalysisResults.20g4.008.root'),
-            #Path('trains/pythia/2640/run_by_run/LHC20g4/295612/11/AnalysisResults.20g4.008.root'),
+        #signal_input_files_per_pt_hat = {11: [
+        #    Path('trains/pythia/2640/run_by_run/LHC20g4/296191/11/AnalysisResults.20g4.007.root'),
+        #    Path('trains/pythia/2640/run_by_run/LHC20g4/297132/11/AnalysisResults.20g4.008.root'),
+        #    Path('trains/pythia/2640/run_by_run/LHC20g4/295612/11/AnalysisResults.20g4.008.root'),
+        #]}
+        background_input_files = [Path('trains/PbPb/645/run_by_run/LHC18q/296270/AnalysisResults.18q.607.root')]
+        signal_input_files_per_pt_hat = {10: [
+            Path('trains/pythia/2640/run_by_run/LHC20g4/295612/10/AnalysisResults.20g4.007.root'),
+            Path('trains/pythia/2640/run_by_run/LHC20g4/297544/10/AnalysisResults.20g4.010.root'),
+            Path('trains/pythia/2640/run_by_run/LHC20g4/296935/10/AnalysisResults.20g4.013.root'),
         ]}
 
     # Setup for dataset and input
@@ -1052,10 +1058,10 @@ def run() -> None:  # noqa: C901
 
     logger.info(f"Accumulated {len(all_results)} total futures")
 
-    # TEMP
-    #logger.warning(all_results[0][1])
-    #return
-    # ENDTEMP
+    # If we don't return early when we've disabled parsl, we it will crash unexpectedly
+    if debug_mode:
+        logger.warning(all_results[0][1])  # type: ignore
+        return
 
     # Process the futures, showing processing progress
     # Since it returns the results, we can actually use this to accumulate results.
