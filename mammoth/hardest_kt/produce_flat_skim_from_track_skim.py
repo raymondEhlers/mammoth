@@ -319,8 +319,8 @@ def _run_data_skim(
     background_subtraction: Mapping[str, Any],
     loading_data_rename_prefix: Mapping[str, str],
     convert_data_format_prefixes: Mapping[str, str],
-    scale_factors: Mapping[int, float],
     pt_hat_bin: int,
+    scale_factors: Optional[Mapping[int, float]] = None,
     inputs: Sequence[File] = [],
     outputs: Sequence[File] = [],
 ) -> Tuple[bool, str]:
@@ -365,6 +365,10 @@ def setup_calculate_data_skim(
         input_files = {-1: prod.input_files()}
     output_dir = prod.output_dir / "skim"
     output_dir.mkdir(parents=True, exist_ok=True)
+
+    # If we want to debug some particular files, we can directly set them here
+    if debug_mode:
+        input_files = {-1: [Path("trains/PbPb/645/run_by_run/LHC18r/297595/AnalysisResults.18r.551.root")]}
 
     # Setup for analysis and dataset settings
     _metadata_config = prod.config["metadata"]
