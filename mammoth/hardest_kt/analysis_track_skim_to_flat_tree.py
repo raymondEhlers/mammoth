@@ -328,8 +328,7 @@ def hardest_kt_embed_thermal_model_skim(
     except sources.NoDataAvailableError as e:
         # Just create the empty filename and return. This will prevent trying to re-run with no jets in the future.
         # Remember that this depends heavily on the jet pt cuts!
-        empty_filename = output_filename.with_suffix(".empty")
-        empty_filename.touch()
+        output_filename.with_suffix(".empty").touch()
         return (True, f"Done - no data available (reason: {e}), so not trying to skim for {_description}")
 
     # Cross check
@@ -439,8 +438,7 @@ def hardest_kt_embedding_skim(
     except sources.NoDataAvailableError as e:
         # Just create the empty filename and return. This will prevent trying to re-run with no jets in the future.
         # Remember that this depends heavily on the jet pt cuts!
-        empty_filename = output_filename.with_suffix(".empty")
-        empty_filename.touch()
+        output_filename.with_suffix(".empty").touch()
         return (True, f"Done - no data available (reason: {e}), so not trying to skim for {_description}")
 
     jets = analysis_alice.analysis_embedding(
