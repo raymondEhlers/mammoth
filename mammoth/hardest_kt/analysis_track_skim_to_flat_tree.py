@@ -190,9 +190,19 @@ def hardest_kt_data_skim(
     except sources.NoDataAvailableError as e:
         # Just create the empty filename and return. This will prevent trying to re-run with no jets in the future.
         # Remember that this depends heavily on the jet pt cuts!
-        empty_filename = output_filename.with_suffix(".empty")
-        empty_filename.touch()
+        output_filename.with_suffix(".empty").touch()
         return (True, f"Done - no data available (reason: {e}), so not trying to skim for {_description}")
+
+    # NOTE: We need to know how many jets there are, so we arbitrarily take the first field. The jets are flattened,
+    #       so they're as good as any others.
+    _there_are_jets_left = len(jets[ak.fields(jets)[0]])
+
+    # There were no jets. Note that with a specially crafted empty file
+    if not _there_are_jets_left:
+        # Just create the empty filename and return. This will prevent trying to re-run with no jets in the future.
+        # Remember that this depends heavily on the jet pt cuts!
+        output_filename.with_suffix(".empty").touch()
+        return (True, f"Done - no jets to analyze, so not trying to skim for {_description}")
 
     _hardest_kt_data_skim(
         jets=jets,
@@ -348,18 +358,21 @@ def hardest_kt_embed_thermal_model_skim(
         except sources.NoDataAvailableError as e:
             # Just create the empty filename and return. This will prevent trying to re-run with no jets in the future.
             # Remember that this depends heavily on the jet pt cuts!
-            empty_filename = output_filename.with_suffix(".empty")
-            empty_filename.touch()
-            return (True, f"Done - no data available (reason: {e}), so not trying to skim for {_description}")
+            _output_filename.with_suffix(".empty").touch()
+            logger.info((True, f"Chunk {i_chunk}: Done - no data available (reason: {e}), so not trying to skim for {_description}"))
+            continue
+
+        # NOTE: We need to know how many jets there are, so we arbitrarily take the first field. The jets are flattened,
+        #       so they're as good as any others.
+        _there_are_jets_left = len(jets[ak.fields(jets)[0]])
 
         # There were no jets. Note that with a specially crafted empty file
-        if len(jets) == 0:
+        if not _there_are_jets_left:
             # Just create the empty filename and return. This will prevent trying to re-run with no jets in the future.
             # Remember that this depends heavily on the jet pt cuts!
-            empty_filename = _output_filename.with_suffix(".empty")
-            empty_filename.touch()
-            # TODO: This is incorrect since we could iterate over more...
-            return (True, f"Done - no jets to recluster, so not trying to skim for {_description}")
+            _output_filename.with_suffix(".empty").touch()
+            logger.info((True, f"Chunk {i_chunk}: Done - no jets to recluster, so not trying to skim for {_description}"))
+            continue
 
         _input_filename = signal_input_filenames[0].parent / f"{signal_input_filenames[0].stem}_chunk_{i_chunk:03}{signal_input_filenames[0].suffix}"
         _hardest_kt_embedding_skim(
@@ -440,12 +453,15 @@ def hardest_kt_embedding_skim(
         validation_mode=validation_mode,
     )
 
+    # NOTE: We need to know how many jets there are, so we arbitrarily take the first field. The jets are flattened,
+    #       so they're as good as any others.
+    _there_are_jets_left = len(jets[ak.fields(jets)[0]])
+
     # There were no jets. Note that with a specially crafted empty file
-    if len(jets) == 0:
+    if not _there_are_jets_left:
         # Just create the empty filename and return. This will prevent trying to re-run with no jets in the future.
         # Remember that this depends heavily on the jet pt cuts!
-        empty_filename = output_filename.with_suffix(".empty")
-        empty_filename.touch()
+        output_filename.with_suffix(".empty").touch()
         return (True, f"Done - no jets to analyze, so not trying to skim for {_description}")
 
     _hardest_kt_embedding_skim(

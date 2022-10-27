@@ -205,21 +205,27 @@ def analysis_data(
         substructure_constituent_requirements=True,
         selected_particle_column_name=particle_column_name,
     )
-    # Check for any jets. If there are none, we probably want to bail out.
-    # We need some variable to avoid flattening into a record, so select px arbitrarily.
-    if len(ak.flatten(jets[particle_column_name].px, axis=None)) == 0:
-        raise ValueError(f"No jets left for {particle_column_name}. Are your settings correct?")
 
-    logger.info(f"Reclustering {particle_column_name} jets...")
-    jets[particle_column_name, "reclustering"] = jet_finding.recluster_jets(
-        jets=jets[particle_column_name],
-        jet_finding_settings=jet_finding.ReclusteringJetFindingSettings(
-            # We perform the area calculation here since we're dealing with data, as is done in the AliPhysics DyG task
-            area_settings=jet_finding.AreaSubstructure(**area_kwargs)
-        ),
-        store_recursive_splittings=True,
-    )
-    logger.info("Done with reclustering")
+    # Reclustering
+    # If we're out of jets, reclustering will fail. So if we're out of jets, then skip this step
+    # NOTE: We need to flatten since we could just have empty events.
+    # NOTE: Further, we need to access some variable to avoid flattening into a record, so we select px arbitrarily.
+    _there_are_jets_left = (len(ak.flatten(jets[particle_column_name].px, axis=None)) > 0)
+    # Now, we actually run the reclustering if possible
+    if not _there_are_jets_left:
+        logger.warning("No jets left for reclustering. Skipping reclustering...")
+    else:
+        logger.info(f"Reclustering {particle_column_name} jets...")
+        jets[particle_column_name, "reclustering"] = jet_finding.recluster_jets(
+            jets=jets[particle_column_name],
+            jet_finding_settings=jet_finding.ReclusteringJetFindingSettings(
+                # We perform the area calculation here since we're dealing with data, as is done in the AliPhysics DyG task
+                area_settings=jet_finding.AreaSubstructure(**area_kwargs)
+            ),
+            store_recursive_splittings=True,
+        )
+        logger.info("Done with reclustering")
+
     logger.warning(f"n events: {len(jets)}")
 
     # Next step for using existing skimming:
@@ -358,7 +364,13 @@ def analysis_embedding(
 
     # Reclustering
     # If we're out of jets, reclustering will fail. So if we're out of jets, then skip this step
-    if len(jets) == 0:
+    # NOTE: We need to select a level to use for checking jets. We select the hybrid arbitrarily
+    #       (it shouldn't matter overly much because we've required jet matching at this point)
+    # NOTE: We need to flatten since we could just have empty events.
+    # NOTE: Further, we need to access some variable to avoid flattening into a record, so we select px arbitrarily.
+    _there_are_jets_left = (len(ak.flatten(jets["hybrid"].px, axis=None)) > 0)
+    # Now, we actually run the reclustering if possible
+    if not _there_are_jets_left:
         logger.warning("No jets left for reclustering. Skipping reclustering...")
     else:
         logger.info("Reclustering jets...")
@@ -389,7 +401,7 @@ def analysis_embedding(
     )
 
     # I'm not sure if these work when there are no jets, so better to skip any calculations if there are no jets.
-    if len(jets) > 0:
+    if _there_are_jets_left:
         # Shared momentum fraction
         jets["det_level", "shared_momentum_fraction"] = jet_finding.shared_momentum_fraction_for_flat_array(
             generator_like_jet_pts=jets["det_level"].pt,
