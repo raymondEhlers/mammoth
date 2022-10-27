@@ -322,6 +322,48 @@ productions:
         event_activity: "semi_central"
         background_subtraction:
           r_max: 0.7
+    # *****************************
+    # Start of validated track skim
+    # *****************************
+    64:
+      # Nominal, r_max = 0.1
+      metadata:
+        <<: *base_metadata_PbPb
+        dataset: *LHC18qr_PbPb_semi_central
+        # Equivalent to train number, but a more general term makes more sense here.
+        production_number: 64
+        label: "semi_central"
+      settings:
+        <<: *analysis_settings_PbPb_R02
+        event_activity: "semi_central"
+        background_subtraction:
+          r_max: 0.1
+    65:
+      # Background systematic, r_max = 0.05
+      metadata:
+        <<: *base_metadata_PbPb
+        dataset: *LHC18qr_PbPb_semi_central
+        # Equivalent to train number, but a more general term makes more sense here.
+        production_number: 65
+        label: "semi_central"
+      settings:
+        <<: *analysis_settings_PbPb_R02
+        event_activity: "semi_central"
+        background_subtraction:
+          r_max: 0.05
+    66:
+      # Background systematic, r_max = 0.50
+      metadata:
+        <<: *base_metadata_PbPb
+        dataset: *LHC18qr_PbPb_semi_central
+        # Equivalent to train number, but a more general term makes more sense here.
+        production_number: 66
+        label: "semi_central"
+      settings:
+        <<: *analysis_settings_PbPb_R02
+        event_activity: "semi_central"
+        background_subtraction:
+          r_max: 0.50
 
   embed_pythia:
     2:
@@ -415,7 +457,9 @@ productions:
         background_subtraction:
           r_max: 0.7
         det_level_artificial_tracking_efficiency: 0.99
+    # *****************************
     # Start of validated track skim
+    # *****************************
     # NOTE: For now, we use background as the constraint, but we'll try to keep working on moving to the
     #       signal as the constraint
     64:
