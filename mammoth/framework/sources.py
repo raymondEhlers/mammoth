@@ -592,6 +592,8 @@ class MultiSource:
                             _result = yield _remaining_data_from_last_loop[0]
 
                         # Cleanup
+                        # First, delete the variable so that we can be sure it is cleaned up immediately
+                        del _remaining_data_from_last_loop
                         # NOTE: Assign rather than append because we now used all of the previously stored data.
                         if _index_to_slice_current_data != 0:
                             _remaining_data_from_last_loop = [_current_data[_index_to_slice_current_data:]]
