@@ -168,7 +168,16 @@ def _transform_data(
     collision_system: str,
     rename_prefix: Mapping[str, str],
 ) -> sources.T_GenData:
+    """ Perform normalization for data and MC
+
+    Throws:
+        sources.NoDataAvailableError: Raised if the array is empty, since we can't normalize empty data
+    """
     for arrays in gen_data:
+        # Validation
+        if len(arrays) == 0:
+            raise sources.NoDataAvailableError("There's no data available in the source!")
+
         # If we are renaming one of the prefixes to "data", that means that we want to treat it
         # as if it were standard data rather than pythia.
         if collision_system in ["pythia"] and "data" not in list(rename_prefix.keys()):
@@ -338,7 +347,16 @@ def _event_select_and_transform_embedding(
     source_index_identifiers: Mapping[str, int],
     use_alice_standard_event_selection_on_background: bool = True,
 ) -> sources.T_GenData:
+    """ Perform event selection and normalization for embedding
+
+    Throws:
+        sources.NoDataAvailableError: Raised if the array is empty
+    """
     for arrays in gen_data:
+        # Validation
+        if len(arrays) == 0:
+            raise sources.NoDataAvailableError("There's no data available in the source!")
+
         # Apply some basic requirements on the data
         mask = np.ones(len(arrays)) > 0
         # Require there to be particles for each level of particle collection for each event.

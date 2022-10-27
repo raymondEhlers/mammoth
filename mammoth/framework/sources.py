@@ -93,6 +93,14 @@ class Source(Protocol):
         ...
 
 
+class NoDataAvailableError(Exception):
+    """Indicates that we somehow have no data available.
+
+    Most likely, one of the trees was empty, or the tree was missing from the file entirely.
+    """
+
+    ...
+
 def convert_sequence_to_range(entry_range: Union[utils.Range, Sequence[float]]) -> utils.Range:
     """Convert sequences to Range.
 
@@ -185,9 +193,14 @@ class UprootSource:
                 # Search for keys which contain the provided tree name. Very nicely, uproot already has this built-in
                 _possible_tree_names = f.keys(cycle=False, filter_name=self._tree_name, filter_classname="TTree")
                 if len(_possible_tree_names) != 1:
-                    raise ValueError(
-                        f"Ambiguous tree name '{self._tree_name}'. Please revise it as needed. Possible tree names: {_possible_tree_names}. Filename: {self._filename}"
-                    )
+                    if len(_possible_tree_names) == 0:
+                        raise NoDataAvailableError(
+                            f"Missing tree name '{self._tree_name}'. Please check the file. Filename: {self._filename}"
+                        )
+                    else:
+                        raise ValueError(
+                            f"Ambiguous tree name '{self._tree_name}'. Please revise it as needed. Possible tree names: {_possible_tree_names}. Filename: {self._filename}"
+                        )
                 # We're good - let's keep going
                 self._tree_name = _possible_tree_names[0]
 
