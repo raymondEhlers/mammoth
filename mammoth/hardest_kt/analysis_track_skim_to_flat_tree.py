@@ -137,57 +137,62 @@ def hardest_kt_data_skim(
     if loading_data_rename_prefix is None:
         loading_data_rename_prefix = {"data": "data"}
 
-    # Try to bail out early to avoid reprocessing if possible.
-    if output_filename.exists():
-        import uproot
+    # Setup
+    _description = _description_from_parameters(
+        parameters={
+            "collision_system": collision_system, "R": jet_R,
+            "input_filename": str(input_filename),
+        }
+    )
+    # Try to bail out as early to avoid reprocessing if possible.
+    res = _check_for_output_file(output_filename=output_filename, description=_description)
+    if res[0]:
+        return res
 
-        try:
-            with uproot.open(output_filename) as f:
-                # If the tree exists, can be read, and has more than 0 entries, we should be good
-                if f["tree"].num_entries > 0:
-                    # Return immediately to indicate that we're done.
-                    return (True, f"already processed for {collision_system}, R={jet_R}, input: \"{input_filename}\", output: \"{output_filename}\"")
-        except Exception:
-            # If it fails for some reason, give up - we want to try again
-            pass
-
-    # NOTE: Although the later condition on pythia is technically true, the data skim appears to expects both
-    #       the det level and part level to be available, so there's not a ton of value in using analysis_data
-    #       with pythia (as of Feb 2022) since it will then fail during the data skim. But since we already
-    #       implemented it, we leave it in place - perhaps it can be fixed later (or maybe just needs the right
-    #       combination of options passed).
-    if collision_system in ["pp", "PbPb"] or (collision_system in ["pythia"] and "data" in loading_data_rename_prefix):
-        jets = analysis_alice.analysis_data(
-            collision_system=collision_system,
-            arrays=load_data.data(
-                data_input=input_filename,
-                data_source=track_skim.FileSource.create_deferred_source(collision_system=collision_system),
+    try:
+        # NOTE: Although the later condition on pythia is technically true, the data skim appears to expects both
+        #       the det level and part level to be available, so there's not a ton of value in using analysis_data
+        #       with pythia (as of Feb 2022) since it will then fail during the data skim. But since we already
+        #       implemented it, we leave it in place - perhaps it can be fixed later (or maybe just needs the right
+        #       combination of options passed).
+        if collision_system in ["pp", "PbPb"] or (collision_system in ["pythia"] and "data" in loading_data_rename_prefix):
+            jets = analysis_alice.analysis_data(
                 collision_system=collision_system,
-                rename_prefix=loading_data_rename_prefix,
-            ),
-            jet_R=jet_R,
-            min_jet_pt=min_jet_pt,
-            validation_mode=validation_mode,
-            background_subtraction_settings=background_subtraction,
-        )
-    elif collision_system in ["pythia"]:
-        # Although we could in principle analyze the MC loading only particle or detector level alone,
-        # it's more consistent to analyze it with the data quality conditions applied on both part
-        # and det level.
-        # (ie. we want to analyze in exactly the same as would provided by the substructure analysis task)
-        jets = analysis_alice.analysis_MC(
-            arrays=load_data.data(
-                data_input=input_filename,
-                data_source=track_skim.FileSource.create_deferred_source(collision_system=collision_system),
-                collision_system=collision_system,
-                rename_prefix=loading_data_rename_prefix,
-            ),
-            jet_R=jet_R,
-            min_jet_pt=min_jet_pt,
-            validation_mode=validation_mode,
-        )
-    else:
-        raise NotImplementedError(f"Not yet implemented for {collision_system}...")
+                arrays=load_data.data(
+                    data_input=input_filename,
+                    data_source=track_skim.FileSource.create_deferred_source(collision_system=collision_system),
+                    collision_system=collision_system,
+                    rename_prefix=loading_data_rename_prefix,
+                ),
+                jet_R=jet_R,
+                min_jet_pt=min_jet_pt,
+                validation_mode=validation_mode,
+                background_subtraction_settings=background_subtraction,
+            )
+        elif collision_system in ["pythia"]:
+            # Although we could in principle analyze the MC loading only particle or detector level alone,
+            # it's more consistent to analyze it with the data quality conditions applied on both part
+            # and det level.
+            # (ie. we want to analyze in exactly the same as would provided by the substructure analysis task)
+            jets = analysis_alice.analysis_MC(
+                arrays=load_data.data(
+                    data_input=input_filename,
+                    data_source=track_skim.FileSource.create_deferred_source(collision_system=collision_system),
+                    collision_system=collision_system,
+                    rename_prefix=loading_data_rename_prefix,
+                ),
+                jet_R=jet_R,
+                min_jet_pt=min_jet_pt,
+                validation_mode=validation_mode,
+            )
+        else:
+            raise NotImplementedError(f"Not yet implemented for {collision_system}...")
+    except sources.NoDataAvailableError as e:
+        # Just create the empty filename and return. This will prevent trying to re-run with no jets in the future.
+        # Remember that this depends heavily on the jet pt cuts!
+        empty_filename = output_filename.with_suffix(".empty")
+        empty_filename.touch()
+        return (True, f"Done - no data available (reason: {e}), so not trying to skim for {_description}")
 
     _hardest_kt_data_skim(
         jets=jets,
@@ -238,18 +243,20 @@ def _hardest_kt_embedding_skim(
         output_filename=output_filename,
     )
 
+
 def _description_from_parameters(parameters: Mapping[str, Any]) -> str:
     return ", ".join([f"{k}={v}" for k, v in parameters.items()])
 
 
 def _check_for_output_file(output_filename: Path, description: str) -> Tuple[bool, str]:
-    # Try to bail out early to avoid reprocessing if possible.
+    # Try to bail out as early to avoid reprocessing if possible.
     # First, check for the empty filename
     empty_filename = output_filename.with_suffix(".empty")
     if empty_filename.exists():
         # It will be empty, so there's nothing to check. Just return
-        return (True, f"Done - no jets to recluster for {description}")
-    # Next, the output file
+        return (True, f"Done - no jets to analyze for {description}")
+
+    # Next, check the contents of the output file
     if output_filename.exists():
         import uproot
 
@@ -301,12 +308,20 @@ def hardest_kt_embed_thermal_model_skim(
     # However, the memory usage often gets too large, so this allows us to control the overall memory
     # size by breaking it up into chunks, such that we only generate the thermal model chunk
     # that's currently needed for processing
-    source_index_identifiers, iter_arrays = load_data.embedding_thermal_model(
-        signal_input=signal_input_filenames,
-        signal_source=track_skim.FileSource.create_deferred_source(collision_system="pythia"),
-        thermal_model_parameters=thermal_model_parameters,
-        chunk_size=chunk_size,
-    )
+    try:
+        source_index_identifiers, iter_arrays = load_data.embedding_thermal_model(
+            signal_input=signal_input_filenames,
+            signal_source=track_skim.FileSource.create_deferred_source(collision_system="pythia"),
+            thermal_model_parameters=thermal_model_parameters,
+            chunk_size=chunk_size,
+        )
+    except sources.NoDataAvailableError as e:
+        # Just create the empty filename and return. This will prevent trying to re-run with no jets in the future.
+        # Remember that this depends heavily on the jet pt cuts!
+        empty_filename = output_filename.with_suffix(".empty")
+        empty_filename.touch()
+        return (True, f"Done - no data available (reason: {e}), so not trying to skim for {_description}")
+
     # Cross check
     assert not isinstance(iter_arrays, ak.Array), "Check configuration. This should be an iterable, not an ak.Array!"
 
@@ -314,21 +329,28 @@ def hardest_kt_embed_thermal_model_skim(
         # Setup. We need to identify the chunk
         _output_filename = output_filename.parent / f"{output_filename.stem}_chunk_{i_chunk:03}{output_filename.suffix}"
 
-        # Try to bail out early to avoid reprocessing if possible.
+        # Try to bail out as early to avoid reprocessing if possible.
         res = _check_for_output_file(output_filename=_output_filename, description=_description)
         if res[0]:
             logger.info(f"Skipping chunk {i_chunk}: {res}")
             continue
 
-        jets = analysis_alice.analysis_embedding(
-            source_index_identifiers=source_index_identifiers,
-            arrays=arrays,
-            jet_R=jet_R,
-            min_jet_pt=min_jet_pt,
-            background_subtraction_settings=background_subtraction,
-            det_level_artificial_tracking_efficiency=det_level_artificial_tracking_efficiency,
-            validation_mode=validation_mode,
-        )
+        try:
+            jets = analysis_alice.analysis_embedding(
+                source_index_identifiers=source_index_identifiers,
+                arrays=arrays,
+                jet_R=jet_R,
+                min_jet_pt=min_jet_pt,
+                background_subtraction_settings=background_subtraction,
+                det_level_artificial_tracking_efficiency=det_level_artificial_tracking_efficiency,
+                validation_mode=validation_mode,
+            )
+        except sources.NoDataAvailableError as e:
+            # Just create the empty filename and return. This will prevent trying to re-run with no jets in the future.
+            # Remember that this depends heavily on the jet pt cuts!
+            empty_filename = output_filename.with_suffix(".empty")
+            empty_filename.touch()
+            return (True, f"Done - no data available (reason: {e}), so not trying to skim for {_description}")
 
         # There were no jets. Note that with a specially crafted empty file
         if len(jets) == 0:
@@ -336,6 +358,7 @@ def hardest_kt_embed_thermal_model_skim(
             # Remember that this depends heavily on the jet pt cuts!
             empty_filename = _output_filename.with_suffix(".empty")
             empty_filename.touch()
+            # TODO: This is incorrect since we could iterate over more...
             return (True, f"Done - no jets to recluster, so not trying to skim for {_description}")
 
         _input_filename = signal_input_filenames[0].parent / f"{signal_input_filenames[0].stem}_chunk_{i_chunk:03}{signal_input_filenames[0].suffix}"
@@ -392,13 +415,20 @@ def hardest_kt_embedding_skim(
     if res[0]:
         return res
 
-    source_index_identifiers, arrays = load_data.embedding(
-        signal_input=signal_input_filenames,
-        signal_source=track_skim.FileSource.create_deferred_source(collision_system="pythia"),
-        background_input=background_input_filenames,
-        background_source=track_skim.FileSource.create_deferred_source(collision_system="PbPb"),
-        background_is_constrained_source=background_is_constrained_source,
-    )
+    try:
+        source_index_identifiers, arrays = load_data.embedding(
+            signal_input=signal_input_filenames,
+            signal_source=track_skim.FileSource.create_deferred_source(collision_system="pythia"),
+            background_input=background_input_filenames,
+            background_source=track_skim.FileSource.create_deferred_source(collision_system="PbPb"),
+            background_is_constrained_source=background_is_constrained_source,
+        )
+    except sources.NoDataAvailableError as e:
+        # Just create the empty filename and return. This will prevent trying to re-run with no jets in the future.
+        # Remember that this depends heavily on the jet pt cuts!
+        empty_filename = output_filename.with_suffix(".empty")
+        empty_filename.touch()
+        return (True, f"Done - no data available (reason: {e}), so not trying to skim for {_description}")
 
     jets = analysis_alice.analysis_embedding(
         source_index_identifiers=source_index_identifiers,
@@ -416,7 +446,7 @@ def hardest_kt_embedding_skim(
         # Remember that this depends heavily on the jet pt cuts!
         empty_filename = output_filename.with_suffix(".empty")
         empty_filename.touch()
-        return (True, f"Done - no jets to recluster, so not trying to skim for {_description}")
+        return (True, f"Done - no jets to analyze, so not trying to skim for {_description}")
 
     _hardest_kt_embedding_skim(
         jets=jets,
