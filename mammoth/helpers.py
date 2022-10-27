@@ -10,6 +10,7 @@ from typing import Any, BinaryIO, Mapping, Optional, Sequence
 import attr
 import parsl
 import rich
+import rich.progress
 from rich.console import Console
 from rich.logging import RichHandler
 
@@ -82,6 +83,26 @@ class RichModuleNameHandler(RichHandler):
             link_path=record.pathname if self.enable_link_path else None,
         )
         return log_renderable
+
+def progress_bar() -> rich.progress.Progress:
+    """Define rich progress bar with my preferred parameters"""
+    return rich.progress.Progress(
+        # The first four columns are from:
+        # `*Progress.get_default_columns()`
+        # However, I wanted a wider BarColumn, so I coped the definitions and modified the width
+        rich.progress.TextColumn("[progress.description]{task.description}"),
+        rich.progress.BarColumn(bar_width=60),
+        rich.progress.TaskProgressColumn(),
+        rich.progress.TimeRemainingColumn(),
+        rich.progress.MofNCompleteColumn(),
+        "Elapsed:",
+        rich.progress.TimeElapsedColumn(),
+        console=rich_console,
+        # Refresh relatively slowly and estimate speed over a long period since our tasks
+        # are usually rather long running
+        refresh_per_second=1, speed_estimate_period=300,
+        expand=True,
+    )
 
 
 def setup_logging_and_parsl(

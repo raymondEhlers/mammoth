@@ -11,8 +11,8 @@ import secrets
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Mapping, Optional, Sequence, Tuple
 
-import IPython
 import attrs
+import IPython
 from mammoth import helpers, job_utils
 from mammoth.framework import sources, production
 from mammoth.framework.analysis import objects as analysis_objects
@@ -20,7 +20,6 @@ from pachyderm import yaml
 from parsl.app.app import python_app
 from parsl.data_provider.files import File
 from parsl.dataflow.futures import AppFuture
-from rich.progress import Progress
 
 
 logger = logging.getLogger(__name__)
@@ -1070,7 +1069,7 @@ def run() -> None:  # noqa: C901
     # In order to support writing histograms from multiple systems, we need to index the output histograms
     # by the collision system + centrality.
     output_hists: Dict[str, Dict[Any, Any]] = {_p.collision_system: {} for _p in productions}
-    with Progress(console=helpers.rich_console, refresh_per_second=1, speed_estimate_period=300) as progress:
+    with helpers.progress_bar() as progress:
         track_results = progress.add_task(total=len(all_results), description="Processing results...")
         # for a in all_results:
         for result in gen_results:
