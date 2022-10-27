@@ -1059,6 +1059,8 @@ def run() -> None:  # noqa: C901
 
     # If we don't return early when we've disabled parsl, we it will crash unexpectedly
     if debug_mode:
+        # NOTE: The typing is wrong here because we disable parsl for the debugging,
+        #       which means that we don't return futures, but rather the return values directly
         logger.warning(all_results[0][1])  # type: ignore
         return
 
