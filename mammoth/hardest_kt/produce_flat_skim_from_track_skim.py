@@ -428,6 +428,7 @@ def _run_embedding_skim(
     background_subtraction: Mapping[str, Any],
     det_level_artificial_tracking_efficiency: float,
     convert_data_format_prefixes: Mapping[str, str],
+    chunk_size: sources.T_ChunkSize,
     scale_factor: float,
     background_is_constrained_source: bool,
     n_signal_input_files: int,
@@ -457,6 +458,7 @@ def _run_embedding_skim(
             background_subtraction=background_subtraction,
             det_level_artificial_tracking_efficiency=det_level_artificial_tracking_efficiency,
             output_filename=Path(outputs[0].filepath),
+            chunk_size=chunk_size,
             scale_factor=scale_factor,
             background_is_constrained_source=background_is_constrained_source,
         )
@@ -668,6 +670,9 @@ def setup_calculate_embed_pythia_skim(  # noqa: C901
 
     # Analysis settings
     _analysis_config: Dict[str, Any] = prod.config["settings"]
+    # Chunk size
+    _chunk_size = _analysis_config.get("chunk_size", sources.ChunkSizeSentinel.FULL_SOURCE)
+    logger.info(f"Processing chunk size for {_chunk_size}")
     # Splitting selection (iterative vs recursive)
     splittings_selection = SplittingsSelection[_analysis_config["splittings_selection"]]
     # Scale factors
@@ -754,6 +759,7 @@ def setup_calculate_embed_pythia_skim(  # noqa: C901
                 background_subtraction=_analysis_config["background_subtraction"],
                 det_level_artificial_tracking_efficiency=_analysis_config["det_level_artificial_tracking_efficiency"],
                 convert_data_format_prefixes=_metadata_config["convert_data_format_prefixes"],
+                chunk_size=_chunk_size,
                 scale_factor=scale_factors[pt_hat_bin],
                 background_is_constrained_source=_background_is_constrained_source,
                 n_signal_input_files=len(signal_input),
