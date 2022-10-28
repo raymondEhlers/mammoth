@@ -21,6 +21,7 @@ from mammoth.hardest_kt import skim_to_flat_tree
 
 logger = logging.getLogger(__name__)
 
+
 def _convert_analyzed_jets_to_all_jets_for_skim(
     jets: ak.Array,
     convert_data_format_prefixes: Mapping[str, str],
@@ -91,10 +92,11 @@ def _hardest_kt_data_skim(
     """
     # Now, adapt into the expected format.
     all_jets = _convert_analyzed_jets_to_all_jets_for_skim(
-        jets=jets, convert_data_format_prefixes=convert_data_format_prefixes,
+        jets=jets,
+        convert_data_format_prefixes=convert_data_format_prefixes,
     )
 
-    #ak.to_parquet(all_jets, input_filename.parent / Path("intermediate.parquet"))
+    # ak.to_parquet(all_jets, input_filename.parent / Path("intermediate.parquet"))
 
     prefixes = {"data": "data"}
     if collision_system == "pythia":
@@ -140,7 +142,8 @@ def hardest_kt_data_skim(
     # Setup
     _description = _description_from_parameters(
         parameters={
-            "collision_system": collision_system, "R": jet_R,
+            "collision_system": collision_system,
+            "R": jet_R,
             "input_filename": str(input_filename),
         }
     )
@@ -155,7 +158,9 @@ def hardest_kt_data_skim(
         #       with pythia (as of Feb 2022) since it will then fail during the data skim. But since we already
         #       implemented it, we leave it in place - perhaps it can be fixed later (or maybe just needs the right
         #       combination of options passed).
-        if collision_system in ["pp", "PbPb"] or (collision_system in ["pythia"] and "data" in loading_data_rename_prefix):
+        if collision_system in ["pp", "PbPb"] or (
+            collision_system in ["pythia"] and "data" in loading_data_rename_prefix
+        ):
             jets = analysis_alice.analysis_data(
                 collision_system=collision_system,
                 arrays=load_data.data(
@@ -195,7 +200,7 @@ def hardest_kt_data_skim(
 
     # NOTE: We need to know how many jets there are, so we arbitrarily take the first field. The jets are flattened,
     #       so they're as good as any others.
-    _there_are_jets_left = len(jets[ak.fields(jets)[0]])
+    _there_are_jets_left = (len(jets[ak.fields(jets)[0]]) > 0)
 
     # There were no jets. Note that with a specially crafted empty file
     if not _there_are_jets_left:
@@ -230,7 +235,8 @@ def _hardest_kt_embedding_skim(
 ) -> None:
     # Now, adapt into the expected format.
     all_jets = _convert_analyzed_jets_to_all_jets_for_skim(
-        jets=jets, convert_data_format_prefixes=convert_data_format_prefixes,
+        jets=jets,
+        convert_data_format_prefixes=convert_data_format_prefixes,
     )
 
     # Define the prefixes for analysis. This should be fairly uniform for the track skim,
@@ -238,7 +244,7 @@ def _hardest_kt_embedding_skim(
     # NOTE: If this becomes an issue, we can just make it an argument.
     prefixes = {
         "hybrid": "hybrid",
-        #"part_level": "part_level",
+        # "part_level": "part_level",
         "true": "true",
         "det_level": "det_level",
     }
@@ -307,7 +313,8 @@ def hardest_kt_embed_thermal_model_skim(  # noqa: C901
 
     # Setup
     _parameters = {
-        "collision_system": collision_system, "R": jet_R,
+        "collision_system": collision_system,
+        "R": jet_R,
         "signal_input_filenames": str([str(_filename) for _filename in signal_input_filenames]),
     }
     if chunk_size is not sources.ChunkSizeSentinel.FULL_SOURCE:
@@ -350,7 +357,9 @@ def hardest_kt_embed_thermal_model_skim(  # noqa: C901
         # NOTE: To be consistent with expectations for a single chunk, the output name should only append the suffix
         #       if it's more than the first chunk
         if i_chunk > 0:
-            _output_filename = output_filename.parent / f"{output_filename.stem}_chunk_{i_chunk:03}{output_filename.suffix}"
+            _output_filename = (
+                output_filename.parent / f"{output_filename.stem}_chunk_{i_chunk:03}{output_filename.suffix}"
+            )
         else:
             _output_filename = output_filename
 
@@ -375,14 +384,17 @@ def hardest_kt_embed_thermal_model_skim(  # noqa: C901
             # Just create the empty filename and return. This will prevent trying to re-run with no jets in the future.
             # Remember that this depends heavily on the jet pt cuts!
             _output_filename.with_suffix(".empty").touch()
-            _message = (True, f"Chunk {i_chunk}: Done - no data available (reason: {e}), so not trying to skim for {_description}")
+            _message = (
+                True,
+                f"Chunk {i_chunk}: Done - no data available (reason: {e}), so not trying to skim for {_description}",
+            )
             _nonstandard_results.append(_message)
             logger.info(_message)
             continue
 
         # NOTE: We need to know how many jets there are, so we arbitrarily take the first field. The jets are flattened,
         #       so the first field is as good as any other.
-        _there_are_jets_left = len(jets[ak.fields(jets)[0]])
+        _there_are_jets_left = (len(jets[ak.fields(jets)[0]]) > 0)
 
         # There were no jets. Note that with a specially crafted empty file
         if not _there_are_jets_left:
@@ -399,7 +411,10 @@ def hardest_kt_embed_thermal_model_skim(  # noqa: C901
         # NOTE: To be consistent with expectations for a single chunk, the output name should only append the suffix
         #       if it's more than the first chunk
         if i_chunk > 0:
-            _input_filename = signal_input_filenames[0].parent / f"{signal_input_filenames[0].stem}_chunk_{i_chunk:03}{signal_input_filenames[0].suffix}"
+            _input_filename = (
+                signal_input_filenames[0].parent
+                / f"{signal_input_filenames[0].stem}_chunk_{i_chunk:03}{signal_input_filenames[0].suffix}"
+            )
         else:
             _input_filename = signal_input_filenames[0]
 
@@ -413,7 +428,11 @@ def hardest_kt_embed_thermal_model_skim(  # noqa: C901
             output_filename=_output_filename,
         )
 
-    return (True, f"success for {_description}" + (". Additional non-standard results: {_nonstandard_results}" if _nonstandard_results else ""))
+    return (
+        True,
+        f"success for {_description}"
+        + (". Additional non-standard results: {_nonstandard_results}" if _nonstandard_results else ""),
+    )
 
 
 def hardest_kt_embedding_skim(  # noqa: C901
@@ -446,7 +465,8 @@ def hardest_kt_embedding_skim(  # noqa: C901
 
     # Setup
     _parameters = {
-        "collision_system": collision_system, "R": jet_R,
+        "collision_system": collision_system,
+        "R": jet_R,
         "signal_input_filenames": str([str(_filename) for _filename in signal_input_filenames]),
         "background_input_filename": str([str(_filename) for _filename in background_input_filenames]),
     }
@@ -494,7 +514,9 @@ def hardest_kt_embedding_skim(  # noqa: C901
         # NOTE: To be consistent with expectations for a single chunk, the output name should only append the suffix
         #       if it's more than the first chunk
         if i_chunk > 0:
-            _output_filename = output_filename.parent / f"{output_filename.stem}_chunk_{i_chunk:03}{output_filename.suffix}"
+            _output_filename = (
+                output_filename.parent / f"{output_filename.stem}_chunk_{i_chunk:03}{output_filename.suffix}"
+            )
         else:
             _output_filename = output_filename
 
@@ -519,14 +541,17 @@ def hardest_kt_embedding_skim(  # noqa: C901
             # Just create the empty filename and return. This will prevent trying to re-run with no jets in the future.
             # Remember that this depends heavily on the jet pt cuts!
             _output_filename.with_suffix(".empty").touch()
-            _message = (True, f"Chunk {i_chunk}: Done - no data available (reason: {e}), so not trying to skim for {_description}")
+            _message = (
+                True,
+                f"Chunk {i_chunk}: Done - no data available (reason: {e}), so not trying to skim for {_description}",
+            )
             _nonstandard_results.append(_message)
             logger.info(_message)
             continue
 
         # NOTE: We need to know how many jets there are, so we arbitrarily take the first field. The jets are flattened,
         #       so the first field is as good as any other.
-        _there_are_jets_left = len(jets[ak.fields(jets)[0]])
+        _there_are_jets_left = (len(jets[ak.fields(jets)[0]]) > 0)
 
         # There were no jets. Note that with a specially crafted empty file
         if not _there_are_jets_left:
@@ -542,9 +567,14 @@ def hardest_kt_embedding_skim(  # noqa: C901
         #       we focus on processing those files.
         # NOTE: To be consistent with expectations for a single chunk, the output name should only append the suffix
         #       if it's more than the first chunk
-        _baseline_input_filename = background_input_filenames[0] if background_is_constrained_source else signal_input_filenames[0]
+        _baseline_input_filename = (
+            background_input_filenames[0] if background_is_constrained_source else signal_input_filenames[0]
+        )
         if i_chunk > 0:
-            _input_filename = _baseline_input_filename.parent / f"{_baseline_input_filename.stem}_chunk_{i_chunk:03}{_baseline_input_filename.suffix}"
+            _input_filename = (
+                _baseline_input_filename.parent
+                / f"{_baseline_input_filename.stem}_chunk_{i_chunk:03}{_baseline_input_filename.suffix}"
+            )
         else:
             _input_filename = _baseline_input_filename
 
@@ -558,26 +588,30 @@ def hardest_kt_embedding_skim(  # noqa: C901
             output_filename=_output_filename,
         )
 
-    return (True, f"success for {_description}" + (". Additional non-standard results: {_nonstandard_results}" if _nonstandard_results else ""))
+    return (
+        True,
+        f"success for {_description}"
+        + (". Additional non-standard results: {_nonstandard_results}" if _nonstandard_results else ""),
+    )
 
 
 if __name__ == "__main__":
     helpers.setup_logging(level=logging.INFO)
-    #logging.getLogger("mammoth.framework.jet_finding").setLevel(logging.INFO)
-    #logging.getLogger("mammoth._ext").setLevel(logging.DEBUG)
+    # logging.getLogger("mammoth.framework.jet_finding").setLevel(logging.INFO)
+    # logging.getLogger("mammoth._ext").setLevel(logging.DEBUG)
 
     _min_jet_pt = {
-        "pp": {"data": 5.},
-        "pythia": {"det_level": 20.},
-        "PbPb": {"data": 20.},
-        "embed_thermal_model": {"hybrid": 20.},
-        "embedPythia": {"hybrid": 20.},
+        "pp": {"data": 5.0},
+        "pythia": {"det_level": 20.0},
+        "PbPb": {"data": 20.0},
+        "embed_thermal_model": {"hybrid": 20.0},
+        "embedPythia": {"hybrid": 20.0},
     }
     # For validation, we use R = 0.4 jets
     jet_R = 0.2
-    #for collision_system in ["pp", "pythia", "PbPb"]:
+    # for collision_system in ["pp", "pythia", "PbPb"]:
     for collision_system in ["pp", "pythia", "PbPb"]:
-        logger.info(f"Analyzing \"{collision_system}\"")
+        logger.info(f'Analyzing "{collision_system}"')
         base_path = Path(f"/software/rehlers/dev/mammoth/projects/framework/{collision_system}")
 
         scale_factors = None
@@ -591,14 +625,16 @@ if __name__ == "__main__":
             pt_hat_bin = 12
 
         result = hardest_kt_data_skim(
-            #input_filename=Path("/software/rehlers/dev/substructure/trains/PbPb/645/run_by_run/LHC18q/295612/AnalysisResults.18q.002.root"),
+            # input_filename=Path("/software/rehlers/dev/substructure/trains/PbPb/645/run_by_run/LHC18q/295612/AnalysisResults.18q.002.root"),
             input_filename=base_path / "AnalysisResults_track_skim.parquet",
             collision_system=collision_system,
             jet_R=jet_R,
             min_jet_pt=_min_jet_pt[collision_system],
             iterative_splittings=True,
             loading_data_rename_prefix={"data": "data"} if collision_system != "pythia" else {},
-            convert_data_format_prefixes={"data": "data"} if collision_system != "pythia" else {"det_level": "data", "part_level": "true"},
+            convert_data_format_prefixes={"data": "data"}
+            if collision_system != "pythia"
+            else {"det_level": "data", "part_level": "true"},
             output_filename=base_path / "skim" / "skim_output.root",
             scale_factors=scale_factors,
             pt_hat_bin=pt_hat_bin,
@@ -615,10 +651,10 @@ if __name__ == "__main__":
     )
 
     base_path = Path("/software/rehlers/dev/substructure/trains/pythia/641")
-    #signal_input = base_path / "run_by_run/LHC20g4/295612/11/AnalysisResults.20g4.016.root"
-    #signal_input = base_path / "run_by_run/LHC20g4/297544/19/AnalysisResults.20g4.005.root"
+    # signal_input = base_path / "run_by_run/LHC20g4/295612/11/AnalysisResults.20g4.016.root"
+    # signal_input = base_path / "run_by_run/LHC20g4/297544/19/AnalysisResults.20g4.005.root"
     signal_input = base_path / "run_by_run/LHC20g4/295819/12/AnalysisResults.20g4.016.root"
-    #signal_input = base_path / "run_by_run/LHC20g4/297588/4/AnalysisResults.20g4.001.root"
+    # signal_input = base_path / "run_by_run/LHC20g4/297588/4/AnalysisResults.20g4.001.root"
     pt_hat_bin = 12
     hardest_kt_embed_thermal_model_skim(
         collision_system="embed_thermal_model",
@@ -648,8 +684,8 @@ if __name__ == "__main__":
 
     # Mammoth validation needs something like
     base_path = Path("/software/rehlers/dev/mammoth/projects/framework/embedPythia")
-    #signal_path = base_path / "AnalysisResults_pythia_track_skim.parquet"
-    #background_path = base_path / "AnalysisResults_PbPb_track_skim.parquet"
+    # signal_path = base_path / "AnalysisResults_pythia_track_skim.parquet"
+    # background_path = base_path / "AnalysisResults_PbPb_track_skim.parquet"
     signal_path = base_path / "track_skim" / "pythia" / "AnalysisResults.root"
     background_path = base_path / "track_skim" / "PbPb" / "AnalysisResults.root"
     output_filename = base_path / "skim" / "skim_output.root"
@@ -657,10 +693,16 @@ if __name__ == "__main__":
     if standalone_tests:
         # But we can also run standalone tests on the skim train output
         base_path = Path("/software/rehlers/dev/substructure/trains/PbPb/645")
-        #signal_path = Path("/software/rehlers/dev/substructure/trains/pythia/2640") / "run_by_run/LHC20g4/296191/12/AnalysisResults.20g4.001.root"
-        #background_path = Path("/software/rehlers/dev/substructure/trains/PbPb/645") / "run_by_run/LHC18q/295612/AnalysisResults.18q.001.root"
-        signal_path = Path("/software/rehlers/dev/substructure/trains/pythia/2640") / "run_by_run/LHC20g4/295788/15/AnalysisResults.20g4.005.root"
-        background_path = Path("/software/rehlers/dev/substructure/trains/PbPb/645") / "run_by_run/LHC18q/295788/AnalysisResults.18q.076.root"
+        # signal_path = Path("/software/rehlers/dev/substructure/trains/pythia/2640") / "run_by_run/LHC20g4/296191/12/AnalysisResults.20g4.001.root"
+        # background_path = Path("/software/rehlers/dev/substructure/trains/PbPb/645") / "run_by_run/LHC18q/295612/AnalysisResults.18q.001.root"
+        signal_path = (
+            Path("/software/rehlers/dev/substructure/trains/pythia/2640")
+            / "run_by_run/LHC20g4/295788/15/AnalysisResults.20g4.005.root"
+        )
+        background_path = (
+            Path("/software/rehlers/dev/substructure/trains/PbPb/645")
+            / "run_by_run/LHC18q/295788/AnalysisResults.18q.076.root"
+        )
         output_filename = base_path / "skim" / "test" / "embedding_skim_output.root"
         pt_hat_bin = 15
 

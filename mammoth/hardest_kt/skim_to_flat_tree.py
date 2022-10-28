@@ -52,7 +52,9 @@ class Calculation:
         try:
             return self._restricted_splittings
         except AttributeError:
-            self._restricted_splittings: analysis_jet_substructure.JetSplittingArray = self.input_splittings[self.indices]
+            self._restricted_splittings: analysis_jet_substructure.JetSplittingArray = self.input_splittings[
+                self.indices
+            ]
         return self._restricted_splittings
 
     @property
@@ -144,8 +146,12 @@ def _define_calculation_functions(
     # NOTE: This currently only works for iterative splittings...
     #       Calculating recursive is way harder in any array-like manner.
     if iterative_splittings:
-        functions["soft_drop_z_cut_02"] = functools.partial(analysis_jet_substructure.JetSplittingArray.soft_drop, z_cutoff=0.2)
-        functions["soft_drop_z_cut_04"] = functools.partial(analysis_jet_substructure.JetSplittingArray.soft_drop, z_cutoff=0.4)
+        functions["soft_drop_z_cut_02"] = functools.partial(
+            analysis_jet_substructure.JetSplittingArray.soft_drop, z_cutoff=0.2
+        )
+        functions["soft_drop_z_cut_04"] = functools.partial(
+            analysis_jet_substructure.JetSplittingArray.soft_drop, z_cutoff=0.4
+        )
     return functions
 
 
@@ -191,7 +197,7 @@ def _calculate_splitting_number(  # noqa: C901
         # This would be to help out mypy, but it will probably interfere with numba, so we
         # just tell it to ignore the type. The point here is that parent_index of all_splittings is
         # equivalent to two levels of AwkwardArrays, but it's not so easy to type it that way.
-        #available_splittings_parents = cast(AwkwardArray[int], available_splittings_parents_temp)
+        # available_splittings_parents = cast(AwkwardArray[int], available_splittings_parents_temp)
         # restricted_splitting_indices = restricted_splittings_indices[i]
         # available_splittings_parents = all_splittings[i].parent_index
 
@@ -285,7 +291,9 @@ def _find_contributing_subjets(input_jet: ak.Array, groomed_index: int) -> List[
 
 
 @nb.njit  # type: ignore
-def _sort_subjets(input_jet: ak.Array, input_subjets: List[analysis_jet_substructure.Subjet]) -> Tuple[analysis_jet_substructure.Subjet, analysis_jet_substructure.Subjet]:
+def _sort_subjets(
+    input_jet: ak.Array, input_subjets: List[analysis_jet_substructure.Subjet]
+) -> Tuple[analysis_jet_substructure.Subjet, analysis_jet_substructure.Subjet]:
     pts = []
     for sj in input_subjets:
         px = 0
@@ -294,7 +302,7 @@ def _sort_subjets(input_jet: ak.Array, input_subjets: List[analysis_jet_substruc
             constituent = input_jet.jet_constituents[constituent_index]
             px += constituent.pt * np.cos(constituent.phi)
             py += constituent.pt * np.sin(constituent.phi)
-        pts.append(np.sqrt(px ** 2 + py ** 2))
+        pts.append(np.sqrt(px**2 + py**2))
 
     leading = input_subjets[0]
     subleading = input_subjets[1]
@@ -339,7 +347,7 @@ def _subjet_shared_momentum(
 
 @nb.njit  # type: ignore
 def _subjet_pt(subjet: analysis_jet_substructure.Subjet, jet: ak.Array) -> float:
-    """ Calculate subjet pt by hand.
+    """Calculate subjet pt by hand.
 
     Since we have the full vectors, we calculate the vectors and then take the magnitude.
 
@@ -347,13 +355,13 @@ def _subjet_pt(subjet: analysis_jet_substructure.Subjet, jet: ak.Array) -> float
         This would have been natural to do with vector. However, when it was written, vector
         wasn't available, so we did it by hand.
     """
-    px: float = 0.
-    py: float = 0.
+    px: float = 0.0
+    py: float = 0.0
     for constituent_index in subjet.constituent_indices:
         constituent = jet.jet_constituents[constituent_index]
         px += constituent.pt * np.cos(constituent.phi)
         py += constituent.pt * np.sin(constituent.phi)
-    return np.sqrt(px ** 2 + py ** 2)  # type: ignore
+    return np.sqrt(px**2 + py**2)  # type: ignore
 
 
 @nb.njit  # type: ignore
@@ -563,7 +571,7 @@ def _subjet_momentum_fraction_in_jet(
     the interfaces vary between jet constituents and subjet constituents. We could refactor them,
     but the code is simple enough that it's easier just to implement the different versions.
     """
-    sum_pt: float = 0.
+    sum_pt: float = 0.0
     delta = analysis_jet_substructure.DISTANCE_DELTA
 
     for generator_like_constituent_index in generator_like_subjet.constituent_indices:
@@ -673,7 +681,10 @@ def generator_subjet_momentum_fraction_in_measured_jet_numba_wrapper(
         leading_momentum_fraction = np.zeros(n_jets, dtype=np.float32)
         subleading_momentum_fraction = np.zeros(n_jets, dtype=np.float32)
     else:
-        leading_momentum_fraction, subleading_momentum_fraction = generator_subjet_momentum_fraction_in_measured_jet_numba(
+        (
+            leading_momentum_fraction,
+            subleading_momentum_fraction,
+        ) = generator_subjet_momentum_fraction_in_measured_jet_numba(
             generator_like_jets=generator_like_jets_calculation.input_jets,
             generator_like_splittings=generator_like_jets_calculation.input_splittings,
             generator_like_groomed_indices=generator_like_jets_calculation.indices,
@@ -713,7 +724,7 @@ def _calculate_jet_kinematics(
     py = ak.sum(constituents.pt * np.sin(constituents.phi), axis=1)  # type: ignore
     pz = ak.sum(constituents.pt * np.sinh(constituents.eta), axis=1)  # type: ignore
     # Formulas just from inverting the above.
-    eta = np.arcsinh(pz / np.sqrt(px ** 2 + py ** 2))
+    eta = np.arcsinh(pz / np.sqrt(px**2 + py**2))
     phi = np.arctan2(py, px)
     if float_type is None:
         return eta, phi
@@ -815,7 +826,9 @@ def calculate_embedding_skim_impl(  # noqa: C901
             grooming_results[leading_track_name] = to_float(ak.max(input_jets.jets.jet_constituents.pt, axis=1))
 
         # Perform our calculations.
-        functions: Dict[str, functools.partial[Tuple[npt.NDArray[np.float32], AwkwardArray[int], AwkwardArray[AwkwardArray[int]]]]] = _define_calculation_functions(jet_R=jet_R, iterative_splittings=iterative_splittings)
+        functions: Dict[
+            str, functools.partial[Tuple[npt.NDArray[np.float32], AwkwardArray[int], AwkwardArray[AwkwardArray[int]]]]
+        ] = _define_calculation_functions(jet_R=jet_R, iterative_splittings=iterative_splittings)
         for func_name, func in functions.items():
             logger.debug(f"func_name: {func_name}")
             calculations = {
@@ -854,13 +867,23 @@ def calculate_embedding_skim_impl(  # noqa: C901
                 grooming_result = GroomingResultForTree(
                     grooming_method=func_name,
                     delta_R=to_float(
-                        ak.flatten(ak.fill_none(ak.pad_none(groomed_splittings.delta_R, 1), analysis_jet_substructure.UNFILLED_VALUE))
+                        ak.flatten(
+                            ak.fill_none(
+                                ak.pad_none(groomed_splittings.delta_R, 1), analysis_jet_substructure.UNFILLED_VALUE
+                            )
+                        )
                     ),
                     z=to_float(
-                        ak.flatten(ak.fill_none(ak.pad_none(groomed_splittings.z, 1), analysis_jet_substructure.UNFILLED_VALUE))
+                        ak.flatten(
+                            ak.fill_none(ak.pad_none(groomed_splittings.z, 1), analysis_jet_substructure.UNFILLED_VALUE)
+                        )
                     ),
                     kt=to_float(
-                        ak.flatten(ak.fill_none(ak.pad_none(groomed_splittings.kt, 1), analysis_jet_substructure.UNFILLED_VALUE))
+                        ak.flatten(
+                            ak.fill_none(
+                                ak.pad_none(groomed_splittings.kt, 1), analysis_jet_substructure.UNFILLED_VALUE
+                            )
+                        )
                     ),
                     # All of the numbers are already flattened. 0 means untagged.
                     n_to_split=n_to_split,
@@ -965,7 +988,7 @@ def calculate_embedding_skim_impl(  # noqa: C901
     output_filename.parent.mkdir(parents=True, exist_ok=True)
     # First, convert to numpy since we want to write to an output tree.
     grooming_results_np = {k: np.asarray(v) for k, v in grooming_results.items()}
-    #branches = {k: v.dtype for k, v in grooming_results_np.items()}
+    # branches = {k: v.dtype for k, v in grooming_results_np.items()}
     logger.info(f"Writing embedding skim to {output_filename}")
     # Write with uproot
     with uproot.recreate(output_filename) as output_file:
@@ -1106,7 +1129,10 @@ def calculate_data_skim_impl(  # noqa: C901
             grooming_results[leading_track_name] = to_float(ak.max(input_jets.jets.jet_constituents.pt, axis=1))
 
             # Perform our calculations.
-            functions: Dict[str, functools.partial[Tuple[npt.NDArray[np.float32], AwkwardArray[int], AwkwardArray[AwkwardArray[int]]]]] = _define_calculation_functions(jet_R=jet_R, iterative_splittings=iterative_splittings)
+            functions: Dict[
+                str,
+                functools.partial[Tuple[npt.NDArray[np.float32], AwkwardArray[int], AwkwardArray[AwkwardArray[int]]]],
+            ] = _define_calculation_functions(jet_R=jet_R, iterative_splittings=iterative_splittings)
             for func_name, func in functions.items():
                 logger.debug(f"prefix: {prefix}, grooming function: {func_name}")
                 calculation = Calculation(
@@ -1139,13 +1165,23 @@ def calculate_data_skim_impl(  # noqa: C901
                 grooming_result = GroomingResultForTree(
                     grooming_method=func_name,
                     delta_R=to_float(
-                        ak.flatten(ak.fill_none(ak.pad_none(groomed_splittings.delta_R, 1), analysis_jet_substructure.UNFILLED_VALUE))
+                        ak.flatten(
+                            ak.fill_none(
+                                ak.pad_none(groomed_splittings.delta_R, 1), analysis_jet_substructure.UNFILLED_VALUE
+                            )
+                        )
                     ),
                     z=to_float(
-                        ak.flatten(ak.fill_none(ak.pad_none(groomed_splittings.z, 1), analysis_jet_substructure.UNFILLED_VALUE))
+                        ak.flatten(
+                            ak.fill_none(ak.pad_none(groomed_splittings.z, 1), analysis_jet_substructure.UNFILLED_VALUE)
+                        )
                     ),
                     kt=to_float(
-                        ak.flatten(ak.fill_none(ak.pad_none(groomed_splittings.kt, 1), analysis_jet_substructure.UNFILLED_VALUE))
+                        ak.flatten(
+                            ak.fill_none(
+                                ak.pad_none(groomed_splittings.kt, 1), analysis_jet_substructure.UNFILLED_VALUE
+                            )
+                        )
                     ),
                     # All of the numbers are already flattened. 0 means untagged.
                     n_to_split=n_to_split,

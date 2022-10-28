@@ -58,6 +58,7 @@ class DelayedSource(Protocol):
     def __call__(self, *args: Any, **kwargs: Any) -> Source:
         ...
 
+
 class SourceFromFilename(Protocol):
     """Create a source from a filename.
 
@@ -100,6 +101,7 @@ class NoDataAvailableError(Exception):
     """
 
     ...
+
 
 def convert_sequence_to_range(entry_range: Union[utils.Range, Sequence[float]]) -> utils.Range:
     """Convert sequences to Range.

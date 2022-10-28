@@ -167,6 +167,7 @@ def _run_add_task_macro(task_path: Union[str, Path], task_class_name: str, *args
     """
     # Delay import to avoid explicit dependence
     import ROOT  # pyright: ignore [reportMissingImports]
+
     # Validation
     task_path = Path(task_path)
 
@@ -196,6 +197,7 @@ def _run_add_task_macro(task_path: Union[str, Path], task_class_name: str, *args
 def _add_physics_selection(is_MC: bool, beam_type: BeamType) -> AnalysisTask:
     # Delay import to avoid explicit dependence
     import ROOT  # pyright: ignore [reportMissingImports]
+
     # Enable pileup rejection (second argument) for pp
     # physics_selection_task = _run_add_task_macro(
     #    "$ALICE_PHYSICS/OADB/macros/AddTaskPhysicsSelection.C", "AliPhysicsSelectionTask",
@@ -208,6 +210,7 @@ def _add_physics_selection(is_MC: bool, beam_type: BeamType) -> AnalysisTask:
 def _add_mult_selection(is_run2_data: bool, physics_selection: int) -> Optional[AnalysisTask]:
     # Delay import to avoid explicit dependence
     import ROOT  # pyright: ignore [reportMissingImports]
+
     # Works for both pp and PbPb for the periods that it is calibrated
     # However, I seem to have trouble with pp MCs
     if is_run2_data:
@@ -265,6 +268,7 @@ def run_dynamical_grooming(  # noqa: C901
     """
     # Delay import to avoid explicit dependence
     import ROOT  # pyright: ignore [reportMissingImports]
+
     # Validation
     period = _normalize_period(period)
     is_MC = _is_MC(period)
@@ -291,7 +295,7 @@ def run_dynamical_grooming(  # noqa: C901
     # jet R needs to be formatted as a string too
     jet_R_str = f"{round(jet_R*100):03}"
     # Setup for validation mode
-    particle_level_min_pt = 0.
+    particle_level_min_pt = 0.0
     if validation_mode:
         # In the past, we've run the AliPhysics analysis tasks with min of 0. However, as of Feb 2022, the track
         # skims tend to go down to 150 MeV even at track level to keep the data volume reasonable. For the sake
@@ -525,7 +529,7 @@ def run_dynamical_grooming(  # noqa: C901
         # rho_task.GetClusterContainer(0).SetMCClusterBitMap(TObject.kBitMask)
         # rho_task.SetHistoBins(250,0,250)
         rho_task.SetNeedEmcalGeom(False)
-        #rho_task.SetZvertexDiffValue(0.1)
+        # rho_task.SetZvertexDiffValue(0.1)
         cont_rho = rho_task.GetJetContainer(0)
         cont_rho.SetJetRadius(0.2)
         cont_rho.SetJetAcceptanceType(ROOT.AliJetContainer.kTPCfid)
@@ -558,7 +562,7 @@ def run_dynamical_grooming(  # noqa: C901
         cont_rho_mass.SetJetAcceptanceType(ROOT.AliJetContainer.kTPCfid)
         cont_rho_mass.SetMaxTrackPt(100)
         rho_mass.SetNeedEmcalGeom(False)
-        #rho_mass.SetZvertexDiffValue(0.1)
+        # rho_mass.SetZvertexDiffValue(0.1)
 
     # Standard akt jet finder. Wagon name: "JetFinderQGAKTCharged_R04_Escheme" from PbPb train.
     akt_jet_finder = ROOT.AliEmcalJetTask.AddTaskEmcalJet(
@@ -657,8 +661,8 @@ def run_dynamical_grooming(  # noqa: C901
         # narrower here for testing and validation.
         # NOTE: In particular, type 3 adds extra margin around the jet acceptance. We don't have this functionality in
         #       the track skim analysis, so we disable it for now.
-        #tagger.SetTypeAcceptance(3)
-        #tagger.SetMaxDistance(1.0)
+        # tagger.SetTypeAcceptance(3)
+        # tagger.SetMaxDistance(1.0)
         tagger.SetTypeAcceptance(0)
         tagger.SetMaxDistance(1.0)
 
@@ -771,7 +775,7 @@ def run_dynamical_grooming(  # noqa: C901
     # This min pt cut isn't necessary (it's 0 vs 0.15, but we already cut higher than that during the initial jet finding)
     # However, I leave it here commented out because it's in the LEGO train wagon, and it will look confusing or
     # worrisome if I remove it here and forgot that it doesn't matter.
-    #cont.SetJetPtCut(0)
+    # cont.SetJetPtCut(0)
 
     print(f"beam_type: {beam_type}")
     # It only matters for embedding, but in any case, always disable double counting.
@@ -908,7 +912,7 @@ def run_dynamical_grooming(  # noqa: C901
     # This min pt cut isn't necessary (it's 0 vs 0.15, but we already cut higher than that during the initial jet finding)
     # However, I leave it here commented out because it's in the LEGO train wagon, and it will look confusing or
     # worrisome if I remove it here and forgot that it doesn't matter.
-    #cont.SetJetPtCut(0)
+    # cont.SetJetPtCut(0)
 
     print(f"beam_type: {beam_type}")
     # It only matters for embedding, but in any case, always disable double counting.
@@ -963,7 +967,11 @@ def run_dynamical_grooming(  # noqa: C901
 
 
 def run_dynamical_grooming_embedding(  # noqa: C901
-    task_name: str, analysis_mode: AnalysisMode, period: str, physics_selection: int, data_type: DataType,
+    task_name: str,
+    analysis_mode: AnalysisMode,
+    period: str,
+    physics_selection: int,
+    data_type: DataType,
     embedding_pt_hat_bin: int,
     jet_R: float = 0.2,
     grooming_jet_pt_threshold: float = 20,
@@ -994,6 +1002,7 @@ def run_dynamical_grooming_embedding(  # noqa: C901
     """
     # Delay import to avoid explicit dependence
     import ROOT  # pyright: ignore [reportMissingImports]
+
     # Validation
     period = _normalize_period(period)
     is_MC = _is_MC(period)
@@ -1021,7 +1030,7 @@ def run_dynamical_grooming_embedding(  # noqa: C901
     # jet R needs to be formatted as a string too
     jet_R_str = f"{round(jet_R*100):03}"
     # Setup for validation mode
-    particle_level_min_pt = 0.
+    particle_level_min_pt = 0.0
     if validation_mode:
         # In the past, we've run the AliPhysics analysis tasks with min of 0. However, as of Feb 2022, the track
         # skims tend to go down to 150 MeV even at track level to keep the data volume reasonable. For the sake
@@ -1604,6 +1613,7 @@ class AnalysisModeParameters:
     @property
     def physics_selection(self) -> Any:
         import ROOT  # pyright: ignore [reportMissingImports]
+
         return getattr(ROOT.AliVEvent, self._physics_selection)
 
 
@@ -1638,16 +1648,13 @@ default_analysis_parameters = {
             0.4: 20.0,
         },
         input_files=[
-            Path(
-                "/alf/data/rehlers/data/alice/sim/2020/LHC20g4/12/296191/AOD/001/aod_archive.zip#AliAOD.root"
-            ),
-            #Path(
+            Path("/alf/data/rehlers/data/alice/sim/2020/LHC20g4/12/296191/AOD/001/aod_archive.zip#AliAOD.root"),
+            # Path(
             #    "/alf/data/rehlers/data/alice/sim/2020/LHC20g4/12/296191/AOD/002/aod_archive.zip#AliAOD.root"
-            #),
-            #Path(
+            # ),
+            # Path(
             #    "/alf/data/rehlers/data/alice/sim/2020/LHC20g4/12/296191/AOD/003/aod_archive.zip#AliAOD.root"
-            #),
-
+            # ),
             # Path("/opt/scott/data/rehlers/alice/datasets/data/2016/LHC16j5/4/246945/AOD200/0003/AliAOD.root"),
             # Path("/opt/scott/data/rehlers/alice/datasets/data/2016/LHC16j5/4/246945/AOD200/0002/AliAOD.root"),
             # Path("/opt/scott/data/rehlers/alice/datasets/data/2016/LHC16j5/4/246945/AOD200/0001/AliAOD.root"),
@@ -1709,9 +1716,9 @@ default_analysis_parameters = {
             Path(
                 "/alf/data/rehlers/data/alice/data/2018/LHC18q/000296550/pass3/AOD252/AOD/001/aod_archive.zip#AliAOD.root"
             ),
-            #Path(
+            # Path(
             #    "/alf/data/rehlers/data/alice/data/2018/LHC18q/000296550/pass3/AOD252/AOD/002/aod_archive.zip#AliAOD.root"
-            #),
+            # ),
             # Path("/opt/scott/data/rehlers/alice/datasets/data/2018/LHC18q/000296550/pass3/AOD252/AOD/003/aod_archive.zip#AliAOD.root"),
             # Path("/opt/scott/data/rehlers/alice/datasets/data/2018/LHC18q/000296550/pass3/AOD252/AOD/004/aod_archive.zip#AliAOD.root"),
         ],
@@ -1720,6 +1727,7 @@ default_analysis_parameters = {
         ],
     ),
 }
+
 
 def run(
     analysis_mode: str,
@@ -1800,12 +1808,8 @@ def run(
         )
 
     # Actually run the analysis
-    start_analysis_manager(
-        analysis_manager=analysis_manager,
-        mode="local",
-        n_events=n_events,
-        input_files=input_files
-    )
+    start_analysis_manager(analysis_manager=analysis_manager, mode="local", n_events=n_events, input_files=input_files)
+
 
 def entry_point() -> None:
     parser = argparse.ArgumentParser(description="Execute the run macro")
@@ -1899,18 +1903,18 @@ def entry_point() -> None:
         embed_input_files=args.embed_input_files,
         embedding_helper_config_filename=args.embedding_helper_config_filename,
         embedding_pt_hat_bin=args.embedding_pt_hat_bin,
-        n_events=args.n_events
+        n_events=args.n_events,
     )
 
 
 if __name__ == "__main__":
     entry_point()
-    #run(analysis_mode="embed_pythia", jet_R=0.4, validation_mode=True)
+    # run(analysis_mode="embed_pythia", jet_R=0.4, validation_mode=True)
 
-    #analysis_mode = AnalysisMode.embed_pythia
-    #jet_R = 0.4
-    #validation_mode = True
-    #if analysis_mode == AnalysisMode.PbPb:
+    # analysis_mode = AnalysisMode.embed_pythia
+    # jet_R = 0.4
+    # validation_mode = True
+    # if analysis_mode == AnalysisMode.PbPb:
     #    _run_analysis(
     #        analysis_mode=analysis_mode,
     #        period_name="LHC18q",
@@ -1938,7 +1942,7 @@ if __name__ == "__main__":
     #            # ),
     #        ],
     #    )
-    #if analysis_mode == AnalysisMode.pp:
+    # if analysis_mode == AnalysisMode.pp:
     #    _run_analysis(
     #        analysis_mode=analysis_mode,
     #        period_name="LHC17q",
@@ -1958,7 +1962,7 @@ if __name__ == "__main__":
     #            ),
     #        ],
     #    )
-    #if analysis_mode == AnalysisMode.pythia:
+    # if analysis_mode == AnalysisMode.pythia:
     #    _run_analysis(
     #        analysis_mode=analysis_mode,
     #        period_name="LHC20g4",
@@ -1996,7 +2000,7 @@ if __name__ == "__main__":
     #            # Path("/Users/re239/code/alice/data/LHC16j5/5/246945/AOD200/0006/AliAOD.root"),
     #        ],
     #    )
-    #if analysis_mode == AnalysisMode.embed_pythia:
+    # if analysis_mode == AnalysisMode.embed_pythia:
     #    # This is different enough that we'll use a different entry point.
     #    _run_embedding_analysis(
     #        analysis_mode=analysis_mode,

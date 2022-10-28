@@ -24,15 +24,16 @@ logger = logging.getLogger(__name__)
 vector.register_awkward()
 
 
-def analysis_MC(arrays: ak.Array, jet_R: float, min_jet_pt: Mapping[str, float], validation_mode: bool = False) -> ak.Array:
+def analysis_MC(
+    arrays: ak.Array, jet_R: float, min_jet_pt: Mapping[str, float], validation_mode: bool = False
+) -> ak.Array:
     logger.info("Start analyzing")
     # Event selection
     arrays = alice_helpers.standard_event_selection(arrays=arrays)
 
     # Track cuts
     arrays = alice_helpers.standard_track_selection(
-        arrays=arrays,
-        require_at_least_one_particle_in_each_collection_per_event=True
+        arrays=arrays, require_at_least_one_particle_in_each_collection_per_event=True
     )
 
     # Jet finding
@@ -60,7 +61,7 @@ def analysis_MC(arrays: ak.Array, jet_R: float, min_jet_pt: Mapping[str, float],
                         # NOTE: This is rounding a little bit since we still have an eta cut at particle
                         #       level which will then cut into the particle level jets. However, this is
                         #       what we've done in the past, so we continue it here.
-                        fiducial_acceptance=False
+                        fiducial_acceptance=False,
                     ),
                     area_settings=jet_finding.AreaPP(**area_kwargs),
                 ),
@@ -73,12 +74,14 @@ def analysis_MC(arrays: ak.Array, jet_R: float, min_jet_pt: Mapping[str, float],
                     pt_range=jet_finding.pt_range(pt_min=min_jet_pt["det_level"]),
                     eta_range=jet_finding.eta_range(jet_R=jet_R, fiducial_acceptance=True),
                     area_settings=jet_finding.AreaPP(**area_kwargs),
-                )
+                ),
             ),
         },
         depth_limit=1,
     )
-    logger.warning(f"Found det_level n jets: {np.count_nonzero(np.asarray(ak.flatten(jets['det_level'].px, axis=None)))}")
+    logger.warning(
+        f"Found det_level n jets: {np.count_nonzero(np.asarray(ak.flatten(jets['det_level'].px, axis=None)))}"
+    )
 
     # Apply jet level cuts.
     jets = alice_helpers.standard_jet_selection(
@@ -87,7 +90,9 @@ def analysis_MC(arrays: ak.Array, jet_R: float, min_jet_pt: Mapping[str, float],
         collision_system="pythia",
         substructure_constituent_requirements=True,
     )
-    logger.warning(f"all jet cuts n accepted: {np.count_nonzero(np.asarray(ak.flatten(jets['det_level'].px, axis=None)))}")
+    logger.warning(
+        f"all jet cuts n accepted: {np.count_nonzero(np.asarray(ak.flatten(jets['det_level'].px, axis=None)))}"
+    )
 
     # Jet matching
     # NOTE: There is small departure from the AliPhysics approach here because we apply the jet cuts
@@ -135,7 +140,10 @@ def analysis_MC(arrays: ak.Array, jet_R: float, min_jet_pt: Mapping[str, float],
 
 
 def analysis_data(
-    collision_system: str, arrays: ak.Array, jet_R: float, min_jet_pt: Mapping[str, float],
+    collision_system: str,
+    arrays: ak.Array,
+    jet_R: float,
+    min_jet_pt: Mapping[str, float],
     particle_column_name: str = "data",
     validation_mode: bool = False,
     background_subtraction_settings: Optional[Mapping[str, Any]] = None,
@@ -195,7 +203,9 @@ def analysis_data(
         },
         depth_limit=1,
     )
-    logger.warning(f"Found n jets: {np.count_nonzero(np.asarray(ak.flatten(jets[particle_column_name].px, axis=None)))}")
+    logger.warning(
+        f"Found n jets: {np.count_nonzero(np.asarray(ak.flatten(jets[particle_column_name].px, axis=None)))}"
+    )
 
     # Apply jet level cuts.
     jets = alice_helpers.standard_jet_selection(
@@ -264,8 +274,7 @@ def analysis_embedding(
 
     # Track cuts
     arrays = alice_helpers.standard_track_selection(
-        arrays=arrays,
-        require_at_least_one_particle_in_each_collection_per_event=True
+        arrays=arrays, require_at_least_one_particle_in_each_collection_per_event=True
     )
 
     # Jet finding
@@ -283,7 +292,7 @@ def analysis_embedding(
         arrays=arrays,
         det_level_artificial_tracking_efficiency=det_level_artificial_tracking_efficiency,
         source_index_identifiers=source_index_identifiers,
-        validation_mode=validation_mode
+        validation_mode=validation_mode,
     )
 
     # Finally setup and run the jet finders
@@ -296,11 +305,11 @@ def analysis_embedding(
                     algorithm="anti-kt",
                     # NOTE: We only want the minimum pt to apply to the detector level.
                     #       Otherwise, we'll bias our particle level jets.
-                    pt_range=jet_finding.pt_range(pt_min=min_jet_pt.get("part_level", 1.)),
+                    pt_range=jet_finding.pt_range(pt_min=min_jet_pt.get("part_level", 1.0)),
                     # NOTE: We only want fiducial acceptance at the "data" level (ie. hybrid)
                     eta_range=jet_finding.eta_range(jet_R=jet_R, fiducial_acceptance=False),
                     area_settings=jet_finding.AreaPP(**area_kwargs),
-                )
+                ),
             ),
             "det_level": jet_finding.find_jets(
                 particles=arrays["det_level"],
@@ -309,11 +318,11 @@ def analysis_embedding(
                     algorithm="anti-kt",
                     # NOTE: We still keep this pt cut low, but not down to 0.15. We're trying to
                     #       balance avoiding bias while avoiding mismatching with really soft jets
-                    pt_range=jet_finding.pt_range(pt_min=min_jet_pt.get("det_level", 1.)),
+                    pt_range=jet_finding.pt_range(pt_min=min_jet_pt.get("det_level", 1.0)),
                     # NOTE: We only want fiducial acceptance at the "data" level (ie. hybrid)
                     eta_range=jet_finding.eta_range(jet_R=jet_R, fiducial_acceptance=False),
                     area_settings=jet_finding.AreaPP(**area_kwargs),
-                )
+                ),
             ),
             "hybrid": jet_finding.find_jets(
                 particles=arrays["hybrid"][hybrid_level_mask],
@@ -412,7 +421,9 @@ def analysis_embedding(
         # Require a shared momentum fraction (default >= 0.5)
         shared_momentum_fraction_mask = (jets["det_level", "shared_momentum_fraction"] >= shared_momentum_fraction_min)
         n_jets_removed = len(jets) - np.count_nonzero(shared_momentum_fraction_mask)
-        logger.info(f"Removing {n_jets_removed} events out of {len(jets)} total jets ({round(n_jets_removed / len(jets) * 100, 2)}%) due to shared momentum fraction")
+        logger.info(
+            f"Removing {n_jets_removed} events out of {len(jets)} total jets ({round(n_jets_removed / len(jets) * 100, 2)}%) due to shared momentum fraction"
+        )
         jets = jets[shared_momentum_fraction_mask]
 
     # Now, the final transformation into a form that can be used to skim into a flat tree.
@@ -432,9 +443,9 @@ if __name__ == "__main__":
     # collision_system = "pythia"
     # PbPb:
     # collision_system = "PbPb"
-    #for collision_system in ["pp", "pythia", "PbPb"]:
+    # for collision_system in ["pp", "pythia", "PbPb"]:
     for collision_system in ["pp"]:
-        logger.info(f"Analyzing \"{collision_system}\"")
+        logger.info(f'Analyzing "{collision_system}"')
         jets = analysis_data(
             collision_system=collision_system,
             arrays=load_data.data(
@@ -446,10 +457,10 @@ if __name__ == "__main__":
                 rename_prefix={"data": "data"} if collision_system != "pythia" else {"data": "det_level"},
             ),
             jet_R=0.4,
-            min_jet_pt={"data": 5. if collision_system == "pp" else 20.},
+            min_jet_pt={"data": 5.0 if collision_system == "pp" else 20.0},
         )
 
-        #import IPython; IPython.embed()
+        # import IPython; IPython.embed()
     ######
     # MC
     ######

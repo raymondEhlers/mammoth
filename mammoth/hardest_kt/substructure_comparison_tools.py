@@ -40,7 +40,14 @@ def arrays_to_hist(
 
     return binned_data.BinnedData.from_existing_data(h_hist)
 
-def compare_branch(standard: ak.Array, track_skim: ak.Array, key: str, variable_name: str, assert_false_on_failed_comparison: bool = False) -> bool:
+
+def compare_branch(
+    standard: ak.Array,
+    track_skim: ak.Array,
+    key: str,
+    variable_name: str,
+    assert_false_on_failed_comparison: bool = False,
+) -> bool:
     # Setup
     success = True
     standard_array = standard[key]
@@ -132,7 +139,7 @@ def plot_attribute_compare(
 
 
 def _pretty_print_flat_type(s: str) -> str:
-    """ Dumb pretty print function.
+    """Dumb pretty print function.
 
     It uses no logic, but it's fairly convenient for flat trees.
     """
@@ -150,7 +157,7 @@ def compare_flat_substructure(  # noqa: C901
     track_skim_validation_mode: bool = True,
     assert_false_on_failed_comparison_for_debugging_during_testing: bool = False,
 ) -> bool:
-    """ Compare flat substructure productions
+    """Compare flat substructure productions
 
     Args:
         ...
@@ -183,6 +190,7 @@ def compare_flat_substructure(  # noqa: C901
         # First, we deal with the known reorder map.
         # If there are entries here, then we'll use them.
         # The keys are (collision_system, jet_R)
+        # fmt: off
         reorder_map = {
             # Indices of differences: [15, 16]
             ("embed_pythia", 0.4): [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 16, 15, 17],
@@ -191,6 +199,7 @@ def compare_flat_substructure(  # noqa: C901
             # Indices of differences: [6, 7]
             ("PbPb", 0.2): [0, 1, 2, 3, 4, 5, 7, 6],
         }
+        # fmt: on
 
         if (collision_system, jet_R) in reorder_map:
             # First, verify that they're the same length. If they're not, we don't want to mess with the mask
@@ -211,14 +220,21 @@ def compare_flat_substructure(  # noqa: C901
         # This will allow us to determine the order (if it needs to be reordered)
         _prefix = prefixes[0]
         result = compare_branch(
-            standard=standard, track_skim=track_skim, key=f"{_prefix}_jet_pt", variable_name="jet_pt",
+            standard=standard,
+            track_skim=track_skim,
+            key=f"{_prefix}_jet_pt",
+            variable_name="jet_pt",
             assert_false_on_failed_comparison=assert_false_on_failed_comparison_for_debugging_during_testing,
         )
         # They disagree. We'll try to figure out if it's just a minor ordering issue.
         if not result:
             try:
                 # Describe the indices where there are disagreements
-                is_not_close_array = np.where(~np.isclose(ak.to_numpy(standard[f"{_prefix}_jet_pt"]), ak.to_numpy(track_skim[f"{_prefix}_jet_pt"])))
+                is_not_close_array = np.where(
+                    ~np.isclose(
+                        ak.to_numpy(standard[f"{_prefix}_jet_pt"]), ak.to_numpy(track_skim[f"{_prefix}_jet_pt"])
+                    )
+                )
 
                 # To get the same indexing, we want to go:
                 # track_skim -> sorted track_skim (if same values, it's the same order as sorted standard)
@@ -301,7 +317,10 @@ def compare_flat_substructure(  # noqa: C901
             normalize=True,
         )
         result = compare_branch(
-            standard=standard, track_skim=track_skim, key=f"{prefix}_jet_pt", variable_name="jet_pt",
+            standard=standard,
+            track_skim=track_skim,
+            key=f"{prefix}_jet_pt",
+            variable_name="jet_pt",
             assert_false_on_failed_comparison=assert_false_on_failed_comparison_for_debugging_during_testing,
         )
         # We only want to assign the result if it's false because we don't want to accidentally overwrite
@@ -355,7 +374,10 @@ def compare_flat_substructure(  # noqa: C901
             )
 
             result = compare_branch(
-                standard=standard, track_skim=track_skim, key=f"{grooming_method}_{prefix}_kt", variable_name="kt",
+                standard=standard,
+                track_skim=track_skim,
+                key=f"{grooming_method}_{prefix}_kt",
+                variable_name="kt",
                 assert_false_on_failed_comparison=assert_false_on_failed_comparison_for_debugging_during_testing,
             )
             # We only want to assign the result if it's false because we don't want to accidentally overwrite
@@ -407,7 +429,10 @@ def compare_flat_substructure(  # noqa: C901
             )
 
             result = compare_branch(
-                standard=standard, track_skim=track_skim, key=f"{grooming_method}_{prefix}_delta_R", variable_name="delta_R",
+                standard=standard,
+                track_skim=track_skim,
+                key=f"{grooming_method}_{prefix}_delta_R",
+                variable_name="delta_R",
                 assert_false_on_failed_comparison=assert_false_on_failed_comparison_for_debugging_during_testing,
             )
             # We only want to assign the result if it's false because we don't want to accidentally overwrite
@@ -459,7 +484,10 @@ def compare_flat_substructure(  # noqa: C901
             )
 
             result = compare_branch(
-                standard=standard, track_skim=track_skim, key=f"{grooming_method}_{prefix}_z", variable_name="zg",
+                standard=standard,
+                track_skim=track_skim,
+                key=f"{grooming_method}_{prefix}_z",
+                variable_name="zg",
                 assert_false_on_failed_comparison=assert_false_on_failed_comparison_for_debugging_during_testing,
             )
             # We only want to assign the result if it's false because we don't want to accidentally overwrite

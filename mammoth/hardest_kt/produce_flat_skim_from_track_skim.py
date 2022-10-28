@@ -55,9 +55,7 @@ class HardestKtProductionSpecialization:
             "embed_pythia": "embed_pythia",
             "embed_thermal_model": "embed_thermal_model",
         }
-        _tasks.append(
-            _base_name.format(label=_label_map[collision_system])
-        )
+        _tasks.append(_base_name.format(label=_label_map[collision_system]))
         return _tasks
 
 
@@ -73,9 +71,7 @@ def safe_output_filename_from_relative_path(filename: Path, output_dir: Path) ->
     # NOTE: We use the grandparent of the output dir because the input filename is going to be a different train
     #       than our output. For the case of embedding trains, we might not even share the collision system.
     #       So by going to the grandparent (ie `trains`), we end up with a shared path
-    return str(
-        filename.relative_to(output_dir.parent.parent).with_suffix("")
-    ).replace("/", "__").replace(".", "_")
+    return str(filename.relative_to(output_dir.parent.parent).with_suffix("")).replace("/", "__").replace(".", "_")
 
 
 @python_app
@@ -96,9 +92,7 @@ def _extract_scale_factors_from_hists(
     from mammoth.alice import scale_factors as sf
 
     res = analysis_objects.ScaleFactor.from_hists(
-        *sf.scale_factor_ROOT(
-            filenames=[Path(i.filepath) for i in inputs], list_name=list_name
-        )
+        *sf.scale_factor_ROOT(filenames=[Path(i.filepath) for i in inputs], list_name=list_name)
     )
     return res
 
@@ -287,9 +281,7 @@ def steer_extract_scale_factors(
     scale_factors = setup_extract_scale_factors(prod=prod)
     all_results.extend(list(scale_factors.values()))
     # Then, we need to write them
-    all_results.append(
-        setup_write_scale_factors(prod=prod, scale_factors=scale_factors)
-    )
+    all_results.append(setup_write_scale_factors(prod=prod, scale_factors=scale_factors))
     # And then create the spectra (and plot them) to cross check the extraction
     all_results.append(
         setup_check_pt_hat_spectra(
@@ -394,8 +386,9 @@ def setup_calculate_data_skim(
             # Setup file I/O
             # Converts: "2111/run_by_run/LHC17p_CENT_woSDD/282341/AnalysisResults.17p.001.root"
             #        -> "2111__run_by_run__LHC17p_CENT_woSDD__282341__AnalysisResults_17p_001"
-            output_identifier = safe_output_filename_from_relative_path(filename=input_filename,
-                                                                        output_dir=prod.output_dir)
+            output_identifier = safe_output_filename_from_relative_path(
+                filename=input_filename, output_dir=prod.output_dir
+            )
             output_filename = output_dir / f"{output_identifier}_{str(splittings_selection)}.root"
             # And create the tasks
             results.append(
@@ -443,14 +436,8 @@ def _run_embedding_skim(
     try:
         result = analysis_track_skim_to_flat_tree.hardest_kt_embedding_skim(
             collision_system=collision_system,
-            signal_input=[
-                Path(_input_file.filepath)
-                for _input_file in inputs[:n_signal_input_files]
-            ],
-            background_input=[
-                Path(_input_file.filepath)
-                for _input_file in inputs[n_signal_input_files:]
-            ],
+            signal_input=[Path(_input_file.filepath) for _input_file in inputs[:n_signal_input_files]],
+            background_input=[Path(_input_file.filepath) for _input_file in inputs[n_signal_input_files:]],
             convert_data_format_prefixes=convert_data_format_prefixes,
             jet_R=jet_R,
             min_jet_pt=min_jet_pt,
@@ -496,7 +483,7 @@ def _determine_unconstrained_signal_input_files(
     pt_hat_bins: Sequence[int],
     signal_input_config: Mapping[str, Any],
 ) -> Tuple[int, List[Path]]:
-    """ Determine the signal input files for the unconstrained case.
+    """Determine the signal input files for the unconstrained case.
 
     We refactored this out since the logic is a bit complex to be inline.
     """
@@ -517,8 +504,7 @@ def _determine_unconstrained_signal_input_files(
         #       more accepted jets in the high pt hat sample.
         pt_hat_bin = secrets.choice(pt_hat_bins)
         signal_input = [
-            secrets.choice(signal_input_files_per_pt_hat[pt_hat_bin])
-            for _ in range(_n_files_to_use_per_task)
+            secrets.choice(signal_input_files_per_pt_hat[pt_hat_bin]) for _ in range(_n_files_to_use_per_task)
         ]
     else:
         # Directly sample the files. This probes the generator stats because
@@ -526,11 +512,13 @@ def _determine_unconstrained_signal_input_files(
         pt_hat_bin, _signal_input_filename = secrets.choice(signal_input_files_flat)
         signal_input = [_signal_input_filename]
         # Since we want to keep the same pt hat bin, use the pt hat ban to randomly select additional files
-        signal_input.extend([
-            secrets.choice(signal_input_files_per_pt_hat[pt_hat_bin])
-            # -1 since we already have a filename
-            for _ in range(_n_files_to_use_per_task - 1)
-        ])
+        signal_input.extend(
+            [
+                secrets.choice(signal_input_files_per_pt_hat[pt_hat_bin])
+                # -1 since we already have a filename
+                for _ in range(_n_files_to_use_per_task - 1)
+            ]
+        )
     return pt_hat_bin, signal_input
 
 
@@ -539,20 +527,22 @@ def _select_files_for_source(
     selected_input_file: Path,
     n_files_to_use: int,
 ) -> List[Path]:
-    """ Select n files from a list of available files without replacement. """
+    """Select n files from a list of available files without replacement."""
     _input = [selected_input_file]
 
-    _possible_additional_files = set([
-        secrets.choice(input_files)
-        # -1 since we already have a filename
-        # +5 since we'll remove any filenames if they're repeated
-        # NOTE: +5 is arbitrary, but should be sufficient. We could do more, but it would be a waste of cycles.
-        #       In any case, We'll double check below.
-        for _ in range(n_files_to_use - 1 + 5)
-    ])
+    _possible_additional_files = set(
+        [
+            secrets.choice(input_files)
+            # -1 since we already have a filename
+            # +5 since we'll remove any filenames if they're repeated
+            # NOTE: +5 is arbitrary, but should be sufficient. We could do more, but it would be a waste of cycles.
+            #       In any case, We'll double check below.
+            for _ in range(n_files_to_use - 1 + 5)
+        ]
+    )
     # Remove the existing file, and then add to the list
     _possible_additional_files.discard(selected_input_file)
-    _input.extend(list(_possible_additional_files)[:n_files_to_use - 1])
+    _input.extend(list(_possible_additional_files)[: n_files_to_use - 1])
 
     # Validate that we didn't somehow end up with too few files
     # This really shouldn't happen outside of exceptional cases
@@ -589,7 +579,7 @@ def _determine_embed_pythia_input_files(
             background_input = _select_files_for_source(
                 input_files=background_input_files,
                 selected_input_file=background_file,
-                n_files_to_use=background_input_config["constrained_source"]["n_files_to_use_per_task"]
+                n_files_to_use=background_input_config["constrained_source"]["n_files_to_use_per_task"],
             )
 
             # Determine the unconstrained input (signal)
@@ -638,37 +628,39 @@ def setup_calculate_embed_pythia_skim(  # noqa: C901
 
     # If we want to debug some particular files, we can directly set them here
     if debug_mode:
-        #background_input_files = [Path("trains/PbPb/645/run_by_run/LHC18q/296270/AnalysisResults.18q.179.root")]
-        #signal_input_files_per_pt_hat = {1: [Path("trains/pythia/2640/run_by_run/LHC20g4/297132/1/AnalysisResults.20g4.013.root")]}
-        #signal_input_files_per_pt_hat = {12: [Path("trains/pythia/2640/run_by_run/LHC20g4/297132/12/AnalysisResults.20g4.013.root")]}
-        #signal_input_files_per_pt_hat = {3: [
+        # background_input_files = [Path("trains/PbPb/645/run_by_run/LHC18q/296270/AnalysisResults.18q.179.root")]
+        # signal_input_files_per_pt_hat = {1: [Path("trains/pythia/2640/run_by_run/LHC20g4/297132/1/AnalysisResults.20g4.013.root")]}
+        # signal_input_files_per_pt_hat = {12: [Path("trains/pythia/2640/run_by_run/LHC20g4/297132/12/AnalysisResults.20g4.013.root")]}
+        # signal_input_files_per_pt_hat = {3: [
         #    #Path("trains/pythia/2640/run_by_run/LHC20g4/295819/3/AnalysisResults.20g4.006.root"),
         #    Path("trains/pythia/2640/run_by_run/LHC20g4/297317/3/AnalysisResults.20g4.013.root"),
         #    #Path("trains/pythia/2640/run_by_run/LHC20g4/296935/3/AnalysisResults.20g4.009.root"),
-        #]}
-        #signal_input_files_per_pt_hat = {7: [
+        # ]}
+        # signal_input_files_per_pt_hat = {7: [
         #    #Path('trains/pythia/2640/run_by_run/LHC20g4/296550/7/AnalysisResults.20g4.014.root'),
         #    #Path('trains/pythia/2640/run_by_run/LHC20g4/296244/7/AnalysisResults.20g4.001.root'),
         #    Path('trains/pythia/2640/run_by_run/LHC20g4/297379/7/AnalysisResults.20g4.002.root'),
-        #]}
-        #signal_input_files_per_pt_hat = {11: [
+        # ]}
+        # signal_input_files_per_pt_hat = {11: [
         #    Path('trains/pythia/2640/run_by_run/LHC20g4/296191/11/AnalysisResults.20g4.007.root'),
         #    Path('trains/pythia/2640/run_by_run/LHC20g4/297132/11/AnalysisResults.20g4.008.root'),
         #    Path('trains/pythia/2640/run_by_run/LHC20g4/295612/11/AnalysisResults.20g4.008.root'),
-        #]}
-        #background_input_files = [Path('trains/PbPb/645/run_by_run/LHC18q/296270/AnalysisResults.18q.607.root')]
-        #signal_input_files_per_pt_hat = {10: [
+        # ]}
+        # background_input_files = [Path('trains/PbPb/645/run_by_run/LHC18q/296270/AnalysisResults.18q.607.root')]
+        # signal_input_files_per_pt_hat = {10: [
         #    Path('trains/pythia/2640/run_by_run/LHC20g4/295612/10/AnalysisResults.20g4.007.root'),
         #    Path('trains/pythia/2640/run_by_run/LHC20g4/297544/10/AnalysisResults.20g4.010.root'),
         #    Path('trains/pythia/2640/run_by_run/LHC20g4/296935/10/AnalysisResults.20g4.013.root'),
-        #]}
+        # ]}
         background_input_files = [Path("trains/PbPb/645/run_by_run/LHC18r/297595/AnalysisResults.18r.551.root")]
-        #background_input_files = [Path('trains/PbPb/645/run_by_run/LHC18r/297219/AnalysisResults.18r.416.root')]
-        signal_input_files_per_pt_hat = {12: [
-            Path('trains/pythia/2640/run_by_run/LHC20g4/296690/12/AnalysisResults.20g4.008.root'),
-            Path('trains/pythia/2640/run_by_run/LHC20g4/295819/12/AnalysisResults.20g4.009.root'),
-            Path('trains/pythia/2640/run_by_run/LHC20g4/297479/12/AnalysisResults.20g4.009.root'),
-        ]}
+        # background_input_files = [Path('trains/PbPb/645/run_by_run/LHC18r/297219/AnalysisResults.18r.416.root')]
+        signal_input_files_per_pt_hat = {
+            12: [
+                Path("trains/pythia/2640/run_by_run/LHC20g4/296690/12/AnalysisResults.20g4.008.root"),
+                Path("trains/pythia/2640/run_by_run/LHC20g4/295819/12/AnalysisResults.20g4.009.root"),
+                Path("trains/pythia/2640/run_by_run/LHC20g4/297479/12/AnalysisResults.20g4.009.root"),
+            ]
+        }
 
     # Setup for dataset and input
     _metadata_config: Dict[str, Any] = prod.config["metadata"]
@@ -693,13 +685,17 @@ def setup_calculate_embed_pythia_skim(  # noqa: C901
     # NOTE: We usually need to skip this during debug mode because we may not have all pt hat bins in the input,
     #       so it will fail trivially.
     if not debug_mode:
-        pt_hat_bins, _ = _extract_info_from_signal_file_list(signal_input_files_per_pt_hat=signal_input_files_per_pt_hat)
+        pt_hat_bins, _ = _extract_info_from_signal_file_list(
+            signal_input_files_per_pt_hat=signal_input_files_per_pt_hat
+        )
         if set(scale_factors) != set(pt_hat_bins):
             raise ValueError(
                 f"Mismatch between the pt hat bins in the scale factors ({set(scale_factors)}) and the pt hat bins ({set(pt_hat_bins)})"
             )
 
-    logger.info(f"Configuring embed pythia with {'background' if _background_is_constrained_source else 'signal'} as the constrained source.")
+    logger.info(
+        f"Configuring embed pythia with {'background' if _background_is_constrained_source else 'signal'} as the constrained source."
+    )
 
     results = []
     _embedding_file_pairs = {}
@@ -713,7 +709,9 @@ def setup_calculate_embed_pythia_skim(  # noqa: C901
     )
     for _file_counter, (pt_hat_bin, signal_input, background_input) in enumerate(input_generator):
         if _file_counter % 500 == 0:
-            logger.info(f"Adding {(background_input if _background_is_constrained_source else signal_input)[0]} for analysis")
+            logger.info(
+                f"Adding {(background_input if _background_is_constrained_source else signal_input)[0]} for analysis"
+            )
 
         # For debugging
         if debug_mode and _file_counter > 1:
@@ -723,9 +721,13 @@ def setup_calculate_embed_pythia_skim(  # noqa: C901
         # We want to identify as: "{signal_identifier}__embedded_into__{background_identifier}"
         # Take the first signal and first background filenames as the main identifier to the path.
         # Otherwise, the filename could become indefinitely long... (apparently there are file length limits in unix...)
-        output_identifier = safe_output_filename_from_relative_path(filename=signal_input[0], output_dir=prod.output_dir)
+        output_identifier = safe_output_filename_from_relative_path(
+            filename=signal_input[0], output_dir=prod.output_dir
+        )
         output_identifier += "__embedded_into__"
-        output_identifier += safe_output_filename_from_relative_path(filename=background_input[0], output_dir=prod.output_dir)
+        output_identifier += safe_output_filename_from_relative_path(
+            filename=background_input[0], output_dir=prod.output_dir
+        )
         # Finally, add the splittings selection
         output_identifier += f"_{str(splittings_selection)}"
 
@@ -744,15 +746,13 @@ def setup_calculate_embed_pythia_skim(  # noqa: C901
                 _output_identifiers.append(output_identifier)
                 _output_identifier_stored = True
 
-        #logger.info(f"output_identifier: {output_identifier}")
+        # logger.info(f"output_identifier: {output_identifier}")
         output_filename = output_dir / f"{output_identifier}.root"
 
         # Store the file pairs for our records
         # The output identifier contains the first signal filename, as well as the background filename.
         # We use it here rather than _just_ the background filename because we may embed into data multiple times
-        _embedding_file_pairs[output_identifier] = [
-            str(_filename) for _filename in signal_input
-        ] + [
+        _embedding_file_pairs[output_identifier] = [str(_filename) for _filename in signal_input] + [
             str(_filename) for _filename in background_input
         ]
 
@@ -774,9 +774,7 @@ def setup_calculate_embed_pythia_skim(  # noqa: C901
                     *[File(str(_filename)) for _filename in signal_input],
                     *[File(str(_filename)) for _filename in background_input],
                 ],
-                outputs=[
-                    File(str(output_filename))
-                ],
+                outputs=[File(str(output_filename))],
             )
         )
 
@@ -795,6 +793,7 @@ def setup_calculate_embed_pythia_skim(  # noqa: C901
         y.dump(_embedding_file_pairs, f)
 
     return results
+
 
 @python_app
 def _run_embed_thermal_model_skim(
@@ -819,10 +818,7 @@ def _run_embed_thermal_model_skim(
     try:
         result = analysis_track_skim_to_flat_tree.hardest_kt_embed_thermal_model_skim(
             collision_system=collision_system,
-            signal_input=[
-                Path(_input_file.filepath)
-                for _input_file in inputs
-            ],
+            signal_input=[Path(_input_file.filepath) for _input_file in inputs],
             convert_data_format_prefixes=convert_data_format_prefixes,
             jet_R=jet_R,
             min_jet_pt=min_jet_pt,
@@ -863,7 +859,9 @@ def setup_calculate_embed_thermal_model_skim(
     _analysis_config = prod.config["settings"]
     # Splitting selection (iterative vs recursive)
     splittings_selection = SplittingsSelection[_analysis_config["splittings_selection"]]
-    thermal_model_parameters = sources.THERMAL_MODEL_SETTINGS[f"{_metadata_config['dataset']['sqrt_s']}_{_analysis_config['event_activity']}"]
+    thermal_model_parameters = sources.THERMAL_MODEL_SETTINGS[
+        f"{_metadata_config['dataset']['sqrt_s']}_{_analysis_config['event_activity']}"
+    ]
     chunk_size = _analysis_config["chunk_size"]
     logger.info(f"Processing chunk size for {chunk_size}")
     # Scale factors
@@ -894,8 +892,9 @@ def setup_calculate_embed_thermal_model_skim(
             # Setup file I/O
             # Converts: "2111/run_by_run/LHC17p_CENT_woSDD/282341/AnalysisResults.17p.001.root"
             #        -> "2111__run_by_run__LHC17p_CENT_woSDD__282341__AnalysisResults_17p_001"
-            output_identifier = safe_output_filename_from_relative_path(filename=input_filename,
-                                                                        output_dir=prod.output_dir)
+            output_identifier = safe_output_filename_from_relative_path(
+                filename=input_filename, output_dir=prod.output_dir
+            )
             output_filename = output_dir / f"{output_identifier}_{str(splittings_selection)}.root"
             # And create the tasks
             results.append(
@@ -905,16 +904,16 @@ def setup_calculate_embed_thermal_model_skim(
                     min_jet_pt=_analysis_config["min_jet_pt"],
                     iterative_splittings=splittings_selection == SplittingsSelection.iterative,
                     background_subtraction=_analysis_config["background_subtraction"],
-                    det_level_artificial_tracking_efficiency=_analysis_config["det_level_artificial_tracking_efficiency"],
+                    det_level_artificial_tracking_efficiency=_analysis_config[
+                        "det_level_artificial_tracking_efficiency"
+                    ],
                     thermal_model_parameters=thermal_model_parameters,
                     chunk_size=chunk_size,
                     convert_data_format_prefixes=_metadata_config["convert_data_format_prefixes"],
                     inputs=[
                         File(str(input_filename)),
                     ],
-                    outputs=[
-                        File(str(output_filename))
-                    ],
+                    outputs=[File(str(output_filename))],
                     scale_factor=scale_factors[pt_hat_bin],
                 )
             )
@@ -924,35 +923,41 @@ def setup_calculate_embed_thermal_model_skim(
     return results
 
 
-def determine_additional_worker_init(productions: Sequence[production.ProductionSettings],
-                                     tasks_requiring_root: Sequence[str],
-                                     tasks_requiring_aliphysics: Sequence[str]) -> str:
+def determine_additional_worker_init(
+    productions: Sequence[production.ProductionSettings],
+    tasks_requiring_root: Sequence[str],
+    tasks_requiring_aliphysics: Sequence[str],
+) -> str:
     _software_to_load = []
     _additional_worker_init_script = ""
+    # fmt: off
     if any(
-            (
-                task in tasks_requiring_root
-                for prod in productions
-                for task in prod.tasks_to_execute
-            )
+        (
+            task in tasks_requiring_root
+            for prod in productions
+            for task in prod.tasks_to_execute
+        )
     ):
         _software_to_load.append("ROOT/latest")
     if any(
-            (
-                task in tasks_requiring_aliphysics
-                for prod in productions
-                for task in prod.tasks_to_execute
-            )
+        (
+            task in tasks_requiring_aliphysics
+            for prod in productions
+            for task in prod.tasks_to_execute
+        )
     ):
         # This is a little unconventional to redefine the list here, but ROOT is already
         # a dependency of AliPhysics, so we redefine the list to remove ROOT.
         _software_to_load = [s for s in _software_to_load if s != "ROOT/latest"]
         # And then include AliPhysics
         _software_to_load.append("AliPhysics/latest")
+    # fmt: on
 
     # If there is anything to load, add the initialization
     if _software_to_load:
-        _additional_worker_init_script = f"eval `/usr/bin/alienv -w /software/rehlers/alice/sw --no-refresh printenv {','.join(_software_to_load)}`"
+        _additional_worker_init_script = (
+            f"eval `/usr/bin/alienv -w /software/rehlers/alice/sw --no-refresh printenv {','.join(_software_to_load)}`"
+        )
 
     return _additional_worker_init_script
 
@@ -983,13 +988,12 @@ def define_productions() -> List[production.ProductionSettings]:
             #     specialization=HardestKtProductionSpecialization(),
             #     track_skim_config_filename=config_filename,
             # ),
-
             # Debug
-            #production.ProductionSettings.read_config(
-            #    collision_system="PbPb", number=3,
-            #    specialization=HardestKtProductionSpecialization(),
-            #    track_skim_config_filename=config_filename,
-            #),
+            # production.ProductionSettings.read_config(
+            #     collision_system="PbPb", number=3,
+            #     specialization=HardestKtProductionSpecialization(),
+            #     track_skim_config_filename=config_filename,
+            # ),
             # Production
             # production.ProductionSettings.read_config(
             #     collision_system="PbPb", number=64,
@@ -1002,7 +1006,8 @@ def define_productions() -> List[production.ProductionSettings]:
             #     track_skim_config_filename=config_filename,
             # ),
             production.ProductionSettings.read_config(
-                collision_system="PbPb", number=66,
+                collision_system="PbPb",
+                number=66,
                 specialization=HardestKtProductionSpecialization(),
                 track_skim_config_filename=config_filename,
             ),
@@ -1028,7 +1033,7 @@ def run() -> None:  # noqa: C901
     # Job execution configuration
     task_config = job_utils.TaskConfig(name=task_name, n_cores_per_task=1)
     # n_cores_to_allocate = 120
-    #n_cores_to_allocate = 110
+    # n_cores_to_allocate = 110
     n_cores_to_allocate = 60
     walltime = "24:00:00"
     debug_mode = False

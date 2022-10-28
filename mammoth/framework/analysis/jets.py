@@ -228,7 +228,9 @@ def hybrid_level_particles_mask_for_jet_finding(
     hybrid_level_mask = (arrays["hybrid"].pt >= 0)
     if det_level_artificial_tracking_efficiency < 1.0:
         if validation_mode:
-            raise ValueError("Cannot apply artificial tracking efficiency during validation mode. The randomness will surely break the validation.")
+            raise ValueError(
+                "Cannot apply artificial tracking efficiency during validation mode. The randomness will surely break the validation."
+            )
 
         # Here, we focus in on the detector level particles.
         # We want to select only them, determine whether they will be rejected, and then assign back

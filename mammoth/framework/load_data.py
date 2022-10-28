@@ -168,7 +168,7 @@ def _transform_data(
     collision_system: str,
     rename_prefix: Mapping[str, str],
 ) -> sources.T_GenData:
-    """ Perform normalization for data and MC
+    """Perform normalization for data and MC
 
     Throws:
         sources.NoDataAvailableError: Raised if the array is empty, since we can't normalize empty data
@@ -347,7 +347,7 @@ def _event_select_and_transform_embedding(
     source_index_identifiers: Mapping[str, int],
     use_alice_standard_event_selection_on_background: bool = True,
 ) -> sources.T_GenData:
-    """ Perform event selection and normalization for embedding
+    """Perform event selection and normalization for embedding
 
     Throws:
         sources.NoDataAvailableError: Raised if the array is empty
