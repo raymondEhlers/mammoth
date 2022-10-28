@@ -283,7 +283,7 @@ def _check_for_output_file(output_filename: Path, description: str) -> Tuple[boo
     return (False, "")
 
 
-def hardest_kt_embed_thermal_model_skim(
+def hardest_kt_embed_thermal_model_skim(  # noqa: C901
     collision_system: str,
     signal_input: Union[Path, Sequence[Path]],
     convert_data_format_prefixes: Mapping[str, str],
@@ -305,6 +305,7 @@ def hardest_kt_embed_thermal_model_skim(
     else:
         signal_input_filenames = list(signal_input)
 
+    # Setup
     _parameters = {
         "collision_system": collision_system, "R": jet_R,
         "signal_input_filenames": str([str(_filename) for _filename in signal_input_filenames]),
@@ -312,6 +313,12 @@ def hardest_kt_embed_thermal_model_skim(
     if chunk_size is not sources.ChunkSizeSentinel.FULL_SOURCE:
         _parameters["chunk_size"] = chunk_size
     _description = _description_from_parameters(parameters=_parameters)
+
+    # Try to bail out early to avoid reprocessing if possible.
+    # This would only work if is was previously processed with one chunk, but it doesn't hurt to try
+    res = _check_for_output_file(output_filename=output_filename, description=_description)
+    if res[0]:
+        return res
 
     # Setup iteration over the input files
     # If we don't use a processing chunk size, it should all be done in one chunk by default.
@@ -331,17 +338,27 @@ def hardest_kt_embed_thermal_model_skim(
         output_filename.with_suffix(".empty").touch()
         return (True, f"Done - no data available (reason: {e}), so not trying to skim for {_description}")
 
-    # Cross check
+    # Validate that the arrays are in an a format that we can iterate over
+    if isinstance(iter_arrays, ak.Array):
+        iter_arrays = iter([iter_arrays])
     assert not isinstance(iter_arrays, ak.Array), "Check configuration. This should be an iterable, not an ak.Array!"
 
+    _nonstandard_results = []
     for i_chunk, arrays in enumerate(iter_arrays):
-        # Setup. We need to identify the chunk
-        _output_filename = output_filename.parent / f"{output_filename.stem}_chunk_{i_chunk:03}{output_filename.suffix}"
+        # Setup
+        # We need to identify the chunk in the output name
+        # NOTE: To be consistent with expectations for a single chunk, the output name should only append the suffix
+        #       if it's more than the first chunk
+        if i_chunk > 0:
+            _output_filename = output_filename.parent / f"{output_filename.stem}_chunk_{i_chunk:03}{output_filename.suffix}"
+        else:
+            _output_filename = output_filename
 
         # Try to bail out as early to avoid reprocessing if possible.
         res = _check_for_output_file(output_filename=_output_filename, description=_description)
         if res[0]:
-            logger.info(f"Skipping chunk {i_chunk}: {res}")
+            _nonstandard_results.append(res)
+            logger.info(f"Skipping already processed chunk {i_chunk}: {res}")
             continue
 
         try:
@@ -358,11 +375,13 @@ def hardest_kt_embed_thermal_model_skim(
             # Just create the empty filename and return. This will prevent trying to re-run with no jets in the future.
             # Remember that this depends heavily on the jet pt cuts!
             _output_filename.with_suffix(".empty").touch()
-            logger.info((True, f"Chunk {i_chunk}: Done - no data available (reason: {e}), so not trying to skim for {_description}"))
+            _message = (True, f"Chunk {i_chunk}: Done - no data available (reason: {e}), so not trying to skim for {_description}")
+            _nonstandard_results.append(_message)
+            logger.info(_message)
             continue
 
         # NOTE: We need to know how many jets there are, so we arbitrarily take the first field. The jets are flattened,
-        #       so they're as good as any others.
+        #       so the first field is as good as any other.
         _there_are_jets_left = len(jets[ak.fields(jets)[0]])
 
         # There were no jets. Note that with a specially crafted empty file
@@ -370,14 +389,22 @@ def hardest_kt_embed_thermal_model_skim(
             # Just create the empty filename and return. This will prevent trying to re-run with no jets in the future.
             # Remember that this depends heavily on the jet pt cuts!
             _output_filename.with_suffix(".empty").touch()
-            logger.info((True, f"Chunk {i_chunk}: Done - no jets to recluster, so not trying to skim for {_description}"))
+            _message = (True, f"Done - no jets to analyze, so not trying to skim for {_description}")
+            _nonstandard_results.append(_message)
             continue
 
-        _input_filename = signal_input_filenames[0].parent / f"{signal_input_filenames[0].stem}_chunk_{i_chunk:03}{signal_input_filenames[0].suffix}"
+        # Determine the input filename
+        # NOTE: This argument is only for logging messages. Since the PbPb is the constraining factor,
+        #       we focus on processing those files.
+        # NOTE: To be consistent with expectations for a single chunk, the output name should only append the suffix
+        #       if it's more than the first chunk
+        if i_chunk > 0:
+            _input_filename = signal_input_filenames[0].parent / f"{signal_input_filenames[0].stem}_chunk_{i_chunk:03}{signal_input_filenames[0].suffix}"
+        else:
+            _input_filename = signal_input_filenames[0]
+
         _hardest_kt_embedding_skim(
             jets=jets,
-            # NOTE: This argument is only for logging messages. Since the PbPb is the constraining factor,
-            #       we focus on processing those files.
             input_filename=_input_filename,
             jet_R=jet_R,
             iterative_splittings=iterative_splittings,
@@ -386,10 +413,10 @@ def hardest_kt_embed_thermal_model_skim(
             output_filename=_output_filename,
         )
 
-    return (True, f"success for {_description}")
+    return (True, f"success for {_description}" + (". Additional non-standard results: {_nonstandard_results}" if _nonstandard_results else ""))
 
 
-def hardest_kt_embedding_skim(
+def hardest_kt_embedding_skim(  # noqa: C901
     collision_system: str,
     signal_input: Union[Path, Sequence[Path]],
     background_input: Union[Path, Sequence[Path]],
@@ -401,6 +428,7 @@ def hardest_kt_embedding_skim(
     det_level_artificial_tracking_efficiency: float,
     output_filename: Path,
     scale_factor: float,
+    chunk_size: sources.T_ChunkSize = sources.ChunkSizeSentinel.FULL_SOURCE,
     validation_mode: bool = False,
     background_is_constrained_source: bool = True,
 ) -> Tuple[bool, str]:
@@ -415,25 +443,38 @@ def hardest_kt_embedding_skim(
         background_input_filenames = [background_input]
     else:
         background_input_filenames = list(background_input)
+
+    # Setup
+    _parameters = {
+        "collision_system": collision_system, "R": jet_R,
+        "signal_input_filenames": str([str(_filename) for _filename in signal_input_filenames]),
+        "background_input_filename": str([str(_filename) for _filename in background_input_filenames]),
+    }
+    if chunk_size is not sources.ChunkSizeSentinel.FULL_SOURCE:
+        _parameters["chunk_size"] = chunk_size
+    _description = _description_from_parameters(parameters=_parameters)
+
     # Try to bail out early to avoid reprocessing if possible.
-    _description = _description_from_parameters(
-        parameters={
-            "collision_system": collision_system, "R": jet_R,
-            "signal_input_filenames": str([str(_filename) for _filename in signal_input_filenames]),
-            "background_input_filename": str([str(_filename) for _filename in background_input_filenames]),
-        }
-    )
+    # This would only work if is was previously processed with one chunk, but it doesn't hurt to try
     res = _check_for_output_file(output_filename=output_filename, description=_description)
     if res[0]:
         return res
 
+    # Setup iteration over the input files
+    # If we don't use a processing chunk size, it should all be done in one chunk by default.
+    # However, the memory usage often gets too large if the signal is the constrained source,
+    # so this allows us to control the overall memory size by breaking it up into chunks,
+    # such that we only load the data chunks that's currently needed for processing.
+    # This is a bit idealistic because we often need to load the full file, but at least it sets
+    # for potential improvements
     try:
-        source_index_identifiers, arrays = load_data.embedding(
+        source_index_identifiers, iter_arrays = load_data.embedding(
             signal_input=signal_input_filenames,
             signal_source=track_skim.FileSource.create_deferred_source(collision_system="pythia"),
             background_input=background_input_filenames,
             background_source=track_skim.FileSource.create_deferred_source(collision_system="PbPb"),
             background_is_constrained_source=background_is_constrained_source,
+            chunk_size=chunk_size,
         )
     except sources.NoDataAvailableError as e:
         # Just create the empty filename and return. This will prevent trying to re-run with no jets in the future.
@@ -441,40 +482,83 @@ def hardest_kt_embedding_skim(
         output_filename.with_suffix(".empty").touch()
         return (True, f"Done - no data available (reason: {e}), so not trying to skim for {_description}")
 
-    jets = analysis_alice.analysis_embedding(
-        source_index_identifiers=source_index_identifiers,
-        arrays=arrays,
-        jet_R=jet_R,
-        min_jet_pt=min_jet_pt,
-        background_subtraction_settings=background_subtraction,
-        det_level_artificial_tracking_efficiency=det_level_artificial_tracking_efficiency,
-        validation_mode=validation_mode,
-    )
+    # Validate that the arrays are in an a format that we can iterate over
+    if isinstance(iter_arrays, ak.Array):
+        iter_arrays = iter([iter_arrays])
+    assert not isinstance(iter_arrays, ak.Array), "Check configuration. This should be an iterable, not an ak.Array!"
 
-    # NOTE: We need to know how many jets there are, so we arbitrarily take the first field. The jets are flattened,
-    #       so they're as good as any others.
-    _there_are_jets_left = len(jets[ak.fields(jets)[0]])
+    _nonstandard_results = []
+    for i_chunk, arrays in enumerate(iter_arrays):
+        # Setup
+        # We need to identify the chunk in the output name
+        # NOTE: To be consistent with expectations for a single chunk, the output name should only append the suffix
+        #       if it's more than the first chunk
+        if i_chunk > 0:
+            _output_filename = output_filename.parent / f"{output_filename.stem}_chunk_{i_chunk:03}{output_filename.suffix}"
+        else:
+            _output_filename = output_filename
 
-    # There were no jets. Note that with a specially crafted empty file
-    if not _there_are_jets_left:
-        # Just create the empty filename and return. This will prevent trying to re-run with no jets in the future.
-        # Remember that this depends heavily on the jet pt cuts!
-        output_filename.with_suffix(".empty").touch()
-        return (True, f"Done - no jets to analyze, so not trying to skim for {_description}")
+        # Try to bail out as early to avoid reprocessing if possible.
+        res = _check_for_output_file(output_filename=_output_filename, description=_description)
+        if res[0]:
+            _nonstandard_results.append(res)
+            logger.info(f"Skipping already processed chunk {i_chunk}: {res}")
+            continue
 
-    _hardest_kt_embedding_skim(
-        jets=jets,
-        # NOTE: This argument is only for logging messages. We want the filename to be the one which
-        #       is the constrained source.
-        input_filename=background_input_filenames[0] if background_is_constrained_source else signal_input_filenames[0],
-        jet_R=jet_R,
-        iterative_splittings=iterative_splittings,
-        scale_factor=scale_factor,
-        convert_data_format_prefixes=convert_data_format_prefixes,
-        output_filename=output_filename,
-    )
+        try:
+            jets = analysis_alice.analysis_embedding(
+                source_index_identifiers=source_index_identifiers,
+                arrays=arrays,
+                jet_R=jet_R,
+                min_jet_pt=min_jet_pt,
+                background_subtraction_settings=background_subtraction,
+                det_level_artificial_tracking_efficiency=det_level_artificial_tracking_efficiency,
+                validation_mode=validation_mode,
+            )
+        except sources.NoDataAvailableError as e:
+            # Just create the empty filename and return. This will prevent trying to re-run with no jets in the future.
+            # Remember that this depends heavily on the jet pt cuts!
+            _output_filename.with_suffix(".empty").touch()
+            _message = (True, f"Chunk {i_chunk}: Done - no data available (reason: {e}), so not trying to skim for {_description}")
+            _nonstandard_results.append(_message)
+            logger.info(_message)
+            continue
 
-    return (True, f"success for {_description}")
+        # NOTE: We need to know how many jets there are, so we arbitrarily take the first field. The jets are flattened,
+        #       so the first field is as good as any other.
+        _there_are_jets_left = len(jets[ak.fields(jets)[0]])
+
+        # There were no jets. Note that with a specially crafted empty file
+        if not _there_are_jets_left:
+            # Just create the empty filename and return. This will prevent trying to re-run with no jets in the future.
+            # Remember that this depends heavily on the jet pt cuts!
+            output_filename.with_suffix(".empty").touch()
+            _message = (True, f"Done - no jets to analyze, so not trying to skim for {_description}")
+            _nonstandard_results.append(_message)
+            continue
+
+        # Determine the input filename
+        # NOTE: This argument is only for logging messages. Since the PbPb is the constraining factor,
+        #       we focus on processing those files.
+        # NOTE: To be consistent with expectations for a single chunk, the output name should only append the suffix
+        #       if it's more than the first chunk
+        _baseline_input_filename = background_input_filenames[0] if background_is_constrained_source else signal_input_filenames[0]
+        if i_chunk > 0:
+            _input_filename = _baseline_input_filename.parent / f"{_baseline_input_filename.stem}_chunk_{i_chunk:03}{_baseline_input_filename.suffix}"
+        else:
+            _input_filename = _baseline_input_filename
+
+        _hardest_kt_embedding_skim(
+            jets=jets,
+            input_filename=_input_filename,
+            jet_R=jet_R,
+            iterative_splittings=iterative_splittings,
+            scale_factor=scale_factor,
+            convert_data_format_prefixes=convert_data_format_prefixes,
+            output_filename=_output_filename,
+        )
+
+    return (True, f"success for {_description}" + (". Additional non-standard results: {_nonstandard_results}" if _nonstandard_results else ""))
 
 
 if __name__ == "__main__":
