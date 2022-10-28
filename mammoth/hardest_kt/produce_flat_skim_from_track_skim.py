@@ -656,11 +656,18 @@ def setup_calculate_embed_pythia_skim(  # noqa: C901
         #    Path('trains/pythia/2640/run_by_run/LHC20g4/297132/11/AnalysisResults.20g4.008.root'),
         #    Path('trains/pythia/2640/run_by_run/LHC20g4/295612/11/AnalysisResults.20g4.008.root'),
         #]}
-        background_input_files = [Path('trains/PbPb/645/run_by_run/LHC18q/296270/AnalysisResults.18q.607.root')]
-        signal_input_files_per_pt_hat = {10: [
-            Path('trains/pythia/2640/run_by_run/LHC20g4/295612/10/AnalysisResults.20g4.007.root'),
-            Path('trains/pythia/2640/run_by_run/LHC20g4/297544/10/AnalysisResults.20g4.010.root'),
-            Path('trains/pythia/2640/run_by_run/LHC20g4/296935/10/AnalysisResults.20g4.013.root'),
+        #background_input_files = [Path('trains/PbPb/645/run_by_run/LHC18q/296270/AnalysisResults.18q.607.root')]
+        #signal_input_files_per_pt_hat = {10: [
+        #    Path('trains/pythia/2640/run_by_run/LHC20g4/295612/10/AnalysisResults.20g4.007.root'),
+        #    Path('trains/pythia/2640/run_by_run/LHC20g4/297544/10/AnalysisResults.20g4.010.root'),
+        #    Path('trains/pythia/2640/run_by_run/LHC20g4/296935/10/AnalysisResults.20g4.013.root'),
+        #]}
+        background_input_files = [Path("trains/PbPb/645/run_by_run/LHC18r/297595/AnalysisResults.18r.551.root")]
+        #background_input_files = [Path('trains/PbPb/645/run_by_run/LHC18r/297219/AnalysisResults.18r.416.root')]
+        signal_input_files_per_pt_hat = {12: [
+            Path('trains/pythia/2640/run_by_run/LHC20g4/296690/12/AnalysisResults.20g4.008.root'),
+            Path('trains/pythia/2640/run_by_run/LHC20g4/295819/12/AnalysisResults.20g4.009.root'),
+            Path('trains/pythia/2640/run_by_run/LHC20g4/297479/12/AnalysisResults.20g4.009.root'),
         ]}
 
     # Setup for dataset and input
@@ -959,14 +966,43 @@ def define_productions() -> List[production.ProductionSettings]:
     config_filename = Path("mammoth/alice/config/track_skim_config.yaml")
     productions.extend(
         [
+            # Debug
             # production.ProductionSettings.read_config(
-            #     collision_system="embedPythia", number=62,
+            #     collision_system="embed_pythia", number=3,
+            #     specialization=HardestKtProductionSpecialization(),
+            #     track_skim_config_filename=config_filename,
+            # ),
+            # Production
+            # production.ProductionSettings.read_config(
+            #     collision_system="embed_pythia", number=65,
+            #     specialization=HardestKtProductionSpecialization(),
+            #     track_skim_config_filename=config_filename,
             # ),
             # production.ProductionSettings.read_config(
-            #     collision_system="embedPythia", number=63,
+            #     collision_system="embed_pythia", number=66,
+            #     specialization=HardestKtProductionSpecialization(),
+            #     track_skim_config_filename=config_filename,
+            # ),
+
+            # Debug
+            #production.ProductionSettings.read_config(
+            #    collision_system="PbPb", number=3,
+            #    specialization=HardestKtProductionSpecialization(),
+            #    track_skim_config_filename=config_filename,
+            #),
+            # Production
+            # production.ProductionSettings.read_config(
+            #     collision_system="PbPb", number=64,
+            #     specialization=HardestKtProductionSpecialization(),
+            #     track_skim_config_filename=config_filename,
+            # ),
+            # production.ProductionSettings.read_config(
+            #     collision_system="PbPb", number=65,
+            #     specialization=HardestKtProductionSpecialization(),
+            #     track_skim_config_filename=config_filename,
             # ),
             production.ProductionSettings.read_config(
-                collision_system="embed_pythia", number=64,
+                collision_system="PbPb", number=66,
                 specialization=HardestKtProductionSpecialization(),
                 track_skim_config_filename=config_filename,
             ),
@@ -993,7 +1029,7 @@ def run() -> None:  # noqa: C901
     task_config = job_utils.TaskConfig(name=task_name, n_cores_per_task=1)
     # n_cores_to_allocate = 120
     #n_cores_to_allocate = 110
-    n_cores_to_allocate = 50
+    n_cores_to_allocate = 60
     walltime = "24:00:00"
     debug_mode = False
     if debug_mode:
