@@ -241,6 +241,7 @@ class UprootSource:
             data=self._data(),
             chunk_size=chunk_size,
             source_default_chunk_size=self._default_chunk_size,
+            warn_on_not_enough_data=True,
         )
 
 
@@ -561,7 +562,7 @@ class MultiSource:
         _remaining_data_from_last_loop = []
         _remaining_data_from_last_loop_size = 0
 
-        _result = None
+        _next_chunk_size_request = None
         for source in source_iter:
             try:
                 # We're going to start working with the current source.
@@ -580,6 +581,7 @@ class MultiSource:
 
                     # We need to account for the left over data from the previous loop.
                     _data_size = len(_current_data) + _remaining_data_from_last_loop_size
+                    logger.info(f"{_data_size=}, {_next_chunk_size_request=}, {_remaining_data_from_last_loop_size=}")
                     if _data_size < chunk_size:
                         # Need another iteration. Store the current data
                         _remaining_data_from_last_loop.append(_current_data)
@@ -589,27 +591,36 @@ class MultiSource:
                     else:
                         # We intentionally want a negative number since we will index from the end.
                         _index_to_slice_current_data = chunk_size - _data_size
+                        # TODO: If we have a positive number, it means that we don't need any of the _current_data.
+                        #       We should save it for the next round.
+                        logger.info(f"{_index_to_slice_current_data=}, {_current_data=}")
                         if _index_to_slice_current_data != 0:
                             _remaining_data_from_last_loop.append(_current_data[:_index_to_slice_current_data])
                         else:
                             _remaining_data_from_last_loop.append(_current_data)
 
                         # Just to keep it up to date.
+                        # TODO: This number will be wrong if there's no data...
                         _remaining_data_from_last_loop_size += np.abs(_index_to_slice_current_data)
 
                         # Provide the data.
+                        logger.info(f"Providing data from {source}...")
                         # NOTE: In principle, we could always just use concatenate even if there's only
                         #       item in the list, but I don't know if there's a short circuit for a list
                         #       of one entry, and concatenate could potentially be quite expensive.
                         if len(_remaining_data_from_last_loop) > 1:
-                            _result = yield ak.concatenate(_remaining_data_from_last_loop, axis=0)
+                            _data_to_yield = ak.concatenate(_remaining_data_from_last_loop, axis=0)
                         else:
-                            _result = yield _remaining_data_from_last_loop[0]
+                            _data_to_yield = _remaining_data_from_last_loop[0]
+
+                        # TODO: idk if that's really the right slice, but there definitely should be something like that
+                        _next_chunk_size_request = yield _data_to_yield[:_index_to_slice_current_data]
 
                         # Cleanup
                         # First, delete the variable so that we can be sure it is cleaned up immediately
                         del _remaining_data_from_last_loop
                         # NOTE: Assign rather than append because we now used all of the previously stored data.
+                        # TODO: This needs to use the full set of yielded data...
                         if _index_to_slice_current_data != 0:
                             _remaining_data_from_last_loop = [_current_data[_index_to_slice_current_data:]]
                         else:
@@ -617,13 +628,62 @@ class MultiSource:
                         # It's negative, so we need to take abs
                         _remaining_data_from_last_loop_size = np.abs(_index_to_slice_current_data)
 
+                        # Need to also clean up the _data_to_yield
+                        # TODO: Need to double check that the memory is okay here...
+                        del _data_to_yield
+
                     # Update the chunk size if received a new one
-                    if _result is not None:
+                    logger.warning(f"{_next_chunk_size_request=}")
+                    if _next_chunk_size_request is not None:
                         chunk_size = _validate_chunk_size(
-                            chunk_size=_result, source_default_chunk_size=source._default_chunk_size
+                            chunk_size=_next_chunk_size_request, source_default_chunk_size=source._default_chunk_size
                         )
+                    logger.info(f"About to send {_next_chunk_size_request=}, {source=}, {_remaining_data_from_last_loop_size=}, {_remaining_data_from_last_loop=} ")
+                    logger.warning(f"{_current_data=}")
+
+                    _next_chunk_size = chunk_size if _next_chunk_size_request is not None else None
+                    if _next_chunk_size is not None:
+                        # By default, we want to request the (new) chunk size
+                        _next_chunk_size = chunk_size
+                        # However, we need to watch out for some cases:
+                        if _next_chunk_size == _FULL_SOURCE_SIZE:
+                            # 1) When we place to request the whole file. In this case, we just request it.
+                            #    No need (or desire) to adjust anything
+                            ...
+                        elif _remaining_data_from_last_loop_size > 0:
+                            # 2) If we have stored data and are not requesting the whole file, we should only
+                            #    request as much as we need
+                            _next_chunk_size -= _remaining_data_from_last_loop_size
+
+                        ## Note then we need to validate condition #2.
+                        ## There's no need to request any data if we already have enough stored.
+                        ## To do so, we send a zero length chunk_size request, which will return a properly formatted
+                        ## awkward array with 0 entries. This approach ensures that we have a valid array
+                        #if _next_chunk_size <= 0:
+                        #    _next_chunk_size = 0
+
+                    # And don't forget to reset the request size for the next chunk
+                    _next_chunk_size_request = None
+
+                    # Note then we need to validate condition #2.
+                    # There's no need to request any data if we already have enough stored
+                    if _next_chunk_size is not None and _next_chunk_size <= 0:
+                        #_next_chunk_size = 0
+                        ## We set the current data to an empty array to ensure that we never double count data.
+                        ## We shouldn't ever actually use this data, but we need something valid there.
+                        ## To maintain the correct structure of the awkward array, we use a zero length slice.
+                        _current_data = _current_data[:0]
+                        logger.warning("Negative value...")
+                        #import IPython; IPython.embed()
+                        # Maybe [:0]?
+                        # Or maybe I can send 0?
+                        continue
+
+                    import IPython; IPython.embed()
+
                     # And keep going with the current source
-                    _current_data = _current_data_iter.send(_result)
+                    _current_data = _current_data_iter.send(_next_chunk_size)
+
             except StopIteration:
                 pass
 
@@ -631,10 +691,11 @@ class MultiSource:
         # NOTE: In principle, we could always just use concatenate even if there's only
         #       item in the list, but I don't know if there's a short circuit for a list
         #       of one entry, and concatenate could potentially be quite expensive.
+        logger.info(f"Out of data in MultiSource, with last source {source}...")
         if len(_remaining_data_from_last_loop) > 1:
-            _result = yield ak.concatenate(_remaining_data_from_last_loop, axis=0)
+            _next_chunk_size_request = yield ak.concatenate(_remaining_data_from_last_loop, axis=0)
         elif len(_remaining_data_from_last_loop) == 1:
-            _result = yield _remaining_data_from_last_loop[0]
+            _next_chunk_size_request = yield _remaining_data_from_last_loop[0]
         # logger.info("Done!")
         # Done!
 
@@ -738,9 +799,13 @@ class CombineSources:
                 unconstrained_size_sources_generators = {
                     k: v.gen_data(chunk_size=determined_chunk_size) for k, v in self._unconstrained_size_sources.items()
                 }
+                # Once we've defined the generators, we need to grab the data from them.
+                # NOTE: We have to handle this case separately from all future calls because we can't send
+                #       a non-None value to a just-started generator. (We could also do a `send(None)` here,
+                #       but that's just what `next()` does, except more concisely).
                 unconstrained_size_sources_data = {k: next(v) for k, v in unconstrained_size_sources_generators.items()}
             else:
-                # Using the existing generator, send the chunk size that we need.
+                # Using the existing generator, request the chunk size that we need.
                 unconstrained_size_sources_data = {
                     k: v.send(determined_chunk_size) for k, v in unconstrained_size_sources_generators.items()
                 }
