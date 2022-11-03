@@ -237,7 +237,7 @@ class UprootSource:
             data=self._data(),
             chunk_size=chunk_size,
             source_default_chunk_size=self._default_chunk_size,
-            warn_on_not_enough_data=True,
+            warn_on_not_enough_data=False,
         )
 
 
@@ -572,6 +572,7 @@ class MultiSource:
             # Helpful for debugging, but it's not general, so just keep around as a reminder
             # if source._collision_system == "PbPb":
             #     logger.warning("-----> New PbPb source!")
+            logger.debug(f"New source in MultiSource: {source}")
             try:
                 # We're going to start working with the current source.
                 # Grab an iterator and the first chunk of data from it.
@@ -620,7 +621,10 @@ class MultiSource:
                         # logger.info(f"{_data_to_yield=}")
 
                         # Next, let's yield the data
-                        logger.info(f"Providing data from {source} with chunk size {_target_chunk_size}, {_accumulated_data_size=}, {_accumulated_data=}, {_data_to_yield=}...")
+                        logger.info(
+                            f"Providing data from {source} with target chunk size {_target_chunk_size}."
+                            f"\n{_accumulated_data_size=}, {_accumulated_data=}, {_data_to_yield=}..."
+                        )
                         _next_chunk_size_request = yield _data_to_yield[:_target_chunk_size]
 
                         # Cleanup the accumulated data. We use an explicit del to ensure that python knows that
