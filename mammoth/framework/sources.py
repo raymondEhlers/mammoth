@@ -150,29 +150,25 @@ def generator_from_existing_data(
     if full_data_length < chunk_size and warn_on_not_enough_data:
         logger.warning(f"Requested {chunk_size}, but only have {full_data_length}")
 
-    # If we already have enough data, yield immediately and then return since we're done
-    if full_data_length <= chunk_size:
-        _result = yield data
-        if _result is not None:
-            # I think we don't want to raise an exception that will interfere with the generator
-            # understanding that the generator is exhausted. For now (March 2022), we throw a warning
-            # to keep an eye on this, but we don't do anything about it right now.
-            # If it becomes an issue in the future, we could convert it into a ValueError.
-            logger.warning(f"Requested new chunk of size {_result}, but we've exhausted this source.")
-        # Afterwards, return None to indicate that we've hit the end of the iterator
-        return None
-
-    # We have more data than requested - provide data of the requested size in chunks
     while len(data) > 0:
-        # Determine how far to slice into the remaining data.
-        # NOTE: Because we determine the number of events remaining, it will still take the
-        #       right slice even if the chunk size is larger than the remaining data.
-        _remaining_n_events = chunk_size - len(data)
-        _result = yield data[:_remaining_n_events]
+        if len(data) < chunk_size:
+            _result = yield data
+            if _result is not None:
+                # I think we don't want to raise an exception that will interfere with the generator
+                # understanding that the generator is exhausted. For now (March 2022), we throw a warning
+                # to keep an eye on this, but we don't do anything about it right now.
+                # If it becomes an issue in the future, we could convert it into a ValueError.
+                logger.warning(f"Requested new chunk of size {_result}, but we've already exhausted this source.")
+            break
+        else:
+            _result = yield data[:chunk_size]
+
+        # We want to make sure that we don't reuse any of the data.
+        data = data[chunk_size:]
+
         # If we received a send argument, use this to update the chunk_size
         if _result is not None:
             chunk_size = _validate_chunk_size(chunk_size=_result, source_default_chunk_size=source_default_chunk_size)
-        data = data[_remaining_n_events:]
 
     # And indicate we're done. Not necessarily required, but I want to be quite explicit here.
     return None
