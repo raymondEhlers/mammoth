@@ -130,8 +130,8 @@ def _validate_chunk_size(chunk_size: T_ChunkSize, source_default_chunk_size: T_C
         chunk_size = _FULL_SOURCE_SIZE
     if chunk_size is ChunkSizeSentinel.FIXED_SIZE:
         raise ValueError("User must provide a chunk size! There is no natural choice for this source.")
-    if not isinstance(chunk_size, int):
-        raise ValueError(f"Unrecognized chunk size: {chunk_size}")
+    if not isinstance(chunk_size, (int, np.integer)):
+        raise ValueError(f"Unrecognized chunk size: {chunk_size}, {type(chunk_size)=}")
 
     return chunk_size
 
