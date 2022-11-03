@@ -270,7 +270,7 @@ def _check_for_output_file(output_filename: Path, description: str) -> Tuple[boo
     empty_filename = output_filename.with_suffix(".empty")
     if empty_filename.exists():
         # It will be empty, so there's nothing to check. Just return
-        return (True, f"Done - no jets to analyze for {description}")
+        return (True, f"Done - found empty file indicating that there are no jets to analyze for {description}")
 
     # Next, check the contents of the output file
     if output_filename.exists():
