@@ -570,8 +570,8 @@ class MultiSource:
 
         for source in source_iter:
             # Helpful for debugging, but it's not general, so just keep around as a reminder
-            # if source._collision_system == "PbPb":
-            #     logger.warning("-----> New PbPb source!")
+            if source._collision_system == "PbPb":
+                logger.warning("-----> New PbPb source!")
             try:
                 # We're going to start working with the current source.
                 # Grab an iterator and the first chunk of data from it.
@@ -599,9 +599,9 @@ class MultiSource:
                         _accumulated_data.append(_current_data)
                         _accumulated_data_size += len(_current_data)
                     else:
-                        # logger.info("Didn't accumulate data because the current data is empty")
+                        logger.info("Didn't accumulate data because the current data is empty")
                         ...
-                    logger.info(f"{_accumulated_data_size=}, {_next_chunk_size_request=}")
+                    logger.info(f"{_accumulated_data_size=}, {_next_chunk_size_request=}, {_target_chunk_size=}, {_request_chunk_size=}")
 
                     # We need to figure out whether we have enough data or we need to accumulate more.
                     if _accumulated_data_size < _target_chunk_size:
@@ -617,23 +617,11 @@ class MultiSource:
                             _data_to_yield = ak.concatenate(_accumulated_data, axis=0)
                         else:
                             _data_to_yield = _accumulated_data[0]
+                        # logger.info(f"{_data_to_yield=}")
 
-                        # Next, we need to determine how much of this data to keep when we actually yield
-                        # NOTE: We intentionally want a negative number since we will index from the end.
-                        _index_to_slice_to_match_chunk_size = _target_chunk_size - _accumulated_data_size
-                        ## If we get 0, the slices won't work properly. In that case, we can make the slices
-                        ## act as expected by setting it to None. (For None, it will slice the entire array)
-                        #if _index_to_slice_to_match_chunk_size == 0:
-                        #    _index_to_slice_to_match_chunk_size = None
-                        logger.info(f"{_index_to_slice_to_match_chunk_size=}, {_data_to_yield=}")
-
-                        # Finally, let's yield the data
-                        logger.info(f"Providing data from {source} with chunk size {_target_chunk_size}...")
-                        if _index_to_slice_to_match_chunk_size:
-                            _next_chunk_size_request = yield _data_to_yield[:_index_to_slice_to_match_chunk_size]
-                        else:
-                            # We want to avoid an extra copy if possible, so we won't slice with None
-                            _next_chunk_size_request = yield _data_to_yield
+                        # Next, let's yield the data
+                        # logger.info(f"Providing data from {source} with chunk size {_target_chunk_size}...")
+                        _next_chunk_size_request = yield _data_to_yield[:_target_chunk_size]
 
                         # Cleanup the accumulated data. We use an explicit del to ensure that python knows that
                         # this variable isn't pointing to the data anymore.
@@ -641,20 +629,19 @@ class MultiSource:
                         _accumulated_data = []
                         _accumulated_data_size = 0
                         # We need to deal with the possible leftover data
-                        if _index_to_slice_to_match_chunk_size:
-                            _accumulated_data.append(_data_to_yield[_index_to_slice_to_match_chunk_size:])
-                            # It's negative, so we need to take abs
-                            _accumulated_data_size += np.abs(_index_to_slice_to_match_chunk_size)
+                        if len(_data_to_yield) > _target_chunk_size:
+                            _accumulated_data.append(_data_to_yield[_target_chunk_size:])
+                            _accumulated_data_size += (len(_data_to_yield) - _target_chunk_size)
                         # And then finally cleanup the remaining data that we yielded. Again, explicitly deleting
                         # to help out python and attempt to clean out the data earlier.
                         del _data_to_yield
 
                         # Helpful for debugging, but it's not general, so just keep around as a reminder
-                        # if source._collision_system == "PbPb":
-                        #     import IPython; IPython.embed()
+                        if source._collision_system == "PbPb":
+                            import IPython; IPython.embed()
 
                     # Update the chunk size if received a new one
-                    # logger.warning(f"=>{_next_chunk_size_request=}")
+                    logger.warning(f"=>{_next_chunk_size_request=}")
                     if _next_chunk_size_request is not None:
                         _target_chunk_size = _validate_chunk_size(
                             chunk_size=_next_chunk_size_request, source_default_chunk_size=source._default_chunk_size
@@ -669,32 +656,40 @@ class MultiSource:
                     logger.info(f"==> {source=}, {_target_chunk_size=}, {_request_chunk_size=}, {_next_chunk_size_request=}, {_accumulated_data_size=}, {_accumulated_data=}")
 
                     # Potentially adjust the chunk size.
-                    if _request_chunk_size == _FULL_SOURCE_SIZE:
-                        # 1) When we place to request the whole file. In this case, we just request it.
-                        #    No need (or desire) to adjust anything
-                        ...
-                    elif _accumulated_data_size > 0:
-                        # 2) If we have stored data and are not requesting the whole file, we should only
-                        #    request as much as we need
+                    # If we have stored data and are not requesting the whole file, we should only request as much
+                    # as we need. That way, we minimize additional IO (eg. if we already have enough accumulated data
+                    # to fulfill the next target chunk size, there's no point in requesting more from the MultiSource).
+                    # NOTE: When we request the whole file, we shouldn't adjust the request chunk size. In practice,
+                    #       `_FULL_SOURCE_SIZE` is large enough that adjusting it wouldn't have a practical impact
+                    #       on that amount of data that we would receive. However, it cause any comparison to
+                    #       `_FULL_SOURCE_SIZE` to fail unexpectedly, which is undesirable.
+                    if _request_chunk_size != _FULL_SOURCE_SIZE and _accumulated_data_size > 0:
                         _request_chunk_size -= _accumulated_data_size
 
-                    # Note then we need to validate condition #2.
-                    # There's no need to request any data if we already have enough stored
+                    # We need to validate this condition
+                    # If we already have enough stored, there's no need to request any data.
+                    # In this case, there's no point in making a request, but we need to handle it explicitly here.
+                    # NOTE: Although we could use send(0), if the source is already exhausted, it would force a new
+                    #       source to load unnecessarily.
                     if _request_chunk_size <= 0:
-                        # Ensure that we're prepared to request the next chunk on the next iteration if we don't
-                        # request a new size
+                        # Since this will cause us to iterate with no additional data, we need to ensure that we're
+                        # prepared to request a non-zero chunk on the next iteration (eg. if the source is exhausted).
+                        # If we receive a new target chunk size on that next iteration, this check wouldn't be necessary,
+                        # but if we somehow do not, this update to the request chunk size avoids getting stuck in a loop
+                        # with now new data.
                         _request_chunk_size = _target_chunk_size
-                        # We set the current data to an empty array to ensure that we never double count data.
-                        # We shouldn't ever actually use this data, but we need something valid there.
-                        # To maintain the correct structure of the awkward array, we use a zero length slice.
+                        # We set the current data to an empty array to ensure that we never double count data. We
+                        # shouldn't ever actually use this data, but we need something valid there. To maintain the
+                        # correct structure of the awkward array, we use a zero length slice.
                         _current_data = _current_data[:0]
-                        # logger.warning("==>Negative value...")
+                        logger.warning("==> request chunk size is negative. Setting current data to empty array and no need to request more data")
+                        import IPython; IPython.embed()
                         continue
 
-                    # And keep going with the current source
-                    # logger.info("=>About to request more data from the current source in the MultiSource")
+                    # If we've gotten this far, it's time to keep going with the current source
+                    logger.info("=>About to request more data from the current source in the MultiSource")
                     _current_data = _current_data_iter.send(_request_chunk_size)
-                    # logger.info("==>The source isn't exhausted yet.")
+                    logger.info("==>The source isn't exhausted yet.")
 
             except StopIteration:
                 pass
@@ -703,7 +698,7 @@ class MultiSource:
         # NOTE: In principle, we could always just use concatenate even if there's only
         #       item in the list, but I don't know if there's a short circuit for a list
         #       of one entry, and concatenate could potentially be quite expensive.
-        logger.info(f"Out of data in MultiSource. Last source: {source}...")
+        logger.info(f"Out of data in MultiSource. Remaining data size to provide: {_accumulated_data_size}, Last source: {source}...")
         if len(_accumulated_data) > 1:
             _next_chunk_size_request = yield ak.concatenate(_accumulated_data, axis=0)
         elif len(_accumulated_data) == 1:
