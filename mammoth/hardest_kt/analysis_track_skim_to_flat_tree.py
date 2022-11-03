@@ -431,7 +431,7 @@ def hardest_kt_embed_thermal_model_skim(  # noqa: C901
     return (
         True,
         f"success for {_description}"
-        + (". Additional non-standard results: {_nonstandard_results}" if _nonstandard_results else ""),
+        + (f". Additional non-standard results: {_nonstandard_results}" if _nonstandard_results else ""),
     )
 
 
@@ -557,7 +557,7 @@ def hardest_kt_embedding_skim(  # noqa: C901
         if not _there_are_jets_left:
             # Just create the empty filename and return. This will prevent trying to re-run with no jets in the future.
             # Remember that this depends heavily on the jet pt cuts!
-            output_filename.with_suffix(".empty").touch()
+            _output_filename.with_suffix(".empty").touch()
             _message = (True, f"Done - no jets to analyze, so not trying to skim for {_description}")
             _nonstandard_results.append(_message)
             continue
@@ -591,7 +591,7 @@ def hardest_kt_embedding_skim(  # noqa: C901
     return (
         True,
         f"success for {_description}"
-        + (". Additional non-standard results: {_nonstandard_results}" if _nonstandard_results else ""),
+        + (f". Additional non-standard results: {_nonstandard_results}" if _nonstandard_results else ""),
     )
 
 
