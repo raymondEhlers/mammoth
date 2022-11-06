@@ -1,10 +1,13 @@
 
+import logging
 from pathlib import Path
 from typing import Any, Optional, Sequence
 
 import pytest  # noqa: F401
 
 from mammoth.framework import sources
+
+logger = logging.getLogger(__name__)
 
 _here = Path(__file__).parent
 _track_skim_base_path = _here / "track_skim_validation"
@@ -74,8 +77,10 @@ def test_full_embedding() -> None:
     combined_source.gen_data(chunk_size=chunk_size)
 
 
-@pytest.mark.parametrize("chunk_size, yielded_data_sizes", [(2000, None), (1000, None)])
-def test_chunk_generation_from_existing_data(caplog: Any, chunk_size: int, yielded_data_sizes: Optional[Sequence[int]]) -> None:
+@pytest.mark.parametrize("chunk_size", [(2000), (1000)])
+def test_chunk_generation_from_existing_data_with_fixed_chunk_size(
+    caplog: Any, chunk_size: int
+) -> None:
     """Test chunk size generation when using an existing data input
 
     Usually, this would be via an uproot source. Here, I'm using the track skim for some extra convenience,
@@ -88,18 +93,21 @@ def test_chunk_generation_from_existing_data(caplog: Any, chunk_size: int, yield
     )
     # We need the full size to figure out the expect values.
     # NOTE: This is inefficient, but it's not the end of the world. We could always set it manually if becomes a problem
-    # NOTE: It's 6088
+    # NOTE: It's 11358
     full_file_size = len(next(pythia_source.gen_data()))
 
-    if yielded_data_sizes is None:
-        yielded_data_sizes = list(range(0, full_file_size, chunk_size))
-        if yielded_data_sizes[-1] != full_file_size:
-            yielded_data_sizes.append(full_file_size)
+    # Determine the expected chunk sizes
+    transition_indices = list(range(0, full_file_size, chunk_size))
+    if transition_indices[-1] != full_file_size:
+        transition_indices.append(full_file_size)
+    yielded_data_sizes = []
+    for i in range(1, len(transition_indices)):
+        yielded_data_sizes.append((transition_indices[i] - transition_indices[i - 1]))
 
     gen = pythia_source.gen_data(chunk_size=chunk_size)
 
-    for i, data in enumerate(gen, start=1):
-        assert len(data) == (yielded_data_sizes[i] - yielded_data_sizes[i - 1])
+    for i, (data, expected_size) in enumerate(zip(gen, yielded_data_sizes)):
+        assert len(data) == expected_size
 
     # For the last iteration, we want to check whether it's matching the chunk size as appropriate
     if full_file_size % chunk_size == 0:
@@ -107,5 +115,63 @@ def test_chunk_generation_from_existing_data(caplog: Any, chunk_size: int, yield
     else:
         assert len(data) < chunk_size
 
+
+@pytest.mark.parametrize("chunk_size",
+                         [
+                             [2000] * 10,
+                             [2000, 1000, 2500, 303, 10000],
+                             [11000, 358, 200],
+                         ])
+def test_chunk_generation_from_existing_data_with_variable_chunk_size(
+    caplog: Any, chunk_size: Sequence[int]
+) -> None:
+    """Test chunk size generation when using an existing data input for variable chunk sizes.
+
+    Usually, this would be via an uproot source. Here, I'm using the track skim for some extra convenience,
+    since we should already have those files available.
+    """
+    from mammoth.framework.io import track_skim
+    pythia_source = track_skim.FileSource(
+        filename=_track_skim_base_path / "reference" / "AnalysisResults__pythia__jet_R020.root",
+        collision_system="pythia"
+    )
+    # We need the full size to figure out the expect values.
+    # NOTE: This is inefficient, but it's not the end of the world. We could always set it manually if becomes a problem
+    # NOTE: It's 11358
+    full_file_size = len(next(pythia_source.gen_data()))
+
+    gen = pythia_source.gen_data(chunk_size=chunk_size[0])
+
+    total_number_of_events = 0
+    expecting_stop_iteration = False
+    stopped_iteration = False
+    try:
+        for i, current_chunk_size in enumerate(chunk_size):
+            # Need to send None initially, and then we can update chunk sizes as we iterate
+            data = gen.send(current_chunk_size if i > 0 else None)
+            # If we've found a case where we don't have enough data, it means that
+            assert expecting_stop_iteration is False
+
+            total_number_of_events += len(data)
+            # If the data size doesn't match the current chunk size, it means that we're out of data.
+            if len(data) != current_chunk_size:
+                assert len(data) < current_chunk_size
+                expecting_stop_iteration = True
+            else:
+                assert len(data) == current_chunk_size
+    except StopIteration:
+        ...
+        stopped_iteration = True
+
+    # Useful to keep track of when debugging
+    logger.info(f"{stopped_iteration}")
+
+    # Ensure that we actually got all of the data.
+    # (This is contingent on defining enough chunks in the parametrization, so it requires a bit of care).
+    assert total_number_of_events == full_file_size
+
+
+# TODO: Implement the same tests as above, but now with a MultiSource
 def test_multi_source_chunk_sizes() -> None:
     ...
+
