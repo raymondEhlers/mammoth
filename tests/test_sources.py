@@ -1,5 +1,6 @@
 
 from pathlib import Path
+from typing import Any, Optional, Sequence
 
 import pytest  # noqa: F401
 
@@ -71,3 +72,40 @@ def test_full_embedding() -> None:
     )
 
     combined_source.gen_data(chunk_size=chunk_size)
+
+
+@pytest.mark.parametrize("chunk_size, yielded_data_sizes", [(2000, None), (1000, None)])
+def test_chunk_generation_from_existing_data(caplog: Any, chunk_size: int, yielded_data_sizes: Optional[Sequence[int]]) -> None:
+    """Test chunk size generation when using an existing data input
+
+    Usually, this would be via an uproot source. Here, I'm using the track skim for some extra convenience,
+    since we should already have those files available.
+    """
+    from mammoth.framework.io import track_skim
+    pythia_source = track_skim.FileSource(
+        filename=_track_skim_base_path / "reference" / "AnalysisResults__pythia__jet_R020.root",
+        collision_system="pythia"
+    )
+    # We need the full size to figure out the expect values.
+    # NOTE: This is inefficient, but it's not the end of the world. We could always set it manually if becomes a problem
+    # NOTE: It's 6088
+    full_file_size = len(next(pythia_source.gen_data()))
+
+    if yielded_data_sizes is None:
+        yielded_data_sizes = list(range(0, full_file_size, chunk_size))
+        if yielded_data_sizes[-1] != full_file_size:
+            yielded_data_sizes.append(full_file_size)
+
+    gen = pythia_source.gen_data(chunk_size=chunk_size)
+
+    for i, data in enumerate(gen, start=1):
+        assert len(data) == (yielded_data_sizes[i] - yielded_data_sizes[i - 1])
+
+    # For the last iteration, we want to check whether it's matching the chunk size as appropriate
+    if full_file_size % chunk_size == 0:
+        assert len(data) == chunk_size
+    else:
+        assert len(data) < chunk_size
+
+def test_multi_source_chunk_sizes() -> None:
+    ...
