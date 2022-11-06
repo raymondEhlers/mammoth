@@ -3,6 +3,7 @@ import logging
 from pathlib import Path
 from typing import Any, Optional, Sequence
 
+import numpy as np
 import pytest  # noqa: F401
 
 from mammoth.framework import sources
@@ -97,12 +98,8 @@ def test_chunk_generation_from_existing_data_with_fixed_chunk_size(
     full_file_size = len(next(pythia_source.gen_data()))
 
     # Determine the expected chunk sizes
-    transition_indices = list(range(0, full_file_size, chunk_size))
-    if transition_indices[-1] != full_file_size:
-        transition_indices.append(full_file_size)
-    yielded_data_sizes = []
-    for i in range(1, len(transition_indices)):
-        yielded_data_sizes.append((transition_indices[i] - transition_indices[i - 1]))
+    yielded_data_sizes = [chunk_size for _ in range(int(np.floor(full_file_size / chunk_size)))]
+    yielded_data_sizes.append(full_file_size % chunk_size)
 
     gen = pythia_source.gen_data(chunk_size=chunk_size)
 
