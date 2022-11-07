@@ -21,17 +21,19 @@ def test_uproot_source() -> None:
         tree_name="AliAnalysisTaskTrackSkim_*_tree",
     )
 
-    uproot_source.gen_data(chunk_size=sources.ChunkSizeSentinel.FULL_SOURCE)
-    ...
+    arrays = uproot_source.gen_data(chunk_size=sources.ChunkSizeSentinel.FULL_SOURCE)
 
-def test_thermal_embedding() -> None:
+    # NOTE: We only need to iterate once because we explicitly requested the entire chunk size.
+    assert len(next(arrays)) > 0
+
+
+def test_manual_thermal_model_embedding() -> None:
     chunk_size = 500
     # Signal
-    pythia_source = sources.MultiSource(
-        sources=sources.PythiaSource(
-            config="test.cmnd",
-            #seed=...,
-        ),
+    pythia_source = sources.UprootSource(
+        # Take as an arbitrary example file
+        filename=_track_skim_base_path / "reference" / "AnalysisResults__pythia__jet_R020.root",
+        tree_name="AliAnalysisTaskTrackSkim_*_tree",
     )
     # Background
     thermal_source = sources.ThermalModelExponential(
@@ -45,10 +47,14 @@ def test_thermal_embedding() -> None:
         source_index_identifiers={"signal": 0, "background": 100_000},
     )
 
-    combined_source.gen_data(chunk_size=chunk_size)
+    arrays_iter = combined_source.gen_data(chunk_size=chunk_size)
+
+    # By iterating through the entire combined source, we can check that the chunk sizes are propagated correctly.
+    for arrays in arrays_iter:
+        assert len(arrays) > 0
 
 
-def test_full_embedding() -> None:
+def test_manual_data_embedding() -> None:
     chunk_size = 500
     pythia_source = sources.MultiSource(
         sources=sources.define_multiple_sources_from_single_root_file(
@@ -76,7 +82,11 @@ def test_full_embedding() -> None:
         source_index_identifiers={"signal": 0, "background": 100_000},
     )
 
-    combined_source.gen_data(chunk_size=chunk_size)
+    arrays_iter = combined_source.gen_data(chunk_size=chunk_size)
+
+    # By iterating through the entire combined source, we can check that the chunk sizes are propagated correctly.
+    for arrays in arrays_iter:
+        assert len(arrays) > 0
 
 
 @pytest.mark.parametrize("chunk_size", [2000, 1000])
