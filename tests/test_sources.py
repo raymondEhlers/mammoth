@@ -1,7 +1,8 @@
 
+import itertools
 import logging
 from pathlib import Path
-from typing import Any, Optional, Sequence
+from typing import Any, Sequence
 
 import numpy as np
 import pytest  # noqa: F401
@@ -168,16 +169,16 @@ def test_chunk_generation_from_existing_data_with_variable_chunk_size(
     assert total_number_of_events == full_file_size
 
 
-
 @pytest.mark.parametrize("number_of_repeated_files", [1, 3])
-@pytest.mark.parametrize("chunk_size", [2000, 1000])
+# TODO: Uncomment after fixing tests
+#@pytest.mark.parametrize("chunk_size", [2000, 1000])
+@pytest.mark.parametrize("chunk_size", [2000])
 def test_multi_source_source_fixed_size_chunks(caplog: Any, chunk_size: int, number_of_repeated_files: int) -> None:
     """Test the MultiSource with fixed size chunks.
 
     Usually, this would be via an uproot source. Here, I'm using the track skim for some extra convenience,
     since we should already have those files available.
     """
-    from mammoth.framework import load_data
     from mammoth.framework.io import track_skim
 
     pythia_source = sources.MultiSource(
@@ -210,6 +211,10 @@ def test_multi_source_source_fixed_size_chunks(caplog: Any, chunk_size: int, num
         assert len(data) == expected_chunk_size
         total_data_size += len(data)
 
+    # TEMP - Remove after verifying that it worked correctly based on the logs...
+    assert False
+    # ENDTEMP
+
     # For the last iteration, we want to check whether it's matching the chunk size as appropriate
     if full_file_size % chunk_size == 0:
         assert len(data) == chunk_size
@@ -217,7 +222,78 @@ def test_multi_source_source_fixed_size_chunks(caplog: Any, chunk_size: int, num
         assert len(data) < chunk_size
 
 
-# TODO: Implement the same tests as above, but now with a MultiSource
+@pytest.mark.parametrize("number_of_repeated_files", [1, 3])
+@pytest.mark.parametrize("chunk_size",
+                         [
+                             [10000] * 10,
+                             [2000, 1000, 2500, 303, 10000],
+                             [11000, 358, 200],
+                         ])
+def test_multi_source_source_variable_size_chunks(
+    caplog: Any, chunk_size: Sequence[int], number_of_repeated_files: int
+) -> None:
+    """Test chunk size generation when using an existing data input for variable chunk sizes.
+
+    Usually, this would be via an uproot source. Here, I'm using the track skim for some extra convenience,
+    since we should already have those files available.
+    """
+    from mammoth.framework.io import track_skim
+    pythia_source = sources.MultiSource(
+        sources=[
+            track_skim.FileSource(
+                filename=_track_skim_base_path / "reference" / "AnalysisResults__pythia__jet_R020.root",
+                collision_system="pythia",
+            )
+            for _ in range(number_of_repeated_files)
+        ]
+    )
+
+    # NOTE: We don't want our chunks to run out, so we'll repeat them if they're not enough
+    chunk_iter = itertools.chain.from_iterable(itertools.repeat(chunk_size))
+
+    # We need the full size to figure out the expect values.
+    # NOTE: This is inefficient, but it's not the end of the world. We could always set it manually if becomes a problem
+    # NOTE: It's 11358
+    pythia_source_ref = track_skim.FileSource(
+        filename=_track_skim_base_path / "reference" / "AnalysisResults__pythia__jet_R020.root",
+        collision_system="pythia"
+    )
+    full_file_size = len(next(pythia_source_ref.gen_data())) * number_of_repeated_files
+
+    gen = pythia_source.gen_data(chunk_size=chunk_size[0])
+
+    total_number_of_events = 0
+    expecting_stop_iteration = False
+    # Just debugging information
+    stopped_iteration = False
+    finished_chunk_iterator = False
+    try:
+        for i, current_chunk_size in enumerate(chunk_iter):
+            # Need to send None initially, and then we can update chunk sizes as we iterate
+            data = gen.send(current_chunk_size if i > 0 else None)
+            # If we've found a case where we don't have enough data, it means that
+            assert expecting_stop_iteration is False
+
+            total_number_of_events += len(data)
+            # If the data size doesn't match the current chunk size, it means that we're out of data.
+            if len(data) != current_chunk_size:
+                assert len(data) < current_chunk_size
+                expecting_stop_iteration = True
+            else:
+                assert len(data) == current_chunk_size
+        finished_chunk_iterator = True
+    except StopIteration:
+        ...
+        stopped_iteration = True
+
+    # Useful to keep track of when debugging
+    logger.info(f"{stopped_iteration=}, {finished_chunk_iterator=}")
+
+    # Ensure that we actually got all of the data.
+    # (This is contingent on defining enough chunks in the parametrization, so it requires a bit of care).
+    assert total_number_of_events == full_file_size
+
+
 @pytest.mark.parametrize("chunk_size", [(2000), (1000)])
 def test_embedding_load_data_source_fixed_size_chunks(caplog: Any, chunk_size: int) -> None:
     """Test the MultiSource with fixed size chunks.
@@ -228,7 +304,7 @@ def test_embedding_load_data_source_fixed_size_chunks(caplog: Any, chunk_size: i
     from mammoth.framework import load_data
     from mammoth.framework.io import track_skim
 
-    source_index_identifiers, iter_arrays = load_data.embedding(
+    _, iter_arrays = load_data.embedding(
         signal_input=[_track_skim_base_path / "reference" / "AnalysisResults__pythia__jet_R020.root"],
         signal_source=track_skim.FileSource.create_deferred_source(collision_system="pythia"),
         background_input=[_track_skim_base_path / "reference" / "AnalysisResults__PbPb__jet_R020.root"],
