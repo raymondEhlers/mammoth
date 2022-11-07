@@ -629,7 +629,7 @@ class MultiSource:
                     # If we're going one file at a time, the chunk size is correct by definition
                     if is_single_file_at_a_time:
                         _request_chunk_size = len(_current_data)
-                    # logger.warning(f"MultiSource source: {source}, {_target_chunk_size=}, {_request_chunk_size=}")
+                    logger.debug(f"-> MultiSource source: {source}, {_target_chunk_size=}, {_request_chunk_size=}")
 
                     # Keep track of the size
                     # This is a bit of a lie until we actually yield the data because we may not yet have the full
@@ -648,7 +648,7 @@ class MultiSource:
                     else:
                         # logger.info("Didn't accumulate data because the current data is empty")
                         ...
-                    logger.info(f"{_accumulated_data_size=}, {_next_chunk_size_request=}, {_target_chunk_size=}, {_request_chunk_size=}")
+                    logger.debug(f"--> {_accumulated_data_size=}, {_next_chunk_size_request=}, {_target_chunk_size=}, {_request_chunk_size=}")
 
                     # We need to figure out whether we have enough data or we need to accumulate more.
                     if _accumulated_data_size < _target_chunk_size:
@@ -663,10 +663,15 @@ class MultiSource:
                             _target_chunk_size=_target_chunk_size,
                             _accumulated_data_size=_accumulated_data_size,
                         )
-                        logger.warning("Not enough data - we need a new source (ie. break)")
+                        logger.debug("---> Not enough data left in this source - we need a new one!")
                         break
-
                     else:
+                        # NOTE: This else statement could be removed (ie. we could just de-indent this
+                        #       block) since we use a `break` in the if statement. I've left it here because
+                        #       the additional indentation helps me separate concerns (ie. the code in this else
+                        #       statement handles providing + cleaning up the data, while after the block handles
+                        #       the next request for data).
+
                         # We have enough data - now we need to sort out what to do.
                         # First step is to concatenate the data, so we can operate on it more easily
                         # NOTE: In principle, we could always just use concatenate even if there's only
@@ -680,8 +685,8 @@ class MultiSource:
 
                         # Next, let's yield the data
                         logger.info(
-                            f"Providing data from {source} ({i_source=}) with target chunk size {_target_chunk_size}."
-                            f"\n{_accumulated_data_size=}, {_accumulated_data=},\n{_data_to_yield=}..."
+                            f"MultiSource: Providing data from source #{i_source} with target chunk size {_target_chunk_size}."
+                            f"\n{source=}\n{_accumulated_data_size=}, {_accumulated_data=},\n{_data_to_yield=}..."
                         )
                         _next_chunk_size_request = yield _data_to_yield[:_target_chunk_size]
 
@@ -713,16 +718,14 @@ class MultiSource:
                         # And don't forget to reset the request size for the next chunk
                         # (If we don't get into the if statement, then it's already None and doesn't need a reset)
                         _next_chunk_size_request = None
-                    else:
-                        logger.warning(f"Updating due to None. {_target_chunk_size=}, {_request_chunk_size=}")
-                        ...
 
-                    # Potentially adjust the requested chunk size.
-                    logger.info(f"==> {source=}, {_target_chunk_size=}, {_request_chunk_size=}, {_next_chunk_size_request=}, {_accumulated_data_size=}, {_accumulated_data=}")
+                    # Determine the requested chunk size, potentially adjusting it for existing accumulated data.
+                    logger.debug(f"=> {source=}, {_target_chunk_size=}, {_request_chunk_size=}, {_next_chunk_size_request=}, {_accumulated_data_size=}, {_accumulated_data=}")
                     _request_chunk_size, _do_not_request_new_data = _determine_request_chunk_size(
                         _target_chunk_size=_target_chunk_size,
                         _accumulated_data_size=_accumulated_data_size,
                     )
+                    logger.debug(f"==> Post updated of {_request_chunk_size=}")
                     if _do_not_request_new_data:
                         # We set the current data to an empty array to ensure that we never double count data. We
                         # shouldn't ever actually use this data, but we need something valid there. To maintain the
@@ -732,9 +735,9 @@ class MultiSource:
                         continue
 
                     # If we've gotten this far, it's time to keep going with the current source
-                    logger.info("=>About to request more data from the current source in the MultiSource")
+                    logger.debug("===> About to request more data from the current source in the MultiSource")
                     _current_data = _current_data_iter.send(_request_chunk_size)
-                    logger.info("==>The source isn't exhausted yet.")
+                    logger.debug("====> The source isn't exhausted yet.")
 
             except StopIteration:
                 pass
