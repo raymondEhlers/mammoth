@@ -534,12 +534,23 @@ def _sources_to_list(sources: Union[Source, Sequence[Source]]) -> Sequence[Sourc
     return sources
 
 
-def _adjust_request_chunk_size(_request_chunk_size: int, _target_chunk_size: int, _accumulated_data_size: int) -> Tuple[int, bool]:
+def _determine_request_chunk_size(_target_chunk_size: int, _accumulated_data_size: int) -> Tuple[int, bool]:
     """Adjust the requested chunk size according to the conditions of the request.
 
     Returns:
-        requested chunk size, True if the requested chunk size went negative and was reset.
+        requested chunk size, True if the requested chunk size went negative and was reset to the target.
+            (if True, you probably want to skip requesting more data.)
     """
+    # To start, we always want to update the request chunk size!
+    # There are two possible cases:
+    # 1. Received new target -> we want to use that for the baseline of the request.
+    # 2. We've received a new request for a data, but without a new chunk size. In this case, the
+    #    requested check size may be correct, but it may still be an older value (for example, if we
+    #    requested less data due to accumulated data from the previous look), so we update it to
+    #    the target chunk size (and then we'll adjust it below as needed). It's not always required to
+    #    update it, but it doesn't hurt.
+    _request_chunk_size = _target_chunk_size
+
     # If we have stored data and are not requesting the whole file, we should only request as much
     # as we need. That way, we minimize additional IO (eg. if we already have enough accumulated data
     # to fulfill the next target chunk size, there's no point in requesting more from the MultiSource).
@@ -555,22 +566,18 @@ def _adjust_request_chunk_size(_request_chunk_size: int, _target_chunk_size: int
     # In this case, there's no point in making a request, but we need to handle it explicitly here.
     # NOTE: Although we could use send(0), if the source is already exhausted, it would force a new
     #       source to load unnecessarily.
+    _do_not_request_more_data = False
     if _request_chunk_size <= 0:
-        # Since this will cause us to iterate with no additional data, we need to ensure that we're
-        # prepared to request a non-zero chunk on the next iteration (eg. if the source is exhausted).
-        # If we receive a new target chunk size on that next iteration, this check wouldn't be necessary,
-        # but if we somehow do not, this update to the request chunk size avoids getting stuck in a loop
-        # with now new data.
+        # We want to signal to iterate with no additional data.
+        _do_not_request_more_data = True
+        # For this case, we need to ensure that we're prepared to request a non-zero chunk on the
+        # next iteration (eg. if the source is exhausted). If we receive a new target chunk size on
+        # that next iteration, this check wouldn't be necessary, but if we somehow do not, this update
+        # to the request chunk size avoids getting stuck in a loop with no new data.
         _request_chunk_size = _target_chunk_size
-        # We set the current data to an empty array to ensure that we never double count data. We
-        # shouldn't ever actually use this data, but we need something valid there. To maintain the
-        # correct structure of the awkward array, we use a zero length slice.
-        #_current_data = _current_data[:0]
-        # logger.warning("==> request chunk size is negative. Setting current data to empty array and no need to request more data")
-        return _request_chunk_size, True
-        #continue
 
-    return _request_chunk_size, False
+    return _request_chunk_size, _do_not_request_more_data
+
 
 @attr.define
 class MultiSource:
@@ -645,15 +652,20 @@ class MultiSource:
 
                     # We need to figure out whether we have enough data or we need to accumulate more.
                     if _accumulated_data_size < _target_chunk_size:
-                        # We need another iteration (on to the next source) to get more data
-                        # We request to update the chunk size to ensure that we don't request extra data if there is
-                        #_request_chunk_size, _ = _adjust_request_chunk_size(
-                        #    _request_chunk_size=_request_chunk_size,
-                        #    _target_chunk_size=_target_chunk_size,
-                        #    _accumulated_data_size=_accumulated_data_size,
-                        #)
+                        # We need another iteration (on to the next source) to get more data.
+                        # We request to update the chunk size to ensure that we don't request extra data
+                        # First, we update the request to the target chunk size since we may not have requested
+                        # the full data size.
+                        # NOTE: We don't care if whether this thinks that we should request new data - we
+                        #       know that our source is out of data because we didn't receive enough when we asked
+                        #       for it, so we for sure need to break here.
+                        _request_chunk_size, _ = _determine_request_chunk_size(
+                            _target_chunk_size=_target_chunk_size,
+                            _accumulated_data_size=_accumulated_data_size,
+                        )
                         logger.warning("Not enough data - we need a new source (ie. break)")
                         break
+
                     else:
                         # We have enough data - now we need to sort out what to do.
                         # First step is to concatenate the data, so we can operate on it more easily
@@ -690,31 +702,24 @@ class MultiSource:
                         # if source._collision_system == "PbPb":
                         #     import IPython; IPython.embed()
 
-                    # Update the chunk size if received a new one
+                    # We're now done with providing data from the last iteration. Now we focus on properly handling
+                    # the new data request and providing that requested data.
+                    # First, update the chunk size if received a new one
                     # logger.info(f"=>{_next_chunk_size_request=}")
                     if _next_chunk_size_request is not None:
                         _target_chunk_size = _validate_chunk_size(
                             chunk_size=_next_chunk_size_request, source_default_chunk_size=source._default_chunk_size
                         )
-                        # We also need to update the request chunk size to align with the target
-                        _request_chunk_size = _target_chunk_size
-
                         # And don't forget to reset the request size for the next chunk
                         # (If we don't get into the if statement, then it's already None and doesn't need a reset)
                         _next_chunk_size_request = None
                     else:
-                        # We've received a new request for a data, but without a new chunk size. In this case,
-                        # the requested check size may still be an older value, so we update it to the target
-                        # chunk size (and then we'll adjust it below as needed).
-                        # TODO: Think very carefully about what None means and whether this is the right thing to do...!
                         logger.warning(f"Updating due to None. {_target_chunk_size=}, {_request_chunk_size=}")
-                        _request_chunk_size = _target_chunk_size
+                        ...
 
+                    # Potentially adjust the requested chunk size.
                     logger.info(f"==> {source=}, {_target_chunk_size=}, {_request_chunk_size=}, {_next_chunk_size_request=}, {_accumulated_data_size=}, {_accumulated_data=}")
-
-                    # Potentially adjust the chunk size.
-                    _request_chunk_size, _do_not_request_new_data = _adjust_request_chunk_size(
-                        _request_chunk_size=_request_chunk_size,
+                    _request_chunk_size, _do_not_request_new_data = _determine_request_chunk_size(
                         _target_chunk_size=_target_chunk_size,
                         _accumulated_data_size=_accumulated_data_size,
                     )
