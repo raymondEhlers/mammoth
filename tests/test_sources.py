@@ -88,20 +88,27 @@ def test_chunk_generation_from_existing_data_with_fixed_chunk_size(
     Usually, this would be via an uproot source. Here, I'm using the track skim for some extra convenience,
     since we should already have those files available.
     """
+    # Setup
+    # Logging
+    caplog.set_level(logging.DEBUG, logger="mammoth.framework.sources")
+    # Input source
     from mammoth.framework.io import track_skim
+    # NOTE: It's important that we use the root file here, as this will implicitly use an UprootSource with
+    #       chunk generation from existing data.
     pythia_source = track_skim.FileSource(
         filename=_track_skim_base_path / "reference" / "AnalysisResults__pythia__jet_R020.root",
         collision_system="pythia"
     )
     # We need the full size to figure out the expect values.
     # NOTE: This is inefficient, but it's not the end of the world. We could always set it manually if becomes a problem
-    # NOTE: It's 11358
+    # NOTE: For reference, it's 11358
     full_file_size = len(next(pythia_source.gen_data()))
 
     # Determine the expected chunk sizes
     yielded_data_sizes = [chunk_size for _ in range(int(np.floor(full_file_size / chunk_size)))]
     yielded_data_sizes.append(full_file_size % chunk_size)
 
+    # Finally, actually access the data and check the chunk sizes.
     gen = pythia_source.gen_data(chunk_size=chunk_size)
 
     for i, (data, expected_size) in enumerate(zip(gen, yielded_data_sizes)):
@@ -128,14 +135,20 @@ def test_chunk_generation_from_existing_data_with_variable_chunk_size(
     Usually, this would be via an uproot source. Here, I'm using the track skim for some extra convenience,
     since we should already have those files available.
     """
+    # Setup
+    # Logging
+    caplog.set_level(logging.DEBUG, logger="mammoth.framework.sources")
+    # Input source
     from mammoth.framework.io import track_skim
+    # NOTE: It's important that we use the root file here, as this will implicitly use an UprootSource with
+    #       chunk generation from existing data.
     pythia_source = track_skim.FileSource(
         filename=_track_skim_base_path / "reference" / "AnalysisResults__pythia__jet_R020.root",
         collision_system="pythia"
     )
     # We need the full size to figure out the expect values.
     # NOTE: This is inefficient, but it's not the end of the world. We could always set it manually if becomes a problem
-    # NOTE: It's 11358
+    # NOTE: For reference, it's 11358
     full_file_size = len(next(pythia_source.gen_data()))
 
     gen = pythia_source.gen_data(chunk_size=chunk_size[0])
@@ -144,6 +157,8 @@ def test_chunk_generation_from_existing_data_with_variable_chunk_size(
     expecting_stop_iteration = False
     stopped_iteration = False
     try:
+        # NOTE: We iterate over the chunk sizes because we can't directly iterate over a generator
+        #       that we send values to (in order to change the chunk size).
         for i, current_chunk_size in enumerate(chunk_size):
             # Need to send None initially, and then we can update chunk sizes as we iterate
             data = gen.send(current_chunk_size if i > 0 else None)
@@ -170,17 +185,18 @@ def test_chunk_generation_from_existing_data_with_variable_chunk_size(
 
 
 @pytest.mark.parametrize("number_of_repeated_files", [1, 3])
-# TODO: Uncomment after fixing tests
-#@pytest.mark.parametrize("chunk_size", [2000, 1000])
-@pytest.mark.parametrize("chunk_size", [2000])
+@pytest.mark.parametrize("chunk_size", [2000, 1000])
 def test_multi_source_source_fixed_size_chunks(caplog: Any, chunk_size: int, number_of_repeated_files: int) -> None:
     """Test the MultiSource with fixed size chunks.
 
     Usually, this would be via an uproot source. Here, I'm using the track skim for some extra convenience,
     since we should already have those files available.
     """
+    # Setup
+    # Logging
+    caplog.set_level(logging.DEBUG, logger="mammoth.framework.sources")
+    # Input source
     from mammoth.framework.io import track_skim
-
     pythia_source = sources.MultiSource(
         sources=[
             track_skim.FileSource(
@@ -191,29 +207,26 @@ def test_multi_source_source_fixed_size_chunks(caplog: Any, chunk_size: int, num
         ]
     )
 
-    # We need the full size to figure out the expect values.
+    # We need to know the full size to figure out the expected values.
     pythia_source_ref = track_skim.FileSource(
         filename=_track_skim_base_path / "reference" / "AnalysisResults__pythia__jet_R020.root",
         collision_system="pythia"
     )
     # NOTE: This is inefficient, but it's not the end of the world. We could always set it manually if becomes a problem
-    # NOTE: It's 11358
-    full_file_size = len(next(pythia_source_ref.gen_data()))
+    # NOTE: For reference, it's 11358
+    full_file_size = len(next(pythia_source_ref.gen_data())) * number_of_repeated_files
 
     # Determine the expected chunk sizes
-    yielded_data_sizes = [chunk_size for _ in range(int(np.floor(full_file_size * number_of_repeated_files / chunk_size)))]
-    yielded_data_sizes.append((full_file_size * number_of_repeated_files) % chunk_size)
+    yielded_data_sizes = [chunk_size for _ in range(int(np.floor(full_file_size / chunk_size)))]
+    yielded_data_sizes.append(full_file_size % chunk_size)
 
+    # Finally, actually access the data and check the chunk sizes.
     gen = pythia_source.gen_data(chunk_size=chunk_size)
 
     total_data_size = 0
     for i, (data, expected_chunk_size) in enumerate(zip(gen, yielded_data_sizes)):
         assert len(data) == expected_chunk_size
         total_data_size += len(data)
-
-    # TEMP - Remove after verifying that it worked correctly based on the logs...
-    assert False
-    # ENDTEMP
 
     # For the last iteration, we want to check whether it's matching the chunk size as appropriate
     if full_file_size % chunk_size == 0:
@@ -237,6 +250,10 @@ def test_multi_source_source_variable_size_chunks(
     Usually, this would be via an uproot source. Here, I'm using the track skim for some extra convenience,
     since we should already have those files available.
     """
+    # Setup
+    # Logging
+    caplog.set_level(logging.DEBUG, logger="mammoth.framework.sources")
+    # Input source
     from mammoth.framework.io import track_skim
     pythia_source = sources.MultiSource(
         sources=[
@@ -253,13 +270,14 @@ def test_multi_source_source_variable_size_chunks(
 
     # We need the full size to figure out the expect values.
     # NOTE: This is inefficient, but it's not the end of the world. We could always set it manually if becomes a problem
-    # NOTE: It's 11358
+    # NOTE: For reference, it's 11358
     pythia_source_ref = track_skim.FileSource(
         filename=_track_skim_base_path / "reference" / "AnalysisResults__pythia__jet_R020.root",
         collision_system="pythia"
     )
     full_file_size = len(next(pythia_source_ref.gen_data())) * number_of_repeated_files
 
+    # Finally, actually access the data and check the chunk sizes.
     gen = pythia_source.gen_data(chunk_size=chunk_size[0])
 
     total_number_of_events = 0
@@ -268,6 +286,8 @@ def test_multi_source_source_variable_size_chunks(
     stopped_iteration = False
     finished_chunk_iterator = False
     try:
+        # NOTE: We iterate over the chunk sizes because we can't directly iterate over a generator
+        #       that we send values to (in order to change the chunk size).
         for i, current_chunk_size in enumerate(chunk_iter):
             # Need to send None initially, and then we can update chunk sizes as we iterate
             data = gen.send(current_chunk_size if i > 0 else None)
@@ -319,7 +339,7 @@ def test_embedding_load_data_source_fixed_size_chunks(caplog: Any, chunk_size: i
         collision_system="pythia"
     )
     # NOTE: This is inefficient, but it's not the end of the world. We could always set it manually if becomes a problem
-    # NOTE: It's 11358
+    # NOTE: For reference, it's 11358
     full_file_size = len(next(pythia_source.gen_data()))
 
     # Determine the expected chunk sizes
