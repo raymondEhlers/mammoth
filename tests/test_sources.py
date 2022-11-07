@@ -78,7 +78,7 @@ def test_full_embedding() -> None:
     combined_source.gen_data(chunk_size=chunk_size)
 
 
-@pytest.mark.parametrize("chunk_size", [(2000), (1000)])
+@pytest.mark.parametrize("chunk_size", [2000, 1000])
 def test_chunk_generation_from_existing_data_with_fixed_chunk_size(
     caplog: Any, chunk_size: int
 ) -> None:
@@ -168,7 +168,93 @@ def test_chunk_generation_from_existing_data_with_variable_chunk_size(
     assert total_number_of_events == full_file_size
 
 
-# TODO: Implement the same tests as above, but now with a MultiSource
-def test_multi_source_chunk_sizes() -> None:
-    ...
 
+@pytest.mark.parametrize("number_of_repeated_files", [1, 3])
+@pytest.mark.parametrize("chunk_size", [2000, 1000])
+def test_multi_source_source_fixed_size_chunks(caplog: Any, chunk_size: int, number_of_repeated_files: int) -> None:
+    """Test the MultiSource with fixed size chunks.
+
+    Usually, this would be via an uproot source. Here, I'm using the track skim for some extra convenience,
+    since we should already have those files available.
+    """
+    from mammoth.framework import load_data
+    from mammoth.framework.io import track_skim
+
+    pythia_source = sources.MultiSource(
+        sources=[
+            track_skim.FileSource(
+                filename=_track_skim_base_path / "reference" / "AnalysisResults__pythia__jet_R020.root",
+                collision_system="pythia",
+            )
+            for _ in range(number_of_repeated_files)
+        ]
+    )
+
+    # We need the full size to figure out the expect values.
+    pythia_source_ref = track_skim.FileSource(
+        filename=_track_skim_base_path / "reference" / "AnalysisResults__pythia__jet_R020.root",
+        collision_system="pythia"
+    )
+    # NOTE: This is inefficient, but it's not the end of the world. We could always set it manually if becomes a problem
+    # NOTE: It's 11358
+    full_file_size = len(next(pythia_source_ref.gen_data()))
+
+    # Determine the expected chunk sizes
+    yielded_data_sizes = [chunk_size for _ in range(int(np.floor(full_file_size * number_of_repeated_files / chunk_size)))]
+    yielded_data_sizes.append((full_file_size * number_of_repeated_files) % chunk_size)
+
+    gen = pythia_source.gen_data(chunk_size=chunk_size)
+
+    total_data_size = 0
+    for i, (data, expected_chunk_size) in enumerate(zip(gen, yielded_data_sizes)):
+        assert len(data) == expected_chunk_size
+        total_data_size += len(data)
+
+    # For the last iteration, we want to check whether it's matching the chunk size as appropriate
+    if full_file_size % chunk_size == 0:
+        assert len(data) == chunk_size
+    else:
+        assert len(data) < chunk_size
+
+
+# TODO: Implement the same tests as above, but now with a MultiSource
+@pytest.mark.parametrize("chunk_size", [(2000), (1000)])
+def test_embedding_load_data_source_fixed_size_chunks(caplog: Any, chunk_size: int) -> None:
+    """Test the MultiSource with fixed size chunks.
+
+    Usually, this would be via an uproot source. Here, I'm using the track skim for some extra convenience,
+    since we should already have those files available.
+    """
+    from mammoth.framework import load_data
+    from mammoth.framework.io import track_skim
+
+    source_index_identifiers, iter_arrays = load_data.embedding(
+        signal_input=[_track_skim_base_path / "reference" / "AnalysisResults__pythia__jet_R020.root"],
+        signal_source=track_skim.FileSource.create_deferred_source(collision_system="pythia"),
+        background_input=[_track_skim_base_path / "reference" / "AnalysisResults__PbPb__jet_R020.root"],
+        background_source=track_skim.FileSource.create_deferred_source(collision_system="PbPb"),
+        background_is_constrained_source=False,
+        chunk_size=chunk_size,
+    )
+
+    # We need the full size to figure out the expect values.
+    pythia_source = track_skim.FileSource(
+        filename=_track_skim_base_path / "reference" / "AnalysisResults__pythia__jet_R020.root",
+        collision_system="pythia"
+    )
+    # NOTE: This is inefficient, but it's not the end of the world. We could always set it manually if becomes a problem
+    # NOTE: It's 11358
+    full_file_size = len(next(pythia_source.gen_data()))
+
+    # Determine the expected chunk sizes
+    yielded_data_sizes = [chunk_size for _ in range(int(np.floor(full_file_size / chunk_size)))]
+    yielded_data_sizes.append(full_file_size % chunk_size)
+
+    for i, (data, expected_size) in enumerate(zip(iter_arrays, yielded_data_sizes)):
+        assert len(data) == expected_size
+
+    # For the last iteration, we want to check whether it's matching the chunk size as appropriate
+    if full_file_size % chunk_size == 0:
+        assert len(data) == chunk_size
+    else:
+        assert len(data) < chunk_size
