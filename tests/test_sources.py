@@ -54,17 +54,35 @@ def test_manual_thermal_model_embedding() -> None:
         assert len(arrays) > 0
 
 
-def test_manual_data_embedding() -> None:
-    chunk_size = 500
+@pytest.mark.parametrize("chunk_size", [500, sources.ChunkSizeSentinel.FULL_SOURCE])
+@pytest.mark.parametrize("background_is_constrained_source", [False, True])
+def test_manual_data_embedding(caplog: Any, chunk_size: int, background_is_constrained_source: bool) -> None:
+    # Setup
+    caplog.set_level(logging.DEBUG, logger="mammoth.framework.sources")
+
+    # Validation
+    # Technically, we shouldn't reach into the internals, but I'm okay with this exception.
+    # I don't want to make it public because the user shouldn't be doing this in normal operation.
+    if chunk_size is sources.ChunkSizeSentinel.FULL_SOURCE:
+        chunk_size = sources._FULL_SOURCE_SIZE
+
+    pythia_kwargs = {}
+    PbPb_kwargs = {}
+    if background_is_constrained_source:
+        pythia_kwargs = dict(repeat=True)
+    else:
+        PbPb_kwargs = dict(repeat=True)
+
     pythia_source = sources.MultiSource(
         sources=sources.define_multiple_sources_from_single_root_file(
             # Take as an arbitrary example file
             filename=_track_skim_base_path / "reference" / "AnalysisResults__pythia__jet_R020.root",
-            # Apparently the wild card doesn't work here because we need to grab the number of entries, =
+            # Apparently the wild card doesn't work here because we need to grab the number of entries,
             # so we just specify the name directly.
             tree_name="AliAnalysisTaskTrackSkim_pythia_tree",
             chunk_size=chunk_size,
         ),
+        **pythia_kwargs,
     )
 
     PbPb_source = sources.MultiSource(
@@ -72,13 +90,23 @@ def test_manual_data_embedding() -> None:
             filename=_track_skim_base_path / "reference" / "AnalysisResults__embed_pythia-PbPb__jet_R020.root",
             tree_name="AliAnalysisTaskTrackSkim_*_tree",
         ),
-        repeat=True
+        **PbPb_kwargs,
     )
 
     # Now, just zip them together, effectively.
+    combined_source_kwargs = {}
+    if background_is_constrained_source:
+        combined_source_kwargs = dict(
+            constrained_size_source={"background": PbPb_source},
+            unconstrained_size_sources={"signal": pythia_source},
+        )
+    else:
+        combined_source_kwargs = dict(
+            constrained_size_source={"signal": pythia_source},
+            unconstrained_size_sources={"background": PbPb_source},
+        )
     combined_source = sources.CombineSources(
-        constrained_size_source={"background": PbPb_source},
-        unconstrained_size_sources={"signal": pythia_source},
+        **combined_source_kwargs,
         source_index_identifiers={"signal": 0, "background": 100_000},
     )
 
