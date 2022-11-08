@@ -298,6 +298,14 @@ class ProductionSettings:
         return _tasks
 
     def store_production_parameters(self) -> None:
+        # Validation on production number (we need to check this somewhere - this is likely to be called right away,
+        # so it's a reasonable option, if not ideal).
+        if self.number != self.config["metadata"]["production_number"]:
+            raise ValueError(
+                f"Mismatch between production number '{self.number}' and production number stored in the metadata '{self.config['metadata']['production_number']}'."
+                " Please fix this."
+            )
+
         output: Dict[str, Any] = {}
         output["identifier"] = self.identifier
         output["date"] = datetime.datetime.utcnow().strftime("%Y-%m-%d")
