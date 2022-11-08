@@ -715,7 +715,7 @@ def setup_calculate_embed_pythia_skim(  # noqa: C901
     for _file_counter, (pt_hat_bin, signal_input, background_input) in enumerate(input_generator):
         if _file_counter % 500 == 0:
             logger.info(
-                f"Adding {(background_input if _background_is_constrained_source else signal_input)[0]} for analysis"
+                f"Adding {(background_input if _background_is_constrained_source else signal_input)} for analysis"
             )
 
         # For debugging
