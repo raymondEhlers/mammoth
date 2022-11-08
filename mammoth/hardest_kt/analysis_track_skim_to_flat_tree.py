@@ -428,6 +428,10 @@ def hardest_kt_embed_thermal_model_skim(  # noqa: C901
             output_filename=_output_filename,
         )
 
+        # Cleanup (may not be necessary, but it doesn't hurt)
+        del arrays
+        del jets
+
     return (
         True,
         f"success for {_description}"
@@ -587,6 +591,10 @@ def hardest_kt_embedding_skim(  # noqa: C901
             convert_data_format_prefixes=convert_data_format_prefixes,
             output_filename=_output_filename,
         )
+
+        # Cleanup (may not be necessary, but it doesn't hurt)
+        del arrays
+        del jets
 
     return (
         True,
