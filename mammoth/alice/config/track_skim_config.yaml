@@ -171,8 +171,8 @@ analysis_settings:
           hybrid: "hybrid"
           det_level: "det_level"
           part_level: "true"
+        input_constrained_source: "signal"
         input_handling:
-          constrained_source: "background"
           signal_parameters:
             constrained_source:  # ie. signal is the constraint
               n_files_to_use_per_task: 1
@@ -418,11 +418,12 @@ productions:
         dataset: *LHC18qr_PbPb_semi_central
         signal_dataset: *LHC20g4_pythia
         # Equivalent to train number, but a more general term makes more sense here.
-        production_number: 3
+        production_number: 4
         label: "embed_pythia_semi_central"
       settings:
         <<: *analysis_settings_embed_R02
         event_activity: "semi_central"
+        #chunk_size: 15000
         chunk_size: 5000
         background_subtraction:
           r_max: 0.1

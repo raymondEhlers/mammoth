@@ -670,7 +670,7 @@ def setup_calculate_embed_pythia_skim(  # noqa: C901
     # Setup for dataset and input
     _metadata_config: Dict[str, Any] = prod.config["metadata"]
     _input_handling_config: Dict[str, Any] = _metadata_config["input_handling"]
-    _background_is_constrained_source: bool = not (_input_handling_config["constrained_source"].lower() == "signal")
+    _background_is_constrained_source: bool = not (_metadata_config["input_constrained_source"].lower() == "signal")
 
     # Analysis settings
     _analysis_config: Dict[str, Any] = prod.config["settings"]
