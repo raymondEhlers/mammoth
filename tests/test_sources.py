@@ -2,7 +2,7 @@
 import itertools
 import logging
 from pathlib import Path
-from typing import Any, Sequence
+from typing import Any, MutableMapping, Sequence
 
 import numpy as np
 import pytest  # noqa: F401
@@ -66,8 +66,8 @@ def test_manual_data_embedding(caplog: Any, chunk_size: int, background_is_const
     if chunk_size is sources.ChunkSizeSentinel.FULL_SOURCE:
         chunk_size = sources._FULL_SOURCE_SIZE
 
-    pythia_kwargs = {}
-    PbPb_kwargs = {}
+    pythia_kwargs: MutableMapping[str, Any] = {}
+    PbPb_kwargs: MutableMapping[str, Any] = {}
     if background_is_constrained_source:
         pythia_kwargs = dict(repeat=True)
     else:
@@ -94,7 +94,7 @@ def test_manual_data_embedding(caplog: Any, chunk_size: int, background_is_const
     )
 
     # Now, just zip them together, effectively.
-    combined_source_kwargs = {}
+    combined_source_kwargs: MutableMapping[str, Any] = {}
     if background_is_constrained_source:
         combined_source_kwargs = dict(
             constrained_size_source={"background": PbPb_source},
