@@ -125,6 +125,7 @@ class Facility:
     launcher: Callable[[], Launcher] = attr.field(default=SrunLauncher)
     parsl_config_additional_options: Dict[str, Any] = attr.Factory(dict)
     cmd_timeout: int = attr.field(default=10)
+    nodes_to_exclude: List[str] = attr.factory(list)
 
     @property
     def target_allocate_n_cores(self) -> int:
@@ -152,6 +153,8 @@ _facilities_configs = {
         launcher=SingleNodeLauncher,
         #node_work_dir=Path("/tmp/parsl/$USER"),
         #storage_work_dir=Path("/alf/data/rehlers/jetscape/work_dir"),
+        # Excluded due to focal simulations
+        machines_to_exclude=["pc068"] if queue == "long" else [],
     ) for queue in ["short", "long", "loginOnly", "vip"]
 }
 
