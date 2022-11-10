@@ -35,8 +35,7 @@ logger = logging.getLogger(__name__)
 
 
 FACILITIES = Literal[
-    "local",
-    "test_local_rehlers",
+    "rehlers_mbp_m1pro",
     "ORNL_b587_short",
     "ORNL_b587_long",
     "ORNL_b587_loginOnly",
@@ -157,6 +156,16 @@ _facilities_configs = {
         machines_to_exclude=["pc068"] if queue == "long" else [],
     ) for queue in ["short", "long", "loginOnly", "vip"]
 }
+_facilities_configs["rehlers_mbp_m1pro"] = Facility(
+    name="rehlers_mbp_m1pro",
+    node_spec=NodeSpec(n_cores=8, memory=12),
+    partition_name="INVALID",
+    target_allocate_n_cores=1,
+    launcher=SingleNodeLauncher,
+    #node_work_dir=Path("/tmp/parsl/$USER"),
+    #storage_work_dir=(Path.cwd() / Path("work_dir")).resolve(),
+    directories_to_mount_in_singularity=[Path("/opt/scott")],
+)
 
 
 def _default_parsl_config_kwargs(workflow_name: str, enable_monitoring: bool = True) -> Dict[str, Any]:
