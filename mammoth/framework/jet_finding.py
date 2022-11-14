@@ -16,6 +16,9 @@ import vector
 import mammoth._ext
 from mammoth._ext import (  # noqa: F401
     AreaSettings,
+    # TODO: This will clobber the user_index (eg. hole information from JETSCAPE)!
+    #       Need to carefully think through all of this labeling. I guess I may need a map from some index to other properties?
+    NegativeEnergyRecombiner,  # noqa F401
     JetFindingSettings,
     JetMedianBackgroundEstimator,  # noqa: F401
     GridMedianBackgroundEstimator,  # noqa: F401
