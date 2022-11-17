@@ -366,14 +366,10 @@ def _define_config(
     # Setup
     config_kwargs = _default_parsl_config_kwargs(workflow_name=task_config.name, enable_monitoring=enable_monitoring)
 
-    machines_to_exclude: List[str] = [
-        #"pc147"
-    ]
-
     config = Config(
         executors=[
             HighThroughputExecutor(
-                label=f"Jetscape_{facility.name}_HTEX",
+                label=f"{facility.name}_HTEX",
                 address=address_by_hostname(),
                 cores_per_worker=task_config.n_cores_per_task,
                 # cores_per_worker=round(n_cores_per_node / n_workers_per_node),
@@ -395,7 +391,7 @@ def _define_config(
                     account=facility.allocation_account,
                     # string to prepend to #SBATCH blocks in the submit
                     # Can add additional options directly to scheduler.
-                    scheduler_options=f"#SBATCH --exclude={','.join(machines_to_exclude)}" if machines_to_exclude else "",
+                    scheduler_options=f"#SBATCH --exclude={','.join(facility.machines_to_exclude)}" if facility.machines_to_exclude else "",
                     # Command to be run before starting a worker, such as:
                     # 'module load Anaconda; source activate parsl_env'.
                     worker_init=f"{facility.worker_init_script}; {additional_worker_init_script}" if facility.worker_init_script else additional_worker_init_script,
@@ -469,21 +465,22 @@ def _define_local_config(
     local_config = Config(
         executors=[
             HighThroughputExecutor(
-                label=f"Jetscape_{facility.name}_HTEX",
+                label=f"{facility.name}_HTEX",
                 address=address_by_hostname(),
                 cores_per_worker=task_config.n_cores_per_task,
+                working_dir=str(facility.node_work_dir),
                 provider=LocalProvider(  # type: ignore
                     # One block is one node.
                     nodes_per_block=1,
                     # We want n_blocks initially because we will have work for everything immediately.
                     # (useless explicitly requested otherwise).
-                    min_blocks=1,
+                    min_blocks=0,
                     max_blocks=n_cores,
-                    # We try to select one core less for the init so we can see some scaling
-                    # if we max out everything.
-                    # NOTE: We need at least one block, so if set to just one core, n-1 would break.
+                    init_blocks=n_blocks,
+                    # NOTE: If we want to try scaling, we can select less core for the init. If we
+                    #       We need at least one block, so if set to just one core, n-1 would break.
                     #       Consequently, we require at least one initial block.
-                    init_blocks=max(n_cores - 1, 1),
+                    #init_blocks=max(n_cores - 1, 1),
                     worker_init=f"{facility.worker_init_script}; {additional_worker_init_script}",
                     launcher=facility.launcher(),
                     walltime=walltime,
