@@ -9,6 +9,7 @@ from typing import Dict, Mapping, Tuple, Union
 
 import awkward as ak
 import numpy as np
+import numpy.typing as npt
 import uproot
 
 from mammoth.framework import jet_finding, load_data, models, sources
@@ -473,3 +474,29 @@ if __name__ == "__main__":
     import IPython
 
     IPython.start_ipython(user_ns={**globals(), **locals()})
+
+
+def mask_for_flat_distribution(
+    jet_pt: npt.NDArray[np.float64],
+    probability_to_keep_jet_as_function_of_jet_pt: npt.NDArray[np.float64]
+) -> npt.NDArray[np.bool_]:
+    """A mask to create a flat pt distribution for ML training.
+
+    Wrote this function for Hannah to use for ML training.
+
+    Note:
+        Assumes 1 GeV wide bins!!!
+
+    Args:
+        jet_pt: Column of jet pt
+        probability_to_keep_jet_as_a_function_of_jet_pt: Array of fraction of jets to keep.
+            Each array entry should correspond to 1 GeV in width, starting from 0-1 in the first index.
+            Extract this from a histogram, probably.
+    Returns:
+        Mask of True if row should be kept
+    """
+    jet_pt_bins = np.floor(jet_pt).astype(np.int64)
+    probabilities_to_keep = probability_to_keep_jet_as_function_of_jet_pt[jet_pt_bins]
+    keep_jet = np.random.rand(len(probabilities_to_keep))
+    mask = keep_jet < probabilities_to_keep
+    return mask
