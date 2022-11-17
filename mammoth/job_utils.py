@@ -124,7 +124,7 @@ class Facility:
     launcher: Callable[[], Launcher] = attr.field(default=SrunLauncher)
     parsl_config_additional_options: Dict[str, Any] = attr.Factory(dict)
     cmd_timeout: int = attr.field(default=10)
-    nodes_to_exclude: List[str] = attr.factory(list)
+    nodes_to_exclude: List[str] = attr.Factory(list)
 
     @property
     def target_allocate_n_cores(self) -> int:
