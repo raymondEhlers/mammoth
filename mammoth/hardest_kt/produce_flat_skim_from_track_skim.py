@@ -14,6 +14,7 @@ from typing import Any, Dict, Iterable, List, Mapping, Optional, Sequence, Tuple
 import attrs
 import IPython
 from mammoth import helpers, job_utils
+from mammoth.alice import job_utils as alice_job_utils
 from mammoth.framework import sources, production
 from mammoth.framework.analysis import objects as analysis_objects
 from pachyderm import yaml
@@ -928,45 +929,6 @@ def setup_calculate_embed_thermal_model_skim(
     return results
 
 
-def determine_additional_worker_init(
-    productions: Sequence[production.ProductionSettings],
-    tasks_requiring_root: Sequence[str],
-    tasks_requiring_aliphysics: Sequence[str],
-) -> str:
-    _software_to_load = []
-    _additional_worker_init_script = ""
-    # fmt: off
-    if any(
-        (
-            task in tasks_requiring_root
-            for prod in productions
-            for task in prod.tasks_to_execute
-        )
-    ):
-        _software_to_load.append("ROOT/latest")
-    if any(
-        (
-            task in tasks_requiring_aliphysics
-            for prod in productions
-            for task in prod.tasks_to_execute
-        )
-    ):
-        # This is a little unconventional to redefine the list here, but ROOT is already
-        # a dependency of AliPhysics, so we redefine the list to remove ROOT.
-        _software_to_load = [s for s in _software_to_load if s != "ROOT/latest"]
-        # And then include AliPhysics
-        _software_to_load.append("AliPhysics/latest")
-    # fmt: on
-
-    # If there is anything to load, add the initialization
-    if _software_to_load:
-        _additional_worker_init_script = (
-            f"eval `/usr/bin/alienv -w /software/rehlers/alice/sw --no-refresh printenv {','.join(_software_to_load)}`"
-        )
-
-    return _additional_worker_init_script
-
-
 def define_productions() -> List[production.ProductionSettings]:
     # We want to provide the opportunity to run multiple productions at once.
     # We'll do so by defining each production below and then iterating over them below
@@ -1049,7 +1011,7 @@ def run() -> None:  # noqa: C901
 
     # Basic setup: logging and parsl.
     # First, need to figure out if we need additional environments such as ROOT
-    _additional_worker_init_script = determine_additional_worker_init(
+    _additional_worker_init_script = alice_job_utils.determine_additional_worker_init_alibuild(
         productions=productions,
         tasks_requiring_root=["extract_scale_factors"],
         tasks_requiring_aliphysics=[],
