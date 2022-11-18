@@ -478,25 +478,46 @@ if __name__ == "__main__":
 
 def mask_for_flat_distribution(
     jet_pt: npt.NDArray[np.float64],
-    probability_to_keep_jet_as_function_of_jet_pt: npt.NDArray[np.float64]
+    target_number_of_jets: int,
 ) -> npt.NDArray[np.bool_]:
     """A mask to create a flat pt distribution for ML training.
 
     Wrote this function for Hannah to use for ML training.
 
     Note:
+        This is not especially fast. We're basically finding the mapping for a histogram.
+        But it get's the job done, which should be enough here since it's not called repeatedly.
+        Could accelerate it with numba if ever needed.
+
+    Note:
         Assumes 1 GeV wide bins!!!
 
     Args:
         jet_pt: Column of jet pt
-        probability_to_keep_jet_as_a_function_of_jet_pt: Array of fraction of jets to keep.
-            Each array entry should correspond to 1 GeV in width, starting from 0-1 in the first index.
-            Extract this from a histogram, probably.
+        target_number_of_jets: Number of jets we want in each jet pt bin.
     Returns:
         Mask of True if row should be kept
     """
+    # Setup
+    rng = np.random.default_rng()
+
+    # Determine the jet pt bins. By taking the floor, we assume that the bins are 1 GeV wide!
     jet_pt_bins = np.floor(jet_pt).astype(np.int64)
-    probabilities_to_keep = probability_to_keep_jet_as_function_of_jet_pt[jet_pt_bins]
-    keep_jet = np.random.rand(len(probabilities_to_keep))
-    mask = keep_jet < probabilities_to_keep
+    # Start with all false mask
+    mask = np.zeros(len(jet_pt_bins)) > 0
+
+    # Loop over all jet pt values, finding their indices, and then randomly selecting the number that we want.
+    for i in np.arange(0, np.max(jet_pt_bins) + 1):
+        # We need to know the indices of the current bin that we're investigating
+        current_jet_pt_bin_indices = np.where(jet_pt_bins == i)[0]
+        # If there are no entries, then there's nothing to be done
+        if len(current_jet_pt_bin_indices):
+            # If there are not enough jets, we just need to take them all. Otherwise, this will cause
+            # an issue for `choice`.
+            if len(current_jet_pt_bin_indices) < target_number_of_jets:
+                keep_jets = current_jet_pt_bin_indices
+            else:
+                keep_jets = rng.choice(current_jet_pt_bin_indices, size=target_number_of_jets, replace=False)
+            # If we've selected the indices, keep them around!
+            mask[keep_jets] = True
     return mask
