@@ -1,5 +1,9 @@
 #!/usr/bin/env bash
 
+# We make enough assumptions about being in this directory that it's best that we just move there
+currentDir=$(realpath $(dirname "$0"))
+cd ${currentDir}
+
 # Based on: https://github.com/scikit-hep/pyjet/blob/master/install-fastjet.sh
 
 # If you need to specify CC and CXX (for example, if there are multiple compilers),
