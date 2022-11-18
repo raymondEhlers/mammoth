@@ -52,11 +52,6 @@ find_package(FastJet)
 if(NOT FastJet_FOUND)
     # Install using our install script if it's not already installed.
     execute_process(COMMAND external/install_fastjet.sh)
-    #include(ExternalProject)
-    #ExternalProject_Add(
-    #    FastJet
-    #    BUILD_COMMAND 
-    #)
     # Now it must be there
     find_package(FastJet REQUIRED)
 endif()
@@ -87,7 +82,7 @@ install(TARGETS mammoth DESTINATION ${SKBUILD_PROJECT_NAME})
 # NOTE: This seems to define PYTHON_SITE_PACKAGES
 find_package(pybind11 CONFIG REQUIRED)
 
-set(MAMMOTH_CPP_LIB_PATH "${PYTHON_SITE_PACKAGES}/mammoth")
+set(MAMMOTH_CPP_LIB_PATH "${PYTHON_SITE_PACKAGES}/${SKBUILD_PROJECT_NAME}")
 message(STATUS "Installing to: ${MAMMOTH_CPP_LIB_PATH}")
 
 # Create the pybind11 bindings
@@ -111,7 +106,7 @@ add_custom_command(TARGET _ext POST_BUILD
 # NOTE: This doesn't work because the files aren't copied until later in the build. It's a nice idea, but
 #       it needs some more thought on how to do it.
 ## And update the fastjet-config file so that it points to valid paths.
-#file(READ ${MAMMOTH_CPP_LIB_PATH}/fastjet/bin/fastjet-config filedata)
+#file(READ ${MAMMOTH_CPP_MAMMOTH_CPP_LIB_PATH}/fastjet/bin/fastjet-config filedata)
 #string(REGEX REPLACE "^prefix\=.+$" "prefix=${MAMMOTH_CPP_LIB_PATH}/fastjet\n" filedata "${filedata}")
 ## As far as I can tell, it always appears to be the same as prefix, so we assume it is here.
 #string(REGEX REPLACE "^installationdir\=.+$" "installationdir=${MAMMOTH_CPP_LIB_PATH}/fastjet\n" filedata "${filedata}")
@@ -119,38 +114,4 @@ add_custom_command(TARGET _ext POST_BUILD
 
 # And finally install
 install(TARGETS _ext DESTINATION ${SKBUILD_PROJECT_NAME})
-
-# Force the RPATH installation so the user does not have to fiddle
-# with the library path `(DY)?LD_LIBRARY_PATH` 1_.
-#
-# .. _1: https://gitlab.kitware.com/cmake/community/-/wikis/doc/cmake/RPATH-handling#always-full-rpath
-#set(MAMMOTH_CPP_LIB_PATH "${PYTHON_PREFIX}/${CMAKE_INSTALL_LIBDIR}")
-#if (SKBUILD)
-#    find_package(PythonExtensions REQUIRED)
-#    set(MAMMOTH_CPP_LIB_PATH "${PYTHON_PREFIX}/${CMAKE_INSTALL_LIBDIR}")
-#else()
-#    set(MAMMOTH_CPP_LIB_PATH "${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}")
-#endif()
-
-
-#message(STATUS "Prefix: ${CMAKE_INSTALL_PREFIX}")
-##set(MAMMOTH_CPP_LIB_PATH "${CMAKE_INSTALL_PREFIX}/mammoth")
-##set(MAMMOTH_CPP_LIB_PATH "mammoth")
-## TODO: Consolidate defintions
-#set(MAMMOTH_CPP_LIB_PATH "${PYTHON_SITE_PACKAGES}/mammoth")
-#message(STATUS "${MAMMOTH_CPP_LIB_PATH}")
-#list(FIND CMAKE_PLATFORM_IMPLICIT_LINK_DIRECTORIES "${MAMMOTH_CPP_LIB_PATH}" is_system)
-#message(STATUS "${CMAKE_PLATFORM_IMPLICIT_LINK_DIRECTORIES}")
-#message(STATUS "${MAMMOTH_CPP_LIB_PATH} ${CMAKE_PREFIX_PATH} ${CMAKE_MODULE_PATH} ${SKBUILD_PLATLIB_DIR}")
-#
-#if ("${is_system}" STREQUAL "-1")
-#    #set_target_properties(mwe.exe PROPERTIES
-#    #    INSTALL_RPATH_USE_LINK_PATH TRUE
-#    #    INSTALL_RPATH "${MAMMOTH_CPP_LIB_PATH}")
-#    # The following is necessary for installation in a virtual
-#    # environment `python -m pip venv env`
-#    set_target_properties(_ext PROPERTIES
-#        INSTALL_RPATH_USE_LINK_PATH TRUE
-#        INSTALL_RPATH "${MAMMOTH_CPP_LIB_PATH}")
-#endif()
 
