@@ -50,8 +50,13 @@ export LDFLAGS="-Wl,-rpath,${rpathOrigin}/fastjet/lib -Wl,-rpath,${prefix}/lib $
 # fastjet
 cd fastjet-${fastjet_version}
 make clean
-# NOTE: Need to disable autoptr because we're using c++17
-./configure --prefix=$prefix --enable-allcxxplugins --enable-all-plugins --disable-auto-ptr
+# NOTE: Only reconfigure if we haven't configured before
+if [[ ! -f "config.status" ]]; then
+    # NOTE: Need to disable autoptr because we're using c++17
+    ./configure --prefix=$prefix --enable-allcxxplugins --enable-all-plugins --disable-auto-ptr
+else
+    echo "Skipping configuration for fastjet due to existing build"
+fi
 make -j4
 make install
 
@@ -60,7 +65,7 @@ cd ../fjcontrib-${fjcontrib_version}
 # We need to apply the rpath patch for fjcontrib
 # However, we don't want to try to apply it if we've already done it.
 # For checking, see: https://unix.stackexchange.com/a/86872
-if [[ ! patch -R -p0 -s -f --dry-run < ../../fjcontrib_ldflags_rpath.patch &> /dev/null ]]; then
+if ! patch -R -p0 -s -f --dry-run < ../../fjcontrib_ldflags_rpath.patch &> /dev/null; then
     echo "Applying patch to fjcontrib..."
     patch < ../../fjcontrib_ldflags_rpath.patch
 fi
@@ -71,12 +76,17 @@ make clean
 # Seriously...? :-(
 # Figured out by look at alidist: https://github.com/alisw/alidist/blob/8e772427a4c51717f45ec9e22f39944512983b02/fastjet.sh#L63-L67
 # NOTE: Their configure and Makefile is really a mess.
-./configure --prefix=$prefix --fastjet-config=$prefix/bin/fastjet-config \
-    CXXFLAGS="$CXXFLAGS" \
-    CFLAGS="$CFLAGS" \
-    CPATH="$CPATH" \
-    C_INCLUDE_PATH="$C_INCLUDE_PATH" \
-    LD_FLAGS="${LD_FLAGS}"
+# NOTE: Only reconfigure if we haven't configured before
+if [[ ! -f "Makefile" ]]; then
+    ./configure --prefix=$prefix --fastjet-config=$prefix/bin/fastjet-config \
+        CXXFLAGS="$CXXFLAGS" \
+        CFLAGS="$CFLAGS" \
+        CPATH="$CPATH" \
+        C_INCLUDE_PATH="$C_INCLUDE_PATH" \
+        LD_FLAGS="${LD_FLAGS}"
+else
+    echo "Skipping configuration for fastjet-contrib due to existing build"
+fi
 make -j4
 make install
 make fragile-shared -j4
