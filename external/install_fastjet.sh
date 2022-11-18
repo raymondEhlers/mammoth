@@ -36,22 +36,47 @@ if [ ! -d fjcontrib-${fjcontrib_version} ]; then
     tar xfz fjcontrib-${fjcontrib_version}.tar.gz
 fi
 
+# Determine how we want to set the rpath. This depends on the operating system...
+# See: https://gitlab.kitware.com/cmake/community/-/wikis/doc/cmake/RPATH-handling#recommendations
+rpathOrigin="\$\$ORIGIN"
+if [[ "$OSTYPE" == "darwin"* ]]; then
+    rpathOrigin="@rpath"
+fi
+
+# NOTE: Cannot use "=" as it will appear to be a variable assignment in autotools (?)
+# See https://stackoverflow.com/a/61381437/12907985
+export LDFLAGS="-Wl,-rpath,${rpathOrigin}/fastjet/lib -Wl,-rpath,${prefix}/lib ${LDFLAGS}"
+
+# fastjet
 cd fastjet-${fastjet_version}
 make clean
 # NOTE: Need to disable autoptr because we're using c++17
 ./configure --prefix=$prefix --enable-allcxxplugins --enable-all-plugins --disable-auto-ptr
 make -j4
 make install
+
+# fjcontribu
 cd ../fjcontrib-${fjcontrib_version}
+# We need to apply the rpath patch for fjcontrib
+# However, we don't want to try to apply it if we've already done it.
+# For checking, see: https://unix.stackexchange.com/a/86872
+if [[ ! patch -R -p0 -s -f --dry-run < ../../fjcontrib_ldflags_rpath.patch &> /dev/null ]]; then
+    echo "Applying patch to fjcontrib..."
+    patch < ../../fjcontrib_ldflags_rpath.patch
+fi
+
+# Now on to build fjcontrib
 make clean
 # configure for fj-contrib ignores CXXFLAGS unless we pass them explicitly...
 # Seriously...? :-(
 # Figured out by look at alidist: https://github.com/alisw/alidist/blob/8e772427a4c51717f45ec9e22f39944512983b02/fastjet.sh#L63-L67
+# NOTE: Their configure and Makefile is really a mess.
 ./configure --prefix=$prefix --fastjet-config=$prefix/bin/fastjet-config \
     CXXFLAGS="$CXXFLAGS" \
     CFLAGS="$CFLAGS" \
     CPATH="$CPATH" \
-    C_INCLUDE_PATH="$C_INCLUDE_PATH"
+    C_INCLUDE_PATH="$C_INCLUDE_PATH" \
+    LD_FLAGS="${LD_FLAGS}"
 make -j4
 make install
 make fragile-shared -j4

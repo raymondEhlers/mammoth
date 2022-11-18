@@ -1,0 +1,24 @@
+--- fastjet/fjcontrib-1.048/Makefile.in	2021-12-08 11:18:07.000000000 +0100
++++ Makefile.in	2022-11-18 15:49:46.000000000 +0100
+@@ -13,6 +13,12 @@
+ CXX=g++
+ CXXFLAGS=-O2 -Wall -g
+ 
++# Need to grab LDFLAGS for the environment to pass in the the linker options (namely, rpath).
++# Since the rpath may contain "$" and therefore appear as variables, we extract and append
++# the value here.
++# See https://stackoverflow.com/a/62301814/12907985
++export LDFLAGS := $(value LDFLAGS)
++
+ # get any variables defined in the contrib-wide include
+ -include .Makefile.inc
+ 
+@@ -54,7 +60,7 @@
+ 
+ fragile_SHARED_SRC_LIST=@FRAGILE_SHARED_SRC_LIST@
+ libfastjetcontribfragile.@DYNLIBEXT@: $(fragile_SHARED_SRC_LIST)
+-	$(CXX) @DYNLIBOPT@ -fPIC -DPIC $(CXXFLAGS) `$(FASTJETCONFIG) --cxxflags --libs` $(fragile_SHARED_SRC_LIST) -o libfastjetcontribfragile.@DYNLIBEXT@
++	$(CXX) @DYNLIBOPT@ -fPIC -DPIC $(LDFLAGS) $(CXXFLAGS) `$(FASTJETCONFIG) --cxxflags --libs` $(fragile_SHARED_SRC_LIST) -o libfastjetcontribfragile.@DYNLIBEXT@
+ 
+ fragile-shared-install: fragile-shared
+ 	utils/install-sh -c -m 755 libfastjetcontribfragile.@DYNLIBEXT@ $(PREFIX)/lib
