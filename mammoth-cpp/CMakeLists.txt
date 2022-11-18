@@ -1,8 +1,5 @@
-cmake_minimum_required(VERSION 3.15..3.18)
-project(mammoth
-    LANGUAGES
-        CXX
-    )
+cmake_minimum_required(VERSION 3.15..3.24)
+project("${SKBUILD_PROJECT_NAME}" LANGUAGES CXX VERSION "${SKBUILD_PROJECT_VERSION}")
 
 # Ensure c++17
 # We specify this down below with an apparently preferred way (see: https://cliutils.gitlab.io/modern-cmake/chapters/features/cpp11.html)
@@ -28,52 +25,132 @@ if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
   #set(CMAKE_MACOSX_RPATH 1)
 endif()
 
+# Some rpath defaults taken from awkward-cpp.
+if(APPLE)
+  set(CMAKE_BUILD_WITH_INSTALL_RPATH TRUE)
+  set(CMAKE_INSTALL_RPATH "@loader_path")
+else()
+  set(CMAKE_BUILD_RPATH_USE_ORIGIN TRUE)
+endif()
+
 # Path to additional modules
 set(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake")
 
+# Let the user know
 message(STATUS "Build type: ${CMAKE_BUILD_TYPE}")
 
-# First, setup python, using the new FindPython mode
-# Added according to this ref: https://pybind11.readthedocs.io/en/stable/cmake/index.html#new-findpython-mode
-# As a plus, it also fixes an issue in vscode running CMake
-find_package(Python COMPONENTS Interpreter Development)
-
-# pybind11 from PyPI
-#execute_process(
-#  COMMAND
-#    "${PYTHON_EXECUTABLE}" -c
-#    "import pybind11; print(pybind11.get_cmake_dir())"
-#  OUTPUT_VARIABLE _tmp_dir
-#  OUTPUT_STRIP_TRAILING_WHITESPACE COMMAND_ECHO STDOUT)
-#list(APPEND CMAKE_PREFIX_PATH "${_tmp_dir}")
-## Require pybind11
-#find_package(pybind11 CONFIG REQUIRED)
-
-# Alternatively, pybind11 from a submodule
-add_subdirectory(external/pybind11)
-
-# Require fastjet
-find_package(FastJet REQUIRED)
-
-# If we need to enable address sanitization
+# NOTE: If we need to enable address sanitization
 #add_compile_options(-fno-omit-frame-pointer -fsanitize=address)
 #add_link_options(-fno-omit-frame-pointer -fsanitize=address)
 
-# Setup mammothExt, which includes jet finding functionality.
+##########################
+# Step 1: Build libmammoth
+##########################
+
+# Require fastjet
+find_package(FastJet)
+if(NOT FastJet_FOUND)
+    # Install using our install script if it's not already installed.
+    execute_process(COMMAND external/install_fastjet.sh)
+    #include(ExternalProject)
+    #ExternalProject_Add(
+    #    FastJet
+    #    BUILD_COMMAND 
+    #)
+    # Now it must be there
+    find_package(FastJet REQUIRED)
+endif()
+
+# Setup libmammoth, which includes jet finding functionality.
 # c++17 is required for std::optional
-add_library(mammothext SHARED mammoth/src/jetFinding.cxx mammoth/src/jetFindingTools.cxx mammoth/src/aliceFastSim.cxx)
-target_compile_features(mammothext PUBLIC cxx_std_17)
-set_target_properties(mammothext PROPERTIES CXX_EXTENSIONS OFF)
+file(GLOB MAMMOTH_SOURCES "src/libmammoth/*.cxx")
+add_library(mammoth SHARED ${MAMMOTH_SOURCES})
+target_compile_features(mammoth PUBLIC cxx_std_17)
+# Add version info
+target_compile_definitions(mammoth
+                           PRIVATE VERSION_INFO=${PROJECT_VERSION})
+set_target_properties(mammoth PROPERTIES CXX_EXTENSIONS OFF)
 # Add warnings
-target_compile_options(mammothext PRIVATE -Wall -Wextra -pedantic -Werror)
-target_link_libraries(mammothext PUBLIC FastJet::FastJet FastJet::Contrib)
-target_include_directories(mammothext PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include" FastJet::FastJet)
+target_compile_options(mammoth PRIVATE -Wall -Wextra -pedantic -Werror)
+# Setup linking and includes
+target_link_libraries(mammoth PUBLIC FastJet::FastJet FastJet::Contrib)
+target_include_directories(mammoth PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include" FastJet::FastJet)
+
+# And install
+install(TARGETS mammoth DESTINATION ${SKBUILD_PROJECT_NAME})
+
+##############################
+# Step 2: Onto the Python part
+##############################
+
+# pybind11 from PyPI via scikit-build-core
+# NOTE: This seems to define PYTHON_SITE_PACKAGES
+find_package(pybind11 CONFIG REQUIRED)
+
+set(MAMMOTH_CPP_LIB_PATH "${PYTHON_SITE_PACKAGES}/mammoth")
+message(STATUS "Installing to: ${MAMMOTH_CPP_LIB_PATH}")
 
 # Create the pybind11 bindings
-pybind11_add_module(_ext mammoth/src/_ext.cxx)
+file(GLOB MAMMOTH_EXT_SOURCES "src/python/*.cxx")
+pybind11_add_module(_ext ${MAMMOTH_EXT_SOURCES})
 target_compile_features(_ext PUBLIC cxx_std_17)
 set_target_properties(_ext PROPERTIES CXX_EXTENSIONS OFF)
+# Add version info
+target_compile_definitions(_ext
+                           PRIVATE VERSION_INFO=${PROJECT_VERSION})
 # Add warnings
 target_compile_options(_ext PRIVATE -Wall -Wextra -pedantic -Werror)
-target_link_libraries(_ext PUBLIC mammothext)
-target_include_directories(_ext PUBLIC mammothext)
+# Setup linking and includes
+target_link_libraries(_ext PUBLIC mammoth)
+target_include_directories(_ext PUBLIC mammoth)
+
+# Copy the fastjet libraries to the mammoth install dir (ie. mammoth-cpp/fastjet)
+add_custom_command(TARGET _ext POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_directory "${FastJet_LIB_DIRS}/../.." ${MAMMOTH_CPP_LIB_PATH}
+)
+# NOTE: This doesn't work because the files aren't copied until later in the build. It's a nice idea, but
+#       it needs some more thought on how to do it.
+## And update the fastjet-config file so that it points to valid paths.
+#file(READ ${MAMMOTH_CPP_LIB_PATH}/fastjet/bin/fastjet-config filedata)
+#string(REGEX REPLACE "^prefix\=.+$" "prefix=${MAMMOTH_CPP_LIB_PATH}/fastjet\n" filedata "${filedata}")
+## As far as I can tell, it always appears to be the same as prefix, so we assume it is here.
+#string(REGEX REPLACE "^installationdir\=.+$" "installationdir=${MAMMOTH_CPP_LIB_PATH}/fastjet\n" filedata "${filedata}")
+#file(WRITE ${MAMMOTH_CPP_LIB_PATH}/fastjet/bin/fastjet-config "${filedata}")
+
+# And finally install
+install(TARGETS _ext DESTINATION ${SKBUILD_PROJECT_NAME})
+
+# Force the RPATH installation so the user does not have to fiddle
+# with the library path `(DY)?LD_LIBRARY_PATH` 1_.
+#
+# .. _1: https://gitlab.kitware.com/cmake/community/-/wikis/doc/cmake/RPATH-handling#always-full-rpath
+#set(MAMMOTH_CPP_LIB_PATH "${PYTHON_PREFIX}/${CMAKE_INSTALL_LIBDIR}")
+#if (SKBUILD)
+#    find_package(PythonExtensions REQUIRED)
+#    set(MAMMOTH_CPP_LIB_PATH "${PYTHON_PREFIX}/${CMAKE_INSTALL_LIBDIR}")
+#else()
+#    set(MAMMOTH_CPP_LIB_PATH "${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}")
+#endif()
+
+
+#message(STATUS "Prefix: ${CMAKE_INSTALL_PREFIX}")
+##set(MAMMOTH_CPP_LIB_PATH "${CMAKE_INSTALL_PREFIX}/mammoth")
+##set(MAMMOTH_CPP_LIB_PATH "mammoth")
+## TODO: Consolidate defintions
+#set(MAMMOTH_CPP_LIB_PATH "${PYTHON_SITE_PACKAGES}/mammoth")
+#message(STATUS "${MAMMOTH_CPP_LIB_PATH}")
+#list(FIND CMAKE_PLATFORM_IMPLICIT_LINK_DIRECTORIES "${MAMMOTH_CPP_LIB_PATH}" is_system)
+#message(STATUS "${CMAKE_PLATFORM_IMPLICIT_LINK_DIRECTORIES}")
+#message(STATUS "${MAMMOTH_CPP_LIB_PATH} ${CMAKE_PREFIX_PATH} ${CMAKE_MODULE_PATH} ${SKBUILD_PLATLIB_DIR}")
+#
+#if ("${is_system}" STREQUAL "-1")
+#    #set_target_properties(mwe.exe PROPERTIES
+#    #    INSTALL_RPATH_USE_LINK_PATH TRUE
+#    #    INSTALL_RPATH "${MAMMOTH_CPP_LIB_PATH}")
+#    # The following is necessary for installation in a virtual
+#    # environment `python -m pip venv env`
+#    set_target_properties(_ext PROPERTIES
+#        INSTALL_RPATH_USE_LINK_PATH TRUE
+#        INSTALL_RPATH "${MAMMOTH_CPP_LIB_PATH}")
+#endif()
+
