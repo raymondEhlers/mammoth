@@ -249,6 +249,9 @@ def write_to_parquet(arrays: ak.Array, filename: Path, collision_system: str) ->
             "part_level.list.item.phi",
         ]
 
+    # Ensure the directory exists
+    filename.parent.mkdir(parents=True, exist_ok=True)
+
     # NOTE: If there are issues about reading the files due to arrays being too short, check that
     #       there are no empty events. Empty events apparently cause issues for byte stream split
     #       encoding: https://issues.apache.org/jira/browse/ARROW-13024
