@@ -51,7 +51,7 @@ message(STATUS "Build type: ${CMAKE_BUILD_TYPE}")
 find_package(FastJet)
 if(NOT FastJet_FOUND)
     # Install using our install script if it's not already installed.
-    execute_process(COMMAND external/install_fastjet.sh)
+    execute_process(COMMAND ${CMAKE_SOURCE_DIR}/external/install_fastjet.sh)
     # Now it must be there
     find_package(FastJet REQUIRED)
 endif()
