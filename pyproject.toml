@@ -55,6 +55,8 @@ dev = [
     "flake8-colors >=0.1.9",
     "ipykernel >=6.15.1",
     "pytest-sugar >=0.9.5",
+    # Included so we can grab the headers for vscode (also so that we can build in the env if we want)
+    "pybind11 >=2.10",
     # pachyderm
     # pdm requires editable dependencies to be in the dev dependencies
     "-e file:///${PROJECT_ROOT}/external/pachyderm#egg=pachyderm",
