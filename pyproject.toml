@@ -1,56 +1,105 @@
-[tool.poetry]
+[build-system]
+# pdm
+requires = ["pdm-pep517"]
+build-backend = "pdm.pep517.api"
+# hatch
+#requires = ["hatchling"]
+#build-backend = "hatchling.build"
+
+[project]
 name = "mammoth"
-version = "0.1.0"
 description = "Mostly columnar based physics analyses"
-authors = ["Raymond Ehlers <raymond.ehlers@gmail.com>"]
-license = "BSD-3-Clause"
+license = {text = "BSD-3-Clause"}
+requires-python = ">=3.8"
+authors = [
+  { name = "Raymond Ehlers", email = "raymond.ehlers@cern.ch" },
+]
+dynamic = ["optional-dependencies", "version"]
 include = [
     "mammoth/py.typed",
 ]
+dependencies = [
+    # General
+    #"mammoth_cpp >=0.1",
+    # For pdm
+    "file:///${PROJECT_ROOT}/mammoth-cpp#egg=mammoth-cpp",
+    # For hatch
+    #"mammoth_cpp @ file://{root:uri}/mammoth-cpp",
+    "awkward >=1.7",
+    "uproot >=4.2",
+    "numpy >=1.21",
+    "pyarrow >=4",
+    # pachyderm
+    # For pdm, it's in the dev dependencies since we want it to be editable.
+    # For hatch, we can install it locally (but not editable) with:
+    #"pachyderm @ file://{root:uri}/external/pachyderm",
+    "pandas >=1.3",
+    "particle >=0.15.1",
+    "numba >=0.56.0",
+    "hist[plot] >=2.5.0",
+    "seaborn >=0.11.2",
+    "vector >=0.8.5",
+    "parsl[monitoring] @ git+https://github.com/Parsl/parsl.git@6d1f9160d487b3265f6e9d65ebb357837a437c30",
+    # NOTE: Need the most recent version to avoid a python version cap. Once 13.0 is released, move to that.
+    "rich @ git+https://github.com/Textualize/rich.git@4001aa91790c5faf46d9fbca35d335d76de52376",
+    "ninja >=1.10",
+]
 
-[tool.poetry.build]
-script = "build.py"
-generate-setup-file = false
+# NOTE: If moving to hatch, move this to "[project.optional-dependencies]"
+[tool.pdm.dev-dependencies]
+dev = [
+    # pdm requires editable dependencies to be in the dev dependencies
+    "-e file:///${PROJECT_ROOT}/external/pachyderm#egg=pachyderm",
+    "flake8 >=3.8.3",
+    "black >=22.1.0",
+    "mypy >=0.931",
+    "ipython >=8.0",
+    "pytest >=6.2.4",
+    "flake8-colors >=0.1.9",
+    "ipykernel >=6.15.1",
+    "pytest-sugar >=0.9.5",
+]
 
-[tool.poetry.dependencies]
-python = ">=3.8"
-awkward = ">=1.7"
-uproot = ">=4.2"
-numpy = ">=1.21"
-pyarrow = ">=4"
-#pyfastjet = {path = "external/pyfastjet"}
-# NOTE: Usually need to comment this out when trying to install in external projects.
-#       This is necessary because pip can't seem to determine the location of dependency.
-#       I'm not sure why, but it causes lots of problems
-pachyderm = {path = "external/pachyderm", develop = true}
-pandas = ">=1.3"
-particle = ">=0.15.1"
-numba = ">=0.56.0"
-hist = {version = ">=2.5.0", extras = ["plot"]}
-seaborn = ">=0.11.2"
-vector = ">=0.8.5"
-parsl = {git = "https://github.com/Parsl/parsl.git", rev = "6d1f9160d487b3265f6e9d65ebb357837a437c30", extras = ["monitoring"]}
-# NOTE: Need the most recent version to avoid a python version cap. Once 13.0 is released, move to that.
-rich = {git = "https://github.com/Textualize/rich.git", rev = "4001aa91790c5faf46d9fbca35d335d76de52376"}
-ninja = ">=1.10"
+[tool.hatch]
+# TODO:
+#version.path = "src/mammoth/__init__.py"
+version.path = "mammoth/__init__.py"
 
-[tool.poetry.group.dev.dependencies]
-flake8 = ">=3.8.3"
-black = ">=22.1.0"
-mypy = ">=0.931"
-ipython = ">=8.0"
-pytest = ">=6.2.4"
-flake8-colors = ">=0.1.9"
-ipykernel = ">=6.15.1"
-pytest-sugar = ">=0.9.5"
+[tool.pdm]
+version = { source = "file", path = "mammoth/__init__.py" }
+
+[tool.mypy]
+files = "src"
+python_version = "3.8"
+warn_unused_configs = true
+strict = true
+ignore_missing_imports = true
+show_error_codes = true
+enable_error_code = ["ignore-without-code", "redundant-expr", "truthy-bool"]
+warn_unreachable = true
 
 [tool.black]
 line-length = 120
 target-version = ["py38"]
 
+[tool.isort]
+profile = "black"
+line_length = 120
+skip = ["docs/conf.py"]
+skip_glob = ".*"
+
+[tool.pylint]
+master.py-version = "3.8"
+master.ignore-paths= ["src/pachyderm/_version.py"]
+reports.output-format = "colorized"
+similarities.ignore-imports = "yes"
+messages_control.disable = [
+  "design",
+  "fixme",
+  "line-too-long",
+  "wrong-import-position",
+]
+
 [tool.pytest.ini_options]
 log_cli_level = "info"
 
-[build-system]
-requires = ["poetry_core>=1.1.0", "setuptools>=42", "ninja", "cmake>=3.15"]
-build-backend = "poetry.core.masonry.api"
