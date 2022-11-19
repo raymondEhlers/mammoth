@@ -142,7 +142,7 @@ class JetFindingLoggingStdout : public py::scoped_ostream_redirect {
   public:
     JetFindingLoggingStdout(): py::scoped_ostream_redirect(
         std::cout,                               // std::ostream&
-        py::module_::import("mammoth.src.logging").attr("jet_finding_logger_stdout") // Python output
+        py::module_::import("mammoth_cpp.logging").attr("jet_finding_logger_stdout") // Python output
     ) {}
 };
 
@@ -156,7 +156,7 @@ class JetFindingLoggingStderr : public py::scoped_ostream_redirect {
   public:
     JetFindingLoggingStderr(): py::scoped_ostream_redirect(
         std::cerr,                               // std::ostream&
-        py::module_::import("mammoth.src.logging").attr("jet_finding_logger_stderr") // Python output
+        py::module_::import("mammoth_cpp.logging").attr("jet_finding_logger_stderr") // Python output
     ) {}
 };
 

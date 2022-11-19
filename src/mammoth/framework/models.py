@@ -6,7 +6,7 @@ import numpy as np
 import numpy.typing as npt
 from scipy.interpolate import interp1d
 
-from mammoth._ext import (  # noqa: F401
+from mammoth_cpp._ext import (  # noqa: F401
     TrackingEfficiencyPeriod as ALICETrackingEfficiencyPeriod,
     TrackingEfficiencyEventActivity as ALICETrackingEfficiencyEventActivity,
     find_event_activity,

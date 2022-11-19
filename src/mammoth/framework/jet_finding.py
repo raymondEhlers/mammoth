@@ -13,8 +13,8 @@ import numpy as np
 import numpy.typing as npt
 import vector
 
-import mammoth._ext
-from mammoth._ext import (  # noqa: F401
+import mammoth_cpp._ext
+from mammoth_cpp._ext import (  # noqa: F401
     AreaSettings,
     # TODO: This will clobber the user_index (eg. hole information from JETSCAPE)!
     #       Need to carefully think through all of this labeling. I guess I may need a map from some index to other properties?
@@ -607,7 +607,7 @@ def find_jets(
         sum_counts[:-1], sum_counts[1:], background_sum_counts[:-1], background_sum_counts[1:]
     ):
         # Run the actual jet finding.
-        res = mammoth._ext.find_jets(
+        res = mammoth_cpp._ext.find_jets(
             px=px[lower:upper],
             py=py[lower:upper],
             pz=pz[lower:upper],
@@ -805,7 +805,7 @@ def recluster_jets(
         jets_splittings = _splittings_output()
         jets_subjets = _subjets_output()
         for lower, upper in zip(starts, stops):
-            res = mammoth._ext.recluster_jet(
+            res = mammoth_cpp._ext.recluster_jet(
                 px=px[lower:upper],
                 py=py[lower:upper],
                 pz=pz[lower:upper],

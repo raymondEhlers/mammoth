@@ -606,7 +606,7 @@ def hardest_kt_embedding_skim(  # noqa: C901
 if __name__ == "__main__":
     helpers.setup_logging(level=logging.INFO)
     # logging.getLogger("mammoth.framework.jet_finding").setLevel(logging.INFO)
-    # logging.getLogger("mammoth._ext").setLevel(logging.DEBUG)
+    # logging.getLogger("mammoth_cpp._ext").setLevel(logging.DEBUG)
 
     _min_jet_pt = {
         "pp": {"data": 5.0},
