@@ -14,25 +14,13 @@ requires-python = ">=3.8"
 authors = [
   { name = "Raymond Ehlers", email = "raymond.ehlers@cern.ch" },
 ]
-dynamic = ["optional-dependencies", "version"]
-include = [
-    "mammoth/py.typed",
-]
+# For hatch, need to remove the dependencies references here
+dynamic = ["dependencies", "optional-dependencies", "version"]
 dependencies = [
-    # General
-    #"mammoth_cpp >=0.1",
-    # For pdm
-    "file:///${PROJECT_ROOT}/mammoth-cpp#egg=mammoth-cpp",
-    # For hatch
-    #"mammoth_cpp @ file://{root:uri}/mammoth-cpp",
     "awkward >=1.7",
     "uproot >=4.2",
     "numpy >=1.21",
     "pyarrow >=4",
-    # pachyderm
-    # For pdm, it's in the dev dependencies since we want it to be editable.
-    # For hatch, we can install it locally (but not editable) with:
-    #"pachyderm @ file://{root:uri}/external/pachyderm",
     "pandas >=1.3",
     "particle >=0.15.1",
     "numba >=0.56.0",
@@ -42,14 +30,23 @@ dependencies = [
     "parsl[monitoring] @ git+https://github.com/Parsl/parsl.git@6d1f9160d487b3265f6e9d65ebb357837a437c30",
     # NOTE: Need the most recent version to avoid a python version cap. Once 13.0 is released, move to that.
     "rich @ git+https://github.com/Textualize/rich.git@4001aa91790c5faf46d9fbca35d335d76de52376",
-    "ninja >=1.10",
+    # My packages last:
+    # - mammoth_cpp
+    # For general:
+    #"mammoth_cpp >=0.1",
+    # For pdm:
+    "mammoth_cpp @ file:///${PROJECT_ROOT}/mammoth-cpp",
+    # For hatch:
+    #"mammoth_cpp @ file://{root:uri}/mammoth-cpp",
+    # pachyderm
+    # For pdm: it's in the dev dependencies since we want it to be editable.
+    # For hatch: we can install it locally (but not editable) with:
+    #"pachyderm @ file://{root:uri}/external/pachyderm",
 ]
 
 # NOTE: If moving to hatch, move this to "[project.optional-dependencies]"
 [tool.pdm.dev-dependencies]
 dev = [
-    # pdm requires editable dependencies to be in the dev dependencies
-    "-e file:///${PROJECT_ROOT}/external/pachyderm#egg=pachyderm",
     "flake8 >=3.8.3",
     "black >=22.1.0",
     "mypy >=0.931",
@@ -58,15 +55,24 @@ dev = [
     "flake8-colors >=0.1.9",
     "ipykernel >=6.15.1",
     "pytest-sugar >=0.9.5",
+    # pachyderm
+    # pdm requires editable dependencies to be in the dev dependencies
+    "-e file:///${PROJECT_ROOT}/external/pachyderm#egg=pachyderm",
 ]
 
 [tool.hatch]
-# TODO:
+# TODO: move to src
 #version.path = "src/mammoth/__init__.py"
 version.path = "mammoth/__init__.py"
+build.include = [
+    "mammoth/py.typed",
+]
 
 [tool.pdm]
 version = { source = "file", path = "mammoth/__init__.py" }
+include = [
+    "mammoth/py.typed",
+]
 
 [tool.mypy]
 files = "src"
