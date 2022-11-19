@@ -101,7 +101,7 @@ target_include_directories(_ext PUBLIC mammoth)
 
 # Copy the fastjet libraries to the mammoth install dir (ie. mammoth-cpp/fastjet)
 add_custom_command(TARGET _ext POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy_directory "${FastJet_LIB_DIRS}/../.." ${MAMMOTH_CPP_LIB_PATH}
+    COMMAND ${CMAKE_COMMAND} -E copy_directory "${FastJet_LIB_DIRS}/../.." "${CMAKE_SOURCE_DIR}/src/${SKBUILD_PROJECT_NAME}"
 )
 # NOTE: This doesn't work because the files aren't copied until later in the build. It's a nice idea, but
 #       it needs some more thought on how to do it.
