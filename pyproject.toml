@@ -61,17 +61,15 @@ dev = [
 ]
 
 [tool.hatch]
-# TODO: move to src
-#version.path = "src/mammoth/__init__.py"
-version.path = "mammoth/__init__.py"
+version.path = "src/mammoth/__init__.py"
 build.include = [
-    "mammoth/py.typed",
+    "src/mammoth/py.typed",
 ]
 
 [tool.pdm]
-version = { source = "file", path = "mammoth/__init__.py" }
+version = { source = "file", path = "src/mammoth/__init__.py" }
 include = [
-    "mammoth/py.typed",
+    "src/mammoth/py.typed",
 ]
 
 [tool.mypy]
