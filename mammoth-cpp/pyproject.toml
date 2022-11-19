@@ -14,3 +14,5 @@ authors = [{name ="Raymond Ehlers", email = "raymond.ehlers@gmail.com"}]
 license = {text = "BSD-3-Clause"}
 dependencies = []
 
+[tool.scikit-build]
+sdist.include = ["src/mammoth_cpp/fastjet"]

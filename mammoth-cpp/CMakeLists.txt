@@ -1,7 +1,12 @@
 cmake_minimum_required(VERSION 3.15..3.24)
 project("${SKBUILD_PROJECT_NAME}" LANGUAGES CXX VERSION "${SKBUILD_PROJECT_VERSION}")
 
+##########################
+# Step 1: Project settings
+##########################
+
 # Ensure c++17
+# Selected 17 because we use std::optional
 # We specify this down below with an apparently preferred way (see: https://cliutils.gitlab.io/modern-cmake/chapters/features/cpp11.html)
 # However, as of September 2022, this different way doesn't always seem to work as expected (maybe), so I keep these
 # options enabled here, since they do always seem to work. If I made this into a proper library, this would be an issue
@@ -18,11 +23,6 @@ if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
   # Let's nicely support folders in IDE's
   set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
-  # Use RPath on Mac OS.
-  # Commented out as of September 2022. It maybe causes issues with newer macOS versions (I seem memory corruption with an unclear cause
-  # since it doesn't appear on linux). If it comes back, or RPATH appears to be required, check out using an address sanitizer.
-  # See: https://stackoverflow.com/questions/44320465/whats-the-proper-way-to-enable-addresssanitizer-in-cmake-that-works-in-xcode
-  #set(CMAKE_MACOSX_RPATH 1)
 endif()
 
 # Some rpath defaults taken from awkward-cpp.
@@ -33,10 +33,10 @@ else()
   set(CMAKE_BUILD_RPATH_USE_ORIGIN TRUE)
 endif()
 
-# Path to additional modules
+# Path to additional cmake modules
 set(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake")
 
-# Let the user know
+# Let the user know the build type
 message(STATUS "Build type: ${CMAKE_BUILD_TYPE}")
 
 # NOTE: If we need to enable address sanitization
@@ -44,27 +44,30 @@ message(STATUS "Build type: ${CMAKE_BUILD_TYPE}")
 #add_link_options(-fno-omit-frame-pointer -fsanitize=address)
 
 ##########################
-# Step 1: Build libmammoth
+# Step 2: Build libmammoth
 ##########################
+# This contains c++ functionality, not including the python bindings
 
 # Require fastjet
 find_package(FastJet)
 if(NOT FastJet_FOUND)
     # Install using our install script if it's not already installed.
+    # NOTE: As of Nov 2022, this doesn't seem to pick up the right compiler on macOS.
+    #       But it's easy enough to build, so good enough for now
     execute_process(COMMAND ${CMAKE_SOURCE_DIR}/external/install_fastjet.sh)
-    # Now it must be there
+    # Now it must be there - find it.
     find_package(FastJet REQUIRED)
 endif()
 
 # Setup libmammoth, which includes jet finding functionality.
-# c++17 is required for std::optional
 file(GLOB MAMMOTH_SOURCES "src/libmammoth/*.cxx")
 add_library(mammoth SHARED ${MAMMOTH_SOURCES})
+# Set c++17 explicitly, but don't use compiler extensions
 target_compile_features(mammoth PUBLIC cxx_std_17)
+set_target_properties(mammoth PROPERTIES CXX_EXTENSIONS OFF)
 # Add version info
 target_compile_definitions(mammoth
                            PRIVATE VERSION_INFO=${PROJECT_VERSION})
-set_target_properties(mammoth PROPERTIES CXX_EXTENSIONS OFF)
 # Add warnings
 target_compile_options(mammoth PRIVATE -Wall -Wextra -pedantic -Werror)
 # Setup linking and includes
@@ -78,16 +81,19 @@ install(TARGETS mammoth DESTINATION ${SKBUILD_PROJECT_NAME})
 # Step 2: Onto the Python part
 ##############################
 
-# pybind11 from PyPI via scikit-build-core
-# NOTE: This seems to define PYTHON_SITE_PACKAGES
+# pybind11 from PyPI, which we require in the build dependencies.
+# NOTE: pybind11 seems to be the package that defines PYTHON_SITE_PACKAGES
 find_package(pybind11 CONFIG REQUIRED)
 
-set(MAMMOTH_CPP_LIB_PATH "${PYTHON_SITE_PACKAGES}/${SKBUILD_PROJECT_NAME}")
-message(STATUS "Installing to: ${MAMMOTH_CPP_LIB_PATH}")
+# If we need to mammoth-cpp site-packages directory, it's available here.
+# We don't for now, but we leave it here for our notes, because this wasn't so easy to find the first time.
+#set(MAMMOTH_CPP_LIB_PATH "${PYTHON_SITE_PACKAGES}/${SKBUILD_PROJECT_NAME}")
+#message(STATUS "Installing to: ${MAMMOTH_CPP_LIB_PATH}")
 
 # Create the pybind11 bindings
 file(GLOB MAMMOTH_EXT_SOURCES "src/python/*.cxx")
 pybind11_add_module(_ext ${MAMMOTH_EXT_SOURCES})
+# Set c++17 explicitly, but don't use compiler extensions
 target_compile_features(_ext PUBLIC cxx_std_17)
 set_target_properties(_ext PROPERTIES CXX_EXTENSIONS OFF)
 # Add version info
@@ -99,19 +105,19 @@ target_compile_options(_ext PRIVATE -Wall -Wextra -pedantic -Werror)
 target_link_libraries(_ext PUBLIC mammoth)
 target_include_directories(_ext PUBLIC mammoth)
 
-# Copy the fastjet libraries to the mammoth install dir (ie. mammoth-cpp/fastjet)
 add_custom_command(TARGET _ext POST_BUILD
+    # Copy the fastjet libraries to the mammoth install dir (ie. mammoth-cpp/fastjet)
+    # By doing so, we can add it via the sdist inclusion, and then pip will manage it in site-packages.
+    # After all of these steps, fj libs should always be accessible for our libraries.
     COMMAND ${CMAKE_COMMAND} -E copy_directory "${FastJet_LIB_DIRS}/../.." "${CMAKE_SOURCE_DIR}/src/${SKBUILD_PROJECT_NAME}"
+    # Address the fact that fastjet-config unfortunately provides the wrong path (providing where it was actually built
+    # rather than the new location), so we update the script.
+    # NOTE: We don't yet provide access to this script, and it apparently isn't marked as executable.
+    #       If we want to provide access, we should provide an entry point that wraps this script.
+    #       As of November 2022, this isn't a high priority, so we leave it as is
+    COMMAND bash -c "${CMAKE_SOURCE_DIR}/external/repair_fastjet_config_path.sh ${CMAKE_SOURCE_DIR}/src/${SKBUILD_PROJECT_NAME}/fastjet/bin/fastjet-config"
 )
-# NOTE: This doesn't work because the files aren't copied until later in the build. It's a nice idea, but
-#       it needs some more thought on how to do it.
-## And update the fastjet-config file so that it points to valid paths.
-#file(READ ${MAMMOTH_CPP_MAMMOTH_CPP_LIB_PATH}/fastjet/bin/fastjet-config filedata)
-#string(REGEX REPLACE "^prefix\=.+$" "prefix=${MAMMOTH_CPP_LIB_PATH}/fastjet\n" filedata "${filedata}")
-## As far as I can tell, it always appears to be the same as prefix, so we assume it is here.
-#string(REGEX REPLACE "^installationdir\=.+$" "installationdir=${MAMMOTH_CPP_LIB_PATH}/fastjet\n" filedata "${filedata}")
-#file(WRITE ${MAMMOTH_CPP_LIB_PATH}/fastjet/bin/fastjet-config "${filedata}")
 
-# And finally install
+# And finally install the bindings
 install(TARGETS _ext DESTINATION ${SKBUILD_PROJECT_NAME})
 
