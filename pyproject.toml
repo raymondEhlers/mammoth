@@ -38,7 +38,7 @@ dependencies = [
     "mammoth_cpp @ file:///${PROJECT_ROOT}/mammoth-cpp",
     # For hatch:
     #"mammoth_cpp @ file://{root:uri}/mammoth-cpp",
-    # pachyderm
+    # - pachyderm
     # For pdm: it's in the dev dependencies since we want it to be editable, but we can
     # copy it twice, see here: https://github.com/pdm-project/pdm/discussions/1479
     "pachyderm >= 3.0",
