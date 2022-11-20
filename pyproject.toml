@@ -54,7 +54,6 @@ dev = [
     "mypy >=0.931",
     "ipython >=8.0",
     "pytest >=6.2.4",
-    "flake8-colors >=0.1.9",
     "ipykernel >=6.15.1",
     "pytest-sugar >=0.9.5",
     # Included so we can grab the headers for vscode (also so that we can build in the env if we want)
