@@ -14,18 +14,43 @@ from mammoth.framework import production
 @attr.define
 class Dependency:
     name: str
-    tasks: List[str]
+    tasks: Sequence[str]
     depends_on_ROOT: bool
 
 
+def _validate_productions_and_tasks_to_run(
+    productions: Optional[Sequence[production.ProductionSettings]] = None,
+    tasks_to_run: Optional[Sequence[Sequence[str]]] = None,
+) -> List[List[str]]:
+    if productions is None and tasks_to_run is None:
+        raise ValueError("Need to provide either productions or tasks to run.")
+    if tasks_to_run is not None:
+        _tasks_to_run = [
+            list(tasks)
+            for tasks in tasks_to_run
+        ]
+    else:
+        _tasks_to_run = []
+    if productions is not None:
+        _tasks_to_run.extend(
+            [
+                list(prod.tasks_to_execute)
+                for prod in productions
+            ]
+        )
+    return _tasks_to_run
+
+
 def determine_additional_worker_init_alibuild(
-    productions: Sequence[production.ProductionSettings],
+    productions: Optional[Sequence[production.ProductionSettings]] = None,
+    tasks_to_run: Optional[Sequence[Sequence[str]]] = None,
     tasks_requiring_root: Optional[Sequence[str]] = None,
     tasks_requiring_aliphysics: Optional[Sequence[str]] = None,
     tasks_requiring_roounfold: Optional[Sequence[str]] = None,
     software_version_tag: str = "latest",
 ) -> str:
     # Validation
+    tasks_to_run = _validate_productions_and_tasks_to_run(productions=productions, tasks_to_run=tasks_to_run)
     if tasks_requiring_root is None:
         tasks_requiring_root = []
     if tasks_requiring_aliphysics is None:
@@ -33,7 +58,7 @@ def determine_additional_worker_init_alibuild(
     if tasks_requiring_roounfold is None:
         tasks_requiring_roounfold = []
 
-    _software_to_load = []
+    _software_to_load: List[str] = []
     _additional_worker_init_script = ""
     _software_options = {
         # NOTE: It's important that ROOT is handled first so that we can remove it later if we need to do so. See below.
@@ -46,8 +71,8 @@ def determine_additional_worker_init_alibuild(
         if any(
             (
                 task in tasks_requiring_root
-                for prod in productions
-                for task in prod.tasks_to_execute
+                for tasks in tasks_to_run
+                for task in tasks
             )
         ):
             if _software.depends_on_ROOT:
@@ -68,13 +93,15 @@ def determine_additional_worker_init_alibuild(
 
 
 def determine_additional_worker_init_conda(
-    productions: Sequence[production.ProductionSettings],
     environment_name: str,
+    productions: Optional[Sequence[production.ProductionSettings]] = None,
+    tasks_to_run: Optional[Sequence[Sequence[str]]] = None,
     tasks_requiring_root: Optional[Sequence[str]] = None,
     tasks_requiring_aliphysics: Optional[Sequence[str]] = None,
     tasks_requiring_roounfold: Optional[Sequence[str]] = None,
 ) -> str:
     # Validation
+    tasks_to_run = _validate_productions_and_tasks_to_run(productions=productions, tasks_to_run=tasks_to_run)
     if tasks_requiring_root is None:
         tasks_requiring_root = []
     if tasks_requiring_aliphysics is None:
@@ -90,8 +117,8 @@ def determine_additional_worker_init_conda(
     if any(
         (
             task in tasks_requiring_root
-            for prod in productions
-            for task in prod.tasks_to_execute
+            for tasks in tasks_to_run
+            for task in tasks
         )
     ):
         # Nothing to be done here - just note that it needs to be done
@@ -99,8 +126,8 @@ def determine_additional_worker_init_conda(
     if any(
         (
             task in tasks_requiring_aliphysics
-            for prod in productions
-            for task in prod.tasks_to_execute
+            for tasks in tasks_to_run
+            for task in tasks
         )
     ):
         # Additional validation
@@ -109,8 +136,8 @@ def determine_additional_worker_init_conda(
     if any(
         (
             task in tasks_requiring_roounfold
-            for prod in productions
-            for task in prod.tasks_to_execute
+            for tasks in tasks_to_run
+            for task in tasks
         )
     ):
         _load_conda_env = True
