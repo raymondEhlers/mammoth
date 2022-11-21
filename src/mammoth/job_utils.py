@@ -153,7 +153,7 @@ _facilities_configs = {
         #node_work_dir=Path("/tmp/parsl/$USER"),
         #storage_work_dir=Path("/alf/data/rehlers/jetscape/work_dir"),
         # Excluded due to focal simulations
-        machines_to_exclude=["pc068"] if queue == "long" else [],
+        nodes_to_exclude=["pc068"] if queue == "long" else [],
     ) for queue in ["short", "long", "loginOnly", "vip"]
 }
 _facilities_configs["rehlers_mbp_m1pro"] = Facility(
@@ -391,7 +391,7 @@ def _define_config(
                     account=facility.allocation_account,
                     # string to prepend to #SBATCH blocks in the submit
                     # Can add additional options directly to scheduler.
-                    scheduler_options=f"#SBATCH --exclude={','.join(facility.machines_to_exclude)}" if facility.machines_to_exclude else "",
+                    scheduler_options=f"#SBATCH --exclude={','.join(facility.nodes_to_exclude)}" if facility.nodes_to_exclude else "",
                     # Command to be run before starting a worker, such as:
                     # 'module load Anaconda; source activate parsl_env'.
                     worker_init=f"{facility.worker_init_script}; {additional_worker_init_script}" if facility.worker_init_script else additional_worker_init_script,
