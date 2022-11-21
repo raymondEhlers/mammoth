@@ -111,7 +111,7 @@ def eta_range(
     return float(eta_min), float(eta_max)
 
 
-@nb.njit  # type: ignore
+@nb.njit  # type: ignore[misc]
 def _shared_momentum_fraction_for_flat_array_implementation(
     generator_like_jet_pts: ak.Array,
     generator_like_jet_constituents: ak.Array,
@@ -208,7 +208,7 @@ def shared_momentum_fraction_for_flat_array(
             f"Number of jets mismatch: generator: {len(generator_like_jet_constituents)} measured: {len(measured_like_jet_constituents)}"
         )
 
-    return _shared_momentum_fraction_for_flat_array_implementation(  # type: ignore
+    return _shared_momentum_fraction_for_flat_array_implementation(  # type: ignore[no-any-return]
         generator_like_jet_pts=generator_like_jet_pts,
         generator_like_jet_constituents=generator_like_jet_constituents,
         generator_like_jet_constituent_indices=generator_like_jet_constituents.index,
@@ -218,7 +218,7 @@ def shared_momentum_fraction_for_flat_array(
     )
 
 
-@nb.njit  # type: ignore
+@nb.njit  # type: ignore[misc]
 def _jet_matching_geometrical_impl(
     jets_first: ak.Array, jets_second: ak.Array, n_jets_first: int, max_matching_distance: float
 ) -> npt.NDArray[np.int64]:
@@ -265,7 +265,7 @@ def _jet_matching_geometrical_impl(
     return matching_indices
 
 
-@nb.njit  # type: ignore
+@nb.njit  # type: ignore[misc]
 def _jet_matching(
     jets_base: ak.Array, jets_tag: ak.Array, max_matching_distance: float
 ) -> Tuple[npt.NDArray[np.int64], npt.NDArray[np.int64]]:
@@ -378,7 +378,7 @@ def jet_matching_geometrical(jets_base: ak.Array, jets_tag: ak.Array, max_matchi
     return base_to_tag_matching, tag_to_base_matching
 
 
-@nb.njit  # type: ignore
+@nb.njit  # type: ignore[misc]
 def _calculate_unsubtracted_constituent_max_pt(
     input_arrays: ak.Array,
     input_arrays_indices: ak.Array,
