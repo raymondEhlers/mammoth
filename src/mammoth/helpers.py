@@ -84,6 +84,7 @@ class RichModuleNameHandler(RichHandler):
         )
         return log_renderable
 
+
 def progress_bar() -> rich.progress.Progress:
     """Define rich progress bar with my preferred parameters"""
     return rich.progress.Progress(
@@ -147,7 +148,7 @@ def setup_logging_and_parsl(
     for message in stored_messages:
         message.log()
 
-    return dfk  # type: ignore
+    return dfk  # type: ignore[no-any-return]
 
 
 def setup_logging(
@@ -197,6 +198,7 @@ def setup_logging(
 
     return True
 
+
 def write_hists_to_file(hists: Mapping[Any, Any], f: BinaryIO, prefix: str = "") -> bool:
     """Recursively write histograms to a given file.
 
@@ -214,6 +216,6 @@ def write_hists_to_file(hists: Mapping[Any, Any], f: BinaryIO, prefix: str = "")
             write_hists_to_file(hists=v, f=f, prefix=f"{prefix}_{k}")
         else:
             write_name = str(k) if not prefix else f"{prefix}_{k}"
-            f[write_name] = v  # type: ignore
+            f[write_name] = v  # type: ignore[index]
 
     return True

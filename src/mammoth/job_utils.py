@@ -469,7 +469,7 @@ def _define_local_config(
                 address=address_by_hostname(),
                 cores_per_worker=task_config.n_cores_per_task,
                 working_dir=str(facility.node_work_dir),
-                provider=LocalProvider(  # type: ignore
+                provider=LocalProvider(  # type: ignore[no-untyped-call]
                     # One block is one node.
                     nodes_per_block=1,
                     # We want n_blocks initially because we will have work for everything immediately.

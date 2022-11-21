@@ -1079,7 +1079,7 @@ def run() -> None:  # noqa: C901
     if debug_mode:
         # NOTE: The typing is wrong here because we disable parsl for the debugging,
         #       which means that we don't return futures, but rather the return values directly
-        logger.warning(all_results[0][1])  # type: ignore
+        logger.warning(all_results[0][1])  # type: ignore[index]
         return
 
     # Process the futures, showing processing progress
