@@ -481,9 +481,8 @@ def _define_local_config(
                     #       We need at least one block, so if set to just one core, n-1 would break.
                     #       Consequently, we require at least one initial block.
                     #init_blocks=max(n_cores - 1, 1),
-                    worker_init=f"{facility.worker_init_script}; {additional_worker_init_script}",
+                    worker_init=f"{facility.worker_init_script}; {additional_worker_init_script}" if facility.worker_init_script else additional_worker_init_script,
                     launcher=facility.launcher(),
-                    walltime=walltime,
                 ),
             )
         ],
