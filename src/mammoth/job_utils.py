@@ -240,7 +240,7 @@ def config(
     _facility.storage_work_dir.mkdir(parents=True, exist_ok=True)
 
     # Further validation
-    if "test_local" in facility:
+    if _facility.partition_name == "INVALID" or "test_local" in facility:
         # We need to treat the case of the local facility differently because
         # the provide is different (ie. it's not slurm).
         return _define_local_config(
