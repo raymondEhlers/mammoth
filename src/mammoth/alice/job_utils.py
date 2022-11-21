@@ -149,8 +149,9 @@ def determine_additional_worker_init_conda(
 
     # If there is anything to load, add the initialization
     if _load_conda_env or _software_to_load:
-        _additional_worker_init_script = (
-            f"mamba activate {environment_name}" + "; ".join(_software_to_load)
-        )
+        # Load mamba env via our software list. It needs to go first, since we depend on it for
+        # loading the rest of the software
+        _software_to_load.insert(0, f"mamba activate {environment_name}")
+        _additional_worker_init_script = "; ".join(_software_to_load)
 
     return _additional_worker_init_script
