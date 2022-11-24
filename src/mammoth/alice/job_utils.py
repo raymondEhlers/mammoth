@@ -144,12 +144,12 @@ def determine_additional_worker_init_conda(
         # Assume that we're using a local install of mammoth. As of Nov 2022, I don't forsee any case
         # where I won't do this so I think this is a reasonable assumption.
         _here = Path(__file__).parent
-        _software_to_load.append(f"source {_here.parent.parent / 'external' / 'setup_roounfold.sh'}")
+        _software_to_load.append(f"source {_here.parent.parent.parent / 'external' / 'setup_roounfold.sh'}")
     # fmt: on
 
     # If there is anything to load, add the initialization
     if _load_conda_env or _software_to_load:
-        # Load mamba env via our software list. It needs to go first, since we depend on it for
+        # Load conda env via our software list. It needs to go first, since we depend on it for
         # loading the rest of the software
         _software_to_load.insert(0, f"mamba activate {environment_name}")
         _additional_worker_init_script = "; ".join(_software_to_load)
