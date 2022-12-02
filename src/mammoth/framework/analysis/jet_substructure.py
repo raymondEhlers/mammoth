@@ -392,52 +392,144 @@ class JetSplittingArray(ak.Array, JetSplittingCommon):  # type: ignore[misc]
         return cast(SubjetArray, self[subjets.iterative_splitting_index])
 
     def dynamical_core(
-        self, R: float
+        self, R: float, z_cutoff: float | None = None
     ) -> Tuple[npt.NDArray[Scalar], AwkwardArray[int], AwkwardArray[AwkwardArray[int]]]:
         """Dynamical core of the jet splittings.
 
+        Note:
+            z_g is filled with the `UNFILLED_VALUE` if a splitting wasn't selected. In that case, there is
+            no index (ie. an empty JaggedArray entry), and n_sd = 0.
+
+        Note:
+            n_sd can be calculated by using `count_nonzero()` on the indices which pass the cutoff.
+
         Args:
             R: Jet resolution parameter.
+            z_cutoff: Minimum z for considering splittings. Default: None.
         Returns:
             Leading dynamical core values, leading dynamical core indices, indices of all splittings.
         """
-        values, indices = find_leading(dynamical_core(self.delta_R, self.z, self.parent_pt, R))
-        return values, indices, ak.local_index(self.z, axis=-1)
+        if z_cutoff is None:
+            values, indices = find_leading(dynamical_core(self.delta_R, self.z, self.parent_pt, R))
+            return values, indices, ak.local_index(self.z, axis=-1)
+        else:
+            z_cutoff_mask = self.z > z_cutoff
+            indices_passing_cutoff = ak.local_index(self.z, axis=-1)[z_cutoff_mask]
 
-    def dynamical_z(self, R: float) -> Tuple[npt.NDArray[Scalar], AwkwardArray[int], AwkwardArray[AwkwardArray[int]]]:
+            values, indices = find_leading(
+                dynamical_core(
+                    self.delta_R[indices_passing_cutoff],
+                    self.z[indices_passing_cutoff],
+                    self.parent_pt[indices_passing_cutoff],  # type: ignore[index]
+                    R
+                )
+            )
+            return values, indices_passing_cutoff[indices], indices_passing_cutoff
+
+    def dynamical_z(
+        self, R: float, z_cutoff: float | None = None
+    ) -> Tuple[npt.NDArray[Scalar], AwkwardArray[int], AwkwardArray[AwkwardArray[int]]]:
         """Dynamical z of the jet splittings.
+
+        Note:
+            z_g is filled with the `UNFILLED_VALUE` if a splitting wasn't selected. In that case, there is
+            no index (ie. an empty JaggedArray entry), and n_sd = 0.
+
+        Note:
+            n_sd can be calculated by using `count_nonzero()` on the indices which pass the cutoff.
 
         Args:
             R: Jet resolution parameter.
+            z_cutoff: Minimum z for considering splittings. Default: None.
         Returns:
             Leading dynamical z values, leading dynamical z indices, indices of all splittings.
         """
-        values, indices = find_leading(dynamical_z(self.delta_R, self.z, self.parent_pt, R))
-        return values, indices, ak.local_index(self.z, axis=-1)
+        if z_cutoff is None:
+            values, indices = find_leading(dynamical_z(self.delta_R, self.z, self.parent_pt, R))
+            return values, indices, ak.local_index(self.z, axis=-1)
+        else:
+            z_cutoff_mask = self.z > z_cutoff
+            indices_passing_cutoff = ak.local_index(self.z, axis=-1)[z_cutoff_mask]
 
-    def dynamical_kt(self, R: float) -> Tuple[npt.NDArray[Scalar], AwkwardArray[int], AwkwardArray[AwkwardArray[int]]]:
+            values, indices = find_leading(
+                dynamical_z(
+                    self.delta_R[indices_passing_cutoff],
+                    self.z[indices_passing_cutoff],
+                    self.parent_pt[indices_passing_cutoff],  # type: ignore[index]
+                    R
+                )
+            )
+            return values, indices_passing_cutoff[indices], indices_passing_cutoff
+
+    def dynamical_kt(
+        self, R: float, z_cutoff: float | None = None
+    ) -> Tuple[npt.NDArray[Scalar], AwkwardArray[int], AwkwardArray[AwkwardArray[int]]]:
         """Dynamical kt of the jet splittings.
+
+        Note:
+            z_g is filled with the `UNFILLED_VALUE` if a splitting wasn't selected. In that case, there is
+            no index (ie. an empty JaggedArray entry), and n_sd = 0.
+
+        Note:
+            n_sd can be calculated by using `count_nonzero()` on the indices which pass the cutoff.
 
         Args:
             R: Jet resolution parameter.
+            z_cutoff: Minimum z for considering splittings. Default: None.
         Returns:
             Leading dynamical kt values, leading dynamical kt indices, indices of all splittings.
         """
-        values, indices = find_leading(dynamical_kt(self.delta_R, self.z, self.parent_pt, R))
-        return values, indices, ak.local_index(self.z, axis=-1)
+        if z_cutoff is None:
+            values, indices = find_leading(dynamical_kt(self.delta_R, self.z, self.parent_pt, R))
+            return values, indices, ak.local_index(self.z, axis=-1)
+        else:
+            z_cutoff_mask = self.z > z_cutoff
+            indices_passing_cutoff = ak.local_index(self.z, axis=-1)[z_cutoff_mask]
+
+            values, indices = find_leading(
+                dynamical_kt(
+                    self.delta_R[indices_passing_cutoff],
+                    self.z[indices_passing_cutoff],
+                    self.parent_pt[indices_passing_cutoff],  # type: ignore[index]
+                    R
+                )
+            )
+            return values, indices_passing_cutoff[indices], indices_passing_cutoff
 
     def dynamical_time(
-        self, R: float
+        self, R: float, z_cutoff: float | None = None
     ) -> Tuple[npt.NDArray[Scalar], AwkwardArray[int], AwkwardArray[AwkwardArray[int]]]:
         """Dynamical time of the jet splittings.
 
+        Note:
+            z_g is filled with the `UNFILLED_VALUE` if a splitting wasn't selected. In that case, there is
+            no index (ie. an empty JaggedArray entry), and n_sd = 0.
+
+        Note:
+            n_sd can be calculated by using `count_nonzero()` on the indices which pass the cutoff.
+
         Args:
             R: Jet resolution parameter.
+            z_cutoff: Minimum z for considering splittings. Default: None.
         Returns:
             Leading dynamical time values, leading dynamical time indices, indices of all splittings.
         """
-        values, indices = find_leading(dynamical_time(self.delta_R, self.z, self.parent_pt, R))
-        return values, indices, ak.local_index(self.z, axis=-1)
+        if z_cutoff is None:
+            values, indices = find_leading(dynamical_time(self.delta_R, self.z, self.parent_pt, R))
+            return values, indices, ak.local_index(self.z, axis=-1)
+        else:
+            z_cutoff_mask = self.z > z_cutoff
+            indices_passing_cutoff = ak.local_index(self.z, axis=-1)[z_cutoff_mask]
+
+            values, indices = find_leading(
+                dynamical_time(
+                    self.delta_R[indices_passing_cutoff],
+                    self.z[indices_passing_cutoff],
+                    self.parent_pt[indices_passing_cutoff],  # type: ignore[index]
+                    R
+                )
+            )
+            return values, indices_passing_cutoff[indices], indices_passing_cutoff
 
     def leading_kt(
         self, z_cutoff: Optional[float] = None
