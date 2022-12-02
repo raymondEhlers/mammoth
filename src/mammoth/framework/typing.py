@@ -60,40 +60,40 @@ class AwkwardArray(Collection[_T]):
     def __getitem__(self, key: int) -> _T:
         ...  # noqa: E704
 
-    def __getitem__(self, key):  # type: ignore
+    def __getitem__(self, key):  # type: ignore[no-untyped-def]
         ...  # noqa: E704
 
-    def __add__(self, other: Union[AwkwardArray[_T], int, float]) -> AwkwardArray[_T]:
+    def __add__(self, other: Union[AwkwardArray[_T], int, float]) -> AwkwardArray[_T]:  # type: ignore[empty-body]
         ...  # noqa: E704
 
-    def __radd__(self, other: Union[AwkwardArray[_T], int, float]) -> AwkwardArray[_T]:
+    def __radd__(self, other: Union[AwkwardArray[_T], int, float]) -> AwkwardArray[_T]:  # type: ignore[empty-body]
         ...  # noqa: E704
 
-    def __sub__(self, other: Union[AwkwardArray[_T], int, float]) -> AwkwardArray[_T]:
+    def __sub__(self, other: Union[AwkwardArray[_T], int, float]) -> AwkwardArray[_T]:  # type: ignore[empty-body]
         ...  # noqa: E704
 
-    def __rsub__(self, other: Union[AwkwardArray[_T], int, float]) -> AwkwardArray[_T]:
+    def __rsub__(self, other: Union[AwkwardArray[_T], int, float]) -> AwkwardArray[_T]:  # type: ignore[empty-body]
         ...  # noqa: E704
 
-    def __mul__(self, other: Union[AwkwardArray[_T], int, float]) -> AwkwardArray[_T]:
+    def __mul__(self, other: Union[AwkwardArray[_T], int, float]) -> AwkwardArray[_T]:  # type: ignore[empty-body]
         ...  # noqa: E704
 
-    def __rmul__(self, other: Union[AwkwardArray[_T], int, float]) -> AwkwardArray[_T]:
+    def __rmul__(self, other: Union[AwkwardArray[_T], int, float]) -> AwkwardArray[_T]:  # type: ignore[empty-body]
         ...  # noqa: E704
 
-    def __truediv__(self, other: Union[AwkwardArray[_T], float]) -> AwkwardArray[_T]:
+    def __truediv__(self, other: Union[AwkwardArray[_T], float]) -> AwkwardArray[_T]:  # type: ignore[empty-body]
         ...  # noqa: E704
 
-    def __lt__(self, other: Union[AwkwardArray[_T], float]) -> AwkwardArray[bool]:
+    def __lt__(self, other: Union[AwkwardArray[_T], float]) -> AwkwardArray[bool]:  # type: ignore[empty-body]
         ...  # noqa: E704
 
-    def __le__(self, other: Union[AwkwardArray[_T], float]) -> AwkwardArray[bool]:
+    def __le__(self, other: Union[AwkwardArray[_T], float]) -> AwkwardArray[bool]:  # type: ignore[empty-body]
         ...  # noqa: E704
 
-    def __gt__(self, other: Union[AwkwardArray[_T], float]) -> AwkwardArray[bool]:
+    def __gt__(self, other: Union[AwkwardArray[_T], float]) -> AwkwardArray[bool]:  # type: ignore[empty-body]
         ...  # noqa: E704
 
-    def __ge__(self, other: Union[AwkwardArray[_T], float]) -> AwkwardArray[bool]:
+    def __ge__(self, other: Union[AwkwardArray[_T], float]) -> AwkwardArray[bool]:  # type: ignore[empty-body]
         ...  # noqa: E704
 
 

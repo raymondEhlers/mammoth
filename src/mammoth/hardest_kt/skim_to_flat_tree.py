@@ -180,7 +180,7 @@ def _select_and_retrieve_splittings(
     return restricted_jets, restricted_splittings, restricted_splittings_indices
 
 
-@nb.njit  # type: ignore # noqa: C901
+@nb.njit  # type: ignore[misc]
 def _calculate_splitting_number(  # noqa: C901
     all_splittings: analysis_jet_substructure.JetSplittingArray,
     selected_splittings: analysis_jet_substructure.JetSplittingArray,
@@ -226,14 +226,14 @@ def _calculate_splitting_number(  # noqa: C901
                             print("Found parent index:", index)
                         output[i] += 1
                         # import IPython; IPython.embed()
-                        parent_index = available_splittings_parents[parent_index]  # type: ignore
+                        parent_index = available_splittings_parents[parent_index]  # type: ignore[index]
                         if debug:
                             print("New parent index:", parent_index)
                         # print("Breaking...")
                         break
                 else:
                     # We didn't find it, but we need to advance forward.
-                    parent_index = available_splittings_parents[parent_index]  # type: ignore
+                    parent_index = available_splittings_parents[parent_index]  # type: ignore[index]
 
             if debug:
                 print("output[i]", output[i])
@@ -259,7 +259,7 @@ def calculate_splitting_number(
     So nothing further is done for now. (I think it's convolved, but I'm not certain)
     """
     if ak.any(ak.num(selected_splittings.parent_index, axis=1) > 0):
-        return _calculate_splitting_number(  # type: ignore
+        return _calculate_splitting_number(  # type: ignore[no-any-return]
             all_splittings=all_splittings,
             selected_splittings=selected_splittings,
             restricted_splittings_indices=restricted_splittings_indices,
@@ -272,7 +272,7 @@ def calculate_splitting_number(
     return np.zeros(len(selected_splittings), dtype=np.int16)
 
 
-@nb.njit  # type: ignore
+@nb.njit  # type: ignore[misc]
 def _find_contributing_subjets(input_jet: ak.Array, groomed_index: int) -> List[analysis_jet_substructure.Subjet]:
     """Find subjets which contribute to a given grooming index.
 
@@ -290,7 +290,7 @@ def _find_contributing_subjets(input_jet: ak.Array, groomed_index: int) -> List[
     return [sj for sj in input_jet.subjets if sj.parent_splitting_index == groomed_index]
 
 
-@nb.njit  # type: ignore
+@nb.njit  # type: ignore[misc]
 def _sort_subjets(
     input_jet: ak.Array, input_subjets: List[analysis_jet_substructure.Subjet]
 ) -> Tuple[analysis_jet_substructure.Subjet, analysis_jet_substructure.Subjet]:
@@ -313,7 +313,7 @@ def _sort_subjets(
     return leading, subleading
 
 
-@nb.njit  # type: ignore
+@nb.njit  # type: ignore[misc]
 def _subjet_shared_momentum(
     generator_like_subjet: analysis_jet_substructure.Subjet,
     generator_like_jet: ak.Array,
@@ -345,7 +345,7 @@ def _subjet_shared_momentum(
     return sum_pt
 
 
-@nb.njit  # type: ignore
+@nb.njit  # type: ignore[misc]
 def _subjet_pt(subjet: analysis_jet_substructure.Subjet, jet: ak.Array) -> float:
     """Calculate subjet pt by hand.
 
@@ -361,10 +361,10 @@ def _subjet_pt(subjet: analysis_jet_substructure.Subjet, jet: ak.Array) -> float
         constituent = jet.jet_constituents[constituent_index]
         px += constituent.pt * np.cos(constituent.phi)
         py += constituent.pt * np.sin(constituent.phi)
-    return np.sqrt(px**2 + py**2)  # type: ignore
+    return np.sqrt(px**2 + py**2)  # type: ignore[no-any-return]
 
 
-@nb.njit  # type: ignore
+@nb.njit  # type: ignore[misc]
 def _subjet_contained_in_subjet(
     generator_like_subjet: analysis_jet_substructure.Subjet,
     generator_like_jet: ak.Array,
@@ -372,7 +372,7 @@ def _subjet_contained_in_subjet(
     measured_like_jet: ak.Array,
     match_using_distance: bool = False,
 ) -> bool:
-    return (  # type: ignore
+    return (  # type: ignore[no-any-return]
         _subjet_shared_momentum(
             generator_like_subjet=generator_like_subjet,
             generator_like_jet=generator_like_jet,
@@ -384,7 +384,7 @@ def _subjet_contained_in_subjet(
     ) > 0.5
 
 
-@nb.njit  # type: ignore
+@nb.njit  # type: ignore[misc]
 def determine_matched_jets_numba(
     generator_like_jets: ak.Array,
     generator_like_splittings: analysis_jet_substructure.JetSplittingArray,
@@ -558,7 +558,7 @@ def prong_matching_numba_wrapper(
     return grooming_results
 
 
-@nb.njit  # type: ignore
+@nb.njit  # type: ignore[misc]
 def _subjet_momentum_fraction_in_jet(
     generator_like_subjet: analysis_jet_substructure.Subjet,
     generator_like_jet: ak.Array,
@@ -591,10 +591,10 @@ def _subjet_momentum_fraction_in_jet(
             # Otherwise, the run the risk of summing a generator-like constituent pt twice.
             break
 
-    return sum_pt / _subjet_pt(generator_like_subjet, generator_like_jet)  # type: ignore
+    return sum_pt / _subjet_pt(generator_like_subjet, generator_like_jet)  # type: ignore[no-any-return]
 
 
-@nb.njit  # type: ignore
+@nb.njit  # type: ignore[misc]
 def generator_subjet_momentum_fraction_in_measured_jet_numba(
     generator_like_jets: ak.Array,
     generator_like_splittings: analysis_jet_substructure.JetSplittingArray,
@@ -720,9 +720,9 @@ def _calculate_jet_kinematics(
     """
     # jet_four_vec = jets.jet_constituents.four_vectors().sum()
     # Since vector isn't ready yet, just do this by hand...
-    px = ak.sum(constituents.pt * np.cos(constituents.phi), axis=1)  # type: ignore
-    py = ak.sum(constituents.pt * np.sin(constituents.phi), axis=1)  # type: ignore
-    pz = ak.sum(constituents.pt * np.sinh(constituents.eta), axis=1)  # type: ignore
+    px = ak.sum(constituents.pt * np.cos(constituents.phi), axis=1)  # type: ignore[call-overload]
+    py = ak.sum(constituents.pt * np.sin(constituents.phi), axis=1)  # type: ignore[call-overload]
+    pz = ak.sum(constituents.pt * np.sinh(constituents.eta), axis=1)  # type: ignore[call-overload]
     # Formulas just from inverting the above.
     eta = np.arcsinh(pz / np.sqrt(px**2 + py**2))
     phi = np.arctan2(py, px)

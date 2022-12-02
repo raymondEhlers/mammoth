@@ -48,7 +48,7 @@ def _dynamical_hardness_measure(delta_R: float, z: float, parent_pt: float, R: f
     ...
 
 
-def _dynamical_hardness_measure(delta_R, z, parent_pt, R, a):  # type: ignore
+def _dynamical_hardness_measure(delta_R, z, parent_pt, R, a):  # type: ignore[no-untyped-def]
     """Implements the dynamical hardness measure used in dynamical grooming.
 
     Args:
@@ -160,10 +160,10 @@ class JetConstituentCommon:
 
     def delta_R(self: _T_JetConstituent, other: _T_JetConstituent) -> ArrayOrScalar[float]:
         """Separation between jet constituents."""
-        return cast(ArrayOrScalar[float], np.sqrt((self.phi - other.phi) ** 2 + (self.eta - other.eta) ** 2))  # type: ignore
+        return cast(ArrayOrScalar[float], np.sqrt((self.phi - other.phi) ** 2 + (self.eta - other.eta) ** 2))  # type: ignore[operator]
 
 
-class JetConstituent(ak.Record, JetConstituentCommon):  # type: ignore
+class JetConstituent(ak.Record, JetConstituentCommon):  # type: ignore[misc]
     """A single jet constituent.
 
     Args:
@@ -182,7 +182,7 @@ class JetConstituent(ak.Record, JetConstituentCommon):  # type: ignore
         return vector.obj(pt=self.pt, eta=self.eta, phi=self.phi, mass=mass_hypothesis)
 
 
-class JetConstituentArray(ak.Array, JetConstituentCommon):  # type: ignore
+class JetConstituentArray(ak.Array, JetConstituentCommon):  # type: ignore[misc]
     """Methods for operating on jet constituents arrays.
 
     These methods operate on externally stored arrays. This is solely a mixin.
@@ -226,7 +226,7 @@ class SubjetCommon:
     def parent_splitting(self, splittings: JetSplittingArray) -> JetSplitting:
         ...
 
-    def parent_splitting(self, splittings):  # type: ignore
+    def parent_splitting(self, splittings):  # type: ignore[no-untyped-def]
         """Retrieve the parent splitting of this subjet.
 
         Args:
@@ -237,7 +237,7 @@ class SubjetCommon:
         return splittings[self.parent_splitting_index]
 
 
-class Subjet(ak.Record, SubjetCommon):  # type: ignore
+class Subjet(ak.Record, SubjetCommon):  # type: ignore[misc]
     """Single subjet."""
 
     part_of_iterative_splitting: bool
@@ -245,7 +245,7 @@ class Subjet(ak.Record, SubjetCommon):  # type: ignore
     constituents_indices: AwkwardArray[int]
 
 
-class SubjetArray(ak.Array, SubjetCommon):  # type: ignore
+class SubjetArray(ak.Array, SubjetCommon):  # type: ignore[misc]
     """Array of subjets."""
 
     part_of_iterative_splitting: AwkwardArray[bool]
@@ -285,7 +285,7 @@ class JetSplittingCommon:
             None.
         """
         # parent_pt = subleading / z = kt / sin(delta_R) / z
-        return cast(AwkwardArray[float], self.kt / np.sin(self.delta_R) / self.z)  # type: ignore
+        return cast(AwkwardArray[float], self.kt / np.sin(self.delta_R) / self.z)  # type: ignore[arg-type]
 
     def theta(self, jet_R: float) -> ArrayOrScalar[float]:
         """Theta of the splitting.
@@ -300,7 +300,7 @@ class JetSplittingCommon:
         return self.delta_R / jet_R
 
 
-class JetSplitting(ak.Record, JetSplittingCommon):  # type: ignore
+class JetSplitting(ak.Record, JetSplittingCommon):  # type: ignore[misc]
     """Single jet splitting."""
 
     kt: float
@@ -334,7 +334,7 @@ class JetSplitting(ak.Record, JetSplittingCommon):  # type: ignore
         Returns:
             Dynamical core of the splitting.
         """
-        return dynamical_core(self.delta_R, self.z, self.parent_pt, R)  # type: ignore
+        return dynamical_core(self.delta_R, self.z, self.parent_pt, R)  # type: ignore[return-value]
 
     def dynamical_z(self, R: float) -> float:
         """Dynamical z of the splitting.
@@ -346,7 +346,7 @@ class JetSplitting(ak.Record, JetSplittingCommon):  # type: ignore
         Returns:
             Dynamical z of the splitting.
         """
-        return dynamical_z(self.delta_R, self.z, self.parent_pt, R)  # type: ignore
+        return dynamical_z(self.delta_R, self.z, self.parent_pt, R)  # type: ignore[return-value]
 
     def dynamical_kt(self, R: float) -> float:
         """Dynamical kt of the splitting.
@@ -358,7 +358,7 @@ class JetSplitting(ak.Record, JetSplittingCommon):  # type: ignore
         Returns:
             Dynamical kt of the splitting.
         """
-        return dynamical_kt(self.delta_R, self.z, self.parent_pt, R)  # type: ignore
+        return dynamical_kt(self.delta_R, self.z, self.parent_pt, R)  # type: ignore[return-value]
 
     def dynamical_time(self, R: float) -> float:
         """Dynamical time of the splitting.
@@ -370,10 +370,10 @@ class JetSplitting(ak.Record, JetSplittingCommon):  # type: ignore
         Returns:
             Dynamical time of the splitting.
         """
-        return dynamical_time(self.delta_R, self.z, self.parent_pt, R)  # type: ignore
+        return dynamical_time(self.delta_R, self.z, self.parent_pt, R)  # type: ignore[return-value]
 
 
-class JetSplittingArray(ak.Array, JetSplittingCommon):  # type: ignore
+class JetSplittingArray(ak.Array, JetSplittingCommon):  # type: ignore[misc]
     """Array of jet splittings."""
 
     kt: AwkwardArray[float]
