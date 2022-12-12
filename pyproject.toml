@@ -45,6 +45,7 @@ dependencies = [
     "pachyderm >= 3.0",
     # For hatch: we can install it locally (but not editable) with:
     #"pachyderm @ file://{root:uri}/external/pachyderm",
+    "dask>=2022.12.0",
 ]
 
 # NOTE: If moving to hatch, move this to "[project.optional-dependencies]"

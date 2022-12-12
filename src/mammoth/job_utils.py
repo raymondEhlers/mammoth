@@ -6,15 +6,20 @@
 from __future__ import annotations
 
 import concurrent.futures
+import enum
 import logging
 import math
 import os.path
 import sys
+from collections.abc import Callable
+from functools import wraps
 from pathlib import Path
-from typing import Any, Callable, Dict, Iterable, List, Optional, Sequence, Tuple, Union
+from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple, TypeVar, Union
+
 
 import attr
-
+import dask
+import dask.distributed
 from parsl.addresses import address_by_hostname
 from parsl.config import Config
 from parsl.executors import HighThroughputExecutor
@@ -30,6 +35,11 @@ if sys.version_info < (3, 8):
     from typing_extensions import Literal
 else:
     from typing import Literal
+
+if sys.version_info < (3, 10):
+    from typing_extensions import Concatenate, ParamSpec
+else:
+    from typing import Concatenate, ParamSpec
 
 logger = logging.getLogger(__name__)
 
@@ -166,6 +176,29 @@ _facilities_configs["rehlers_mbp_m1pro"] = Facility(
     #storage_work_dir=(Path.cwd() / Path("work_dir")).resolve(),
     directories_to_mount_in_singularity=[Path("/opt/scott")],
 )
+
+
+class JobFramework(enum.Enum):
+    dask_delayed = enum.auto()
+    parsl = enum.auto()
+
+
+P = ParamSpec("P")
+R = TypeVar("R")
+
+def python_app(func: Callable[P, R]) -> Callable[Concatenate[JobFramework, P], R]:
+    """Helper for defining a python app for different job execution frameworks
+    """
+    @wraps(func)
+    def inner(*args: P.args, job_framework: JobFramework = JobFramework.parsl, **kwargs: P.kwargs) -> R:
+        if job_framework == JobFramework.dask_delayed:
+            return dask.delayed(func)(*args, **kwargs)  # type: ignore[no-any-return,attr-defined]
+        elif job_framework == JobFramework.parsl:
+            return python_app(func)(*args, **kwargs)
+        else:
+            raise ValueError(f"Unrecognized job framework {job_framework}")
+
+    return inner
 
 
 def _default_parsl_config_kwargs(workflow_name: str, enable_monitoring: bool = True) -> Dict[str, Any]:
