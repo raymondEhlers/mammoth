@@ -45,7 +45,7 @@ dependencies = [
     "pachyderm >= 3.0",
     # For hatch: we can install it locally (but not editable) with:
     #"pachyderm @ file://{root:uri}/external/pachyderm",
-    "dask>=2022.12.0",
+    "dask[distributed]>=2022.12.0",
 ]
 
 # NOTE: If moving to hatch, move this to "[project.optional-dependencies]"
@@ -79,7 +79,7 @@ include = [
 
 [tool.mypy]
 files = "src"
-python_version = "3.8"
+python_version = "3.9"
 warn_unused_configs = true
 strict = true
 ignore_missing_imports = true
@@ -98,7 +98,7 @@ skip = ["docs/conf.py"]
 skip_glob = ".*"
 
 [tool.pylint]
-master.py-version = "3.8"
+master.py-version = "3.9"
 master.ignore-paths= ["src/pachyderm/_version.py"]
 reports.output-format = "colorized"
 similarities.ignore-imports = "yes"
