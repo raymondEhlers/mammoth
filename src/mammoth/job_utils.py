@@ -20,6 +20,7 @@ from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple, TypeVar
 import attr
 import dask
 import dask.distributed
+from parsl.app.app import python_app as parsl_python_app
 from parsl.addresses import address_by_hostname
 from parsl.config import Config
 from parsl.executors import HighThroughputExecutor
@@ -37,9 +38,9 @@ else:
     from typing import Literal
 
 if sys.version_info < (3, 10):
-    from typing_extensions import Concatenate, ParamSpec
+    from typing_extensions import ParamSpec
 else:
-    from typing import Concatenate, ParamSpec
+    from typing import ParamSpec
 
 logger = logging.getLogger(__name__)
 
@@ -186,15 +187,21 @@ class JobFramework(enum.Enum):
 P = ParamSpec("P")
 R = TypeVar("R")
 
-def python_app(func: Callable[P, R]) -> Callable[Concatenate[JobFramework, P], R]:
+def python_app(func: Callable[P, R]) -> Callable[P, R]:
     """Helper for defining a python app for different job execution frameworks
+
     """
     @wraps(func)
-    def inner(*args: P.args, job_framework: JobFramework = JobFramework.parsl, **kwargs: P.kwargs) -> R:
+    def inner(*args: P.args, **kwargs: P.kwargs) -> R:
+        # Default to using parsl. Only use other frameworks if explicitly requested.
+        # Grabbing it via the kwargs hurts discovering the option, but it's possible to implement the typing.
+        # Note that we can't do better on the typing yet because we can't concatenate keyword parameters as of Dec 2022.
+        # See: https://peps.python.org/pep-0612/#concatenating-keyword-parameters
+        job_framework = kwargs.pop("job_framework", JobFramework.parsl)
         if job_framework == JobFramework.dask_delayed:
             return dask.delayed(func)(*args, **kwargs)  # type: ignore[no-any-return,attr-defined]
         elif job_framework == JobFramework.parsl:
-            return python_app(func)(*args, **kwargs)
+            return parsl_python_app(func)(*args, **kwargs)  # type: ignore[no-any-return]
         else:
             raise ValueError(f"Unrecognized job framework {job_framework}")
 
