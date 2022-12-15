@@ -187,12 +187,12 @@ class JobFramework(enum.Enum):
 P = ParamSpec("P")
 R = TypeVar("R")
 
-def python_app(func: Callable[P, R]) -> Callable[P, R]:
+def python_app(func: Callable[P, R]) -> Callable[P, concurrent.futures.Future[R]]:
     """Helper for defining a python app for different job execution frameworks
 
     """
     @wraps(func)
-    def inner(*args: P.args, **kwargs: P.kwargs) -> R:
+    def inner(*args: P.args, **kwargs: P.kwargs) -> concurrent.futures.Future[R]:
         # Default to using parsl. Only use other frameworks if explicitly requested.
         # Grabbing it via the kwargs hurts discovering the option, but it's possible to implement the typing.
         # Note that we can't do better on the typing yet because we can't concatenate keyword parameters as of Dec 2022.
