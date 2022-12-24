@@ -155,3 +155,31 @@ def determine_additional_worker_init_conda(
         _additional_worker_init_script = "; ".join(_software_to_load)
 
     return _additional_worker_init_script
+
+
+def determine_additional_worker_init(
+    productions: Optional[Sequence[production.ProductionSettings]] = None,
+    tasks_to_run: Optional[Sequence[Sequence[str]]] = None,
+    tasks_requiring_root: Optional[Sequence[str]] = None,
+    tasks_requiring_aliphysics: Optional[Sequence[str]] = None,
+    tasks_requiring_roounfold: Optional[Sequence[str]] = None,
+    conda_environment_name: Optional[str] = None,
+) -> str:
+    """Wrapper for convenience"""
+    if conda_environment_name is not None:
+        return determine_additional_worker_init_conda(
+            environment_name=conda_environment_name,
+            productions=productions,
+            tasks_to_run=tasks_to_run,
+            tasks_requiring_root=tasks_requiring_root,
+            tasks_requiring_aliphysics=tasks_requiring_aliphysics,
+            tasks_requiring_roounfold=tasks_requiring_roounfold,
+        )
+    else:
+        return determine_additional_worker_init_alibuild(
+            productions=productions,
+            tasks_to_run=tasks_to_run,
+            tasks_requiring_root=tasks_requiring_root,
+            tasks_requiring_aliphysics=tasks_requiring_aliphysics,
+            tasks_requiring_roounfold=tasks_requiring_roounfold,
+        )
