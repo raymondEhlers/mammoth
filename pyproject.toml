@@ -51,7 +51,7 @@ dependencies = [
 # NOTE: If moving to hatch, move this to "[project.optional-dependencies]"
 [tool.pdm.dev-dependencies]
 dev = [
-    "flake8 >=3.8.3",
+    "ruff>=0.0.209",
     "black >=22.1.0",
     "mypy >=0.931",
     "ipython >=8.0",
@@ -90,6 +90,32 @@ warn_unreachable = true
 [tool.black]
 line-length = 120
 target-version = ["py38"]
+
+[tool.ruff]
+exclude = [
+    '.git',
+    '.env',
+    '.env3',
+    '.py3.7',
+    '.venv',
+    'env',
+    '__pycache__',
+    'bak',
+    'build',
+    'dist',
+]
+ignore = ['E501']
+line-length = 120
+select = [
+    'C9',
+    'E',
+    'F',
+    'W',
+]
+target-version = 'py38'
+
+[tool.ruff.mccabe]
+max-complexity = 10
 
 [tool.isort]
 profile = "black"
