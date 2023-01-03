@@ -227,14 +227,14 @@ def standard_jet_selection(jets: ak.Array,
         masks[column_name] = (masks[column_name]) & (
             ~ak.any(jets[column_name].constituents.pt > _max_constituent_pt_values.get(column_name, 100), axis=-1)
         )
-        logger.info(f"{column_name}: max track constituent max accepted: {np.count_nonzero(np.asarray(ak.flatten(masks[column_name] == True, axis=None)))}")
+        logger.info(f"{column_name}: max track constituent max accepted: {np.count_nonzero(np.asarray(ak.flatten(masks[column_name] == True, axis=None)))}")  # noqa: E712
         # **************
         # Apply area cut
         # Requires at least 60% of possible area.
         # **************
         min_area = jet_finding.area_percentage(60, jet_R)
         masks[column_name] = (masks[column_name]) & (jets[column_name, "area"] > min_area)
-        logger.info(f"{column_name}: add area cut n accepted: {np.count_nonzero(np.asarray(ak.flatten(masks[column_name] == True, axis=None)))}")
+        logger.info(f"{column_name}: add area cut n accepted: {np.count_nonzero(np.asarray(ak.flatten(masks[column_name] == True, axis=None)))}")  # noqa: E712
 
         # *************
         # Require more than one constituent at detector level (or in data) if we're not in PbPb.
@@ -247,7 +247,7 @@ def standard_jet_selection(jets: ak.Array,
             # We only want to apply this to det_level or data, so skip both "part_level" and "hybrid"
             if column_name not in ["part_level", "hybrid"]:
                 masks[column_name] = (masks[column_name]) & (ak.num(jets[column_name, "constituents"], axis=2) > 1)
-                logger.info(f"{column_name}: require more than one constituent n accepted: {np.count_nonzero(np.asarray(ak.flatten(masks[column_name] == True, axis=None)))}")
+                logger.info(f"{column_name}: require more than one constituent n accepted: {np.count_nonzero(np.asarray(ak.flatten(masks[column_name] == True, axis=None)))}")  # noqa: E712
 
     # Actually apply the masks
     for column_name, mask in masks.items():
