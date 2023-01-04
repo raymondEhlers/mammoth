@@ -456,6 +456,18 @@ def _define_dask_distributed_cluster(
     if enable_monitoring:
         logger.debug("NOTE: Requested monitoring to be enabled, but it's always enabled for dask")
 
+
+    # We want each worker to know how many cores it has available so we can then later tell dask how many cores each
+    # task needs. This allows for multiple cores per task (assuming a worker has enough cores available).
+    # This is based on the concept of "resources", described here:
+    # https://distributed.dask.org/en/stable/resources.html#resources-are-applied-separately-to-each-worker-process ,
+    # with an example here: https://github.com/dask/dask-jobqueue/issues/181#issuecomment-454390647
+    # I can't immediately confirm that this works, but so far (Jan 2023), it seems to be fine.
+    # NOTE: This is defined as a per worker quantity.
+    # NOTE: This name is defined by convention. We need to add our specification in the resources when
+    #       we submit jobs for processing.
+    resources = {"n_cores": n_cores_to_allocate_per_block}
+
     # We need to treat the case of the local facility differently because
     # the cluster is different (ie. it's not slurm).
     if facility.partition_name == "INVALID" or "rehlers_mbp_m1pro" in facility.name:
@@ -469,9 +481,7 @@ def _define_dask_distributed_cluster(
         cluster = dask.distributed.LocalCluster(
             n_workers=n_blocks,
             threads_per_worker=1,
-            # Based on the concept presented here: https://github.com/dask/dask-jobqueue/issues/181#issuecomment-454390647
-            # See the docs for more info. I can't immediately confirm that this works, but so far (Jan 2023), it seems to be fine.
-            resources={"processes": n_cores_to_allocate_per_block},
+            resources=resources,
         )
         # Actually request the jobs. Doing this or not can be made configurable later if needed, but the default
         # from parsl is to immediately allocate, so if nothing else, it's provides the same functionality.
@@ -491,6 +501,7 @@ def _define_dask_distributed_cluster(
             # 'module load Anaconda; source activate parsl_env'.
             job_script_prologue=[f"{facility.worker_init_script}; {additional_worker_init_script}"] if facility.worker_init_script else [additional_worker_init_script],
             walltime=walltime,
+            resources=resources,
         )
         # Actually request the jobs. Doing this or not can be made configurable later if needed, but the default
         # from parsl is to immediately allocate, so if nothing else, it's provides the same functionality.
