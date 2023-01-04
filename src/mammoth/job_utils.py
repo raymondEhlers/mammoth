@@ -469,6 +469,8 @@ def _define_dask_distributed_cluster(
         cluster = dask.distributed.LocalCluster(
             n_workers=n_blocks,
             threads_per_worker=1,
+            # Based on the concept presented here: https://github.com/dask/dask-jobqueue/issues/181#issuecomment-454390647
+            # See the docs for more info. I can't immediately confirm that this works, but so far (Jan 2023), it seems to be fine.
             resources={"processes": n_cores_to_allocate_per_block},
         )
         # Actually request the jobs. Doing this or not can be made configurable later if needed, but the default
