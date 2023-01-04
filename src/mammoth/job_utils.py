@@ -11,6 +11,7 @@ import logging
 import math
 import os.path
 import sys
+import typing
 from collections.abc import Callable
 from functools import wraps
 from pathlib import Path
@@ -208,41 +209,9 @@ def python_app(func: Callable[P, R]) -> Callable[P, concurrent.futures.Future[R]
     return inner
 
 
-def _default_parsl_config_kwargs(workflow_name: str, enable_monitoring: bool = True) -> Dict[str, Any]:
-    """Default parsl config keyword arguments.
-
-    These are shared regardless of the facility.
-
-    Args:
-        enable_monitoring: If True, enable parsl monitoring. Default: True.
-
-    Returns:
-        Default config keyword arguments.
-    """
-    config_kwargs = dict(
-        # This strategy is required to scale down blocks in the HTEX. As of Feb 2021, it is only
-        # available in the parsl master.
-        strategy="htex_auto_scale",
-        # Identify a node as being idle after 20 seconds.
-        # This is a balance - if we're too aggressive, then the blocks may be stopped while we still
-        # have work remaining. However, if we're not aggressive enough, then we're wasting our allocation.
-        max_idletime=20,
-    )
-
-    # Setup
-    # Monitoring Information
-    if enable_monitoring:
-        config_kwargs["monitoring"] = MonitoringHub(
-            hub_address=address_by_hostname(),
-            monitoring_debug=False,
-            resource_monitoring_interval=10,
-            workflow_name=workflow_name,
-        )
-
-    return config_kwargs
-
-
+@typing.overload
 def config(
+    job_framework: Literal[JobFramework.parsl],
     facility: FACILITIES,
     task_config: TaskConfig,
     n_tasks: int,
@@ -250,7 +219,42 @@ def config(
     enable_monitoring: bool = False,
     request_n_blocks: Optional[int] = None,
     additional_worker_init_script: str = "",
-) -> Tuple[Config, Facility, List[helpers.LogMessage]]:
+) -> Tuple[Config, Facility, List[helpers.LogMessage]]: ...
+
+@typing.overload
+def config(
+    job_framework: Literal[JobFramework.dask_delayed],
+    facility: FACILITIES,
+    task_config: TaskConfig,
+    n_tasks: int,
+    walltime: str,
+    enable_monitoring: bool = False,
+    request_n_blocks: Optional[int] = None,
+    additional_worker_init_script: str = "",
+) -> Tuple[dask.distributed.Client, Facility, List[helpers.LogMessage]]: ...
+
+@typing.overload
+def config(
+    job_framework: JobFramework,
+    facility: FACILITIES,
+    task_config: TaskConfig,
+    n_tasks: int,
+    walltime: str,
+    enable_monitoring: bool = False,
+    request_n_blocks: Optional[int] = None,
+    additional_worker_init_script: str = "",
+) -> Tuple[Union[dask.distributed.client, Config], Facility, List[helpers.LogMessage]]: ...
+
+def config(
+    job_framework: JobFramework,
+    facility: FACILITIES,
+    task_config: TaskConfig,
+    n_tasks: int,
+    walltime: str,
+    enable_monitoring: bool = False,
+    request_n_blocks: Optional[int] = None,
+    additional_worker_init_script: str = "",
+) -> Tuple[Union[dask.distributed.client, Config], Facility, List[helpers.LogMessage]]:
     """Retrieve the appropriate parsl configuration for a facility and task.
 
     This is the main interface for retrieving these configurations.
@@ -280,31 +284,26 @@ def config(
     _facility.storage_work_dir.mkdir(parents=True, exist_ok=True)
 
     # Further validation
-    if _facility.partition_name == "INVALID" or "test_local" in facility:
-        # We need to treat the case of the local facility differently because
-        # the provide is different (ie. it's not slurm).
-        return _define_local_config(
-            n_tasks=n_tasks,
-            task_config=task_config,
-            facility=_facility,
-            walltime=walltime,
-            enable_monitoring=enable_monitoring,
-            request_n_blocks=request_n_blocks,
-            additional_worker_init_script=additional_worker_init_script,
-        )
-    else:
-        return _define_config(
-            n_tasks=n_tasks,
-            task_config=task_config,
-            facility=_facility,
-            walltime=walltime,
-            enable_monitoring=enable_monitoring,
-            request_n_blocks=request_n_blocks,
-            additional_worker_init_script=additional_worker_init_script,
-        )
+    return _define_config(
+        job_framework=job_framework,
+        n_tasks=n_tasks,
+        task_config=task_config,
+        facility=_facility,
+        walltime=walltime,
+        enable_monitoring=enable_monitoring,
+        request_n_blocks=request_n_blocks,
+        additional_worker_init_script=additional_worker_init_script,
+    )
+
+
+def _potentially_immediately_log_message(log_messages: List[helpers.LogMessage], immediately_log_messages: bool) -> None:
+    """If we can log immediately, let's do it. Otherwise, we leave it in place for later."""
+    if immediately_log_messages:
+        log_messages.pop().log()
 
 
 def _define_config(
+    job_framework: JobFramework,
     n_tasks: int,
     task_config: TaskConfig,
     facility: Facility,
@@ -316,6 +315,7 @@ def _define_config(
     """Define the parsl config based on the facility and task.
 
     Args:
+        job_framework: Job framework.
         n_tasks: Number of tasks to be executed.
         task_config: Task configuration to be executed.
         facility: Facility configuration.
@@ -333,6 +333,8 @@ def _define_config(
     """
     # Setup
     log_messages: List[helpers.LogMessage] = []
+    # If we're not dealing with parsl, there's no reason not to log immediately.
+    immediately_log_messages = (job_framework != JobFramework.parsl)
 
     # Determine request properties.
     # Namely, we need to know:
@@ -376,6 +378,7 @@ def _define_config(
             f"Requesting {n_cores_to_allocate_per_block} cores in {n_blocks} block(s), with {n_tasks_per_block} tasks per block for {n_tasks} total tasks.",
         )
     )
+    _potentially_immediately_log_message(log_messages=log_messages, immediately_log_messages=immediately_log_messages)
     log_messages.append(
         helpers.LogMessage(
             __name__,
@@ -383,6 +386,7 @@ def _define_config(
             f"Requesting {n_cores_required} total cores, {memory_to_allocate_per_block * n_tasks_per_block if memory_to_allocate_per_block else 'no constraint on'} GB total memory.",
         )
     )
+    _potentially_immediately_log_message(log_messages=log_messages, immediately_log_messages=immediately_log_messages)
     # Validate
     if request_n_blocks:
         if request_n_blocks > n_blocks:
@@ -393,6 +397,7 @@ def _define_config(
                     f"Explicitly requested more blocks than needed. We'll ignore this request and take only the minimum. Requested n_blocks: {n_blocks}, required n blocks: {n_blocks}",
                 )
             )
+            _potentially_immediately_log_message(log_messages=log_messages, immediately_log_messages=immediately_log_messages)
         elif request_n_blocks < n_blocks:
             log_messages.append(
                 helpers.LogMessage(
@@ -401,10 +406,189 @@ def _define_config(
                     f"Explicitly requested fewer blocks ({request_n_blocks}) than necessary ({n_blocks}) to run everything simultaneously. Tasks will run sequentially in the requested number of blocks.",
                 )
             )
+            _potentially_immediately_log_message(log_messages=log_messages, immediately_log_messages=immediately_log_messages)
             n_blocks = request_n_blocks
 
+    # Parsl specific
+    if job_framework == JobFramework.parsl:
+        job_framework_config, _additional_log_messages = _define_parsl_config(
+            task_config=task_config,
+            facility=facility,
+            walltime=walltime,
+            enable_monitoring=enable_monitoring,
+            n_blocks=n_blocks,
+            n_cores_to_allocate_per_block=n_cores_to_allocate_per_block,
+            memory_to_allocate_per_block=memory_to_allocate_per_block,
+            additional_worker_init_script=additional_worker_init_script
+        )
+    else:
+        job_framework_config, _additional_log_messages = _define_dask_distributed_cluster(
+            task_config=task_config,
+            facility=facility,
+            walltime=walltime,
+            enable_monitoring=enable_monitoring,
+            n_blocks=n_blocks,
+            n_cores_to_allocate_per_block=n_cores_to_allocate_per_block,
+            memory_to_allocate_per_block=memory_to_allocate_per_block,
+            additional_worker_init_script=additional_worker_init_script
+        )
+
+    # Store any further log messages
+    log_messages.extend(_additional_log_messages)
+
+    return job_framework_config, facility, log_messages
+
+
+def _define_dask_distributed_cluster(
+    task_config: TaskConfig,
+    facility: Facility,
+    walltime: str,
+    enable_monitoring: bool,
+    n_blocks: int,
+    n_cores_to_allocate_per_block: int,
+    memory_to_allocate_per_block: int | None,
+    additional_worker_init_script: str = "",
+) -> Tuple[dask.distributed.SpecCluster, List[helpers.LogMessage]]:
+    """Dask distributed cluster config"""
+    # NOTE: We're fine to log directly here because we know that logging with dask is fine.
+    if enable_monitoring:
+        logger.debug("NOTE: Requested monitoring to be enabled, but it's always enabled for dask")
+
+    # We need to treat the case of the local facility differently because
+    # the cluster is different (ie. it's not slurm).
+    if facility.partition_name == "INVALID" or "rehlers_mbp_m1pro" in facility.name:
+        # Ensure that we don't overload an individual system by requesting more cores than are available.
+        if n_blocks * n_cores_to_allocate_per_block > facility.node_spec.n_cores:
+            n_blocks = round(facility.node_spec.n_cores / n_cores_to_allocate_per_block)
+            logger.info(
+                "Since running local config, we set the number of blocks to the available number of cores to avoid overloading the system."
+            )
+        cluster = dask.distributed.LocalCluster(n_workers=n_cores_to_allocate_per_block)
+    else:
+        import dask_jobqueue
+        cluster = dask_jobqueue.SLURMCluster(
+            account=facility.allocation_account,
+            queue=facility.partition_name,
+            cores=n_cores_to_allocate_per_block,
+            processes=round(n_cores_to_allocate_per_block / task_config.n_cores_per_task),
+            memory=str(memory_to_allocate_per_block),
+            # string to prepend to #SBATCH blocks in the submit
+            # Can add additional options directly to scheduler.
+            job_extra_directives=[f"#SBATCH --exclude={','.join(facility.nodes_to_exclude)}" if facility.nodes_to_exclude else ""],
+            # Command to be run before starting a worker, such as:
+            # 'module load Anaconda; source activate parsl_env'.
+            job_script_prologue=[f"{facility.worker_init_script}; {additional_worker_init_script}"] if facility.worker_init_script else [additional_worker_init_script],
+            walltime=walltime,
+        )
+        # Actually request the jobs. Doing this or not can be made configurable later if needed, but the default
+        # from parsl is to immediately allocate, so if nothing else, it's provides the same functionality.
+        cluster.adapt(maximum_jobs=n_blocks)
+
+    return cluster, []
+
+
+def _default_parsl_config_kwargs(workflow_name: str, enable_monitoring: bool = True) -> Dict[str, Any]:
+    """Default parsl config keyword arguments.
+
+    These are shared regardless of the facility.
+
+    Args:
+        enable_monitoring: If True, enable parsl monitoring. Default: True.
+
+    Returns:
+        Default config keyword arguments.
+    """
+    config_kwargs = dict(
+        # This strategy is required to scale down blocks in the HTEX.
+        strategy="htex_auto_scale",
+        # Identify a node as being idle after 20 seconds.
+        # This is a balance - if we're too aggressive, then the blocks may be stopped while we still
+        # have work remaining. However, if we're not aggressive enough, then we're wasting our allocation.
+        max_idletime=20,
+    )
+
     # Setup
+    # Monitoring Information
+    if enable_monitoring:
+        config_kwargs["monitoring"] = MonitoringHub(
+            hub_address=address_by_hostname(),
+            monitoring_debug=False,
+            resource_monitoring_interval=10,
+            workflow_name=workflow_name,
+        )
+
+    return config_kwargs
+
+
+def _define_parsl_config(
+    task_config: TaskConfig,
+    facility: Facility,
+    walltime: str,
+    enable_monitoring: bool,
+    n_blocks: int,
+    n_cores_to_allocate_per_block: int,
+    memory_to_allocate_per_block: int | None,
+    additional_worker_init_script: str = "",
+) -> Tuple[Config, List[helpers.LogMessage]]:
+    # Setup
+    log_messages: List[helpers.LogMessage] = []
     config_kwargs = _default_parsl_config_kwargs(workflow_name=task_config.name, enable_monitoring=enable_monitoring)
+
+    # We need to treat the case of the local facility differently because
+    # the provider is different (ie. it's not slurm).
+    if facility.partition_name == "INVALID" or "test_local" in facility.name:
+        # Ensure that we don't overload an individual system by requesting more cores than are available.
+        if n_blocks * n_cores_to_allocate_per_block > facility.node_spec.n_cores:
+            n_blocks = round(facility.node_spec.n_cores / n_cores_to_allocate_per_block)
+            log_messages.append(
+                helpers.LogMessage(
+                    __name__,
+                    "warning",
+                    "Since running local config, we set the number of blocks to the available number of cores to avoid overloading the system.",
+                )
+            )
+            # NOTE: We don't try to log immediately here because know that we can't log immediately with parsl.
+        provider: LocalProvider | SlurmProvider = LocalProvider(  # type: ignore[no-untyped-call]
+            # One block is one node.
+            nodes_per_block=1,
+            # We want n_blocks initially because we will have work for everything immediately.
+            # (useless explicitly requested otherwise).
+            min_blocks=0,
+            max_blocks=n_blocks,
+            init_blocks=n_blocks,
+            # NOTE: If we want to try scaling, we can select less core for the init. If we
+            #       We need at least one block, so if set to just one core, n-1 would break.
+            #       Consequently, we require at least one initial block.
+            #init_blocks=max(n_cores - 1, 1),
+            worker_init=f"{facility.worker_init_script}; {additional_worker_init_script}" if facility.worker_init_script else additional_worker_init_script,
+            launcher=facility.launcher(),
+        )
+    else:
+        provider = SlurmProvider(
+            # This is how many cores and how much memory we'll request per node.
+            cores_per_node=n_cores_to_allocate_per_block,
+            mem_per_node=memory_to_allocate_per_block,
+            # One block is one node.
+            nodes_per_block=1,
+            # We want n_blocks initially because we will have work for everything immediately.
+            # (useless explicitly requested otherwise).
+            min_blocks=0,
+            max_blocks=n_blocks,
+            init_blocks=n_blocks,
+            partition=facility.partition_name,
+            account=facility.allocation_account,
+            # string to prepend to #SBATCH blocks in the submit
+            # Can add additional options directly to scheduler.
+            scheduler_options=f"#SBATCH --exclude={','.join(facility.nodes_to_exclude)}" if facility.nodes_to_exclude else "",
+            # Command to be run before starting a worker, such as:
+            # 'module load Anaconda; source activate parsl_env'.
+            worker_init=f"{facility.worker_init_script}; {additional_worker_init_script}" if facility.worker_init_script else additional_worker_init_script,
+            launcher=facility.launcher(),
+            walltime=walltime,
+            # If we're allocating full nodes, then we should request exclusivity.
+            exclusive=facility.allocate_full_node,
+                **facility.high_throughput_executor_additional_options,
+            )
 
     config = Config(
         executors=[
@@ -416,120 +600,13 @@ def _define_config(
                 # NOTE: We don't want to set the `max_workers` because we want the number of workers to
                 #       be determined by the number of cores per worker and the cores per node.
                 working_dir=str(facility.node_work_dir),
-                provider=SlurmProvider(
-                    # This is how many cores and how much memory we'll request per node.
-                    cores_per_node=n_cores_to_allocate_per_block,
-                    mem_per_node=memory_to_allocate_per_block,
-                    # One block is one node.
-                    nodes_per_block=1,
-                    # We want n_blocks initially because we will have work for everything immediately.
-                    # (useless explicitly requested otherwise).
-                    min_blocks=0,
-                    max_blocks=n_blocks,
-                    init_blocks=n_blocks,
-                    partition=facility.partition_name,
-                    account=facility.allocation_account,
-                    # string to prepend to #SBATCH blocks in the submit
-                    # Can add additional options directly to scheduler.
-                    scheduler_options=f"#SBATCH --exclude={','.join(facility.nodes_to_exclude)}" if facility.nodes_to_exclude else "",
-                    # Command to be run before starting a worker, such as:
-                    # 'module load Anaconda; source activate parsl_env'.
-                    worker_init=f"{facility.worker_init_script}; {additional_worker_init_script}" if facility.worker_init_script else additional_worker_init_script,
-                    launcher=facility.launcher(),
-                    walltime=walltime,
-                    # If we're allocating full nodes, then we should request exclusivity.
-                    exclusive=facility.allocate_full_node,
-                    **facility.high_throughput_executor_additional_options,
-                ),
+                provider=provider,
             )
         ],
         **config_kwargs,
     )
 
-    return config, facility, log_messages
-
-
-def _define_local_config(
-    n_tasks: int,
-    task_config: TaskConfig,
-    facility: Facility,
-    walltime: str,
-    enable_monitoring: bool,
-    request_n_blocks: Optional[int] = None,
-    additional_worker_init_script: str = "",
-) -> Tuple[Config, Facility, List[helpers.LogMessage]]:
-    """Local parsl configuration via process pool.
-
-    This allows for testing parsl locally without needing to be on the facilities or having access
-    to a test slurm system. Practically, this means that we'll still use the HighThroughputExecutor,
-    but it will be provided via local processes. Careful not to overload your system.
-
-    Our execution scheme is as follows:
-
-    - One block is defined as one node.
-    - One node is one core.
-    - One job (ie worker) is executed per node.
-
-    Args:
-        n_tasks: Number of tasks to be executed.
-        task_config: Task configuration to be executed.
-        facility: Facility configuration.
-        walltime: Wall time for the job.
-        enable_monitoring: If True, enable parsl monitoring. I am unsure of how this will
-            interact with the particular facilities.
-        request_n_blocks: Explicitly request n_blocks instead of the calculated number. This
-            value is still validated and won't be blindly accepted. Default: None, which will
-            use the calculated number of blocks.
-        additional_worker_init_script: Additional script for initializing the worker. Default: ""
-    Returns:
-        Tuple of: A parsl configuration for the facility - allocating enough blocks to immediately
-            execute all tasks, facility config, stored log messages.
-    """
-    # Setup
-    log_messages: List[helpers.LogMessage] = []
-    n_blocks_exact = (n_tasks * task_config.n_cores_per_task) / facility.target_allocate_n_cores
-    n_blocks = math.ceil(n_blocks_exact)
-    log_messages.append(
-        helpers.LogMessage(
-            __name__,
-            "info",
-            f"Number of blocks required: {n_blocks_exact}, requesting: {n_blocks}. These need to be close, or we will waste resources on some facilities.",
-        )
-    )
-    # NOTE: This ignores the request_n_blocks. For now, it's not worth the effort, since we can easily test on slurm.
-
-    # Setup
-    config_kwargs = _default_parsl_config_kwargs(workflow_name=task_config.name, enable_monitoring=enable_monitoring)
-    n_cores = facility.target_allocate_n_cores
-
-    local_config = Config(
-        executors=[
-            HighThroughputExecutor(
-                label=f"{facility.name}_HTEX",
-                address=address_by_hostname(),
-                cores_per_worker=task_config.n_cores_per_task,
-                working_dir=str(facility.node_work_dir),
-                provider=LocalProvider(  # type: ignore[no-untyped-call]
-                    # One block is one node.
-                    nodes_per_block=1,
-                    # We want n_blocks initially because we will have work for everything immediately.
-                    # (useless explicitly requested otherwise).
-                    min_blocks=0,
-                    max_blocks=n_cores,
-                    init_blocks=n_blocks,
-                    # NOTE: If we want to try scaling, we can select less core for the init. If we
-                    #       We need at least one block, so if set to just one core, n-1 would break.
-                    #       Consequently, we require at least one initial block.
-                    #init_blocks=max(n_cores - 1, 1),
-                    worker_init=f"{facility.worker_init_script}; {additional_worker_init_script}" if facility.worker_init_script else additional_worker_init_script,
-                    launcher=facility.launcher(),
-                ),
-            )
-        ],
-        **config_kwargs,
-    )
-
-    return local_config, facility, log_messages
+    return config, log_messages
 
 
 def _cancel_future(job: concurrent.futures.Future[Any]) -> None:
