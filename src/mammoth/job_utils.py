@@ -21,6 +21,7 @@ from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple, TypeVar
 import attr
 import dask
 import dask.distributed
+import parsl
 from parsl.app.app import python_app as parsl_python_app
 from parsl.addresses import address_by_hostname
 from parsl.config import Config
@@ -409,8 +410,8 @@ def _define_config(
             _potentially_immediately_log_message(log_messages=log_messages, immediately_log_messages=immediately_log_messages)
             n_blocks = request_n_blocks
 
-    # Parsl specific
     if job_framework == JobFramework.parsl:
+        # Parsl specific
         job_framework_config, _additional_log_messages = _define_parsl_config(
             task_config=task_config,
             facility=facility,
@@ -422,6 +423,7 @@ def _define_config(
             additional_worker_init_script=additional_worker_init_script
         )
     else:
+        # Dask specific
         job_framework_config, _additional_log_messages = _define_dask_distributed_cluster(
             task_config=task_config,
             facility=facility,
@@ -607,6 +609,84 @@ def _define_parsl_config(
     )
 
     return config, log_messages
+
+@typing.overload
+def setup_job_framework(
+    job_framework: Literal[JobFramework.dask_delayed],
+    task_config: TaskConfig,
+    facility: FACILITIES,
+    walltime: str,
+    n_cores_to_allocate: int,
+    log_level: int,
+    additional_worker_init_script: str = "",
+) -> Tuple[dask.distributed.Client, dask.distributed.SpecCluster]: ...
+
+@typing.overload
+def setup_job_framework(
+    job_framework: Literal[JobFramework.parsl],
+    task_config: TaskConfig,
+    facility: FACILITIES,
+    walltime: str,
+    n_cores_to_allocate: int,
+    log_level: int,
+    additional_worker_init_script: str = "",
+) -> Tuple[parsl.DataFlowKernel, Config]: ...
+
+@typing.overload
+def setup_job_framework(
+    job_framework: JobFramework,
+    task_config: TaskConfig,
+    facility: FACILITIES,
+    walltime: str,
+    n_cores_to_allocate: int,
+    log_level: int,
+    additional_worker_init_script: str = "",
+) -> Tuple[parsl.DataFlowKernel, parsl.Config] | Tuple[dask.distributed.Client, dask.distributed.SpecCluster]: ...
+
+def setup_job_framework(
+    job_framework: JobFramework,
+    task_config: TaskConfig,
+    facility: FACILITIES,
+    walltime: str,
+    n_cores_to_allocate: int,
+    log_level: int,
+    additional_worker_init_script: str = "",
+) -> Tuple[parsl.DataFlowKernel, parsl.Config] | Tuple[dask.distributed.Client, dask.distributed.SpecCluster]:
+
+    # Basic setup: logging and parsl.
+    # Setup job frameworks
+    if job_framework != JobFramework.dask_delayed:
+        # As long as it's not parsl, it's fine to setup now!
+        helpers.setup_logging(
+            level=log_level,
+        )
+    # NOTE: Parsl's logger setup is broken, so we have to set it up before starting logging. Otherwise,
+    #       it's super verbose and a huge pain to turn off. Note that by passing on the storage messages,
+    #       we don't actually lose any info.
+    job_framework_config, facility_config, stored_messages = config(
+        job_framework=job_framework,
+        facility=facility,
+        task_config=task_config,
+        n_tasks=n_cores_to_allocate,
+        walltime=walltime,
+        enable_monitoring=True,
+        additional_worker_init_script=additional_worker_init_script,
+    )
+    if job_framework == JobFramework.dask_delayed:
+        return dask.distributed.Client(job_framework_config), job_framework_config  # type: ignore[no-untyped-call]
+    else:
+        # Keep track of the dfk to keep parsl alive
+        dfk = helpers.setup_logging_and_parsl(
+            parsl_config=job_framework_config,
+            level=log_level,
+            stored_messages=stored_messages,
+        )
+
+        # Quiet down parsl
+        logging.getLogger("parsl").setLevel(logging.WARNING)
+
+        return dfk, job_framework_config
+
 
 
 def _cancel_future(job: concurrent.futures.Future[Any]) -> None:
