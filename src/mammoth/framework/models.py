@@ -13,6 +13,10 @@ from mammoth_cpp._ext import (  # noqa: F401
     fast_sim_tracking_efficiency as alice_fast_sim_tracking_efficiency,
 )
 
+# Need this to tell mypy that this symbol is explicitly exported. If the name didn't change,
+# it would work, but I think the ALICE label needs to be specified for clarity.
+__all__ = ["alice_fast_sim_tracking_efficiency"]
+
 
 def inverse_sample_decorator(
     distribution: Callable[..., Union[npt.NDArray[Union[np.float32, np.float64]], float]]
