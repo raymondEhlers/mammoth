@@ -38,7 +38,7 @@ def inverse_sample_decorator(
         # See: https://tmramalho.github.io/blog/2013/12/16/how-to-do-inverse-transformation-sampling-in-scipy-and-numpy/
         f = interp1d(cumulative / cumulative.max(), x)
         rng = np.random.default_rng()
-        return f(rng.uniform(size=n_samples))  # type: ignore
+        return f(rng.uniform(size=n_samples))  # type: ignore[no-any-return]
 
     return wrapper
 

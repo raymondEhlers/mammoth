@@ -330,7 +330,7 @@ class ALICEFastSimTrackingEfficiency:
 
         self.metadata["n_entries"] = len(particle_level_data)
 
-        efficiencies = models.alice_fast_sim_tracking_efficiency(
+        efficiencies = models.alice_fast_sim_tracking_efficiency(  # type: ignore[attr-defined]
             track_pt=np.asarray(ak.flatten(particle_level_data["part_level"].pt, axis=-1)),
             track_eta=np.asarray(ak.flatten(particle_level_data["part_level"].eta, axis=-1)),
             event_activity=self.fast_sim_parameters.event_activity,
