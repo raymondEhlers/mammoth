@@ -376,7 +376,7 @@ def _define_config(
         helpers.LogMessage(
             __name__,
             "info",
-            f"Requesting {n_cores_to_allocate_per_block} cores in {n_blocks} block(s), with {n_tasks_per_block} tasks per block for {n_tasks} total tasks.",
+            f"Requesting {n_cores_to_allocate_per_block} core(s) in {n_blocks} block(s), with {n_tasks_per_block} tasks per block for {n_tasks} total tasks.",
         )
     )
     _potentially_immediately_log_message(log_messages=log_messages, immediately_log_messages=immediately_log_messages)
@@ -465,7 +465,15 @@ def _define_dask_distributed_cluster(
             logger.info(
                 "Since running local config, we set the number of blocks to the available number of cores to avoid overloading the system."
             )
-        cluster = dask.distributed.LocalCluster(n_workers=n_cores_to_allocate_per_block)
+        # NOTE: For the LocalCluster case, each worker is considered a block!
+        cluster = dask.distributed.LocalCluster(
+            n_workers=n_blocks,
+            threads_per_worker=1,
+            resources={"processes": n_cores_to_allocate_per_block},
+        )
+        # Actually request the jobs. Doing this or not can be made configurable later if needed, but the default
+        # from parsl is to immediately allocate, so if nothing else, it's provides the same functionality.
+        cluster.adapt(minimum=0, maximum=n_blocks)
     else:
         import dask_jobqueue
         cluster = dask_jobqueue.SLURMCluster(
@@ -484,7 +492,10 @@ def _define_dask_distributed_cluster(
         )
         # Actually request the jobs. Doing this or not can be made configurable later if needed, but the default
         # from parsl is to immediately allocate, so if nothing else, it's provides the same functionality.
-        cluster.adapt(maximum_jobs=n_blocks)
+        # NOTE: This call uses "_jobs" arguments. These may be the same as straight maximum, but I think there's potentially
+        #       a factor of the number of processes. See: https://github.com/dask/dask-jobqueue/blob/bee0e0c5444a4fecfa8e273ba0ff871679d9e9e1/dask_jobqueue/core.py#L828-L831 .
+        #       Since it's slightly unclear, it's easier just to have separate calls rather than worrying about it!
+        cluster.adapt(minimum_jobs=0, maximum_jobs=n_blocks)
 
     return cluster, []
 
@@ -655,7 +666,7 @@ def setup_job_framework(
 
     # Basic setup: logging and parsl.
     # Setup job frameworks
-    if job_framework != JobFramework.dask_delayed:
+    if job_framework != JobFramework.parsl:
         # As long as it's not parsl, it's fine to setup now!
         helpers.setup_logging(
             level=log_level,
@@ -663,7 +674,7 @@ def setup_job_framework(
     # NOTE: Parsl's logger setup is broken, so we have to set it up before starting logging. Otherwise,
     #       it's super verbose and a huge pain to turn off. Note that by passing on the storage messages,
     #       we don't actually lose any info.
-    job_framework_config, facility_config, stored_messages = config(
+    job_framework_config, _facility_config, stored_messages = config(
         job_framework=job_framework,
         facility=facility,
         task_config=task_config,
