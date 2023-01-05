@@ -684,6 +684,10 @@ def setup_job_framework(
         helpers.setup_logging(
             level=log_level,
         )
+        # Dask is still pretty loud, so calm it down in most instances (unless we're trying to debug)
+        if log_level != logging.DEBUG:
+            logging.getLogger("dask").setLevel(logging.WARNING)
+            logging.getLogger("distributed").setLevel(logging.WARNING)
     # NOTE: Parsl's logger setup is broken, so we have to set it up before starting logging. Otherwise,
     #       it's super verbose and a huge pain to turn off. Note that by passing on the storage messages,
     #       we don't actually lose any info.
