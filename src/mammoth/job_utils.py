@@ -199,7 +199,7 @@ def python_app(func: Callable[P, R]) -> Callable[P, concurrent.futures.Future[R]
         # Grabbing it via the kwargs hurts discovering the option, but it's possible to implement the typing.
         # Note that we can't do better on the typing yet because we can't concatenate keyword parameters as of Dec 2022.
         # See: https://peps.python.org/pep-0612/#concatenating-keyword-parameters
-        job_framework = kwargs.pop("job_framework", JobFramework.parsl)
+        job_framework = kwargs.get("job_framework", JobFramework.parsl)
         if job_framework == JobFramework.dask_delayed:
             return dask.delayed(func)(*args, **kwargs)  # type: ignore[no-any-return,attr-defined]
         elif job_framework == JobFramework.parsl:
