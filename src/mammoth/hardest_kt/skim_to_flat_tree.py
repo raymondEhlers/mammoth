@@ -175,7 +175,8 @@ def _select_and_retrieve_splittings(
         restricted_splittings_indices = restricted_jets.subjets.iterative_splitting_index
     else:
         restricted_splittings = restricted_jets.jet_splittings
-        restricted_splittings_indices = restricted_jets.jet_splittings.kt.layout.localindex()
+        # NOTE: Probably needs to be verified fully, but a quick check in Jan 2023 seems okay!
+        restricted_splittings_indices = ak.local_index(restricted_jets.jet_splittings.kt)
 
     return restricted_jets, restricted_splittings, restricted_splittings_indices
 
