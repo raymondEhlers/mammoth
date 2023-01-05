@@ -56,9 +56,10 @@ dev = [
     "black >=22.1.0",
     "mypy >=0.931",
     "ipython >=8.0",
-    "pytest >=6.2.4",
     "ipykernel >=6.15.1",
+    "pytest >=6.2.4",
     "pytest-sugar >=0.9.5",
+    "pytest-xdist>=3.1.0",
     # Included so we can grab the headers for vscode (also so that we can build in the env if we want)
     "pybind11 >=2.10",
     # pachyderm
