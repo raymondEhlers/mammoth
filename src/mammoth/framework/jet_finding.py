@@ -780,8 +780,10 @@ def recluster_jets(
     offsets_constituents = np.cumsum(np.asarray(ak.flatten(num_constituents, axis=1)))
     offsets_constituents = np.insert(offsets_constituents, 0, 0)
     # Then into starts and stops
-    starts_constituents = ak.unflatten(offsets_constituents[:-1], ak.num(num_constituents, axis=1))
-    stops_constituents = ak.unflatten(offsets_constituents[1:], ak.num(num_constituents, axis=1))
+    # NOTE: wrapping ak.num with np.asarray is needed for awkward 2.0.5 due to a minor bug in
+    #       how the arguments are handled. See: https://github.com/scikit-hep/awkward/issues/2071
+    starts_constituents = ak.unflatten(offsets_constituents[:-1], np.asarray(ak.num(num_constituents, axis=1)))
+    stops_constituents = ak.unflatten(offsets_constituents[1:], np.asarray(ak.num(num_constituents, axis=1)))
 
     # Now, setup the constituents themselves.
     # It would be nice to flatten them and then assign the components like for standard jet
