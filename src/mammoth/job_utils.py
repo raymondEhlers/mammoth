@@ -485,7 +485,7 @@ def _define_dask_distributed_cluster(
         )
         # Actually request the jobs. Doing this or not can be made configurable later if needed, but the default
         # from parsl is to immediately allocate, so if nothing else, it's provides the same functionality.
-        cluster.adapt(minimum=0, maximum=n_blocks)
+        cluster.adapt(minimum=0, maximum=n_blocks, interval="10s")
     else:
         import dask_jobqueue
         cluster = dask_jobqueue.SLURMCluster(
@@ -508,7 +508,7 @@ def _define_dask_distributed_cluster(
         # NOTE: This call uses "_jobs" arguments. These may be the same as straight maximum, but I think there's potentially
         #       a factor of the number of processes. See: https://github.com/dask/dask-jobqueue/blob/bee0e0c5444a4fecfa8e273ba0ff871679d9e9e1/dask_jobqueue/core.py#L828-L831 .
         #       Since it's slightly unclear, it's easier just to have separate calls rather than worrying about it!
-        cluster.adapt(minimum_jobs=0, maximum_jobs=n_blocks)
+        cluster.adapt(minimum_jobs=0, maximum_jobs=n_blocks, interval="10s")
 
     return cluster, []
 
