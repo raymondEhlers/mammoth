@@ -1,11 +1,15 @@
 from __future__ import annotations
 
-from typing import ClassVar, List, Optional, Tuple, Union, overload
+from typing import ClassVar, Generator, List, Optional, Protocol, Tuple, Union, overload
 
 import numpy as np
 import numpy.typing as npt
 
 DEFAULT_RAPIDITY_MAX: float
+
+class cpp_redirect_stream(Protocol):
+    """Redirect cpp stdout/stderr with context manager"""
+    def __call__(self, /, stdout: str = ..., stderr: str = ...) -> Generator[None, None, None]: ...
 
 class AreaSettings:
     area_type: str

@@ -186,6 +186,8 @@ void wrapOutputWrapper(py::module & m, const std::string & typestr)
 PYBIND11_MODULE(_ext, m) {
   // Constants
   m.attr("DEFAULT_RAPIDITY_MAX") = py::float_(DEFAULT_RAPIDITY_MAX);
+  // Helper
+  py::add_ostream_redirect(m, "cpp_redirect_stream");
 
   // Output wrapper. Just providing access to the fields.
   wrapOutputWrapper<double>(m, "Double");
