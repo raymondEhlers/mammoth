@@ -137,6 +137,15 @@ def _define_calculation_functions(
         "dynamical_z": functools.partial(analysis_jet_substructure.JetSplittingArray.dynamical_z, R=jet_R),
         "dynamical_kt": functools.partial(analysis_jet_substructure.JetSplittingArray.dynamical_kt, R=jet_R),
         "dynamical_time": functools.partial(analysis_jet_substructure.JetSplittingArray.dynamical_time, R=jet_R),
+        "dynamical_core_z_cut_02": functools.partial(
+            analysis_jet_substructure.JetSplittingArray.dynamical_core, z_cutoff=0.2, R=jet_R,
+        ),
+        "dynamical_kt_z_cut_02": functools.partial(
+            analysis_jet_substructure.JetSplittingArray.dynamical_kt, z_cutoff=0.2, R=jet_R,
+        ),
+        "dynamical_time_z_cut_02": functools.partial(
+            analysis_jet_substructure.JetSplittingArray.dynamical_time, z_cutoff=0.2, R=jet_R,
+        ),
         "leading_kt": functools.partial(
             analysis_jet_substructure.JetSplittingArray.leading_kt,
         ),
