@@ -110,7 +110,7 @@ class BackgroundSubtraction:
     ) -> None: ...
 
 class ColumnarSplittings:
-    def __init__(self, *args, **kwargs) -> None: ...  # type: ignore  # noqa: E704
+    def __init__(self, *args, **kwargs) -> None: ...  # type: ignore[no-untyped-def]  # noqa: E704
     @property
     def delta_R(self) -> npt.NDArray[np.float32]: ...  # noqa: E301,E704
     @property
@@ -121,7 +121,7 @@ class ColumnarSplittings:
     def z(self) -> npt.NDArray[np.float32]: ...  # noqa: E301,E704
 
 class ColumnarSubjets:
-    def __init__(self, *args, **kwargs) -> None: ...  # type: ignore  # noqa: E704
+    def __init__(self, *args, **kwargs) -> None: ...  # type: ignore[no-untyped-def]  # noqa: E704
     @property
     def constituent_indices(self) -> List[List[int]]: ...  # noqa: E301,E704
     @property
@@ -130,12 +130,12 @@ class ColumnarSubjets:
     def splitting_node_index(self) -> npt.NDArray[np.int64]: ...  # noqa: E301,E704
 
 class JetSubstructureSplittings:
-    def __init__(self, *args, **kwargs) -> None: ...  # type: ignore  # noqa: E704
+    def __init__(self, *args, **kwargs) -> None: ...  # type: ignore[no-untyped-def]  # noqa: E704
     def splittings(self) -> ColumnarSplittings: ...  # noqa: E301,E704
     def subjets(self) -> ColumnarSubjets: ...  # noqa: E301,E704
 
 class OutputWrapperDouble:
-    def __init__(self, *args, **kwargs) -> None: ...  # type: ignore  # noqa: E704
+    def __init__(self, *args, **kwargs) -> None: ...  # type: ignore[no-untyped-def]  # noqa: E704
     @property
     def constituent_indices(self) -> List[List[int]]: ...  # noqa: E301,E704
     @property  # noqa: E301
@@ -157,7 +157,7 @@ class OutputWrapperDouble:
     ]: ...
 
 class OutputWrapperFloat:
-    def __init__(self, *args, **kwargs) -> None: ...  # type: ignore  # noqa: E704
+    def __init__(self, *args, **kwargs) -> None: ...  # type: ignore[no-untyped-def]  # noqa: E704
     @property
     def constituent_indices(self) -> List[List[int]]: ...  # noqa: E704
     @property  # noqa: E301
@@ -179,7 +179,7 @@ class OutputWrapperFloat:
     ]: ...
 
 @overload
-def find_jets(   # type: ignore  # noqa: E704
+def find_jets(   # type: ignore[misc]  # noqa: E704
     px: npt.NDArray[np.float32],
     py: npt.NDArray[np.float32],
     pz: npt.NDArray[np.float32],
