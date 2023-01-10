@@ -7,16 +7,11 @@ from __future__ import annotations
 
 import functools
 import logging
-import sys
 import typing
 from pathlib import Path
-from typing import Any, Dict, List, Mapping, Optional, Sequence, Tuple, TypeVar, cast
+from typing import Any, Dict, Final, List, Mapping, Optional, Sequence, Tuple, TypeVar, cast
 
-if sys.version_info >= (3, 8):
-    from typing import Final
-else:
-    from typing_extensions import Final
-
+import attr
 import awkward as ak
 import numpy as np
 import numpy.typing as npt
@@ -847,6 +842,26 @@ def parquet_to_substructure_analysis(filename: Path, prefixes: Mapping[str, str]
             for output_prefix, input_prefix in prefixes.items()
         },
     }
+
+
+@attr.define
+class DoubleCountingCutParameters:
+    """Parameters for double counting cut."""
+    min_true_pt: float
+    min_pt_hat_bin: int
+    det_level_leading_track_pt_cut: bool
+
+
+double_counting_cuts = {
+    # Cut on detector level track pt
+    "traditional_det_level_track": DoubleCountingCutParameters(10, 0, True),
+    # Cut bin 3 and below 10 GeV in pt_true
+    "min_true_10_pt_hat_3": DoubleCountingCutParameters(10, 3, False),
+    # Cut bin 4 and below 5 GeV in pt_true
+    "min_true_5_pt_hat_4": DoubleCountingCutParameters(5, 4, False),
+    # Fully disabled
+    "disabled": DoubleCountingCutParameters(0, 0, False),
+}
 
 
 if __name__ == "__main__":
