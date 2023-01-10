@@ -184,6 +184,7 @@ _facilities_configs["rehlers_mbp_m1pro"] = Facility(
 class JobFramework(enum.Enum):
     dask_delayed = enum.auto()
     parsl = enum.auto()
+    immediate_execution_debug = enum.auto()
 
 
 P = ParamSpec("P")
@@ -204,6 +205,10 @@ def python_app(func: Callable[P, R]) -> Callable[P, concurrent.futures.Future[R]
             return dask.delayed(func)(*args, **kwargs)  # type: ignore[no-any-return,attr-defined]
         elif job_framework == JobFramework.parsl:
             return parsl_python_app(func)(*args, **kwargs)  # type: ignore[no-any-return]
+        elif job_framework == JobFramework.immediate_execution_debug:
+            # NOTE: This is lying about the return value. But that's okay because this is just for
+            #       immediate execution for debugging.
+            return func(*args, **kwargs)   #type: ignore[return-value]
         else:
             raise ValueError(f"Unrecognized job framework {job_framework}")
 
