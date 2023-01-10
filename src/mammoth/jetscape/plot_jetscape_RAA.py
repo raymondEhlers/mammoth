@@ -209,8 +209,6 @@ def plot(output_dir: Path,  # noqa: C901
                 h_pp_ref_jet_pt = hists["pp"][name] / h_pp_ref_n_events.values()[0]
                 #h_pp_ref_jet_pt = hists["pp"][name] / np.sum(hists["pp"][name].values())
 
-                # TODO: Check pp ratios!
-
                 for system, v in hists.items():
                     name = f"{jet_type}_jetR{format_R(jet_R)}_n_events_weighted"
                     #name = "n_events_weighted"
