@@ -202,7 +202,7 @@ def run() -> None:
     config, facility_config, stored_messages = job_utils.config(
         facility="ORNL_b587_vip",
         task_config=task_config,
-        n_tasks=n_cores_to_allocate,
+        target_n_tasks_to_run_simultaneously=n_cores_to_allocate,
         walltime=walltime,
         enable_monitoring=True,
     )

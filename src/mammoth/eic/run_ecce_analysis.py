@@ -478,7 +478,7 @@ def run() -> None:  # noqa: C901
         #facility="ORNL_b587_short",
         #facility="ORNL_b587_vip",
         task_config=task_config,
-        n_tasks=n_cores_to_allocate,
+        target_n_tasks_to_run_simultaneously=n_cores_to_allocate,
         walltime=walltime,
         enable_monitoring=True,
         additional_worker_init_script=additional_worker_init_script,

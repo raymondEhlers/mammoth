@@ -1022,7 +1022,7 @@ def run() -> None:  # noqa: C901
     config, facility_config, stored_messages = job_utils.config(
         facility="ORNL_b587_long" if _hours_in_walltime(walltime) >= 2 else "ORNL_b587_short",
         task_config=task_config,
-        n_tasks=n_cores_to_allocate,
+        target_n_tasks_to_run_simultaneously=n_cores_to_allocate,
         walltime=walltime,
         enable_monitoring=True,
         additional_worker_init_script=_additional_worker_init_script,
