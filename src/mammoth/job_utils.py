@@ -49,6 +49,7 @@ logger = logging.getLogger(__name__)
 
 FACILITIES = Literal[
     "rehlers_mbp_m1pro",
+    "rehlers_mbp_m1pro_multi_core",
     "ORNL_b587_short",
     "ORNL_b587_long",
     "ORNL_b587_loginOnly",
@@ -169,16 +170,21 @@ _facilities_configs = {
         nodes_to_exclude=["pc068"] if queue == "long" else [],
     ) for queue in ["short", "long", "loginOnly", "vip"]
 }
-_facilities_configs["rehlers_mbp_m1pro"] = Facility(
-    name="rehlers_mbp_m1pro",
-    node_spec=NodeSpec(n_cores=8, memory=12),
-    partition_name="INVALID",
-    target_allocate_n_cores=1,
-    launcher=SingleNodeLauncher,
-    #node_work_dir=Path("/tmp/parsl/$USER"),
-    #storage_work_dir=(Path.cwd() / Path("work_dir")).resolve(),
-    directories_to_mount_in_singularity=[Path("/opt/scott")],
+_facilities_configs.update(
+    {
+        f"rehlers_mbp_m1pro{'_multi_core' if multi_core else ''}": Facility(
+            name=f"rehlers_mbp_m1pro{'_multi_core' if multi_core else ''}",
+            node_spec=NodeSpec(n_cores=8, memory=12),
+            partition_name="INVALID",
+            target_allocate_n_cores=1 if multi_core is False else 8,
+            launcher=SingleNodeLauncher,
+            #node_work_dir=Path("/tmp/parsl/$USER"),
+            #storage_work_dir=(Path.cwd() / Path("work_dir")).resolve(),
+            directories_to_mount_in_singularity=[Path("/opt/scott")],
+        ) for multi_core in [False, True]
+    }
 )
+
 
 
 class JobFramework(enum.Enum):
