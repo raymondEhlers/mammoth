@@ -421,7 +421,10 @@ def _define_config(
             _potentially_immediately_log_message(log_messages=log_messages, immediately_log_messages=immediately_log_messages)
             n_blocks = request_n_blocks
 
-    if job_framework == JobFramework.parsl:
+    if job_framework == JobFramework.immediate_execution_debug:
+        # Debug option intentionally breaking typing
+        job_framework_config, _additional_log_messages = None, []  # type: ignore[var-annotated]
+    elif job_framework == JobFramework.parsl:
         # Parsl specific
         job_framework_config, _additional_log_messages = _define_parsl_config(
             task_config=task_config,
@@ -449,7 +452,7 @@ def _define_config(
     # Store any further log messages
     log_messages.extend(_additional_log_messages)
 
-    return job_framework_config, facility, log_messages
+    return job_framework_config, facility, log_messages  # type: ignore[return-value]
 
 
 def _define_dask_distributed_cluster(
@@ -711,7 +714,10 @@ def setup_job_framework(
         enable_monitoring=True,
         additional_worker_init_script=additional_worker_init_script,
     )
-    if job_framework == JobFramework.dask_delayed:
+    if job_framework == JobFramework.immediate_execution_debug:
+        # This is a debug option, so it will break typing
+        return None, None  # type: ignore[return-value]
+    elif job_framework == JobFramework.dask_delayed:
         return dask.distributed.Client(job_framework_config), job_framework_config  # type: ignore[no-untyped-call]
     else:
         # Keep track of the dfk to keep parsl alive
