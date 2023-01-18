@@ -226,7 +226,7 @@ def config(
     job_framework: Literal[JobFramework.parsl],
     facility: FACILITIES,
     task_config: TaskConfig,
-    n_tasks: int,
+    target_n_tasks_to_run_simultaneously: int,
     walltime: str,
     enable_monitoring: bool = False,
     request_n_blocks: Optional[int] = None,
@@ -238,7 +238,7 @@ def config(
     job_framework: Literal[JobFramework.dask_delayed],
     facility: FACILITIES,
     task_config: TaskConfig,
-    n_tasks: int,
+    target_n_tasks_to_run_simultaneously: int,
     walltime: str,
     enable_monitoring: bool = False,
     request_n_blocks: Optional[int] = None,
@@ -250,7 +250,7 @@ def config(
     job_framework: JobFramework,
     facility: FACILITIES,
     task_config: TaskConfig,
-    n_tasks: int,
+    target_n_tasks_to_run_simultaneously: int,
     walltime: str,
     enable_monitoring: bool = False,
     request_n_blocks: Optional[int] = None,
@@ -261,7 +261,7 @@ def config(
     job_framework: JobFramework,
     facility: FACILITIES,
     task_config: TaskConfig,
-    n_tasks: int,
+    target_n_tasks_to_run_simultaneously: int,
     walltime: str,
     enable_monitoring: bool = False,
     request_n_blocks: Optional[int] = None,
@@ -298,7 +298,7 @@ def config(
     # Further validation
     return _define_config(
         job_framework=job_framework,
-        n_tasks=n_tasks,
+        target_n_tasks_to_run_simultaneously=target_n_tasks_to_run_simultaneously,
         task_config=task_config,
         facility=_facility,
         walltime=walltime,
@@ -316,7 +316,7 @@ def _potentially_immediately_log_message(log_messages: List[helpers.LogMessage],
 
 def _define_config(
     job_framework: JobFramework,
-    n_tasks: int,
+    target_n_tasks_to_run_simultaneously: int,
     task_config: TaskConfig,
     facility: Facility,
     walltime: str,
@@ -328,7 +328,7 @@ def _define_config(
 
     Args:
         job_framework: Job framework.
-        n_tasks: Number of tasks to be executed.
+        target_n_tasks_to_run_simultaneously: Number of tasks to be executed simultaneously.
         task_config: Task configuration to be executed.
         facility: Facility configuration.
         walltime: Wall time for the job.
@@ -353,12 +353,12 @@ def _define_config(
     # 1. How many cores to request per block
     # 2. How much memory to request per block
     # 3. How many blocks are required to run all tasks.
-    n_cores_required = int(n_tasks * task_config.n_cores_per_task)
+    n_cores_required = int(target_n_tasks_to_run_simultaneously * task_config.n_cores_per_task)
     if n_cores_required <= facility.target_allocate_n_cores:
         # Only need a single block
         n_blocks = 1
         n_cores_to_allocate_per_block = n_cores_required
-        n_tasks_per_block = n_tasks
+        n_tasks_per_block = target_n_tasks_to_run_simultaneously
     else:
         # Need multiple blocks.
         # Let's spread out as evenly as possible.
@@ -376,8 +376,8 @@ def _define_config(
 
         # Cross check
         assert (
-            n_tasks_per_block * n_blocks >= n_tasks
-        ), f"Too many tasks per block. n_tasks_per_block: {n_tasks_per_block}, n_blocks: {n_blocks}, n_tasks: {n_tasks}"
+            n_tasks_per_block * n_blocks >= target_n_tasks_to_run_simultaneously
+        ), f"Too many tasks per block. n_tasks_per_block: {n_tasks_per_block}, n_blocks: {n_blocks}, n_tasks: {target_n_tasks_to_run_simultaneously}"
 
     # Calculate the memory required per block
     # NOTE: type ignore because mypy apparently can't figure out that this is not None, even though the check is right there...
@@ -387,7 +387,7 @@ def _define_config(
         helpers.LogMessage(
             __name__,
             "info",
-            f"Requesting {n_cores_to_allocate_per_block} core(s) in {n_blocks} block(s), with {n_tasks_per_block} tasks per block for {n_tasks} total tasks.",
+            f"Requesting {n_cores_to_allocate_per_block} core(s) in {n_blocks} block(s), with {n_tasks_per_block} tasks per block for {target_n_tasks_to_run_simultaneously} total tasks running simultaneously.",
         )
     )
     _potentially_immediately_log_message(log_messages=log_messages, immediately_log_messages=immediately_log_messages)
@@ -432,6 +432,7 @@ def _define_config(
             walltime=walltime,
             enable_monitoring=enable_monitoring,
             n_blocks=n_blocks,
+            n_tasks_per_block=n_tasks_per_block,
             n_cores_to_allocate_per_block=n_cores_to_allocate_per_block,
             memory_to_allocate_per_block=memory_to_allocate_per_block,
             additional_worker_init_script=additional_worker_init_script
@@ -444,6 +445,7 @@ def _define_config(
             walltime=walltime,
             enable_monitoring=enable_monitoring,
             n_blocks=n_blocks,
+            n_tasks_per_block=n_tasks_per_block,
             n_cores_to_allocate_per_block=n_cores_to_allocate_per_block,
             memory_to_allocate_per_block=memory_to_allocate_per_block,
             additional_worker_init_script=additional_worker_init_script
@@ -461,6 +463,7 @@ def _define_dask_distributed_cluster(
     walltime: str,
     enable_monitoring: bool,
     n_blocks: int,
+    n_tasks_per_block: int,
     n_cores_to_allocate_per_block: int,
     memory_to_allocate_per_block: int | None,
     additional_worker_init_script: str = "",
@@ -469,7 +472,6 @@ def _define_dask_distributed_cluster(
     # NOTE: We're fine to log directly here because we know that logging with dask is fine.
     if enable_monitoring:
         logger.debug("NOTE: Requested monitoring to be enabled, but it's always enabled for dask")
-
 
     # We want each worker to know how many cores it has available so we can then later tell dask how many cores each
     # task needs. This allows for multiple cores per task (assuming a worker has enough cores available).
@@ -566,6 +568,7 @@ def _define_parsl_config(
     walltime: str,
     enable_monitoring: bool,
     n_blocks: int,
+    n_tasks_per_block: int,
     n_cores_to_allocate_per_block: int,
     memory_to_allocate_per_block: int | None,
     additional_worker_init_script: str = "",
@@ -654,7 +657,7 @@ def setup_job_framework(
     task_config: TaskConfig,
     facility: FACILITIES,
     walltime: str,
-    n_cores_to_allocate: int,
+    target_n_tasks_to_run_simultaneously: int,
     log_level: int,
     additional_worker_init_script: str = "",
 ) -> Tuple[dask.distributed.Client, dask.distributed.SpecCluster]: ...
@@ -665,7 +668,7 @@ def setup_job_framework(
     task_config: TaskConfig,
     facility: FACILITIES,
     walltime: str,
-    n_cores_to_allocate: int,
+    target_n_tasks_to_run_simultaneously: int,
     log_level: int,
     additional_worker_init_script: str = "",
 ) -> Tuple[parsl.DataFlowKernel, Config]: ...
@@ -676,7 +679,7 @@ def setup_job_framework(
     task_config: TaskConfig,
     facility: FACILITIES,
     walltime: str,
-    n_cores_to_allocate: int,
+    target_n_tasks_to_run_simultaneously: int,
     log_level: int,
     additional_worker_init_script: str = "",
 ) -> Tuple[parsl.DataFlowKernel, parsl.Config] | Tuple[dask.distributed.Client, dask.distributed.SpecCluster]: ...
@@ -686,7 +689,7 @@ def setup_job_framework(
     task_config: TaskConfig,
     facility: FACILITIES,
     walltime: str,
-    n_cores_to_allocate: int,
+    target_n_tasks_to_run_simultaneously: int,
     log_level: int,
     additional_worker_init_script: str = "",
 ) -> Tuple[parsl.DataFlowKernel, parsl.Config] | Tuple[dask.distributed.Client, dask.distributed.SpecCluster]:
@@ -709,7 +712,7 @@ def setup_job_framework(
         job_framework=job_framework,
         facility=facility,
         task_config=task_config,
-        n_tasks=n_cores_to_allocate,
+        target_n_tasks_to_run_simultaneously=target_n_tasks_to_run_simultaneously,
         walltime=walltime,
         enable_monitoring=True,
         additional_worker_init_script=additional_worker_init_script,
