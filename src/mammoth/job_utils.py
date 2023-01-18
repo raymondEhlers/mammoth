@@ -487,16 +487,30 @@ def _define_dask_distributed_cluster(
     # We need to treat the case of the local facility differently because
     # the cluster is different (ie. it's not slurm).
     if facility.partition_name == "INVALID" or "rehlers_mbp_m1pro" in facility.name:
+        # Due to limitations of the LocalCluster, we need only to have only 1 task per worker.
+        # Here, we'll modify the allocation logic to make this work.
+        n_cores_to_allocate_per_block = task_config.n_cores_per_task
+        # Update the resources available.
+        resources = {"n_cores": n_cores_to_allocate_per_block}
+        if n_tasks_per_block > 1:
+            # It's possible that the config will generate more than one task per worker. In this case,
+            # we need to create more workers to compensate.
+            n_blocks = n_blocks * n_tasks_per_block
+            logger.info(
+                f"Since running local config, we can't have more than one task per worker (==block). Thus, change the number of workers to {n_tasks_per_block}"
+            )
+
         # Ensure that we don't overload an individual system by requesting more cores than are available.
         if n_blocks * n_cores_to_allocate_per_block > facility.node_spec.n_cores:
             n_blocks = round(facility.node_spec.n_cores / n_cores_to_allocate_per_block)
             logger.info(
-                "Since running local config, we set the number of blocks to the available number of cores to avoid overloading the system."
+                f"Since running local config, we set the number of blocks ({n_blocks}) to the available number of cores to avoid overloading the system."
             )
-        # NOTE: For the LocalCluster case, each worker is considered a block!
+
         cluster = dask.distributed.LocalCluster(
             n_workers=n_blocks,
             threads_per_worker=1,
+            processes=True,
             resources=resources,
         )
         # Actually request the jobs. Doing this or not can be made configurable later if needed, but the default
