@@ -18,7 +18,7 @@ from pachyderm import binned_data
 
 logger = logging.getLogger(__name__)
 
-# NOTE: If we use atts.frozen instead, the yaml serialization won't work. The reason isn't clear
+# NOTE: If we use attr.frozen instead, the yaml serialization won't work. The reason isn't clear
 #       as of Sept 2022, but there's no point in investigating further since the old method seems to work fine.
 @attr.s(frozen=True)
 class ScaleFactor:
