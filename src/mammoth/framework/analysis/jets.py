@@ -6,11 +6,16 @@ functionality itself.
 .. codeauthor:: Raymond Ehlers <raymond.ehlers@cern.ch>, LBL
 """
 
-import logging
-from typing import Mapping, Tuple
+from __future__ import annotations
 
+import logging
+from pathlib import Path
+from typing import Mapping, Sequence, Tuple
+
+import attr
 import awkward as ak
 import numpy as np
+import numpy.typing as npt
 
 from mammoth.framework import jet_finding
 
@@ -202,9 +207,49 @@ def hybrid_background_particles_only_mask(
     return background_only_particles_mask
 
 
+@attr.define(frozen=True)
+class PtDependentTrackingEfficiencyParameters:
+    bin_edges: npt.NDArray[np.float64]
+    values: npt.NDArray[np.float64]
+    baseline_tracking_efficiency_shift: float = 1.0
+
+    @classmethod
+    def from_file(cls, period: str | Sequence[str], event_activity: str, baseline_tracking_efficiency_shift: float) -> PtDependentTrackingEfficiencyParameters:
+        # Validation
+        if isinstance(period, str):
+            period = [period]
+
+        # Load yaml file
+        from pachyderm import yaml
+        y = yaml.yaml()
+        _here = Path(__file__).parent
+        config_filename = Path(_here.parent / "alice" / "config" / "track_efficiency_pt_dependence.yaml")
+        with open(config_filename, "r") as f:
+            config = y.load(f)
+
+        # Grab values from file
+        bin_edges = np.array(config["pt_binning"], dtype=np.float64)
+        possible_values = []
+        # Iterate over the periods to average possible contributions
+        for _period in period:
+            possible_values.append(
+                np.array(config[_period][event_activity], dtype=np.float64)
+            )
+        values = np.mean(possible_values, axis=0)
+
+        # Validate values vs pt bin
+        assert len(values) + 1 == len(bin_edges), f"Bin edges don't match up to values. {len(bin_edges)=}, {len(values)=}"
+
+        return cls(
+            bin_edges=bin_edges,
+            values=values,
+            baseline_tracking_efficiency_shift=baseline_tracking_efficiency_shift,
+        )
+
+
 def hybrid_level_particles_mask_for_jet_finding(
     arrays: ak.Array,
-    det_level_artificial_tracking_efficiency: float,
+    det_level_artificial_tracking_efficiency: float | PtDependentTrackingEfficiencyParameters,
     source_index_identifiers: Mapping[str, int],
     validation_mode: bool,
 ) -> Tuple[ak.Array, ak.Array]:
@@ -226,7 +271,7 @@ def hybrid_level_particles_mask_for_jet_finding(
     # To apply this, we want to select all background tracks + the subset of det level particles to keep
     # First, start with an all True mask
     hybrid_level_mask = (arrays["hybrid"].pt >= 0)
-    if det_level_artificial_tracking_efficiency < 1.0:
+    if isinstance(det_level_artificial_tracking_efficiency, PtDependentTrackingEfficiencyParameters) or det_level_artificial_tracking_efficiency < 1.0:
         if validation_mode:
             raise ValueError(
                 "Cannot apply artificial tracking efficiency during validation mode. The randomness will surely break the validation."
@@ -244,7 +289,27 @@ def hybrid_level_particles_mask_for_jet_finding(
         # Next, drop particles if their random values that are higher than the tracking efficiency
         _rng = np.random.default_rng()
         random_values = _rng.uniform(low=0.0, high=1.0, size=_total_n_det_level_particles)
-        _drop_particles_mask = random_values > det_level_artificial_tracking_efficiency
+        if isinstance(det_level_artificial_tracking_efficiency, PtDependentTrackingEfficiencyParameters):
+            # NOTE: We need to go back and forth between flatten and unflatten in order to use searchsorted
+            _indices_for_pt_dependent_values = np.searchsorted(
+                    # Take [1:] since we use side="right"
+                    # TODO: Confirm!
+                    det_level_artificial_tracking_efficiency.bin_edges[1:],
+                    ak.unflatten(arrays["hybrid"][~background_particles_only_mask].pt),
+                    side="right",
+            )
+            _pt_dependent_tracking_efficiency = det_level_artificial_tracking_efficiency.values[_indices_for_pt_dependent_values]
+            # Apply additional baseline tracking efficiency degradation for high multiplicity environment
+            # NOTE: We take 1.0 - value because it's defined as eg. 0.97, so to add it on the pt dependent values,
+            # we have to determine how much _more_ to add on.
+            _pt_dependent_tracking_efficiency = (
+                _pt_dependent_tracking_efficiency -
+                (1.0 - det_level_artificial_tracking_efficiency.baseline_tracking_efficiency_shift)
+            )
+
+            _drop_particles_mask = random_values > _pt_dependent_tracking_efficiency
+        else:
+            _drop_particles_mask = random_values > det_level_artificial_tracking_efficiency
         # NOTE: The check above will assign `True` when the random value is higher than the tracking efficiency.
         #       However, since we to remove those particles and keep ones below, we need to invert this selection.
         _det_level_particles_to_keep_mask = ~_drop_particles_mask

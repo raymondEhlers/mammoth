@@ -17,6 +17,7 @@ from mammoth import helpers, job_utils
 from mammoth.alice import job_utils as alice_job_utils
 from mammoth.framework import sources, production
 from mammoth.framework.analysis import objects as analysis_objects
+from mammoth.framework.analysis import jets as analysis_jets
 from pachyderm import yaml
 from parsl.app.app import python_app
 from parsl.data_provider.files import File
@@ -680,6 +681,19 @@ def setup_calculate_embed_pythia_skim(  # noqa: C901
     logger.info(f"Processing chunk size for {_chunk_size}")
     # Splitting selection (iterative vs recursive)
     splittings_selection = SplittingsSelection[_analysis_config["splittings_selection"]]
+    # Artificial tracking efficiency (including the option for pt dependent tracking eff)
+    # NOTE: This depends on centrality and period, so it's better to do it here!
+    det_level_artificial_tracking_efficiency = _analysis_config["det_level_artificial_tracking_efficiency"]
+    # Pt dependent for tracking efficiency uncertainty
+    if _analysis_config["apply_pt_dependent_tracking_efficiency_uncertainty"]:
+        # NOTE: Careful - this needs to be added as 1-value. (ie. 1-.97=0.03 -> for .98 flat, we get .95)
+        det_level_artificial_tracking_efficiency = analysis_jets.PtDependentTrackingEfficiencyParameters.from_file(
+            period=_metadata_config["dataset"]["period"],
+            event_activity=_analysis_config["event_activity"],
+            # NOTE: There should be the possibility to apply this on top of the .98, for example.
+            baseline_tracking_efficiency_shift=det_level_artificial_tracking_efficiency,
+        )
+
     # Scale factors
     scale_factors = None
     if prod.has_scale_factors:

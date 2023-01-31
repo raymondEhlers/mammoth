@@ -4,6 +4,7 @@ skimmed_datasets:
     name: "LHC17pq_pass1_AOD234_2111_2112"
     collision_system: "pp"
     sqrt_s: 5020
+    period: "LHC17pq"
     # Keep track of the skim type for documentation
     skim_type: "track_skim_task"
     # Parameters of the output
@@ -25,6 +26,7 @@ skimmed_datasets:
     name: "LHC18b8_AOD_2619"
     collision_system: "pythia"
     sqrt_s: 5020
+    period: "LHC18b8"
     # Keep track of the skim type for documentation
     skim_type: "track_skim_task"
     # Parameters of the output
@@ -42,6 +44,7 @@ skimmed_datasets:
     name: "LHC20g4_AOD_2640"
     collision_system: "pythia"
     sqrt_s: 5020
+    period: "LHC20g4"
     # Keep track of the skim type for documentation
     skim_type: "track_skim_task"
     # Parameters of the output
@@ -59,6 +62,7 @@ skimmed_datasets:
     name: "LHC18qr_pass3_AOD252_central_642"
     collision_system: "PbPb"
     sqrt_s: 5020
+    period: ["LHC18q", "LHC18r"]
     # Keep track of the skim type for documentation
     skim_type: "track_skim_task"
     # Parameters of the output
@@ -73,6 +77,7 @@ skimmed_datasets:
     name: "LHC18qr_pass3_AOD252_semi_central_645"
     collision_system: "PbPb"
     sqrt_s: 5020
+    period: ["LHC18q", "LHC18r"]
     # Keep track of the skim type for documentation
     skim_type: "track_skim_task"
     # Parameters of the output
@@ -87,6 +92,7 @@ skimmed_datasets:
     name: "LHC15o_pass1_AOD194_central_7666"
     collision_system: "PbPb"
     sqrt_s: 5020
+    period: "LHC15o"
     # Keep track of the skim type for documentation
     skim_type: "track_skim_task"
     # Parameters of the output
@@ -100,6 +106,7 @@ skimmed_datasets:
     name: "LHC15o_pass1_AOD194_semi_central_7668"
     collision_system: "PbPb"
     sqrt_s: 5020
+    period: "LHC15o"
     # Keep track of the skim type for documentation
     skim_type: "track_skim_task"
     # Parameters of the output
@@ -506,6 +513,7 @@ productions:
         background_subtraction:
           r_max: 0.1
         det_level_artificial_tracking_efficiency: 0.99
+        apply_pt_dependent_tracking_efficiency_uncertainty: false
     65:
       # Background systematic, r_max = 0.05
       metadata:
@@ -521,6 +529,7 @@ productions:
         background_subtraction:
           r_max: 0.05
         det_level_artificial_tracking_efficiency: 0.99
+        apply_pt_dependent_tracking_efficiency_uncertainty: false
     66:
       # Background systematic, r_max = 0.50
       metadata:
@@ -536,6 +545,8 @@ productions:
         background_subtraction:
           r_max: 0.50
         det_level_artificial_tracking_efficiency: 0.99
+        apply_pt_dependent_tracking_efficiency_uncertainty: false
+
 
   embed_thermal_model:
     2:

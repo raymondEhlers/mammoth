@@ -5,6 +5,8 @@ Note that the embedding analysis supports analyzing embedding data as well as in
 .. codeauthor:: Raymond Ehlers <raymond.ehlers@cern.ch>, LBL/UCB
 """
 
+from __future__ import annotations
+
 import logging
 from pathlib import Path
 from typing import Any, Dict, Mapping, Optional
@@ -262,7 +264,7 @@ def analysis_embedding(
     background_subtraction_settings: Optional[Mapping[str, Any]] = None,
     validation_mode: bool = False,
     shared_momentum_fraction_min: float = 0.5,
-    det_level_artificial_tracking_efficiency: float = 1.0,
+    det_level_artificial_tracking_efficiency: float | analysis_jets.PtDependentTrackingEfficiencyParameters = 1.0,
 ) -> ak.Array:
     # Validation
     if background_subtraction_settings is None:
