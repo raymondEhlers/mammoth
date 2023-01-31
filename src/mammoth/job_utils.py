@@ -208,7 +208,7 @@ def python_app(func: Callable[P, R]) -> Callable[P, concurrent.futures.Future[R]
         # See: https://peps.python.org/pep-0612/#concatenating-keyword-parameters
         job_framework = kwargs.get("job_framework", JobFramework.parsl)
         if job_framework == JobFramework.dask_delayed:
-            return dask.delayed(func)(*args, **kwargs)  # type: ignore[no-any-return,attr-defined]
+            return dask.delayed(func)(*args, **kwargs)  # type: ignore[no-any-return]
         elif job_framework == JobFramework.parsl:
             return parsl_python_app(func)(*args, **kwargs)  # type: ignore[no-any-return]
         elif job_framework == JobFramework.immediate_execution_debug:
@@ -439,7 +439,7 @@ def _define_config(
         )
     else:
         # Dask specific
-        job_framework_config, _additional_log_messages = _define_dask_distributed_cluster(
+        job_framework_config, _additional_log_messages = _define_dask_distributed_cluster(  # type: ignore[assignment]
             task_config=task_config,
             facility=facility,
             walltime=walltime,
@@ -507,7 +507,7 @@ def _define_dask_distributed_cluster(
                 f"Since running local config, we set the number of blocks ({n_blocks}) to the available number of cores to avoid overloading the system."
             )
 
-        cluster = dask.distributed.LocalCluster(
+        cluster = dask.distributed.LocalCluster(  # type: ignore[no-untyped-call]
             n_workers=n_blocks,
             threads_per_worker=1,
             processes=True,
@@ -735,7 +735,7 @@ def setup_job_framework(
         # This is a debug option, so it will break typing
         return None, None  # type: ignore[return-value]
     elif job_framework == JobFramework.dask_delayed:
-        return dask.distributed.Client(job_framework_config), job_framework_config  # type: ignore[no-untyped-call]
+        return dask.distributed.Client(job_framework_config), job_framework_config  # type: ignore[no-untyped-call,return-value]
     else:
         # Keep track of the dfk to keep parsl alive
         dfk = helpers.setup_logging_and_parsl(
