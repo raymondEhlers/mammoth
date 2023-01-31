@@ -935,7 +935,8 @@ def define_productions() -> List[production.ProductionSettings]:
     productions = []
 
     # Create and store production information
-    config_filename = Path("mammoth/alice/config/track_skim_config.yaml")
+    _here = Path(__file__).parent
+    config_filename = Path(_here.parent / "alice" / "config" / "track_skim_config.yaml")
     productions.extend(
         [
             # Debug
