@@ -166,7 +166,7 @@ def determine_additional_worker_init(
     conda_environment_name: Optional[str] = None,
 ) -> str:
     """Wrapper for convenience"""
-    if conda_environment_name is not None:
+    if conda_environment_name:
         return determine_additional_worker_init_conda(
             environment_name=conda_environment_name,
             productions=productions,
