@@ -8,6 +8,7 @@ from __future__ import annotations
 import enum
 import logging
 import secrets
+from concurrent.futures import Future
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Mapping, Optional, Sequence, Tuple
 
@@ -18,10 +19,9 @@ from mammoth.alice import job_utils as alice_job_utils
 from mammoth.framework import sources, production
 from mammoth.framework.analysis import objects as analysis_objects
 from mammoth.framework.analysis import jets as analysis_jets
+from mammoth.job_utils import python_app
 from pachyderm import yaml
-from parsl.app.app import python_app
 from parsl.data_provider.files import File
-from parsl.dataflow.futures import AppFuture
 
 
 logger = logging.getLogger(__name__)
@@ -79,6 +79,7 @@ def safe_output_filename_from_relative_path(filename: Path, output_dir: Path) ->
 @python_app
 def _extract_scale_factors_from_hists(
     list_name: str,
+    job_framework: job_utils.JobFramework,
     inputs: Sequence[File] = [],
     outputs: Sequence[File] = [],
     stdout: Optional[str] = None,
@@ -101,7 +102,8 @@ def _extract_scale_factors_from_hists(
 
 def setup_extract_scale_factors(
     prod: production.ProductionSettings,
-) -> Dict[int, AppFuture]:
+    job_framework: job_utils.JobFramework,
+) -> Dict[int, Future[analysis_objects.ScaleFactor]]:
     """Extract scale factors from embedding or pythia hists.
 
     Copied from jet_substructure.analysis.parsl. The interface is slightly modified,
@@ -111,7 +113,7 @@ def setup_extract_scale_factors(
         This is surprisingly fast.
     """
     # Setup
-    scale_factors: Dict[int, AppFuture] = {}
+    scale_factors: Dict[int, Future[analysis_objects.ScaleFactor]] = {}
     logger.info("Determining input files for extracting scale factors.")
     input_files_per_pt_hat_bin = prod.input_files_per_pt_hat()
 
@@ -122,6 +124,7 @@ def setup_extract_scale_factors(
             scale_factors[pt_hat_bin] = _extract_scale_factors_from_hists(
                 inputs=[File(str(fname)) for fname in input_files],
                 list_name=prod.config["metadata"][dataset_key]["list_name"],
+                job_framework=job_framework,
             )
 
     return scale_factors
@@ -130,6 +133,7 @@ def setup_extract_scale_factors(
 @python_app
 def _write_scale_factors_to_yaml(
     scale_factors: Mapping[int, analysis_objects.ScaleFactor],
+    job_framework: job_utils.JobFramework,
     inputs: Sequence[File] = [],
     outputs: Sequence[File] = [],
 ) -> bool:
@@ -155,8 +159,9 @@ def _write_scale_factors_to_yaml(
 
 def setup_write_scale_factors(
     prod: production.ProductionSettings,
-    scale_factors: Mapping[int, AppFuture],
-) -> AppFuture:
+    job_framework: job_utils.JobFramework,
+    scale_factors: Mapping[int, Future[analysis_objects.ScaleFactor]],
+) -> Future[bool]:
     """
     Copied from jet_substructure.analysis.parsl. The interface is slightly modified,
     but the main functionality is the same.
@@ -170,8 +175,9 @@ def setup_write_scale_factors(
     # NOTE: I'm guessing passing this is a problem because it's a class that's imported in an app, and then
     #       we're trying to pass the result into another app. I think we can go one direction or the other,
     #       but not both. So we just take the result.
-    yaml_result: AppFuture = _write_scale_factors_to_yaml(
+    yaml_result = _write_scale_factors_to_yaml(
         scale_factors={k: v.result() for k, v in scale_factors.items()},
+        job_framework=job_framework,
         outputs=[parsl_output_file],
     )
 
@@ -183,6 +189,7 @@ def _extract_pt_hat_spectra(
     scale_factors: Mapping[int, float],
     offsets: Mapping[int, int],
     list_name: str,
+    job_framework: job_utils.JobFramework,
     inputs: Sequence[File] = [],
     outputs: Sequence[File] = [],
     stdout: Optional[str] = None,
@@ -220,8 +227,9 @@ def _extract_pt_hat_spectra(
 
 def setup_check_pt_hat_spectra(
     prod: production.ProductionSettings,
-    input_results: Sequence[AppFuture],
-) -> AppFuture:
+    job_framework: job_utils.JobFramework,
+    input_results: Sequence[Future[Any]],
+) -> Future[bool]:
     """
     Copied from jet_substructure.analysis.parsl. The interface is slightly modified,
     but the main functionality is the same.
@@ -245,15 +253,20 @@ def setup_check_pt_hat_spectra(
         offsets[pt_hat_bin] = len(converted_filenames)
         parsl_files.extend(converted_filenames)
     # Add the dependency. We won't actually open the file in the task, but this will provide explicit dependence.
-    parsl_files.extend([i.outputs[0] for i in input_results])
+    if job_framework == job_utils.JobFramework.parsl:
+        parsl_files.extend([i.outputs[0] for i in input_results])  # type: ignore[attr-defined]
+    else:
+        # We lie about the typing here, but it's convenient
+        parsl_files.extend(input_results)  # type: ignore[arg-type]
 
     dataset_key = "signal_dataset" if "signal_dataset" in prod.config["metadata"] else "dataset"
     # We want to store it in the same directory as the scale factors, so it's easiest to just grab that filename.
     output_filename = prod.scale_factors_filename.parent / "pt_hat_spectra.yaml"
-    results: AppFuture = _extract_pt_hat_spectra(
+    results = _extract_pt_hat_spectra(
         scale_factors=scale_factors,
         offsets=offsets,
         list_name=prod.config["metadata"][dataset_key]["list_name"],
+        job_framework=job_framework,
         inputs=parsl_files,
         outputs=[File(str(output_filename))],
     )
@@ -263,7 +276,8 @@ def setup_check_pt_hat_spectra(
 
 def steer_extract_scale_factors(
     prod: production.ProductionSettings,
-) -> List[AppFuture]:
+    job_framework: job_utils.JobFramework,
+) -> List[Future[Any]]:
     # Validation
     if not prod.has_scale_factors:
         raise ValueError(f"Invalid collision system for extracting scale factors: {prod.collision_system}")
@@ -279,15 +293,16 @@ def steer_extract_scale_factors(
     logger.info("Extracting scale factors...")
 
     # First, we need to extract the scale factors and keep track of the results
-    all_results: List[AppFuture] = []
-    scale_factors = setup_extract_scale_factors(prod=prod)
+    all_results: List[Future[Any]] = []
+    scale_factors = setup_extract_scale_factors(prod=prod, job_framework=job_framework)
     all_results.extend(list(scale_factors.values()))
     # Then, we need to write them
-    all_results.append(setup_write_scale_factors(prod=prod, scale_factors=scale_factors))
+    all_results.append(setup_write_scale_factors(prod=prod, job_framework=job_framework, scale_factors=scale_factors))
     # And then create the spectra (and plot them) to cross check the extraction
     all_results.append(
         setup_check_pt_hat_spectra(
             prod=prod,
+            job_framework=job_framework,
             # Need the future which writes the YAML
             input_results=[all_results[-1]],
         )
@@ -314,7 +329,8 @@ def _run_data_skim(
     loading_data_rename_prefix: Mapping[str, str],
     convert_data_format_prefixes: Mapping[str, str],
     pt_hat_bin: int,
-    scale_factors: Optional[Mapping[int, float]] = None,
+    scale_factors: Optional[Mapping[int, float]],
+    job_framework: job_utils.JobFramework,
     inputs: Sequence[File] = [],
     outputs: Sequence[File] = [],
 ) -> Tuple[bool, str]:
@@ -347,8 +363,9 @@ def _run_data_skim(
 
 def setup_calculate_data_skim(
     prod: production.ProductionSettings,
+    job_framework: job_utils.JobFramework,
     debug_mode: bool,
-) -> List[AppFuture]:
+) -> List[Future[Tuple[bool, str]]]:
     """Create futures to produce hardest kt data skim"""
     # Setup input and output
     # Need to handle pt hat bin productions differently than standard productions
@@ -402,10 +419,11 @@ def setup_calculate_data_skim(
                     background_subtraction=_analysis_config.get("background_subtraction", {}),
                     loading_data_rename_prefix=_metadata_config["loading_data_rename_prefix"],
                     convert_data_format_prefixes=_metadata_config["convert_data_format_prefixes"],
-                    inputs=[File(str(input_filename))],
-                    outputs=[File(str(output_filename))],
                     pt_hat_bin=pt_hat_bin,
                     scale_factors=scale_factors,
+                    job_framework=job_framework,
+                    inputs=[File(str(input_filename))],
+                    outputs=[File(str(output_filename))],
                 )
             )
 
@@ -427,6 +445,7 @@ def _run_embedding_skim(
     scale_factor: float,
     background_is_constrained_source: bool,
     n_signal_input_files: int,
+    job_framework: job_utils.JobFramework,
     inputs: Sequence[File] = [],
     outputs: Sequence[File] = [],
 ) -> Tuple[bool, str]:
@@ -614,8 +633,9 @@ def _determine_embed_pythia_input_files(
 
 def setup_calculate_embed_pythia_skim(  # noqa: C901
     prod: production.ProductionSettings,
+    job_framework: job_utils.JobFramework,
     debug_mode: bool,
-) -> List[AppFuture]:
+) -> List[Future[Tuple[bool, str]]]:
     """Create futures to produce hardest kt embedded pythia skim"""
     # Setup input and output
     output_dir = prod.output_dir / "skim"
@@ -790,6 +810,7 @@ def setup_calculate_embed_pythia_skim(  # noqa: C901
                 scale_factor=scale_factors[pt_hat_bin],
                 background_is_constrained_source=_background_is_constrained_source,
                 n_signal_input_files=len(signal_input),
+                job_framework=job_framework,
                 inputs=[
                     *[File(str(_filename)) for _filename in signal_input],
                     *[File(str(_filename)) for _filename in background_input],
@@ -827,6 +848,7 @@ def _run_embed_thermal_model_skim(
     chunk_size: int,
     convert_data_format_prefixes: Mapping[str, str],
     scale_factor: float,
+    job_framework: job_utils.JobFramework,
     inputs: Sequence[File] = [],
     outputs: Sequence[File] = [],
 ) -> Tuple[bool, str]:
@@ -860,8 +882,9 @@ def _run_embed_thermal_model_skim(
 
 def setup_calculate_embed_thermal_model_skim(
     prod: production.ProductionSettings,
+    job_framework: job_utils.JobFramework,
     debug_mode: bool,
-) -> List[AppFuture]:
+) -> List[Future[Tuple[bool, str]]]:
     """Create futures to produce hardest kt embedded pythia skim"""
     # Setup input and output
     # Need to handle pt hat bin productions differently than standard productions
@@ -930,17 +953,46 @@ def setup_calculate_embed_thermal_model_skim(
                     thermal_model_parameters=thermal_model_parameters,
                     chunk_size=chunk_size,
                     convert_data_format_prefixes=_metadata_config["convert_data_format_prefixes"],
+                    scale_factor=scale_factors[pt_hat_bin],
+                    job_framework=job_framework,
                     inputs=[
                         File(str(input_filename)),
                     ],
                     outputs=[File(str(output_filename))],
-                    scale_factor=scale_factors[pt_hat_bin],
                 )
             )
 
             _file_counter += 1
 
     return results
+
+
+def setup_job_framework(
+    job_framework: job_utils.JobFramework,
+    productions: Sequence[production.ProductionSettings],
+    task_config: job_utils.TaskConfig,
+    facility: job_utils.FACILITIES,
+    walltime: str,
+    target_n_tasks_to_run_simultaneously: int,
+    log_level: int,
+    conda_environment_name: Optional[str] = None,
+) -> Tuple[job_utils.parsl.DataFlowKernel, job_utils.parsl.Config] | Tuple[job_utils.dask.distributed.Client, job_utils.dask.distributed.SpecCluster]:
+    # First, need to figure out if we need additional environments such as ROOT
+    _additional_worker_init_script = alice_job_utils.determine_additional_worker_init(
+        productions=productions,
+        conda_environment_name=conda_environment_name,
+        tasks_requiring_root=["extract_scale_factors"],
+        tasks_requiring_aliphysics=[],
+    )
+    return job_utils.setup_job_framework(
+        job_framework=job_framework,
+        task_config=task_config,
+        facility=facility,
+        walltime=walltime,
+        target_n_tasks_to_run_simultaneously=target_n_tasks_to_run_simultaneously,
+        log_level=log_level,
+        additional_worker_init_script=_additional_worker_init_script,
+    )
 
 
 def define_productions() -> List[production.ProductionSettings]:
@@ -1007,49 +1059,40 @@ def _hours_in_walltime(walltime: str) -> int:
     return int(walltime.split(":")[0])
 
 
-def run() -> None:  # noqa: C901
+def run(run_all_the_way: bool = True) -> List[Future[Any]]:  # noqa: C901
     # Job execution parameters
     productions = define_productions()
     task_name = "hardest_kt_mammoth"
 
     # Job execution configuration
+    job_framework = job_utils.JobFramework.parsl
+    conda_environment_name = ""
     task_config = job_utils.TaskConfig(name=task_name, n_cores_per_task=1)
-    # n_cores_to_allocate = 120
-    # n_cores_to_allocate = 110
-    n_cores_to_allocate = 60
+    # target_n_tasks_to_run_simultaneously = 120
+    # target_n_tasks_to_run_simultaneously = 110
+    target_n_tasks_to_run_simultaneously = 60
+    log_level = logging.INFO
     walltime = "24:00:00"
     debug_mode = False
     if debug_mode:
         # Usually, we want to run in the short queue
-        n_cores_to_allocate = 2
+        target_n_tasks_to_run_simultaneously = 2
         walltime = "1:59:00"
+    facility: job_utils.FACILITIES = "ORNL_b587_long" if _hours_in_walltime(walltime) >= 2 else "ORNL_b587_short"
 
-    # Basic setup: logging and parsl.
-    # First, need to figure out if we need additional environments such as ROOT
-    _additional_worker_init_script = alice_job_utils.determine_additional_worker_init_alibuild(
+    # Keep the job executor just to keep it alive
+    job_executor, _job_framework_config = setup_job_framework(
+        job_framework=job_framework,
         productions=productions,
-        tasks_requiring_root=["extract_scale_factors"],
-        tasks_requiring_aliphysics=[],
-    )
-    # NOTE: Parsl's logger setup is broken, so we have to set it up before starting logging. Otherwise,
-    #       it's super verbose and a huge pain to turn off. Note that by passing on the storage messages,
-    #       we don't actually lose any info.
-    config, facility_config, stored_messages = job_utils.config(
-        facility="ORNL_b587_long" if _hours_in_walltime(walltime) >= 2 else "ORNL_b587_short",
         task_config=task_config,
-        target_n_tasks_to_run_simultaneously=n_cores_to_allocate,
+        facility=facility,
         walltime=walltime,
-        enable_monitoring=True,
-        additional_worker_init_script=_additional_worker_init_script,
-    )
-    # Keep track of the dfk to keep parsl alive
-    dfk = helpers.setup_logging_and_parsl(
-        parsl_config=config,
-        level=logging.INFO,
-        stored_messages=stored_messages,
+        target_n_tasks_to_run_simultaneously=target_n_tasks_to_run_simultaneously,
+        log_level=log_level,
+        conda_environment_name=conda_environment_name,
     )
 
-    all_results = []
+    all_results: List[Future[Any]] = []
     for prod in productions:
         tasks_to_execute = prod.tasks_to_execute
         logger.info(f"Tasks to execute: {tasks_to_execute}")
@@ -1061,12 +1104,14 @@ def run() -> None:  # noqa: C901
             system_results.extend(
                 steer_extract_scale_factors(
                     prod=prod,
+                    job_framework=job_framework,
                 )
             )
         if "calculate_data_skim" in tasks_to_execute:
             system_results.extend(
                 setup_calculate_data_skim(
                     prod=prod,
+                    job_framework=job_framework,
                     debug_mode=debug_mode,
                 )
             )
@@ -1074,6 +1119,7 @@ def run() -> None:  # noqa: C901
             system_results.extend(
                 setup_calculate_embed_thermal_model_skim(
                     prod=prod,
+                    job_framework=job_framework,
                     debug_mode=debug_mode,
                 )
             )
@@ -1081,6 +1127,7 @@ def run() -> None:  # noqa: C901
             system_results.extend(
                 setup_calculate_embed_pythia_skim(
                     prod=prod,
+                    job_framework=job_framework,
                     debug_mode=debug_mode,
                 )
             )
@@ -1090,13 +1137,25 @@ def run() -> None:  # noqa: C901
 
     logger.info(f"Accumulated {len(all_results)} total futures")
 
-    # If we don't return early when we've disabled parsl, we it will crash unexpectedly
-    if debug_mode:
-        # NOTE: The typing is wrong here because we disable parsl for the debugging,
-        #       which means that we don't return futures, but rather the return values directly
-        logger.warning(all_results[0][1])  # type: ignore[index]
-        return
+    if job_framework == job_utils.JobFramework.dask_delayed:
+        assert isinstance(job_executor, job_utils.dask.distributed.Client)
+        all_results = job_executor.compute(  # type: ignore[no-untyped-call]
+            all_results,
+            # Distributed assumes functions are pure, but usually mine are not (ie. they create files)
+            pure=False,
+            resources={"n_cores": task_config.n_cores_per_task}
+        )
 
+    if run_all_the_way:
+        process_futures(productions=productions, all_results=all_results)
+
+    return all_results
+
+
+def process_futures(
+    productions: Sequence[production.ProductionSettings],
+    all_results: Sequence[Future[Any]]
+) -> None:
     # Process the futures, showing processing progress
     # Since it returns the results, we can actually use this to accumulate results.
     gen_results = job_utils.provide_results_as_completed(all_results, running_with_parsl=True)
