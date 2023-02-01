@@ -290,14 +290,16 @@ def hybrid_level_particles_mask_for_jet_finding(
         _rng = np.random.default_rng()
         random_values = _rng.uniform(low=0.0, high=1.0, size=_total_n_det_level_particles)
         if isinstance(det_level_artificial_tracking_efficiency, PtDependentTrackingEfficiencyParameters):
-            # NOTE: We need to go back and forth between flatten and unflatten in order to use searchsorted
+            # NOTE: We need to flatten to be able to use searchsorted
             _indices_for_pt_dependent_values = np.searchsorted(
-                    # Take [1:] since we use side="right"
-                    # TODO: Confirm!
-                    det_level_artificial_tracking_efficiency.bin_edges[1:],
-                    ak.unflatten(arrays["hybrid"][~background_particles_only_mask].pt),
-                    side="right",
+                det_level_artificial_tracking_efficiency.bin_edges[1:],
+                ak.flatten(arrays["hybrid"][~background_particles_only_mask].pt),
+                side="right",
             )
+            # NOTE: We want pt values in the first bin to get mapped to 0th entry in the tracking efficiency,
+            #       so we subtract one from each index
+            _indices_for_pt_dependent_values -= 1
+            # And determine the values
             _pt_dependent_tracking_efficiency = det_level_artificial_tracking_efficiency.values[_indices_for_pt_dependent_values]
             # Apply additional baseline tracking efficiency degradation for high multiplicity environment
             # NOTE: We take 1.0 - value because it's defined as eg. 0.97, so to add it on the pt dependent values,
