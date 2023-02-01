@@ -246,6 +246,28 @@ class PtDependentTrackingEfficiencyParameters:
             baseline_tracking_efficiency_shift=baseline_tracking_efficiency_shift,
         )
 
+    def calculate_tracking_efficiency(
+        self,
+        pt_values: npt.NDArray[np.float32] | npt.NDArray[np.float64],
+    ) -> npt.NDArray[np.float64]:
+        _indices_for_pt_dependent_values = np.searchsorted(
+            self.bin_edges, pt_values, side="right",
+        )
+        # NOTE: We want pt values in the first bin to get mapped to 0th entry in the tracking efficiency,
+        #       so we subtract one from each index
+        _indices_for_pt_dependent_values -= 1
+        # And determine the values
+        _pt_dependent_tracking_efficiency: npt.NDArray[np.float64] = self.values[_indices_for_pt_dependent_values]
+        # Apply additional baseline tracking efficiency degradation for high multiplicity environment
+        # NOTE: We take 1.0 - value because it's defined as eg. 0.97, so to add it on the pt dependent values,
+        # we have to determine how much _more_ to add on.
+        _pt_dependent_tracking_efficiency = (
+            _pt_dependent_tracking_efficiency -
+            (1.0 - self.baseline_tracking_efficiency_shift)
+        )
+
+        return _pt_dependent_tracking_efficiency
+
 
 def hybrid_level_particles_mask_for_jet_finding(
     arrays: ak.Array,
@@ -290,23 +312,9 @@ def hybrid_level_particles_mask_for_jet_finding(
         _rng = np.random.default_rng()
         random_values = _rng.uniform(low=0.0, high=1.0, size=_total_n_det_level_particles)
         if isinstance(det_level_artificial_tracking_efficiency, PtDependentTrackingEfficiencyParameters):
-            # NOTE: We need to flatten to be able to use searchsorted
-            _indices_for_pt_dependent_values = np.searchsorted(
-                det_level_artificial_tracking_efficiency.bin_edges[1:],
-                ak.flatten(arrays["hybrid"][~background_particles_only_mask].pt),
-                side="right",
-            )
-            # NOTE: We want pt values in the first bin to get mapped to 0th entry in the tracking efficiency,
-            #       so we subtract one from each index
-            _indices_for_pt_dependent_values -= 1
-            # And determine the values
-            _pt_dependent_tracking_efficiency = det_level_artificial_tracking_efficiency.values[_indices_for_pt_dependent_values]
-            # Apply additional baseline tracking efficiency degradation for high multiplicity environment
-            # NOTE: We take 1.0 - value because it's defined as eg. 0.97, so to add it on the pt dependent values,
-            # we have to determine how much _more_ to add on.
-            _pt_dependent_tracking_efficiency = (
-                _pt_dependent_tracking_efficiency -
-                (1.0 - det_level_artificial_tracking_efficiency.baseline_tracking_efficiency_shift)
+            _pt_dependent_tracking_efficiency = det_level_artificial_tracking_efficiency.calculate_tracking_efficiency(
+                # NOTE: We need to flatten to be able to use searchsorted
+                pt_values=ak.flatten(arrays["hybrid"][~background_particles_only_mask].pt),
             )
 
             _drop_particles_mask = random_values > _pt_dependent_tracking_efficiency
