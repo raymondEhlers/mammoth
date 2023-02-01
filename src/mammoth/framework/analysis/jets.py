@@ -275,11 +275,13 @@ def hybrid_level_particles_mask_for_jet_finding(
     source_index_identifiers: Mapping[str, int],
     validation_mode: bool,
 ) -> Tuple[ak.Array, ak.Array]:
-    """Select only background particles from the hybrid particle collection.
+    """Calculate mask to separate hybrid and det level tracks, potentially apply an additional tracking efficiency uncertainty
 
     Args:
         arrays: Input particle level arrays
+        det_level_artificial_tracking_efficiency: Artificial tracking efficiency to apply only to detector level particles.
         source_index_identifiers: Index offset map for each source. Provided by the embedding.
+        validation_mode: If True, we're running in validation mode.
     Returns:
         Mask to apply to the hybrid level particles during jet finding, mask selecting only the background particles.
     """
@@ -346,3 +348,62 @@ def hybrid_level_particles_mask_for_jet_finding(
             )
 
     return hybrid_level_mask, background_particles_only_mask
+
+
+def det_level_particles_mask_for_jet_finding(
+    arrays: ak.Array,
+    det_level_artificial_tracking_efficiency: float | PtDependentTrackingEfficiencyParameters,
+    validation_mode: bool,
+) -> ak.Array:
+    """Calculate mask to apply an additional tracking efficiency uncertainty to detector level
+
+    Similar to (and code based on) `hybrid_level_particles_mask_for_jet_finding`, but simpler since we don't
+    have to apply the selection to a subset of particles in a overall array.
+
+    Args:
+        arrays: Input particle level arrays
+        det_level_artificial_tracking_efficiency: Artificial tracking efficiency to apply only to detector level particles.
+        validation_mode: If True, we're running in validation mode.
+    Returns:
+        Mask to apply to the det level particles during jet finding.
+    """
+    det_level_mask = (arrays["det_level"].pt >= 0)
+    if isinstance(det_level_artificial_tracking_efficiency, PtDependentTrackingEfficiencyParameters) or det_level_artificial_tracking_efficiency < 1.0:
+        if validation_mode:
+            raise ValueError(
+                "Cannot apply artificial tracking efficiency during validation mode. The randomness will surely break the validation."
+            )
+
+        # Here, we focus in on the detector level particles.
+        # First, we determine the total number of det_level particles to determine how many random
+        # numbers to generate (plus, the info needed to unflatten later)
+        _n_det_level_particles_per_event = ak.num(arrays["det_level"], axis=1)
+        _total_n_det_level_particles = ak.sum(_n_det_level_particles_per_event)
+
+        # Next, drop particles if their random values that are higher than the tracking efficiency
+        _rng = np.random.default_rng()
+        random_values = _rng.uniform(low=0.0, high=1.0, size=_total_n_det_level_particles)
+        if isinstance(det_level_artificial_tracking_efficiency, PtDependentTrackingEfficiencyParameters):
+            _pt_dependent_tracking_efficiency = det_level_artificial_tracking_efficiency.calculate_tracking_efficiency(
+                # NOTE: We need to flatten to be able to use searchsorted
+                pt_values=ak.flatten(arrays["det_level"].pt),
+            )
+
+            _drop_particles_mask = random_values > _pt_dependent_tracking_efficiency
+        else:
+            _drop_particles_mask = random_values > det_level_artificial_tracking_efficiency
+        # NOTE: The check above will assign `True` when the random value is higher than the tracking efficiency.
+        #       However, since we to remove those particles and keep ones below, we need to invert this selection.
+        det_level_mask = ~_drop_particles_mask
+
+        # Cross check that it worked.
+        # If the entire hybrid mask is True, then it means that no particles were removed.
+        # NOTE: I don't have this as an assert because if there aren't _that_ many particles and the efficiency
+        #       is high, I suppose it's possible that this fails, and I don't want to kill jobs for that reason.
+        if ak.all(det_level_mask == True):  # noqa: E712
+            logger.warning(
+                "No particles were removed in the artificial tracking efficiency."
+                " This is possible, but not super likely. Please check your settings!"
+            )
+
+    return det_level_mask

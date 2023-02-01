@@ -3,6 +3,8 @@
 .. codeauthor:: Raymond Ehlers <raymond.ehlers@cern.ch>, ORNL
 """
 
+from __future__ import annotations
+
 import collections
 import logging
 from pathlib import Path
@@ -13,7 +15,7 @@ import numpy as np
 from mammoth import helpers
 from mammoth.framework import load_data, sources
 from mammoth.framework.io import track_skim
-from mammoth.framework.analysis import objects as analysis_objects
+from mammoth.framework.analysis import objects as analysis_objects, jets as analysis_jets
 from mammoth.hardest_kt import analysis_alice
 
 from mammoth.hardest_kt import skim_to_flat_tree
@@ -131,6 +133,7 @@ def hardest_kt_data_skim(
     # Pythia specific
     pt_hat_bin: Optional[int] = -1,
     scale_factors: Optional[Mapping[int, float]] = None,
+    det_level_artificial_tracking_efficiency: float | analysis_jets.PtDependentTrackingEfficiencyParameters | None = 1.0,
     # Validation
     validation_mode: bool = False,
     background_subtraction: Optional[Mapping[str, Any]] = None,
@@ -175,6 +178,9 @@ def hardest_kt_data_skim(
                 background_subtraction_settings=background_subtraction,
             )
         elif collision_system in ["pythia"]:
+            # Validation
+            assert det_level_artificial_tracking_efficiency is not None
+
             # Although we could in principle analyze the MC loading only particle or detector level alone,
             # it's more consistent to analyze it with the data quality conditions applied on both part
             # and det level.
@@ -188,6 +194,7 @@ def hardest_kt_data_skim(
                 ),
                 jet_R=jet_R,
                 min_jet_pt=min_jet_pt,
+                det_level_artificial_tracking_efficiency=det_level_artificial_tracking_efficiency,
                 validation_mode=validation_mode,
             )
         else:

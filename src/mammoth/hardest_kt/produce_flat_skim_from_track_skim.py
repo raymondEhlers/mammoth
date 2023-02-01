@@ -330,6 +330,7 @@ def _run_data_skim(
     convert_data_format_prefixes: Mapping[str, str],
     pt_hat_bin: int,
     scale_factors: Optional[Mapping[int, float]],
+    det_level_artificial_tracking_efficiency: float | analysis_jets.PtDependentTrackingEfficiencyParameters | None,
     job_framework: job_utils.JobFramework,
     inputs: Sequence[File] = [],
     outputs: Sequence[File] = [],
@@ -351,6 +352,7 @@ def _run_data_skim(
             convert_data_format_prefixes=convert_data_format_prefixes,
             scale_factors=scale_factors,
             pt_hat_bin=pt_hat_bin,
+            det_level_artificial_tracking_efficiency=det_level_artificial_tracking_efficiency,
             output_filename=Path(outputs[0].filepath),
         )
     except Exception:
@@ -390,6 +392,21 @@ def setup_calculate_data_skim(
     scale_factors = None
     if prod.has_scale_factors:
         scale_factors = prod.scale_factors()
+    # Det level artificial tracking efficiency (pythia only)
+    det_level_artificial_tracking_efficiency = None
+    if prod.collision_system == "pythia":
+        # Artificial tracking efficiency (including the option for pt dependent tracking eff)
+        # NOTE: This depends on period, so it's better to do it here!
+        det_level_artificial_tracking_efficiency = _analysis_config.get("det_level_artificial_tracking_efficiency", None)
+        # Pt dependent for tracking efficiency uncertainty
+        if _analysis_config.get("apply_pt_dependent_tracking_efficiency_uncertainty", False):
+            # NOTE: Careful - this needs to be added as 1-value. (ie. 1-.97=0.03 -> for .98 flat, we get .95)
+            det_level_artificial_tracking_efficiency = analysis_jets.PtDependentTrackingEfficiencyParameters.from_file(
+                period=_metadata_config["dataset"]["period"],
+                event_activity="0_100",
+                # NOTE: There should be the possibility to apply this on top of the .98, for example.
+                baseline_tracking_efficiency_shift=det_level_artificial_tracking_efficiency,
+            )
 
     results = []
     _file_counter = 0
@@ -421,6 +438,7 @@ def setup_calculate_data_skim(
                     convert_data_format_prefixes=_metadata_config["convert_data_format_prefixes"],
                     pt_hat_bin=pt_hat_bin,
                     scale_factors=scale_factors,
+                    det_level_artificial_tracking_efficiency=det_level_artificial_tracking_efficiency,
                     job_framework=job_framework,
                     inputs=[File(str(input_filename))],
                     outputs=[File(str(output_filename))],

@@ -27,7 +27,11 @@ vector.register_awkward()
 
 
 def analysis_MC(
-    arrays: ak.Array, jet_R: float, min_jet_pt: Mapping[str, float], validation_mode: bool = False
+    arrays: ak.Array,
+    jet_R: float,
+    min_jet_pt: Mapping[str, float],
+    det_level_artificial_tracking_efficiency: float | analysis_jets.PtDependentTrackingEfficiencyParameters = 1.0,
+    validation_mode: bool = False
 ) -> ak.Array:
     logger.info("Start analyzing")
     # Event selection
@@ -44,6 +48,17 @@ def analysis_MC(
     area_kwargs: Dict[str, Any] = {}
     if validation_mode:
         area_kwargs["random_seed"] = jet_finding.VALIDATION_MODE_RANDOM_SEED
+
+    # Calculate the relevant masks for hybrid level particles:
+    # 1. We may need to mask the hybrid level particles to apply an artificial tracking inefficiency
+    # 2. We usually calculate rho only using the PbPb particles (ie. not including the embedded det_level),
+    #    so we need to select only them.
+    det_level_mask = analysis_jets.det_level_particles_mask_for_jet_finding(
+        arrays=arrays,
+        det_level_artificial_tracking_efficiency=det_level_artificial_tracking_efficiency,
+        validation_mode=validation_mode,
+    )
+
     jets = ak.zip(
         {
             "part_level": jet_finding.find_jets(
@@ -69,7 +84,7 @@ def analysis_MC(
                 ),
             ),
             "det_level": jet_finding.find_jets(
-                particles=arrays["det_level"],
+                particles=arrays["det_level"][det_level_mask],
                 jet_finding_settings=jet_finding.JetFindingSettings(
                     R=jet_R,
                     algorithm="anti-kt",
