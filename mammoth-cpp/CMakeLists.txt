@@ -31,6 +31,10 @@ if(APPLE)
   set(CMAKE_INSTALL_RPATH "@loader_path")
 else()
   set(CMAKE_BUILD_RPATH_USE_ORIGIN TRUE)
+  # NOTE: The second entry is needed due to the fastjet install procedure where we copy to mammoth_cpp below.
+  #       It's a bit awkward that this is defined here before those steps, but we need to set the rpath
+  #       before doing anything else, so we just have to live with it.
+  set(CMAKE_INSTALL_RPATH $ORIGIN $ORIGIN/fastjet/lib)
 endif()
 
 # Path to additional cmake modules
