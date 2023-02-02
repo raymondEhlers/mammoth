@@ -1077,39 +1077,13 @@ def _hours_in_walltime(walltime: str) -> int:
     return int(walltime.split(":")[0])
 
 
-def run(run_all_the_way: bool = True) -> List[Future[Any]]:  # noqa: C901
-    # Job execution parameters
-    productions = define_productions()
-    task_name = "hardest_kt_mammoth"
-
-    # Job execution configuration
-    job_framework = job_utils.JobFramework.parsl
-    conda_environment_name = ""
-    task_config = job_utils.TaskConfig(name=task_name, n_cores_per_task=1)
-    # target_n_tasks_to_run_simultaneously = 120
-    # target_n_tasks_to_run_simultaneously = 110
-    target_n_tasks_to_run_simultaneously = 60
-    log_level = logging.INFO
-    walltime = "24:00:00"
-    debug_mode = False
-    if debug_mode:
-        # Usually, we want to run in the short queue
-        target_n_tasks_to_run_simultaneously = 2
-        walltime = "1:59:00"
-    facility: job_utils.FACILITIES = "ORNL_b587_long" if _hours_in_walltime(walltime) >= 2 else "ORNL_b587_short"
-
-    # Keep the job executor just to keep it alive
-    job_executor, _job_framework_config = setup_job_framework(
-        job_framework=job_framework,
-        productions=productions,
-        task_config=task_config,
-        facility=facility,
-        walltime=walltime,
-        target_n_tasks_to_run_simultaneously=target_n_tasks_to_run_simultaneously,
-        log_level=log_level,
-        conda_environment_name=conda_environment_name,
-    )
-
+def setup_and_submit_tasks(
+    productions: Sequence[production.ProductionSettings],
+    task_config: job_utils.TaskConfig,
+    job_framework: job_utils.JobFramework,
+    debug_mode: bool,
+    job_executor: job_utils.parsl.DataFlowKernel | job_utils.dask.distributed.Client,
+) -> List[Future[Any]]:
     all_results: List[Future[Any]] = []
     for prod in productions:
         tasks_to_execute = prod.tasks_to_execute
@@ -1163,9 +1137,6 @@ def run(run_all_the_way: bool = True) -> List[Future[Any]]:  # noqa: C901
             pure=False,
             resources={"n_cores": task_config.n_cores_per_task}
         )
-
-    if run_all_the_way:
-        process_futures(productions=productions, all_results=all_results)
 
     return all_results
 
@@ -1227,5 +1198,49 @@ def process_futures(
     logger.info(res)
 
 
+def run(job_framework: job_utils.JobFramework) -> List[Future[Any]]:
+    # Job execution parameters
+    productions = define_productions()
+    task_name = "hardest_kt_mammoth"
+
+    # Job execution configuration
+    conda_environment_name = ""
+    task_config = job_utils.TaskConfig(name=task_name, n_cores_per_task=1)
+    # target_n_tasks_to_run_simultaneously = 120
+    # target_n_tasks_to_run_simultaneously = 110
+    target_n_tasks_to_run_simultaneously = 60
+    log_level = logging.INFO
+    walltime = "24:00:00"
+    debug_mode = False
+    if debug_mode:
+        # Usually, we want to run in the short queue
+        target_n_tasks_to_run_simultaneously = 2
+        walltime = "1:59:00"
+    facility: job_utils.FACILITIES = "ORNL_b587_long" if _hours_in_walltime(walltime) >= 2 else "ORNL_b587_short"
+
+    # Keep the job executor just to keep it alive
+    job_executor, _job_framework_config = setup_job_framework(
+        job_framework=job_framework,
+        productions=productions,
+        task_config=task_config,
+        facility=facility,
+        walltime=walltime,
+        target_n_tasks_to_run_simultaneously=target_n_tasks_to_run_simultaneously,
+        log_level=log_level,
+        conda_environment_name=conda_environment_name,
+    )
+    all_results = setup_and_submit_tasks(
+        productions=productions,
+        task_config=task_config,
+        job_framework=job_framework,
+        debug_mode=debug_mode,
+        job_executor=job_executor
+    )
+
+    process_futures(productions=productions, all_results=all_results)
+
+    return all_results
+
+
 if __name__ == "__main__":
-    run()
+    run(job_framework=job_utils.JobFramework.parsl)
