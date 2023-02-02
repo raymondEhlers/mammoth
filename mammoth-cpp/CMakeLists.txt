@@ -26,6 +26,8 @@ if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
 endif()
 
 # Some rpath defaults taken from awkward-cpp.
+# Further helpful docs are here: https://jeremimucha.com/2021/04/cmake-fundamentals-part8/
+# including both details on how to understand rpath, as well as useful conventions.
 if(APPLE)
   set(CMAKE_BUILD_WITH_INSTALL_RPATH TRUE)
   set(CMAKE_INSTALL_RPATH "@loader_path")
