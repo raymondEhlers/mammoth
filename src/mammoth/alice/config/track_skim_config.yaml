@@ -231,8 +231,8 @@ analysis_settings:
     <<: *_base_analysis_settings_embed
     jet_R: 0.2
 
-  # We don't need an explicit one for embedding into a thermal model - we can just
-  # take the standard embedding analysis settings
+  # NOTE: We don't need an explicit one for embedding into a thermal model - we can
+  #       just take the standard embedding analysis settings
 
 
 productions:
@@ -377,6 +377,47 @@ productions:
         dataset: *LHC18qr_PbPb_semi_central
         # Equivalent to train number, but a more general term makes more sense here.
         production_number: 66
+        label: "semi_central"
+      settings:
+        <<: *analysis_settings_PbPb_R02
+        event_activity: "semi_central"
+        background_subtraction:
+          r_max: 0.50
+    # **********************************************
+    # Added new grooming methods, adding z_cut to DyG
+    # ***********************************************
+    67:
+      # Nominal, r_max = 0.1. Added 31 Jan 2023
+      metadata:
+        <<: *base_metadata_PbPb
+        dataset: *LHC18qr_PbPb_semi_central
+        # Equivalent to train number, but a more general term makes more sense here.
+        production_number: 67
+        label: "semi_central"
+      settings:
+        <<: *analysis_settings_PbPb_R02
+        event_activity: "semi_central"
+        background_subtraction:
+          r_max: 0.1
+    68:
+      # Background systematic, r_max = 0.05. Added 31 Jan 2023
+      metadata:
+        <<: *base_metadata_PbPb
+        dataset: *LHC18qr_PbPb_semi_central
+        production_number: 68
+        label: "semi_central"
+      settings:
+        <<: *analysis_settings_PbPb_R02
+        event_activity: "semi_central"
+        background_subtraction:
+          r_max: 0.1
+    69:
+      # Background systematic, r_max = 0.50. Added 31 Jan 2023
+      metadata:
+        <<: *base_metadata_PbPb
+        dataset: *LHC18qr_PbPb_semi_central
+        # Equivalent to train number, but a more general term makes more sense here.
+        production_number: 69
         label: "semi_central"
       settings:
         <<: *analysis_settings_PbPb_R02
@@ -546,6 +587,59 @@ productions:
           r_max: 0.50
         det_level_artificial_tracking_efficiency: 0.99
         apply_pt_dependent_tracking_efficiency_uncertainty: false
+    # **********************************************
+    # Added new grooming methods, adding z_cut to DyG
+    # ***********************************************
+    # Attempt to switch to signal as the constraint from here!
+    67:
+      # Nominal, r_max = 0.1. Added 31 Jan 23023
+      metadata:
+        <<: *base_metadata_embed
+        dataset: *LHC18qr_PbPb_semi_central
+        signal_dataset: *LHC20g4_pythia
+        production_number: 67
+        label: "embed_pythia_semi_central"
+      settings:
+        <<: *analysis_settings_embed_R02
+        event_activity: "semi_central"
+        chunk_size: 5000
+        background_subtraction:
+          r_max: 0.1
+        det_level_artificial_tracking_efficiency: 0.99
+        apply_pt_dependent_tracking_efficiency_uncertainty: false
+    68:
+      # Background systematic, r_max = 0.05. Added 31 Jan 2023
+      metadata:
+        <<: *base_metadata_embed
+        dataset: *LHC18qr_PbPb_semi_central
+        signal_dataset: *LHC20g4_pythia
+        production_number: 68
+        label: "embed_pythia_semi_central"
+      settings:
+        <<: *analysis_settings_embed_R02
+        event_activity: "semi_central"
+        chunk_size: 5000
+        background_subtraction:
+          r_max: 0.05
+        det_level_artificial_tracking_efficiency: 0.99
+        apply_pt_dependent_tracking_efficiency_uncertainty: false
+    69:
+      # Background systematic, r_max = 0.50. Added 31 Jan 2023
+      metadata:
+        <<: *base_metadata_embed
+        dataset: *LHC18qr_PbPb_semi_central
+        signal_dataset: *LHC20g4_pythia
+        # Equivalent to train number, but a more general term makes more sense here.
+        production_number: 69
+        label: "embed_pythia_semi_central"
+      settings:
+        <<: *analysis_settings_embed_R02
+        event_activity: "semi_central"
+        chunk_size: 5000
+        background_subtraction:
+          r_max: 0.50
+        det_level_artificial_tracking_efficiency: 0.99
+        apply_pt_dependent_tracking_efficiency_uncertainty: false
 
 
   embed_thermal_model:
@@ -584,4 +678,21 @@ productions:
         # 10-30 \approx .99
         # 0-10% \approx .98
         # Apply only to embedded particles
+        det_level_artificial_tracking_efficiency: 0.99
+    # **********************************************
+    # Added new grooming methods, adding z_cut to DyG
+    # ***********************************************
+    61:
+      # Nominal. Added 31 Jan 2023
+      metadata:
+        <<: *base_metadata_embed_thermal_model
+        dataset: *LHC20g4_pythia
+        production_number: 61
+        label: "embed_pythia_semi_central"
+      settings:
+        <<: *analysis_settings_embed_R02
+        event_activity: "semi_central"
+        chunk_size: 5000
+        background_subtraction:
+          r_max: 0.1
         det_level_artificial_tracking_efficiency: 0.99
