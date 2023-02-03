@@ -11,7 +11,7 @@ import attr
 from mammoth.framework import production
 
 
-@attr.define
+@attr.define(frozen=True)
 class Dependency:
     name: str
     tasks: Sequence[str]
@@ -60,12 +60,12 @@ def determine_additional_worker_init_alibuild(
 
     _software_to_load: List[str] = []
     _additional_worker_init_script = ""
-    _software_options = {
+    _software_options = [
         # NOTE: It's important that ROOT is handled first so that we can remove it later if we need to do so. See below.
         Dependency("ROOT", tasks_requiring_root, False),
         Dependency("AliPhysics", tasks_requiring_aliphysics, True),
         Dependency("RooUnfold", tasks_requiring_roounfold, True),
-    }
+    ]
     for _software in _software_options:
         # fmt: off
         if any(
