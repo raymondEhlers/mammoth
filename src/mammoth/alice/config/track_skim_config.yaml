@@ -416,12 +416,47 @@ productions:
       metadata:
         <<: *base_metadata_PbPb
         dataset: *LHC18qr_PbPb_semi_central
-        # Equivalent to train number, but a more general term makes more sense here.
         production_number: 69
         label: "semi_central"
       settings:
         <<: *analysis_settings_PbPb_R02
         event_activity: "semi_central"
+        background_subtraction:
+          r_max: 0.50
+    70:
+      # Nominal, central, r_max = 0.1. Added 4 Feb 2023
+      metadata:
+        <<: *base_metadata_PbPb
+        dataset: *LHC18qr_PbPb_central
+        production_number: 70
+        label: "central"
+      settings:
+        <<: *analysis_settings_PbPb_R02
+        event_activity: "central"
+        background_subtraction:
+          r_max: 0.1
+    71:
+      # Background systematic, r_max = 0.05. Added 6 Feb 2023
+      metadata:
+        <<: *base_metadata_PbPb
+        dataset: *LHC18qr_PbPb_central
+        production_number: 71
+        label: "central"
+      settings:
+        <<: *analysis_settings_PbPb_R02
+        event_activity: "central"
+        background_subtraction:
+          r_max: 0.1
+    72:
+      # Background systematic, r_max = 0.50. Added 6 Feb 2023
+      metadata:
+        <<: *base_metadata_PbPb
+        dataset: *LHC18qr_PbPb_central
+        production_number: 72
+        label: "central"
+      settings:
+        <<: *analysis_settings_PbPb_R02
+        event_activity: "central"
         background_subtraction:
           r_max: 0.50
 
@@ -602,7 +637,7 @@ productions:
       settings:
         <<: *analysis_settings_embed_R02
         event_activity: "semi_central"
-        chunk_size: 5000
+        chunk_size: 4000
         background_subtraction:
           r_max: 0.1
         det_level_artificial_tracking_efficiency: 0.99
@@ -618,7 +653,7 @@ productions:
       settings:
         <<: *analysis_settings_embed_R02
         event_activity: "semi_central"
-        chunk_size: 5000
+        chunk_size: 4000
         background_subtraction:
           r_max: 0.05
         det_level_artificial_tracking_efficiency: 0.99
@@ -629,18 +664,99 @@ productions:
         <<: *base_metadata_embed
         dataset: *LHC18qr_PbPb_semi_central
         signal_dataset: *LHC20g4_pythia
-        # Equivalent to train number, but a more general term makes more sense here.
         production_number: 69
         label: "embed_pythia_semi_central"
       settings:
         <<: *analysis_settings_embed_R02
         event_activity: "semi_central"
-        chunk_size: 5000
+        chunk_size: 4000
         background_subtraction:
           r_max: 0.50
         det_level_artificial_tracking_efficiency: 0.99
         apply_pt_dependent_tracking_efficiency_uncertainty: false
-
+    70:
+      # Tracking efficiency systematic, r_max = 0.1. Added 5 Feb 2023
+      metadata:
+        <<: *base_metadata_embed
+        dataset: *LHC18qr_PbPb_semi_central
+        signal_dataset: *LHC20g4_pythia
+        production_number: 70
+        label: "embed_pythia_semi_central"
+      settings:
+        <<: *analysis_settings_embed_R02
+        event_activity: "semi_central"
+        chunk_size: 4000
+        background_subtraction:
+          r_max: 0.1
+        det_level_artificial_tracking_efficiency: 0.99
+        apply_pt_dependent_tracking_efficiency_uncertainty: true
+    #########
+    # Central
+    #########
+    71:
+      # Central nominal, r_max = 0.1. Added 6 Feb 2023
+      metadata:
+        <<: *base_metadata_embed
+        dataset: *LHC18qr_PbPb_central
+        signal_dataset: *LHC20g4_pythia
+        production_number: 71
+        label: "embed_pythia_central"
+      settings:
+        <<: *analysis_settings_embed_R02
+        event_activity: "central"
+        chunk_size: 4000
+        background_subtraction:
+          r_max: 0.1
+        det_level_artificial_tracking_efficiency: 0.99
+        apply_pt_dependent_tracking_efficiency_uncertainty: false
+    72:
+      # Background systematic, r_max = 0.05. Added 6 Feb 2023
+      metadata:
+        <<: *base_metadata_embed
+        dataset: *LHC18qr_PbPb_central
+        signal_dataset: *LHC20g4_pythia
+        production_number: 72
+        label: "embed_pythia_central"
+      settings:
+        <<: *analysis_settings_embed_R02
+        event_activity: "central"
+        chunk_size: 4000
+        background_subtraction:
+          r_max: 0.05
+        det_level_artificial_tracking_efficiency: 0.99
+        apply_pt_dependent_tracking_efficiency_uncertainty: false
+    73:
+      # Background systematic, r_max = 0.50
+      metadata:
+        <<: *base_metadata_embed
+        dataset: *LHC18qr_PbPb_central
+        signal_dataset: *LHC20g4_pythia
+        production_number: 73
+        label: "embed_pythia_central"
+      settings:
+        <<: *analysis_settings_embed_R02
+        event_activity: "central"
+        chunk_size: 4000
+        background_subtraction:
+          r_max: 0.50
+        det_level_artificial_tracking_efficiency: 0.99
+        apply_pt_dependent_tracking_efficiency_uncertainty: false
+    74:
+      # Tracking efficiency systematic, r_max = 0.1. Added 5 Feb 2023
+      metadata:
+        <<: *base_metadata_embed
+        dataset: *LHC18qr_PbPb_central
+        signal_dataset: *LHC20g4_pythia
+        production_number: 74
+        label: "embed_pythia_central"
+      settings:
+        <<: *analysis_settings_embed_R02
+        event_activity: "central"
+        chunk_size: 4000
+        background_subtraction:
+          r_max: 0.1
+        det_level_artificial_tracking_efficiency: 0.99
+        apply_pt_dependent_tracking_efficiency_uncertainty: true
 
   embed_thermal_model:
     2:
@@ -692,6 +808,20 @@ productions:
       settings:
         <<: *analysis_settings_embed_R02
         event_activity: "semi_central"
+        chunk_size: 5000
+        background_subtraction:
+          r_max: 0.1
+        det_level_artificial_tracking_efficiency: 0.99
+    62:
+      # Nominal. Added 6 Feb 2023
+      metadata:
+        <<: *base_metadata_embed_thermal_model
+        dataset: *LHC20g4_pythia
+        production_number: 62
+        label: "embed_pythia_central"
+      settings:
+        <<: *analysis_settings_embed_R02
+        event_activity: "central"
         chunk_size: 5000
         background_subtraction:
           r_max: 0.1
