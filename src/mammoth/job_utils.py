@@ -167,7 +167,7 @@ _facilities_configs = {
         #node_work_dir=Path("/tmp/parsl/$USER"),
         #storage_work_dir=Path("/alf/data/rehlers/jetscape/work_dir"),
         # Excluded due to focal simulations
-        nodes_to_exclude=["pc068"] if queue == "long" else [],
+        nodes_to_exclude=[] if queue == "long" else [],
     ) for queue in ["short", "long", "loginOnly", "vip"]
 }
 _facilities_configs.update(
