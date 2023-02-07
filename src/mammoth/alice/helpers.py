@@ -212,11 +212,26 @@ def standard_jet_selection(jets: ak.Array,
 
     # Start with all true mask
     masks = {
-        column_name: np.ones(len(jets[column_name])) > 0 for column_name in particle_columns
+        # NOTE: Since these arrays could be jagged, we want to compare to a value which we can be
+        #       confident that it will always give positive, leading to an all true mask.
+        # NOTE: If there are no jets in any events, it won't lead to a True mask (which would be
+        #       inconsistent because it shouldn't be selecting anything), but rather keeps the event
+        #       structure with an array that would flatten to a zero length list.
+        column_name: ak.ones_like(jets[column_name].px) > 0 for column_name in particle_columns
     }
 
     # Apply jet level cuts.
     for column_name in masks:
+        # Cross check - if there are no entries at all, then this masking won't do anything,
+        # and there's no point in continuing
+        if len(ak.flatten(jets[column_name].pt)) == 0:
+            # Fix up the case where there are no entries so that they have the right type!
+            masks[column_name] = ak.values_astype(masks[column_name], bool, including_unknown=True)
+            logger.info(
+                f"There are no jets available for {column_name}, so skipping masking since it's not meaningful and can cause problems"
+            )
+            continue
+
         # **************
         # Remove detector level jets with constituents with pt > 100 GeV
         # Those tracks are almost certainly fake at detector level.
