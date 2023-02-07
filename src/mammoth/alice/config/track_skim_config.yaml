@@ -808,7 +808,7 @@ productions:
       settings:
         <<: *analysis_settings_embed_R02
         event_activity: "semi_central"
-        chunk_size: 5000
+        chunk_size: 4000
         background_subtraction:
           r_max: 0.1
         det_level_artificial_tracking_efficiency: 0.99
@@ -822,7 +822,7 @@ productions:
       settings:
         <<: *analysis_settings_embed_R02
         event_activity: "central"
-        chunk_size: 5000
+        chunk_size: 4000
         background_subtraction:
           r_max: 0.1
         det_level_artificial_tracking_efficiency: 0.99
