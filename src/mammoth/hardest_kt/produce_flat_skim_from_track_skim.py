@@ -1047,22 +1047,64 @@ def define_productions() -> List[production.ProductionSettings]:
             #     track_skim_config_filename=config_filename,
             # ),
             # Production
-            # production.ProductionSettings.read_config(
-            #     collision_system="PbPb", number=64,
-            #     specialization=HardestKtProductionSpecialization(),
-            #     track_skim_config_filename=config_filename,
-            # ),
-            # production.ProductionSettings.read_config(
-            #     collision_system="PbPb", number=65,
-            #     specialization=HardestKtProductionSpecialization(),
-            #     track_skim_config_filename=config_filename,
-            # ),
             production.ProductionSettings.read_config(
-                collision_system="PbPb",
-                number=66,
+                collision_system="embed_thermal_model", number=61,
                 specialization=HardestKtProductionSpecialization(),
                 track_skim_config_filename=config_filename,
             ),
+            # production.ProductionSettings.read_config(
+            #     collision_system="embed_thermal_model", number=62,
+            #     specialization=HardestKtProductionSpecialization(),
+            #     track_skim_config_filename=config_filename,
+            # ),
+            # production.ProductionSettings.read_config(
+            #     collision_system="PbPb",
+            #     number=68,
+            #     specialization=HardestKtProductionSpecialization(),
+            #     track_skim_config_filename=config_filename,
+            # ),
+            # production.ProductionSettings.read_config(
+            #     collision_system="PbPb",
+            #     number=71,
+            #     specialization=HardestKtProductionSpecialization(),
+            #     track_skim_config_filename=config_filename,
+            # ),
+            # production.ProductionSettings.read_config(
+            #     collision_system="PbPb",
+            #     number=72,
+            #     specialization=HardestKtProductionSpecialization(),
+            #     track_skim_config_filename=config_filename,
+            # ),
+            # production.ProductionSettings.read_config(
+            #     collision_system="embed_pythia", number=68,
+            #     specialization=HardestKtProductionSpecialization(),
+            #     track_skim_config_filename=config_filename,
+            # ),
+            # production.ProductionSettings.read_config(
+            #     collision_system="embed_pythia", number=69,
+            #     specialization=HardestKtProductionSpecialization(),
+            #     track_skim_config_filename=config_filename,
+            # ),
+            # production.ProductionSettings.read_config(
+            #     collision_system="embed_pythia", number=70,
+            #     specialization=HardestKtProductionSpecialization(),
+            #     track_skim_config_filename=config_filename,
+            # ),
+            # production.ProductionSettings.read_config(
+            #     collision_system="embed_pythia", number=72,
+            #     specialization=HardestKtProductionSpecialization(),
+            #     track_skim_config_filename=config_filename,
+            # ),
+            # production.ProductionSettings.read_config(
+            #     collision_system="embed_pythia", number=73,
+            #     specialization=HardestKtProductionSpecialization(),
+            #     track_skim_config_filename=config_filename,
+            # ),
+            # production.ProductionSettings.read_config(
+            #     collision_system="embed_pythia", number=74,
+            #     specialization=HardestKtProductionSpecialization(),
+            #     track_skim_config_filename=config_filename,
+            # ),
         ]
     )
 
