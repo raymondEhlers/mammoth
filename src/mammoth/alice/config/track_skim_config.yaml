@@ -410,7 +410,7 @@ productions:
         <<: *analysis_settings_PbPb_R02
         event_activity: "semi_central"
         background_subtraction:
-          r_max: 0.1
+          r_max: 0.05
     69:
       # Background systematic, r_max = 0.50. Added 31 Jan 2023
       metadata:
@@ -446,7 +446,7 @@ productions:
         <<: *analysis_settings_PbPb_R02
         event_activity: "central"
         background_subtraction:
-          r_max: 0.1
+          r_max: 0.05
     72:
       # Background systematic, r_max = 0.50. Added 6 Feb 2023
       metadata:
