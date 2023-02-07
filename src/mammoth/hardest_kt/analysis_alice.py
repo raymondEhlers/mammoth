@@ -237,7 +237,8 @@ def analysis_data(
     # If we're out of jets, reclustering will fail. So if we're out of jets, then skip this step
     # NOTE: We need to flatten since we could just have empty events.
     # NOTE: Further, we need to access some variable to avoid flattening into a record, so we select px arbitrarily.
-    _there_are_jets_left = (len(ak.flatten(jets[particle_column_name].px, axis=None)) > 0)
+    # NOTE: We have to use pt because of awkward #2207 (https://github.com/scikit-hep/awkward/issues/2207)
+    _there_are_jets_left = (len(ak.flatten(jets[particle_column_name].pt, axis=None)) > 0)
     # Now, we actually run the reclustering if possible
     if not _there_are_jets_left:
         logger.warning("No jets left for reclustering. Skipping reclustering...")
@@ -394,7 +395,8 @@ def analysis_embedding(
     #       (it shouldn't matter overly much because we've required jet matching at this point)
     # NOTE: We need to flatten since we could just have empty events.
     # NOTE: Further, we need to access some variable to avoid flattening into a record, so we select px arbitrarily.
-    _there_are_jets_left = (len(ak.flatten(jets["hybrid"].px, axis=None)) > 0)
+    # NOTE: We have to use pt because of awkward #2207 (https://github.com/scikit-hep/awkward/issues/2207)
+    _there_are_jets_left = (len(ak.flatten(jets["hybrid"].pt, axis=None)) > 0)
     # Now, we actually run the reclustering if possible
     if not _there_are_jets_left:
         logger.warning("No jets left for reclustering. Skipping reclustering...")
