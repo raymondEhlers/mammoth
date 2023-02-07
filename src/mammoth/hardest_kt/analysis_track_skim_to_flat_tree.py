@@ -610,11 +610,7 @@ def hardest_kt_embedding_skim(  # noqa: C901
     )
 
 
-if __name__ == "__main__":
-    helpers.setup_logging(level=logging.INFO)
-    # logging.getLogger("mammoth.framework.jet_finding").setLevel(logging.INFO)
-    # logging.getLogger("mammoth_cpp._ext").setLevel(logging.DEBUG)
-
+def run_some_standalone_tests() -> None:
     _min_jet_pt = {
         "pp": {"data": 5.0},
         "pythia": {"det_level": 20.0},
@@ -734,5 +730,42 @@ if __name__ == "__main__":
         background_subtraction={"r_max": 0.25},
         det_level_artificial_tracking_efficiency=1.0,
         validation_mode=True,
+    )
+    logger.info(f"Result: {result}")
+
+
+if __name__ == "__main__":
+    helpers.setup_logging(level=logging.INFO)
+    # logging.getLogger("mammoth.framework.jet_finding").setLevel(logging.INFO)
+    # logging.getLogger("mammoth_cpp._ext").setLevel(logging.DEBUG)
+
+    # run_some_standalone_tests()
+
+    scale_factors = analysis_objects.read_extracted_scale_factors(
+        path=Path("trains/pythia/LHC20g4_AOD_2640/scale_factors.yaml")
+    )
+    pt_hat_bin = 1
+    result = hardest_kt_embedding_skim(
+        collision_system="embedPythia",
+        signal_input=[
+            #Path("trains/pythia/2640/run_by_run/LHC20g4/296191/1/AnalysisResults.20g4.008.root")
+            Path("trains/pythia/2640/run_by_run/LHC20g4/296935/1/AnalysisResults.20g4.003.root"),
+        ],
+        background_input=[
+            #Path("trains/PbPb/645/run_by_run/LHC18r/296799/AnalysisResults.18r.179.root"),
+            #Path("trains/PbPb/645/run_by_run/LHC18r/296894/AnalysisResults.18r.337.root"),
+            Path("trains/PbPb/645/run_by_run/LHC18r/297035/AnalysisResults.18r.248.root"),
+            Path("trains/PbPb/645/run_by_run/LHC18q/295788/AnalysisResults.18q.202.root"),
+        ],
+        jet_R=0.2,
+        min_jet_pt={"hybrid": 20},
+        iterative_splittings=True,
+        output_filename = Path("a_test") / "skim" / "test" / "embedding_skim_output.root",
+        convert_data_format_prefixes={"hybrid": "hybrid", "det_level": "det_level", "part_level": "true"},
+        scale_factor=scale_factors[pt_hat_bin],
+        background_subtraction={"r_max": 0.1},
+        det_level_artificial_tracking_efficiency=0.99,
+        chunk_size=2500,
+        background_is_constrained_source=False,
     )
     logger.info(f"Result: {result}")
