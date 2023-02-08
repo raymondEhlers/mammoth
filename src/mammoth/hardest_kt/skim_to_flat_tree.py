@@ -793,16 +793,10 @@ def calculate_embedding_skim_impl(  # noqa: C901
     # Do not mask on the number of constituents. This would prevent tagged <-> untagged migrations in the response.
     # _has_splittings_mask = [ak.num(_j.jet_constituents, axis=1) > 1 for _j in all_jets.values()]
     # mask = functools.reduce(operator.and_, _has_splittings_mask)
-    # Require that we have jets that aren't dominated by hybrid jets.
-    # It's super important to be ">=". That allows the leading jet in the hybrid to be the same
-    # as the leading jet in the true (which would be good - we've probably found the right jet).
-    # NOTE: We already apply this cut at the analysis level, so it shouldn't really do anything here.
-    #       We're just applying it again to be certain.
-    # NOTE: As of 7 May 2020, we skip this cut at the analysis level, so it's super important to
-    #       apply it here.
-    # NOTE: As of 19 May 2019, we disable this cut event though it's not applied at the analysis level.
-    #       This will allow L+L to study this at the analysis level.
-    # mask = mask & (det_level_jets.constituents.max_pt >= hybrid_jets.constituents.max_pt)
+    # This is where the double counting cut was formerly implemented. Now, we implement it (or any variations on it)
+    # at the analysis level. That way, we maintain full flexibility at the skim level
+    # As of 7 Feb 2023, this is just an all true mask, but it's fine to leave it here,
+    # since it makes it convenient to add a possible mask in the future
     mask = all_jets["hybrid"].jet_pt > 0
 
     # Mask the jets
