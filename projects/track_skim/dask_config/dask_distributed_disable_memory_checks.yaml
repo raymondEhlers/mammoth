@@ -1,0 +1,14 @@
+# From here: https://distributed.dask.org/en/latest/worker-memory.html#memory-not-released-back-to-the-os
+distributed:
+  scheduler:
+    active-memory-manager:
+      measure: managed
+
+  worker:
+    memory:
+      rebalance:
+        measure: managed
+      spill: false
+      pause: false
+      terminate: false
+
