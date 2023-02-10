@@ -190,8 +190,12 @@ class ProductionSettings:
             name += f"_{k}_{round(v)}"
         # Background subtraction
         name += "_background_subtraction"
-        for k, v in _analysis_settings["background_subtraction"].items():
-            name += f"_{k}_{str(v)}"
+        _background_subtraction_settings = _analysis_settings.get("background_subtraction", {})
+        if not _background_subtraction_settings:
+            name += "_none"
+        else:
+            for k, v in _background_subtraction_settings.items():
+                name += f"_{k}_{str(v)}"
         # Allow for customization
         name += self.specialization.customize_identifier(analysis_settings=_analysis_settings)
         # And then all the rest
