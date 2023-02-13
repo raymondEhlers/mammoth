@@ -150,6 +150,8 @@ analysis_settings:
         # In GeV
         # We don't want to restrict the part_level
         min_jet_pt: {"det_level": 5}
+        # By default, don't apply any additional reduction
+        det_level_artificial_tracking_efficiency: 1.0
 
     _PbPb:
       metadata: &base_metadata_PbPb
@@ -220,7 +222,7 @@ analysis_settings:
     jet_R: 0.2
 
   pythia_R02: &analysis_settings_pythia_R02
-    <<: *_base_analysis_settings_pp
+    <<: *_base_analysis_settings_pythia
     jet_R: 0.2
 
   PbPb_R02: &analysis_settings_PbPb_R02
@@ -259,13 +261,21 @@ productions:
         <<: *analysis_settings_pp_R02
 
   pythia:
+    # Debug
+    3:
+      metadata:
+        <<: *base_metadata_pythia
+        dataset: *LHC18b8_pythia
+        production_number: 3
+        label: ""
+      settings:
+        <<: *analysis_settings_pythia_R02
+    # Production
     60:
       metadata:
         <<: *base_metadata_pythia
         dataset: *LHC18b8_pythia
-        # Equivalent to train number, but a more general term makes more sense here.
         production_number: 60
-        scale_factors_dataset: "TODO"
         label: ""
       settings:
         <<: *analysis_settings_pythia_R02
