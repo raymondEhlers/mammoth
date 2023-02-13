@@ -279,6 +279,17 @@ productions:
         label: ""
       settings:
         <<: *analysis_settings_pythia_R02
+    61:
+      # Tracking efficiency systematic
+      metadata:
+        <<: *base_metadata_pythia
+        dataset: *LHC18b8_pythia
+        production_number: 61
+        label: ""
+      settings:
+        <<: *analysis_settings_pythia_R02
+        apply_pt_dependent_tracking_efficiency_uncertainty: true
+
 
   PbPb:
     2:
