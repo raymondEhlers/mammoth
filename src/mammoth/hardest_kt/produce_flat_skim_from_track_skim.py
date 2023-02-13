@@ -87,7 +87,7 @@ def _extract_scale_factors_from_hists(
 ) -> analysis_objects.ScaleFactor:
     """
     Copied from jet_substructure.analysis.parsl. The interface is slightly modified,
-    but the main functionality is the same.
+    but the main functionality is the same beyond switching to uproot.
     """
     from pathlib import Path
 
@@ -95,7 +95,7 @@ def _extract_scale_factors_from_hists(
     from mammoth.alice import scale_factors as sf
 
     res = analysis_objects.ScaleFactor.from_hists(
-        *sf.scale_factor_ROOT(filenames=[Path(i.filepath) for i in inputs], list_name=list_name)
+        *sf.scale_factor_uproot(filenames=[Path(i.filepath) for i in inputs], list_name=list_name)
     )
     return res
 
@@ -999,7 +999,7 @@ def setup_job_framework(
     _additional_worker_init_script = alice_job_utils.determine_additional_worker_init(
         productions=productions,
         conda_environment_name=conda_environment_name,
-        tasks_requiring_root=["extract_scale_factors"],
+        tasks_requiring_root=[],
         tasks_requiring_aliphysics=[],
     )
     return job_utils.setup_job_framework(
