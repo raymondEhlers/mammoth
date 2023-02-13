@@ -56,6 +56,8 @@ class ScaleFactor:
         cls: Type["ScaleFactor"], n_accepted_events: int, n_entries: int, cross_section: Any, n_trials: Any
     ) -> "ScaleFactor":
         # Validation (ensure that hists are valid)
+        # NOTE: Since we're using BinnedData here just to grab the values, it's not overly critical
+        #       whether it's aware of the type of hist (regular vs profile, for example).
         h_cross_section = binned_data.BinnedData.from_existing_data(cross_section)
         h_n_trials = binned_data.BinnedData.from_existing_data(n_trials)
 
