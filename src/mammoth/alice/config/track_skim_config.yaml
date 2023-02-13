@@ -744,7 +744,7 @@ productions:
         chunk_size: 4000
         background_subtraction:
           r_max: 0.05
-        det_level_artificial_tracking_efficiency: 0.99
+        det_level_artificial_tracking_efficiency: 0.98
         apply_pt_dependent_tracking_efficiency_uncertainty: false
     73:
       # Background systematic, r_max = 0.50
@@ -760,7 +760,7 @@ productions:
         chunk_size: 4000
         background_subtraction:
           r_max: 0.50
-        det_level_artificial_tracking_efficiency: 0.99
+        det_level_artificial_tracking_efficiency: 0.98
         apply_pt_dependent_tracking_efficiency_uncertainty: false
     74:
       # Tracking efficiency systematic, r_max = 0.1. Added 5 Feb 2023
@@ -776,7 +776,7 @@ productions:
         chunk_size: 4000
         background_subtraction:
           r_max: 0.1
-        det_level_artificial_tracking_efficiency: 0.99
+        det_level_artificial_tracking_efficiency: 0.98
         apply_pt_dependent_tracking_efficiency_uncertainty: true
 
   embed_thermal_model:
