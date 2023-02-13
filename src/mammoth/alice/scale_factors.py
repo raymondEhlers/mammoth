@@ -8,7 +8,7 @@ from __future__ import annotations
 import fnmatch
 import logging
 from pathlib import Path
-from typing import Any, Mapping, Sequence, Tuple
+from typing import Any, List, Mapping, Sequence, Tuple
 
 import numpy as np
 import uproot
@@ -111,37 +111,40 @@ def scale_factor_uproot_wrapper(
     return scale_factor_uproot(filenames=filenames)
 
 
+def _find_list_with_hists_via_uproot(f: Any, list_name: str) -> List[Any]:
+    """Retrieve the list which contains the hists that we're interested in."""
+    # Need to determine the list which contains the histograms of interest.
+    # First, try to retrieve the embedding helper to extract the cross section and ntrials.
+    hists = f.get("AliAnalysisTaskEmcalEmbeddingHelper_histos", None)
+    if not hists:
+        # If not the embedding helper, look for the analysis task output.
+        logger.debug(f"Searching for task hists with the name pattern '{list_name}'")
+        # Search for keys which contain the provided tree name. Very nicely, uproot already has this built-in
+        _possible_task_hists_names = f.keys(
+            cycle=False, filter_name=list_name, filter_classname=["AliEmcalList", "TList"]
+        )
+        if len(_possible_task_hists_names) != 1:
+            raise ValueError(
+                f"Ambiguous list name '{list_name}'. Please revise it as needed. Options: {_possible_task_hists_names}"
+            )
+        # We're good - let's keep going
+        hists = f.get(_possible_task_hists_names[0], None)
+
+    # This list is usually an AliEmcalList, but we care about any of the AliEmcalList functionality
+    # (and uproot doesn't know about it anyway), so we extract the TList via the base class.
+    # NOTE: We assume the TList is the first (and only) base class. As of Feb 2023, this seems to be
+    #       a reasonable assumption.
+    if not isinstance(hists, uproot.models.TList.Model_TList):
+        # Grab the underlying TList rather than the AliEmcalList...
+        hists = hists.bases[0]
+
+    return hists  # type: ignore[no-any-return]
+
+
 def scale_factor_uproot(filenames: Sequence[Path], list_name: str = "") -> Tuple[int, int, Any, Any]:
     # Validation
     if not list_name:
         list_name = "*TrackSkim*"
-
-    # NOTE: This code is from a previous piece of code to extract scale factors. This may only work
-    #       for uproot3. For now, it's not worth looking into, but I keep this around for posterity
-    #       in case it is useful later.
-    if False:
-        # To make this code appear valid, this line is just a hack and should be ignored when looking
-        # at the code as a reference.
-        filename = filenames[0]
-
-        # Setup
-        with uproot.open(filename) as input_file:
-            # Retrieve the embedding helper to extract the cross section and ntrials.
-            embedding_hists = input_file["AliAnalysisTaskEmcalEmbeddingHelper_histos"]
-            h_cross_section_uproot = [h for h in embedding_hists if hasattr(h, "name") and h.name == b"fHistXsection"][0]
-            h_cross_section = binned_data.BinnedData.from_existing_data(h_cross_section_uproot)
-            h_n_trials = binned_data.BinnedData.from_existing_data(
-                [h for h in embedding_hists if hasattr(h, "name") and h.name == b"fHistTrials"][0]
-            )
-            # Find the first non-zero values bin.
-            # argmax will return the index of the first instance of True.
-            pt_hard_bin = (h_cross_section.values != 0).argmax(axis=0)
-
-            # The cross section is a profile hist, but we just read the raw values with uproot + binned_data. Consequently, the values
-            # aren't scaled down by the number of entries in that bin (as already performed by ROOT), so we just take the
-            # cross section / n_trials
-            scale_factor = h_cross_section.values[pt_hard_bin] / h_n_trials.values[pt_hard_bin]
-            logger.debug(f"Scale factor: {scale_factor}")
 
     cross_section_hists = []
     n_trials_hists = []
@@ -149,30 +152,8 @@ def scale_factor_uproot(filenames: Sequence[Path], list_name: str = "") -> Tuple
     n_accepted_events = []
     for filename in filenames:
         with uproot.open(filename) as f:
-            # Need to determine the list which contains the histograms of interest.
-            # First, try to retrieve the embedding helper to extract the cross section and ntrials.
-            hists = f.get("AliAnalysisTaskEmcalEmbeddingHelper_histos", None)
-            if not hists:
-                # If not the embedding helper, look for the analysis task output.
-                logger.debug(f"Searching for task hists with the name pattern '{list_name}'")
-                # Search for keys which contain the provided tree name. Very nicely, uproot already has this built-in
-                _possible_task_hists_names = f.keys(
-                    cycle=False, filter_name=list_name, filter_classname=["AliEmcalList", "TList"]
-                )
-                if len(_possible_task_hists_names) != 1:
-                    raise ValueError(
-                        f"Ambiguous list name '{list_name}'. Please revise it as needed. Options: {_possible_task_hists_names}"
-                    )
-                # We're good - let's keep going
-                hists = f.get(_possible_task_hists_names[0], None)
-
-            # This list is usually an AliEmcalList, but we care about any of the AliEmcalList functionality
-            # (and uproot doesn't know about it anyway), so we extract the TList via the base class.
-            # NOTE: We assume the TList is the first (and only) base class. As of Feb 2023, this seems to be
-            #       a reasonable assumption.
-            if not isinstance(hists, uproot.models.TList.Model_TList):
-                # Grab the underlying TList rather than the AliEmcalList...
-                hists = hists.bases[0]
+            # Retrieve hists of interest
+            hists = _find_list_with_hists_via_uproot(f=f, list_name=list_name)
 
             # Now, onto the information that we're actually interested in!
             # We'll use the `hist` package for simplicity.
@@ -278,24 +259,8 @@ def pt_hat_spectra_from_hists(
         single_bin_pt_hard_spectra = []
         for filename in pt_hard_filenames:
             with uproot.open(filename) as f:
-                hists = f.get("AliAnalysisTaskEmcalEmbeddingHelper_histos", None)
-                if not hists:
-                    # If not the embedding helper, look for the analysis task output.
-                    logger.debug(f"Searching for task hists with the name pattern '{list_name}'")
-                    # Search for keys which contain the provided tree name. Very nicely, uproot already has this built-in
-                    _possible_task_hists_names = f.keys(
-                        cycle=False, filter_name=list_name, filter_classname=["AliEmcalList", "TList"]
-                    )
-                    if len(_possible_task_hists_names) != 1:
-                        raise ValueError(
-                            f"Ambiguous list name '{list_name}'. Please revise it as needed. Options: {_possible_task_hists_names}"
-                        )
-                    # We're good - let's keep going
-                    hists = f.get(_possible_task_hists_names[0], None)
-
-                if not isinstance(hists, uproot.models.TList.Model_TList):
-                    # Grab the underlying TList rather than the AliEmcalList...
-                    hists = hists.bases[0]
+                # Retrieve hists of interest
+                hists = _find_list_with_hists_via_uproot(f=f, list_name=list_name)
                 single_bin_pt_hard_spectra.append(
                     binned_data.BinnedData.from_existing_data(
                         [h for h in hists if h.has_member("fName") and h.member("fName") == "fHistPtHard"][0]
@@ -382,7 +347,8 @@ def test() -> None:
     #for pt_hat_bin in [12, 13]:
     # NOTE: Going past bin 15 or so for ROOT will cause it to be force closed for using too much memory on macOS
     #       as of Feb 2023. It's unclear why this is possibility happening, but seems to be a ROOT bug with 6.24.06 .
-    for pt_hat_bin in range(1, 16):
+    for pt_hat_bin in range(10, 21):
+        logger.info(f"Processing {pt_hat_bin=}")
         input_files = list(base_path.glob(f"run_by_run/LHC18b8_*/*/{pt_hat_bin}/AnalysisResults.*.root"))
         # To save time and memory
         #input_files = input_files[:20]
@@ -400,8 +366,9 @@ def test() -> None:
     #with open("test.yaml", "w") as f:
     #    y.dump(scale_factors_ROOT, f)
 
-    print(f"scale_factors_ROOT: {scale_factors_ROOT}")
-    print(f"scale_factors_uproot: {scale_factors_uproot}")
+    logger.info(f"scale_factors_ROOT: {scale_factors_ROOT}")
+    logger.info(f"scale_factors_uproot: {scale_factors_uproot}")
+    logger.info(f"Equal? {are_scale_factors_close(scale_factors_ROOT, scale_factors_uproot)}")
     import IPython
 
     IPython.start_ipython(user_ns=locals())
