@@ -244,7 +244,6 @@ productions:
       metadata:
         <<: *base_metadata_pp
         dataset: *LHC17pq_pp
-        # Equivalent to train number, but a more general term makes more sense here.
         production_number: 2
         label: ""
       settings:
@@ -254,7 +253,6 @@ productions:
       metadata:
         <<: *base_metadata_pp
         dataset: *LHC17pq_pp
-        # Equivalent to train number, but a more general term makes more sense here.
         production_number: 60
         label: ""
       settings:
@@ -846,4 +844,4 @@ productions:
         chunk_size: 4000
         background_subtraction:
           r_max: 0.1
-        det_level_artificial_tracking_efficiency: 0.99
+        det_level_artificial_tracking_efficiency: 0.98
