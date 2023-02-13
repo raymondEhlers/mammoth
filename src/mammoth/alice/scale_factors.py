@@ -3,6 +3,8 @@
 .. codeauthor:: Raymond Ehlers <raymond.ehlers@cern.ch>, ORNL
 """
 
+from __future__ import annotations
+
 import fnmatch
 import logging
 from pathlib import Path
@@ -59,7 +61,7 @@ def scale_factor_ROOT(filenames: Sequence[Path], list_name: str = "") -> Tuple[i
             task_hists_name = fnmatch.filter([k.GetName() for k in f.GetListOfKeys()], list_name)
             # And then require that "Tree" is not in the name (otherwise we're likely to put up the TTree)
             task_hists_name = [
-                name for name in task_hists_name if "Tree" not in name
+                name for name in task_hists_name if "Tree" not in name and "tree" not in name
             ]
             if len(task_hists_name) != 1:
                 raise RuntimeError(f"Cannot find unique task name. Names: {task_hists_name}. Skipping!")
@@ -101,18 +103,18 @@ def scale_factor_ROOT(filenames: Sequence[Path], list_name: str = "") -> Tuple[i
 
 
 def scale_factor_uproot_wrapper(
-    base_path: Path, train_number: int, run_despite_issues: bool = False
+    base_path: Path, train_number: int
 ) -> Tuple[int, int, Any, Any]:
     # Setup
     filenames = utils.ensure_and_expand_paths([Path(str(base_path).format(train_number=train_number))])
 
-    return scale_factor_uproot(filenames=filenames, run_despite_issues=run_despite_issues)
+    return scale_factor_uproot(filenames=filenames)
 
 
-def scale_factor_uproot(filenames: Sequence[Path], run_despite_issues: bool = False) -> Tuple[int, int, Any, Any]:
+def scale_factor_uproot(filenames: Sequence[Path], list_name: str = "") -> Tuple[int, int, Any, Any]:
     # Validation
-    if not run_despite_issues:
-        raise RuntimeError("Pachyderm binned data doesn't add profile histograms correctly...")
+    if not list_name:
+        list_name = "*TrackSkim*"
 
     # NOTE: This code is from a previous piece of code to extract scale factors. This may only work
     #       for uproot3. For now, it's not worth looking into, but I keep this around for posterity
@@ -146,33 +148,71 @@ def scale_factor_uproot(filenames: Sequence[Path], run_despite_issues: bool = Fa
     n_entries_list = []
     n_accepted_events = []
     for filename in filenames:
-        with uproot.open(filename) as input_file:
-            # Retrieve the embedding helper to extract the cross section and ntrials.
-            embedding_hists = input_file["AliAnalysisTaskEmcalEmbeddingHelper_histos"]
-            cross_section_hist = [
-                h for h in embedding_hists if h.has_member("fName") and h.member("fName") == "fHistXsection"
-            ][0]
-            n_entries_list.append(cross_section_hist.effective_entries())
-            cross_section_hists.append(binned_data.BinnedData.from_existing_data(cross_section_hist))
-            n_trials_hists.append(
-                binned_data.BinnedData.from_existing_data(
-                    [h for h in embedding_hists if h.has_member("fName") and h.member("fName") == "fHistTrials"][0]
+        with uproot.open(filename) as f:
+            # Need to determine the list which contains the histograms of interest.
+            # First, try to retrieve the embedding helper to extract the cross section and ntrials.
+            hists = f.get("AliAnalysisTaskEmcalEmbeddingHelper_histos", None)
+            if not hists:
+                # If not the embedding helper, look for the analysis task output.
+                logger.debug(f"Searching for task hists with the name pattern '{list_name}'")
+                # Search for keys which contain the provided tree name. Very nicely, uproot already has this built-in
+                _possible_task_hists_names = f.keys(
+                    cycle=False, filter_name=list_name, filter_classname=["AliEmcalList", "TList"]
                 )
+                if len(_possible_task_hists_names) != 1:
+                    raise ValueError(
+                        f"Ambiguous list name '{list_name}'. Please revise it as needed. Options: {_possible_task_hists_names}"
+                    )
+                # We're good - let's keep going
+                hists = f.get(_possible_task_hists_names[0], None)
+
+            # This list is usually an AliEmcalList, but we care about any of the AliEmcalList functionality
+            # (and uproot doesn't know about it anyway), so we extract the TList via the base class.
+            # NOTE: We assume the TList is the first (and only) base class. As of Feb 2023, this seems to be
+            #       a reasonable assumption.
+            if not isinstance(hists, uproot.models.TList.Model_TList):
+                # Grab the underlying TList rather than the AliEmcalList...
+                hists = hists.bases[0]
+
+            # Now, onto the information that we're actually interested in!
+            # We'll use the `hist` package for simplicity.
+            cross_section_hist = [
+                h.to_hist() for h in hists if h.name == "fHistXsection"
+            ][0]
+            # Number of entries in the cross section
+            n_entries_list.append(cross_section_hist.counts())
+            # And store the cross section and n_trials hists
+            cross_section_hists.append(cross_section_hist)
+            n_trials_hists.append(
+                [h.to_hist() for h in hists if h.name == "fHistTrials"][0]
             )
 
-            # Keep track of accepted events for normalizing the scale factors later.
+            # Don't forget to keep track of accepted events for potentially relatively
+            # normalizing the scale factors later.
             n_events_hist = binned_data.BinnedData.from_existing_data(
-                [h for h in embedding_hists if h.has_member("fName") and h.member("fName") == "fHistEventCount"][0]
+                [h for h in hists if h.name == "fHistEventCount"][0]
             )
             n_accepted_events.append(n_events_hist.values[0])
 
-    # Convert to numpy array for help in finding first empty bin.
+    # We need to find the first non-empty bin to get the number of entries
+    # from the histogram values. There should only be one non-empty bin if
+    # we've correctly called this with files from only one pt hat bin.
+    # To help with this, we convert to the list of arrays to a single numpy
+    # array for help in finding this bin.
     n_entries = np.array(n_entries_list)
+    # Next, sum up all of the counts from the different hists into one array
+    # NOTE: We will get nan if we have no entries in empty bins or in an empty file.
+    #       The empty file means that we can get nan even in our bin of interest for
+    #       a particular file. This values seem to be introduced by the
+    #       TProfile -> hist conversion for counts, and appear to be a convention choice
+    #       by hist. However, this won't cause any issues as long we use `nansum`.
+    n_entries = np.nansum(n_entries, axis=0)
 
-    # Take the first non-zero value of n_entries (there should only be 1)
     return (
         sum(n_accepted_events),
-        n_entries[(n_entries != 0).argmax(axis=0)],
+        # Take the first non-zero value of n_entries (there should only be 1 since we
+        # process them as separate pt hat bins by convention!)
+        n_entries[(n_entries > 0).argmax(axis=0)],
         sum(cross_section_hists),
         sum(n_trials_hists),
     )
@@ -292,35 +332,108 @@ def scale_factor_from_hists(
     return scale_factor
 
 
+def are_scale_factors_close(scale_factors_one: Mapping[int, analysis_objects.ScaleFactor], scale_factors_two: Mapping[int, analysis_objects.ScaleFactor]) -> bool:
+    """Convenience function for comparing scale factors.
+
+    Useful for comparing eg. values calculated separately with ROOT and uproot. There's almost certainly
+    a better way to do this test for nested dicts with objects, but this was very convenient and easy.
+    """
+    # Ensure that we've actually compared something (ie. avoid trivially saying they agree because they're empty)
+    if len(list(scale_factors_one)) == 0:
+        return False
+
+    # Make sure we have the same pt hat bins
+    if list(scale_factors_one) != list(scale_factors_two):
+        return False
+
+    # Now check each value, returning False if they fail
+    for pt_hat_bin_1 in scale_factors_one:
+        if not np.isclose(
+            scale_factors_one[pt_hat_bin_1].cross_section,
+            scale_factors_two[pt_hat_bin_1].cross_section,
+        ):
+            return False
+        if not np.isclose(
+            scale_factors_one[pt_hat_bin_1].n_trials_total,
+            scale_factors_two[pt_hat_bin_1].n_trials_total,
+        ):
+            return False
+        if not np.isclose(
+            scale_factors_one[pt_hat_bin_1].n_entries,
+            scale_factors_two[pt_hat_bin_1].n_entries,
+        ):
+            return False
+        if not np.isclose(
+            scale_factors_one[pt_hat_bin_1].n_accepted_events,
+            scale_factors_two[pt_hat_bin_1].n_accepted_events,
+        ):
+            return False
+
+    # Looks good!
+    return True
+
+
 def test() -> None:
     scale_factors_ROOT = {}
-    # scale_factors_uproot = {}
-    # train_numbers = list(range(6316, 6318))
-    train_numbers = [6650, 6659]
+    scale_factors_uproot = {}
 
-    base_path = Path("trains/embedPythia/{train_number}/AnalysisResults.*.repaired.root")
-    for train_number in train_numbers:
-        logger.info(f"train_number: {train_number}")
-        scale_factors_ROOT[train_number] = scale_factor_from_hists(
-            *scale_factor_ROOT_wrapper(base_path=base_path, train_number=train_number)
+    base_path = Path("trains/pythia/2619")
+
+    #for pt_hat_bin in [12, 13]:
+    # NOTE: Going past bin 15 or so for ROOT will cause it to be force closed for using too much memory on macOS
+    #       as of Feb 2023. It's unclear why this is possibility happening, but seems to be a ROOT bug with 6.24.06 .
+    for pt_hat_bin in range(1, 16):
+        input_files = list(base_path.glob(f"run_by_run/LHC18b8_*/*/{pt_hat_bin}/AnalysisResults.*.root"))
+        # To save time and memory
+        #input_files = input_files[:20]
+        #print(f"{input_files=}")
+        scale_factors_ROOT[pt_hat_bin] = scale_factor_from_hists(
+            *scale_factor_ROOT(filenames=input_files, list_name="*TrackSkim*")
         )
-        # scale_factors_uproot[train_number] = scale_factor_from_hists(
-        #    *scale_factor_uproot_wrapper(base_path=base_path, train_number=train_number, run_despite_issues=True)
-        # )
+        scale_factors_uproot[pt_hat_bin] = scale_factor_from_hists(
+           *scale_factor_uproot(filenames=input_files, list_name="*TrackSkim*")
+        )
         # res_ROOT = scale_factor_ROOT(base_path=base_path, train_number=train_number)
         # res_uproot = scale_factor_uproot(base_path=base_path, train_number=train_number)
 
-    y = yaml.yaml(classes_to_register=[analysis_objects.ScaleFactor])
-    with open("test.yaml", "w") as f:
-        y.dump(scale_factors_ROOT, f)
+    #y = yaml.yaml(classes_to_register=[analysis_objects.ScaleFactor])
+    #with open("test.yaml", "w") as f:
+    #    y.dump(scale_factors_ROOT, f)
 
     print(f"scale_factors_ROOT: {scale_factors_ROOT}")
-    # print(f"scale_factors_uproot: {scale_factors_uproot}")
+    print(f"scale_factors_uproot: {scale_factors_uproot}")
     import IPython
 
     IPython.start_ipython(user_ns=locals())
 
 
+def run() -> None:
+    scale_factors_ROOT = {}
+    # scale_factors_uproot = {}
+
+    base_path = Path("trains/pythia/2619")
+
+    for pt_hat_bin in range(1, 21):
+        input_files = list(base_path.glob(f"run_by_run/LHC18b8_*/*/{pt_hat_bin}/AnalysisResults.*.root"))
+        # To save time and memory
+        #input_files = input_files[:20]
+        print(f"{input_files=}")
+        scale_factors_ROOT[pt_hat_bin] = scale_factor_from_hists(
+            *scale_factor_ROOT(filenames=input_files, list_name="*TrackSkim*")
+        )
+        # scale_factors_uproot[pt_hat_bin] = scale_factor_from_hists(
+        #    *scale_factor_uproot(filenames=input_files, run_despite_issues=True)
+        # )
+        # res_ROOT = scale_factor_ROOT(base_path=base_path, train_number=train_number)
+        # res_uproot = scale_factor_uproot(base_path=base_path, train_number=train_number)
+
+    y = yaml.yaml(classes_to_register=[analysis_objects.ScaleFactor])
+    with open("trains/pythia/LHC18b8_AOD_2619/scale_factors_ROOT.yaml", "w") as f:
+        y.dump(scale_factors_ROOT, f)
+        # y.dump(scale_factors_uproot, f)
+
+
 if __name__ == "__main__":
     helpers.setup_logging()
     test()
+    #run()
