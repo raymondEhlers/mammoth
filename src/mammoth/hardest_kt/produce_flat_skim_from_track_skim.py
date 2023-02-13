@@ -159,8 +159,8 @@ def _write_scale_factors_to_yaml(
 
 def setup_write_scale_factors(
     prod: production.ProductionSettings,
-    job_framework: job_utils.JobFramework,
     scale_factors: Mapping[int, Future[analysis_objects.ScaleFactor]],
+    job_framework: job_utils.JobFramework,
 ) -> Future[bool]:
     """
     Copied from jet_substructure.analysis.parsl. The interface is slightly modified,
@@ -175,8 +175,16 @@ def setup_write_scale_factors(
     # NOTE: I'm guessing passing this is a problem because it's a class that's imported in an app, and then
     #       we're trying to pass the result into another app. I think we can go one direction or the other,
     #       but not both. So we just take the result.
+
     yaml_result = _write_scale_factors_to_yaml(
-        scale_factors={k: v.result() for k, v in scale_factors.items()},
+        # NOTE: We have to lie a bit about the typing here because passing a dask delayed object
+        #       directly to another function will cause it to depend on it, which will fill in the
+        #       value once it's executed. Parsl still have a future, so it needs to be handled separately.
+        #       (Ideally, parsl would handle this correctly and provide the concrete value, but it doesn't seem
+        #       seem to be able to do so...)
+        scale_factors={  # type: ignore[arg-type]
+            k: v.result() for k, v in scale_factors.items()
+        } if job_framework == job_utils.JobFramework.parsl else scale_factors,
         job_framework=job_framework,
         outputs=[parsl_output_file],
     )
@@ -189,6 +197,7 @@ def _extract_pt_hat_spectra(
     scale_factors: Mapping[int, float],
     offsets: Mapping[int, int],
     list_name: str,
+    yaml_exists: bool,
     job_framework: job_utils.JobFramework,
     inputs: Sequence[File] = [],
     outputs: Sequence[File] = [],
@@ -227,8 +236,8 @@ def _extract_pt_hat_spectra(
 
 def setup_check_pt_hat_spectra(
     prod: production.ProductionSettings,
+    yaml_exists: bool,
     job_framework: job_utils.JobFramework,
-    input_results: Sequence[Future[Any]],
 ) -> Future[bool]:
     """
     Copied from jet_substructure.analysis.parsl. The interface is slightly modified,
@@ -238,10 +247,10 @@ def setup_check_pt_hat_spectra(
     # Input files
     input_files_per_pt_hat_bin = prod.input_files_per_pt_hat()
 
-    # Need a hard dependency on the writing of the yaml output, so we ask for the result here.
-    # We don't actually care about the result, but it avoids a race condition.
-    _ = input_results[0].result()
     # Must read the scale factors from file to get the properly scaled values.
+    # NOTE: This means that we need to ensure externally that it's available.
+    #       This is kind of hacking around the DAG, but it's convenient given the
+    #       gymnastics that we need to do to support both parsl and dask
     scale_factors = prod.scale_factors()
 
     # Convert inputs to Parsl files.
@@ -252,20 +261,16 @@ def setup_check_pt_hat_spectra(
         converted_filenames = [File(str(f)) for f in list_of_files]
         offsets[pt_hat_bin] = len(converted_filenames)
         parsl_files.extend(converted_filenames)
-    # Add the dependency. We won't actually open the file in the task, but this will provide explicit dependence.
-    if job_framework == job_utils.JobFramework.parsl:
-        parsl_files.extend([i.outputs[0] for i in input_results])  # type: ignore[attr-defined]
-    else:
-        # We lie about the typing here, but it's convenient
-        parsl_files.extend(input_results)  # type: ignore[arg-type]
 
     dataset_key = "signal_dataset" if "signal_dataset" in prod.config["metadata"] else "dataset"
     # We want to store it in the same directory as the scale factors, so it's easiest to just grab that filename.
     output_filename = prod.scale_factors_filename.parent / "pt_hat_spectra.yaml"
+
     results = _extract_pt_hat_spectra(
         scale_factors=scale_factors,
         offsets=offsets,
         list_name=prod.config["metadata"][dataset_key]["list_name"],
+        yaml_exists=yaml_exists,
         job_framework=job_framework,
         inputs=parsl_files,
         outputs=[File(str(output_filename))],
@@ -296,27 +301,45 @@ def steer_extract_scale_factors(
     all_results: List[Future[Any]] = []
     scale_factors = setup_extract_scale_factors(prod=prod, job_framework=job_framework)
     all_results.extend(list(scale_factors.values()))
+
     # Then, we need to write them
-    all_results.append(setup_write_scale_factors(prod=prod, job_framework=job_framework, scale_factors=scale_factors))
-    # And then create the spectra (and plot them) to cross check the extraction
     all_results.append(
-        setup_check_pt_hat_spectra(
+        setup_write_scale_factors(
             prod=prod,
-            job_framework=job_framework,
-            # Need the future which writes the YAML
-            input_results=[all_results[-1]],
+            scale_factors=scale_factors,
+            job_framework=job_framework
         )
     )
+    # Store the result in a way that we can query later.
+    if job_framework == job_utils.JobFramework.parsl:
+        writing_yaml_success: bool = all_results[-1].result()
+    elif job_framework == job_utils.JobFramework.dask_delayed:
+        # We're lying about the type here because it's convenient
+        writing_yaml_success = all_results[-1].compute()  # type: ignore[attr-defined]
+    else:
+        # We're lying about the type here because it's convenient
+        writing_yaml_success = all_results[-1]  # type: ignore[assignment]
 
-    if all_results[-1].result() is not True:
+    if writing_yaml_success is not True:
         logger.warning("Some issue with the scale factor extraction! Check on them!")
         IPython.start_ipython(user_ns={**locals(), **globals()})
         # We want to stop here, so help ourselves out by raising the exception.
         raise ValueError("Some issue with the scale factor extraction!")
+    else:
+        # And then create the spectra (and plot them) to cross check the extraction
+        all_results.append(
+            setup_check_pt_hat_spectra(
+                prod=prod,
+                yaml_exists=writing_yaml_success,
+                job_framework=job_framework,
+            )
+        )
 
     # NOTE: We don't want to scale_factor futures because they contain the actual scale factors.
     #       We'll just return the futures associated with writing to the file and the pt hat spectra cross check.
-    return all_results[-2:]
+    # NOTE: If the case of dask, we only want to return the pt hat spectra cross check. Otherwise, it will run
+    #       the writing to file task again
+    return all_results[-1 if job_framework == job_utils.JobFramework.dask_delayed else -2:]
 
 
 @python_app
@@ -381,7 +404,9 @@ def setup_calculate_data_skim(
 
     # If we want to debug some particular files, we can directly set them here
     if debug_mode:
-        input_files = {-1: [Path("trains/PbPb/645/run_by_run/LHC18r/297595/AnalysisResults.18r.551.root")]}
+        input_files = {10: [Path("trains/pythia/2619/run_by_run/LHC18b8_cent_woSDD/282008/10/AnalysisResults.18b8_cent_woSDD.003.root")]}
+        #input_files = {-1: [Path("trains/pp/2111/run_by_run/LHC17p_CENT_woSDD/282341/AnalysisResults.17p.586.root")]}
+        #input_files = {-1: [Path("trains/PbPb/645/run_by_run/LHC18r/297595/AnalysisResults.18r.551.root")]}
 
     # Setup for analysis and dataset settings
     _metadata_config = prod.config["metadata"]
