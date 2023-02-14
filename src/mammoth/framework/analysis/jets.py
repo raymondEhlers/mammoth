@@ -394,7 +394,10 @@ def det_level_particles_mask_for_jet_finding(
             _drop_particles_mask = random_values > det_level_artificial_tracking_efficiency
         # NOTE: The check above will assign `True` when the random value is higher than the tracking efficiency.
         #       However, since we to remove those particles and keep ones below, we need to invert this selection.
-        det_level_mask = ~_drop_particles_mask
+        _det_level_particles_to_keep_np = ~_drop_particles_mask
+
+        # Unflatten so we can apply the mask to the existing particles
+        det_level_mask = ak.unflatten(_det_level_particles_to_keep_np, ak.num(arrays["det_level"]))
 
         # Cross check that it worked.
         # If the entire hybrid mask is True, then it means that no particles were removed.
