@@ -517,6 +517,8 @@ def find_jets(
     sum_counts = _indices_for_event_boundaries(particles)
 
     # Validate that there is at least one particle per event
+    # NOTE: This can be avoided by requiring that there are particles in each level for each event.
+    #       However, this is left as a user preprocessing step to avoid surprising users!
     event_with_no_particles = sum_counts[1:] == sum_counts[:-1]
     if np.any(event_with_no_particles):
         raise ValueError(
