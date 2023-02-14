@@ -427,7 +427,8 @@ def setup_calculate_data_skim(
         if _analysis_config.get("apply_pt_dependent_tracking_efficiency_uncertainty", False):
             # NOTE: Careful - this needs to be added as 1-value. (ie. 1-.97=0.03 -> for .98 flat, we get .95)
             det_level_artificial_tracking_efficiency = analysis_jets.PtDependentTrackingEfficiencyParameters.from_file(
-                period=_metadata_config["dataset"]["period"],
+                # NOTE: We select "anchor_period" and "0_100" here because we know we're analyzing pythia
+                period=_metadata_config["dataset"]["anchor_period"],
                 event_activity="0_100",
                 # NOTE: There should be the possibility to apply this on top of the .98, for example.
                 baseline_tracking_efficiency_shift=det_level_artificial_tracking_efficiency,

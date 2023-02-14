@@ -27,6 +27,7 @@ skimmed_datasets:
     collision_system: "pythia"
     sqrt_s: 5020
     period: "LHC18b8"
+    anchor_period: ["LHC17p", "LHC17q"]
     # Keep track of the skim type for documentation
     skim_type: "track_skim_task"
     # Parameters of the output
@@ -45,6 +46,7 @@ skimmed_datasets:
     collision_system: "pythia"
     sqrt_s: 5020
     period: "LHC20g4"
+    anchor_period: ["LHC18q", "LHC18r"]
     # Keep track of the skim type for documentation
     skim_type: "track_skim_task"
     # Parameters of the output
