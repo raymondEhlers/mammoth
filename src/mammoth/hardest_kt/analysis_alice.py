@@ -56,6 +56,20 @@ def analysis_MC(
         det_level_artificial_tracking_efficiency=det_level_artificial_tracking_efficiency,
         validation_mode=validation_mode,
     )
+    # Require that events have at least one particle after any possible masking.
+    # If not, the entire array will be thrown out during jet finding, so better to
+    # remove them now and be able to analyze the rest of the array. We're not missing
+    # anything meaningful by doing this because we can't analyze such a case anyway
+    # (and it might only be useful for an efficiency of losing events due to tracking,
+    # which should be exceptionally rare).
+    _events_with_at_least_one_particle = (
+        (ak.num(arrays["part_level"]) > 0) &
+        (ak.num(arrays["det_level"][det_level_mask]) > 0)
+    )
+    arrays = arrays[_events_with_at_least_one_particle]
+    # NOTE: We need to apply it to the det level mask as well because we
+    #       may be dropping some events, which then needs to be reflected in
+    det_level_mask = det_level_mask[_events_with_at_least_one_particle]
 
     jets = ak.zip(
         {
