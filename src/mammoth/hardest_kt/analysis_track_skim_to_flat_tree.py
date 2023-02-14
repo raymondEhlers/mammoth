@@ -616,7 +616,7 @@ def run_some_standalone_tests() -> None:
         "pythia": {"det_level": 20.0},
         "PbPb": {"data": 20.0},
         "embed_thermal_model": {"hybrid": 20.0},
-        "embedPythia": {"hybrid": 20.0},
+        "embed_pythia": {"hybrid": 20.0},
     }
     # For validation, we use R = 0.4 jets
     jet_R = 0.2
@@ -694,7 +694,7 @@ def run_some_standalone_tests() -> None:
     )
 
     # Mammoth validation needs something like
-    base_path = Path("/software/rehlers/dev/mammoth/projects/framework/embedPythia")
+    base_path = Path("/software/rehlers/dev/mammoth/projects/framework/embed_pythia")
     # signal_path = base_path / "AnalysisResults_pythia_track_skim.parquet"
     # background_path = base_path / "AnalysisResults_PbPb_track_skim.parquet"
     signal_path = base_path / "track_skim" / "pythia" / "AnalysisResults.root"
@@ -718,11 +718,11 @@ def run_some_standalone_tests() -> None:
         pt_hat_bin = 15
 
     result = hardest_kt_embedding_skim(
-        collision_system="embedPythia",
+        collision_system="embed_pythia",
         signal_input=[signal_path, signal_path, signal_path],
         background_input=background_path,
         jet_R=jet_R,
-        min_jet_pt=_min_jet_pt["embedPythia"],
+        min_jet_pt=_min_jet_pt["embed_pythia"],
         iterative_splittings=True,
         output_filename=output_filename,
         convert_data_format_prefixes={"hybrid": "hybrid", "det_level": "det_level", "part_level": "true"},
@@ -746,25 +746,28 @@ if __name__ == "__main__":
     )
     pt_hat_bin = 1
     result = hardest_kt_embedding_skim(
-        collision_system="embedPythia",
+        collision_system="embed_pythia",
         signal_input=[
             #Path("trains/pythia/2640/run_by_run/LHC20g4/296191/1/AnalysisResults.20g4.008.root")
-            Path("trains/pythia/2640/run_by_run/LHC20g4/296935/1/AnalysisResults.20g4.003.root"),
+            #Path("trains/pythia/2640/run_by_run/LHC20g4/296935/1/AnalysisResults.20g4.003.root"),
+            Path("trains/pythia/2640/run_by_run/LHC20g4/297588/1/AnalysisResults.20g4.018.root"),
         ],
         background_input=[
             #Path("trains/PbPb/645/run_by_run/LHC18r/296799/AnalysisResults.18r.179.root"),
             #Path("trains/PbPb/645/run_by_run/LHC18r/296894/AnalysisResults.18r.337.root"),
-            Path("trains/PbPb/645/run_by_run/LHC18r/297035/AnalysisResults.18r.248.root"),
-            Path("trains/PbPb/645/run_by_run/LHC18q/295788/AnalysisResults.18q.202.root"),
+            #Path("trains/PbPb/645/run_by_run/LHC18r/297035/AnalysisResults.18r.248.root"),
+            #Path("trains/PbPb/645/run_by_run/LHC18q/295788/AnalysisResults.18q.202.root"),
+            Path("trains/PbPb/645/run_by_run/LHC18r/296694/AnalysisResults.18r.121.root"),
+            Path("trains/PbPb/645/run_by_run/LHC18r/297595/AnalysisResults.18r.384.root"),
         ],
         jet_R=0.2,
         min_jet_pt={"hybrid": 20},
         iterative_splittings=True,
-        output_filename = Path("a_test") / "skim" / "test" / "embedding_skim_output.root",
+        output_filename=Path("a_test") / "skim" / "test" / "embedding_skim_output.root",
         convert_data_format_prefixes={"hybrid": "hybrid", "det_level": "det_level", "part_level": "true"},
         scale_factor=scale_factors[pt_hat_bin],
         background_subtraction={"r_max": 0.1},
-        det_level_artificial_tracking_efficiency=0.99,
+        det_level_artificial_tracking_efficiency=0.95,
         chunk_size=2500,
         background_is_constrained_source=False,
     )
