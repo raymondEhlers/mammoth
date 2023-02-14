@@ -720,8 +720,8 @@ productions:
         chunk_size: 4000
         background_subtraction:
           r_max: 0.1
-        det_level_artificial_tracking_efficiency: 0.99
-        apply_pt_dependent_tracking_efficiency_uncertainty: true
+        det_level_artificial_tracking_efficiency: 0.95
+        apply_pt_dependent_tracking_efficiency_uncertainty: false
     #########
     # Central
     #########
@@ -789,6 +789,40 @@ productions:
           r_max: 0.1
         det_level_artificial_tracking_efficiency: 0.98
         apply_pt_dependent_tracking_efficiency_uncertainty: true
+    75:
+      # Tracking efficiency systematic with pt dependence, r_max = 0.1. Added 14 Feb 2023
+      metadata:
+        <<: *base_metadata_embed
+        dataset: *LHC18qr_PbPb_semi_central
+        signal_dataset: *LHC20g4_pythia
+        production_number: 75
+        label: "embed_pythia_semi_central"
+      settings:
+        <<: *analysis_settings_embed_R02
+        event_activity: "semi_central"
+        chunk_size: 4000
+        background_subtraction:
+          r_max: 0.1
+        det_level_artificial_tracking_efficiency: 0.99
+        apply_pt_dependent_tracking_efficiency_uncertainty: true
+    76:
+      # Tracking efficiency systematic without pt dependence, r_max = 0.1. Added 14 Feb 2023
+      # Since the central was not approved previously, there's no need to use the standard 4% - I can
+      # just jump right to the pt dependent approach.
+      metadata:
+        <<: *base_metadata_embed
+        dataset: *LHC18qr_PbPb_central
+        signal_dataset: *LHC20g4_pythia
+        production_number: 76
+        label: "embed_pythia_central"
+      settings:
+        <<: *analysis_settings_embed_R02
+        event_activity: "central"
+        chunk_size: 4000
+        background_subtraction:
+          r_max: 0.1
+        det_level_artificial_tracking_efficiency: 0.94
+        apply_pt_dependent_tracking_efficiency_uncertainty: false
 
   embed_thermal_model:
     2:
