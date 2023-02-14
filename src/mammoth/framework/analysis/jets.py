@@ -223,7 +223,7 @@ class PtDependentTrackingEfficiencyParameters:
         from pachyderm import yaml
         y = yaml.yaml()
         _here = Path(__file__).parent
-        config_filename = Path(_here.parent / "alice" / "config" / "track_efficiency_pt_dependence.yaml")
+        config_filename = Path(_here.parent.parent / "alice" / "config" / "track_efficiency_pt_dependence.yaml")
         with open(config_filename, "r") as f:
             config = y.load(f)
 
