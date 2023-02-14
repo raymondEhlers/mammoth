@@ -1155,7 +1155,7 @@ def setup_and_submit_tasks(
     all_results: List[Future[Any]] = []
     for prod in productions:
         tasks_to_execute = prod.tasks_to_execute
-        logger.info(f"Tasks to execute: {tasks_to_execute}")
+        logger.info(f"Tasks to execute: {tasks_to_execute} for production \"{prod.collision_system}\" #{prod.formatted_number}")
 
         # Setup tasks
         system_results = []
