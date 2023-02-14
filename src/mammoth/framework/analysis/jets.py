@@ -255,7 +255,10 @@ class PtDependentTrackingEfficiencyParameters:
         )
         # NOTE: We want pt values in the first bin to get mapped to 0th entry in the tracking efficiency,
         #       so we subtract one from each index
-        _indices_for_pt_dependent_values -= 1
+        # NOTE: Apparently the type is passed through such that the indices are an awkward array.
+        #       Due to this, we couldn't use `-=` and instead had to do the explicit assignment.
+        #       It's all fine - just something to watch out for!
+        _indices_for_pt_dependent_values = _indices_for_pt_dependent_values - 1
         # And determine the values
         _pt_dependent_tracking_efficiency: npt.NDArray[np.float64] = self.values[_indices_for_pt_dependent_values]
         # Apply additional baseline tracking efficiency degradation for high multiplicity environment
@@ -385,7 +388,8 @@ def det_level_particles_mask_for_jet_finding(
         random_values = _rng.uniform(low=0.0, high=1.0, size=_total_n_det_level_particles)
         if isinstance(det_level_artificial_tracking_efficiency, PtDependentTrackingEfficiencyParameters):
             _pt_dependent_tracking_efficiency = det_level_artificial_tracking_efficiency.calculate_tracking_efficiency(
-                # NOTE: We need to flatten to be able to use searchsorted
+                # NOTE: We need to flatten to be able to use searchsorted. This will also leave the
+                #       result in the right shape to compare against the randomly generated values.
                 pt_values=ak.flatten(arrays["det_level"].pt),
             )
 
