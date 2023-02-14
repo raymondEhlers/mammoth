@@ -49,10 +49,8 @@ def analysis_MC(
     if validation_mode:
         area_kwargs["random_seed"] = jet_finding.VALIDATION_MODE_RANDOM_SEED
 
-    # Calculate the relevant masks for hybrid level particles:
-    # 1. We may need to mask the hybrid level particles to apply an artificial tracking inefficiency
-    # 2. We usually calculate rho only using the PbPb particles (ie. not including the embedded det_level),
-    #    so we need to select only them.
+    # Calculate the relevant masks for det level particles to potentially apply an
+    # artificial tracking inefficiency
     det_level_mask = analysis_jets.det_level_particles_mask_for_jet_finding(
         arrays=arrays,
         det_level_artificial_tracking_efficiency=det_level_artificial_tracking_efficiency,
