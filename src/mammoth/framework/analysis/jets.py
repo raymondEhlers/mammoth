@@ -400,7 +400,7 @@ def det_level_particles_mask_for_jet_finding(
         det_level_mask = ak.unflatten(_det_level_particles_to_keep_np, ak.num(arrays["det_level"]))
 
         # Cross check that it worked.
-        # If the entire hybrid mask is True, then it means that no particles were removed.
+        # If the entire det level mask is True, then it means that no particles were removed.
         # NOTE: I don't have this as an assert because if there aren't _that_ many particles and the efficiency
         #       is high, I suppose it's possible that this fails, and I don't want to kill jobs for that reason.
         if ak.all(det_level_mask == True):  # noqa: E712
