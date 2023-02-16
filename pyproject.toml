@@ -17,7 +17,7 @@ authors = [
 # For hatch, need to remove the dependencies references here
 dynamic = ["dependencies", "optional-dependencies", "version"]
 dependencies = [
-    "awkward >=1.7",
+    "awkward >=2.0.8",
     "uproot >=4.2",
     "numpy >=1.21",
     "pyarrow >=4",
