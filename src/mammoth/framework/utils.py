@@ -8,7 +8,6 @@ from pathlib import Path
 from typing import List, Optional, Sequence, Union
 
 import attr
-
 import awkward as ak
 import numpy as np
 
@@ -33,8 +32,7 @@ def expand_wildcards_in_filenames(paths: Sequence[Path]) -> List[Path]:
 
     # Sort in the expected order (just according to alphabetical, which should handle numbers
     # fine as long as they have leading 0s (ie. 03 instead of 3)).
-    return_paths = sorted(return_paths, key=lambda p: str(p))
-    return return_paths
+    return sorted(return_paths, key=lambda p: str(p))
 
 
 def ensure_and_expand_paths(paths: Sequence[Union[str, Path]]) -> List[Path]:
