@@ -169,15 +169,7 @@ def _select_and_retrieve_splittings(
 ) -> Tuple[ak.Array, analysis_jet_substructure.JetSplittingArray, AwkwardArray[AwkwardArray[int]]]:
     """Generalization of the function in analyze_tree to add the splitting index."""
     # Ensure that there are sufficient counts
-    # NOTE: As of 6 Feb, there is a problem if there is an index array with selecting the iterative splittings
-    #       The cause is not clear, but for now, I just this hack, as it seems to work around the issue!
-    #       Unfortunately, this seems to be quite difficult to reproduce - running the same data doesn't necessarily
-    #       get it. Pickling seems to pack the data, which means that we can't just store the array and test it
-    #       separately. So for now, we accept the hack, and then try to report it as soon as possible.
-    #       This hack isn't entirely benign because I think it increases our memory usage, but I need this to work
-    #       immediately, so there's no point in messing with it further.
-    # TODO: Report and find a fix as soon as possible!
-    restricted_jets = ak.to_packed(jets[mask])
+    restricted_jets = jets[mask]
 
     # Add the splittings and indices.
     if iterative_splittings:
