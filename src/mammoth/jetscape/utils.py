@@ -6,7 +6,8 @@
 import awkward as ak
 import numba as nb
 
-@nb.njit  # type: ignore
+
+@nb.njit  # type: ignore[misc]
 def subtract_holes_from_jet_pt(jets: ak.Array, particles_holes: ak.Array, jet_R: float, builder: ak.ArrayBuilder) -> ak.ArrayBuilder:
     """Subtract holes from the jet pt
 
