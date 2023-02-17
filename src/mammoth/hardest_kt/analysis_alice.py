@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import Any, Dict, Mapping, Optional
+from typing import Any, Mapping
 
 import awkward as ak
 import numpy as np
@@ -20,7 +20,6 @@ from mammoth.alice import helpers as alice_helpers
 from mammoth.framework import jet_finding, load_data
 from mammoth.framework.analysis import jets as analysis_jets
 from mammoth.framework.io import track_skim
-
 
 logger = logging.getLogger(__name__)
 vector.register_awkward()
@@ -45,7 +44,7 @@ def analysis_MC(
     # Jet finding
     logger.info("Find jets")
     # First, setup what is needed for validation mode if enabled
-    area_kwargs: Dict[str, Any] = {}
+    area_kwargs: dict[str, Any] = {}
     if validation_mode:
         area_kwargs["random_seed"] = jet_finding.VALIDATION_MODE_RANDOM_SEED
 
@@ -175,7 +174,7 @@ def analysis_data(
     min_jet_pt: Mapping[str, float],
     particle_column_name: str = "data",
     validation_mode: bool = False,
-    background_subtraction_settings: Optional[Mapping[str, Any]] = None,
+    background_subtraction_settings: Mapping[str, Any] | None = None,
 ) -> ak.Array:
     # Validation
     if background_subtraction_settings is None:
@@ -200,7 +199,7 @@ def analysis_data(
         area_kwargs["random_seed"] = jet_finding.VALIDATION_MODE_RANDOM_SEED
 
     area_settings = jet_finding.AreaPP(**area_kwargs)
-    additional_kwargs: Dict[str, Any] = {}
+    additional_kwargs: dict[str, Any] = {}
     if collision_system in ["PbPb", "embedPythia", "embed_pythia", "embed_thermal_model"]:
         area_settings = jet_finding.AreaAA(**area_kwargs)
         additional_kwargs["background_subtraction"] = jet_finding.BackgroundSubtraction(
@@ -289,7 +288,7 @@ def analysis_embedding(
     arrays: ak.Array,
     jet_R: float,
     min_jet_pt: Mapping[str, float],
-    background_subtraction_settings: Optional[Mapping[str, Any]] = None,
+    background_subtraction_settings: Mapping[str, Any] | None = None,
     validation_mode: bool = False,
     shared_momentum_fraction_min: float = 0.5,
     det_level_artificial_tracking_efficiency: float | analysis_jets.PtDependentTrackingEfficiencyParameters = 1.0,
@@ -475,7 +474,7 @@ def run_some_standalone_tests() -> None:
     # for collision_system in ["pp", "pythia", "PbPb"]:
     for collision_system in ["pp"]:
         logger.info(f'Analyzing "{collision_system}"')
-        jets = analysis_data(
+        jets = analysis_data(  # noqa: F841
             collision_system=collision_system,
             arrays=load_data.data(
                 data_input=Path(
