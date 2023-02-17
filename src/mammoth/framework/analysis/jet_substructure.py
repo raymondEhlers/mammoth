@@ -9,7 +9,7 @@ import functools
 import logging
 import typing
 from pathlib import Path
-from typing import Any, Dict, Final, List, Mapping, Optional, Sequence, Tuple, TypeVar, cast
+from typing import Any, Final, Mapping, Sequence, TypeVar, cast
 
 import attr
 import awkward as ak
@@ -20,7 +20,7 @@ import pyarrow.parquet as pq
 import uproot
 import vector
 
-from mammoth.framework.typing import AwkwardArray, ArrayOrScalar, Scalar
+from mammoth.framework.typing import ArrayOrScalar, AwkwardArray, Scalar
 
 logger = logging.getLogger(__name__)
 
@@ -111,7 +111,7 @@ Returns:
 """
 
 
-def find_leading(values: AwkwardArray[Scalar]) -> Tuple[npt.NDArray[Scalar], AwkwardArray[int]]:
+def find_leading(values: AwkwardArray[Scalar]) -> tuple[npt.NDArray[Scalar], AwkwardArray[int]]:
     """Calculate hardest value given a set of values.
 
     Used for dynamical grooming, hardest kt, etc.
@@ -388,7 +388,7 @@ class JetSplittingArray(ak.Array, JetSplittingCommon):  # type: ignore[misc]
 
     def dynamical_core(
         self, R: float, z_cutoff: float | None = None
-    ) -> Tuple[npt.NDArray[Scalar], AwkwardArray[int], AwkwardArray[AwkwardArray[int]]]:
+    ) -> tuple[npt.NDArray[Scalar], AwkwardArray[int], AwkwardArray[AwkwardArray[int]]]:
         """Dynamical core of the jet splittings.
 
         Note:
@@ -407,7 +407,7 @@ class JetSplittingArray(ak.Array, JetSplittingCommon):  # type: ignore[misc]
         if z_cutoff is None:
             values, indices = find_leading(dynamical_core(self.delta_R, self.z, self.parent_pt, R))
             return values, indices, ak.local_index(self.z, axis=-1)
-        else:
+        else:  # noqa: RET505
             z_cutoff_mask = self.z > z_cutoff
             indices_passing_cutoff = ak.local_index(self.z, axis=-1)[z_cutoff_mask]
 
@@ -423,7 +423,7 @@ class JetSplittingArray(ak.Array, JetSplittingCommon):  # type: ignore[misc]
 
     def dynamical_z(
         self, R: float, z_cutoff: float | None = None
-    ) -> Tuple[npt.NDArray[Scalar], AwkwardArray[int], AwkwardArray[AwkwardArray[int]]]:
+    ) -> tuple[npt.NDArray[Scalar], AwkwardArray[int], AwkwardArray[AwkwardArray[int]]]:
         """Dynamical z of the jet splittings.
 
         Note:
@@ -442,7 +442,7 @@ class JetSplittingArray(ak.Array, JetSplittingCommon):  # type: ignore[misc]
         if z_cutoff is None:
             values, indices = find_leading(dynamical_z(self.delta_R, self.z, self.parent_pt, R))
             return values, indices, ak.local_index(self.z, axis=-1)
-        else:
+        else:  # noqa: RET505
             z_cutoff_mask = self.z > z_cutoff
             indices_passing_cutoff = ak.local_index(self.z, axis=-1)[z_cutoff_mask]
 
@@ -458,7 +458,7 @@ class JetSplittingArray(ak.Array, JetSplittingCommon):  # type: ignore[misc]
 
     def dynamical_kt(
         self, R: float, z_cutoff: float | None = None
-    ) -> Tuple[npt.NDArray[Scalar], AwkwardArray[int], AwkwardArray[AwkwardArray[int]]]:
+    ) -> tuple[npt.NDArray[Scalar], AwkwardArray[int], AwkwardArray[AwkwardArray[int]]]:
         """Dynamical kt of the jet splittings.
 
         Note:
@@ -477,7 +477,7 @@ class JetSplittingArray(ak.Array, JetSplittingCommon):  # type: ignore[misc]
         if z_cutoff is None:
             values, indices = find_leading(dynamical_kt(self.delta_R, self.z, self.parent_pt, R))
             return values, indices, ak.local_index(self.z, axis=-1)
-        else:
+        else:  # noqa: RET505
             z_cutoff_mask = self.z > z_cutoff
             indices_passing_cutoff = ak.local_index(self.z, axis=-1)[z_cutoff_mask]
 
@@ -493,7 +493,7 @@ class JetSplittingArray(ak.Array, JetSplittingCommon):  # type: ignore[misc]
 
     def dynamical_time(
         self, R: float, z_cutoff: float | None = None
-    ) -> Tuple[npt.NDArray[Scalar], AwkwardArray[int], AwkwardArray[AwkwardArray[int]]]:
+    ) -> tuple[npt.NDArray[Scalar], AwkwardArray[int], AwkwardArray[AwkwardArray[int]]]:
         """Dynamical time of the jet splittings.
 
         Note:
@@ -512,7 +512,7 @@ class JetSplittingArray(ak.Array, JetSplittingCommon):  # type: ignore[misc]
         if z_cutoff is None:
             values, indices = find_leading(dynamical_time(self.delta_R, self.z, self.parent_pt, R))
             return values, indices, ak.local_index(self.z, axis=-1)
-        else:
+        else:  # noqa: RET505
             z_cutoff_mask = self.z > z_cutoff
             indices_passing_cutoff = ak.local_index(self.z, axis=-1)[z_cutoff_mask]
 
@@ -527,8 +527,8 @@ class JetSplittingArray(ak.Array, JetSplittingCommon):  # type: ignore[misc]
             return values, indices_passing_cutoff[indices], indices_passing_cutoff
 
     def leading_kt(
-        self, z_cutoff: Optional[float] = None
-    ) -> Tuple[npt.NDArray[Scalar], AwkwardArray[int], AwkwardArray[AwkwardArray[int]]]:
+        self, z_cutoff: float | None = None
+    ) -> tuple[npt.NDArray[Scalar], AwkwardArray[int], AwkwardArray[AwkwardArray[int]]]:
         """Leading kt of the jet splittings.
 
         Args:
@@ -548,7 +548,7 @@ class JetSplittingArray(ak.Array, JetSplittingCommon):  # type: ignore[misc]
 
     def soft_drop(
         self, z_cutoff: float
-    ) -> Tuple[npt.NDArray[Scalar], AwkwardArray[int], AwkwardArray[AwkwardArray[int]]]:
+    ) -> tuple[npt.NDArray[Scalar], AwkwardArray[int], AwkwardArray[AwkwardArray[int]]]:
         """Calculate soft drop of the splittings.
 
         Note:
@@ -603,7 +603,7 @@ def _convert_tree_to_parquet(
     branches: Sequence[str],
     prefix_branches: Sequence[str],
     output_filename: Path,
-    entries: Tuple[Optional[int], Optional[int]],
+    entries: tuple[int | None, int | None],
     verbose: bool = False,
 ) -> bool:
     """Convert open tree to parquet.
@@ -636,7 +636,7 @@ def _convert_tree_to_parquet(
         tree.show()
 
     # Determine branches.
-    all_branches: List[str] = []
+    all_branches: list[str] = []
     all_branches.extend(branches)
     for prefix in prefixes:
         all_branches.extend([b.format(prefix=prefix) for b in prefix_branches])
@@ -664,9 +664,9 @@ def convert_tree_to_parquet(
     prefixes: Sequence[str],
     branches: Sequence[str],
     prefix_branches: Sequence[str],
-    output_filename: Optional[Path] = None,
-    entries: Optional[Tuple[Optional[int], Optional[int]]] = None,
-) -> Tuple[bool, Path]:
+    output_filename: Path | None = None,
+    entries: tuple[int | None, int | None] | None = None,
+) -> tuple[bool, Path]:
     """Convert a ROOT tree to a parquet file using awkward.
 
     The main benefit is that it can open _much_ faster via parquet compared to uproot because it doesn't
@@ -713,7 +713,7 @@ def convert_tree_to_parquet(
     return result, output_filename
 
 
-def parquet_to_substructure_analysis(filename: Path, prefixes: Mapping[str, str]) -> Dict[str, ak.Array]:
+def parquet_to_substructure_analysis(filename: Path, prefixes: Mapping[str, str]) -> dict[str, ak.Array]:
     """Convert an existing parquet file to arrays for substructure analysis.
 
     Note:
