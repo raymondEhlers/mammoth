@@ -15,7 +15,6 @@ import attrs
 import pachyderm.yaml
 from pachyderm import binned_data
 
-
 logger = logging.getLogger(__name__)
 
 # NOTE: If we use attr.frozen instead, the yaml serialization won't work. The reason isn't clear
@@ -88,7 +87,7 @@ def read_extracted_scale_factors(
         Normalized scaled factors
     """
     y = pachyderm.yaml.yaml(classes_to_register=[ScaleFactor])
-    with open(path, "r") as f:
+    with path.open() as f:
         scale_factors: Dict[int, ScaleFactor] = y.load(f)
 
     return {pt_hard_bin: v.value() for pt_hard_bin, v in scale_factors.items()}
