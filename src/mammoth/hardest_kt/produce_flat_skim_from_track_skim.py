@@ -1211,11 +1211,15 @@ def setup_and_submit_tasks(
 
 def process_futures(
     productions: Sequence[production.ProductionSettings],
-    all_results: Sequence[Future[Any]]
+    all_results: Sequence[Future[Any]],
+    job_framework: job_utils.JobFramework,
 ) -> None:
     # Process the futures, showing processing progress
     # Since it returns the results, we can actually use this to accumulate results.
-    gen_results = job_utils.provide_results_as_completed(all_results, running_with_parsl=True)
+    if job_framework == job_utils.JobFramework.dask_delayed:
+        gen_results: Iterable[Any] = job_utils.dask.distributed.as_completed(all_results)  # type: ignore[no-untyped-call]
+    else:
+        gen_results = job_utils.provide_results_as_completed(all_results, running_with_parsl=True)
 
     # In order to support writing histograms from multiple systems, we need to index the output histograms
     # by the collision system + centrality.
@@ -1305,7 +1309,7 @@ def run(job_framework: job_utils.JobFramework) -> List[Future[Any]]:
         job_executor=job_executor
     )
 
-    process_futures(productions=productions, all_results=all_results)
+    process_futures(productions=productions, all_results=all_results, job_framework=job_framework)
 
     return all_results
 
