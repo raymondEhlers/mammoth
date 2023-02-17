@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import Mapping, Sequence, Tuple
+from typing import Mapping, Sequence
 
 import attr
 import awkward as ak
@@ -18,7 +18,6 @@ import numpy as np
 import numpy.typing as npt
 
 from mammoth.framework import jet_finding
-
 
 logger = logging.getLogger(__name__)
 
@@ -185,7 +184,7 @@ def jet_matching_embedding(
     )
     jets = jets[jets_present_mask]
 
-    return jets
+    return jets  # noqa: RET504
 
 
 def hybrid_background_particles_only_mask(
@@ -204,7 +203,7 @@ def hybrid_background_particles_only_mask(
     #       particles, but since the background has the higher source index, we can just select particles
     #       with an index smaller than that offset.
     background_only_particles_mask = ~(arrays["hybrid", "index"] < source_index_identifiers["background"])
-    return background_only_particles_mask
+    return background_only_particles_mask  # noqa: RET504
 
 
 @attr.define(frozen=True)
@@ -224,7 +223,7 @@ class PtDependentTrackingEfficiencyParameters:
         y = yaml.yaml()
         _here = Path(__file__).parent
         config_filename = Path(_here.parent.parent / "alice" / "config" / "track_efficiency_pt_dependence.yaml")
-        with open(config_filename, "r") as f:
+        with config_filename.open() as f:
             config = y.load(f)
 
         # Grab values from file
@@ -277,7 +276,7 @@ def hybrid_level_particles_mask_for_jet_finding(
     det_level_artificial_tracking_efficiency: float | PtDependentTrackingEfficiencyParameters,
     source_index_identifiers: Mapping[str, int],
     validation_mode: bool,
-) -> Tuple[ak.Array, ak.Array]:
+) -> tuple[ak.Array, ak.Array]:
     """Calculate mask to separate hybrid and det level tracks, potentially apply an additional tracking efficiency uncertainty
 
     Args:
@@ -300,9 +299,8 @@ def hybrid_level_particles_mask_for_jet_finding(
     hybrid_level_mask = (arrays["hybrid"].pt >= 0)
     if isinstance(det_level_artificial_tracking_efficiency, PtDependentTrackingEfficiencyParameters) or det_level_artificial_tracking_efficiency < 1.0:
         if validation_mode:
-            raise ValueError(
-                "Cannot apply artificial tracking efficiency during validation mode. The randomness will surely break the validation."
-            )
+            _message = "Cannot apply artificial tracking efficiency during validation mode. The randomness will surely break the validation."
+            raise ValueError(_message)
 
         # Here, we focus in on the detector level particles.
         # We want to select only them, determine whether they will be rejected, and then assign back
@@ -373,9 +371,8 @@ def det_level_particles_mask_for_jet_finding(
     det_level_mask = (arrays["det_level"].pt >= 0)
     if isinstance(det_level_artificial_tracking_efficiency, PtDependentTrackingEfficiencyParameters) or det_level_artificial_tracking_efficiency < 1.0:
         if validation_mode:
-            raise ValueError(
-                "Cannot apply artificial tracking efficiency during validation mode. The randomness will surely break the validation."
-            )
+            _message = "Cannot apply artificial tracking efficiency during validation mode. The randomness will surely break the validation."
+            raise ValueError(_message)
 
         # Here, we focus in on the detector level particles.
         # First, we determine the total number of det_level particles to determine how many random
