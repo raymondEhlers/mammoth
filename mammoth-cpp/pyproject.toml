@@ -1,6 +1,6 @@
 [build-system]
 requires = [
-    "scikit_build_core[pyproject,rich] >= 0.1.5",
+    "scikit_build_core[pyproject,rich] >= 0.2.0",
     "pybind11",
 ]
 build-backend = "scikit_build_core.build"
@@ -16,3 +16,4 @@ dependencies = []
 
 [tool.scikit-build]
 sdist.include = ["src/mammoth_cpp/fastjet"]
+build-dir = "_skbuild"
