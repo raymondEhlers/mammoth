@@ -136,6 +136,7 @@ exclude = [
 line-length = 120
 select = [
     "E", "F", "W", # flake8
+    "C901",        # mccabe
     "B", "B904",   # flake8-bugbear
     "I",           # isort
     "ARG",         # flake8-unused-arguments
@@ -169,12 +170,6 @@ target-version = 'py38'
 
 [tool.ruff.mccabe]
 max-complexity = 10
-
-[tool.isort]
-profile = "black"
-line_length = 120
-skip = ["docs/conf.py"]
-skip_glob = ".*"
 
 [tool.pylint]
 master.py-version = "3.9"
