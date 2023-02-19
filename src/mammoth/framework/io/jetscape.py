@@ -385,9 +385,9 @@ class ChunkGenerator:
                 #       up the _parse_event function, but I find condensing it into a single function
                 #       to be more straightforward from a user perspective.
                 # First, get the header. We know this first line must be a header
-                self._headers.append(next(event_iter))  # type: ignore
+                self._headers.append(next(event_iter))  # type: ignore[arg-type]
                 # Then we yield the rest of the particles in the event
-                yield from event_iter  # type: ignore
+                yield from event_iter  # type: ignore[misc]
             except (ReachedEndOfFileException, ReachedXSecAtEndOfFileException):
                 # If we're reached the end of file, we should note that inside the chunk
                 # because it may not have reached the full set of events per chunk.
@@ -499,7 +499,7 @@ def _parse_with_pandas(chunk_generator: Iterator[str]) -> npt.NDArray[Any]:
     # Delayed import so we only take the import time if necessary.
     import pandas as pd
 
-    return pd.read_csv(  # type: ignore
+    return pd.read_csv(  # type: ignore[no-any-return]
         FileLikeGenerator(chunk_generator),
         # NOTE: If the field is missing (such as eta and phi), they will exist, but they will be filled with NaN
         #       We actively take advantage of this so we don't have to change the parsing for header v1 (which
