@@ -357,12 +357,11 @@ def analysis_embedding(source_index_identifiers: Mapping[str, int],
         #import IPython; IPython.embed()
         jets["det_level", "shared_momentum_fraction"] = jet_finding.shared_momentum_fraction_for_flat_array(
             generator_like_jet_pts=jets["det_level"].pt,
-            # NOTE: ak.packed is temporary. I assume I take a performance hit, but it also enables the code
-            #       to run successfully, so I'll take it for now. Reported the bug on github, and presumably
-            #       will be fixed soon
-            # TODO: Update to remove the two ak.packed class when fixed!
-            generator_like_jet_constituents=ak.packed(jets["det_level"].constituents),
-            measured_like_jet_constituents=ak.packed(jets["hybrid"].constituents),
+            # NOTE: Here, there was once a bug which required a to `ak.to_packed` call on both constituent fields.
+            #       I haven't test it, but it's supposed to be long fixed, so I removed the calls here. If there's
+            #       a problem, they can be easily added back.
+            generator_like_jet_constituents=jets["det_level"].constituents,
+            measured_like_jet_constituents=jets["hybrid"].constituents,
         )
 
         # Require a shared momentum fraction of > 50%
