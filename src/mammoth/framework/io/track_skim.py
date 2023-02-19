@@ -7,7 +7,7 @@ import logging
 from pathlib import Path
 from typing import Any, Generator, List, Optional, MutableMapping
 
-import attr
+import attrs
 import awkward as ak
 
 from mammoth.framework import sources
@@ -15,7 +15,7 @@ from mammoth.framework import sources
 logger = logging.getLogger(__name__)
 
 
-@attr.frozen
+@attrs.frozen
 class Columns:
     event_level: List[str]
     particle_level: List[str]
@@ -56,12 +56,12 @@ class Columns:
         )
 
 
-@attr.define
+@attrs.define
 class FileSource:
-    _filename: Path = attr.field(converter=Path)
+    _filename: Path = attrs.field(converter=Path)
     _collision_system: str
-    _default_chunk_size: sources.T_ChunkSize = attr.field(default=sources.ChunkSizeSentinel.FULL_SOURCE)
-    metadata: MutableMapping[str, Any] = attr.Factory(dict)
+    _default_chunk_size: sources.T_ChunkSize = attrs.field(default=sources.ChunkSizeSentinel.FULL_SOURCE)
+    metadata: MutableMapping[str, Any] = attrs.Factory(dict)
 
     def gen_data(
         self, chunk_size: sources.T_ChunkSize = sources.ChunkSizeSentinel.SOURCE_DEFAULT
