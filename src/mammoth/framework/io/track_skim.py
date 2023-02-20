@@ -188,67 +188,6 @@ def write_to_parquet(arrays: ak.Array, filename: Path, collision_system: str) ->
 
     In this form, they should be ready to analyze.
     """
-    # Determine the types for improved compression when writing
-    # Ideally, we would determine these dynamically, but it's unclear how to do this at
-    # the moment with awkward, so for now we specify them by hand...
-    # float_types = [np.float32, np.float64]
-    # float_columns = list(self.output_dataframe.select_dtypes(include=float_types).keys())
-    # other_columns = list(self.output_dataframe.select_dtypes(exclude=float_types).keys())
-    # Typing info
-    # For pp
-    # In [1]: arrays.type
-    # Out[1]: 703 * {"data": var * {"pt": float32, "eta": float32, "phi": float32}, "run_number": int32, "trigger_bit_INT7": bool}
-
-    # Apparently, specifying use_byte_stream_split=True causes bool to try to encode with the
-    # byte stream, even if we specify dictionary encoding (from parquet metadata, I guess it may
-    # be because bool can't be dictionary encoded either?). There are a few possible workarounds:
-    #
-    # 1. Use `values_astype` to convert bool to the next smallest type -> unsigned byte. This works,
-    #    but costs storage.
-    # 2. Specify `use_dictionary=True` to default encode as dictionary, and then specify the byte stream
-    #    split columns by hand. This also works, but since dictionary is preferred over the byte stream
-    #    (according to the parquet docs), that list of byte stream split columns is basically meaningless.
-    #    So this is equivalent to not using byte stream split at all, which isn't very helpful.
-    # 3. Specify both the dictionary columns and byte split stream columns explicitly. This seems to work,
-    #    provides good compression, and doesn't error on bool. So we use this option.
-
-    # Columns to store as integers
-    dictionary_encoded_columns = [
-        "run_number",
-        "trigger_bit_INT7",
-    ]
-    if collision_system == "pythia":
-        # NOTE: Uses notation from arrow/parquet
-        #       `list.item` basically gets us to an column in the list.
-        #       This may be a little brittle, but let's see.
-        # NOTE: Recall that we don't include `particle_ID` for det_level because it's all 0s.
-        dictionary_encoded_columns += [
-            "det_level.list.item.label",
-            "part_level.list.item.label",
-            "part_level.list.item.particle_ID",
-        ]
-    if collision_system == "PbPb":
-        dictionary_encoded_columns += [
-            "centrality",
-            "event_plane_V0M",
-            "trigger_bit_central",
-            "trigger_bit_semi_central",
-        ]
-
-    # Columns to store as float
-    first_collection_name = "data" if collision_system != "pythia" else "det_level"
-    byte_stream_split_columns = [
-        f"{first_collection_name}.list.item.pt",
-        f"{first_collection_name}.list.item.eta",
-        f"{first_collection_name}.list.item.phi",
-    ]
-    if collision_system == "pythia":
-        byte_stream_split_columns += [
-            "part_level.list.item.pt",
-            "part_level.list.item.eta",
-            "part_level.list.item.phi",
-        ]
-
     # Ensure the directory exists
     filename.parent.mkdir(parents=True, exist_ok=True)
 
@@ -258,12 +197,14 @@ def write_to_parquet(arrays: ak.Array, filename: Path, collision_system: str) ->
     #       Unfortunately, this won't become clear until reading is attempted.
     ak.to_parquet(
         array=arrays,
-        where=filename,
+        destination=str(filename),
         compression="zstd",
-        # Use for anything other than floats
-        use_dictionary=dictionary_encoded_columns,
-        # Optimize for floats for the rest
-        use_byte_stream_split=byte_stream_split_columns,
+        # Optimize the compression via improved encodings for floats and strings.
+        # Conveniently, awkward 2.x will now select the right columns for each if simply set to `True`
+        # Optimize for columns with anything other than floats
+        parquet_dictionary_encoding=True,
+        # Optimize for columns with floats
+        parquet_byte_stream_split=True
     )
 
     return True

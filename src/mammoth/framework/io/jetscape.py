@@ -751,37 +751,19 @@ def parse_to_parquet(
         else:
             output_filename = base_output_filename
 
-        # Optimize the output
-        # Additional parquet options are based on https://stackoverflow.com/a/66854439/12907985
-        # byte_stream_fields apparently only work for float fields. Other fields should be handled
-        # by use_dictionary. Apparently it can't handle this automatically, we so we have to define it
-        # ourselves. This is a bit brittle if fields change, but they don't change so often, and
-        # it's simpler than parsing field types, so it should be fine for now.
-        dict_fields = [
-            field for field in ak.fields(arrays) if field not in possible_event_level_fields_containing_floats
-        ]
-        dict_fields.extend(
-            # Add particle fields which contain ints
-            [
-                "particles.list.item.particle_ID",
-                "particles.list.item.status",
-            ]
-        )
-        # logger.debug(f"dict_fields: {dict_fields}")
-        # logger.debug(f"byte_stream_fields: {byte_stream_fields}")
-
         # Parquet with zlib seems to do about the same as ascii tar.gz when we drop unneeded columns.
         # And it should load much faster!
         ak.to_parquet(
             arrays,
-            output_filename,
+            destination=str(output_filename),
             compression=compression,
             compression_level=compression_level,
-            explode_records=False,
-            # Additional parquet options are based on https://stackoverflow.com/a/66854439/12907985
-            # Default to byte stream split, skipping those which are specified to use dictionary encoding
-            use_dictionary=dict_fields,
-            use_byte_stream_split=True,
+            # Optimize the compression via improved encodings for floats and strings.
+            # Conveniently, awkward 2.x will now select the right columns for each if simply set to `True`
+            # Optimize for columns with anything other than floats
+            parquet_dictionary_encoding=True,
+            # Optimize for columns with floats
+            parquet_byte_stream_split=True
         )
 
         # Break now so we don't have to read the next chunk.

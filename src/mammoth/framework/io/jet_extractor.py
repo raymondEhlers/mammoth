@@ -114,27 +114,6 @@ def write_to_parquet(arrays: ak.Array, filename: Path) -> bool:
 
     In this form, they should be ready to analyze.
     """
-    # Determine the types for improved compression when writing
-    # See the notes in track_skim for why some choices are made.
-    # Columns to store as integers
-    dictionary_encoded_columns = [
-        # NOTE: Uses notation from arrow/parquet
-        #       `list.item` basically gets us to an column in the list.
-        #       This may be a little brittle, but let's see.
-        "part_level.list.item.label",
-    ]
-
-    # Columns to store as float
-    byte_stream_split_columns = [
-        "event_weight",
-        "event_impact_parameter",
-        "jet_pt_original",
-        "part_level.list.item.pt",
-        "part_level.list.item.eta",
-        "part_level.list.item.phi",
-        "part_level.list.item.charge",
-    ]
-
     # NOTE: If there are issues about reading the files due to arrays being too short, check that
     #       there are no empty events. Empty events apparently cause issues for byte stream split
     #       encoding: https://issues.apache.org/jira/browse/ARROW-13024
@@ -143,10 +122,12 @@ def write_to_parquet(arrays: ak.Array, filename: Path) -> bool:
         array=arrays,
         where=filename,
         compression="zstd",
-        # Use for anything other than floats
-        use_dictionary=dictionary_encoded_columns,
-        # Optimize for floats for the rest
-        use_byte_stream_split=byte_stream_split_columns,
+        # Optimize the compression via improved encodings for floats and strings.
+        # Conveniently, awkward 2.x will now select the right columns for each if simply set to `True`
+        # Optimize for columns with anything other than floats
+        parquet_dictionary_encoding=True,
+        # Optimize for columns with floats
+        parquet_byte_stream_split=True
     )
 
     return True
