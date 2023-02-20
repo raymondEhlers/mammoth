@@ -134,13 +134,14 @@ class ProductionSpecialization(Protocol):
 
 _possible_collision_systems = [
     "pp",
+    "pp_MC"
     "pythia",
     "PbPb",
     "embedPythia",
     "embed_pythia",
     "embed_thermal_model",
 ]
-_collision_systems_with_scale_factors = ["pythia", "embedPythia", "embed_pythia", "embed_thermal_model"]
+_collision_systems_with_scale_factors = ["pp_MC", "pythia", "embedPythia", "embed_pythia", "embed_thermal_model"]
 
 
 def _validate_collision_system(instance: "ProductionSettings", attribute: attrs.Attribute[str], value: str) -> None:
