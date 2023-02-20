@@ -71,8 +71,8 @@ skimmed_datasets:
     # Keep track of the skim type for documentation
     skim_type: "HF_tree_creator_at_LBL"
     n_pt_hat_bins: 20
+    # NOTE: The scale factors need to be copied to the appropriate production directory
     files:
-      #- "projects/lbl_fastsim/pythia_alice/tree_fastsim/258314/files.txt"
       - "trains/pythia/266374/files.txt"
   # Anchored is unclear, but I suspect that it's LHC17pq (?)
   LBL20_Herwig_FastSim_1_266374: &LBL20_Herwig_FastSim_1_17pq
@@ -87,8 +87,8 @@ skimmed_datasets:
     skim_type: "HF_tree_creator_at_LBL"
     # Binning: (7 9 12 16 21 28 36 45 57 70 85 99 115 132 150 169 190 212 235 260)
     n_pt_hat_bins: 20
+    # NOTE: The scale factors need to be copied to the appropriate production directory
     files:
-      #- "projects/lbl_fastsim/herwig_alice/tree_fastsim/266374/files.txt"
       - "trains/pythia/266374/files.txt"
 
   # PbPb
