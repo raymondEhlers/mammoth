@@ -166,8 +166,8 @@ _facilities_configs = {
         launcher=SingleNodeLauncher,
         #node_work_dir=Path("/tmp/parsl/$USER"),
         #storage_work_dir=Path("/alf/data/rehlers/jetscape/work_dir"),
-        # Excluded due to focal simulations
-        nodes_to_exclude=[] if queue == "long" else [],
+        # Exclude login node
+        nodes_to_exclude=[] if queue == "long" else ["pc059"],
     ) for queue in ["short", "long", "loginOnly", "vip"]
 }
 _facilities_configs.update(
