@@ -6,7 +6,7 @@
 from __future__ import annotations
 
 import typing
-from typing import Collection, Tuple, TypeVar, Union
+from typing import Collection, TypeVar, Union
 
 import numpy as np
 import numpy.typing as npt
@@ -29,7 +29,7 @@ Number = Union[float, int, np.number]
 #       the example here: https://mypy.readthedocs.io/en/stable/generics.html#defining-sub-classes-of-generic-classes .
 #       The note is copied below:
 #       > You have to add an explicit Mapping base class if you want mypy to consider a user-defined
-#       > class as a mapping (and Sequence for sequences, etc.). This is because mypy doesn’t use
+#       > class as a mapping (and Sequence for sequences, etc.). This is because mypy doesn't use
 #       > structural subtyping for these ABCs, unlike simpler protocols like Iterable, which use
 #       > structural subtyping.
 # NOTE: Some further useful info is:
@@ -38,63 +38,63 @@ Number = Union[float, int, np.number]
 class AwkwardArray(Collection[_T]):
     @typing.overload
     def __getitem__(self, key: AwkwardArray[bool]) -> AwkwardArray[_T]:
-        ...  # noqa: E704
+        ...
 
     @typing.overload
     def __getitem__(self, key: AwkwardArray[int]) -> AwkwardArray[_T]:
-        ...  # noqa: E704
+        ...
 
     @typing.overload
-    def __getitem__(self, key: Tuple[slice, slice]) -> AwkwardArray[_T]:
-        ...  # noqa: E704
+    def __getitem__(self, key: tuple[slice, slice]) -> AwkwardArray[_T]:
+        ...
 
     @typing.overload
     def __getitem__(self, key: npt.NDArray[Scalar]) -> AwkwardArray[_T]:
-        ...  # noqa: E704
+        ...
 
     @typing.overload
     def __getitem__(self, key: bool) -> _T:
-        ...  # noqa: E704
+        ...
 
     @typing.overload
     def __getitem__(self, key: int) -> _T:
-        ...  # noqa: E704
+        ...
 
     def __getitem__(self, key):  # type: ignore[no-untyped-def]
-        ...  # noqa: E704
+        ...
 
-    def __add__(self, other: Union[AwkwardArray[_T], int, float]) -> AwkwardArray[_T]:  # type: ignore[empty-body]
-        ...  # noqa: E704
+    def __add__(self, other: AwkwardArray[_T] | int | float) -> AwkwardArray[_T]:  # type: ignore[empty-body]
+        ...
 
-    def __radd__(self, other: Union[AwkwardArray[_T], int, float]) -> AwkwardArray[_T]:  # type: ignore[empty-body]
-        ...  # noqa: E704
+    def __radd__(self, other: AwkwardArray[_T] | int | float) -> AwkwardArray[_T]:  # type: ignore[empty-body]
+        ...
 
-    def __sub__(self, other: Union[AwkwardArray[_T], int, float]) -> AwkwardArray[_T]:  # type: ignore[empty-body]
-        ...  # noqa: E704
+    def __sub__(self, other: AwkwardArray[_T] | int | float) -> AwkwardArray[_T]:  # type: ignore[empty-body]
+        ...
 
-    def __rsub__(self, other: Union[AwkwardArray[_T], int, float]) -> AwkwardArray[_T]:  # type: ignore[empty-body]
-        ...  # noqa: E704
+    def __rsub__(self, other: AwkwardArray[_T] | int | float) -> AwkwardArray[_T]:  # type: ignore[empty-body]
+        ...
 
-    def __mul__(self, other: Union[AwkwardArray[_T], int, float]) -> AwkwardArray[_T]:  # type: ignore[empty-body]
-        ...  # noqa: E704
+    def __mul__(self, other: AwkwardArray[_T] | int | float) -> AwkwardArray[_T]:  # type: ignore[empty-body]
+        ...
 
-    def __rmul__(self, other: Union[AwkwardArray[_T], int, float]) -> AwkwardArray[_T]:  # type: ignore[empty-body]
-        ...  # noqa: E704
+    def __rmul__(self, other: AwkwardArray[_T] | int | float) -> AwkwardArray[_T]:  # type: ignore[empty-body]
+        ...
 
-    def __truediv__(self, other: Union[AwkwardArray[_T], float]) -> AwkwardArray[_T]:  # type: ignore[empty-body]
-        ...  # noqa: E704
+    def __truediv__(self, other: AwkwardArray[_T] | float) -> AwkwardArray[_T]:  # type: ignore[empty-body]
+        ...
 
-    def __lt__(self, other: Union[AwkwardArray[_T], float]) -> AwkwardArray[bool]:  # type: ignore[empty-body]
-        ...  # noqa: E704
+    def __lt__(self, other: AwkwardArray[_T] | float) -> AwkwardArray[bool]:  # type: ignore[empty-body]
+        ...
 
-    def __le__(self, other: Union[AwkwardArray[_T], float]) -> AwkwardArray[bool]:  # type: ignore[empty-body]
-        ...  # noqa: E704
+    def __le__(self, other: AwkwardArray[_T] | float) -> AwkwardArray[bool]:  # type: ignore[empty-body]
+        ...
 
-    def __gt__(self, other: Union[AwkwardArray[_T], float]) -> AwkwardArray[bool]:  # type: ignore[empty-body]
-        ...  # noqa: E704
+    def __gt__(self, other: AwkwardArray[_T] | float) -> AwkwardArray[bool]:  # type: ignore[empty-body]
+        ...
 
-    def __ge__(self, other: Union[AwkwardArray[_T], float]) -> AwkwardArray[bool]:  # type: ignore[empty-body]
-        ...  # noqa: E704
+    def __ge__(self, other: AwkwardArray[_T] | float) -> AwkwardArray[bool]:  # type: ignore[empty-body]
+        ...
 
 
 # Sometimes, it could be either
