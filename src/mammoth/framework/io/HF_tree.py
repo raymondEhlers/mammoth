@@ -27,10 +27,10 @@ class Columns:
 
     identifiers: dict[str, str]
     event_level: dict[str, str]
-    particle_level: dict[str, str]
+    _particle_level: dict[str, str]
 
     @classmethod
-    def create(cls, collision_system: str) -> Columns:
+    def create(cls, collision_system: str, missing_particle_PID: bool = False) -> Columns:
         # Identifiers for reconstructing the event structure
         # According to James:
         # Both data and MC need run_number and ev_id.
@@ -62,6 +62,10 @@ class Columns:
             "ParticleEta": "eta",
             "ParticlePhi": "phi",
         }
+        # This field is only available at particle level, and usually is also
+        # dropped for the FastSim.
+        if not missing_particle_PID:
+            particle_level_columns["ParticlePID"] = "particle_ID"
 
         return cls(
             identifiers=identifiers,
@@ -69,14 +73,24 @@ class Columns:
             particle_level=particle_level_columns,
         )
 
-    def standardized_particle_names(self) -> dict[str, str]:
-        return {k: v for k, v in self.particle_level.items() if k not in self.identifiers}
+    def particle_level(self, data_fields_only: bool = True) -> dict[str, str]:
+        fields_to_exclude: list[str] = []
+        if data_fields_only:
+            fields_to_exclude.append("ParticlePID")
+        return {
+            k: v for k, v in self._particle_level.items() if k not in fields_to_exclude
+        }
+
+    def standardized_particle_names(self, data_fields_only: bool = True) -> dict[str, str]:
+        return {
+            k: v for k, v in self.particle_level(data_fields_only=data_fields_only).items() if k not in self.identifiers
+        }
 
 
 @attrs.define
 class FileSource:
     _filename: Path = attrs.field(converter=Path)
-    _collision_system: str
+    _collision_system: str = attrs.field()
     _default_chunk_size: sources.T_ChunkSize = attrs.field(default=sources.ChunkSizeSentinel.FULL_SOURCE)
     metadata: MutableMapping[str, Any] = attrs.Factory(dict)
 
@@ -88,16 +102,18 @@ class FileSource:
         Returns:
             Iterable containing chunk size data in an awkward array.
         """
+        # Setup
+        # In the case of the FastSim, it looks like they usually drop the ParticlePID column
+        fastsim_output = "FastSim" in self._filename.name
+
         # NOTE: We can only load a whole file and chunk it afterwards since the event boundaries
         #       are not known otherwise. Unfortunately, it's hacky, but it seems like the best
         #       bet for now as of Feb 2023.
-        columns = Columns.create(collision_system=self._collision_system)
+        columns = Columns.create(collision_system=self._collision_system, missing_particle_PID=fastsim_output)
         _is_pp_MC = self._collision_system in ["pythia", "pp_MC"]
 
         # There is a prefix for the original HF tree creator, but not one for the FastSim
-        tree_prefix = "PWGHF_TreeCreator/"
-        if "FastSim" in self._filename.name:
-            tree_prefix = ""
+        tree_prefix = "" if fastsim_output else "PWGHF_TreeCreator/"
 
         # Grab the various trees. It's less efficient, but we'll have to grab the trees
         # with separate file opens since adding more trees to the UprootSource would be tricky.
@@ -109,7 +125,7 @@ class FileSource:
         data_source = sources.UprootSource(
             filename=self._filename,
             tree_name=f"{tree_prefix}tree_Particle",
-            columns=list(columns.particle_level),
+            columns=list(columns.particle_level(data_fields_only=True)),
         )
         # NOTE: This is where we're defining the "det_level", "part_level", or "data" fields
         data_sources = {
@@ -120,7 +136,7 @@ class FileSource:
             data_sources["part_level"] = sources.UprootSource(
                 filename=self._filename,
                 tree_name=f"{tree_prefix}tree_Particle_gen",
-                columns=list(columns.particle_level),
+                columns=list(columns.particle_level(data_fields_only=False)),
             )
 
         _transformed_data = _transform_output(
@@ -132,6 +148,7 @@ class FileSource:
             #       of memory, but much more straightforward.
             gen_data={k: s.gen_data(chunk_size=sources.ChunkSizeSentinel.FULL_SOURCE) for k, s in data_sources.items()},
             collision_system=self._collision_system,
+            columns=columns,
         )
         return sources.generator_from_existing_data(
             data=next(_transformed_data),
@@ -168,10 +185,10 @@ class FileSource:
 def _transform_output(
     gen_data: Mapping[str, Generator[ak.Array, sources.T_ChunkSize | None, None]],
     collision_system: str,
+    columns: Columns,
 ) -> Generator[ak.Array, sources.T_ChunkSize | None, None]:
     # Setup
-    _columns = Columns.create(collision_system=collision_system)
-    _standardized_particle_names = _columns.standardized_particle_names()
+    _standardized_particle_names = columns.standardized_particle_names()
     _is_pp_MC = collision_system in ["pythia", "pp_MC"]
 
     try:
@@ -191,7 +208,7 @@ def _transform_output(
             event_data_in_jagged_format = {
                 k: utils.group_by(
                     array=v,
-                    by=list(_columns.identifiers.values()),
+                    by=list(columns.identifiers.values()),
                 )
                 for k, v in data.items()
                 if k != "event_level"
@@ -226,11 +243,11 @@ def _transform_output(
             event_properties_identifiers = event_properties[identifiers]
             """
             identifiers = {
-                k: v[list(_columns.identifiers.values())][:, 0]
+                k: v[list(columns.identifiers.values())][:, 0]
                 for k, v in event_data_in_jagged_format.items()
                 if k != "event_level"
             }
-            identifiers["event_level"] = event_data_in_jagged_format["event_level"][list(_columns.identifiers.values())]
+            identifiers["event_level"] = event_data_in_jagged_format["event_level"][list(columns.identifiers.values())]
 
             # Next, find the overlap for each collection with each other collection, storing the result in
             # a mask. As noted above, no collection appears to be a subset of the other.
@@ -275,7 +292,9 @@ def _transform_output(
                             particle_collection_name: ak.zip(
                                 {
                                     v: event_data_in_jagged_format[particle_collection_name][k]
-                                    for k, v in _standardized_particle_names.items()
+                                    for k, v in columns.standardized_particle_names(
+                                        data_fields_only=particle_collection_name != "part_level"
+                                    ).items()
                                 }
                             )
                             for particle_collection_name in ["det_level", "part_level"]
@@ -293,7 +312,7 @@ def _transform_output(
                 _result = yield ak.Array(
                     {
                         "data": ak.zip(
-                            {v: event_data_in_jagged_format["data"][k] for k, v in _standardized_particle_names.items()}
+                            {v: event_data_in_jagged_format["data"][k] for k, v in columns.standardized_particle_names(data_fields_only=True).items()}
                         ),
                         **dict(
                             zip(
