@@ -295,14 +295,9 @@ class ProductionSettings:
             raise ValueError(f"Invalid collision system for extracting scale factors: {self.collision_system}")
 
         dataset_key = "signal_dataset" if "signal_dataset" in self.config["metadata"] else "dataset"
-        if self.skim_type == "HF_tree_creator_at_LBL":
-            _hf_tree_files_txt_filename = _extract_hf_tree_files_txt_filename(
-                files=self.config["metadata"][dataset_key]["files"]
-            )
-            # By convention, it will be in the parent directory, and called "scaleFactors.yaml"
-            return _hf_tree_files_txt_filename.parent.parent / "scaleFactors.yaml"
+        # NOTE: By convention, we expect the scale factors to be called `scale_factors.yaml`.
+        #       If it's not available, it's usually best to just copy it in.
 
-        # Handle the case of `track_skim` by default!
         # Need to go up twice to get back to the "trains" directory because the collision system
         # stored in the production config may not be the same as the dataset that we're actually
         # extracting the scale factors from (ie. embedPythia != pythia)
