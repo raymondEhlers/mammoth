@@ -93,11 +93,11 @@ def read_extracted_scale_factors(
     with path.open() as f:
         scale_factors: dict[int, Any] = y.load(f)
 
+    # Check the first value to determine if we have a `ScaleFactor`` object or
+    # just a directly stored float for the scale factor
     if hasattr(scale_factors[next(iter(scale_factors))], "value"):
         # Standard track skim production
-        return_scale_factors: dict[int, ScaleFactor] = {
-            pt_hard_bin: v.value() for pt_hard_bin, v in scale_factors.items()
-        }
+        return {pt_hard_bin: v.value() for pt_hard_bin, v in scale_factors.items()}
     # We already have the map of [int, float], so just pass it on. For example,
-    # from the HF_tree
-    return scale_factors
+    # from the HF_tree. We wrap it in dict to convert from the ruamel.yaml map
+    return dict(scale_factors)
