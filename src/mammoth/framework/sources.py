@@ -71,6 +71,16 @@ class SourceFromFilename(Protocol):
     def __call__(self, filename: Path) -> Source:
         ...
 
+class CanCreateDeferredSourceFromFilename(Protocol):
+    """Create a deferred source which will take a filename.
+
+    This is used for typing FileSource which create deferred sources, but it's much more convenient
+    if it's available from the sources module.
+    """
+
+    def create_deferred_source(self, collision_system: str) -> SourceFromFilename:
+        ...
+
 
 # Allows loading all chunks by picking a number larger than any possible (set of) file(s).
 _FULL_SOURCE_SIZE: Final[int] = int(1e10)

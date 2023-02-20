@@ -34,7 +34,6 @@ class SplittingsSelection(enum.Enum):
     def __str__(self) -> str:
         return f"{self.name}_splittings"
 
-
 @attrs.frozen()
 class HardestKtProductionSpecialization:
     def customize_identifier(self, analysis_settings: Mapping[str, Any]) -> str:
@@ -357,6 +356,7 @@ def _run_data_skim(
     min_jet_pt: Mapping[str, float],
     iterative_splittings: bool,
     background_subtraction: Mapping[str, Any],
+    skim_type: str,
     loading_data_rename_prefix: Mapping[str, str],
     convert_data_format_prefixes: Mapping[str, str],
     pt_hat_bin: int,
@@ -378,6 +378,7 @@ def _run_data_skim(
             jet_R=jet_R,
             min_jet_pt=min_jet_pt,
             iterative_splittings=iterative_splittings,
+            skim_type=skim_type,
             background_subtraction=background_subtraction,
             loading_data_rename_prefix=loading_data_rename_prefix,
             convert_data_format_prefixes=convert_data_format_prefixes,
@@ -468,6 +469,7 @@ def setup_calculate_data_skim(
                     min_jet_pt=_analysis_config["min_jet_pt"],
                     iterative_splittings=splittings_selection == SplittingsSelection.iterative,
                     background_subtraction=_analysis_config.get("background_subtraction", {}),
+                    skim_type=_metadata_config["dataset"]["skim_type"],
                     loading_data_rename_prefix=_metadata_config["loading_data_rename_prefix"],
                     convert_data_format_prefixes=_metadata_config["convert_data_format_prefixes"],
                     pt_hat_bin=pt_hat_bin,

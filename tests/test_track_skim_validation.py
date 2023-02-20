@@ -633,6 +633,7 @@ def test_track_skim_validation(  # noqa: C901
             jet_R=jet_R,
             min_jet_pt=_analysis_parameters.min_jet_pt_by_R_and_prefix[jet_R],
             iterative_splittings=iterative_splittings,
+            skim_type="track_skim",
             loading_data_rename_prefix=_analysis_parameters.track_skim_loading_data_rename_prefix,
             convert_data_format_prefixes=_analysis_parameters.track_skim_convert_data_format_prefixes,
             output_filename=track_skim_filenames.skim(),

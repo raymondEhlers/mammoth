@@ -20,6 +20,7 @@ skimmed_datasets:
       - "trains/pp/2112/run_by_run/LHC17q_CENT_woSDD/*/AnalysisResults.17q.*.root"
       - "trains/pp/2112/run_by_run/LHC17q_FAST/*/AnalysisResults.17q.*.root"
 
+  # pp_MC
   # pythia
   # Anchored to LHC17pq pass1
   LHC18b8_AOD_2619: &LHC18b8_pythia
@@ -58,6 +59,37 @@ skimmed_datasets:
     n_pt_hat_bins: 20
     files:
       - "trains/pythia/2640/run_by_run/LHC20g4/*/{pt_hat_bin}/AnalysisResults.20g4.*.root"
+  # LBL Fast Sims
+  # This is a FastSim of the LHC18b8 Pythia production anchored to 17pq
+  LBL20_Pythia_FastSim_1_258314: &LBL20_Pythia_FastSim_1_17pq
+    name: "LBL20_Pythia_FastSim_1_258314"
+    collision_system: "pythia"
+    generator: "pythia"
+    sqrt_s: 5020
+    period: "LBL20_Pythia_FastSim_1"
+    anchor_period: ["LHC17p", "LHC17q"]
+    # Keep track of the skim type for documentation
+    skim_type: "HF_tree_creator_at_LBL"
+    n_pt_hat_bins: 20
+    files:
+      #- "projects/lbl_fastsim/pythia_alice/tree_fastsim/258314/files.txt"
+      - "trains/pythia/266374/files.txt"
+  # Anchored is unclear, but I suspect that it's LHC17pq (?)
+  LBL20_Herwig_FastSim_1_266374: &LBL20_Herwig_FastSim_1_17pq
+    name: "LBL20_Herwig_FastSim_1_266374"
+    collision_system: "pythia"
+    # Generator config at: `pyjetty/pyjetty/alice_analysis/generation/herwig/herwig_slurm.sh`
+    generator: "herwig"
+    sqrt_s: 5020
+    period: "LBL20_Herwig_FastSim_1"
+    anchor_period: ["LHC17p", "LHC17q"]
+    # Keep track of the skim type for documentation
+    skim_type: "HF_tree_creator_at_LBL"
+    # Binning: (7 9 12 16 21 28 36 45 57 70 85 99 115 132 150 169 190 212 235 260)
+    n_pt_hat_bins: 20
+    files:
+      #- "projects/lbl_fastsim/herwig_alice/tree_fastsim/266374/files.txt"
+      - "trains/pythia/266374/files.txt"
 
   # PbPb
   LHC18qr_pass3_AOD252_central_642: &LHC18qr_PbPb_central
@@ -268,6 +300,14 @@ productions:
         dataset: *LHC18b8_pythia
         production_number: 3
         label: ""
+      settings:
+        <<: *analysis_settings_pythia_R02
+    4:
+      metadata:
+        <<: *base_metadata_pythia
+        dataset: *LBL20_Herwig_FastSim_1_17pq
+        production_number: 4
+        label: "herwig"
       settings:
         <<: *analysis_settings_pythia_R02
     # Production

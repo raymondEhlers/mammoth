@@ -8,13 +8,13 @@ from __future__ import annotations
 import collections
 import logging
 from pathlib import Path
-from typing import Any, Dict, Mapping, Optional, Sequence, Tuple, Union
+from typing import Any, Dict, Literal, Mapping, Optional, Sequence, Tuple, Union
 
 import awkward as ak
 import numpy as np
 from mammoth import helpers
 from mammoth.framework import load_data, sources
-from mammoth.framework.io import track_skim
+from mammoth.framework.io import HF_tree, track_skim
 from mammoth.framework.analysis import objects as analysis_objects, jets as analysis_jets
 from mammoth.hardest_kt import analysis_alice
 
@@ -22,6 +22,19 @@ from mammoth.hardest_kt import skim_to_flat_tree
 
 
 logger = logging.getLogger(__name__)
+
+
+SKIM_TYPES = [
+    "track_skim",
+    "HF_tree_creator",
+    "HF_tree_creator_at_LBL",
+]
+
+skim_types_to_file_source: Dict[str, sources.CanCreateDeferredSourceFromFilename] = {
+    "track_skim": track_skim.FileSource,
+    "HF_tree_creator": HF_tree.FileSource,
+    "HF_tree_creator_at_LBL": HF_tree.FileSource,
+}
 
 
 def _convert_analyzed_jets_to_all_jets_for_skim(
@@ -126,6 +139,7 @@ def hardest_kt_data_skim(
     jet_R: float,
     min_jet_pt: Mapping[str, float],
     iterative_splittings: bool,
+    skim_type: str,
     output_filename: Path,
     convert_data_format_prefixes: Mapping[str, str],
     # Data specific
@@ -155,6 +169,9 @@ def hardest_kt_data_skim(
     if res[0]:
         return res
 
+    # Select IO module
+    FileSource = skim_types_to_file_source[skim_type]
+
     try:
         # NOTE: Although the later condition on pythia is technically true, the data skim appears to expects both
         #       the det level and part level to be available, so there's not a ton of value in using analysis_data
@@ -162,13 +179,13 @@ def hardest_kt_data_skim(
         #       implemented it, we leave it in place - perhaps it can be fixed later (or maybe just needs the right
         #       combination of options passed).
         if collision_system in ["pp", "PbPb"] or (
-            collision_system in ["pythia"] and "data" in loading_data_rename_prefix
+            collision_system in ["pythia", "pp_MC"] and "data" in loading_data_rename_prefix
         ):
             jets = analysis_alice.analysis_data(
                 collision_system=collision_system,
                 arrays=load_data.data(
                     data_input=input_filename,
-                    data_source=track_skim.FileSource.create_deferred_source(collision_system=collision_system),
+                    data_source=FileSource.create_deferred_source(collision_system=collision_system),
                     collision_system=collision_system,
                     rename_prefix=loading_data_rename_prefix,
                 ),
@@ -177,7 +194,7 @@ def hardest_kt_data_skim(
                 validation_mode=validation_mode,
                 background_subtraction_settings=background_subtraction,
             )
-        elif collision_system in ["pythia"]:
+        elif collision_system in ["pythia", "pp_MC"]:
             # Validation
             assert det_level_artificial_tracking_efficiency is not None
 
@@ -188,7 +205,7 @@ def hardest_kt_data_skim(
             jets = analysis_alice.analysis_MC(
                 arrays=load_data.data(
                     data_input=input_filename,
-                    data_source=track_skim.FileSource.create_deferred_source(collision_system=collision_system),
+                    data_source=FileSource.create_deferred_source(collision_system=collision_system),
                     collision_system=collision_system,
                     rename_prefix=loading_data_rename_prefix,
                 ),
@@ -642,6 +659,7 @@ def run_some_standalone_tests() -> None:
             jet_R=jet_R,
             min_jet_pt=_min_jet_pt[collision_system],
             iterative_splittings=True,
+            skim_type="track_skim",
             loading_data_rename_prefix={"data": "data"} if collision_system != "pythia" else {},
             convert_data_format_prefixes={"data": "data"}
             if collision_system != "pythia"
