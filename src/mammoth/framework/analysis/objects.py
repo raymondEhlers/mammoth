@@ -91,3 +91,24 @@ def read_extracted_scale_factors(
         scale_factors: Dict[int, ScaleFactor] = y.load(f)
 
     return {pt_hard_bin: v.value() for pt_hard_bin, v in scale_factors.items()}
+
+
+def read_extracted_scale_factors_from_LBL_production(
+    path: Path,
+) -> Dict[int, float]:
+    """Read extracted scale factors.
+
+    Args:
+        collision_system: Name of the collision system.
+        dataset_name: Name of the dataset.
+
+    Returns:
+        Normalized scaled factors
+    """
+    y = pachyderm.yaml.yaml(classes_to_register=[ScaleFactor])
+    # NOTE: We don't use the `ScaleFactor` objects here because the scale factors
+    #       are already calculated for these LBL productions.
+    with path.open() as f:
+        scale_factors: Dict[int, float] = y.load(f)
+
+    return scale_factors

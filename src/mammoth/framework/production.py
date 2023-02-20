@@ -256,6 +256,19 @@ class ProductionSettings:
             raise ValueError(f"Invalid collision system for extracting scale factors: {self.collision_system}")
 
         dataset_key = "signal_dataset" if "signal_dataset" in self.config["metadata"] else "dataset"
+        if self.config["metadata"][dataset_key]["skim_type"] == "HF_tree_creator":
+            # By convention, the `files.txt` file is used to enumerate the files,
+            # so it is the only file provided by the config.
+            _files_list = self.config["metadata"][dataset_key]["files"]
+            # Validation
+            if len(_files_list) != 1:
+                _msg = f"Wrong number of files provided for HF Tree Creator. Should only be 1! Provided: {_files_list}"
+                raise ValueError(_msg)
+            files_txt_location = Path(_files_list[0])
+            # By convention, it will be in the parent directory, and called "scaleFactors.yaml"
+            return files_txt_location.parent / "scaleFactors.yaml"
+
+        # Handle the case of `track_skim` by default!
         # Need to go up twice to get back to the "trains" directory because the collision system
         # stored in the production config may not be the same as the dataset that we're actually
         # extracting the scale factors from (ie. embedPythia != pythia)
@@ -273,8 +286,13 @@ class ProductionSettings:
         if self.collision_system not in _collision_systems_with_scale_factors:
             raise ValueError(f"Invalid collision system for extracting scale factors: {self.collision_system}")
 
-        scale_factors = analysis_objects.read_extracted_scale_factors(self.scale_factors_filename)
-        return scale_factors
+        dataset_key = "signal_dataset" if "signal_dataset" in self.config["metadata"] else "dataset"
+        # Handle the HF Tree Creator separately since the
+        if self.config["metadata"][dataset_key]["skim_type"] == "HF_tree_creator":
+            return analysis_objects.read_extracted_scale_factors_from_LBL_production(self.scale_factors_filename)
+
+        # Handle the case of `track_skim` by default!
+        return analysis_objects.read_extracted_scale_factors(self.scale_factors_filename)
 
     @functools.cached_property
     def output_dir(self) -> Path:
