@@ -183,7 +183,7 @@ def _transform_output(
         pass
 
 
-def write_to_parquet(arrays: ak.Array, filename: Path, collision_system: str) -> bool:
+def write_to_parquet(arrays: ak.Array, filename: Path) -> bool:
     """Write the jagged track skim arrays to parquet.
 
     In this form, they should be ready to analyze.
@@ -229,7 +229,6 @@ if __name__ == "__main__":
             filename=Path(
                 f"/software/rehlers/dev/mammoth/projects/framework/{collision_system}/AnalysisResults_track_skim.parquet"
             ),
-            collision_system=collision_system,
         )
 
     # For embedding, we need to go to the separate signal and background files themselves.
@@ -248,5 +247,4 @@ if __name__ == "__main__":
             filename=Path(
                 f"/software/rehlers/dev/mammoth/projects/framework/embedPythia/AnalysisResults_{collision_system}_track_skim.parquet"
             ),
-            collision_system=collision_system,
         )

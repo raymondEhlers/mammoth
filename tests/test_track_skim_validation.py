@@ -433,7 +433,6 @@ def _track_skim_to_parquet(input_filename: Path, output_filename: Path, collisio
     io_track_skim.write_to_parquet(
         arrays=arrays,
         filename=output_filename,
-        collision_system=collision_system,
     )
 
 

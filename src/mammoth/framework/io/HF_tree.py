@@ -301,7 +301,7 @@ def _transform_output(
         pass
 
 
-def write_to_parquet(arrays: ak.Array, filename: Path, collision_system: str) -> bool:
+def write_to_parquet(arrays: ak.Array, filename: Path) -> bool:
     """Write the jagged HF tree arrays to parquet.
 
     In this form, they should be ready to analyze.
@@ -363,7 +363,6 @@ if __name__ == "__main__":
             filename=Path(
                 f"projects/lbl_fastsim/{generator}_alice/AnalysisResults_HFTree.parquet"
             ),
-            collision_system=collision_system,
         )
 
         import IPython; IPython.embed()  # noqa: I001,E702
