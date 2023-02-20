@@ -315,10 +315,6 @@ class ProductionSettings:
         if self.collision_system not in _collision_systems_with_scale_factors:
             raise ValueError(f"Invalid collision system for extracting scale factors: {self.collision_system}")
 
-        if self.skim_type == "HF_tree_creator_at_LBL":
-            return analysis_objects.read_extracted_scale_factors_from_LBL_production(self.scale_factors_filename)
-
-        # Handle the case of `track_skim` by default!
         return analysis_objects.read_extracted_scale_factors(self.scale_factors_filename)
 
     @functools.cached_property
