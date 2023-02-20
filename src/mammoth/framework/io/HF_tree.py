@@ -8,7 +8,7 @@ from __future__ import annotations
 import functools
 import operator
 from pathlib import Path
-from typing import Any, Dict, Generator, Mapping, MutableMapping
+from typing import Any, Generator, Mapping, MutableMapping
 
 import attrs
 import awkward as ak
@@ -25,12 +25,12 @@ class Columns:
         but this is the start.
     """
 
-    identifiers: Dict[str, str]
-    event_level: Dict[str, str]
-    particle_level: Dict[str, str]
+    identifiers: dict[str, str]
+    event_level: dict[str, str]
+    particle_level: dict[str, str]
 
     @classmethod
-    def create(cls, collision_system: str) -> "Columns":
+    def create(cls, collision_system: str) -> Columns:
         # Identifiers for reconstructing the event structure
         # According to James:
         # Both data and MC need run_number and ev_id.
@@ -58,11 +58,9 @@ class Columns:
         # Particle columns and names.
         particle_level_columns = {
             **identifiers,
-            **{
-                "ParticlePt": "pt",
-                "ParticleEta": "eta",
-                "ParticlePhi": "phi",
-            },
+            "ParticlePt": "pt",
+            "ParticleEta": "eta",
+            "ParticlePhi": "phi",
         }
 
         return cls(
@@ -71,7 +69,7 @@ class Columns:
             particle_level=particle_level_columns,
         )
 
-    def standardized_particle_names(self) -> Dict[str, str]:
+    def standardized_particle_names(self) -> dict[str, str]:
         return {
             k: v for k, v in self.particle_level.items() if k not in self.identifiers
         }
@@ -161,7 +159,7 @@ class FileSource:
             A Callable which takes the filename and creates the FileSource.
         """
 
-        def wrap(filename: Path) -> "FileSource":
+        def wrap(filename: Path) -> FileSource:
             return cls(
                 filename=filename,
                 collision_system=collision_system,
@@ -368,4 +366,4 @@ if __name__ == "__main__":
             collision_system=collision_system,
         )
 
-        import IPython; IPython.embed()
+        import IPython; IPython.embed()  # noqa: I001,E702
