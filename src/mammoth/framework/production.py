@@ -134,7 +134,7 @@ class ProductionSpecialization(Protocol):
 
 _possible_collision_systems = [
     "pp",
-    "pp_MC"
+    "pp_MC",
     "pythia",
     "PbPb",
     "embedPythia",
