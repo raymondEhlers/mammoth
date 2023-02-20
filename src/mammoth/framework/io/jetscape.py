@@ -12,11 +12,10 @@ import typing
 from pathlib import Path
 from typing import Any, Callable, Iterator, List, Optional, Union
 
-import awkward as ak
 import attr
+import awkward as ak
 import numpy as np
 import numpy.typing as npt
-
 
 logger = logging.getLogger(__name__)
 
@@ -94,7 +93,7 @@ def _retrieve_last_line_of_file(f: typing.TextIO, read_chunk_size: int = 100) ->
         # What's being searched for will have to be modified if you are searching
         # files with non-unix line endings.
 
-        last_line = chunk[nl_pos + 1 :] + last_line  # noqa: E203
+        last_line = chunk[nl_pos + 1 :] + last_line
 
         if nl_pos == -1:
             # The whole chunk is part of the last line.
@@ -120,7 +119,8 @@ def _parse_cross_section(line: str) -> CrossSection:
             error=float(values[4]),  # Cross section error
         )
     else:
-        raise ValueError(f"Parsing of comment line failed: {values}")
+        _msg = f"Parsing of comment line failed: {values}"
+        raise ValueError(_msg)
 
     return info
 
@@ -212,7 +212,8 @@ def _parse_header_line_format_unspecified(line: str) -> HeaderInfo:
         #       we've raised an exception here.
         raise ReachedXSecAtEndOfFileException(_parse_cross_section(line))
     else:
-        raise ValueError(f"Parsing of comment line failed: {values}")
+        _msg = f"Parsing of comment line failed: {values}"
+        raise ValueError(_msg)
 
     return info
 
@@ -259,7 +260,8 @@ def _parse_header_line_format_v2(line: str) -> HeaderInfo:
         #       we've raised an exception here.
         raise ReachedXSecAtEndOfFileException(_parse_cross_section(line))
     else:
-        raise ValueError(f"Parsing of comment line failed: {values}")
+        _msg = f"Parsing of comment line failed: {values}"
+        raise ValueError(_msg)
 
     return info
 
@@ -289,7 +291,7 @@ def _parse_event(f: Iterator[str], parse_header_line: Callable[[str], HeaderInfo
         yield header
     except StopIteration:
         # logger.debug("Hit end of file exception!")
-        raise ReachedEndOfFileException()
+        raise ReachedEndOfFileException() from None
 
     # From the header, we know how many particles we have in the event, so we can
     # immediately yield the next n_particles lines. And this will leave the generator
@@ -398,7 +400,9 @@ class ChunkGenerator:
             #       allow it to propagate through and end the for loop.
 
 
-def read_events_in_chunks(filename: Path, events_per_chunk: int = int(1e5)) -> Iterator[ChunkGenerator]:
+DEFAULT_EVENTS_PER_CHUNK_SIZE = int(1e5)
+
+def read_events_in_chunks(filename: Path, events_per_chunk: int = DEFAULT_EVENTS_PER_CHUNK_SIZE) -> Iterator[ChunkGenerator]:
     """Read events in chunks from stored JETSCAPE FinalState* ASCII files.
 
     This provides access to the lines of the file itself, but it is up to the user to parse each line.
@@ -415,7 +419,7 @@ def read_events_in_chunks(filename: Path, events_per_chunk: int = int(1e5)) -> I
     # Validation
     filename = Path(filename)
 
-    with open(filename, "r") as f:
+    with filename.open() as f:
         # First step, extract the final cross section and header.
         cross_section = _extract_x_sec_and_error(f)
 
@@ -474,7 +478,7 @@ class FileLikeGenerator:
     def __init__(self, g: Iterator[str]):
         self.g = g
 
-    def read(self, n: int = 0) -> Any:
+    def read(self, n: int = 0) -> Any:  # noqa: ARG002
         """Read method is required by pandas."""
         try:
             return next(self.g)
@@ -725,13 +729,6 @@ def parse_to_parquet(
     base_output_filename = Path(base_output_filename)
     # Setup the base output directory
     base_output_filename.parent.mkdir(parents=True, exist_ok=True)
-    # We will check which fields actually exist when writing.
-    possible_event_level_fields_containing_floats = [
-        "event_plane_angle",
-        "event_weight",
-        "cross_section",
-        "cross_section_error",
-    ]
 
     for i, arrays in enumerate(read(filename=input_filename, events_per_chunk=events_per_chunk, parser=parser)):
         # Reduce to the minimum required data.
@@ -859,7 +856,7 @@ if __name__ == "__main__":
     ]
     # for pt_hat_bin in pt_hat_bins:
     for pt_hat_bin in ["45_50"]:
-        print(f"Processing pt hat range: {pt_hat_bin}")
+        logger.info(f"Processing pt hat range: {pt_hat_bin}")
         filename = f"JetscapeHadronListBin{pt_hat_bin}"
         parse_to_parquet(
             input_filename=f"/alf/data/rehlers/jetscape/osiris/AAPaperData/MATTER_LBT_RunningAlphaS_Q2qhat/5020_PbPb_5-10_0.30_2.0_1/{filename}.out",
