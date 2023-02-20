@@ -59,7 +59,7 @@ class Columns:
 @attrs.define
 class FileSource:
     _filename: Path = attrs.field(converter=Path)
-    _collision_system: str
+    _collision_system: str = attrs.field()
     _default_chunk_size: sources.T_ChunkSize = attrs.field(default=sources.ChunkSizeSentinel.FULL_SOURCE)
     metadata: MutableMapping[str, Any] = attrs.Factory(dict)
 
