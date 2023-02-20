@@ -92,7 +92,7 @@ class FileSource:
         #       are not known otherwise. Unfortunately, it's hacky, but it seems like the best
         #       bet for now as of Feb 2023.
         columns = Columns.create(collision_system=self._collision_system)
-        _is_pp_MC = collision_system in ["pythia", "pp_MC"]
+        _is_pp_MC = self._collision_system in ["pythia", "pp_MC"]
 
         # There is a prefix for the original HF tree creator, but not one for the FastSim
         tree_prefix = "PWGHF_TreeCreator/"
@@ -330,7 +330,7 @@ def write_to_parquet(arrays: ak.Array, filename: Path) -> bool:
     return True
 
 
-if __name__ == "__main__":
+def run_standalone_tests() -> None:
     # arrays = hf_tree_to_awkward(filename=Path("/software/rehlers/dev/substructure/trains/pythia/568/AnalysisResults.20g4.001.root"))
     # for collision_system in ["pythia"]:
     # for collision_system in ["pp", "pythia", "PbPb"]:
@@ -375,3 +375,7 @@ if __name__ == "__main__":
         import IPython
 
         IPython.embed()
+
+
+if __name__ == "__main__":
+    run_standalone_tests()
