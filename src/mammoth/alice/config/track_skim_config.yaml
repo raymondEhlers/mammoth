@@ -790,7 +790,7 @@ productions:
         det_level_artificial_tracking_efficiency: 0.98
         apply_pt_dependent_tracking_efficiency_uncertainty: true
     75:
-      # Tracking efficiency systematic with pt dependence, r_max = 0.1. Added 14 Feb 2023
+      # Tracking efficiency systematic with pt dependence for semi-central, r_max = 0.1. Added 14 Feb 2023
       metadata:
         <<: *base_metadata_embed
         dataset: *LHC18qr_PbPb_semi_central
