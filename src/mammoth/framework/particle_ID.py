@@ -31,7 +31,7 @@ def _pdg_id_to_mass(pdg_id: int) -> float:
     return m / 1000
 
 
-@nb.njit  # type: ignore
+@nb.njit  # type: ignore[misc]
 def _determine_mass_from_PDG(
     arrays: ak.Array,
     builder: ak.ArrayBuilder,
