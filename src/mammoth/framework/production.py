@@ -124,6 +124,16 @@ def _read_full_config(config_path: Optional[Path] = None) -> Dict[str, Any]:
     return full_config
 
 
+def _extract_hf_tree_files_txt_filename(files: List[str]) -> Path:
+    # By convention, the `files.txt` file is used to enumerate the files,
+    # so it is the only file provided by the config.
+    # Validation
+    if len(files) != 1:
+        _msg = f"Wrong number of files provided for HF Tree Creator. Should only be 1! Provided: {files}"
+        raise ValueError(_msg)
+    return Path(files[0])
+
+
 class ProductionSpecialization(Protocol):
     def customize_identifier(self, analysis_settings: Mapping[str, Any]) -> str:
         ...
@@ -223,7 +233,19 @@ class ProductionSettings:
                 _files.extend(_files_in_single_pt_hat)
             return _files
 
-        # Otherwise, we just can blindly expand
+        if self.skim_type == "HF_tree_creator_at_LBL":
+            # First, grab the files listed in `files.txt`
+            _hf_tree_files_txt_filename = _extract_hf_tree_files_txt_filename(
+                files=self.config["metadata"]["dataset"]["files"]
+            )
+            with _hf_tree_files_txt_filename.open() as f:
+                _all_files = [
+                    Path(line) for line in f
+                ]
+            return _all_files
+
+        # Handle the track skim as the default case.
+        # Here, we just can blindly expand
         return utils.ensure_and_expand_paths(self.config["metadata"]["dataset"]["files"])
 
     @property
@@ -241,6 +263,22 @@ class ProductionSettings:
         # Will be signal_dataset if embedded, but otherwise will be the standard "dataset" key
         dataset_key = "signal_dataset" if "signal_dataset" in self.config["metadata"] else "dataset"
 
+        if self.skim_type == "HF_tree_creator_at_LBL":
+            # First, grab the files listed in `files.txt`
+            _hf_tree_files_txt_filename = _extract_hf_tree_files_txt_filename(
+                files=self.config["metadata"][dataset_key]["files"]
+            )
+            with _hf_tree_files_txt_filename.open() as f:
+                _all_files = list(f)
+            # Now, extract the pt hat bin and group by pt hat bin according to the convention
+            _files: Dict[int, List[Path]] = {}
+            for name in _all_files:
+                filename = Path(name)
+                pt_hat_bin = int(filename.parent.parent.name)
+                _files.setdefault(pt_hat_bin, []).append(filename)
+            return _files
+
+        # Handle the track skim case as the default
         # +1 due to pt hat bins being 1-indexed
         _files = {}
         for pt_hat_bin in range(1, self.config["metadata"][dataset_key]["n_pt_hat_bins"] + 1):
@@ -257,17 +295,12 @@ class ProductionSettings:
             raise ValueError(f"Invalid collision system for extracting scale factors: {self.collision_system}")
 
         dataset_key = "signal_dataset" if "signal_dataset" in self.config["metadata"] else "dataset"
-        if self.config["metadata"][dataset_key]["skim_type"] == "HF_tree_creator":
-            # By convention, the `files.txt` file is used to enumerate the files,
-            # so it is the only file provided by the config.
-            _files_list = self.config["metadata"][dataset_key]["files"]
-            # Validation
-            if len(_files_list) != 1:
-                _msg = f"Wrong number of files provided for HF Tree Creator. Should only be 1! Provided: {_files_list}"
-                raise ValueError(_msg)
-            files_txt_location = Path(_files_list[0])
+        if self.skim_type == "HF_tree_creator_at_LBL":
+            _hf_tree_files_txt_filename = _extract_hf_tree_files_txt_filename(
+                files=self.config["metadata"][dataset_key]["files"]
+            )
             # By convention, it will be in the parent directory, and called "scaleFactors.yaml"
-            return files_txt_location.parent / "scaleFactors.yaml"
+            return _hf_tree_files_txt_filename.parent.parent / "scaleFactors.yaml"
 
         # Handle the case of `track_skim` by default!
         # Need to go up twice to get back to the "trains" directory because the collision system
@@ -287,13 +320,17 @@ class ProductionSettings:
         if self.collision_system not in _collision_systems_with_scale_factors:
             raise ValueError(f"Invalid collision system for extracting scale factors: {self.collision_system}")
 
-        dataset_key = "signal_dataset" if "signal_dataset" in self.config["metadata"] else "dataset"
-        # Handle the HF Tree Creator separately since the
-        if self.config["metadata"][dataset_key]["skim_type"] == "HF_tree_creator":
+        if self.skim_type == "HF_tree_creator_at_LBL":
             return analysis_objects.read_extracted_scale_factors_from_LBL_production(self.scale_factors_filename)
 
         # Handle the case of `track_skim` by default!
         return analysis_objects.read_extracted_scale_factors(self.scale_factors_filename)
+
+    @functools.cached_property
+    def skim_type(self) -> str:
+        dataset_key = "signal_dataset" if "signal_dataset" in self.config["metadata"] else "dataset"
+        _skim_type: str = self.config["metadata"][dataset_key]["skim_type"]
+        return _skim_type
 
     @functools.cached_property
     def output_dir(self) -> Path:
