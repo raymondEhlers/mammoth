@@ -13,7 +13,7 @@ import numpy as np
 import particle
 
 
-@functools.lru_cache()
+@functools.lru_cache
 def _pdg_id_to_mass(pdg_id: int) -> float:
     """Convert PDG ID to mass.
 

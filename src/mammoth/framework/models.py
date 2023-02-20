@@ -6,12 +6,9 @@ import numpy as np
 import numpy.typing as npt
 from scipy.interpolate import interp1d
 
-from mammoth_cpp._ext import (  # noqa: F401
-    TrackingEfficiencyPeriod as ALICETrackingEfficiencyPeriod,
-    TrackingEfficiencyEventActivity as ALICETrackingEfficiencyEventActivity,
-    find_event_activity,
-    fast_sim_tracking_efficiency as alice_fast_sim_tracking_efficiency,
-)
+from mammoth_cpp._ext import TrackingEfficiencyEventActivity as ALICETrackingEfficiencyEventActivity
+from mammoth_cpp._ext import TrackingEfficiencyPeriod as ALICETrackingEfficiencyPeriod
+from mammoth_cpp._ext import fast_sim_tracking_efficiency as alice_fast_sim_tracking_efficiency
 
 # Need this to tell mypy that this symbol is explicitly exported. If the name didn't change,
 # it would work, but I think the ALICE label needs to be specified for clarity.

@@ -171,6 +171,9 @@ target-version = 'py38'
 [tool.ruff.mccabe]
 max-complexity = 10
 
+[tool.ruff.isort]
+known-first-party = ["mammoth_cpp"]
+
 [tool.pylint]
 master.py-version = "3.9"
 master.ignore-paths= ["src/pachyderm/_version.py"]
