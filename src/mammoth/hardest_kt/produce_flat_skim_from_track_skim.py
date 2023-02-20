@@ -73,7 +73,15 @@ def safe_output_filename_from_relative_path(filename: Path, output_dir: Path) ->
     # NOTE: We use the grandparent of the output dir because the input filename is going to be a different train
     #       than our output. For the case of embedding trains, we might not even share the collision system.
     #       So by going to the grandparent (ie `trains`), we end up with a shared path
-    return str(filename.relative_to(output_dir.parent.parent).with_suffix("")).replace("/", "__").replace(".", "_")
+    reference_dir = output_dir.parent.parent
+    # `relative_to` requires that both filenames are the same type (either absolute or relative)
+    # `reference_dir` is usually relative, so we may need to resolve it to ensure that the comparison will work.
+    if filename.is_absolute():
+        # NOTE: We can't use `resolve()` because it will resolve symlinks, which we probably don't want it to do
+        #       since we usually symlink the `train` directory.
+        # NOTE: `pathlib.Path.absolute()` would be perfect here, but it requires 3.11
+        reference_dir = Path.cwd() / reference_dir
+    return str(filename.relative_to(reference_dir).with_suffix("")).replace("/", "__").replace(".", "_")
 
 
 @python_app
