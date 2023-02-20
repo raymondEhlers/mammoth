@@ -5,7 +5,7 @@
 
 import logging
 from pathlib import Path
-from typing import Any, Generator, List, Optional, MutableMapping
+from typing import Any, Generator, List, MutableMapping, Optional
 
 import attrs
 import awkward as ak
@@ -82,7 +82,7 @@ class FileSource:
                 gen_data=source.gen_data(chunk_size=chunk_size),
                 collision_system=self._collision_system,
             )
-        else:
+        else:  # noqa: RET505
             source = sources.ParquetSource(
                 filename=self._filename,
             )
