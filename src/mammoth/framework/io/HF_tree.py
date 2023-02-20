@@ -577,40 +577,16 @@ def write_to_parquet(arrays: ak.Array, filename: Path, collision_system: str) ->
 
     In this form, they should be ready to analyze.
     """
-    # Determine the types for improved compression when writing
-    # Ideally, we would determine these dynamically, but it's unclear how to do this at
-    # the moment with awkward, so for now we specify them by hand...
-    # float_types = [np.float32, np.float64]
-    # float_columns = list(self.output_dataframe.select_dtypes(include=float_types).keys())
-    # other_columns = list(self.output_dataframe.select_dtypes(exclude=float_types).keys())
-    # Typing info
-    # In [8]: arrays.type
-    # Out[8]: 18681 * {"det_level": var * {"pt": float32, "eta": float32, "phi": float32}, "part_level": var * {"pt": float32, "eta": float32, "phi": float32}, "run_number": int32, "ev_id": int32, "z_vtx_reco": float32, "is_ev_rej": int32}
-
-    # Columns to store as integers
-    use_dictionary = [
-        "run_number",
-        "ev_id",
-        "is_ev_rej",
-    ]
-    if collision_system in ["pp", "PbPb"]:
-        use_dictionary += ["ev_id_ext"]
-
     ak.to_parquet(
         array=arrays,
         destination=str(filename),
         compression="zstd",
-        # Use for anything other than floats
-        #use_dictionary=use_dictionary,
-        # Optimize for floats for the rest
-        # Generally enabling seems to work better than specifying exactly the fields
-        # because it's unclear how to specify nested fields here.
-        #use_byte_stream_split=True,
-        # use_byte_stream_split=[
-        #     "pt", "eta", "phi",
-        #     #"det_level", "part_level",
-        #     "z_vtx_reco",
-        # ],
+        # Optimize the compression via improved encodings for floats and strings.
+        # Conveniently, awkward 2.x will now select the right columns for each if simply set to `True`
+        # Optimize for columns with anything other than floats
+        parquet_dictionary_encoding=True,
+        # Optimize for columns with floats
+        parquet_byte_stream_split=True
     )
 
     return True
