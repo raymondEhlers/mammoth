@@ -204,7 +204,7 @@ def write_to_parquet(arrays: ak.Array, filename: Path) -> bool:
         # Optimize for columns with anything other than floats
         parquet_dictionary_encoding=True,
         # Optimize for columns with floats
-        parquet_byte_stream_split=True
+        parquet_byte_stream_split=True,
     )
 
     return True

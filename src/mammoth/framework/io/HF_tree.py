@@ -70,9 +70,7 @@ class Columns:
         )
 
     def standardized_particle_names(self) -> dict[str, str]:
-        return {
-            k: v for k, v in self.particle_level.items() if k not in self.identifiers
-        }
+        return {k: v for k, v in self.particle_level.items() if k not in self.identifiers}
 
 
 @attrs.define
@@ -115,7 +113,8 @@ class FileSource:
         )
         # NOTE: This is where we're defining the "det_level", "part_level", or "data" fields
         data_sources = {
-            "event_level": event_properties_source, "det_level" if _is_pp_MC else "data": data_source,
+            "event_level": event_properties_source,
+            "det_level" if _is_pp_MC else "data": data_source,
         }
         if _is_pp_MC:
             data_sources["part_level"] = sources.UprootSource(
@@ -131,10 +130,7 @@ class FileSource:
             #       the boundaries of events, giving unexpected behavior. So we load it
             #       all now and add on the chunking afterwards. It's less efficient in terms
             #       of memory, but much more straightforward.
-            gen_data={
-                k: s.gen_data(chunk_size=sources.ChunkSizeSentinel.FULL_SOURCE)
-                for k, s in data_sources.items()
-            },
+            gen_data={k: s.gen_data(chunk_size=sources.ChunkSizeSentinel.FULL_SOURCE) for k, s in data_sources.items()},
             collision_system=self._collision_system,
         )
         return sources.generator_from_existing_data(
@@ -197,7 +193,8 @@ def _transform_output(
                     array=v,
                     by=list(_columns.identifiers.values()),
                 )
-                for k, v in data.items() if k != "event_level"
+                for k, v in data.items()
+                if k != "event_level"
             }
             # There is one entry per event, so we don't need to do any group by steps.
             event_data_in_jagged_format["event_level"] = data["event_level"]
@@ -230,7 +227,8 @@ def _transform_output(
             """
             identifiers = {
                 k: v[list(_columns.identifiers.values())][:, 0]
-                for k, v in event_data_in_jagged_format.items() if k != "event_level"
+                for k, v in event_data_in_jagged_format.items()
+                if k != "event_level"
             }
             identifiers["event_level"] = event_data_in_jagged_format["event_level"][list(_columns.identifiers.values())]
 
@@ -252,16 +250,19 @@ def _transform_output(
             ...
             """
             masks_for_combining_levels = {
-                k: functools.reduce(operator.and_, [
-                    np.isin(np.asarray(v), np.asarray(identifiers[other_level]))
-                    for other_level in identifiers if k != other_level
-                ])
+                k: functools.reduce(
+                    operator.and_,
+                    [
+                        np.isin(np.asarray(v), np.asarray(identifiers[other_level]))
+                        for other_level in identifiers
+                        if k != other_level
+                    ],
+                )
                 for k, v in identifiers.items()
             }
             # Once we have the mask, we immediately apply it.
             event_data_in_jagged_format = {
-                k: v[masks_for_combining_levels[k]]
-                for k, v in event_data_in_jagged_format.items()
+                k: v[masks_for_combining_levels[k]] for k, v in event_data_in_jagged_format.items()
             }
 
             if _is_pp_MC:
@@ -276,9 +277,15 @@ def _transform_output(
                                     v: event_data_in_jagged_format[particle_collection_name][k]
                                     for k, v in _standardized_particle_names.items()
                                 }
-                            ) for particle_collection_name in ["det_level", "part_level"]
+                            )
+                            for particle_collection_name in ["det_level", "part_level"]
                         },
-                        **dict(zip(ak.fields(event_data_in_jagged_format["event_level"]), ak.unzip(event_data_in_jagged_format["event_level"]))),
+                        **dict(
+                            zip(
+                                ak.fields(event_data_in_jagged_format["event_level"]),
+                                ak.unzip(event_data_in_jagged_format["event_level"]),
+                            )
+                        ),
                     },
                 )
             else:
@@ -286,12 +293,14 @@ def _transform_output(
                 _result = yield ak.Array(
                     {
                         "data": ak.zip(
-                            {
-                                v: event_data_in_jagged_format["data"][k]
-                                for k, v in _standardized_particle_names.items()
-                            }
+                            {v: event_data_in_jagged_format["data"][k] for k, v in _standardized_particle_names.items()}
                         ),
-                        **dict(zip(ak.fields(event_data_in_jagged_format["event_level"]), ak.unzip(event_data_in_jagged_format["event_level"]))),
+                        **dict(
+                            zip(
+                                ak.fields(event_data_in_jagged_format["event_level"]),
+                                ak.unzip(event_data_in_jagged_format["event_level"]),
+                            )
+                        ),
                     },
                 )
 
@@ -315,7 +324,7 @@ def write_to_parquet(arrays: ak.Array, filename: Path) -> bool:
         # Optimize for columns with anything other than floats
         parquet_dictionary_encoding=True,
         # Optimize for columns with floats
-        parquet_byte_stream_split=True
+        parquet_byte_stream_split=True,
     )
 
     return True
@@ -360,9 +369,9 @@ if __name__ == "__main__":
 
         write_to_parquet(
             arrays=arrays,
-            filename=Path(
-                f"projects/lbl_fastsim/{generator}_alice/AnalysisResults_HFTree.parquet"
-            ),
+            filename=Path(f"projects/lbl_fastsim/{generator}_alice/AnalysisResults_HFTree.parquet"),
         )
 
-        import IPython; IPython.embed()  # noqa: I001,E702
+        import IPython
+
+        IPython.embed()

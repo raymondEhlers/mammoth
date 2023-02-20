@@ -402,7 +402,10 @@ class ChunkGenerator:
 
 DEFAULT_EVENTS_PER_CHUNK_SIZE = int(1e5)
 
-def read_events_in_chunks(filename: Path, events_per_chunk: int = DEFAULT_EVENTS_PER_CHUNK_SIZE) -> Iterator[ChunkGenerator]:
+
+def read_events_in_chunks(
+    filename: Path, events_per_chunk: int = DEFAULT_EVENTS_PER_CHUNK_SIZE
+) -> Iterator[ChunkGenerator]:
     """Read events in chunks from stored JETSCAPE FinalState* ASCII files.
 
     This provides access to the lines of the file itself, but it is up to the user to parse each line.
@@ -760,7 +763,7 @@ def parse_to_parquet(
             # Optimize for columns with anything other than floats
             parquet_dictionary_encoding=True,
             # Optimize for columns with floats
-            parquet_byte_stream_split=True
+            parquet_byte_stream_split=True,
         )
 
         # Break now so we don't have to read the next chunk.
