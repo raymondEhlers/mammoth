@@ -60,7 +60,11 @@ class HardestKtProductionSpecialization:
         return _tasks
 
 
-def safe_output_filename_from_relative_path(filename: Path, output_dir: Path) -> str:
+def safe_output_filename_from_relative_path(
+    filename: Path,
+    output_dir: Path,
+    number_of_parent_directories_for_relative_output_filename: int | None = None,
+) -> str:
     """Safe and identifiable name for naming output files based on the relative path.
 
     Converts: "2111/run_by_run/LHC17p_CENT_woSDD/282341/AnalysisResults.17p.001.root"
@@ -69,17 +73,25 @@ def safe_output_filename_from_relative_path(filename: Path, output_dir: Path) ->
     Returns:
         Filename that is safe for using as the output filename.
     """
-    # NOTE: We use the grandparent of the output dir because the input filename is going to be a different train
-    #       than our output. For the case of embedding trains, we might not even share the collision system.
-    #       So by going to the grandparent (ie `trains`), we end up with a shared path
-    reference_dir = output_dir.parent.parent
-    # `relative_to` requires that both filenames are the same type (either absolute or relative)
-    # `reference_dir` is usually relative, so we may need to resolve it to ensure that the comparison will work.
-    if filename.is_absolute():
-        # NOTE: We can't use `resolve()` because it will resolve symlinks, which we probably don't want it to do
-        #       since we usually symlink the `train` directory.
-        # NOTE: `pathlib.Path.absolute()` would be perfect here, but it requires 3.11
-        reference_dir = Path.cwd() / reference_dir
+    if number_of_parent_directories_for_relative_output_filename is not None:
+        # Add one more since we usually forget the current directory will count as one
+        number_of_parent_directories_for_relative_output_filename += 1
+        reference_dir = filename
+        # Now, walk back up the tree for the specific number of times
+        for _ in range(number_of_parent_directories_for_relative_output_filename):
+            reference_dir = reference_dir.parent
+    else:
+        # NOTE: We use the grandparent of the output dir because the input filename is going to be a different train
+        #       than our output. For the case of embedding trains, we might not even share the collision system.
+        #       So by going to the grandparent (ie `trains`), we end up with a shared path
+        reference_dir = output_dir.parent.parent
+        # `relative_to` requires that both filenames are the same type (either absolute or relative)
+        # `reference_dir` is usually relative, so we may need to resolve it to ensure that the comparison will work.
+        if filename.is_absolute():
+            # NOTE: We can't use `resolve()` because it will resolve symlinks, which we probably don't want it to do
+            #       since we usually symlink the `train` directory.
+            # NOTE: `pathlib.Path.absolute()` would be perfect here, but it requires 3.11
+            reference_dir = Path.cwd() / reference_dir
     return str(filename.relative_to(reference_dir).with_suffix("")).replace("/", "__").replace(".", "_")
 
 
@@ -458,7 +470,10 @@ def setup_calculate_data_skim(
             # Converts: "2111/run_by_run/LHC17p_CENT_woSDD/282341/AnalysisResults.17p.001.root"
             #        -> "2111__run_by_run__LHC17p_CENT_woSDD__282341__AnalysisResults_17p_001"
             output_identifier = safe_output_filename_from_relative_path(
-                filename=input_filename, output_dir=prod.output_dir
+                filename=input_filename, output_dir=prod.output_dir,
+                number_of_parent_directories_for_relative_output_filename=_metadata_config["dataset"].get(
+                    "number_of_parent_directories_for_relative_output_filename", None
+                ),
             )
             output_filename = output_dir / f"{output_identifier}_{str(splittings_selection)}.root"
             # And create the tasks
@@ -820,11 +835,17 @@ def setup_calculate_embed_pythia_skim(  # noqa: C901
         # Take the first signal and first background filenames as the main identifier to the path.
         # Otherwise, the filename could become indefinitely long... (apparently there are file length limits in unix...)
         output_identifier = safe_output_filename_from_relative_path(
-            filename=signal_input[0], output_dir=prod.output_dir
+            filename=signal_input[0], output_dir=prod.output_dir,
+            number_of_parent_directories_for_relative_output_filename=_metadata_config["signal_dataset"].get(
+                "number_of_parent_directories_for_relative_output_filename", None
+            ),
         )
         output_identifier += "__embedded_into__"
         output_identifier += safe_output_filename_from_relative_path(
-            filename=background_input[0], output_dir=prod.output_dir
+            filename=background_input[0], output_dir=prod.output_dir,
+            number_of_parent_directories_for_relative_output_filename=_metadata_config["dataset"].get(
+                "number_of_parent_directories_for_relative_output_filename", None
+            ),
         )
         # Finally, add the splittings selection
         output_identifier += f"_{str(splittings_selection)}"
@@ -994,7 +1015,10 @@ def setup_calculate_embed_thermal_model_skim(
             # Converts: "2111/run_by_run/LHC17p_CENT_woSDD/282341/AnalysisResults.17p.001.root"
             #        -> "2111__run_by_run__LHC17p_CENT_woSDD__282341__AnalysisResults_17p_001"
             output_identifier = safe_output_filename_from_relative_path(
-                filename=input_filename, output_dir=prod.output_dir
+                filename=input_filename, output_dir=prod.output_dir,
+                number_of_parent_directories_for_relative_output_filename=_metadata_config["signal_dataset"].get(
+                    "number_of_parent_directories_for_relative_output_filename", None
+                ),
             )
             output_filename = output_dir / f"{output_identifier}_{str(splittings_selection)}.root"
             # And create the tasks
