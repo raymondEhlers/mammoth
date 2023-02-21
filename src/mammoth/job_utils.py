@@ -54,6 +54,9 @@ FACILITIES = Literal[
     "ORNL_b587_long",
     "ORNL_b587_loginOnly",
     "ORNL_b587_vip",
+    "hiccup_quick",
+    "hiccup_std",
+    "hiccup_long",
 ]
 
 
@@ -154,6 +157,7 @@ class Facility:
 
 
 # Define the facility configurations.
+# 587 cluster
 _facilities_configs = {
     f"ORNL_b587_{queue}": Facility(
         name="b587",
@@ -170,6 +174,7 @@ _facilities_configs = {
         nodes_to_exclude=[] if queue == "long" else ["pc059"],
     ) for queue in ["short", "long", "loginOnly", "vip"]
 }
+# rehlers-MBP-m1pro
 _facilities_configs.update(
     {
         f"rehlers_mbp_m1pro{'_multi_core' if multi_core else ''}": Facility(
@@ -184,7 +189,25 @@ _facilities_configs.update(
         ) for multi_core in [False, True]
     }
 )
-
+# Hiccup at LBL
+_facilities_configs.update(
+    {
+        f"hiccup_{queue}": Facility(
+            name="hiccup",
+            node_spec=NodeSpec(n_cores=20, memory=64),
+            partition_name=queue,
+            # Allocate full node:
+            # target_allocate_n_cores=11 if queue != "loginOnly" else 6,
+            # Allocate by core:
+            target_allocate_n_cores=1,
+            launcher=SingleNodeLauncher,
+            #node_work_dir=Path("/tmp/parsl/$USER"),
+            #storage_work_dir=Path("/alf/data/rehlers/jetscape/work_dir"),
+            # Exclude login node
+            nodes_to_exclude=[],
+        ) for queue in ["quick", "std", "long"]
+    }
+)
 
 
 class JobFramework(enum.Enum):
