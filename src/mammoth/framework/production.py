@@ -272,9 +272,13 @@ class ProductionSettings:
                 _all_files = list(f)
             # Now, extract the pt hat bin and group by pt hat bin according to the convention
             _files: Dict[int, List[Path]] = {}
+            _number_of_parents_to_pt_hat_bin = self.config["metadata"][dataset_key]["number_of_parents_to_pt_hat_bin"]
             for name in _all_files:
                 filename = Path(name)
-                pt_hat_bin = int(filename.parent.parent.name)
+                filename_for_pt_hat_bin = filename
+                for _ in range(_number_of_parents_to_pt_hat_bin):
+                    filename_for_pt_hat_bin = filename_for_pt_hat_bin.parent
+                pt_hat_bin = int(filename_for_pt_hat_bin.name)
                 _files.setdefault(pt_hat_bin, []).append(filename)
             return _files
 
