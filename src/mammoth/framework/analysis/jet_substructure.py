@@ -854,7 +854,7 @@ class DoubleCountingCutParameters:
 
 double_counting_cuts = {
     # Cut on detector level track pt
-    "traditional_det_level_track_pt": DoubleCountingCutParameters(10, 0, True),
+    "OG_det_level_track_pt": DoubleCountingCutParameters(10, 0, True),
     # Cut bin 3 and below 10 GeV in pt_true
     "min_true_10_pt_hat_3": DoubleCountingCutParameters(10, 3, False),
     # Cut bin 4 and below 5 GeV in pt_true
