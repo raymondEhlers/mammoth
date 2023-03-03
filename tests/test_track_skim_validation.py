@@ -665,7 +665,7 @@ def test_track_skim_validation(  # noqa: C901
     if not result[0]:
         raise ValueError(f"Skim failed for {collision_system}, {jet_R}")
 
-    comparison_result = substructure_comparison_tools.compare_flat_substructure(
+    comparison_result, _failed_variables = substructure_comparison_tools.compare_flat_substructure(
         collision_system=collision_system,
         jet_R=jet_R,
         prefixes=_analysis_parameters.comparison_prefixes,
@@ -675,5 +675,5 @@ def test_track_skim_validation(  # noqa: C901
         track_skim_validation_mode=True,
         assert_false_on_failed_comparison_for_debugging_during_testing=True,
     )
-    assert comparison_result, "Validation failed during comparison"
+    assert comparison_result, f"Validation failed during comparison for {_failed_variables}"
 

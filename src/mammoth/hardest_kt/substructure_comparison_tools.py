@@ -187,7 +187,7 @@ def compare_flat_substructure(  # noqa: C901
     assert_false_on_failed_comparison_for_debugging_during_testing: bool = False,
     grooming_methods: Sequence[str] | None = None,
     grooming_methods_for_plotting_comparison: Sequence[str] | None = None,
-) -> bool:
+) -> tuple[bool, list[str]]:
     """Compare flat substructure productions
 
     Args:
@@ -323,6 +323,8 @@ def compare_flat_substructure(  # noqa: C901
     output_dir.mkdir(parents=True, exist_ok=True)
 
     all_success = True
+    # Also keep track of what failed to make it easier to disentangle the issues.
+    failed_variables = []
     for prefix in prefixes:
         logger.info(f"Comparing prefix '{prefix}'")
 
@@ -380,6 +382,7 @@ def compare_flat_substructure(  # noqa: C901
         # a failure with a success at the end
         if not result:
             all_success = result
+            failed_variables.append(f"{prefix}_jet_pt")
 
         for grooming_method in grooming_methods:
             logger.info(f'Comparing substructure kinematic variable for "{grooming_method}"')
@@ -395,6 +398,7 @@ def compare_flat_substructure(  # noqa: C901
             # a failure with a success at the end
             if not result:
                 all_success = result
+                failed_variables.append(f"{grooming_method}_{prefix}_kt")
 
             # Only plot if failed or a representative case
             if grooming_method in grooming_methods_for_plotting_comparison or not result:
@@ -457,6 +461,7 @@ def compare_flat_substructure(  # noqa: C901
             # a failure with a success at the end
             if not result:
                 all_success = result
+                failed_variables.append(f"{grooming_method}_{prefix}_delta_R")
 
             # Only plot if failed or a representative case
             if grooming_method in grooming_methods_for_plotting_comparison or not result:
@@ -503,6 +508,7 @@ def compare_flat_substructure(  # noqa: C901
                     normalize=True,
                 )
 
+            # Zg
             result = compare_branch(
                 standard=standard,
                 track_skim=track_skim,
@@ -514,6 +520,7 @@ def compare_flat_substructure(  # noqa: C901
             # a failure with a success at the end
             if not result:
                 all_success = result
+                failed_variables.append(f"{grooming_method}_{prefix}_z")
 
             # Only plot if failed or a representative case
             if grooming_method in grooming_methods_for_plotting_comparison or not result:
@@ -570,7 +577,7 @@ def compare_flat_substructure(  # noqa: C901
 
 
 
-    return all_success
+    return all_success, failed_variables
 
 
 def run(jet_R: float, collision_system: str, prefixes: Optional[Sequence[str]] = None) -> None:
