@@ -567,15 +567,62 @@ def compare_flat_substructure(  # noqa: C901
                     output_dir=output_dir,
                 )
 
-    # Compare further variables...
-    #'soft_drop_z_cut_04_hybrid_det_level_matching_leading',
-    #'soft_drop_z_cut_04_hybrid_det_level_matching_subleading',
-    #'soft_drop_z_cut_04_det_level_true_matching_leading',
-    #'soft_drop_z_cut_04_det_level_true_matching_subleading',
-    #'soft_drop_z_cut_04_det_level_leading_subjet_momentum_fraction_in_hybrid_jet',
-    #'soft_drop_z_cut_04_det_level_subleading_subjet_momentum_fraction_in_hybrid_jet']
+            # Compare further splitting variables beyond standard kinematics.
+            # We don't plot here since it would take time to determine all of the right plotting ranges, etc,
+            # but we can at least compare the results. We can always add plotting as issues crop up.
+            # fmt: off
+            _additional_splitting_fields_to_compare = [
+                (f"{grooming_method}_{prefix}_n_to_split",          "n_to_split"),
+                (f"{grooming_method}_{prefix}_n_groomed_to_split",  "n_groomed_to_split"),
+                (f"{grooming_method}_{prefix}_n_passed_grooming",   "n_passed_grooming"),
+            ]
+            # fmt: on
+            for _key, _name in _additional_splitting_fields_to_compare:
+                logger.debug(f"Comparing {_name}")
+                result = compare_branch(
+                    standard=standard,
+                    track_skim=track_skim,
+                    key=_key,
+                    variable_name=_name,
+                    assert_false_on_failed_comparison=assert_false_on_failed_comparison_for_debugging_during_testing,
+                )
+                # We only want to assign the result if it's false because we don't want to accidentally overwrite
+                # a failure with a success at the end
+                if not result:
+                    all_success = result
+                    failed_variables.append(_key)
 
-
+    # Compare further variables beyond splitting variables.
+    # We don't plot here since it would take time to determine all of the right plotting ranges, etc,
+    # but we can at least compare the results. We can always add plotting as issues crop up.
+    # fmt: off
+    _additional_fields_to_compare = [
+        (f"{grooming_method}_hybrid_det_level_matching_leading" ,                           "hybrid_det_level_matching_leading"),
+        (f"{grooming_method}_hybrid_det_level_matching_subleading",                         "hybrid_det_level_matching_subleading"),
+        (f"{grooming_method}_det_level_true_matching_leading",                              "det_level_true_matching_leading"),
+        (f"{grooming_method}_det_level_true_matching_subleading",                           "det_level_true_matching_subleading"),
+        (f"{grooming_method}_det_level_leading_subjet_momentum_fraction_in_hybrid_jet",     "det_level_leading_subjet_momentum_fraction_in_hybrid_jet"),
+        (f"{grooming_method}_det_level_subleading_subjet_momentum_fraction_in_hybrid_jet",  "det_level_subleading_subjet_momentum_fraction_in_hybrid_jet"),
+    ]
+    # We can't compare if the fields are missing
+    _additional_fields_to_compare = [
+        k for k in _additional_fields_to_compare if k[0] in ak.fields(track_skim)
+    ]
+    # fmt: on
+    for _key, _name in _additional_fields_to_compare:
+        logger.debug(f"Comparing {_name}")
+        result = compare_branch(
+            standard=standard,
+            track_skim=track_skim,
+            key=_key,
+            variable_name=_name,
+            assert_false_on_failed_comparison=assert_false_on_failed_comparison_for_debugging_during_testing,
+        )
+        # We only want to assign the result if it's false because we don't want to accidentally overwrite
+        # a failure with a success at the end
+        if not result:
+            all_success = result
+            failed_variables.append(_key)
 
     return all_success, failed_variables
 
