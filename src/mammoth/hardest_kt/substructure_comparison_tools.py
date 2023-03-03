@@ -3,8 +3,11 @@
 .. codeauthor:: Raymond Ehlers <raymond.ehlers@cern.ch>, LBL
 """
 
+from __future__ import annotations
+
 import logging
 import pprint
+import re
 import warnings
 from pathlib import Path
 from typing import Optional, Sequence
@@ -146,6 +149,32 @@ def _pretty_print_flat_type(s: str) -> str:
     return "\n".join(s.split(","))
 
 
+def _find_possible_grooming_methods(arrays: ak.Array, prefixes: Sequence[str]) -> list[str]:
+    # NOTE: This could run into trouble if we change the flat skim is such a way that there
+    #       are additional fields which end in `_prefix_kt`.
+    # NOTE: We can't compile at the module level because the prefix may vary
+    match = re.compile(f"([a-zA-Z0-9_]+)_{prefixes[0]}_kt$")
+    possible_keys = [
+        match.findall(k) for k in ak.fields(arrays)
+    ]
+    logger.info(f"{possible_keys=}")
+    grooming_methods = []
+    for k in possible_keys:
+        number_of_matches = len(k)
+        if number_of_matches > 1:
+            # Something went wrong
+            raise ValueError(
+                "Found too many options while detecting grooming methods. Found {k}. Please check the file and figure out why the regex is breaking"
+            )
+        elif number_of_matches == 1:
+            # We found something useful in this case
+            # re returns a list, so we extend
+            grooming_methods.extend(k)
+        # No matches - just continue
+
+    return grooming_methods
+
+
 def compare_flat_substructure(  # noqa: C901
     collision_system: str,
     jet_R: float,
@@ -156,6 +185,8 @@ def compare_flat_substructure(  # noqa: C901
     base_output_dir: Path = Path("comparison/track_skim"),
     track_skim_validation_mode: bool = True,
     assert_false_on_failed_comparison_for_debugging_during_testing: bool = False,
+    grooming_methods: Sequence[str] | None = None,
+    grooming_methods_for_plotting_comparison: Sequence[str] | None = None,
 ) -> bool:
     """Compare flat substructure productions
 
@@ -173,6 +204,28 @@ def compare_flat_substructure(  # noqa: C901
     # Display the types for convenience in making the comparison
     logger.info(f"standard.type: {_pretty_print_flat_type(str(standard.type))}")
     logger.info(f"track_skim.type: {_pretty_print_flat_type(str(track_skim.type))}")
+
+    # Setup
+    # Determine the grooming methods if necessary
+    if grooming_methods is None:
+        standard_grooming_methods = _find_possible_grooming_methods(arrays=standard, prefixes=prefixes)
+        track_skim_grooming_methods = _find_possible_grooming_methods(arrays=track_skim, prefixes=prefixes)
+        # Only compare overlapping methods
+        overlapping_grooming_methods = set(standard_grooming_methods) & set(track_skim_grooming_methods)
+        non_overlapping_grooming_methods = set(track_skim_grooming_methods) - overlapping_grooming_methods
+        # Just give the user a heads up
+        if non_overlapping_grooming_methods:
+            logger.info(f"Note: These grooming methods are only present in the track skim and can't be compared: {non_overlapping_grooming_methods}")
+        # And then use the determined methods
+        grooming_methods = list(overlapping_grooming_methods)
+        # Validation
+        if len(grooming_methods) == 0:
+            _msg = f"Unable to find any grooming methods. Check file and regex!\n{overlapping_grooming_methods=}\n{non_overlapping_grooming_methods=}"
+            raise ValueError(_msg)
+        logger.info(f"Comparing for {grooming_methods=}")
+    # We only want to plot a representative subset to keep the number of plots reasonable.
+    if grooming_methods_for_plotting_comparison is None:
+        grooming_methods_for_plotting_comparison = ["dynamical_kt", "soft_drop_z_cut_02"]
 
     # For the track skim validation:
     # - For whatever reason, the sorting of the jets is inconsistent for some collision_system + R (but not all).
@@ -328,51 +381,9 @@ def compare_flat_substructure(  # noqa: C901
         if not result:
             all_success = result
 
-        for grooming_method in ["dynamical_kt", "soft_drop_z_cut_02"]:
-            logger.info(f'Plotting method "{grooming_method}"')
-            plot_attribute_compare(
-                other=Input(arrays=standard, attribute=f"{grooming_method}_{prefix}_kt", name="Standard"),
-                mine=Input(arrays=track_skim, attribute=f"{grooming_method}_{prefix}_kt", name="Track skim"),
-                plot_config=pb.PlotConfig(
-                    name=f"{grooming_method}_{prefix}_kt",
-                    panels=[
-                        # Main panel
-                        pb.Panel(
-                            axes=[
-                                pb.AxisConfig(
-                                    "y",
-                                    label="Prob.",
-                                    log=True,
-                                    font_size=22,
-                                ),
-                            ],
-                            text=pb.TextConfig(x=0.97, y=0.97, text=text, font_size=22),
-                            legend=pb.LegendConfig(location="center right", anchor=(0.985, 0.52), font_size=22),
-                        ),
-                        # Data ratio
-                        pb.Panel(
-                            axes=[
-                                pb.AxisConfig(
-                                    "x",
-                                    label=r"$k_{\text{T,g}}$ (GeV/$c$)",
-                                    font_size=22,
-                                ),
-                                pb.AxisConfig(
-                                    "y",
-                                    label=r"Track skim/Standard",
-                                    range=(0.6, 1.4),
-                                    font_size=22,
-                                ),
-                            ],
-                        ),
-                    ],
-                    figure=pb.Figure(edge_padding=dict(left=0.13, bottom=0.115)),
-                ),
-                normalize=True,
-                axis=hist.axis.Regular(50, 0, 10),
-                output_dir=output_dir,
-            )
-
+        for grooming_method in grooming_methods:
+            logger.info(f'Comparing substructure kinematic variable for "{grooming_method}"')
+            # Kt
             result = compare_branch(
                 standard=standard,
                 track_skim=track_skim,
@@ -385,49 +396,56 @@ def compare_flat_substructure(  # noqa: C901
             if not result:
                 all_success = result
 
-            plot_attribute_compare(
-                other=Input(arrays=standard, attribute=f"{grooming_method}_{prefix}_delta_R", name="Standard"),
-                mine=Input(arrays=track_skim, attribute=f"{grooming_method}_{prefix}_delta_R", name="Track skim"),
-                plot_config=pb.PlotConfig(
-                    name=f"{grooming_method}_{prefix}_delta_R",
-                    panels=[
-                        # Main panel
-                        pb.Panel(
-                            axes=[
-                                pb.AxisConfig(
-                                    "y",
-                                    label="Prob.",
-                                    log=True,
-                                    font_size=22,
-                                ),
-                            ],
-                            text=pb.TextConfig(x=0.97, y=0.97, text=text, font_size=22),
-                            legend=pb.LegendConfig(location="upper left", font_size=22),
-                        ),
-                        # Data ratio
-                        pb.Panel(
-                            axes=[
-                                pb.AxisConfig(
-                                    "x",
-                                    label=r"$R_{\text{g}}$",
-                                    font_size=22,
-                                ),
-                                pb.AxisConfig(
-                                    "y",
-                                    label=r"Track skim/Standard",
-                                    range=(0.6, 1.4),
-                                    font_size=22,
-                                ),
-                            ],
-                        ),
-                    ],
-                    figure=pb.Figure(edge_padding=dict(left=0.13, bottom=0.115)),
-                ),
-                output_dir=output_dir,
-                axis=hist.axis.Regular(50, 0, 0.6),
-                normalize=True,
-            )
+            # Only plot if failed or a representative case
+            if grooming_method in grooming_methods_for_plotting_comparison or not result:
+                _msg = f'Plotting method "{grooming_method}", kt'
+                if not result:
+                    _msg += " due to the comparison not agreeing."
+                logger.info(_msg)
+                plot_attribute_compare(
+                    other=Input(arrays=standard, attribute=f"{grooming_method}_{prefix}_kt", name="Standard"),
+                    mine=Input(arrays=track_skim, attribute=f"{grooming_method}_{prefix}_kt", name="Track skim"),
+                    plot_config=pb.PlotConfig(
+                        name=f"{grooming_method}_{prefix}_kt",
+                        panels=[
+                            # Main panel
+                            pb.Panel(
+                                axes=[
+                                    pb.AxisConfig(
+                                        "y",
+                                        label="Prob.",
+                                        log=True,
+                                        font_size=22,
+                                    ),
+                                ],
+                                text=pb.TextConfig(x=0.97, y=0.97, text=text, font_size=22),
+                                legend=pb.LegendConfig(location="center right", anchor=(0.985, 0.52), font_size=22),
+                            ),
+                            # Data ratio
+                            pb.Panel(
+                                axes=[
+                                    pb.AxisConfig(
+                                        "x",
+                                        label=r"$k_{\text{T,g}}$ (GeV/$c$)",
+                                        font_size=22,
+                                    ),
+                                    pb.AxisConfig(
+                                        "y",
+                                        label=r"Track skim/Standard",
+                                        range=(0.6, 1.4),
+                                        font_size=22,
+                                    ),
+                                ],
+                            ),
+                        ],
+                        figure=pb.Figure(edge_padding=dict(left=0.13, bottom=0.115)),
+                    ),
+                    normalize=True,
+                    axis=hist.axis.Regular(50, 0, 10),
+                    output_dir=output_dir,
+                )
 
+            # Rg
             result = compare_branch(
                 standard=standard,
                 track_skim=track_skim,
@@ -440,48 +458,50 @@ def compare_flat_substructure(  # noqa: C901
             if not result:
                 all_success = result
 
-            plot_attribute_compare(
-                other=Input(arrays=standard, attribute=f"{grooming_method}_{prefix}_z", name="Standard"),
-                mine=Input(arrays=track_skim, attribute=f"{grooming_method}_{prefix}_z", name="Track skim"),
-                plot_config=pb.PlotConfig(
-                    name=f"{grooming_method}_{prefix}_z",
-                    panels=[
-                        # Main panel
-                        pb.Panel(
-                            axes=[
-                                pb.AxisConfig(
-                                    "y",
-                                    label="Prob.",
-                                    log=True,
-                                    font_size=22,
-                                ),
-                            ],
-                            text=pb.TextConfig(x=0.97, y=0.97, text=text, font_size=22),
-                            legend=pb.LegendConfig(location="upper left", font_size=22),
-                        ),
-                        # Data ratio
-                        pb.Panel(
-                            axes=[
-                                pb.AxisConfig(
-                                    "x",
-                                    label=r"$z_{\text{g}}$",
-                                    font_size=22,
-                                ),
-                                pb.AxisConfig(
-                                    "y",
-                                    label=r"Track skim/Standard",
-                                    range=(0.6, 1.4),
-                                    font_size=22,
-                                ),
-                            ],
-                        ),
-                    ],
-                    figure=pb.Figure(edge_padding=dict(left=0.13, bottom=0.115)),
-                ),
-                normalize=True,
-                axis=hist.axis.Regular(50, 0, 0.5),
-                output_dir=output_dir,
-            )
+            # Only plot if failed or a representative case
+            if grooming_method in grooming_methods_for_plotting_comparison or not result:
+                plot_attribute_compare(
+                    other=Input(arrays=standard, attribute=f"{grooming_method}_{prefix}_delta_R", name="Standard"),
+                    mine=Input(arrays=track_skim, attribute=f"{grooming_method}_{prefix}_delta_R", name="Track skim"),
+                    plot_config=pb.PlotConfig(
+                        name=f"{grooming_method}_{prefix}_delta_R",
+                        panels=[
+                            # Main panel
+                            pb.Panel(
+                                axes=[
+                                    pb.AxisConfig(
+                                        "y",
+                                        label="Prob.",
+                                        log=True,
+                                        font_size=22,
+                                    ),
+                                ],
+                                text=pb.TextConfig(x=0.97, y=0.97, text=text, font_size=22),
+                                legend=pb.LegendConfig(location="upper left", font_size=22),
+                            ),
+                            # Data ratio
+                            pb.Panel(
+                                axes=[
+                                    pb.AxisConfig(
+                                        "x",
+                                        label=r"$R_{\text{g}}$",
+                                        font_size=22,
+                                    ),
+                                    pb.AxisConfig(
+                                        "y",
+                                        label=r"Track skim/Standard",
+                                        range=(0.6, 1.4),
+                                        font_size=22,
+                                    ),
+                                ],
+                            ),
+                        ],
+                        figure=pb.Figure(edge_padding=dict(left=0.13, bottom=0.115)),
+                    ),
+                    output_dir=output_dir,
+                    axis=hist.axis.Regular(50, 0, 0.6),
+                    normalize=True,
+                )
 
             result = compare_branch(
                 standard=standard,
@@ -494,6 +514,61 @@ def compare_flat_substructure(  # noqa: C901
             # a failure with a success at the end
             if not result:
                 all_success = result
+
+            # Only plot if failed or a representative case
+            if grooming_method in grooming_methods_for_plotting_comparison or not result:
+                plot_attribute_compare(
+                    other=Input(arrays=standard, attribute=f"{grooming_method}_{prefix}_z", name="Standard"),
+                    mine=Input(arrays=track_skim, attribute=f"{grooming_method}_{prefix}_z", name="Track skim"),
+                    plot_config=pb.PlotConfig(
+                        name=f"{grooming_method}_{prefix}_z",
+                        panels=[
+                            # Main panel
+                            pb.Panel(
+                                axes=[
+                                    pb.AxisConfig(
+                                        "y",
+                                        label="Prob.",
+                                        log=True,
+                                        font_size=22,
+                                    ),
+                                ],
+                                text=pb.TextConfig(x=0.97, y=0.97, text=text, font_size=22),
+                                legend=pb.LegendConfig(location="upper left", font_size=22),
+                            ),
+                            # Data ratio
+                            pb.Panel(
+                                axes=[
+                                    pb.AxisConfig(
+                                        "x",
+                                        label=r"$z_{\text{g}}$",
+                                        font_size=22,
+                                    ),
+                                    pb.AxisConfig(
+                                        "y",
+                                        label=r"Track skim/Standard",
+                                        range=(0.6, 1.4),
+                                        font_size=22,
+                                    ),
+                                ],
+                            ),
+                        ],
+                        figure=pb.Figure(edge_padding=dict(left=0.13, bottom=0.115)),
+                    ),
+                    normalize=True,
+                    axis=hist.axis.Regular(50, 0, 0.5),
+                    output_dir=output_dir,
+                )
+
+    # Compare further variables...
+    #'soft_drop_z_cut_04_hybrid_det_level_matching_leading',
+    #'soft_drop_z_cut_04_hybrid_det_level_matching_subleading',
+    #'soft_drop_z_cut_04_det_level_true_matching_leading',
+    #'soft_drop_z_cut_04_det_level_true_matching_subleading',
+    #'soft_drop_z_cut_04_det_level_leading_subjet_momentum_fraction_in_hybrid_jet',
+    #'soft_drop_z_cut_04_det_level_subleading_subjet_momentum_fraction_in_hybrid_jet']
+
+
 
     return all_success
 
