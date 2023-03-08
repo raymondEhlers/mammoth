@@ -6,7 +6,7 @@
 import collections
 import logging
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, Sequence, Mapping, Optional, Tuple, Union
+from typing import Any, Dict, Iterable, List, Mapping, Optional, Sequence, Tuple, Union
 
 import awkward as ak
 import numpy as np
@@ -28,12 +28,7 @@ _default_particle_columns = {
 
 
 def _validate_potential_list_of_inputs(inputs: Union[Path, Sequence[Path]]) -> List[Path]:
-    filenames = []
-    if not isinstance(inputs, collections.abc.Iterable):
-        filenames = [inputs]
-    else:
-        filenames = list(inputs)
-    return filenames
+    return [inputs] if not isinstance(inputs, collections.abc.Iterable) else list(inputs)
 
 
 def normalize_for_data(
@@ -89,7 +84,7 @@ def normalize_for_data(
             **{
                 k: v
                 for k, v in zip(ak.fields(arrays), ak.unzip(arrays))
-                if k not in _prefixes + [rename_prefix["data"]]
+                if k not in [*_prefixes, rename_prefix["data"]]
             },
         }
     )
@@ -184,7 +179,8 @@ def _transform_data(
     for arrays in gen_data:
         # Validation
         if len(arrays) == 0:
-            raise sources.NoDataAvailableError("There's no data available in the source!")
+            _msg = "There's no data available in the source!"
+            raise sources.NoDataAvailableError(_msg)
 
         # If we are renaming one of the prefixes to "data", that means that we want to treat it
         # as if it were standard data rather than pythia.
@@ -221,7 +217,8 @@ def data(
     """
     # Validation
     if "embed" in collision_system:
-        raise ValueError("This function doesn't handle embedding. Please call the dedicated functions.")
+        _msg = "This function doesn't handle embedding. Please call the dedicated functions."
+        raise ValueError(_msg)
     logger.info(f'Loading "{collision_system}" data')
     # We allow for multiple filenames
     filenames = _validate_potential_list_of_inputs(data_input)
@@ -363,7 +360,8 @@ def _event_select_and_transform_embedding(
     for arrays in gen_data:
         # Validation
         if len(arrays) == 0:
-            raise sources.NoDataAvailableError("There's no data available in the source!")
+            _msg = "There's no data available in the source!"
+            raise sources.NoDataAvailableError(_msg)
 
         # Apply some basic requirements on the data
         mask = np.ones(len(arrays)) > 0
@@ -389,7 +387,7 @@ def _event_select_and_transform_embedding(
             background_event_selection = np.ones(len(arrays)) > 0
 
         # Finally, apply the masks
-        arrays = arrays[(mask & background_event_selection)]
+        arrays = arrays[(mask & background_event_selection)]  # noqa: PLW2901
 
         logger.info("Transforming embedded")
         yield normalize_for_embedding(arrays=arrays, source_index_identifiers=source_index_identifiers)
