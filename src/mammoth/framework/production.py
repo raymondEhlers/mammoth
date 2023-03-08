@@ -10,7 +10,7 @@ import functools
 import logging
 import subprocess
 from pathlib import Path
-from typing import Any, Dict, List, Mapping, Optional, Protocol, Sequence
+from typing import Any, Mapping, Protocol, Sequence
 
 import attrs
 import pachyderm.yaml
@@ -41,7 +41,7 @@ def _git_hash_from_module(module: Any) -> str:
     )
 
 
-def _installed_python_software() -> List[str]:
+def _installed_python_software() -> list[str]:
     """Extract all installed python software via `pip freeze`
 
     Adapted from: https://stackoverflow.com/a/58013217/12907985
@@ -67,8 +67,8 @@ def _installed_python_software() -> List[str]:
 
 
 def _describe_production_software(
-    production_config: Mapping[str, Any], modules_to_record: Optional[Sequence[str]] = None
-) -> Dict[str, Any]:
+    production_config: Mapping[str, Any], modules_to_record: Sequence[str] | None = None  # noqa: ARG001
+) -> dict[str, Any]:
     # Validation
     if modules_to_record is None:
         # By default, We want to store the git hash of:
@@ -77,7 +77,7 @@ def _describe_production_software(
         # - jet_substructure
         modules_to_record = ["pachyderm", "mammoth", "jet_substructure"]
 
-    output: Dict[str, Any] = {}
+    output: dict[str, Any] = {}
     output["software"] = {}
 
     # To determine the location, we do something kind of lazy and import the file to determine the
@@ -90,9 +90,8 @@ def _describe_production_software(
             _m = importlib.import_module(module_name)
             output["software"]["hashes"][module_name] = _git_hash_from_module(_m)
         except ImportError:
-            logger.info(
-                f"Skipping recording module {module_name} in the production details because it's not available."
-            )
+            _msg = f"Skipping recording module {module_name} in the production details because it's not available."
+            logger.info(_msg)
 
     # We also want a full pip freeze. We'll store each package as an entry in a list
     output["software"]["packages"] = _installed_python_software()
@@ -100,7 +99,7 @@ def _describe_production_software(
     return output
 
 
-def _read_full_config(config_path: Optional[Path] = None) -> Dict[str, Any]:
+def _read_full_config(config_path: Path | None = None) -> dict[str, Any]:
     """Read full YAML configuration file.
 
     Args:
@@ -118,13 +117,13 @@ def _read_full_config(config_path: Optional[Path] = None) -> Dict[str, Any]:
     import ruamel.yaml
 
     y = ruamel.yaml.YAML(typ="safe")
-    with open(config_path, "r") as f:
-        full_config: Dict[str, Any] = y.load(f)
+    with config_path.open() as f:
+        full_config: dict[str, Any] = y.load(f)
 
     return full_config
 
 
-def _extract_hf_tree_files_txt_filename(files: List[str]) -> Path:
+def _extract_hf_tree_files_txt_filename(files: list[str]) -> Path:
     # By convention, the `files.txt` file is used to enumerate the files,
     # so it is the only file provided by the config.
     # Validation
@@ -138,7 +137,7 @@ class ProductionSpecialization(Protocol):
     def customize_identifier(self, analysis_settings: Mapping[str, Any]) -> str:
         ...
 
-    def tasks_to_execute(self, collision_system: str) -> List[str]:
+    def tasks_to_execute(self, collision_system: str) -> list[str]:
         ...
 
 
@@ -154,18 +153,19 @@ _possible_collision_systems = [
 _collision_systems_with_scale_factors = ["pp_MC", "pythia", "embedPythia", "embed_pythia", "embed_thermal_model"]
 
 
-def _validate_collision_system(instance: "ProductionSettings", attribute: attrs.Attribute[str], value: str) -> None:
+def _validate_collision_system(instance: ProductionSettings, attribute: attrs.Attribute[str], value: str) -> None:  # noqa: ARG001
     if value not in _possible_collision_systems:
-        raise ValueError(f"Invalid collisions system. Provided: {value}")
+        _msg = f"Invalid collisions system. Provided: {value}"
+        raise ValueError(_msg)
 
 
 @attrs.frozen(slots=False)
 class ProductionSettings:
     collision_system: str = attrs.field(validator=_validate_collision_system)
     number: int
-    config: Dict[str, Any]
+    config: dict[str, Any]
     specialization: ProductionSpecialization
-    _manual_analysis_parameter_keys: List[str] = attrs.field(default=["jet_R", "min_jet_pt", "background_subtraction"])
+    _manual_analysis_parameter_keys: list[str] = attrs.field(default=["jet_R", "min_jet_pt", "background_subtraction"])
     _base_output_dir: Path = attrs.field(default=Path("trains"))
 
     @functools.cached_property
@@ -223,7 +223,7 @@ class ProductionSettings:
         name += f"_{datetime.datetime.utcnow().strftime('%Y_%m_%d')}"
         return name
 
-    def input_files(self) -> List[Path]:
+    def input_files(self) -> list[Path]:
         n_pt_hat_bins = self.config["metadata"]["dataset"].get("n_pt_hat_bins")
         if n_pt_hat_bins is not None:
             # Handle pt hat binned production
@@ -254,11 +254,10 @@ class ProductionSettings:
             "signal_dataset" in self.config["metadata"] or "n_pt_hat_bins" in self.config["metadata"]["dataset"]
         ) and (self.collision_system in _collision_systems_with_scale_factors)
 
-    def input_files_per_pt_hat(self) -> Dict[int, List[Path]]:
+    def input_files_per_pt_hat(self) -> dict[int, list[Path]]:
         if not self.has_scale_factors:
-            raise ValueError(
-                f"Asking for input files per pt hat doesn't make sense for collision system {self.collision_system}"
-            )
+            _msg = f"Asking for input files per pt hat doesn't make sense for collision system {self.collision_system}"
+            raise ValueError(_msg)
 
         # Will be signal_dataset if embedded, but otherwise will be the standard "dataset" key
         dataset_key = "signal_dataset" if "signal_dataset" in self.config["metadata"] else "dataset"
@@ -271,7 +270,7 @@ class ProductionSettings:
             with _hf_tree_files_txt_filename.open() as f:
                 _all_files = list(f)
             # Now, extract the pt hat bin and group by pt hat bin according to the convention
-            _files: Dict[int, List[Path]] = {}
+            _files: dict[int, list[Path]] = {}
             _number_of_parents_to_pt_hat_bin = self.config["metadata"][dataset_key]["number_of_parent_directories_to_pt_hat_bin"]
             for name in _all_files:
                 filename = Path(name)
@@ -296,7 +295,8 @@ class ProductionSettings:
     def scale_factors_filename(self) -> Path:
         # Validation
         if not self.has_scale_factors:
-            raise ValueError(f"Invalid collision system for extracting scale factors: {self.collision_system}")
+            _msg = f"Invalid collision system for extracting scale factors: {self.collision_system}"
+            raise ValueError(_msg)
 
         dataset_key = "signal_dataset" if "signal_dataset" in self.config["metadata"] else "dataset"
         # NOTE: By convention, we expect the scale factors to be called `scale_factors.yaml`.
@@ -314,10 +314,11 @@ class ProductionSettings:
             / "scale_factors.yaml"
         )
 
-    def scale_factors(self) -> Dict[int, float]:
+    def scale_factors(self) -> dict[int, float]:
         # Validation
         if self.collision_system not in _collision_systems_with_scale_factors:
-            raise ValueError(f"Invalid collision system for extracting scale factors: {self.collision_system}")
+            _msg = f"Invalid collision system for extracting scale factors: {self.collision_system}"
+            raise ValueError(_msg)
 
         return analysis_objects.read_extracted_scale_factors(self.scale_factors_filename)
 
@@ -334,7 +335,7 @@ class ProductionSettings:
         return output_dir
 
     @functools.cached_property
-    def tasks_to_execute(self) -> List[str]:
+    def tasks_to_execute(self) -> list[str]:
         # Could in principle be multiple tasks.
         _tasks = []
 
@@ -356,12 +357,13 @@ class ProductionSettings:
         # Validation on production number (we need to check this somewhere - this is likely to be called right away,
         # so it's a reasonable option, if not ideal).
         if self.number != self.config["metadata"]["production_number"]:
-            raise ValueError(
+            _msg = (
                 f"Mismatch between production number '{self.number}' and production number stored in the metadata '{self.config['metadata']['production_number']}'."
                 " Please fix this."
             )
+            raise ValueError(_msg)
 
-        output: Dict[str, Any] = {}
+        output: dict[str, Any] = {}
         output["identifier"] = self.identifier
         output["date"] = datetime.datetime.utcnow().strftime("%Y-%m-%d")
         output["config"] = dict(self.config)
@@ -387,13 +389,13 @@ class ProductionSettings:
             if _production_filename.exists():
                 # Don't overwrite the production file
                 continue
-            else:
-                y = pachyderm.yaml.yaml()
-                with open(_production_filename, "w") as f:
-                    y.dump(output, f)
 
-                # We've written, so no need to loop anymore
-                break
+            y = pachyderm.yaml.yaml()
+            with _production_filename.open("w") as f:
+                y.dump(output, f)
+
+            # We've written, so no need to loop anymore
+            break
 
     @classmethod
     def read_config(
@@ -401,8 +403,8 @@ class ProductionSettings:
         collision_system: str,
         number: int,
         specialization: ProductionSpecialization,
-        track_skim_config_filename: Optional[Path] = None,
-    ) -> "ProductionSettings":
+        track_skim_config_filename: Path | None = None,
+    ) -> ProductionSettings:
         track_skim_config = _read_full_config(track_skim_config_filename)
         config = track_skim_config["productions"][collision_system][number]
 
