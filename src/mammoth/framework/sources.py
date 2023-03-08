@@ -68,6 +68,7 @@ class SourceFromFilename(Protocol):
     def __call__(self, filename: Path) -> Source:
         ...
 
+
 class CanCreateDeferredSourceFromFilename(Protocol):
     """Create a deferred source which will take a filename.
 
@@ -202,7 +203,9 @@ class UprootSource:
                 _possible_tree_names = f.keys(cycle=False, filter_name=self._tree_name, filter_classname="TTree")
                 if len(_possible_tree_names) != 1:
                     if len(_possible_tree_names) == 0:
-                        _msg = f"Missing tree name '{self._tree_name}'. Please check the file. Filename: {self._filename}"
+                        _msg = (
+                            f"Missing tree name '{self._tree_name}'. Please check the file. Filename: {self._filename}"
+                        )
                         raise NoDataAvailableError(_msg)
                     else:  # noqa: RET506
                         _msg = f"Ambiguous tree name '{self._tree_name}'. Please revise it as needed. Possible tree names: {_possible_tree_names}. Filename: {self._filename}"
@@ -656,7 +659,9 @@ class MultiSource:
                     else:
                         # logger.info("Didn't accumulate data because the current data is empty")
                         ...
-                    logger.debug(f"--> {_accumulated_data_size=}, {_next_chunk_size_request=}, {_target_chunk_size=}, {_request_chunk_size=}")
+                    logger.debug(
+                        f"--> {_accumulated_data_size=}, {_next_chunk_size_request=}, {_target_chunk_size=}, {_request_chunk_size=}"
+                    )
 
                     # We need to figure out whether we have enough data or we need to accumulate more.
                     if _accumulated_data_size < _target_chunk_size:
@@ -706,7 +711,7 @@ class MultiSource:
                         # We need to deal with the possible leftover data
                         if len(_data_to_yield) > _target_chunk_size:
                             _accumulated_data.append(_data_to_yield[_target_chunk_size:])
-                            _accumulated_data_size += (len(_data_to_yield) - _target_chunk_size)
+                            _accumulated_data_size += (len(_data_to_yield) - _target_chunk_size)  # fmt: skip
                         # And then finally cleanup the remaining data that we yielded. Again, explicitly deleting
                         # to help out python and attempt to clean out the data earlier.
                         del _data_to_yield
@@ -728,7 +733,9 @@ class MultiSource:
                         _next_chunk_size_request = None
 
                     # Determine the requested chunk size, potentially adjusting it for existing accumulated data.
-                    logger.debug(f"=> {source=}, {_target_chunk_size=}, {_request_chunk_size=}, {_next_chunk_size_request=}, {_accumulated_data_size=}, {_accumulated_data=}")
+                    logger.debug(
+                        f"=> {source=}, {_target_chunk_size=}, {_request_chunk_size=}, {_next_chunk_size_request=}, {_accumulated_data_size=}, {_accumulated_data=}"
+                    )
                     _request_chunk_size, _do_not_request_new_data = _determine_request_chunk_size(
                         _target_chunk_size=_target_chunk_size,
                         _accumulated_data_size=_accumulated_data_size,
@@ -754,7 +761,9 @@ class MultiSource:
         # NOTE: In principle, we could always just use concatenate even if there's only
         #       item in the list, but I don't know if there's a short circuit for a list
         #       of one entry, and concatenate could potentially be quite expensive.
-        logger.debug(f"Out of data in MultiSource. Remaining data size to provide: {_accumulated_data_size}, Last source: {source}...")
+        logger.debug(
+            f"Out of data in MultiSource. Remaining data size to provide: {_accumulated_data_size}, Last source: {source}..."
+        )
         if len(_accumulated_data) > 1:
             _next_chunk_size_request = yield ak.concatenate(_accumulated_data, axis=0)
         elif len(_accumulated_data) == 1:

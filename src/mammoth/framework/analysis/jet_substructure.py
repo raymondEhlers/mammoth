@@ -416,7 +416,7 @@ class JetSplittingArray(ak.Array, JetSplittingCommon):  # type: ignore[misc]
                     self.delta_R[indices_passing_cutoff],
                     self.z[indices_passing_cutoff],
                     self.parent_pt[indices_passing_cutoff],  # type: ignore[index]
-                    R
+                    R,
                 )
             )
             return values, indices_passing_cutoff[indices], indices_passing_cutoff
@@ -451,7 +451,7 @@ class JetSplittingArray(ak.Array, JetSplittingCommon):  # type: ignore[misc]
                     self.delta_R[indices_passing_cutoff],
                     self.z[indices_passing_cutoff],
                     self.parent_pt[indices_passing_cutoff],  # type: ignore[index]
-                    R
+                    R,
                 )
             )
             return values, indices_passing_cutoff[indices], indices_passing_cutoff
@@ -486,7 +486,7 @@ class JetSplittingArray(ak.Array, JetSplittingCommon):  # type: ignore[misc]
                     self.delta_R[indices_passing_cutoff],
                     self.z[indices_passing_cutoff],
                     self.parent_pt[indices_passing_cutoff],  # type: ignore[index]
-                    R
+                    R,
                 )
             )
             return values, indices_passing_cutoff[indices], indices_passing_cutoff
@@ -521,7 +521,7 @@ class JetSplittingArray(ak.Array, JetSplittingCommon):  # type: ignore[misc]
                     self.delta_R[indices_passing_cutoff],
                     self.z[indices_passing_cutoff],
                     self.parent_pt[indices_passing_cutoff],  # type: ignore[index]
-                    R
+                    R,
                 )
             )
             return values, indices_passing_cutoff[indices], indices_passing_cutoff
@@ -847,6 +847,7 @@ def parquet_to_substructure_analysis(filename: Path, prefixes: Mapping[str, str]
 @attr.define
 class DoubleCountingCutParameters:
     """Parameters for double counting cut."""
+
     min_true_pt: float
     min_pt_hat_bin: int
     det_level_leading_track_pt_cut: bool

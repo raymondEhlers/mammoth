@@ -213,13 +213,16 @@ class PtDependentTrackingEfficiencyParameters:
     baseline_tracking_efficiency_shift: float = 1.0
 
     @classmethod
-    def from_file(cls, period: str | Sequence[str], event_activity: str, baseline_tracking_efficiency_shift: float) -> PtDependentTrackingEfficiencyParameters:
+    def from_file(
+        cls, period: str | Sequence[str], event_activity: str, baseline_tracking_efficiency_shift: float
+    ) -> PtDependentTrackingEfficiencyParameters:
         # Validation
         if isinstance(period, str):
             period = [period]
 
         # Load yaml file
         from pachyderm import yaml
+
         y = yaml.yaml()
         _here = Path(__file__).parent
         config_filename = Path(_here.parent.parent / "alice" / "config" / "track_efficiency_pt_dependence.yaml")
@@ -231,13 +234,13 @@ class PtDependentTrackingEfficiencyParameters:
         possible_values = []
         # Iterate over the periods to average possible contributions
         for _period in period:
-            possible_values.append(
-                np.array(config[_period][event_activity], dtype=np.float64)
-            )
+            possible_values.append(np.array(config[_period][event_activity], dtype=np.float64))
         values = np.mean(possible_values, axis=0)
 
         # Validate values vs pt bin
-        assert len(values) + 1 == len(bin_edges), f"Bin edges don't match up to values. {len(bin_edges)=}, {len(values)=}"
+        assert len(values) + 1 == len(
+            bin_edges
+        ), f"Bin edges don't match up to values. {len(bin_edges)=}, {len(values)=}"
 
         return cls(
             bin_edges=bin_edges,
@@ -250,7 +253,9 @@ class PtDependentTrackingEfficiencyParameters:
         pt_values: npt.NDArray[np.float32] | npt.NDArray[np.float64],
     ) -> npt.NDArray[np.float64]:
         _indices_for_pt_dependent_values = np.searchsorted(
-            self.bin_edges, pt_values, side="right",
+            self.bin_edges,
+            pt_values,
+            side="right",
         )
         # NOTE: We want pt values in the first bin to get mapped to 0th entry in the tracking efficiency,
         #       so we subtract one from each index
@@ -263,9 +268,8 @@ class PtDependentTrackingEfficiencyParameters:
         # Apply additional baseline tracking efficiency degradation for high multiplicity environment
         # NOTE: We take 1.0 - value because it's defined as eg. 0.97, so to add it on the pt dependent values,
         # we have to determine how much _more_ to add on.
-        _pt_dependent_tracking_efficiency = (
-            _pt_dependent_tracking_efficiency -
-            (1.0 - self.baseline_tracking_efficiency_shift)
+        _pt_dependent_tracking_efficiency = _pt_dependent_tracking_efficiency - (
+            1.0 - self.baseline_tracking_efficiency_shift
         )
 
         return _pt_dependent_tracking_efficiency
@@ -296,8 +300,11 @@ def hybrid_level_particles_mask_for_jet_finding(
     # Create an artificial tracking efficiency for detector level particles
     # To apply this, we want to select all background tracks + the subset of det level particles to keep
     # First, start with an all True mask
-    hybrid_level_mask = (arrays["hybrid"].pt >= 0)
-    if isinstance(det_level_artificial_tracking_efficiency, PtDependentTrackingEfficiencyParameters) or det_level_artificial_tracking_efficiency < 1.0:
+    hybrid_level_mask = (arrays["hybrid"].pt >= 0)  # fmt: skip
+    if (
+        isinstance(det_level_artificial_tracking_efficiency, PtDependentTrackingEfficiencyParameters)
+        or det_level_artificial_tracking_efficiency < 1.0
+    ):
         if validation_mode:
             _message = "Cannot apply artificial tracking efficiency during validation mode. The randomness will surely break the validation."
             raise ValueError(_message)
@@ -368,8 +375,11 @@ def det_level_particles_mask_for_jet_finding(
     Returns:
         Mask to apply to the det level particles during jet finding.
     """
-    det_level_mask = (arrays["det_level"].pt >= 0)
-    if isinstance(det_level_artificial_tracking_efficiency, PtDependentTrackingEfficiencyParameters) or det_level_artificial_tracking_efficiency < 1.0:
+    det_level_mask = (arrays["det_level"].pt >= 0)  # fmt: skip
+    if (
+        isinstance(det_level_artificial_tracking_efficiency, PtDependentTrackingEfficiencyParameters)
+        or det_level_artificial_tracking_efficiency < 1.0
+    ):
         if validation_mode:
             _message = "Cannot apply artificial tracking efficiency during validation mode. The randomness will surely break the validation."
             raise ValueError(_message)

@@ -498,7 +498,7 @@ def _indices_for_event_boundaries(array: ak.Array) -> npt.NDArray[np.int64]:
     # However, to use as slices, we need one more entry than the number of events. We
     # account for this by inserting 0 at the beginning since the first indices starts at 0.
     sum_counts = np.insert(sum_counts, 0, 0)
-    return sum_counts   # noqa: RET504
+    return sum_counts  # noqa: RET504
 
 
 def find_jets(

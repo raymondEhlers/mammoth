@@ -77,9 +77,7 @@ class Columns:
         fields_to_exclude: list[str] = []
         if data_fields_only:
             fields_to_exclude.append("ParticlePID")
-        return {
-            k: v for k, v in self._particle_level.items() if k not in fields_to_exclude
-        }
+        return {k: v for k, v in self._particle_level.items() if k not in fields_to_exclude}
 
     def standardized_particle_names(self, data_fields_only: bool = True) -> dict[str, str]:
         return {
@@ -312,7 +310,10 @@ def _transform_output(
                 _result = yield ak.Array(
                     {
                         "data": ak.zip(
-                            {v: event_data_in_jagged_format["data"][k] for k, v in columns.standardized_particle_names(data_fields_only=True).items()}
+                            {
+                                v: event_data_in_jagged_format["data"][k]
+                                for k, v in columns.standardized_particle_names(data_fields_only=True).items()
+                            }
                         ),
                         **dict(
                             zip(

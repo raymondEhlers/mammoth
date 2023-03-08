@@ -153,7 +153,9 @@ _possible_collision_systems = [
 _collision_systems_with_scale_factors = ["pp_MC", "pythia", "embedPythia", "embed_pythia", "embed_thermal_model"]
 
 
-def _validate_collision_system(instance: ProductionSettings, attribute: attrs.Attribute[str], value: str) -> None:  # noqa: ARG001
+def _validate_collision_system(
+    instance: ProductionSettings, attribute: attrs.Attribute[str], value: str
+) -> None:  # noqa: ARG001
     if value not in _possible_collision_systems:
         _msg = f"Invalid collisions system. Provided: {value}"
         raise ValueError(_msg)
@@ -239,9 +241,7 @@ class ProductionSettings:
                 files=self.config["metadata"]["dataset"]["files"]
             )
             with _hf_tree_files_txt_filename.open() as f:
-                _all_files = [
-                    Path(line) for line in f
-                ]
+                _all_files = [Path(line) for line in f]
             return _all_files
 
         # Handle the track skim as the default case.
@@ -271,7 +271,9 @@ class ProductionSettings:
                 _all_files = list(f)
             # Now, extract the pt hat bin and group by pt hat bin according to the convention
             _files: dict[int, list[Path]] = {}
-            _number_of_parents_to_pt_hat_bin = self.config["metadata"][dataset_key]["number_of_parent_directories_to_pt_hat_bin"]
+            _number_of_parents_to_pt_hat_bin = self.config["metadata"][dataset_key][
+                "number_of_parent_directories_to_pt_hat_bin"
+            ]
             for name in _all_files:
                 filename = Path(name)
                 filename_for_pt_hat_bin = filename
