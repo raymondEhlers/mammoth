@@ -12,19 +12,16 @@ import logging
 from pathlib import Path
 from typing import (
     Any,
-    Dict,
     Final,
     Generator,
     Iterator,
-    List,
     Mapping,
     MutableMapping,
     Optional,
+    Protocol,
     Sequence,
-    Tuple,
     Union,
 )
-from typing_extensions import Protocol
 
 import attr
 import awkward as ak
@@ -38,12 +35,12 @@ logger = logging.getLogger(__name__)
 
 class ChunkSizeSentinel(enum.Enum):
     SOURCE_DEFAULT = object()
-    FULL_SOURCE = object()
+    FULL_SOURCE = object()  # noqa: PIE796
     # Specific examples that only work for some sources
     # Requires the users to specify a size
-    FIXED_SIZE = object()
+    FIXED_SIZE = object()  # noqa: PIE796
     # One file at a time
-    SINGLE_FILE = object()
+    SINGLE_FILE = object()  # noqa: PIE796
 
 
 T_ChunkSize = Union[int, ChunkSizeSentinel]
@@ -114,7 +111,7 @@ class NoDataAvailableError(Exception):
     ...
 
 
-def convert_sequence_to_range(entry_range: Union[utils.Range, Sequence[float]]) -> utils.Range:
+def convert_sequence_to_range(entry_range: utils.Range | Sequence[float]) -> utils.Range:
     """Convert sequences to Range.
 
     Args:
@@ -140,9 +137,11 @@ def _validate_chunk_size(chunk_size: T_ChunkSize, source_default_chunk_size: T_C
     if chunk_size is ChunkSizeSentinel.FULL_SOURCE or chunk_size is ChunkSizeSentinel.SINGLE_FILE:
         chunk_size = _FULL_SOURCE_SIZE
     if chunk_size is ChunkSizeSentinel.FIXED_SIZE:
-        raise ValueError("User must provide a chunk size! There is no natural choice for this source.")
+        _msg = "User must provide a chunk size! There is no natural choice for this source."
+        raise ValueError(_msg)
     if not isinstance(chunk_size, (int, np.integer)):
-        raise ValueError(f"Unrecognized chunk size: {chunk_size}, {type(chunk_size)=}")
+        _msg = f"Unrecognized chunk size: {chunk_size}, {type(chunk_size)=}"  # type: ignore[unreachable]
+        raise ValueError(_msg)
 
     return chunk_size
 
@@ -171,7 +170,7 @@ def generator_from_existing_data(
                 # If it becomes an issue in the future, we could convert it into a ValueError.
                 logger.warning(f"Requested new chunk of size {_result}, but we've already exhausted this source.")
             break
-        else:
+        else:  # noqa: RET508
             _result = yield data[:chunk_size]
 
         # We want to make sure that we don't reuse any of the data.
@@ -191,7 +190,7 @@ class UprootSource:
     _tree_name: str
     _columns: Sequence[str] = attr.Factory(list)
     _entry_range: utils.Range = attr.field(converter=convert_sequence_to_range, default=utils.Range(None, None))
-    _default_chunk_size: Union[int, ChunkSizeSentinel] = attr.field(default=ChunkSizeSentinel.FULL_SOURCE)
+    _default_chunk_size: int | ChunkSizeSentinel = attr.field(default=ChunkSizeSentinel.FULL_SOURCE)
     metadata: MutableMapping[str, Any] = attr.Factory(dict)
 
     def _data(self) -> ak.Array:
@@ -203,13 +202,11 @@ class UprootSource:
                 _possible_tree_names = f.keys(cycle=False, filter_name=self._tree_name, filter_classname="TTree")
                 if len(_possible_tree_names) != 1:
                     if len(_possible_tree_names) == 0:
-                        raise NoDataAvailableError(
-                            f"Missing tree name '{self._tree_name}'. Please check the file. Filename: {self._filename}"
-                        )
-                    else:
-                        raise ValueError(
-                            f"Ambiguous tree name '{self._tree_name}'. Please revise it as needed. Possible tree names: {_possible_tree_names}. Filename: {self._filename}"
-                        )
+                        _msg = f"Missing tree name '{self._tree_name}'. Please check the file. Filename: {self._filename}"
+                        raise NoDataAvailableError(_msg)
+                    else:  # noqa: RET506
+                        _msg = f"Ambiguous tree name '{self._tree_name}'. Please revise it as needed. Possible tree names: {_possible_tree_names}. Filename: {self._filename}"
+                        raise ValueError(_msg)
                 # We're good - let's keep going
                 self._tree_name = _possible_tree_names[0]
 
@@ -217,7 +214,7 @@ class UprootSource:
 
             # First, let's setup the arguments
             # Columns
-            reading_kwargs: Dict[str, Any] = {
+            reading_kwargs: dict[str, Any] = {
                 "expressions": self._columns if self._columns else None,
             }
             # Add restricted start and stop entries if requested.
@@ -256,8 +253,8 @@ def define_multiple_sources_from_single_root_file(
     filename: Path,
     tree_name: str,
     chunk_size: int,
-    columns: Optional[Sequence[str]] = None,
-) -> List[UprootSource]:
+    columns: Sequence[str] | None = None,
+) -> list[UprootSource]:
     """Create a set of uproot sources in chunks for a given filename.
 
     This is only needed if the root file is so large that opening the whole thing at once creates memory issues.
@@ -298,7 +295,7 @@ def define_multiple_sources_from_single_root_file(
 class ParquetSource:
     _filename: Path = attr.field(converter=Path)
     _columns: Sequence[str] = attr.Factory(list)
-    _default_chunk_size: Union[int, ChunkSizeSentinel] = attr.field(default=ChunkSizeSentinel.FULL_SOURCE)
+    _default_chunk_size: int | ChunkSizeSentinel = attr.field(default=ChunkSizeSentinel.FULL_SOURCE)
     metadata: MutableMapping[str, Any] = attr.Factory(dict)
 
     def _data(self) -> ak.Array:
@@ -331,7 +328,7 @@ class ALICEFastSimTrackingEfficiency:
 
     particle_level_source: Source
     fast_sim_parameters: models.ALICEFastSimParameters
-    _default_chunk_size: Union[int, ChunkSizeSentinel] = attr.field(default=ChunkSizeSentinel.FULL_SOURCE)
+    _default_chunk_size: int | ChunkSizeSentinel = attr.field(default=ChunkSizeSentinel.FULL_SOURCE)
     metadata: MutableMapping[str, Any] = attr.Factory(dict)
 
     def _data(self, particle_level_data: ak.Array) -> ak.Array:
@@ -398,11 +395,12 @@ class ALICEFastSimTrackingEfficiency:
 @attr.define
 class PythiaSource:
     config: Path = attr.field(converter=Path)
-    _default_chunk_size: Union[int, ChunkSizeSentinel] = attr.field(default=ChunkSizeSentinel.FIXED_SIZE)
+    _default_chunk_size: int | ChunkSizeSentinel = attr.field(default=ChunkSizeSentinel.FIXED_SIZE)
     metadata: MutableMapping[str, Any] = attr.Factory(dict)
 
-    def gen_data(self, chunk_size: T_ChunkSize = ChunkSizeSentinel.SOURCE_DEFAULT) -> T_GenData:
-        raise NotImplementedError("Working on it...")
+    def gen_data(self, chunk_size: T_ChunkSize = ChunkSizeSentinel.SOURCE_DEFAULT) -> T_GenData:  # noqa: ARG002
+        _msg = "Working on it..."
+        raise NotImplementedError(_msg)
 
 
 @attr.define
@@ -438,7 +436,7 @@ class ThermalModelExponential:
     thermal_model_parameters: ThermalModelParameters
     _particle_column_prefix: str = attr.field(default="data")
     _stop_iterating_after_one_chunk: bool = attr.field(default=False)
-    _default_chunk_size: Union[int, ChunkSizeSentinel] = attr.field(default=ChunkSizeSentinel.FIXED_SIZE)
+    _default_chunk_size: int | ChunkSizeSentinel = attr.field(default=ChunkSizeSentinel.FIXED_SIZE)
     metadata: MutableMapping[str, Any] = attr.Factory(dict)
 
     def gen_data(self, chunk_size: T_ChunkSize = ChunkSizeSentinel.SOURCE_DEFAULT) -> T_GenData:
@@ -507,7 +505,7 @@ class ThermalModelExponential:
 
             # If we want to stop after one iteration, we need to do it now
             if self._stop_iterating_after_one_chunk:
-                return None
+                return
 
     @classmethod
     def create_deferred_source(
@@ -527,7 +525,7 @@ class ThermalModelExponential:
             A Callable which takes the filename and creates the FileSource.
         """
 
-        def wrap(*args: Any, **kwargs: Any) -> "ThermalModelExponential":
+        def wrap(*args: Any, **kwargs: Any) -> ThermalModelExponential:  # noqa: ARG001
             return cls(
                 thermal_model_parameters=thermal_model_parameters,
                 particle_column_prefix=particle_column_prefix,
@@ -538,13 +536,13 @@ class ThermalModelExponential:
         return wrap
 
 
-def _sources_to_list(sources: Union[Source, Sequence[Source]]) -> Sequence[Source]:
+def _sources_to_list(sources: Source | Sequence[Source]) -> Sequence[Source]:
     if not isinstance(sources, collections.abc.Iterable):
         return [sources]
     return sources
 
 
-def _determine_request_chunk_size(_target_chunk_size: int, _accumulated_data_size: int) -> Tuple[int, bool]:
+def _determine_request_chunk_size(_target_chunk_size: int, _accumulated_data_size: int) -> tuple[int, bool]:
     """Adjust the requested chunk size according to the conditions of the request.
 
     Returns:
@@ -593,7 +591,7 @@ def _determine_request_chunk_size(_target_chunk_size: int, _accumulated_data_siz
 class MultiSource:
     sources: Sequence[Source] = attr.field(converter=_sources_to_list)
     repeat: bool = attr.field(default=False)
-    _default_chunk_size: Union[int, ChunkSizeSentinel] = attr.field(default=ChunkSizeSentinel.FULL_SOURCE)
+    _default_chunk_size: int | ChunkSizeSentinel = attr.field(default=ChunkSizeSentinel.FULL_SOURCE)
     metadata: MutableMapping[str, Any] = attr.Factory(dict)
 
     def gen_data(self, chunk_size: T_ChunkSize = ChunkSizeSentinel.SOURCE_DEFAULT) -> T_GenData:  # noqa: C901
@@ -675,7 +673,7 @@ class MultiSource:
                         )
                         logger.debug("---> Not enough data left in this source - we need a new one!")
                         break
-                    else:
+                    else:  # noqa: RET508
                         # NOTE: This else statement could be removed (ie. we could just de-indent this
                         #       block) since we use a `break` in the if statement. I've left it here because
                         #       the additional indentation helps me separate concerns (ie. the code in this else
@@ -766,54 +764,55 @@ class MultiSource:
 
 
 def _only_one_source(
-    instance: "CombineSources",
-    attribute: attr.Attribute[Mapping[str, int]],
-    value: Mapping[str, int],
+    instance: CombineSources,
+    attribute: attr.Attribute[Mapping[str, int]],  # noqa: ARG001
+    value: Mapping[str, int],  # noqa: ARG001
 ) -> None:
     if len(instance._constrained_size_source) != 1:
-        raise ValueError(f"Only one constrained source allow! Provided: {instance._constrained_size_source}")
+        _msg = f"Only one constrained source allow! Provided: {instance._constrained_size_source}"
+        raise ValueError(_msg)
 
 
 def _no_overlapping_keys(
-    instance: "CombineSources",
-    attribute: attr.Attribute[Mapping[str, int]],
-    value: Mapping[str, int],
+    instance: CombineSources,
+    attribute: attr.Attribute[Mapping[str, int]],  # noqa: ARG001
+    value: Mapping[str, int],  # noqa: ARG001
 ) -> None:
     if set(instance._constrained_size_source).intersection(set(instance._unconstrained_size_sources)):
-        raise ValueError(
-            f"Overlapping keys between constrained size and unconstrained size sources. Constrained size sources: {list(instance._constrained_size_source)}, unconstrained size sources: {list(instance._unconstrained_size_sources)}."
-        )
+        _msg = f"Overlapping keys between constrained size and unconstrained size sources. Constrained size sources: {list(instance._constrained_size_source)}, unconstrained size sources: {list(instance._unconstrained_size_sources)}."
+        raise ValueError(_msg)
 
 
 def _contains_signal_and_background(
-    instance: "CombineSources",
-    attribute: attr.Attribute[Mapping[str, int]],
+    instance: CombineSources,  # noqa: ARG001
+    attribute: attr.Attribute[Mapping[str, int]],  # noqa: ARG001
     value: Mapping[str, int],
 ) -> None:
     found_signal = False
     found_background = False
-    for k in value.keys():
+    for k in value:
         if "signal" in k:
             found_signal = True
         if "background" in k:
             found_background = True
     if not found_signal:
-        raise ValueError(f"Must contain at least one signal source. Found: {list(value.keys())}.")
+        _msg = f"Must contain at least one signal source. Found: {list(value.keys())}."
+        raise ValueError(_msg)
     if not found_background:
-        raise ValueError(f"Must contain at least one background source. Found: {list(value.keys())}.")
+        _msg = f"Must contain at least one background source. Found: {list(value.keys())}."
+        raise ValueError(_msg)
 
 
 def _has_offset_per_source(
-    instance: "CombineSources",
-    attribute: attr.Attribute[Mapping[str, int]],
-    value: Mapping[str, int],
+    instance: CombineSources,
+    attribute: attr.Attribute[Mapping[str, int]],  # noqa: ARG001
+    value: Mapping[str, int],  # noqa: ARG001
 ) -> None:
     if (set(instance._constrained_size_source) | set(instance._unconstrained_size_sources)) != set(
         instance._source_index_identifiers
     ):
-        raise ValueError(
-            f"Mismatch in sources and offsets. Constrained size sources: {list(instance._constrained_size_source)}, unconstrained sources: {list(instance._unconstrained_size_sources)}, offsets: {list(instance._source_index_identifiers)}"
-        )
+        _msg = f"Mismatch in sources and offsets. Constrained size sources: {list(instance._constrained_size_source)}, unconstrained sources: {list(instance._unconstrained_size_sources)}, offsets: {list(instance._source_index_identifiers)}"
+        raise ValueError(_msg)
 
 
 @attr.define
@@ -854,7 +853,7 @@ class CombineSources:
             chunk_size=chunk_size
         )
 
-        unconstrained_size_sources_generators: Dict[str, T_GenData] = {}
+        unconstrained_size_sources_generators: dict[str, T_GenData] = {}
 
         for constrained_size_data in constrained_size_source_generator:
             determined_chunk_size = len(constrained_size_data)
@@ -881,12 +880,11 @@ class CombineSources:
             # NOTE: We're safe to blindly combine these here because the class validates that there
             #       are no overlapping keys between the fixed size and chunked data.
             _result = yield ak.zip(
-                {**{constrained_size_source_name: constrained_size_data}, **unconstrained_size_sources_data},
+                {constrained_size_source_name: constrained_size_data, **unconstrained_size_sources_data},
                 depth_limit=1,
             )
             if _result is not None:
                 # NOTE: If there was a need, we could update the constrained source.
                 #       However, as of March 2022, I don't see a need.
-                raise ValueError(
-                    f"Cannot send value to CombineSources - it's already specified by the constrained source. Sent: {_result}"
-                )
+                _msg = f"Cannot send value to CombineSources - it's already specified by the constrained source. Sent: {_result}"
+                raise ValueError(_msg)
