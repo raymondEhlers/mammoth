@@ -3,7 +3,7 @@
 .. codeauthor:: Raymond Ehlers <raymond.ehlers@cern.ch>, ORNL
 """
 
-import functools
+import functools  # noqa: I001
 import logging
 from typing import Any, Dict, Final, List, Optional, Tuple, Union
 
@@ -18,15 +18,15 @@ from mammoth_cpp._ext import (  # noqa: F401
     AreaSettings,
     # TODO: This will clobber the user_index (eg. hole information from JETSCAPE)!
     #       Need to carefully think through all of this labeling. I guess I may need a map from some index to other properties?
-    NegativeEnergyRecombiner,  # noqa F401
+    NegativeEnergyRecombiner,
     JetFindingSettings,
-    JetMedianBackgroundEstimator,  # noqa: F401
-    GridMedianBackgroundEstimator,  # noqa: F401
+    JetMedianBackgroundEstimator,
+    GridMedianBackgroundEstimator,
     BackgroundSubtractionType,
-    RhoSubtractor,  # noqa: F401
-    ConstituentSubtractor,  # noqa: F401
+    RhoSubtractor,
+    ConstituentSubtractor,
     BackgroundSubtraction,
-    DEFAULT_RAPIDITY_MAX,  # noqa: F401
+    DEFAULT_RAPIDITY_MAX,
 )
 
 logger = logging.getLogger(__name__)
@@ -119,6 +119,7 @@ def _shared_momentum_fraction_for_flat_array_implementation(
     measured_like_jet_constituents: ak.Array,
     measured_like_jet_constituent_indices: ak.Array,
     match_using_distance: bool = False,
+    max_matching_distance: float = DISTANCE_DELTA,
 ) -> npt.NDArray[np.float32]:
     """Implementation of the shared momentum fraction
 
@@ -127,7 +128,6 @@ def _shared_momentum_fraction_for_flat_array_implementation(
     of some extra bookkeeping.
     """
     # Setup
-    delta = DISTANCE_DELTA
     shared_momentum_fraction = np.zeros(len(generator_like_jet_constituents), dtype=np.float32)
 
     for i, (
@@ -155,9 +155,9 @@ def _shared_momentum_fraction_for_flat_array_implementation(
             ):
                 # print(f"measured: index: {measured_like_constituent.index}, pt: {measured_like_constituent.pt}")
                 if match_using_distance:
-                    if np.abs(measured_like_constituent.eta - generator_like_constituent.eta) > delta:
+                    if np.abs(measured_like_constituent.eta - generator_like_constituent.eta) > max_matching_distance:
                         continue
-                    if np.abs(measured_like_constituent.phi - generator_like_constituent.phi) > delta:
+                    if np.abs(measured_like_constituent.phi - generator_like_constituent.phi) > max_matching_distance:
                         continue
                 else:
                     # if generator_like_constituent.index != measured_like_constituent.index:
@@ -204,9 +204,8 @@ def shared_momentum_fraction_for_flat_array(
     """
     # Validation
     if len(generator_like_jet_constituents) != len(measured_like_jet_constituents):
-        raise ValueError(
-            f"Number of jets mismatch: generator: {len(generator_like_jet_constituents)} measured: {len(measured_like_jet_constituents)}"
-        )
+        _msg = f"Number of jets mismatch: generator: {len(generator_like_jet_constituents)} measured: {len(measured_like_jet_constituents)}"
+        raise ValueError(_msg)
 
     return _shared_momentum_fraction_for_flat_array_implementation(  # type: ignore[no-any-return]
         generator_like_jet_pts=generator_like_jet_pts,
@@ -215,6 +214,7 @@ def shared_momentum_fraction_for_flat_array(
         measured_like_jet_constituents=measured_like_jet_constituents,
         measured_like_jet_constituent_indices=measured_like_jet_constituents.index,
         match_using_distance=match_using_distance,
+        max_matching_distance=max_matching_distance,
     )
 
 
@@ -477,7 +477,8 @@ def area_percentage(percentage: float, jet_R: float) -> float:
     """Calculate jet R area percentage (for cuts)."""
     # Validation
     if percentage < 1:
-        raise ValueError(f"Did you pass a fraction? Passed {percentage}. Check it!")
+        _msg = f"Did you pass a fraction? Passed {percentage}. Check it!"
+        raise ValueError(_msg)
     return percentage / 100.0 * np.pi * jet_R * jet_R
 
 
@@ -497,7 +498,7 @@ def _indices_for_event_boundaries(array: ak.Array) -> npt.NDArray[np.int64]:
     # However, to use as slices, we need one more entry than the number of events. We
     # account for this by inserting 0 at the beginning since the first indices starts at 0.
     sum_counts = np.insert(sum_counts, 0, 0)
-    return sum_counts
+    return sum_counts   # noqa: RET504
 
 
 def find_jets(
@@ -521,9 +522,8 @@ def find_jets(
     #       However, this is left as a user preprocessing step to avoid surprising users!
     event_with_no_particles = sum_counts[1:] == sum_counts[:-1]
     if np.any(event_with_no_particles):
-        raise ValueError(
-            f"There are some events with zero particles, which is going to mess up the alignment. Check the input! 0s are at {np.where(event_with_no_particles)}"
-        )
+        _msg = f"There are some events with zero particles, which is going to mess up the alignment. Check the input! 0s are at {np.where(event_with_no_particles)}"
+        raise ValueError(_msg)
 
     # Now, deal with the particles themselves.
     # This will flatten the awkward array contents while keeping the record names.
@@ -547,9 +547,8 @@ def find_jets(
         # Validate that there is at least one particle per event
         event_with_no_particles = background_sum_counts[1:] == background_sum_counts[:-1]
         if np.any(event_with_no_particles):
-            raise ValueError(
-                f"There are some background events with zero particles, which is going to mess up the alignment. Check the input! 0s are at {np.where(event_with_no_particles)}"
-            )
+            _msg = f"There are some background events with zero particles, which is going to mess up the alignment. Check the input! 0s are at {np.where(event_with_no_particles)}"
+            raise ValueError(_msg)
 
         # Now, deal with the particles themselves.
         # This will flatten the awkward array contents while keeping the record names.
@@ -579,9 +578,8 @@ def find_jets(
 
     # Validate that the number of background events match the number of signal events
     if len(sum_counts) != len(background_sum_counts):
-        raise ValueError(
-            f"Mismatched between number of events for signal and background. Signal: {len(sum_counts) -1}, background: {len(background_sum_counts) - 1}"
-        )
+        _msg = f"Mismatched between number of events for signal and background. Signal: {len(sum_counts) -1}, background: {len(background_sum_counts) - 1}"
+        raise ValueError(_msg)
 
     # Keep track of the jet four vector components. Although this will have to be converted later,
     # it seems that this is good enough enough to start.
@@ -739,7 +737,7 @@ def find_jets(
         depth_limit=2,
     )
 
-    return output_jets
+    return output_jets  # noqa: RET504
 
 
 def _splittings_output() -> Dict[str, List[Any]]:
@@ -766,7 +764,8 @@ def recluster_jets(
 ) -> ak.Array:
     # Validation. There must be jets
     if len(jets) == 0:
-        raise ValueError("No jets present for reclustering!")
+        _msg = "No jets present for reclustering!"
+        raise ValueError(_msg)
 
     # To iterate over the constituents in an efficient manner, we need to flatten them and
     # their four-momenta. To make this more manageable, we want to determine the constituent
