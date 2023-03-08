@@ -107,7 +107,7 @@ def analysis_MC(
         },
         depth_limit=1,
     )
-    logger.warning(
+    logger.info(
         f"Found det_level n jets: {np.count_nonzero(np.asarray(ak.flatten(jets['det_level'].px, axis=None)))}"
     )
 
@@ -118,7 +118,7 @@ def analysis_MC(
         collision_system="pythia",
         substructure_constituent_requirements=True,
     )
-    logger.warning(
+    logger.info(
         f"all jet cuts n accepted: {np.count_nonzero(np.asarray(ak.flatten(jets['det_level'].px, axis=None)))}"
     )
 
@@ -150,8 +150,8 @@ def analysis_MC(
         )
     logger.info("Done with reclustering")
 
-    logger.warning(f"n events: {len(jets)}")
-    logger.warning(f"n jets accepted: {np.count_nonzero(np.asarray(ak.flatten(jets['det_level'].px, axis=None)))}")
+    logger.info(f"n events: {len(jets)}")
+    logger.info(f"n jets accepted: {np.count_nonzero(np.asarray(ak.flatten(jets['det_level'].px, axis=None)))}")
 
     # Next step for using existing skimming:
     # Flatten from events -> jets

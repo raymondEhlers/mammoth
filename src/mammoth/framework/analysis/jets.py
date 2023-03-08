@@ -58,7 +58,7 @@ def jet_matching_MC(
     logger.info("Using matching info")
     jets_present_mask = (ak.num(jets["part_level"], axis=1) > 0) & (ak.num(jets["det_level"], axis=1) > 0)
     jets = jets[jets_present_mask]
-    logger.warning(
+    logger.info(
         f"post jets present mask n accepted: {np.count_nonzero(np.asarray(ak.flatten(jets['det_level'].px, axis=None)))}"
     )
 
@@ -83,7 +83,7 @@ def jet_matching_MC(
     det_level_matched_jets_mask = jets["det_level"]["matching"] > -1
     jets["det_level"] = jets["det_level"][det_level_matched_jets_mask]
     jets["part_level"] = jets["part_level"][jets["det_level", "matching"]]
-    logger.warning(
+    logger.info(
         f"post requiring valid matches n accepted: {np.count_nonzero(np.asarray(ak.flatten(jets['det_level'].px, axis=None)))}"
     )
 
