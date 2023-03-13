@@ -333,7 +333,7 @@ def test_jet_finding_with_constituent_subtraction_does_something_multiple_events
 
     # Check four momenta
     # Here, we expect it _not_ to agree with the "expected jets" from above because
-    # consitutent subtraction has modified the four vectors. We don't have a simple
+    # constituent subtraction has modified the four vectors. We don't have a simple
     # and convenient reference, so we effectively require that it is changed _somehow_
     # by the constituent subtraction. It will have to be validated elsewhere.
     assert not all([np.allclose(np.asarray(measured.px), np.asarray(expected.px))
