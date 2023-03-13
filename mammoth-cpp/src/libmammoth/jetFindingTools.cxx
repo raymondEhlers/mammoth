@@ -26,6 +26,7 @@ void FJNegativeEnergyRecombiner::recombine(const fastjet::PseudoJet &particle1,
     // and assign it a new user index
     if (combined_particle.E() < 0)
     {
+        std::cout << "NER: Negative E particle. Previous: 1: " << particle1.user_index() << ", 2: " << particle2.user_index() << "\n";
         combined_particle.set_user_index(_ui);
         combined_particle.reset_momentum(
             -combined_particle.px(), -combined_particle.py(),
@@ -33,6 +34,7 @@ void FJNegativeEnergyRecombiner::recombine(const fastjet::PseudoJet &particle1,
     }
     else
     {
+        std::cout << "NER: setting index of combined particle. Previous: 1: " << particle1.user_index() << ", 2: " << particle2.user_index() << "\n";
         combined_particle.set_user_index(0);
     }
 }

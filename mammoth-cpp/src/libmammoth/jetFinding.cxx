@@ -474,15 +474,20 @@ std::vector<std::vector<unsigned int>> constituentIndicesFromJets(
 )
 {
   std::vector<std::vector<unsigned int>> indices;
+  unsigned int i = 0;
   for (auto jet : jets) {
     std::vector<unsigned int> constituentIndicesInJet;
+    unsigned int j = 0;
     for (auto constituent : jet.constituents()) {
+      std::cout << "jet " << i << ", constituent " << j << ": index: " << constituent.user_index() << "\n";
       // We want to avoid ghosts, which have index -1
       if (constituent.user_index() != -1) {
         constituentIndicesInJet.push_back(constituent.user_index());
       }
+      j++;
     }
     indices.emplace_back(constituentIndicesInJet);
+    i++;
   }
   return indices;
 }

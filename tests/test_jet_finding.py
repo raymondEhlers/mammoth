@@ -344,3 +344,98 @@ def test_jet_finding_with_constituent_subtraction_does_something_multiple_events
 
     # only for testing - we want to see any fastjet warnings
     #assert False
+
+
+def test_negative_energy_recombiner(caplog: Any) -> None:
+    """ Jet finding with negative energy recombiner for multiple events. """
+    # Setup
+    caplog.set_level(logging.DEBUG)
+    vector.register_awkward()
+
+    # an event with three particles
+    # First event is the standard fastjet test particles,
+    # while the second event is the standard with px <-> py.
+    # The output jets should be the same as well, but with px <-> py.
+    input_particles = ak.zip(
+        {
+            "px": [
+                [99.0, 4.0, -99.0],
+                [0.1, -0.1, 0],
+            ],
+            "py": [
+                [0.1, -0.1, 0],
+                [99.0, 4.0, -99.0],
+            ],
+            "pz": [
+                [0, 0, 0],
+                [0, 0, 0],
+            ],
+            "E": [
+                [100.0, -5.0, 99.0],
+                [100.0, -5.0, 99.0],
+            ],
+            "index": [
+                [1, 2, 3],
+                [4, 5, 6],
+            ],
+        },
+        with_name="Momentum4D",
+    )
+    print(f"input particles array type: {ak.type(input_particles)}")
+    #extra_kwargs = {}
+
+    jets = jet_finding.find_jets(
+        particles=input_particles,
+        jet_finding_settings=jet_finding.JetFindingSettings(
+            R=0.7, algorithm="anti-kt",
+            #area_settings=jet_finding.AreaAA(),
+            area_settings=jet_finding.AreaPP(ghost_area=1.0),
+            pt_range=jet_finding.pt_range(),
+            eta_range=jet_finding.eta_range(jet_R=0.7, fiducial_acceptance=False, eta_min=-5., eta_max=5.),
+            recombiner=jet_finding.NegativeEnergyRecombiner(-111),
+        ),
+        #background_subtraction=jet_finding.BackgroundSubtraction(
+        #    type=jet_finding.BackgroundSubtractionType.rho,
+        #    estimator=jet_finding.JetMedianBackgroundEstimator(
+        #        jet_finding_settings=jet_finding.JetMedianJetFindingSettings()
+        #    ),
+        #    subtractor=jet_finding.RhoSubtractor(),
+        #),
+        #**extra_kwargs,
+    )
+
+    expected_jets = ak.zip(
+        {
+            "px": [
+                [103.0, -99.0],
+                [0.0, 0.0],
+            ],
+            "py": [
+                [0.0, 0.0],
+                [103.0, -99.0],
+            ],
+            "pz": [
+                [0.0, 0.0],
+                [0.0, 0.0],
+            ],
+            "E": [
+                [105.0, 99.0],
+                [105.0, 99.0],
+            ],
+        },
+        with_name="Momentum4D",
+    )
+
+    print(f"input_particles: {input_particles.to_list()}")
+    print(f"jets: {jets.to_list()}")
+    print(f"expected_jets: {expected_jets.to_list()}")
+
+    # Check four momenta
+    assert all([np.allclose(np.asarray(measured.px), np.asarray(expected.px))
+                and np.allclose(np.asarray(measured.py), np.asarray(expected.py))
+                and np.allclose(np.asarray(measured.pz), np.asarray(expected.pz))
+                and np.allclose(np.asarray(measured.E), np.asarray(expected.E))
+                for event, event_expected in zip(jets, expected_jets) for measured, expected in zip(event, event_expected)])
+
+    # only for testing - we want to see any fastjet warnings
+    assert False
