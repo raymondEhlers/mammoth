@@ -40,9 +40,9 @@ def root_example() -> tuple[TH1D, TH1D]:
     logger.info(f"{values_filled=}")
 
     h_temp = binned_data.BinnedData.from_existing_data(h_ROOT)
-    logger.info(f"{h_temp.values=}, {h_temp.variances=}")
+    logger.info(f"{h_temp.values=},\n{h_temp.variances=},\n{h_temp.errors=},\n{h_temp.errors / h_temp.values=}")
     h_temp_already_rebinned = binned_data.BinnedData.from_existing_data(h_ROOT_already_rebinned)
-    logger.info(f"{h_temp_already_rebinned.values=}, {h_temp_already_rebinned.variances=}")
+    logger.info(f"{h_temp_already_rebinned.values=},\n{h_temp_already_rebinned.variances=},\n{h_temp_already_rebinned.errors=},\n{h_temp_already_rebinned.errors / h_temp_already_rebinned.values=}")
     logger.info("=== Done creating hists")
 
     return h_ROOT, h_ROOT_already_rebinned
