@@ -80,6 +80,7 @@ if __name__ == "__main__":
             Splitting(delta_R=0.30, z=0.2),
             #Splitting(delta_R=0.225, z=0.4),
             Splitting(delta_R=0.20, z=0.4),
+            Splitting(delta_R=0.1, z=0.1),
         ],
         input_jet_pt=60.,
     )
