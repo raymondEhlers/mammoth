@@ -19,7 +19,7 @@ TH1D = Any
 
 def root_example() -> tuple[TH1D, TH1D]:
     # Delay import to avoid explicit dependenceT
-    import ROOT
+    import ROOT  # pyright: ignore [reportMissingImports]
 
     binning = np.array([0.25, 0.5, 1, 1.5, 2, 3, 4, 6], dtype=np.float64)
     h_ROOT = ROOT.TH1D("test", "test", len(binning) - 1, binning)
@@ -89,13 +89,13 @@ def test_steer_rebinning() -> None:
         test_rebin(h_ROOT=h_ROOT_scale, h_ROOT_broader=h_ROOT_broader_scale)
     except AssertionError:
         logger.info("Failed as expected!")
-    # Finally, take the bin width scaled, unscale it, rebin and then compare to the h_ROOT_broader_scale (ie. right binning and then scaled)
+    # Finally, take the bin width scaled, undo the scaling, rebin and then compare to the h_ROOT_broader_scale (ie. right binning and then scaled)
     # (I would do this with the ROOT hist too, but I don't know how to undo bin width scaling unless I do it by hand, which sounds annoying)
     h_binned_data_handled_properly = binned_data.BinnedData.from_existing_data(h_ROOT_scale)
     # Undo scaling
     h_binned_data_handled_properly *= h_binned_data_handled_properly.axes[0].bin_widths
     # Rebin
-    h_binned_data_handled_properly = h_binned_data_handled_properly[::binned_data.BinnedData.from_existing_data(h_ROOT_broader_scale).axes[0].bin_edges]
+    h_binned_data_handled_properly = h_binned_data_handled_properly[::binned_data.BinnedData.from_existing_data(h_ROOT_broader_scale).axes[0].bin_edges]  # type: ignore[misc]
     # Scale by bin width
     h_binned_data_handled_properly /= h_binned_data_handled_properly.axes[0].bin_widths
     # Finally, compare the scale + rebin with the rebin + scale
