@@ -81,12 +81,14 @@ target_link_libraries(mammoth PUBLIC FastJet::FastJet FastJet::Contrib)
 target_include_directories(mammoth PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include" FastJet::FastJet)
 
 # And install
-install(TARGETS mammoth DESTINATION ${SKBUILD_PROJECT_NAME})
+install(TARGETS mammoth LIBRARY DESTINATION ${SKBUILD_PROJECT_NAME})
 
 ##############################
 # Step 2: Onto the Python part
 ##############################
 
+# First, grab python, as recommended here: https://scikit-build-core.readthedocs.io/en/latest/getting_started.html
+find_package(Python COMPONENTS Interpreter Development.Module REQUIRED)
 # pybind11 from PyPI, which we require in the build dependencies.
 # NOTE: pybind11 seems to be the package that defines PYTHON_SITE_PACKAGES
 find_package(pybind11 CONFIG REQUIRED)
@@ -125,5 +127,5 @@ add_custom_command(TARGET _ext POST_BUILD
 )
 
 # And finally install the bindings
-install(TARGETS _ext DESTINATION ${SKBUILD_PROJECT_NAME})
+install(TARGETS _ext LIBRARY DESTINATION ${SKBUILD_PROJECT_NAME})
 
