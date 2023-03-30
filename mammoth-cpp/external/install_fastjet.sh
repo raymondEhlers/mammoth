@@ -57,7 +57,7 @@ make clean
 # NOTE: Only reconfigure if we haven't configured before
 if [[ ! -f "config.status" ]]; then
     # NOTE: Need to disable autoptr because we're using c++17
-    ./configure --prefix=$prefix --enable-allcxxplugins --enable-all-plugins --disable-auto-ptr
+    ./configure --prefix=$prefix --enable-allcxxplugins --enable-all-plugins --disable-auto-ptr --enable-thread-safety
 else
     echo "Skipping configuration for fastjet due to existing build"
 fi
