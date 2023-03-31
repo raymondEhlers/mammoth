@@ -644,11 +644,13 @@ FourVectorTuple<T> pseudoJetsToVectors(
  * Recall that the cluster sequence must still exist when extracting the jet area.
  *
  * @param jets Jets to grab the area.
+ * @param jetFindingSettings Jet finding settings
  * @return std::vector<T> Jet area for the given jets.
  */
 template<typename T>
 std::vector<T> extractJetsArea(
-  const std::vector<fastjet::PseudoJet> & jets
+  const std::vector<fastjet::PseudoJet> & jets,
+  const JetFindingSettings & jetFindingSettings
 );
 
 /**
@@ -959,9 +961,16 @@ FourVectorTuple<T> pseudoJetsToVectors(
 
 template<typename T>
 std::vector<T> extractJetsArea(
-  const std::vector<fastjet::PseudoJet> & jets
+  const std::vector<fastjet::PseudoJet> & jets,
+  const JetFindingSettings & jetFindingSettings
 )
 {
+  // Validation
+  // Avoid requesting area properties if we haven't defined an area
+  if (!jetFindingSettings.areaSettings) {
+    return {};
+  }
+
   std::size_t nJets = jets.size();
   std::vector<T> jetsArea(nJets);
   for (std::size_t i = 0; i < nJets; ++i) {
@@ -1173,7 +1182,7 @@ OutputWrapper<T> findJets(
   auto numpyJets = pseudoJetsToVectors<T>(jets);
   // Next, we grab whatever other properties we desire:
   // Jet area
-  auto columnarJetsArea = extractJetsArea<T>(jets);
+  auto columnarJetsArea = extractJetsArea<T>(jets, mainJetFinder);
   // Next, grab event wide properties
   // Rho value (storing 0 if not available)
   T rhoValue = backgroundEstimator ? backgroundEstimator->rho() : 0;

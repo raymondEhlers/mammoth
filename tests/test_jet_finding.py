@@ -68,7 +68,8 @@ def test_jet_finding_basic_single_event(caplog: Any) -> None:
     #assert False
 
 
-def test_jet_finding_basic_multiple_events(caplog: Any) -> None:
+@pytest.mark.parametrize("calculate_area", [True, False])
+def test_jet_finding_basic_multiple_events(caplog: Any, calculate_area: bool) -> None:
     """ Basic jet finding test with for multiple events. """
     # Setup
     caplog.set_level(logging.DEBUG)
@@ -108,7 +109,7 @@ def test_jet_finding_basic_multiple_events(caplog: Any) -> None:
         particles=input_particles,
         jet_finding_settings=jet_finding.JetFindingSettings(
             R=0.7, algorithm="anti-kt",
-            area_settings=jet_finding.AreaAA(),
+            area_settings=jet_finding.AreaAA() if calculate_area else None,
             pt_range=jet_finding.pt_range(),
             eta_range=jet_finding.eta_range(jet_R=0.7, fiducial_acceptance=False, eta_min=-5., eta_max=5.),
         )
@@ -146,6 +147,12 @@ def test_jet_finding_basic_multiple_events(caplog: Any) -> None:
                 and np.allclose(np.asarray(measured.pz), np.asarray(expected.pz))
                 and np.allclose(np.asarray(measured.E), np.asarray(expected.E))
                 for event, event_expected in zip(jets, expected_jets) for measured, expected in zip(event, event_expected)])
+
+    # Check that we've handled the area properly
+    if calculate_area:
+        assert "area" in ak.fields(jets)
+    else:
+        assert "area" not in ak.fields(jets)
 
     # only for testing - we want to see any fastjet warnings
     #assert False

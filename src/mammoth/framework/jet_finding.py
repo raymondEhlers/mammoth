@@ -685,7 +685,9 @@ def find_jets(
         jets["pz"].append(temp_jets[2])
         jets["E"].append(temp_jets[3])
         # Next, store additional jet properties
-        jets["area"].append(res.jets_area)
+        # Only include if we actually calculated the area
+        if len(res.jets_area) > 0:
+            jets["area"].append(res.jets_area)
         jets["rho_value"].append(res.rho_value)
         # Next, associate the indices of the constituents that are associated with each jet
         constituent_indices.append(res.constituent_indices)
@@ -790,6 +792,9 @@ def find_jets(
 
     # Add additional columns that only apply for subtracted constituents
     additional_jet_level_fields = {}
+    # Only include if we actually calculated the area
+    if len(jets["area"]):
+        additional_jet_level_fields["area"] = jets["area"]
     if subtracted_to_unsubtracted_indices:
         # Here, we add the unsubtracted constituent max pt
         additional_jet_level_fields["unsubtracted_leading_track_pt"] = calculate_unsubtracted_constituent_max_pt(
@@ -804,7 +809,6 @@ def find_jets(
             "py": jets["py"],
             "pz": jets["pz"],
             "E": jets["E"],
-            "area": jets["area"],
             "rho_value": jets["rho_value"],
             "constituents": output_constituents,
             **additional_jet_level_fields,
