@@ -13,6 +13,9 @@ import vector
 
 from mammoth.framework import jet_finding
 
+logger = logging.getLogger(__name__)
+
+
 def test_jet_finding_basic_single_event(caplog: Any) -> None:
     """ Basic jet finding test with a single event. """
     # Setup
@@ -29,7 +32,7 @@ def test_jet_finding_basic_single_event(caplog: Any) -> None:
         },
         with_name="Momentum4D",
     )
-    print(f"input particles array type: {ak.type(input_particles)}")
+    logger.info(f"input particles array type: {ak.type(input_particles)}")
     jets = jet_finding.find_jets(
         particles=input_particles,
         jet_finding_settings=jet_finding.JetFindingSettings(
@@ -50,9 +53,9 @@ def test_jet_finding_basic_single_event(caplog: Any) -> None:
         with_name="Momentum4D",
     )
 
-    print(f"input_particles: {input_particles.to_list()}")
-    print(f"jets: {jets.to_list()}")
-    print(f"expected_jets: {expected_jets.to_list()}")
+    logger.info(f"input_particles: {input_particles.to_list()}")
+    logger.info(f"jets: {jets.to_list()}")
+    logger.info(f"expected_jets: {expected_jets.to_list()}")
 
     # Check four momenta
     assert all([np.allclose(np.asarray(measured.px), np.asarray(expected.px))
@@ -100,7 +103,7 @@ def test_jet_finding_basic_multiple_events(caplog: Any) -> None:
         },
         with_name="Momentum4D",
     )
-    print(f"input particles array type: {ak.type(input_particles)}")
+    logger.info(f"input particles array type: {ak.type(input_particles)}")
     jets = jet_finding.find_jets(
         particles=input_particles,
         jet_finding_settings=jet_finding.JetFindingSettings(
@@ -133,9 +136,9 @@ def test_jet_finding_basic_multiple_events(caplog: Any) -> None:
         with_name="Momentum4D",
     )
 
-    print(f"input_particles: {input_particles.to_list()}")
-    print(f"jets: {jets.to_list()}")
-    print(f"expected_jets: {expected_jets.to_list()}")
+    logger.info(f"input_particles: {input_particles.to_list()}")
+    logger.info(f"jets: {jets.to_list()}")
+    logger.info(f"expected_jets: {expected_jets.to_list()}")
 
     # Check four momenta
     assert all([np.allclose(np.asarray(measured.px), np.asarray(expected.px))
@@ -177,14 +180,15 @@ def test_jet_finding_with_subtraction_multiple_events(caplog: Any, separate_back
                 [100.0, 5.0, 99.0],
                 [100.0, 5.0, 99.0],
             ],
-            "index": [
-                [1, 2, 3],
-                [4, 5, 6],
+            "user_index": [
+                #[1, 2, 3],
+                [4, -5, 6],
+                [7, -8, 9],
             ],
         },
         with_name="Momentum4D",
     )
-    print(f"input particles array type: {ak.type(input_particles)}")
+    logger.info(f"input particles array type: {ak.type(input_particles)}")
     extra_kwargs = {}
     if separate_background_particles_arg:
         extra_kwargs = {"background_particles": input_particles}
@@ -229,9 +233,9 @@ def test_jet_finding_with_subtraction_multiple_events(caplog: Any, separate_back
         with_name="Momentum4D",
     )
 
-    print(f"input_particles: {input_particles.to_list()}")
-    print(f"jets: {jets.to_list()}")
-    print(f"expected_jets: {expected_jets.to_list()}")
+    logger.info(f"input_particles: {input_particles.to_list()}")
+    logger.info(f"jets: {jets.to_list()}")
+    logger.info(f"expected_jets: {expected_jets.to_list()}")
 
     # Check four momenta
     assert all([np.allclose(np.asarray(measured.px), np.asarray(expected.px))
@@ -284,7 +288,7 @@ def test_jet_finding_with_constituent_subtraction_does_something_multiple_events
         },
         with_name="Momentum4D",
     )
-    print(f"input particles array type: {ak.type(input_particles)}")
+    logger.info(f"input particles array type: {ak.type(input_particles)}")
 
     jets = jet_finding.find_jets(
         particles=input_particles,
@@ -327,9 +331,9 @@ def test_jet_finding_with_constituent_subtraction_does_something_multiple_events
         with_name="Momentum4D",
     )
 
-    print(f"input_particles: {input_particles.to_list()}")
-    print(f"jets: {jets.to_list()}")
-    print(f"expected_jets: {expected_jets.to_list()}")
+    logger.debug(f"input_particles: {input_particles.to_list()}")
+    logger.debug(f"jets: {jets.to_list()}")
+    logger.debug(f"expected_jets: {expected_jets.to_list()}")
 
     # Check four momenta
     # Here, we expect it _not_ to agree with the "expected jets" from above because
@@ -371,17 +375,17 @@ def test_negative_energy_recombiner(caplog: Any) -> None:
                 [0, 0, 0],
             ],
             "E": [
-                [100.0, -5.0, 99.0],
-                [100.0, -5.0, 99.0],
+                [100.0, 5.0, 99.0],
+                [100.0, 5.0, 99.0],
             ],
-            "index": [
-                [1, 2, 3],
-                [4, 5, 6],
+            "user_index": [
+                [4, -5, 6],
+                [7, -8, 9],
             ],
         },
         with_name="Momentum4D",
     )
-    print(f"input particles array type: {ak.type(input_particles)}")
+    logger.info(f"input particles array type: {ak.type(input_particles)}")
     #extra_kwargs = {}
 
     jets = jet_finding.find_jets(
@@ -389,10 +393,12 @@ def test_negative_energy_recombiner(caplog: Any) -> None:
         jet_finding_settings=jet_finding.JetFindingSettings(
             R=0.7, algorithm="anti-kt",
             #area_settings=jet_finding.AreaAA(),
-            area_settings=jet_finding.AreaPP(ghost_area=1.0),
+            area_settings=jet_finding.AreaPP(ghost_area=3.0),
             pt_range=jet_finding.pt_range(),
             eta_range=jet_finding.eta_range(jet_R=0.7, fiducial_acceptance=False, eta_min=-5., eta_max=5.),
-            recombiner=jet_finding.NegativeEnergyRecombiner(-111),
+            recombiner=jet_finding.NegativeEnergyRecombiner(
+                identifier_index=-111
+            ),
         ),
         #background_subtraction=jet_finding.BackgroundSubtraction(
         #    type=jet_finding.BackgroundSubtractionType.rho,
@@ -426,9 +432,9 @@ def test_negative_energy_recombiner(caplog: Any) -> None:
         with_name="Momentum4D",
     )
 
-    print(f"input_particles: {input_particles.to_list()}")
-    print(f"jets: {jets.to_list()}")
-    print(f"expected_jets: {expected_jets.to_list()}")
+    logger.info(f"input_particles: {input_particles.to_list()}")
+    logger.info(f"jets: {jets.to_list()}")
+    logger.info(f"expected_jets: {expected_jets.to_list()}")
 
     # Check four momenta
     assert all([np.allclose(np.asarray(measured.px), np.asarray(expected.px))
