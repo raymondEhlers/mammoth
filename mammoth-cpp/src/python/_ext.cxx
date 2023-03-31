@@ -62,6 +62,45 @@ mammoth::FourVectorTuple<T> numpyToColumnFourVector(
   return {pxOut, pyOut, pzOut, EOut};
 }
 
+/**
+  * Convert numpy array of user indices to vector.
+  *
+  * This is an addition to the base FourVectorTuple conversion.
+  * This is kind of a dumb step, but it makes our lives simpler later. Namely, this means there
+  * is a second conversion step to PseudoJets for fastjet, but I think this extra conversion is
+  * worth the cost for a cleaner separation of interfaces. To be revised later if it's an issue.
+  *
+  * NOTE: The array is required to be c-style, which ensures that it works with other packages.
+  *       For example, pandas caused a problem in some cases without that argument.
+  *
+  * NOTE: With some regularity, this array is empty.
+  *
+  * @tparam T Input data type (usually int).
+  * @param[in] pxIn Numpy user index array.
+  * @returns User index vector.
+  */
+template<typename T>
+std::vector<T> numpyToUserIndexVector(
+  const py::array_t<int, py::array::c_style | py::array::forcecast> & userIndexIn
+)
+{
+  // Retrieve array and relevant information
+  py::buffer_info infoUserIndex = userIndexIn.request();
+  auto userIndex = userIndexIn.data();
+  // This defines our numpy array shape.
+  unsigned int nParticles = infoUserIndex.shape[0];
+
+  // Convert the arrays
+  std::vector<T> userIndexOut(nParticles);
+  for (std::size_t i = 0; i < nParticles; ++i) {
+    // NOTE: Don't emplace back - the size is set above.
+    userIndexOut[i] = userIndex[i];
+  }
+
+  return userIndexOut;
+}
+
+
 
  /**
   * @brief Find jets with background subtraction.
@@ -83,6 +122,7 @@ mammoth::FourVectorTuple<T> numpyToColumnFourVector(
   * @param backgroundPzIn pz of background estimator particles
   * @param backgroundEIn energy of background estimator particles
   * @param backgroundSubtraction Background subtraction settings (including estimator and subtractor settings)
+  * @param userIndexIn user provided user index of input particles. Optional.
   * @return mammoth::OutputWrapper<T> Output from jet finding.
   */
 template <typename T>
@@ -96,13 +136,20 @@ mammoth::OutputWrapper<T> findJets(
   const py::array_t<T, py::array::c_style | py::array::forcecast> & backgroundPyIn,
   const py::array_t<T, py::array::c_style | py::array::forcecast> & backgroundPzIn,
   const py::array_t<T, py::array::c_style | py::array::forcecast> & backgroundEIn,
-  const mammoth::BackgroundSubtraction & backgroundSubtraction
+  const mammoth::BackgroundSubtraction & backgroundSubtraction,
+  const std::optional<py::array_t<T, py::array::c_style | py::array::forcecast>> userIndexIn
 )
 {
   auto fourVectors = numpyToColumnFourVector<T>(pxIn, pyIn, pzIn, EIn);
+  // NOTE: These may be empty. If they are, the user index is generated automatically with the index of the array.
+  //       We have to be a bit careful here because we pass a nullptr by default, which will break if passed naively.
+  std::vector<int> userIndex;
+  if (userIndexIn.has_value()) {
+    userIndex = numpyToUserIndexVector<int>(userIndexIn.value());
+  }
   // NOTE: These may be empty. If they are, the input four vectors are used for the background estimator
   auto backgroundFourVectors = numpyToColumnFourVector<T>(backgroundPxIn, backgroundPyIn, backgroundPzIn, backgroundEIn);
-  return mammoth::findJets(fourVectors, jetFindingSettings,backgroundFourVectors, backgroundSubtraction);
+  return mammoth::findJets(fourVectors, userIndex, jetFindingSettings, backgroundFourVectors, backgroundSubtraction);
 }
 
 /**
@@ -341,12 +388,14 @@ PYBIND11_MODULE(_ext, m) {
                                           "jet_finding_settings"_a,
                                           "background_px"_a, "background_py"_a, "background_pz"_a, "background_E"_a,
                                           "background_subtraction"_a,
+                                          "user_index"_a = std::nullopt,
                                           "Jet finding function", py::call_guard<JetFindingLoggingStdout, JetFindingLoggingStderr>()
                                           );
   m.def("find_jets", &findJets<double>, "px"_a, "py"_a, "pz"_a, "E"_a,
                                            "jet_finding_settings"_a,
                                            "background_px"_a, "background_py"_a, "background_pz"_a, "background_E"_a,
                                            "background_subtraction"_a,
+                                           "user_index"_a = std::nullopt,
                                            "Jet finding function", py::call_guard<JetFindingLoggingStdout, JetFindingLoggingStderr>()
                                            );
 

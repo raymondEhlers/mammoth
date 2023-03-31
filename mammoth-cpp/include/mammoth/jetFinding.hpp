@@ -617,11 +617,13 @@ struct FindJetsImplementationOutputWrapper {
  *
  * @tparam T Input data type (usually float or double)
  * @param fourVectors Column four vectors, with the columns ordered ["px", "py", "pz", "E"]
+ * @param userIndices User indices to include along with the four vectors. Optional.
  * @return std::vector<fastjet::PseudoJet> Vector of PseudoJets containing the same information.
  */
 template<typename T>
 std::vector<fastjet::PseudoJet> vectorsToPseudoJets(
-    const FourVectorTuple<T> & fourVectors
+    const FourVectorTuple<T> & fourVectors,
+    const std::vector<int> & userIndices
 );
 
 /**
@@ -676,6 +678,7 @@ std::vector<unsigned int> updateSubtractedConstituentIndices(
  *
  * @tparam T Input data type (usually float or double)
  * @param columnFourVectors Column four vectors, with the columns ordered ["px", "py", "pz", "E"]
+ * @param columnFourVectorsUserIndices Containing user provided user indices. If empty, we will generate them ourselves.
  * @param mainJetFinder Settings for jet finding, including R, algorithm, acceptance, area settings, etc
  * @param backgroundEstimatorFourVectors Four vectors to provide to the background estimator. If they're empty
  *                                       the column (ie. input) four vectors are used.
@@ -686,6 +689,7 @@ std::vector<unsigned int> updateSubtractedConstituentIndices(
 template<typename T>
 FindJetsImplementationOutputWrapper findJetsImplementation(
   FourVectorTuple<T> & columnFourVectors,
+  std::vector<int> & columnFourVectorUserIndices,
   const JetFindingSettings & mainJetFinder,
   FourVectorTuple<T> & backgroundEstimatorFourVectors,
   const BackgroundSubtraction & backgroundSubtraction
@@ -696,6 +700,8 @@ FindJetsImplementationOutputWrapper findJetsImplementation(
  *
  * @tparam T Input data type (usually float or double)
  * @param columnFourVectors Column four vectors, with the columns ordered ["px", "py", "pz", "E"]
+ * @param userIndices User provided user indices for identifying particles in fastjet. If provided an
+ *                    empty vector, we will generate indices automatically.
  * @param mainJetFinder Settings for jet finding, including R, algorithm, acceptance, area settings, etc
  * @param backgroundEstimatorFourVectors Four vectors to provide to the background estimator. If they're empty
  *                                       the column (ie. input) four vectors are used.
@@ -706,6 +712,7 @@ FindJetsImplementationOutputWrapper findJetsImplementation(
 template<typename T>
 OutputWrapper<T> findJets(
   FourVectorTuple<T> & columnFourVectors,
+  std::vector<int> & columnUserIndices,
   const JetFindingSettings & mainJetFinder,
   FourVectorTuple<T> & backgroundEstimatorFourVectors,
   const BackgroundSubtraction & backgroundSubtraction
@@ -909,14 +916,22 @@ JetSubstructure::JetSubstructureSplittings jetReclustering(
 
 template<typename T>
 std::vector<fastjet::PseudoJet> vectorsToPseudoJets(
-    const FourVectorTuple<T> & fourVectors
+    const FourVectorTuple<T> & fourVectors,
+    const std::vector<int> & userIndices
 )
 {
+    // Setup
     std::vector<fastjet::PseudoJet> particles;
     const auto & [px, py, pz, E] = fourVectors;
+
+    // Validation for user index
+    // Use px as proxy, since the size will be the same for all fields
+    bool providedUserIndices = (px.size() == userIndices.size());
+
+    // Convert
     for (std::size_t i = 0; i < px.size(); ++i) {
         particles.emplace_back(fastjet::PseudoJet(px[i], py[i], pz[i], E[i]));
-        particles.back().set_user_index(i);
+        particles.back().set_user_index(providedUserIndices ? userIndices[i] : i);
     }
     return particles;
 }
@@ -978,6 +993,7 @@ inline const T median(const C &the_container)
 template<typename T>
 FindJetsImplementationOutputWrapper findJetsImplementation(
   FourVectorTuple<T> & columnFourVectors,
+  std::vector<int> & columnUserIndices,
   const JetFindingSettings & mainJetFinder,
   FourVectorTuple<T> & backgroundEstimatorFourVectors,
   const BackgroundSubtraction & backgroundSubtraction
@@ -990,7 +1006,7 @@ FindJetsImplementationOutputWrapper findJetsImplementation(
   }
 
   // Convert column vector input to pseudo jets.
-  auto particlePseudoJets = vectorsToPseudoJets(columnFourVectors);
+  auto particlePseudoJets = vectorsToPseudoJets(columnFourVectors, columnUserIndices);
 
   // Notify about the settings for the jet finding.
   // NOTE: This can be removed eventually. For now (July 2021), it will be routed to debug level
@@ -1020,7 +1036,7 @@ FindJetsImplementationOutputWrapper findJetsImplementation(
     // If we have background estimator four vectors, we need to make sure we use them here.
     // In the case that they weren't provided, the arrays are empty, so it doesn't really cost anything
     // to create a new (empty) vector. So we just do it regardless.
-    auto possibleBackgroundEstimatorParticles = vectorsToPseudoJets(backgroundEstimatorFourVectors);
+    auto possibleBackgroundEstimatorParticles = vectorsToPseudoJets(backgroundEstimatorFourVectors, {});
     // Then, we actually decide on what to pass depending on if there are passed background estimator particles or not.
     // NOTE: In principle, this would get us in trouble if the estimator is supposed to have no particles. But in that case,
     //       we would just turn off the background estimator. So it should be fine.
@@ -1141,6 +1157,7 @@ FindJetsImplementationOutputWrapper findJetsImplementation(
 template<typename T>
 OutputWrapper<T> findJets(
   FourVectorTuple<T> & columnFourVectors,
+  std::vector<int> & columnUserIndices,
   const JetFindingSettings & mainJetFinder,
   FourVectorTuple<T> & backgroundEstimatorFourVectors,
   const BackgroundSubtraction & backgroundSubtraction
@@ -1148,7 +1165,7 @@ OutputWrapper<T> findJets(
 {
   // Use jet finding implementation to do most of the work
   auto && [cs, backgroundEstimator, jets, particlePseudoJets, subtractedToUnsubtractedIndices] = findJetsImplementation(
-    columnFourVectors, mainJetFinder, backgroundEstimatorFourVectors, backgroundSubtraction
+    columnFourVectors, columnUserIndices, mainJetFinder, backgroundEstimatorFourVectors, backgroundSubtraction
   );
 
   // Now, handle returning the values.
@@ -1188,8 +1205,11 @@ JetSubstructure::JetSubstructureSplittings jetReclustering(
   // and set the setting to disabled
   FourVectorTuple<T> backgroundEstimatorFourVectors = {{}, {}, {}, {}};
   BackgroundSubtraction backgroundSubtraction{BackgroundSubtraction_t::disabled, nullptr, nullptr};
+  // We don't care about passing a custom user index for the background subtraction calculation because
+  // the need to pass them is related to MC, where we shouldn't need background subtraction
+  std::vector<int> columnFourVectorsUserIndices = {};
   auto && [cs, backgroundEstimator, jets, particlePseudoJets, subtractedToUnsubtractedIndices] = findJetsImplementation(
-    columnFourVectors, mainJetFinder, backgroundEstimatorFourVectors, backgroundSubtraction
+    columnFourVectors, columnFourVectorsUserIndices, mainJetFinder, backgroundEstimatorFourVectors, backgroundSubtraction
   );
 
   // Now that we're done with the jet finding, we just need to extract the splittings and

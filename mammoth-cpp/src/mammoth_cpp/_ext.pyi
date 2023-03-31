@@ -190,6 +190,7 @@ def find_jets(   # type: ignore[misc]  # noqa: E704
     background_pz: npt.NDArray[np.float32],
     background_E: npt.NDArray[np.float32],
     background_subtraction: BackgroundSubtraction,
+    user_index: npt.NDArray[np.int64] | None,
 ) -> OutputWrapperFloat: ...
 @overload
 def find_jets(  # noqa: E704
@@ -203,6 +204,7 @@ def find_jets(  # noqa: E704
     background_pz: npt.NDArray[np.float64],
     background_E: npt.NDArray[np.float64],
     background_subtraction: BackgroundSubtraction,
+    user_index: npt.NDArray[np.int64] | None,
 ) -> OutputWrapperDouble: ...
 @overload
 def recluster_jet(  # noqa: E704

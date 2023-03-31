@@ -538,6 +538,10 @@ def find_jets(
     py: npt.NDArray[np.float64] = np.asarray(flattened_particles.py, dtype=np.float64)
     pz: npt.NDArray[np.float64] = np.asarray(flattened_particles.pz, dtype=np.float64)
     E: npt.NDArray[np.float64] = np.asarray(flattened_particles.E, dtype=np.float64)
+    # Provide this value only if it's available in the array
+    user_index = None
+    if "user_index" in ak.fields(flattened_particles):
+        user_index = np.asarray(flattened_particles.user_index, dtype=np.int64)
 
     # Now, onto the background particles. If background particles were passed, we want to do the
     # same thing as the input particles
@@ -618,6 +622,7 @@ def find_jets(
             background_pz=background_pz[background_lower:background_upper],
             background_E=background_E[background_lower:background_upper],
             background_subtraction=background_subtraction,
+            user_index=user_index[lower:upper] if user_index is not None else None,
         )
 
         # Store the results temporarily so we can perform all of the jet finding immediately.
