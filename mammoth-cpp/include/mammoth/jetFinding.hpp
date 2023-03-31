@@ -110,10 +110,10 @@ using FourVectorTuple = std::tuple<std::vector<T>, std::vector<T>, std::vector<T
 template<typename T>
 struct OutputWrapper {
   FourVectorTuple<T> jets;
-  std::vector<std::vector<unsigned int>> constituent_indices;
+  std::vector<std::vector<int>> constituent_indices;
   std::vector<T> jetsArea;
   T rho;
-  std::optional<std::tuple<FourVectorTuple<T>, std::vector<unsigned int>>> subtracted;
+  std::optional<std::tuple<FourVectorTuple<T>, std::vector<int>>> subtracted;
 };
 
 /**
@@ -589,7 +589,7 @@ struct FindJetsImplementationOutputWrapper {
   std::shared_ptr<fastjet::BackgroundEstimatorBase> backgroundEstimator;
   std::vector<fastjet::PseudoJet> jets;
   std::vector<fastjet::PseudoJet> particles;
-  std::vector<unsigned int> subtractedToUnsubtractedIndices;
+  std::vector<int> subtractedToUnsubtractedIndices;
 
   /**
    * @brief Construct a new Find Jets Implementation Output Wrapper object
@@ -608,7 +608,7 @@ struct FindJetsImplementationOutputWrapper {
                                       std::shared_ptr<fastjet::BackgroundEstimatorBase> _backgroundEstimator,
                                       std::vector<fastjet::PseudoJet> & _jets,
                                       std::vector<fastjet::PseudoJet> & _particles,
-                                      std::vector<unsigned int> & _subtractedToUnsubtractedIndices):
+                                      std::vector<int> & _subtractedToUnsubtractedIndices):
     cs(_cs), backgroundEstimator(_backgroundEstimator), jets(_jets), particles(_particles), subtractedToUnsubtractedIndices(_subtractedToUnsubtractedIndices) {}
 };
 
@@ -655,9 +655,9 @@ std::vector<T> extractJetsArea(
  * @brief Extract constituent indices from jets.
  *
  * @param jets Jets with constituents.
- * @return std::vector<std::vector<unsigned int>> The indices of all constituents in all jets.
+ * @return std::vector<std::vector<int>> The indices of all constituents in all jets.
  */
-std::vector<std::vector<unsigned int>> constituentIndicesFromJets(
+std::vector<std::vector<int>> constituentIndicesFromJets(
   const std::vector<fastjet::PseudoJet> & jets
 );
 
@@ -667,9 +667,9 @@ std::vector<std::vector<unsigned int>> constituentIndicesFromJets(
  * Updating this indexing ensures that we can keep track of everything.
  *
  * @param pseudoJets Subtracted input particles.
- * @return std::vector<unsigned int> Map indices of subtracted constituents to unsubtracted constituents.
+ * @return std::vector<int> Map indices of subtracted constituents to unsubtracted constituents.
  */
-std::vector<unsigned int> updateSubtractedConstituentIndices(
+std::vector<int> updateSubtractedConstituentIndices(
   std::vector<fastjet::PseudoJet> & pseudoJets
 );
 
@@ -1087,7 +1087,7 @@ FindJetsImplementationOutputWrapper findJetsImplementation(
   // For constituent subtraction, we perform event-wise subtraction on the input particles
   // We also keep track of a map from the subtracted constituents to the unsubtracted constituents
   // (both of which are based on the user_index that we assign during the jet finding).
-  std::vector<unsigned int> subtractedToUnsubtractedIndices;
+  std::vector<int> subtractedToUnsubtractedIndices;
   if (backgroundSubtraction.type == BackgroundSubtraction_t::eventWiseCS) {
     // Need to cast to CS object so we can actually do the event-wise subtraction
     auto constituentSubtractor = std::dynamic_pointer_cast<fastjet::contrib::ConstituentSubtractor>(subtractor);

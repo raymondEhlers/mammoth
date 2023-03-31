@@ -469,14 +469,14 @@ std::string BackgroundSubtraction::to_string() const {
   return ss.str();
 }
 
-std::vector<std::vector<unsigned int>> constituentIndicesFromJets(
+std::vector<std::vector<int>> constituentIndicesFromJets(
   const std::vector<fastjet::PseudoJet> & jets
 )
 {
-  std::vector<std::vector<unsigned int>> indices;
+  std::vector<std::vector<int>> indices;
   unsigned int i = 0;
   for (auto jet : jets) {
-    std::vector<unsigned int> constituentIndicesInJet;
+    std::vector<int> constituentIndicesInJet;
     unsigned int j = 0;
     for (auto constituent : jet.constituents()) {
       std::cout << "jet " << i << ", constituent " << j << ": index: " << constituent.user_index() << "\n";
@@ -492,11 +492,11 @@ std::vector<std::vector<unsigned int>> constituentIndicesFromJets(
   return indices;
 }
 
-std::vector<unsigned int> updateSubtractedConstituentIndices(
+std::vector<int> updateSubtractedConstituentIndices(
   std::vector<fastjet::PseudoJet> & pseudoJets
 )
 {
-  std::vector<unsigned int> subtractedToUnsubtractedIndices;
+  std::vector<int> subtractedToUnsubtractedIndices;
   // NOTE: For event-wise CS, we don't need to account for ghost particles here (which have user index -1).
   //       However, if we use jet-wise CS, we should maintain the -1 label for when we use active ghosts
   for (unsigned int i = 0; i < pseudoJets.size(); ++i) {
