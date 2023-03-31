@@ -501,6 +501,57 @@ def _indices_for_event_boundaries(array: ak.Array) -> npt.NDArray[np.int64]:
     return sum_counts  # noqa: RET504
 
 
+@nb.njit  # type: ignore[misc]
+def _find_original_constituent_indices_via_user_index(
+    user_indices: ak.Array, constituent_indices: ak.Array, number_of_constituents: int
+) -> ak.Array:
+    output = np.ones(number_of_constituents, dtype=np.int64) * -1
+    output_counter = 0
+    for event_user_index, event_constituent_indices in zip(user_indices, constituent_indices):
+        for jet_constituent_indices in event_constituent_indices:
+            for jet_constituent_index in jet_constituent_indices:
+                #for constituent_index in jet_constituent_indices:
+                #print(f"{jet_constituent_index=}, {event_user_index=}")
+                for i_original_constituent, user_index in enumerate(event_user_index):
+                    if jet_constituent_index == user_index:
+                        #print(f"Found match for {jet_constituent_index} at original index {i_original_constituent}")
+                        output[output_counter] = i_original_constituent
+                        output_counter += 1
+                        break
+                else:
+                    _msg = "Could not find match " + str(jet_constituent_index)
+                    print(_msg)
+                    # NOTE: Can't pass the message directly with numba since it would have to be a compile time constant (as of Mar 2023).
+                    #       As an alternative, we print the message, and then we raise the exception. As long as we don't catch it, it
+                    #       achieves basically the same thing.
+                    raise ValueError
+
+    # Make sure we've found a match everywhere.
+    #assert np.all(output_counter != -1)
+    return output
+
+
+def find_original_constituent_indices_via_user_index(
+    user_indices: ak.Array, constituent_indices: ak.Array
+) -> ak.Array:
+    ...
+
+    res = _find_original_constituent_indices_via_user_index(
+        user_indices=user_indices,
+        constituent_indices=constituent_indices,
+        number_of_constituents=ak.count(constituent_indices),
+    )
+
+    # TODO: Need to figure this out, but somehow it goes wrong. I can't figure out the right way
+    #       to pass the counts...
+    first_step = ak.unflatten(res, ak.count(user_indices, axis=1))
+    return ak.unflatten(
+        first_step,
+        ak.flatten(ak.count(constituent_indices, axis=1)),
+        axis=1
+    )
+
+
 def find_jets(
     particles: ak.Array,
     jet_finding_settings: JetFindingSettings,
@@ -659,6 +710,14 @@ def find_jets(
     #       of jet constituents (ie. in terms of the input particle collection that they're from).
     # NOTE: This requires a copy, but that's fine - there's nothing to be done about it, so it's just the cost.
     _constituent_indices_awkward = ak.Array(constituent_indices)
+    if user_index is not None:
+        # Need to match up user_index values to find the map the constituents.
+        _constituent_indices_awkward = find_original_constituent_indices_via_user_index(
+            user_indices=particles.user_index,
+            constituent_indices=_constituent_indices_awkward,
+        )
+        logger.info("Just finished first step with user_index")
+        #import IPython; IPython.embed()
 
     # If we have subtracted constituents, we need to handle them very carefully.
     if subtracted_to_unsubtracted_indices:
@@ -671,12 +730,25 @@ def find_jets(
         #       jet finding. We need to add it in below!
         _particles_for_constituents = ak.Array(subtracted_constituents)
 
-        # Now, to add in the indices. Since the subtracted-to-unsubtracted mapping is actually just a
-        # list of unsubtracted indices (where the location of unsubtracted index corresponds to the
-        # subtracted particles), we can directly apply this "mapping" to the unsubtracted particles
-        # `index` (after converting it to awkward)
+        # Now, to add in the indices.
         _subtracted_to_unsubtracted_indices_awkward = ak.Array(subtracted_to_unsubtracted_indices)
+        # We need to match the value stored with each subtracted index with the index stored with each unsubtracted.
+        # We need to handle the case of the user_index carefully!
+        if user_index is not None:
+            # We provided a custom user_index. In this case, we can't just directly map. Instead, we need to find the
+            # the index where the values match.
+            _subtracted_to_unsubtracted_indices_awkward = find_original_constituent_indices_via_user_index(
+                user_indices=particles.user_index,
+                constituent_indices=_subtracted_to_unsubtracted_indices_awkward,
+            )
+            # Once we've figured out the mapping, we can apply it the same as usual
+
+        # Now, map the subtracted-to-unsubtracted. In this case, since the subtracted-to-unsubtracted mapping is
+        # actually just a list of unsubtracted indices (where the location of unsubtracted index corresponds to
+        # the subtracted particles), we can directly apply this "mapping" to the unsubtracted particles `index`
+        # (after converting it to awkward)
         _subtracted_indices = particles["index"][_subtracted_to_unsubtracted_indices_awkward]
+
         # Then, we just need to zip it in to the particles for constituents, and it will be brought
         # along when the constituents are associated with the jets.
         _particles_for_constituents = ak.zip(
