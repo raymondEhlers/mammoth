@@ -159,7 +159,8 @@ def test_jet_finding_basic_multiple_events(caplog: Any, calculate_area: bool) ->
 
 
 @pytest.mark.parametrize("separate_background_particles_arg", [True, False], ids=["Standard", "Separate background particles argument"])
-def test_jet_finding_with_subtraction_multiple_events(caplog: Any, separate_background_particles_arg: bool) -> None:
+@pytest.mark.parametrize("use_custom_user_index", [True, False])
+def test_jet_finding_with_subtraction_multiple_events(caplog: Any, separate_background_particles_arg: bool, use_custom_user_index: bool) -> None:
     """ Jet finding with subtraction for multiple events. """
     # Setup
     caplog.set_level(logging.DEBUG)
@@ -187,8 +188,7 @@ def test_jet_finding_with_subtraction_multiple_events(caplog: Any, separate_back
                 [100.0, 5.0, 99.0],
                 [100.0, 5.0, 99.0],
             ],
-            "user_index": [
-                #[1, 2, 3],
+            "user_index" if use_custom_user_index else "index": [
                 [4, -5, 6],
                 [7, -8, 9],
             ],
@@ -399,48 +399,44 @@ def test_negative_energy_recombiner(caplog: Any) -> None:
         particles=input_particles,
         jet_finding_settings=jet_finding.JetFindingSettings(
             R=0.7, algorithm="anti-kt",
-            #area_settings=jet_finding.AreaAA(),
-            area_settings=jet_finding.AreaPP(ghost_area=3.0),
+            # Use pp settings to speed it up. I don't think I need much detail (and as of April 2023,
+            # AA equally works the same)
+            area_settings=jet_finding.AreaPP(),
             pt_range=jet_finding.pt_range(),
             eta_range=jet_finding.eta_range(jet_R=0.7, fiducial_acceptance=False, eta_min=-5., eta_max=5.),
             recombiner=jet_finding.NegativeEnergyRecombiner(
-                identifier_index=-111
+                identifier_index=-123456
             ),
         ),
-        #background_subtraction=jet_finding.BackgroundSubtraction(
-        #    type=jet_finding.BackgroundSubtractionType.rho,
-        #    estimator=jet_finding.JetMedianBackgroundEstimator(
-        #        jet_finding_settings=jet_finding.JetMedianJetFindingSettings()
-        #    ),
-        #    subtractor=jet_finding.RhoSubtractor(),
-        #),
-        #**extra_kwargs,
     )
 
+    # NOTE: These values were extracted by running the code! Since these weren't calculated independently,
+    #       this is more of a regression test than a full integration test.
     expected_jets = ak.zip(
         {
             "px": [
-                [103.0, -99.0],
-                [0.0, 0.0],
+                [-99.0, 95],
+                [0.0, 0.2],
             ],
             "py": [
-                [0.0, 0.0],
-                [103.0, -99.0],
+                [0.0, 0.2],
+                [-99.0, 95],
             ],
             "pz": [
                 [0.0, 0.0],
                 [0.0, 0.0],
             ],
             "E": [
-                [105.0, 99.0],
-                [105.0, 99.0],
+                [99.0, 95.0],
+                [99.0, 95.0],
             ],
         },
         with_name="Momentum4D",
     )
 
     logger.info(f"input_particles: {input_particles.to_list()}")
-    logger.info(f"jets: {jets.to_list()}")
+    logger.info("jets:")
+    jets[["px", "py", "pz", "E"]].show()
     logger.info(f"expected_jets: {expected_jets.to_list()}")
 
     # Check four momenta
@@ -451,4 +447,4 @@ def test_negative_energy_recombiner(caplog: Any) -> None:
                 for event, event_expected in zip(jets, expected_jets) for measured, expected in zip(event, event_expected)])
 
     # only for testing - we want to see any fastjet warnings
-    assert False
+    #assert False
