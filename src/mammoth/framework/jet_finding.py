@@ -561,6 +561,12 @@ def find_jets(
     # Validation
     if background_subtraction is None:
         background_subtraction = BackgroundSubtraction(type=BackgroundSubtractionType.disabled)
+    if jet_finding_settings.recombiner is not None and \
+        isinstance(jet_finding_settings.recombiner, NegativeEnergyRecombiner) and \
+        "user_index" not in ak.fields(particles):
+        _msg = "The Negative Energy Recombiner requires you to encode the relevant info into the user index and pass them to the jet finder."
+        raise ValueError(_msg)
+        ...
 
     logger.info(f"Jet finding settings: {jet_finding_settings}")
     logger.info(f"Background subtraction settings: {background_subtraction}")

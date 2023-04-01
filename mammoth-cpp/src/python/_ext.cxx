@@ -289,6 +289,7 @@ PYBIND11_MODULE(_ext, m) {
         "recombiner"_a = nullptr
       )
     .def_readwrite("R", &mammoth::JetFindingSettings::R)
+    .def_readwrite("recombiner", &mammoth::JetFindingSettings::recombiner)
     .def("__repr__", [](const mammoth::JetFindingSettings &s) {
       return s.to_string();
     })
