@@ -277,7 +277,8 @@ PYBIND11_MODULE(_ext, m) {
       py::init<
         double, std::string, std::tuple<double, double>, std::tuple<double, double>, std::string, std::string,
         const std::optional<const mammoth::AreaSettings>,
-        const std::shared_ptr<const mammoth::Recombiner>
+        const std::shared_ptr<const mammoth::Recombiner>,
+        const std::optional<double>
       >(),
         "R"_a,
         "algorithm"_a,
@@ -286,7 +287,8 @@ PYBIND11_MODULE(_ext, m) {
         "recombination_scheme"_a = "E_scheme",
         "strategy"_a = "Best",
         "area_settings"_a = std::nullopt,
-        "recombiner"_a = nullptr
+        "recombiner"_a = nullptr,
+        "additional_algorithm_parameter"_a = std::nullopt
       )
     .def_readwrite("R", &mammoth::JetFindingSettings::R)
     .def_readwrite("recombiner", &mammoth::JetFindingSettings::recombiner)

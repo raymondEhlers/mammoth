@@ -216,6 +216,7 @@ struct JetFindingSettings {
   //       because if we don't explicitly set it, the default one will automatically be created, so we don't have to worry
   //       about the details in that case.
   const std::shared_ptr<const Recombiner> recombiner{nullptr};
+  const std::optional<double> additionalAlgorithmParameter{std::nullopt};
 
   /**
    * @brief Helper to provide convenient access to the minimum jet pt.
@@ -260,7 +261,7 @@ struct JetFindingSettings {
    * @return fastjet::JetDefinition
    */
   fastjet::JetDefinition definition() const {
-    fastjet::JetDefinition jetDefinition(this->algorithm(), this->R, this->recombinationScheme(), this->strategy());
+    fastjet::JetDefinition jetDefinition = this->createJetDefinition();
     if (this->recombiner) {
       jetDefinition.set_recombiner(this->recombiner->create());
       // We can't use smart pointers here because they'll go out of scope here and deallocate when we're still
@@ -292,6 +293,26 @@ struct JetFindingSettings {
   std::string to_string() const;
 
  protected:
+  /// @brief Create the jet definition. Added additional indirection to ease creation of object.
+  /// @return JetDefinition
+  fastjet::JetDefinition createJetDefinition() const {
+    if (this->additionalAlgorithmParameter) {
+      return fastjet::JetDefinition(
+        this->algorithm(),
+        this->R,
+        *this->additionalAlgorithmParameter,
+        this->recombinationScheme(),
+        this->strategy()
+      );
+    }
+    return fastjet::JetDefinition(
+      this->algorithm(),
+      this->R,
+      this->recombinationScheme(),
+      this->strategy()
+    );
+  }
+
   /// Map from name of jet algorithm to jet algorithm object.
   static const std::map<std::string, fastjet::JetAlgorithm> algorithms;
   /// Map from name of jet recombination scheme to jet recombination scheme object.

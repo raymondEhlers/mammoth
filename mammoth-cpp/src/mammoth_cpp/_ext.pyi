@@ -45,6 +45,7 @@ class JetFindingSettings:
         strategy: str = ...,
         area_settings: Optional[AreaSettings] = ...,
         recombiner: Optional[NegativeEnergyRecombiner] = ...,
+        additional_algorithm_parameter: Optional[str] = ...,
     ) -> None: ...
 
 class JetMedianBackgroundEstimator:

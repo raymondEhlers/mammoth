@@ -69,7 +69,8 @@ def test_jet_finding_basic_single_event(caplog: Any) -> None:
 
 
 @pytest.mark.parametrize("calculate_area", [True, False])
-def test_jet_finding_basic_multiple_events(caplog: Any, calculate_area: bool) -> None:
+@pytest.mark.parametrize("algorithm", ["anti_kt", "generalized_kt"])
+def test_jet_finding_basic_multiple_events(caplog: Any, calculate_area: bool, algorithm: str) -> None:
     """ Basic jet finding test with for multiple events. """
     # Setup
     caplog.set_level(logging.DEBUG)
@@ -105,13 +106,19 @@ def test_jet_finding_basic_multiple_events(caplog: Any, calculate_area: bool) ->
         with_name="Momentum4D",
     )
     logger.info(f"input particles array type: {ak.type(input_particles)}")
+    extra_jet_finding_settings = {}
+    if algorithm == "generalized_kt":
+        extra_jet_finding_settings = {
+            "additional_algorithm_parameter": 0.5,
+        }
     jets = jet_finding.find_jets(
         particles=input_particles,
         jet_finding_settings=jet_finding.JetFindingSettings(
-            R=0.7, algorithm="anti-kt",
+            R=0.7, algorithm=algorithm,
             area_settings=jet_finding.AreaAA() if calculate_area else None,
             pt_range=jet_finding.pt_range(),
             eta_range=jet_finding.eta_range(jet_R=0.7, fiducial_acceptance=False, eta_min=-5., eta_max=5.),
+            **extra_jet_finding_settings,
         )
     )
 

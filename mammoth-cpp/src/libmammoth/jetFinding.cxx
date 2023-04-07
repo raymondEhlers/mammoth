@@ -233,6 +233,8 @@ const std::map<std::string, fastjet::JetAlgorithm> JetFindingSettings::algorithm
   {"anti_kt", fastjet::JetAlgorithm::antikt_algorithm},
   {"kt", fastjet::JetAlgorithm::kt_algorithm},
   {"CA", fastjet::JetAlgorithm::cambridge_algorithm},
+  {"gen_kt", fastjet::JetAlgorithm::genkt_algorithm},
+  {"generalized_kt", fastjet::JetAlgorithm::genkt_algorithm},
 };
 const std::map<std::string, fastjet::RecombinationScheme> JetFindingSettings::recombinationSchemes = {
   {"BIpt2_scheme", fastjet::RecombinationScheme::BIpt2_scheme},
@@ -269,9 +271,19 @@ fastjet::Selector JetFindingSettings::selectorPtEtaNonGhost() const {
 
 std::string JetFindingSettings::to_string() const
 {
-  std::string result = "JetFindingSettings(R=" + std::to_string(this->R)
-    + ", algorithm='" + this->algorithmName + "'"
-    + ", recombination_scheme='" + this->recombinationSchemeName + "'";
+  bool hasExtraParam = bool(this->additionalAlgorithmParameter);
+  std::string result = "JetFindingSettings(R=" + std::to_string(this->R);
+  // Algorithm
+  result += ", algorithm=";
+  if (hasExtraParam) {
+    result += "(";
+  }
+  result += "'" + this->algorithmName + "'";
+  if (hasExtraParam) {
+    result += ", " + std::to_string(*this->additionalAlgorithmParameter) + ")";
+  }
+  // Recombination scheme
+  result += ", recombination_scheme='" + this->recombinationSchemeName + "'";
   if (this->recombiner) {
     result += ", recombiner=" + this->recombiner->to_string();
   }
