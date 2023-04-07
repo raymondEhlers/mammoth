@@ -14,6 +14,11 @@
 namespace mammoth {
 
 /**
+  * Provide a streamer for printing out PseudoJet properties. Just for convenience.
+  */
+std::ostream& operator<<(std::ostream& in, const fastjet::PseudoJet & p);
+
+/**
  * @brief Combines particles together, accounting for negative energy holes during the recombination.
  *
  * For use with substructure, etc when working with theory calculations. It propagates the user index when possible.
@@ -73,5 +78,7 @@ struct NegativeEnergyRecombiner : public mammoth::Recombiner {
    */
   std::string to_string() const override;
 };
+
+std::ostream& operator<<(std::ostream& in, const NegativeEnergyRecombiner & c);
 
 } /* namespace mammoth */
