@@ -34,6 +34,7 @@ class NegativeEnergyRecombiner:
 
 class JetFindingSettings:
     R: float
+    area_settings: AreaSettings | None
     recombiner: NegativeEnergyRecombiner | None
     def __init__(  # noqa: E301,E704
         self,
