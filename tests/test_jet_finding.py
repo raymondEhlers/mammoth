@@ -106,7 +106,7 @@ def test_jet_finding_basic_multiple_events(caplog: Any, calculate_area: bool, al
         with_name="Momentum4D",
     )
     logger.info(f"input particles array type: {ak.type(input_particles)}")
-    extra_jet_finding_settings = {}
+    extra_jet_finding_settings: dict[str, Any] = {}
     if algorithm == "generalized_kt":
         extra_jet_finding_settings = {
             "additional_algorithm_parameter": 0.5,
@@ -443,7 +443,10 @@ def test_negative_energy_recombiner(caplog: Any) -> None:
 
     logger.info(f"input_particles: {input_particles.to_list()}")
     logger.info("jets:")
-    jets[["px", "py", "pz", "E"]].show()
+    import io
+    _s = io.StringIO()
+    jets[["px", "py", "pz", "E"]].show(stream=_s)
+    logger.info(f"{_s}")
     logger.info(f"expected_jets: {expected_jets.to_list()}")
 
     # Check four momenta
