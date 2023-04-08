@@ -291,7 +291,7 @@ PYBIND11_MODULE(_ext, m) {
         "additional_algorithm_parameter"_a = std::nullopt
       )
     .def_readwrite("R", &mammoth::JetFindingSettings::R)
-    .def_readwrite("recombiner", &mammoth::JetFindingSettings::recombiner)
+    .def_readonly("recombiner", &mammoth::JetFindingSettings::recombiner)
     .def("__repr__", [](const mammoth::JetFindingSettings &s) {
       return s.to_string();
     })
