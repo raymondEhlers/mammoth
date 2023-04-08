@@ -154,8 +154,8 @@ _collision_systems_with_scale_factors = ["pp_MC", "pythia", "embedPythia", "embe
 
 
 def _validate_collision_system(
-    instance: ProductionSettings, attribute: attrs.Attribute[str], value: str
-) -> None:  # noqa: ARG001
+    instance: ProductionSettings, attribute: attrs.Attribute[str], value: str  # noqa: ARG001
+) -> None:
     if value not in _possible_collision_systems:
         _msg = f"Invalid collisions system. Provided: {value}"
         raise ValueError(_msg)
