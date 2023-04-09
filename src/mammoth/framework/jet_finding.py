@@ -551,6 +551,26 @@ def find_original_constituent_indices_via_user_index(
         axis=1
     )
 
+def calculate_user_index_with_encoded_sign_info(
+    particles: ak.Array,
+    mask_to_encode_with_negative: ak.Array,
+) -> ak.Array:
+    """Calculate the user index and encode information into the sign"""
+    # Validation
+    # If the 0th particle was to be encoded negative, we could miss this since it won't store the sign.
+    # In practice, I don't think this is terribly likely, but we can warn the user if this would happen.
+    if ak.any(
+        ak.local_index(particles.px, axis=-1)[mask_to_encode_with_negative] == 0
+    ):
+        # TODO: Test, but with and without this!
+        _msg = "Particles requested to be encoded contain index of 0. We will miss this encoded info for this index. This is probably wrong, but you need to think through how to fix this!"
+        raise ValueError(_msg)
+
+    # Use px as a proxy - any particle property field would be fine
+    user_index = ak.local_index(particles.px, axis=-1)
+    user_index[mask_to_encode_with_negative] = -1 * user_index[mask_to_encode_with_negative]
+    return user_index
+
 
 def find_jets(
     particles: ak.Array,
