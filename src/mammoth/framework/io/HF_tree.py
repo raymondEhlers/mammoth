@@ -19,12 +19,6 @@ from mammoth.framework import sources, utils
 
 @attrs.frozen
 class Columns:
-    """
-    NOTE:
-        This isn't implemented yet. I haven't gone through the steps because they're not yet needed,
-        but this is the start.
-    """
-
     identifiers: dict[str, str]
     event_level: dict[str, str]
     _particle_level: dict[str, str]
