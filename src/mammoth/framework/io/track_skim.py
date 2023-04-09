@@ -1,7 +1,9 @@
 """Convert track skim to parquet, making it easier to use.
 
-.. codeauthor:: Raymond Ehlers <raymond.ehlers@cern.ch>, ORNL
+.. codeauthor:: Raymond Ehlers <raymond.ehlers@cern.ch>, LBL/UCB
 """
+
+from __future__ import annotations
 
 import logging
 from pathlib import Path
@@ -17,38 +19,47 @@ logger = logging.getLogger(__name__)
 
 @attrs.frozen
 class Columns:
-    event_level: List[str]
-    particle_level: List[str]
+    """
+    NOTE:
+        dict maps from name in the root file to the desired field name.
+    """
+    event_level: dict[str, str]
+    particle_level: dict[str, str]
 
     @classmethod
-    def create(cls, collision_system: str) -> "Columns":
+    def create(cls, collision_system: str) -> Columns:
         # First, event level properties
-        event_level_columns = [
-            "run_number",
-            "trigger_bit_INT7",
-        ]
+        event_level_columns = {
+            "run_number": "run_number",
+            "trigger_bit_INT7": "trigger_bit_INT7",
+        }
         if collision_system == "PbPb":
-            event_level_columns += [
-                "centrality",
-                "event_plane_V0M",
-                "trigger_bit_central",
-                "trigger_bit_semi_central",
-            ]
+            event_level_columns.update({
+                "centrality": "centrality",
+                "event_plane_V0M": "event_plane_V0M",
+                "trigger_bit_central": "trigger_bit_central",
+                "trigger_bit_semi_central": "trigger_bit_semi_central",
+            })
         # Next, particle level columns
         _base_particle_columns = ["pt", "eta", "phi"]
         _MC_particle_columns = [
             "particle_ID",
             "label",
         ]
-        particle_columns = [f"particle_data_{c}" for c in _base_particle_columns]
+        particle_columns = {
+            f"particle_data_{c}": c for c in _base_particle_columns
+        }
         # Pick up the extra columns in the case of pythia
         if collision_system == "pythia":
-            particle_columns += [f"particle_data_{c}" for c in _MC_particle_columns]
+            particle_columns.update(
+                {f"particle_data_{c}": c for c in _MC_particle_columns}
+            )
             # We skip particle_ID for the detector level
-            particle_columns.pop(particle_columns.index("particle_data_particle_ID"))
+            del particle_columns["particle_data_particle_ID"]
             # And then do the same for particle_gen
-            particle_columns += [f"particle_gen_{c}" for c in _base_particle_columns]
-            particle_columns += [f"particle_gen_{c}" for c in _MC_particle_columns]
+            particle_columns.update(
+                {f"particle_gen_{c}": c for c in [*_base_particle_columns, *_MC_particle_columns]}
+            )
 
         return cls(
             event_level=event_level_columns,
@@ -76,7 +87,7 @@ class FileSource:
             source: sources.Source = sources.UprootSource(
                 filename=self._filename,
                 tree_name="AliAnalysisTaskTrackSkim_*_tree",
-                columns=columns.event_level + columns.particle_level,
+                columns=list(columns.event_level) + list(columns.particle_level),
             )
             return _transform_output(
                 gen_data=source.gen_data(chunk_size=chunk_size),
@@ -124,28 +135,28 @@ def _transform_output(
     #       However, we attempt to preclude this at the AnalysisTask level by not filling events
     #       where there are no accepted tracks in the first collection.
 
-    particle_data_columns = [c for c in _columns.particle_level if "particle_data" in c]
+    particle_data_columns = {c: v for c, v in _columns.particle_level.items() if "particle_data" in c}
     try:
         data = next(gen_data)
         while True:
             if collision_system == "pythia":
                 # NOTE: The return values are formatted in this manner to avoid unnecessary copies of the data.
-                particle_gen_columns = [c for c in _columns.particle_level if "particle_gen" in c]
+                particle_gen_columns = {c: v for c, v in _columns.particle_level.items() if "particle_gen" in c}
                 _result = yield ak.Array(
                     {
                         "det_level": ak.zip(
                             dict(
                                 zip(
-                                    [c.replace("particle_data_", "") for c in list(particle_data_columns)],
-                                    ak.unzip(data[particle_data_columns]),
+                                    list(particle_data_columns.values()),
+                                    ak.unzip(data[list(particle_data_columns)]),
                                 )
                             )
                         ),
                         "part_level": ak.zip(
                             dict(
                                 zip(
-                                    [c.replace("particle_gen_", "") for c in list(particle_gen_columns)],
-                                    ak.unzip(data[particle_gen_columns]),
+                                    list(particle_gen_columns.values()),
+                                    ak.unzip(data[list(particle_gen_columns)]),
                                 )
                             )
                         ),
@@ -164,15 +175,15 @@ def _transform_output(
                         "data": ak.zip(
                             dict(
                                 zip(
-                                    [c.replace("particle_data_", "") for c in list(particle_data_columns)],
-                                    ak.unzip(data[particle_data_columns]),
+                                    list(particle_data_columns.values()),
+                                    ak.unzip(data[list(particle_data_columns)]),
                                 )
                             )
                         ),
                         **dict(
                             zip(
-                                _columns.event_level,
-                                ak.unzip(data[_columns.event_level]),
+                                list(_columns.event_level.values()),
+                                ak.unzip(data[list(_columns.event_level)]),
                             )
                         ),
                     },
