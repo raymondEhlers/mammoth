@@ -520,7 +520,7 @@ def _find_original_constituent_indices_via_user_index(
                         break
                 else:
                     _msg = "Could not find match " + str(jet_constituent_index)
-                    print(_msg)
+                    print(_msg)  # noqa: T201
                     # NOTE: Can't pass the message directly with numba since it would have to be a compile time constant (as of Mar 2023).
                     #       As an alternative, we print the message, and then we raise the exception. As long as we don't catch it, it
                     #       achieves basically the same thing.
@@ -534,8 +534,6 @@ def _find_original_constituent_indices_via_user_index(
 def find_original_constituent_indices_via_user_index(
     user_indices: ak.Array, constituent_indices: ak.Array
 ) -> ak.Array:
-    ...
-
     res = _find_original_constituent_indices_via_user_index(
         user_indices=user_indices,
         constituent_indices=constituent_indices,
@@ -544,6 +542,7 @@ def find_original_constituent_indices_via_user_index(
 
     # TODO: Need to figure this out, but somehow it goes wrong. I can't figure out the right way
     #       to pass the counts...
+    # TODO: I'm not sure if the above TODO is true anymore... Need to check
     first_step = ak.unflatten(res, ak.count(user_indices, axis=1))
     return ak.unflatten(
         first_step,
