@@ -169,8 +169,8 @@ def _transform_output(
                         ),
                         **dict(
                             zip(
-                                _columns.event_level,
-                                ak.unzip(data[_columns.event_level]),
+                                list(_columns.event_level.values()),
+                                ak.unzip(data[list(_columns.event_level)]),
                             )
                         ),
                     },
