@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import Any, Generator, List, MutableMapping, Optional
+from typing import Any, Generator, MutableMapping
 
 import attrs
 import awkward as ak
@@ -83,7 +83,7 @@ class FileSource:
 
     def gen_data(
         self, chunk_size: sources.T_ChunkSize = sources.ChunkSizeSentinel.SOURCE_DEFAULT
-    ) -> Generator[ak.Array, Optional[sources.T_ChunkSize], None]:
+    ) -> Generator[ak.Array, sources.T_ChunkSize | None, None]:
         """A iterator over a fixed size of data from the source.
 
         Returns:
@@ -122,7 +122,7 @@ class FileSource:
             A Callable which takes the filename and creates the FileSource.
         """
 
-        def wrap(filename: Path) -> "FileSource":
+        def wrap(filename: Path) -> FileSource:
             return cls(
                 filename=filename,
                 collision_system=collision_system,
@@ -133,9 +133,9 @@ class FileSource:
 
 
 def _transform_output(
-    gen_data: Generator[ak.Array, Optional[sources.T_ChunkSize], None],
+    gen_data: Generator[ak.Array, sources.T_ChunkSize | None, None],
     collision_system: str,
-) -> Generator[ak.Array, Optional[sources.T_ChunkSize], None]:
+) -> Generator[ak.Array, sources.T_ChunkSize | None, None]:
     _columns = Columns.create(collision_system=collision_system)
 
     # NOTE: If there are no accepted tracks, we don't bother storing the event.
