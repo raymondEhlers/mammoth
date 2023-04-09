@@ -41,25 +41,32 @@ class Columns:
                 "trigger_bit_semi_central": "trigger_bit_semi_central",
             })
         # Next, particle level columns
-        _base_particle_columns = ["pt", "eta", "phi"]
-        _MC_particle_columns = [
-            "particle_ID",
-            "label",
-        ]
+        _base_particle_columns = {
+            "{prefix}_pt": "pt",
+            "{prefix}_eta": "eta",
+            "{prefix}_phi": "phi",
+        }
+        _MC_particle_columns = {
+            "{prefix}_particle_ID": "particle_ID",
+            "{prefix}_label": "identifier",
+        }
         particle_columns = {
-            f"particle_data_{c}": c for c in _base_particle_columns
+            column.format(prefix="particle_data"): field_name for column, field_name in _base_particle_columns.items()
         }
         # Pick up the extra columns in the case of pythia
         if collision_system == "pythia":
-            particle_columns.update(
-                {f"particle_data_{c}": c for c in _MC_particle_columns}
-            )
+            particle_columns.update({
+                column.format(prefix="particle_data"): field_name for column, field_name in _MC_particle_columns.items()
+            })
             # We skip particle_ID for the detector level
             del particle_columns["particle_data_particle_ID"]
             # And then do the same for particle_gen
-            particle_columns.update(
-                {f"particle_gen_{c}": c for c in [*_base_particle_columns, *_MC_particle_columns]}
-            )
+            particle_columns.update({
+                column.format(prefix="particle_gen"): field_name for column, field_name in {
+                    **_base_particle_columns,
+                    **_MC_particle_columns
+                }.items()
+            })
 
         return cls(
             event_level=event_level_columns,
