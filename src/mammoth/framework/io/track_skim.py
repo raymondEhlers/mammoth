@@ -58,7 +58,7 @@ class Columns:
             particle_columns.update({
                 column.format(prefix="particle_data"): field_name for column, field_name in _MC_particle_columns.items()
             })
-            # We skip particle_ID for the detector level
+            # NOTE: We skip particle_ID for the detector level, since it's not likely to be available
             del particle_columns["particle_data_particle_ID"]
             # And then do the same for particle_gen
             particle_columns.update({
