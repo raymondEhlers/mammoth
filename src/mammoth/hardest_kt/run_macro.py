@@ -4,6 +4,8 @@
 .. codeauthor:: Raymond Ehlers <raymond.ehlers@cern.ch>, ORNL
 """
 
+from __future__ import annotations
+
 import argparse
 import enum
 import logging
@@ -11,11 +13,12 @@ import pprint
 import tempfile
 import uuid
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Sequence, Type, TypeVar, Union
+from typing import Any, Sequence, TypeVar
 
 import attr
 import numpy as np
 
+import mammoth.helpers
 
 logger = logging.getLogger(__name__)
 
@@ -61,10 +64,7 @@ def _is_run2_data(period: str) -> bool:
     Returns:
         True if the run period is in Run2.
     """
-    for year in [15, 16, 17, 18]:
-        if period.startswith(f"LHC{year}"):
-            return True
-    return False
+    return any(period.startswith(f"LHC{year}") for year in [15, 16, 17, 18])
 
 
 def _is_MC(period: str) -> bool:
@@ -106,7 +106,7 @@ class BeamType(enum.Enum):
     PbPb = 1  # ROOT.AliAnalysisTaskEmcal.kAA
 
     @classmethod
-    def from_period(cls: Type[_T_BeamType], period: str) -> _T_BeamType:
+    def from_period(cls: type[_T_BeamType], period: str) -> _T_BeamType:
         """Determine the beam type from the run period.
 
         Note:
@@ -150,7 +150,7 @@ class AnalysisMode(enum.Enum):
     embed_pythia = enum.auto()
 
 
-def _run_add_task_macro(task_path: Union[str, Path], task_class_name: str, *args: Any) -> Any:
+def _run_add_task_macro(task_path: str | Path, task_class_name: str, *args: Any) -> Any:
     """Run a given add task macro.
 
     Note:
@@ -179,7 +179,7 @@ def _run_add_task_macro(task_path: Union[str, Path], task_class_name: str, *args
     task_args = ", ".join(
         [f'"{v}"' if isinstance(v, str) else bool_map[v] if isinstance(v, bool) else str(v) for v in args]
     )
-    print(f"Running: {task_path}({task_args})")
+    logger.info(f"Running: {task_path}({task_args})")
     address = ROOT.gROOT.ProcessLine(f".x {task_path}({task_args})")
     # Need to convert the address into the task. Unfortunately, we can't cast the address directly into an object.
     # Instead, we use cling to perform the reinterpret_cast for us, and then we retrieve that task.
@@ -204,10 +204,10 @@ def _add_physics_selection(is_MC: bool, beam_type: BeamType) -> AnalysisTask:
     #    is_MC, beam_type == BeamType.pp
     # )
     physics_selection_task = ROOT.AliPhysicsSelectionTask.AddTaskPhysicsSelection(is_MC, beam_type == BeamType.pp)
-    return physics_selection_task
+    return physics_selection_task  # noqa: RET504
 
 
-def _add_mult_selection(is_run2_data: bool, physics_selection: int) -> Optional[AnalysisTask]:
+def _add_mult_selection(is_run2_data: bool, physics_selection: int) -> AnalysisTask | None:
     # Delay import to avoid explicit dependence
     import ROOT  # pyright: ignore [reportMissingImports]
 
@@ -233,7 +233,7 @@ def _handle_special_event_selection_for_pythia(period: str, task: Any) -> None:
         eventCuts = task.GetEventCuts()
         eventCuts.SetManualMode()
         eventCuts.SetupRun2pp()
-        print(f"Fixing event selection for {period} for {task.GetName()}")
+        logger.info(f"Fixing event selection for {period} for {task.GetName()}")
 
 
 def run_dynamical_grooming(  # noqa: C901
@@ -291,7 +291,7 @@ def run_dynamical_grooming(  # noqa: C901
     if ROOT.AliVEvent.kSemiCentral & physics_selection:
         centrality_min, centrality_max = 30, 50
     if analysis_mode == AnalysisMode.PbPb:
-        print(f"Centrality range: {centrality_min}-{centrality_max}")
+        logger.info(f"Centrality range: {centrality_min}-{centrality_max}")
     # jet R needs to be formatted as a string too
     jet_R_str = f"{round(jet_R*100):03}"
     # Setup for validation mode
@@ -473,14 +473,14 @@ def run_dynamical_grooming(  # noqa: C901
                 True,
             )
             if centrality_min != 0 and centrality_max != 10:
-                raise RuntimeError(
-                    "Using a central cut configuration, but central collisions are not selected. Please update the config or the event selection!"
-                )
+                _msg = "Using a central cut configuration, but central collisions are not selected. Please update the config or the event selection!"
+                raise RuntimeError(_msg)
             skim_task.SelectCollisionCandidates(physics_selection)
 
             skim_task.AddTrackContainer("tracks")
         else:
-            raise ValueError("Skimming task config not available for analysis mode")
+            _msg = "Skimming task config not available for analysis mode"
+            raise ValueError(_msg)
 
     # Shared jet finding settings
     ghost_area = 0.005
@@ -777,7 +777,7 @@ def run_dynamical_grooming(  # noqa: C901
     # worrisome if I remove it here and forgot that it doesn't matter.
     # cont.SetJetPtCut(0)
 
-    print(f"beam_type: {beam_type}")
+    logger.info(f"beam_type: {beam_type}")
     # It only matters for embedding, but in any case, always disable double counting.
     dynamical_grooming.SetCutDoubleCounts(False)
     if beam_type == BeamType.PbPb:
@@ -914,7 +914,7 @@ def run_dynamical_grooming(  # noqa: C901
     # worrisome if I remove it here and forgot that it doesn't matter.
     # cont.SetJetPtCut(0)
 
-    print(f"beam_type: {beam_type}")
+    logger.info(f"beam_type: {beam_type}")
     # It only matters for embedding, but in any case, always disable double counting.
     hardest_kt.SetCutDoubleCounts(False)
     if beam_type == BeamType.PbPb:
@@ -948,11 +948,11 @@ def run_dynamical_grooming(  # noqa: C901
             continue
         if task.InheritsFrom("AliAnalysisTaskEmcal") or task.InheritsFrom("AliEmcalCorrectionTask"):
             task.SetForceBeamType(beam_type.value)
-            print(f"Setting beam type {beam_type.name} for task {task.GetName()}")
+            logger.info(f"Setting beam type {beam_type.name} for task {task.GetName()}")
 
     # Abort if the initialization fails.
     if not analysis_manager.InitAnalysis():
-        return
+        return None
 
     analysis_manager.PrintStatus()
     analysis_manager.SetUseProgressBar(True, 250)
@@ -976,8 +976,8 @@ def run_dynamical_grooming_embedding(  # noqa: C901
     jet_R: float = 0.2,
     grooming_jet_pt_threshold: float = 20,
     validation_mode: bool = True,
-    embed_input_filename: Path = Path("embedding/embedding_file_list.txt"),
-    embedding_helper_config_filename: Optional[Path] = None,
+    embed_input_filename: Path | None = None,
+    embedding_helper_config_filename: Path | None = None,
 ) -> AnalysisManager:
     """Run dynamical grooming embedding.
 
@@ -1009,6 +1009,8 @@ def run_dynamical_grooming_embedding(  # noqa: C901
     is_run2_data = _is_run2_data(period) if not is_MC else False
     # Determine the beam type from the period.
     beam_type = BeamType.from_period(period)
+    if embed_input_filename is None:
+        embed_input_filename = Path("embedding/embedding_file_list.txt")
     if not embedding_helper_config_filename:
         embedding_helper_config_filename = Path("embedding/embeddingHelper_LHC18_LHC20g4_kSemiCentral.yaml")
 
@@ -1026,7 +1028,7 @@ def run_dynamical_grooming_embedding(  # noqa: C901
     centrality_min, centrality_max = 0, 10
     if ROOT.AliVEvent.kSemiCentral & physics_selection:
         centrality_min, centrality_max = 30, 50
-    print(f"Centrality range: {centrality_min}-{centrality_max}")
+    logger.info(f"Centrality range: {centrality_min}-{centrality_max}")
     # jet R needs to be formatted as a string too
     jet_R_str = f"{round(jet_R*100):03}"
     # Setup for validation mode
@@ -1474,7 +1476,7 @@ def run_dynamical_grooming_embedding(  # noqa: C901
     hardest_kt.SetHardCutoff(0.2)
     hardest_kt.SetGroomingMethod(ROOT.PWGJE.EMCALJetTasks.AliAnalysisTaskJetHardestKt.kDynamicalCore)
     hardest_kt.Initialize()
-    print(hardest_kt.GroomingMethodName())
+    logger.info(hardest_kt.GroomingMethodName())
 
     # Setup L+L substructure task.
     ll_substructure = _run_add_task_macro(
@@ -1533,11 +1535,11 @@ def run_dynamical_grooming_embedding(  # noqa: C901
             continue
         if task.InheritsFrom("AliAnalysisTaskEmcal") or task.InheritsFrom("AliEmcalCorrectionTask"):
             task.SetForceBeamType(beam_type.value)
-            print(f"Setting beam type {beam_type.name} for task {task.GetName()}")
+            logger.info(f"Setting beam type {beam_type.name} for task {task.GetName()}")
 
     # Abort if the initialization fails.
     if not analysis_manager.InitAnalysis():
-        return
+        return None
 
     analysis_manager.PrintStatus()
     analysis_manager.SetUseProgressBar(True, 250)
@@ -1575,7 +1577,7 @@ def start_analysis_manager(
         # The progress bar has to be disabled for the debug level to be set. For reasons....
         # analysis_manager.SetUseProgressBar(False, 250)
         # analysis_manager.SetDebugLevel(10);
-        print("Starting Analysis...")
+        logger.info("Starting Analysis...")
         # Create chian from input files
         chain = ROOT.TChain("aodTree")
         for filename in input_files:
@@ -1585,7 +1587,7 @@ def start_analysis_manager(
         for filename in input_files:
             # Add HF vertexing for skimming. Needs aod_archive.zip or root_archive.zip
             temp_filename = Path(str(Path(filename)).replace("AliAOD.root", "AliAOD.VertexingHF.root"))
-            print(f"temp_filename: {temp_filename}")
+            logger.info(f"temp_filename: {temp_filename}")
             friend_tree.AddFile(str(temp_filename))
         # Add friends with scale factors
         chain.AddFriend(friend_tree)
@@ -1597,7 +1599,8 @@ def start_analysis_manager(
         # Start the analysis
         analysis_manager.StartAnalysis("local", chain, n_events)
     elif mode == "grid":
-        raise RuntimeError("Not implemented yet!")
+        _msg = "Not implemented yet!"
+        raise RuntimeError(_msg)
 
 
 @attr.define
@@ -1606,9 +1609,9 @@ class AnalysisModeParameters:
     period_name: str
     _physics_selection: str
     # As a function of jet_R
-    grooming_jet_pt_threshold: Dict[float, float]
-    input_files: List[Path]
-    embed_input_files: List[Path] = attr.Factory(list)
+    grooming_jet_pt_threshold: dict[float, float]
+    input_files: list[Path]
+    embed_input_files: list[Path] = attr.Factory(list)
 
     @property
     def physics_selection(self) -> Any:
@@ -1733,17 +1736,18 @@ def run(
     analysis_mode: str,
     jet_R: float,
     validation_mode: bool,
-    input_files: Optional[Sequence[Path]] = None,
-    embed_input_files: Optional[Sequence[Path]] = None,
-    embedding_helper_config_filename: Optional[Path] = None,
-    embedding_pt_hat_bin: Optional[int] = None,
+    input_files: Sequence[Path] | None = None,
+    embed_input_files: Sequence[Path] | None = None,
+    embedding_helper_config_filename: Path | None = None,
+    embedding_pt_hat_bin: int | None = None,
     n_events: int = 1000,
 ) -> None:
     # Let the user know that ROOT is required if it's not available
     try:
         import ROOT  # pyright: ignore [reportMissingImports]
-    except ImportError:
-        raise RuntimeError("AliPhysics + ROOT is required to use the run macro. Please check that ROOT is available!")
+    except ImportError as e:
+        _msg = "AliPhysics + ROOT is required to use the run macro. Please check that ROOT is available!"
+        raise RuntimeError(_msg) from e
     # And immediately configure it to run in batch mode
     ROOT.gROOT.SetBatch(True)
 
@@ -1812,6 +1816,7 @@ def run(
 
 
 def entry_point() -> None:
+    mammoth.helpers.setup_logging()
     parser = argparse.ArgumentParser(description="Execute the run macro")
 
     parser.add_argument(
@@ -1892,7 +1897,7 @@ def entry_point() -> None:
         args.embed_input_files = [Path(p) for p in args.embed_input_files]
 
     # For user convenience
-    pprint.pprint(f"Settings: {args}")
+    logger.info(pprint.pformat(f"Settings: {args}"))
 
     # And then we're actually ready to go
     run(
