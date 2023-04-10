@@ -10,19 +10,18 @@ from __future__ import annotations
 import functools
 import logging
 from pathlib import Path
-from typing import Dict, Iterable, List, Mapping, Optional, Tuple
+from typing import Iterable, Mapping
 
 import attr
 import awkward as ak
 import numba as nb
 import numpy as np
 import numpy.typing as npt
-from pachyderm import yaml
 import uproot
+from pachyderm import yaml
 
 from mammoth.framework.analysis import jet_substructure as analysis_jet_substructure
 from mammoth.framework.typing import AwkwardArray, Scalar
-
 
 logger = logging.getLogger(__name__)
 
@@ -68,9 +67,8 @@ class Calculation:
         """Mask the stored values, returning a new object."""
         # Validation
         if len(self.input_jets) != len(mask):
-            raise ValueError(
-                f"Mask length is different than array lengths. mask length: {len(mask)}, array lengths: {len(self.input_jets)}"
-            )
+            _msg = f"Mask length is different than array lengths. mask length: {len(mask)}, array lengths: {len(self.input_jets)}"
+            raise ValueError(_msg)
 
         # Return the masked arrays in a new object.
         return type(self)(
@@ -108,7 +106,7 @@ class GroomingResultForTree:
     # For SoftDrop, this is equivalent to n_sd.
     n_passed_grooming: npt.NDArray[np.int16] = attr.ib()
 
-    def asdict(self, prefix: str) -> Iterable[Tuple[str, npt.NDArray[np.generic]]]:
+    def asdict(self, prefix: str) -> Iterable[tuple[str, npt.NDArray[np.generic]]]:
         for k, v in attr.asdict(self, recurse=False).items():
             # Skip the label
             if isinstance(v, str):
@@ -119,7 +117,7 @@ class GroomingResultForTree:
 def _define_calculation_functions(
     jet_R: float,
     iterative_splittings: bool,
-) -> Dict[str, functools.partial[Tuple[npt.NDArray[Scalar], AwkwardArray[int], AwkwardArray[AwkwardArray[int]]]]]:
+) -> dict[str, functools.partial[tuple[npt.NDArray[Scalar], AwkwardArray[int], AwkwardArray[AwkwardArray[int]]]]]:
     """Define the calculation functions of interest.
 
     Note:
@@ -166,7 +164,7 @@ def _define_calculation_functions(
 
 def _select_and_retrieve_splittings(
     jets: ak.Array, mask: AwkwardArray[bool], iterative_splittings: bool
-) -> Tuple[ak.Array, analysis_jet_substructure.JetSplittingArray, AwkwardArray[AwkwardArray[int]]]:
+) -> tuple[ak.Array, analysis_jet_substructure.JetSplittingArray, AwkwardArray[AwkwardArray[int]]]:
     """Generalization of the function in analyze_tree to add the splitting index."""
     # Ensure that there are sufficient counts
     restricted_jets = jets[mask]
@@ -191,7 +189,7 @@ def _select_and_retrieve_splittings(
 
 
 @nb.njit  # type: ignore[misc]
-def _calculate_splitting_number(  # noqa: C901
+def _calculate_splitting_number(
     all_splittings: analysis_jet_substructure.JetSplittingArray,
     selected_splittings: analysis_jet_substructure.JetSplittingArray,
     restricted_splittings_indices: AwkwardArray[AwkwardArray[int]],
@@ -218,7 +216,7 @@ def _calculate_splitting_number(  # noqa: C901
 
             parent_index = parent_indices[0]
             if debug:
-                print("parent_index", parent_index, "restricted_splitting_indices", restricted_splitting_indices)
+                print("parent_index", parent_index, "restricted_splitting_indices", restricted_splitting_indices)  # noqa: T201
             # print("i", i, "parent_indices", parent_indices, "parent_index", parent_index, "restricted_splitting_indices", restricted_splitting_indices)
             # if i == 27:
             #    print("parent_indices", parent_indices, "parent_index", parent_index, "restricted_splitting_indices", restricted_splitting_indices)
@@ -228,17 +226,17 @@ def _calculate_splitting_number(  # noqa: C901
                 for index in restricted_splitting_indices:
                     # print("parent_index: {parent_index}, index: {index}".format(parent_index=parent_index, index=index))
                     if debug:
-                        print("parent_index", parent_index, "index", index)
+                        print("parent_index", parent_index, "index", index)  # noqa: T201
                     # print("parent_index, index: %d, %d" % (parent_index, index))
                     # print("i", i, "parent_index", parent_index, "index", index)
                     if parent_index == index:
                         if debug:
-                            print("Found parent index:", index)
+                            print("Found parent index:", index)  # noqa: T201
                         output[i] += 1
                         # import IPython; IPython.embed()
                         parent_index = available_splittings_parents[parent_index]  # type: ignore[index]
                         if debug:
-                            print("New parent index:", parent_index)
+                            print("New parent index:", parent_index)  # noqa: T201
                         # print("Breaking...")
                         break
                 else:
@@ -246,7 +244,7 @@ def _calculate_splitting_number(  # noqa: C901
                     parent_index = available_splittings_parents[parent_index]  # type: ignore[index]
 
             if debug:
-                print("output[i]", output[i])
+                print("output[i]", output[i])  # noqa: T201
 
     return output
 
@@ -283,7 +281,7 @@ def calculate_splitting_number(
 
 
 @nb.njit  # type: ignore[misc]
-def _find_contributing_subjets(input_jet: ak.Array, groomed_index: int) -> List[analysis_jet_substructure.Subjet]:
+def _find_contributing_subjets(input_jet: ak.Array, groomed_index: int) -> list[analysis_jet_substructure.Subjet]:
     """Find subjets which contribute to a given grooming index.
 
     Args:
@@ -302,8 +300,8 @@ def _find_contributing_subjets(input_jet: ak.Array, groomed_index: int) -> List[
 
 @nb.njit  # type: ignore[misc]
 def _sort_subjets(
-    input_jet: ak.Array, input_subjets: List[analysis_jet_substructure.Subjet]
-) -> Tuple[analysis_jet_substructure.Subjet, analysis_jet_substructure.Subjet]:
+    input_jet: ak.Array, input_subjets: list[analysis_jet_substructure.Subjet]
+) -> tuple[analysis_jet_substructure.Subjet, analysis_jet_substructure.Subjet]:
     pts = []
     for sj in input_subjets:
         px = 0
@@ -405,7 +403,7 @@ def determine_matched_jets_numba(
     measured_like_groomed_values: AwkwardArray[float],
     measured_like_groomed_indices: AwkwardArray[int],
     match_using_distance: bool,
-) -> Tuple[npt.NDArray[np.int16], npt.NDArray[np.int16]]:
+) -> tuple[npt.NDArray[np.int16], npt.NDArray[np.int16]]:
     n_jets = len(measured_like_jets)
     leading_matching = np.full(n_jets, -1, dtype=np.int16)
     subleading_matching = np.full(n_jets, -1, dtype=np.int16)
@@ -414,12 +412,12 @@ def determine_matched_jets_numba(
         i,
         (
             generator_like_jet,
-            generator_like_splitting,
-            generator_like_groomed_value,
+            _generator_like_splitting,
+            _generator_like_groomed_value,
             generator_like_groomed_index_array,
             measured_like_jet,
-            measured_like_splitting,
-            measured_like_groomed_value,
+            _measured_like_splitting,
+            _measured_like_groomed_value,
             measured_like_groomed_index_array,
         ),
     ) in enumerate(
@@ -510,7 +508,7 @@ def prong_matching_numba_wrapper(
     generator_like_jets_label: str,
     grooming_method: str,
     match_using_distance: bool = False,
-) -> Dict[str, npt.NDArray[np.int16]]:
+) -> dict[str, npt.NDArray[np.int16]]:
     """Performs prong matching for the provided collections.
 
     Note:
@@ -610,7 +608,7 @@ def generator_subjet_momentum_fraction_in_measured_jet_numba(
     generator_like_splittings: analysis_jet_substructure.JetSplittingArray,
     generator_like_groomed_indices: AwkwardArray[AwkwardArray[int]],
     measured_like_jets: ak.Array,
-) -> Tuple[npt.NDArray[np.float32], npt.NDArray[np.float32]]:
+) -> tuple[npt.NDArray[np.float32], npt.NDArray[np.float32]]:
     """Determine the generator-like subjet momentum fraction stored in a measured-like jet.
 
     Note:
@@ -626,7 +624,7 @@ def generator_subjet_momentum_fraction_in_measured_jet_numba(
         i,
         (
             generator_like_jet,
-            generator_like_splitting,
+            _generator_like_splitting,
             generator_like_groomed_index_array,
             measured_like_jet,
         ),
@@ -674,7 +672,7 @@ def generator_subjet_momentum_fraction_in_measured_jet_numba_wrapper(
     generator_like_jets_calculation: Calculation,
     generator_like_jets_label: str,
     grooming_method: str,
-) -> Dict[str, npt.NDArray[np.float32]]:
+) -> dict[str, npt.NDArray[np.float32]]:
     grooming_results = {}
 
     _contains_only_single_particle_jets = {
@@ -716,8 +714,8 @@ def generator_subjet_momentum_fraction_in_measured_jet_numba_wrapper(
 
 
 def _calculate_jet_kinematics(
-    constituents: analysis_jet_substructure.JetConstituentArray, float_type: Optional[npt.DTypeLike] = None
-) -> Tuple[ak.Array, ak.Array]:
+    constituents: analysis_jet_substructure.JetConstituentArray, float_type: npt.DTypeLike | None = None
+) -> tuple[ak.Array, ak.Array]:
     """Calculate jet kinematics.
 
     Since `vector` isn't yet available, we perform the four vector calculations by hand.
@@ -738,8 +736,7 @@ def _calculate_jet_kinematics(
     phi = np.arctan2(py, px)
     if float_type is None:
         return eta, phi
-    else:
-        return ak.values_astype(eta, float_type), ak.values_astype(phi, float_type)
+    return ak.values_astype(eta, float_type), ak.values_astype(phi, float_type)
 
 
 def calculate_embedding_skim_impl(  # noqa: C901
@@ -755,7 +752,7 @@ def calculate_embedding_skim_impl(  # noqa: C901
     draw_example_splittings: bool = False,
     write_feather: bool = False,
     write_parquet: bool = False,
-) -> Tuple[bool, Path, str]:
+) -> tuple[bool, Path, str]:
     """Determine the response and prong matching for jets substructure techniques.
 
     Args:
@@ -792,7 +789,7 @@ def calculate_embedding_skim_impl(  # noqa: C901
     mask = all_jets["hybrid"].jet_pt > 0
 
     # Mask the jets
-    masked_jets: Dict[str, MaskedJets] = {}
+    masked_jets: dict[str, MaskedJets] = {}
     for prefix, input_jets in all_jets.items():
         masked_jets[prefix] = MaskedJets(
             *_select_and_retrieve_splittings(
@@ -830,8 +827,8 @@ def calculate_embedding_skim_impl(  # noqa: C901
             grooming_results[leading_track_name] = to_float(ak.max(input_jets.jets.jet_constituents.pt, axis=1))
 
         # Perform our calculations.
-        functions: Dict[
-            str, functools.partial[Tuple[npt.NDArray[np.float32], AwkwardArray[int], AwkwardArray[AwkwardArray[int]]]]
+        functions: dict[
+            str, functools.partial[tuple[npt.NDArray[np.float32], AwkwardArray[int], AwkwardArray[AwkwardArray[int]]]]
         ] = _define_calculation_functions(jet_R=jet_R, iterative_splittings=iterative_splittings)
         for func_name, func in functions.items():
             logger.debug(f"func_name: {func_name}")
@@ -945,8 +942,8 @@ def calculate_embedding_skim_impl(  # noqa: C901
                 and func_name == "leading_kt"
                 and ak.any((hybrid_det_level_leading_matching == 1) & (hybrid_det_level_subleading_matching == 3))
             ):
-                from networkx.drawing.nx_pylab import draw  # noqa: F401
                 from jet_substructure.analysis import draw_splitting  # pyright: ignore [reportMissingImports]
+                from networkx.drawing.nx_pylab import draw  # noqa: F401
 
                 # Find a sufficiently interesting jet (ie high enough pt)
                 mask_jets_of_interest = (
@@ -1014,7 +1011,7 @@ def calculate_embedding_skim_impl(  # noqa: C901
     return True, output_filename, "processed"
 
 
-def calculate_embedding_skim(  # noqa: C901
+def calculate_embedding_skim(
     input_filename: Path,
     iterative_splittings: bool,
     prefixes: Mapping[str, str],
@@ -1027,7 +1024,7 @@ def calculate_embedding_skim(  # noqa: C901
     draw_example_splittings: bool = False,
     write_feather: bool = False,
     write_parquet: bool = False,
-) -> Tuple[bool, Path, str]:
+) -> tuple[bool, Path, str]:
     # Validation
     # Bail out early if the file already exists.
     if output_filename.exists():
@@ -1036,7 +1033,7 @@ def calculate_embedding_skim(  # noqa: C901
     # Setup
     # Use the train configuration to extract the train number and pt hard bin, which are used to get the scale factor.
     y = yaml.yaml()
-    with open(train_directory / "config.yaml", "r") as f:
+    with (train_directory / "config.yaml").open() as f:
         train_config = y.load(f)
     train_number = train_config["number"]
     pt_hard_bin = train_config["pt_hard_bin"]
@@ -1063,7 +1060,7 @@ def calculate_embedding_skim(  # noqa: C901
     )
 
 
-def calculate_data_skim_impl(  # noqa: C901
+def calculate_data_skim_impl(
     all_jets: ak.Array,
     input_filename: Path,
     collision_system: str,
@@ -1073,10 +1070,10 @@ def calculate_data_skim_impl(  # noqa: C901
     output_filename: Path,
     output_tree_name: str = "tree",
     create_friend_tree: bool = False,
-    scale_factors: Optional[Mapping[int, float]] = None,
+    scale_factors: Mapping[int, float] | None = None,
     write_feather: bool = False,
     write_parquet: bool = False,
-) -> Tuple[bool, Path, str]:
+) -> tuple[bool, Path, str]:
     # Setup
     # Output consistent types.
     float_type = np.float32
@@ -1092,7 +1089,7 @@ def calculate_data_skim_impl(  # noqa: C901
         # The jets object will contain the pt hard bin if it's available.
         mask = mask & (all_jets["pt_hard"] >= 5.0)
 
-    masked_jets: Dict[str, MaskedJets] = {}
+    masked_jets: dict[str, MaskedJets] = {}
     # for prefix, input_jets in all_jets.items():
     for prefix in prefixes:
         input_jets = all_jets[prefix]
@@ -1133,9 +1130,9 @@ def calculate_data_skim_impl(  # noqa: C901
             grooming_results[leading_track_name] = to_float(ak.max(input_jets.jets.jet_constituents.pt, axis=1))
 
             # Perform our calculations.
-            functions: Dict[
+            functions: dict[
                 str,
-                functools.partial[Tuple[npt.NDArray[np.float32], AwkwardArray[int], AwkwardArray[AwkwardArray[int]]]],
+                functools.partial[tuple[npt.NDArray[np.float32], AwkwardArray[int], AwkwardArray[AwkwardArray[int]]]],
             ] = _define_calculation_functions(jet_R=jet_R, iterative_splittings=iterative_splittings)
             for func_name, func in functions.items():
                 logger.debug(f"prefix: {prefix}, grooming function: {func_name}")
@@ -1245,7 +1242,7 @@ def calculate_data_skim_impl(  # noqa: C901
     return True, output_filename, "processed"
 
 
-def calculate_data_skim(  # noqa: C901
+def calculate_data_skim(
     input_filename: Path,
     collision_system: str,
     iterative_splittings: bool,
@@ -1254,13 +1251,14 @@ def calculate_data_skim(  # noqa: C901
     output_filename: Path,
     output_tree_name: str = "tree",
     create_friend_tree: bool = False,
-    scale_factors: Optional[Mapping[int, float]] = None,
+    scale_factors: Mapping[int, float] | None = None,
     write_feather: bool = False,
     write_parquet: bool = False,
-) -> Tuple[bool, Path, str]:
+) -> tuple[bool, Path, str]:
     # Validation
     if scale_factors is None and collision_system == "pythia":
-        raise ValueError("Need scale factors for pythia to be provided externally.")
+        _msg = "Need scale factors for pythia to be provided externally."
+        raise ValueError(_msg)
     # Bail out early if the file already exists.
     if output_filename.exists():
         return True, output_filename, "already exists"
@@ -1289,8 +1287,8 @@ def calculate_data_skim(  # noqa: C901
 def cross_check_task_names_to_export(
     grooming_method: str,
     prefixes: Mapping[str, str],
-) -> Dict[str, npt.DTypeLike]:
-    branch_names: Dict[str, npt.DTypeLike] = {}
+) -> dict[str, npt.DTypeLike]:
+    branch_names: dict[str, npt.DTypeLike] = {}
 
     substructure_variables = [
         "{grooming_method}_{prefix}_delta_R",

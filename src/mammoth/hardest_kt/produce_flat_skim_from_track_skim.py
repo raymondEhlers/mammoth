@@ -10,19 +10,19 @@ import logging
 import secrets
 from concurrent.futures import Future
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, Mapping, Optional, Sequence, Tuple
+from typing import Any, Iterable, Mapping, Sequence
 
 import attrs
 import IPython
-from mammoth import helpers, job_utils
-from mammoth.alice import job_utils as alice_job_utils
-from mammoth.framework import sources, production
-from mammoth.framework.analysis import objects as analysis_objects
-from mammoth.framework.analysis import jets as analysis_jets
-from mammoth.job_utils import python_app
 from pachyderm import yaml
 from parsl.data_provider.files import File
 
+from mammoth import helpers, job_utils
+from mammoth.alice import job_utils as alice_job_utils
+from mammoth.framework import production, sources
+from mammoth.framework.analysis import jets as analysis_jets
+from mammoth.framework.analysis import objects as analysis_objects
+from mammoth.job_utils import python_app
 
 logger = logging.getLogger(__name__)
 
@@ -43,7 +43,7 @@ class HardestKtProductionSpecialization:
         name += f"_{str(splittings_selection_value)}"
         return name
 
-    def tasks_to_execute(self, collision_system: str) -> List[str]:
+    def tasks_to_execute(self, collision_system: str) -> list[str]:
         _tasks = []
 
         # Skim task
@@ -98,11 +98,11 @@ def safe_output_filename_from_relative_path(
 @python_app
 def _extract_scale_factors_from_hists(
     list_name: str,
-    job_framework: job_utils.JobFramework,
+    job_framework: job_utils.JobFramework,  # noqa: ARG001
     inputs: Sequence[File] = [],
-    outputs: Sequence[File] = [],
-    stdout: Optional[str] = None,
-    stderr: Optional[str] = None,
+    outputs: Sequence[File] = [],  # noqa: ARG001
+    stdout: str | None = None,  # noqa: ARG001
+    stderr: str | None = None,  # noqa: ARG001
 ) -> analysis_objects.ScaleFactor:
     """
     Copied from jet_substructure.analysis.parsl. The interface is slightly modified,
@@ -110,19 +110,19 @@ def _extract_scale_factors_from_hists(
     """
     from pathlib import Path
 
-    from mammoth.framework.analysis import objects as analysis_objects
     from mammoth.alice import scale_factors as sf
+    from mammoth.framework.analysis import objects as analysis_objects
 
     res = analysis_objects.ScaleFactor.from_hists(
         *sf.scale_factor_uproot(filenames=[Path(i.filepath) for i in inputs], list_name=list_name)
     )
-    return res
+    return res  # noqa: RET504
 
 
 def setup_extract_scale_factors(
     prod: production.ProductionSettings,
     job_framework: job_utils.JobFramework,
-) -> Dict[int, Future[analysis_objects.ScaleFactor]]:
+) -> dict[int, Future[analysis_objects.ScaleFactor]]:
     """Extract scale factors from embedding or pythia hists.
 
     Copied from jet_substructure.analysis.parsl. The interface is slightly modified,
@@ -132,7 +132,7 @@ def setup_extract_scale_factors(
         This is surprisingly fast.
     """
     # Setup
-    scale_factors: Dict[int, Future[analysis_objects.ScaleFactor]] = {}
+    scale_factors: dict[int, Future[analysis_objects.ScaleFactor]] = {}
     logger.info("Determining input files for extracting scale factors.")
     input_files_per_pt_hat_bin = prod.input_files_per_pt_hat()
 
@@ -152,8 +152,8 @@ def setup_extract_scale_factors(
 @python_app
 def _write_scale_factors_to_yaml(
     scale_factors: Mapping[int, analysis_objects.ScaleFactor],
-    job_framework: job_utils.JobFramework,
-    inputs: Sequence[File] = [],
+    job_framework: job_utils.JobFramework,  # noqa: ARG001
+    inputs: Sequence[File] = [],  # noqa: ARG001
     outputs: Sequence[File] = [],
 ) -> bool:
     """
@@ -170,7 +170,7 @@ def _write_scale_factors_to_yaml(
     y = yaml.yaml(classes_to_register=[analysis_objects.ScaleFactor])
     output_dir = Path(outputs[0].filepath)
     output_dir.parent.mkdir(parents=True, exist_ok=True)
-    with open(output_dir, "w") as f:
+    with output_dir.open("w") as f:
         y.dump(scale_factors, f)
 
     return True
@@ -208,7 +208,7 @@ def setup_write_scale_factors(
         outputs=[parsl_output_file],
     )
 
-    return yaml_result
+    return yaml_result  # noqa: RET504
 
 
 @python_app
@@ -216,12 +216,12 @@ def _extract_pt_hat_spectra(
     scale_factors: Mapping[int, float],
     offsets: Mapping[int, int],
     list_name: str,
-    yaml_exists: bool,
-    job_framework: job_utils.JobFramework,
+    yaml_exists: bool,  # noqa: ARG001
+    job_framework: job_utils.JobFramework,  # noqa: ARG001
     inputs: Sequence[File] = [],
     outputs: Sequence[File] = [],
-    stdout: Optional[str] = None,
-    stderr: Optional[str] = None,
+    stdout: str | None = None,  # noqa: ARG001
+    stderr: str | None = None,  # noqa: ARG001
 ) -> bool:
     """
     Copied from jet_substructure.analysis.parsl. The interface is slightly modified,
@@ -239,7 +239,7 @@ def _extract_pt_hat_spectra(
     offsets_values = list(offsets.values())
     filenames = {
         pt_hat_bin: [
-            Path(f.filepath) for f in inputs[sum(offsets_values[:i]) : sum(offsets_values[: i + 1])]  # noqa: E203
+            Path(f.filepath) for f in inputs[sum(offsets_values[:i]) : sum(offsets_values[: i + 1])]
         ]
         for i, pt_hat_bin in enumerate(offsets)
     }
@@ -250,7 +250,7 @@ def _extract_pt_hat_spectra(
         list_name=list_name,
         output_filename=Path(outputs[0].filepath),
     )
-    return res
+    return res  # noqa: RET504
 
 
 def setup_check_pt_hat_spectra(
@@ -295,16 +295,17 @@ def setup_check_pt_hat_spectra(
         outputs=[File(str(output_filename))],
     )
 
-    return results
+    return results  # noqa: RET504
 
 
 def steer_extract_scale_factors(
     prod: production.ProductionSettings,
     job_framework: job_utils.JobFramework,
-) -> List[Future[Any]]:
+) -> list[Future[Any]]:
     # Validation
     if not prod.has_scale_factors:
-        raise ValueError(f"Invalid collision system for extracting scale factors: {prod.collision_system}")
+        _msg = f"Invalid collision system for extracting scale factors: {prod.collision_system}"
+        raise ValueError(_msg)
 
     # Attempt to bail out early if it's already been extracted
     scale_factors_filename = prod.scale_factors_filename
@@ -317,7 +318,7 @@ def steer_extract_scale_factors(
     logger.info("Extracting scale factors...")
 
     # First, we need to extract the scale factors and keep track of the results
-    all_results: List[Future[Any]] = []
+    all_results: list[Future[Any]] = []
     scale_factors = setup_extract_scale_factors(prod=prod, job_framework=job_framework)
     all_results.extend(list(scale_factors.values()))
 
@@ -343,8 +344,9 @@ def steer_extract_scale_factors(
         logger.warning("Some issue with the scale factor extraction! Check on them!")
         IPython.start_ipython(user_ns={**locals(), **globals()})
         # We want to stop here, so help ourselves out by raising the exception.
-        raise ValueError("Some issue with the scale factor extraction!")
-    else:
+        _msg = "Some issue with the scale factor extraction!"
+        raise ValueError(_msg)
+    else:  # noqa: RET506
         # And then create the spectra (and plot them) to cross check the extraction
         all_results.append(
             setup_check_pt_hat_spectra(
@@ -372,12 +374,12 @@ def _run_data_skim(
     loading_data_rename_prefix: Mapping[str, str],
     convert_data_format_prefixes: Mapping[str, str],
     pt_hat_bin: int,
-    scale_factors: Optional[Mapping[int, float]],
+    scale_factors: Mapping[int, float] | None,
     det_level_artificial_tracking_efficiency: float | analysis_jets.PtDependentTrackingEfficiencyParameters | None,
-    job_framework: job_utils.JobFramework,
+    job_framework: job_utils.JobFramework,  # noqa: ARG001
     inputs: Sequence[File] = [],
     outputs: Sequence[File] = [],
-) -> Tuple[bool, str]:
+) -> tuple[bool, str]:
     import traceback
     from pathlib import Path
 
@@ -411,13 +413,13 @@ def setup_calculate_data_skim(
     prod: production.ProductionSettings,
     job_framework: job_utils.JobFramework,
     debug_mode: bool,
-) -> List[Future[Tuple[bool, str]]]:
+) -> list[Future[tuple[bool, str]]]:
     """Create futures to produce hardest kt data skim"""
     # Setup input and output
     # Need to handle pt hat bin productions differently than standard productions
     # since we need to keep track of the pt hat bin
     if "n_pt_hat_bins" in prod.config["metadata"]["dataset"]:
-        input_files: Dict[int, List[Path]] = prod.input_files_per_pt_hat()
+        input_files: dict[int, list[Path]] = prod.input_files_per_pt_hat()
     else:
         input_files = {-1: prod.input_files()}
     output_dir = prod.output_dir / "skim"
@@ -514,10 +516,10 @@ def _run_embedding_skim(
     scale_factor: float,
     background_is_constrained_source: bool,
     n_signal_input_files: int,
-    job_framework: job_utils.JobFramework,
+    job_framework: job_utils.JobFramework,  # noqa: ARG001
     inputs: Sequence[File] = [],
     outputs: Sequence[File] = [],
-) -> Tuple[bool, str]:
+) -> tuple[bool, str]:
     import traceback
     from pathlib import Path
 
@@ -549,7 +551,7 @@ def _run_embedding_skim(
 
 def _extract_info_from_signal_file_list(
     signal_input_files_per_pt_hat: Mapping[int, Sequence[Path]]
-) -> Tuple[List[int], List[Tuple[int, Path]]]:
+) -> tuple[list[int], list[tuple[int, Path]]]:
     """Helper to extract the pt hat bins and flatten the input list."""
     # And since we would sample the pt hat bins, it's better to keep track of them directly.
     pt_hat_bins = list(signal_input_files_per_pt_hat)
@@ -569,10 +571,10 @@ def _extract_info_from_signal_file_list(
 
 def _determine_unconstrained_signal_input_files(
     signal_input_files_per_pt_hat: Mapping[int, Sequence[Path]],
-    signal_input_files_flat: Sequence[Tuple[int, Path]],
+    signal_input_files_flat: Sequence[tuple[int, Path]],
     pt_hat_bins: Sequence[int],
     signal_input_config: Mapping[str, Any],
-) -> Tuple[int, List[Path]]:
+) -> tuple[int, list[Path]]:
     """Determine the signal input files for the unconstrained case.
 
     We refactored this out since the logic is a bit complex to be inline.
@@ -616,20 +618,18 @@ def _select_files_for_source(
     input_files: Sequence[Path],
     selected_input_file: Path,
     n_files_to_use: int,
-) -> List[Path]:
+) -> list[Path]:
     """Select n files from a list of available files without replacement."""
     _input = [selected_input_file]
 
-    _possible_additional_files = set(
-        [
-            secrets.choice(input_files)
+    _possible_additional_files = {
+        secrets.choice(input_files)
             # -1 since we already have a filename
             # +5 since we'll remove any filenames if they're repeated
             # NOTE: +5 is arbitrary, but should be sufficient. We could do more, but it would be a waste of cycles.
             #       In any case, We'll double check below.
             for _ in range(n_files_to_use - 1 + 5)
-        ]
-    )
+    }
     # Remove the existing file, and then add to the list
     _possible_additional_files.discard(selected_input_file)
     _input.extend(list(_possible_additional_files)[: n_files_to_use - 1])
@@ -637,11 +637,12 @@ def _select_files_for_source(
     # Validate that we didn't somehow end up with too few files
     # This really shouldn't happen outside of exceptional cases
     if len(_input) != n_files_to_use:
-        raise ValueError(
+        _msg = (
             "You somehow don't have enough input files."
             f" Requested: {n_files_to_use}, but only have {len(_input)} files available."
             " Check your input configuration!"
         )
+        raise ValueError(_msg)
 
     return _input
 
@@ -651,7 +652,7 @@ def _determine_embed_pythia_input_files(
     background_input_files: Sequence[Path],
     background_is_constrained_source: bool,
     input_handling_config: Mapping[str, Any],
-) -> Iterable[Tuple[int, Sequence[Path], Sequence[Path]]]:
+) -> Iterable[tuple[int, Sequence[Path], Sequence[Path]]]:
     """Determine the input files for embedding with pythia."""
     # Configuration setup
     signal_input_config = input_handling_config["signal_parameters"]
@@ -704,7 +705,7 @@ def setup_calculate_embed_pythia_skim(  # noqa: C901
     prod: production.ProductionSettings,
     job_framework: job_utils.JobFramework,
     debug_mode: bool,
-) -> List[Future[Tuple[bool, str]]]:
+) -> list[Future[tuple[bool, str]]]:
     """Create futures to produce hardest kt embedded pythia skim"""
     # Setup input and output
     output_dir = prod.output_dir / "skim"
@@ -759,12 +760,12 @@ def setup_calculate_embed_pythia_skim(  # noqa: C901
         }
 
     # Setup for dataset and input
-    _metadata_config: Dict[str, Any] = prod.config["metadata"]
-    _input_handling_config: Dict[str, Any] = _metadata_config["input_handling"]
-    _background_is_constrained_source: bool = not (_metadata_config["input_constrained_source"].lower() == "signal")
+    _metadata_config: dict[str, Any] = prod.config["metadata"]
+    _input_handling_config: dict[str, Any] = _metadata_config["input_handling"]
+    _background_is_constrained_source: bool = _metadata_config["input_constrained_source"].lower() != "signal"
 
     # Analysis settings
-    _analysis_config: Dict[str, Any] = prod.config["settings"]
+    _analysis_config: dict[str, Any] = prod.config["settings"]
     # Chunk size
     _chunk_size = _analysis_config.get("chunk_size", sources.ChunkSizeSentinel.FULL_SOURCE)
     logger.info(f"Processing chunk size for {_chunk_size}")
@@ -792,7 +793,8 @@ def setup_calculate_embed_pythia_skim(  # noqa: C901
     if prod.has_scale_factors:
         scale_factors = prod.scale_factors()
     else:
-        raise ValueError("Check the embedding config - you need a signal dataset.")
+        _msg = "Check the embedding config - you need a signal dataset."
+        raise ValueError(_msg)
 
     # Cross check
     # NOTE: We usually need to skip this during debug mode because we may not have all pt hat bins in the input,
@@ -802,9 +804,8 @@ def setup_calculate_embed_pythia_skim(  # noqa: C901
             signal_input_files_per_pt_hat=signal_input_files_per_pt_hat
         )
         if set(scale_factors) != set(pt_hat_bins):
-            raise ValueError(
-                f"Mismatch between the pt hat bins in the scale factors ({set(scale_factors)}) and the pt hat bins ({set(pt_hat_bins)})"
-            )
+            _msg = f"Mismatch between the pt hat bins in the scale factors ({set(scale_factors)}) and the pt hat bins ({set(pt_hat_bins)})"
+            raise ValueError(_msg)
 
     logger.info(
         f"Configuring embed pythia with {'background' if _background_is_constrained_source else 'signal'} as the constrained source."
@@ -903,13 +904,13 @@ def setup_calculate_embed_pythia_skim(  # noqa: C901
     embedding_file_pairs_filename = prod.output_dir / "embedding_file_pairs.yaml"
     _existing_embedding_file_pairs = {}
     if embedding_file_pairs_filename.exists():
-        with open(embedding_file_pairs_filename, "r") as f:
+        with embedding_file_pairs_filename.open() as f:
             _existing_embedding_file_pairs = y.load(f)
     # Add back in the existing file pairs if we've read them
     if _existing_embedding_file_pairs:
         _embedding_file_pairs.update(_existing_embedding_file_pairs)
     # And then (re)write the file pairs
-    with open(embedding_file_pairs_filename, "w") as f:
+    with embedding_file_pairs_filename.open("w") as f:
         y.dump(_embedding_file_pairs, f)
 
     return results
@@ -927,10 +928,10 @@ def _run_embed_thermal_model_skim(
     chunk_size: int,
     convert_data_format_prefixes: Mapping[str, str],
     scale_factor: float,
-    job_framework: job_utils.JobFramework,
+    job_framework: job_utils.JobFramework,  # noqa: ARG001
     inputs: Sequence[File] = [],
     outputs: Sequence[File] = [],
-) -> Tuple[bool, str]:
+) -> tuple[bool, str]:
     import traceback
     from pathlib import Path
 
@@ -963,16 +964,17 @@ def setup_calculate_embed_thermal_model_skim(
     prod: production.ProductionSettings,
     job_framework: job_utils.JobFramework,
     debug_mode: bool,
-) -> List[Future[Tuple[bool, str]]]:
+) -> list[Future[tuple[bool, str]]]:
     """Create futures to produce hardest kt embedded pythia skim"""
     # Setup input and output
     # Need to handle pt hat bin productions differently than standard productions
     # since we need to keep track of the pt hat bin
     if "n_pt_hat_bins" in prod.config["metadata"]["dataset"]:
-        input_files: Dict[int, List[Path]] = prod.input_files_per_pt_hat()
+        input_files: dict[int, list[Path]] = prod.input_files_per_pt_hat()
     else:
         input_files = {-1: prod.input_files()}
-        raise RuntimeError("Need pt hat production for embedding into a thermal model...")
+        _msg = "Need pt hat production for embedding into a thermal model..."
+        raise RuntimeError(_msg)
     output_dir = prod.output_dir / "skim"
     output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -991,13 +993,13 @@ def setup_calculate_embed_thermal_model_skim(
     if prod.has_scale_factors:
         scale_factors = prod.scale_factors()
     else:
-        raise ValueError("Check the thermal model config - you need a signal dataset.")
+        _msg = "Check the thermal model config - you need a signal dataset."
+        raise ValueError(_msg)
 
     # Cross check
-    if set(scale_factors) != set(list(input_files)):
-        raise ValueError(
-            f"Mismatch between the pt hat bins in the scale factors ({set(scale_factors)}) and the pt hat bins ({set(list(input_files))})"
-        )
+    if set(scale_factors) != set(input_files):
+        _msg = f"Mismatch between the pt hat bins in the scale factors ({set(scale_factors)}) and the pt hat bins ({set(input_files)})"
+        raise ValueError(_msg)
 
     results = []
     _file_counter = 0
@@ -1057,8 +1059,8 @@ def setup_job_framework(
     walltime: str,
     target_n_tasks_to_run_simultaneously: int,
     log_level: int,
-    conda_environment_name: Optional[str] = None,
-) -> Tuple[job_utils.parsl.DataFlowKernel, job_utils.parsl.Config] | Tuple[job_utils.dask.distributed.Client, job_utils.dask.distributed.SpecCluster]:
+    conda_environment_name: str | None = None,
+) -> tuple[job_utils.parsl.DataFlowKernel, job_utils.parsl.Config] | tuple[job_utils.dask.distributed.Client, job_utils.dask.distributed.SpecCluster]:
     # First, need to figure out if we need additional environments such as ROOT
     _additional_worker_init_script = alice_job_utils.determine_additional_worker_init(
         productions=productions,
@@ -1077,7 +1079,7 @@ def setup_job_framework(
     )
 
 
-def define_productions() -> List[production.ProductionSettings]:
+def define_productions() -> list[production.ProductionSettings]:
     # We want to provide the opportunity to run multiple productions at once.
     # We'll do so by defining each production below and then iterating over them below
     productions = []
@@ -1189,8 +1191,8 @@ def setup_and_submit_tasks(
     job_framework: job_utils.JobFramework,
     debug_mode: bool,
     job_executor: job_utils.parsl.DataFlowKernel | job_utils.dask.distributed.Client,
-) -> List[Future[Any]]:
-    all_results: List[Future[Any]] = []
+) -> list[Future[Any]]:
+    all_results: list[Future[Any]] = []
     for prod in productions:
         tasks_to_execute = prod.tasks_to_execute
         logger.info(f"Tasks to execute: {tasks_to_execute} for production \"{prod.collision_system}\" #{prod.formatted_number}")
@@ -1261,7 +1263,7 @@ def process_futures(
 
     # In order to support writing histograms from multiple systems, we need to index the output histograms
     # by the collision system + centrality.
-    output_hists: Dict[str, Dict[Any, Any]] = {_p.collision_system: {} for _p in productions}
+    output_hists: dict[str, dict[Any, Any]] = {_p.collision_system: {} for _p in productions}
     with helpers.progress_bar() as progress:
         track_results = progress.add_task(total=len(all_results), description="Processing results...")
         # for a in all_results:
@@ -1308,7 +1310,7 @@ def process_futures(
     logger.info(res)
 
 
-def run(job_framework: job_utils.JobFramework) -> List[Future[Any]]:
+def run(job_framework: job_utils.JobFramework) -> list[Future[Any]]:
     # Job execution parameters
     productions = define_productions()
     task_name = "hardest_kt_mammoth"
