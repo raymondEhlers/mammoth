@@ -137,7 +137,7 @@ def analysis_embedding(source_index_identifiers: Mapping[str, int],
     # NOTE: The most general approach would be some divisor argument to select the signal source indexed
     #       particles, but since the background has the higher source index, we can just select particles
     #       with an index smaller than that offset.
-    background_only_particles_mask = ~(arrays["hybrid", "index"] < source_index_identifiers["background"])
+    background_only_particles_mask = ~(arrays["hybrid", "source_index"] < source_index_identifiers["background"])
 
     # Since rho subtraction is the default, we start with that
     subtractor: Union[jet_finding.RhoSubtractor, jet_finding.ConstituentSubtractor] = jet_finding.RhoSubtractor()
@@ -388,7 +388,7 @@ def write_skim(jets: ak.Array, filename: Path) -> None:
         "Jet_Pt": jets["hybrid"].pt,
         "Jet_NumTracks": ak.num(jets["hybrid"].constituents, axis=1),
         "Jet_Track_Pt": jets["hybrid"].constituents.pt,
-        "Jet_Track_Label": jets["hybrid"].constituents["index"],
+        "Jet_Track_Label": jets["hybrid"].constituents["identifier"],
         "Jet_Shape_Angularity": jets["hybrid", "angularity"],
         "Jet_MC_MatchedDetLevelJet_Pt": jets["det_level"].pt,
         "Jet_MC_MatchedPartLevelJet_Pt": jets["part_level"].pt,

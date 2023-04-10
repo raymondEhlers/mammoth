@@ -115,15 +115,15 @@ def eta_range(
 def _shared_momentum_fraction_for_flat_array_implementation(
     generator_like_jet_pts: ak.Array,
     generator_like_jet_constituents: ak.Array,
-    generator_like_jet_constituent_indices: ak.Array,
+    generator_like_jet_constituent_identifiers: ak.Array,
     measured_like_jet_constituents: ak.Array,
-    measured_like_jet_constituent_indices: ak.Array,
+    measured_like_jet_constituent_identifiers: ak.Array,
     match_using_distance: bool = False,
     max_matching_distance: float = DISTANCE_DELTA,
 ) -> npt.NDArray[np.float32]:
     """Implementation of the shared momentum fraction
 
-    Why passed the indices separately? Because when awkward has a momentum field, it doesn't seem to pass
+    Why passed the identifiers separately? Because when awkward has a momentum field, it doesn't seem to pass
     the other fields along. So we workaround it by passing it separately so we can use it now, at the cost
     of some extra bookkeeping.
     """
@@ -133,36 +133,36 @@ def _shared_momentum_fraction_for_flat_array_implementation(
     for i, (
         generator_like_jet_pt,
         generator_like_constituents,
-        generator_like_constituent_indices,
+        generator_like_constituent_identifiers,
         measured_like_constituents,
-        measured_like_constituent_indices,
+        measured_like_constituent_identifiers,
     ) in enumerate(
         zip(
             generator_like_jet_pts,
             generator_like_jet_constituents,
-            generator_like_jet_constituent_indices,
+            generator_like_jet_constituent_identifiers,
             measured_like_jet_constituents,
-            measured_like_jet_constituent_indices,
+            measured_like_jet_constituent_identifiers,
         )
     ):
         sum_pt = 0
-        for generator_like_constituent, generator_like_constituent_index in zip(
-            generator_like_constituents, generator_like_constituent_indices
+        for generator_like_constituent, generator_like_constituent_identifier in zip(
+            generator_like_constituents, generator_like_constituent_identifiers
         ):
-            # print(f"generator: index: {generator_like_constituent.index}, pt: {generator_like_constituent.pt}")
-            for measured_like_constituent, measured_like_constituent_index in zip(
-                measured_like_constituents, measured_like_constituent_indices
+            # print(f"generator: identifier: {generator_like_constituent.identifier}, pt: {generator_like_constituent.pt}")
+            for measured_like_constituent, measured_like_constituent_identifier in zip(
+                measured_like_constituents, measured_like_constituent_identifiers
             ):
-                # print(f"measured: index: {measured_like_constituent.index}, pt: {measured_like_constituent.pt}")
+                # print(f"measured: identifier: {measured_like_constituent.identifier}, pt: {measured_like_constituent.pt}")
                 if match_using_distance:
                     if np.abs(measured_like_constituent.eta - generator_like_constituent.eta) > max_matching_distance:
                         continue
                     if np.abs(measured_like_constituent.phi - generator_like_constituent.phi) > max_matching_distance:
                         continue
                 else:
-                    # if generator_like_constituent.index != measured_like_constituent.index:
-                    # if generator_like_constituent["index"] != measured_like_constituent["index"]:
-                    if generator_like_constituent_index != measured_like_constituent_index:
+                    # if generator_like_constituent.identifier != measured_like_constituent.identifier:
+                    # if generator_like_constituent["identifier"] != measured_like_constituent["identifier"]:
+                    if generator_like_constituent_identifier != measured_like_constituent_identifier:
                         continue
 
                 sum_pt += generator_like_constituent.pt
@@ -210,9 +210,9 @@ def shared_momentum_fraction_for_flat_array(
     return _shared_momentum_fraction_for_flat_array_implementation(  # type: ignore[no-any-return]
         generator_like_jet_pts=generator_like_jet_pts,
         generator_like_jet_constituents=generator_like_jet_constituents,
-        generator_like_jet_constituent_indices=generator_like_jet_constituents.index,
+        generator_like_jet_constituent_identifiers=generator_like_jet_constituents.identifier,
         measured_like_jet_constituents=measured_like_jet_constituents,
-        measured_like_jet_constituent_indices=measured_like_jet_constituents.index,
+        measured_like_jet_constituent_identifiers=measured_like_jet_constituents.identifier,
         match_using_distance=match_using_distance,
         max_matching_distance=max_matching_distance,
     )
@@ -381,35 +381,35 @@ def jet_matching_geometrical(jets_base: ak.Array, jets_tag: ak.Array, max_matchi
 @nb.njit  # type: ignore[misc]
 def _calculate_unsubtracted_constituent_max_pt(
     input_arrays: ak.Array,
-    input_arrays_indices: ak.Array,
-    input_constituents_indices: ak.Array,
+    input_arrays_source_indices: ak.Array,
+    input_constituents_source_indices: ak.Array,
     builder: ak.ArrayBuilder,
 ) -> ak.ArrayBuilder:
     """Implementation of calculating the unsubtracted constituent max pt
 
-    Since matching all of the indices, etc is a pain, we just implement via numba, where it appears to
+    Since matching all of the source_indices, etc is a pain, we just implement via numba, where it appears to
     be fast enough.
 
     Note:
         It would be nice to pass in directly via the whole particle or jet type, but it seems that
-        numba narrows to just the vector object, so we have to pass indices separately.
+        numba narrows to just the vector object, so we have to pass source_indices separately.
 
     Args:
         input_arrays: Particle arrays
-        input_arrays_indices: Particle array indices
-        input_constituents_indices: Constituent indices from subtracted jet collection.
+        input_arrays_source_indices: Particle array source_indices
+        input_constituents_source_indices: Constituent source_indices from subtracted jet collection.
     Returns:
         ArrayBuilder containing the unsubtracted max pt for each jet.
     """
-    for particles_in_event, particles_indices_in_event, jets_constituents_indices_in_event in zip(
-        input_arrays, input_arrays_indices, input_constituents_indices
+    for particles_in_event, particles_source_indices_in_event, jets_constituents_source_indices_in_event in zip(
+        input_arrays, input_arrays_source_indices, input_constituents_source_indices
     ):
         builder.begin_list()
-        for constituents_indices in jets_constituents_indices_in_event:
+        for constituents_source_indices in jets_constituents_source_indices_in_event:
             unsubtracted_constituent_pt = []
-            for constituent_index in constituents_indices:
-                for particle, particle_index in zip(particles_in_event, particles_indices_in_event):
-                    if constituent_index == particle_index:
+            for constituent_identifier in constituents_source_indices:
+                for particle, particle_identifier in zip(particles_in_event, particles_source_indices_in_event):
+                    if constituent_identifier == particle_identifier:
                         unsubtracted_constituent_pt.append(particle.pt)
             builder.append(max(unsubtracted_constituent_pt))
         builder.end_list()
@@ -433,8 +433,8 @@ def calculate_unsubtracted_constituent_max_pt(arrays: ak.Array, constituents: ak
     """
     return _calculate_unsubtracted_constituent_max_pt(
         input_arrays=arrays,
-        input_arrays_indices=arrays.index,
-        input_constituents_indices=constituents.index,
+        input_arrays_source_indices=arrays.source_index,
+        input_constituents_source_indices=constituents.source_index,
         builder=ak.ArrayBuilder(),
     ).snapshot()
 
@@ -744,6 +744,14 @@ def find_jets(
 
     # If we have subtracted constituents, we need to handle them very carefully.
     if subtracted_to_unsubtracted_indices:
+        # We need to filter out all kinematic variables.
+        # This is kind of a dumb way to do it, but it works, so good enough.
+        _kinematic_fields_to_skip_for_applying_subtracted_indices_mask = [
+            "px", "py", "pz", "E",
+            "pt", "eta", "phi", "m",
+            "x", "y", "z", "t",
+        ]
+        _additional_fields_for_subtracted_constituents_names = list(set(ak.fields(particles)) - set(_kinematic_fields_to_skip_for_applying_subtracted_indices_mask))
         # In the case of subtracted constituents, the indices that were returned reference the subtracted
         # constituents. Consequently, we need to build our jet constituents using the subtracted constituent
         # four vectors that were returned from the jet finding.
@@ -770,19 +778,32 @@ def find_jets(
         # actually just a list of unsubtracted indices (where the location of unsubtracted index corresponds to
         # the subtracted particles), we can directly apply this "mapping" to the unsubtracted particles `index`
         # (after converting it to awkward)
-        _subtracted_indices = particles["index"][_subtracted_to_unsubtracted_indices_awkward]
+        _additional_fields_for_subtracted_constituents = particles[_additional_fields_for_subtracted_constituents_names][
+            _subtracted_to_unsubtracted_indices_awkward
+        ]
 
         # Then, we just need to zip it in to the particles for constituents, and it will be brought
         # along when the constituents are associated with the jets.
         _particles_for_constituents = ak.zip(
             {
-                **dict(zip(ak.fields(_particles_for_constituents), ak.unzip(_particles_for_constituents))),
-                "index": _subtracted_indices,
+                **dict(
+                    zip(
+                        ak.fields(_particles_for_constituents),
+                        ak.unzip(_particles_for_constituents)
+                    )
+                ),
+                **dict(
+                    zip(
+                        ak.fields(_additional_fields_for_subtracted_constituents),
+                        ak.unzip(_additional_fields_for_subtracted_constituents),
+                    )
+                ),
             },
             with_name="Momentum4D",
         )
     else:
-        # Since `index` is already included in particles, there's nothing else we need to do here.
+        # Since additional fields are already included in particles, there's nothing else we need
+        # to do here.
         _particles_for_constituents = particles
 
     # Now, determine constituents from constituent indices
@@ -838,6 +859,7 @@ def find_jets(
         # Limit of 2 is based on: 1 for events + 1 for jets
         depth_limit=2,
     )
+    #import IPython; IPython.embed()
 
     return output_jets  # noqa: RET504
 

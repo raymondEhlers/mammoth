@@ -202,7 +202,7 @@ def hybrid_background_particles_only_mask(
     # NOTE: The most general approach would be some divisor argument to select the signal source indexed
     #       particles, but since the background has the higher source index, we can just select particles
     #       with an index smaller than that offset.
-    background_only_particles_mask = ~(arrays["hybrid", "index"] < source_index_identifiers["background"])
+    background_only_particles_mask = ~(arrays["hybrid", "source_index"] < source_index_identifiers["background"])
     return background_only_particles_mask  # noqa: RET504
 
 

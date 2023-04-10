@@ -98,7 +98,7 @@ def test_jet_finding_basic_multiple_events(caplog: Any, calculate_area: bool, al
                 [100.0, 5.0, 99.0],
                 [100.0, 5.0, 99.0],
             ],
-            "index": [
+            "source_index": [
                 [1, 2, 3],
                 [4, 5, 6],
             ],
@@ -195,7 +195,7 @@ def test_jet_finding_with_subtraction_multiple_events(caplog: Any, separate_back
                 [100.0, 5.0, 99.0],
                 [100.0, 5.0, 99.0],
             ],
-            "user_index" if use_custom_user_index else "index": [
+            "user_index" if use_custom_user_index else "source_index": [
                 [4, -5, 6],
                 [7, -8, 9],
             ],
@@ -295,7 +295,7 @@ def test_jet_finding_with_constituent_subtraction_does_something_multiple_events
                 [100.0, 5.0, 99.0],
                 [100.0, 5.0, 99.0],
             ],
-            "index": [
+            "source_index": [
                 [1, 2, 3],
                 [4, 5, 6],
             ],

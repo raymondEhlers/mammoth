@@ -60,7 +60,7 @@ def _convert_analyzed_jets_to_all_jets_for_skim(
                         "pt": jets[k].constituents.pt,
                         "eta": jets[k].constituents.eta,
                         "phi": jets[k].constituents.phi,
-                        "id": jets[k].constituents.index,
+                        "id": jets[k].constituents.identifier,
                     },
                     with_name="JetConstituent",
                 ),

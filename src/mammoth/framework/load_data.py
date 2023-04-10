@@ -23,7 +23,8 @@ _default_particle_columns = {
     "py": np.float32,
     "pz": np.float32,
     "E": np.float32,
-    "index": np.int64,
+    "source_index": np.int64,
+    "identifier": np.int64,
 }
 
 
@@ -63,10 +64,13 @@ def normalize_for_data(
         mass_hypotheses = dict(mass_hypothesis)
 
     # Transform various track collections.
-    # 1) Add indices.
-    # 2) Complete the four vectors (as necessary).
+    # 1) Add a source index, to identify where the particles came from.
+    # 2) Add identifier column, to identify relationships between particles. May be the source index if not otherwise specified.
+    # 3) Complete the four vectors (as necessary).
     data = arrays[rename_prefix["data"]]
-    data["index"] = ak.local_index(data)
+    data["source_index"] = ak.local_index(data)
+    if "identifier" not in ak.fields(data):
+        data["identifier"] = data["source_index"]
     # Only add the mass if either mass or energy aren't already present
     if "m" not in ak.fields(data) and "E" not in ak.fields(data):
         data["m"] = data["pt"] * 0 + mass_hypotheses["data"]
@@ -127,10 +131,13 @@ def normalize_for_MC(
         mass_hypotheses = dict(mass_hypothesis)
 
     # Transform various track collections.
-    # 1) Add indices.
+    # 1) Add a source index, to identify where the particles came from.
+    # 2) Add identifier column, to identify relationships between particles. May be the source index if not otherwise specified.
     # 2) Complete the four vectors (as necessary).
     det_level = arrays[rename_prefix["det_level"]]
-    det_level["index"] = ak.local_index(det_level)
+    det_level["source_index"] = ak.local_index(det_level)
+    if "identifier" not in ak.fields(det_level):
+        det_level["identifier"] = det_level["source_index"]
     if "m" not in ak.fields(det_level) and "E" not in ak.fields(det_level):
         det_level["m"] = det_level["pt"] * 0 + mass_hypotheses["det_level"]
     # NOTE: This is fully equivalent because we registered vector:
@@ -138,7 +145,9 @@ def normalize_for_MC(
     det_level = vector.Array(det_level)
     # Part level
     part_level = arrays[rename_prefix["part_level"]]
-    part_level["index"] = ak.local_index(part_level)
+    part_level["source_index"] = ak.local_index(part_level)
+    if "identifier" not in ak.fields(part_level):
+        part_level["identifier"] = part_level["source_index"]
     if "m" not in ak.fields(part_level) and "E" not in ak.fields(part_level):
         # The HFTreeCreator FastSim may not have the particle_ID information available, so we need to be
         # to workaround this case. The simplest thing we can do is just use the a fixed mass hypothesis as
@@ -278,10 +287,13 @@ def normalize_for_embedding(
         mass_hypotheses = dict(mass_hypothesis)
 
     # Transform various track collections.
-    # 1) Add indices.
+    # 1) Add a source index, to identify where the particles came from.
+    # 2) Add identifier column, to identify relationships between particles. May be the source index if not otherwise specified.
     # 2) Complete the four vectors (as necessary).
     det_level = arrays["signal"]["det_level"]
-    det_level["index"] = ak.local_index(det_level) + source_index_identifiers["signal"]
+    det_level["source_index"] = ak.local_index(det_level) + source_index_identifiers["signal"]
+    if "identifier" not in ak.fields(det_level):
+        det_level["identifier"] = det_level["source_index"]
     if "m" not in ak.fields(det_level) and "E" not in ak.fields(det_level):
         det_level["m"] = det_level["pt"] * 0 + mass_hypotheses["det_level"]
     # NOTE: This is fully equivalent because we registered vector:
@@ -292,8 +304,11 @@ def normalize_for_embedding(
     # NOTE: The particle level and detector level index values overlap. However, I think (as of Feb 2022)
     #       that this should be fine since they're unlikely to be clustered together. That being said,
     #       if we're looking at things like the shared momentum fraction, it's critical that they're _not_
-    #       matched by this index, but rather by `label`.
-    part_level["index"] = ak.local_index(part_level) + source_index_identifiers["signal"]
+    #       matched by this source index, but rather by `identifier` (which for this to work, most likely
+    #       needs to be provided by the user).
+    part_level["source_index"] = ak.local_index(part_level) + source_index_identifiers["signal"]
+    if "identifier" not in ak.fields(part_level):
+        part_level["identifier"] = part_level["source_index"]
     if "m" not in ak.fields(part_level) and "E" not in ak.fields(part_level):
         # Since we have truth level info, construct the part level mass based on the particle_ID
         # rather than a fixed mass hypothesis.
@@ -303,9 +318,11 @@ def normalize_for_embedding(
     part_level = vector.Array(part_level)
     background = arrays["background"]["data"]
     if fixed_background_index_value is not None:
-        background["index"] = ak.local_index(background) * 0 + fixed_background_index_value
+        background["source_index"] = ak.local_index(background) * 0 + fixed_background_index_value
     else:
-        background["index"] = ak.local_index(background) + source_index_identifiers["background"]
+        background["source_index"] = ak.local_index(background) + source_index_identifiers["background"]
+    if "identifier" not in ak.fields(background):
+        background["identifier"] = background["source_index"]
     if "m" not in ak.fields(background) and "E" not in ak.fields(background):
         background["m"] = background["pt"] * 0 + mass_hypotheses["background"]
     background = vector.Array(background)
