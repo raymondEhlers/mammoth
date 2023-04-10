@@ -16,6 +16,26 @@ from mammoth.framework import jet_finding
 logger = logging.getLogger(__name__)
 
 
+
+def test_find_constituent_indices_via_user_index(caplog: Any) -> None:
+    # Setup
+    caplog.set_level(logging.DEBUG)
+
+    _user_index = ak.Array(
+        [[4, -5, 6], [7, -8, 9]]
+    )
+    _constituents_user_index_awkward = ak.Array(
+        [[[4, -5], [6]], [[-8, 7], [9]]]
+    )
+    _constituent_indices_awkward = jet_finding.find_constituent_indices_via_user_index(
+        user_indices=_user_index,
+        constituents_user_index=_constituents_user_index_awkward,
+    )
+
+    assert _constituent_indices_awkward.to_list() == [
+        [[0, 1], [2]], [[1, 0], [2]]
+    ]
+
 def test_find_unsubtracted_constituent_index_from_subtracted_index_via_user_index(caplog: Any) -> None:
     """Test relating the unsubtracted constituent index to the """
     # Setup
