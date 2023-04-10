@@ -10,17 +10,19 @@ import pprint
 import re
 import warnings
 from pathlib import Path
-from typing import Optional, Sequence
+from typing import Sequence
 
 import attrs
 import awkward as ak
 import hist
-import mammoth.helpers
 import matplotlib.pyplot as plt
 import numpy as np
 import pachyderm.plot
 import uproot
-from pachyderm import binned_data, plot as pb
+from pachyderm import binned_data
+from pachyderm import plot as pb
+
+import mammoth.helpers
 
 pachyderm.plot.configure()
 
@@ -36,8 +38,12 @@ class Input:
 
 
 def arrays_to_hist(
-    arrays: ak.Array, attribute: str, axis: hist.axis.Regular = hist.axis.Regular(30, 0, 150)
+    arrays: ak.Array, attribute: str, axis: hist.axis.Regular | None = None
 ) -> binned_data.BinnedData:
+    # Validation
+    if axis is None:
+        axis = hist.axis.Regular(30, 0, 150)
+
     h_hist = hist.Hist(axis, storage=hist.storage.Weight())
     h_hist.fill(ak.flatten(arrays[attribute], axis=None))
 
@@ -69,7 +75,7 @@ def compare_branch(
         logger.exception(e)
         success = False
         if assert_false_on_failed_comparison:
-            assert False
+            raise AssertionError from e
 
     # If the above failed, print the entire branch.
     # Sometimes it's useful to start at this, but sometimes it's just overwhelming, so uncomment as necessary
@@ -87,9 +93,13 @@ def plot_attribute_compare(
     mine: Input,
     plot_config: pb.PlotConfig,
     output_dir: Path,
-    axis: hist.axis.Regular = hist.axis.Regular(30, 0, 150),
+    axis: hist.axis.Regular | None = None,
     normalize: bool = False,
 ) -> None:
+    # Validation
+    if axis is None:
+        axis = hist.axis.Regular(30, 0, 150)
+
     # Plot
     fig, (ax, ax_ratio) = plt.subplots(
         2,
@@ -163,10 +173,9 @@ def _find_possible_grooming_methods(arrays: ak.Array, prefixes: Sequence[str]) -
         number_of_matches = len(k)
         if number_of_matches > 1:
             # Something went wrong
-            raise ValueError(
-                "Found too many options while detecting grooming methods. Found {k}. Please check the file and figure out why the regex is breaking"
-            )
-        elif number_of_matches == 1:
+            _msg = "Found too many options while detecting grooming methods. Found {k}. Please check the file and figure out why the regex is breaking"
+            raise ValueError(_msg)
+        elif number_of_matches == 1:  # noqa: RET506
             # We found something useful in this case
             # re returns a list, so we extend
             grooming_methods.extend(k)
@@ -182,7 +191,7 @@ def compare_flat_substructure(  # noqa: C901
     standard_filename: Path,
     track_skim_filename: Path,
     standard_tree_name: str = "tree",
-    base_output_dir: Path = Path("comparison/track_skim"),
+    base_output_dir: Path | None = None,
     track_skim_validation_mode: bool = True,
     assert_false_on_failed_comparison_for_debugging_during_testing: bool = False,
     grooming_methods: Sequence[str] | None = None,
@@ -199,6 +208,10 @@ def compare_flat_substructure(  # noqa: C901
             a failed comparison, but this is more convenient since it allows us to immediately
             access the underlying arrays. Default: False.
     """
+    # Validation
+    if base_output_dir is None:
+        base_output_dir = Path("comparison/track_skim")
+
     standard = uproot.open(standard_filename)[standard_tree_name].arrays()
     track_skim = uproot.open(track_skim_filename)["tree"].arrays()
     # Display the types for convenience in making the comparison
@@ -365,7 +378,7 @@ def compare_flat_substructure(  # noqa: C901
                         ],
                     ),
                 ],
-                figure=pb.Figure(edge_padding=dict(left=0.13, bottom=0.115)),
+                figure=pb.Figure(edge_padding={"left": 0.13, "bottom": 0.115}),
             ),
             output_dir=output_dir,
             axis=hist.axis.Regular(50, 0, 100),
@@ -442,7 +455,7 @@ def compare_flat_substructure(  # noqa: C901
                                 ],
                             ),
                         ],
-                        figure=pb.Figure(edge_padding=dict(left=0.13, bottom=0.115)),
+                        figure=pb.Figure(edge_padding={"left": 0.13, "bottom": 0.115}),
                     ),
                     normalize=True,
                     axis=hist.axis.Regular(50, 0, 10),
@@ -501,7 +514,7 @@ def compare_flat_substructure(  # noqa: C901
                                 ],
                             ),
                         ],
-                        figure=pb.Figure(edge_padding=dict(left=0.13, bottom=0.115)),
+                        figure=pb.Figure(edge_padding={"left": 0.13, "bottom": 0.115}),
                     ),
                     output_dir=output_dir,
                     axis=hist.axis.Regular(50, 0, 0.6),
@@ -560,7 +573,7 @@ def compare_flat_substructure(  # noqa: C901
                                 ],
                             ),
                         ],
-                        figure=pb.Figure(edge_padding=dict(left=0.13, bottom=0.115)),
+                        figure=pb.Figure(edge_padding={"left": 0.13, "bottom": 0.115}),
                     ),
                     normalize=True,
                     axis=hist.axis.Regular(50, 0, 0.5),
@@ -627,7 +640,7 @@ def compare_flat_substructure(  # noqa: C901
     return all_success, failed_variables
 
 
-def run(jet_R: float, collision_system: str, prefixes: Optional[Sequence[str]] = None) -> None:
+def run(jet_R: float, collision_system: str, prefixes: Sequence[str] | None = None) -> None:
     """Trivial helper for running the comparison.
 
     It's not very configurable, but it provides a reasonable example.
