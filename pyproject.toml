@@ -172,7 +172,7 @@ target-version = 'py38'
 max-complexity = 10
 
 [tool.ruff.isort]
-known-first-party = ["mammoth_cpp"]
+known-first-party = ["mammoth", "mammoth_cpp"]
 
 [tool.pylint]
 master.py-version = "3.9"
