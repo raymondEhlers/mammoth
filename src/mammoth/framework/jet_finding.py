@@ -540,9 +540,6 @@ def find_original_constituent_indices_via_user_index(
         number_of_constituents=ak.count(constituent_indices),
     )
 
-    # TODO: Need to figure this out, but somehow it goes wrong. I can't figure out the right way
-    #       to pass the counts...
-    # TODO: I'm not sure if the above TODO is true anymore... Need to check
     first_step = ak.unflatten(res, ak.count(user_indices, axis=1))
     return ak.unflatten(
         first_step,
@@ -728,23 +725,27 @@ def find_jets(
     # To create the output, we start with the constituents.
     # First, we convert the fastjet user_index indices that we use for book keeping during jet finding
     # into an awkward array to make the next operations simpler.
-    # NOTE: Remember, these indices are just for internal mapping during jet finding! They're totally
-    #       separate from the `index` field that we include in all particles arrays to identify the source
-    #       of jet constituents (ie. in terms of the input particle collection that they're from).
+    # NOTE: Remember, these indices are just for internal book keeping during jet finding! (Although if the user_index
+    #       is passed, then they utilize this information). They're totally separate from the `source_index` and `identifier`
+    #       fields that we include in all particles arrays to (source_index:) identify the source of jet constituents
+    #       (ie. in terms of the input particle collection that they're from) and (identifier): identify relationships
+    #       between particles, respectively.
     # NOTE: This requires a copy, but that's fine - there's nothing to be done about it, so it's just the cost.
     _constituent_indices_awkward = ak.Array(constituent_indices)
     if user_index is not None:
-        # Need to match up user_index values to find the map the constituents.
+        # If we passed the user_index, then the constituent_indices which are returned (which are just the user_index
+        # from fastjet) won't actually be indices of particles (ie. it may be a label, rather than an index we can use
+        # in the array to find the right constituents). So here, we match up the user_index that was passed with the
+        # user_index that was returned, allowing us to map the returned user_index to proper indices.
         _constituent_indices_awkward = find_original_constituent_indices_via_user_index(
             user_indices=particles.user_index,
             constituent_indices=_constituent_indices_awkward,
         )
-        logger.info("Just finished first step with user_index")
-        #import IPython; IPython.embed()
 
     # If we have subtracted constituents, we need to handle them very carefully.
     if subtracted_to_unsubtracted_indices:
-        # We need to filter out all kinematic variables.
+        # We want to pass on all fields which are associated with the particles.
+        # However, we need to filter out all kinematic variables (for which we already have the subtracted values).
         # This is kind of a dumb way to do it, but it works, so good enough.
         _kinematic_fields_to_skip_for_applying_subtracted_indices_mask = [
             "px", "py", "pz", "E",
@@ -752,6 +753,7 @@ def find_jets(
             "x", "y", "z", "t",
         ]
         _additional_fields_for_subtracted_constituents_names = list(set(ak.fields(particles)) - set(_kinematic_fields_to_skip_for_applying_subtracted_indices_mask))
+
         # In the case of subtracted constituents, the indices that were returned reference the subtracted
         # constituents. Consequently, we need to build our jet constituents using the subtracted constituent
         # four vectors that were returned from the jet finding.
