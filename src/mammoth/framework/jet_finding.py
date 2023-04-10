@@ -3,11 +3,11 @@
 .. codeauthor:: Raymond Ehlers <raymond.ehlers@cern.ch>, ORNL
 """
 
-from __future__ import annotations
+from __future__ import annotations  # noqa: I001
 
-import functools  # noqa: I001
+import functools
 import logging
-from typing import Any, Dict, Final, List, Optional, Tuple, Union
+from typing import Any, Final
 
 import awkward as ak
 import numba as nb
@@ -18,8 +18,6 @@ import vector
 import mammoth_cpp._ext
 from mammoth_cpp._ext import (  # noqa: F401
     AreaSettings,
-    # TODO: This will clobber the user_index (eg. hole information from JETSCAPE)!
-    #       Need to carefully think through all of this labeling. I guess I may need a map from some index to other properties?
     NegativeEnergyRecombiner,
     JetFindingSettings,
     JetMedianBackgroundEstimator,
@@ -78,10 +76,10 @@ ReclusteringJetFindingSettings = functools.partial(
 )
 
 DISTANCE_DELTA: Final[float] = 0.01
-VALIDATION_MODE_RANDOM_SEED: Final[List[int]] = [12345, 67890]
+VALIDATION_MODE_RANDOM_SEED: Final[list[int]] = [12345, 67890]
 
 
-def pt_range(pt_min: float = 0.0, pt_max: float = 10000.0) -> Tuple[float, float]:
+def pt_range(pt_min: float = 0.0, pt_max: float = 10000.0) -> tuple[float, float]:
     """Helper to create the pt range, including common default values.
 
     Args:
@@ -96,7 +94,7 @@ def pt_range(pt_min: float = 0.0, pt_max: float = 10000.0) -> Tuple[float, float
 
 def eta_range(
     jet_R: float, fiducial_acceptance: bool, eta_min: float = -0.9, eta_max: float = 0.9
-) -> Tuple[float, float]:
+) -> tuple[float, float]:
     """Helper to create the eta range, including common default values.
 
     Args:
@@ -270,7 +268,7 @@ def _jet_matching_geometrical_impl(
 @nb.njit  # type: ignore[misc]
 def _jet_matching(
     jets_base: ak.Array, jets_tag: ak.Array, max_matching_distance: float
-) -> Tuple[npt.NDArray[np.int64], npt.NDArray[np.int64]]:
+) -> tuple[npt.NDArray[np.int64], npt.NDArray[np.int64]]:
     """Main geometrical jet matching implementation in numba.
 
     Args:
@@ -699,8 +697,8 @@ def _handle_subtracted_constituents(
 def find_jets(
     particles: ak.Array,
     jet_finding_settings: JetFindingSettings,
-    background_particles: Optional[ak.Array] = None,
-    background_subtraction: Optional[BackgroundSubtraction] = None,
+    background_particles: ak.Array | None = None,
+    background_subtraction: BackgroundSubtraction | None = None,
 ) -> ak.Array:
     # Validation
     if background_subtraction is None:
@@ -789,7 +787,7 @@ def find_jets(
     # NOTE: If this gets too slow, we can do the jet finding over multiple events in c++ like what
     #       is done in the new fj bindings. I skip this for now because my existing code seems to
     #       be good enough.
-    jets: Dict[str, List[Union[np.float32, np.float64, npt.NDArray[Union[np.float32, np.float64]]]]] = {
+    jets: dict[str, list[np.float32 | np.float64 | npt.NDArray[np.float32 | np.float64]]] = {
         "px": [],
         "py": [],
         "pz": [],
@@ -803,7 +801,7 @@ def find_jets(
     # simply be an index. However, if a user_index is provided by the user, then we need to map
     # from the values here (ie. the user_index) to the index of the particle.
     constituents_user_index = []
-    subtracted_constituents: Dict[str, List[npt.NDArray[Union[np.float32, np.float64]]]] = {
+    subtracted_constituents: dict[str, list[npt.NDArray[np.float32 | np.float64]]] = {
         "px": [],
         "py": [],
         "pz": [],
@@ -954,7 +952,7 @@ def find_jets(
     return output_jets  # noqa: RET504
 
 
-def _splittings_output() -> Dict[str, List[Any]]:
+def _splittings_output() -> dict[str, list[Any]]:
     return {
         "kt": [],
         "delta_R": [],
@@ -963,7 +961,7 @@ def _splittings_output() -> Dict[str, List[Any]]:
     }
 
 
-def _subjets_output() -> Dict[str, List[Any]]:
+def _subjets_output() -> dict[str, list[Any]]:
     return {
         "splitting_node_index": [],
         "part_of_iterative_splitting": [],
