@@ -3,6 +3,8 @@
 .. codeauthor:: Raymond Ehlers <raymond.ehlers@cern.ch>, ORNL
 """
 
+from __future__ import annotations
+
 import functools  # noqa: I001
 import logging
 from typing import Any, Dict, Final, List, Optional, Tuple, Union
@@ -609,6 +611,91 @@ def calculate_user_index_with_encoded_sign_info(
     return user_index
 
 
+def _handle_subtracted_constituents(
+    particles: ak.Array,
+    user_index: npt.NDArray[np.int64] | None,
+    constituents_user_index_awkward: ak.Array,
+    subtracted_constituents: dict[str, list[npt.NDArray[np.float32 | np.float64]]],
+    subtracted_index_to_unsubtracted_user_index: list[npt.NDArray[np.int64]],
+) -> tuple[ak.Array, ak.Array]:
+    # In the case of subtracted constituents, the indices that were returned reference the subtracted
+    # constituents. Consequently, we need to build our jet constituents using the subtracted constituent
+    # four vectors that were returned from the jet finding.
+    # NOTE: Constituents are expected to have a `source_index` field to identify their input source,
+    #       and an `identifier` field to specify their relationship between collections.
+    #       However, the `subtracted_constituents` assigned here to `_particles_for_constituents`
+    #       only contain the kinematic fields because we only returned the four vectors from the
+    #       jet finding. We need to add them in below!
+    _particles_for_constituents = ak.Array(subtracted_constituents)
+
+    # Now, to figure out the proper mapping between the original input particles and the subtracted constituents.
+    _subtracted_index_to_unsubtracted_user_index_awkward = ak.Array(subtracted_index_to_unsubtracted_user_index)
+    # We need to match the value stored with each subtracted index with the index stored with each unsubtracted.
+    # We need to handle the case of the user_index carefully!
+    if user_index is not None:
+        # First, deal with the subtracted index -> unsubtracted user_index mapping.
+        # We need to convert it into subtracted index -> unsubtracted index by finding the index where
+        # the user_index matches
+        _subtracted_index_to_unsubtracted_index_awkward = find_unsubtracted_constituent_index_from_subtracted_index_via_user_index(
+            user_indices=particles.user_index,
+            subtracted_index_to_unsubtracted_user_index=_subtracted_index_to_unsubtracted_user_index_awkward,
+        )
+
+        # Next, we need to deal with the subtracted index -> user_index map.
+        # Here, we don't allow the user to directly set this value. Instead, we make the indexing
+        # continuous (up to ghost particles, which are filtered out). When the user provides the
+        # user_index, it can encode the sign of the unsubtracted user_index, so we take abs here.
+        _constituent_indices_awkward = np.abs(constituents_user_index_awkward)
+    else:
+        # Since the user didn't provide the user_index, the subtracted indices map directly to unsubtracted indices
+        _subtracted_index_to_unsubtracted_index_awkward = _subtracted_index_to_unsubtracted_user_index_awkward
+
+        # Here, since we didn't provide the user_index, we don't need to do anything else - just assign
+        # for consistent variable naming
+        _constituent_indices_awkward = constituents_user_index_awkward
+
+    # Now, map the subtracted-to-unsubtracted. In this case, since the subtracted-to-unsubtracted mapping is
+    # actually just a list of unsubtracted indices (where the location of unsubtracted index corresponds to
+    # the subtracted particles), we can directly apply this "mapping" to the unsubtracted particles `index`
+    # (after converting it to awkward)
+
+    # As an interlude, we want to pass on all fields which are associated with the particles.
+    # However, we need to filter out all kinematic variables (for which we already have the subtracted values).
+    # This is kind of a dumb way to do it, but it works, so good enough.
+    _kinematic_fields_to_skip_for_applying_subtracted_indices_mask = [
+        "px", "py", "pz", "E",
+        "pt", "eta", "phi", "m",
+        "x", "y", "z", "t",
+    ]
+    _additional_fields_for_subtracted_constituents_names = list(set(ak.fields(particles)) - set(_kinematic_fields_to_skip_for_applying_subtracted_indices_mask))
+    # Now, we can finally grab the additional fields
+    _additional_fields_for_subtracted_constituents = particles[_additional_fields_for_subtracted_constituents_names][
+        _subtracted_index_to_unsubtracted_index_awkward
+    ]
+
+    # Then, we just need to zip it in to the particles for constituents, and it will be brought
+    # along when the constituents are associated with the jets.
+    _particles_for_constituents = ak.zip(
+        {
+            **dict(
+                zip(
+                    ak.fields(_particles_for_constituents),
+                    ak.unzip(_particles_for_constituents)
+                )
+            ),
+            **dict(
+                zip(
+                    ak.fields(_additional_fields_for_subtracted_constituents),
+                    ak.unzip(_additional_fields_for_subtracted_constituents),
+                )
+            ),
+        },
+        with_name="Momentum4D",
+    )
+
+    return _particles_for_constituents, _constituent_indices_awkward
+
+
 def find_jets(
     particles: ak.Array,
     jet_finding_settings: JetFindingSettings,
@@ -784,79 +871,13 @@ def find_jets(
 
     # If we have subtracted constituents, we need to handle them very carefully.
     if subtracted_index_to_unsubtracted_user_index:
-        # In the case of subtracted constituents, the indices that were returned reference the subtracted
-        # constituents. Consequently, we need to build our jet constituents using the subtracted constituent
-        # four vectors that were returned from the jet finding.
-        # NOTE: Constituents are expected to have a `source_index` field to identify their input source,
-        #       and an `identifier` field to specify their relationship between collections.
-        #       However, the `subtracted_constituents` assigned here to `_particles_for_constituents`
-        #       only contain the kinematic fields because we only returned the four vectors from the
-        #       jet finding. We need to add them in below!
-        _particles_for_constituents = ak.Array(subtracted_constituents)
-
-        # Now, to figure out the proper mapping between the original input particles and the subtracted constituents.
-        _subtracted_index_to_unsubtracted_user_index_awkward = ak.Array(subtracted_index_to_unsubtracted_user_index)
-        # We need to match the value stored with each subtracted index with the index stored with each unsubtracted.
-        # We need to handle the case of the user_index carefully!
-        if user_index is not None:
-            # First, deal with the subtracted index -> unsubtracted user_index mapping.
-            # We need to convert it into subtracted index -> unsubtracted index by finding the index where
-            # the user_index matches
-            _subtracted_index_to_unsubtracted_index_awkward = find_unsubtracted_constituent_index_from_subtracted_index_via_user_index(
-                user_indices=particles.user_index,
-                subtracted_index_to_unsubtracted_user_index=_subtracted_index_to_unsubtracted_user_index_awkward,
-            )
-
-            # Next, we need to deal with the subtracted index -> user_index map.
-            # Here, we don't allow the user to directly set this value. Instead, we make the indexing
-            # continuous (up to ghost particles, which are filtered out). When the user provides the
-            # user_index, it can encode the sign of the unsubtracted user_index, so we take abs here.
-            _constituent_indices_awkward = np.abs(_constituents_user_index_awkward)
-        else:
-            # Since the user didn't provide the user_index, the subtracted indices map directly to unsubtracted indices
-            _subtracted_index_to_unsubtracted_index_awkward = _subtracted_index_to_unsubtracted_user_index_awkward
-
-            # Here, since we didn't provide the user_index, we don't need to do anything else - just assign
-            # for consistent variable naming
-            _constituent_indices_awkward = _constituents_user_index_awkward
-
-        # Now, map the subtracted-to-unsubtracted. In this case, since the subtracted-to-unsubtracted mapping is
-        # actually just a list of unsubtracted indices (where the location of unsubtracted index corresponds to
-        # the subtracted particles), we can directly apply this "mapping" to the unsubtracted particles `index`
-        # (after converting it to awkward)
-
-        # As an interlude, we want to pass on all fields which are associated with the particles.
-        # However, we need to filter out all kinematic variables (for which we already have the subtracted values).
-        # This is kind of a dumb way to do it, but it works, so good enough.
-        _kinematic_fields_to_skip_for_applying_subtracted_indices_mask = [
-            "px", "py", "pz", "E",
-            "pt", "eta", "phi", "m",
-            "x", "y", "z", "t",
-        ]
-        _additional_fields_for_subtracted_constituents_names = list(set(ak.fields(particles)) - set(_kinematic_fields_to_skip_for_applying_subtracted_indices_mask))
-        # Now, we can finally grab the additional fields
-        _additional_fields_for_subtracted_constituents = particles[_additional_fields_for_subtracted_constituents_names][
-            _subtracted_index_to_unsubtracted_index_awkward
-        ]
-
-        # Then, we just need to zip it in to the particles for constituents, and it will be brought
-        # along when the constituents are associated with the jets.
-        _particles_for_constituents = ak.zip(
-            {
-                **dict(
-                    zip(
-                        ak.fields(_particles_for_constituents),
-                        ak.unzip(_particles_for_constituents)
-                    )
-                ),
-                **dict(
-                    zip(
-                        ak.fields(_additional_fields_for_subtracted_constituents),
-                        ak.unzip(_additional_fields_for_subtracted_constituents),
-                    )
-                ),
-            },
-            with_name="Momentum4D",
+        # This is quite tricky, so we handle it in a dedicated function
+        _particles_for_constituents, _constituent_indices_awkward = _handle_subtracted_constituents(
+            particles=particles,
+            user_index=user_index,
+            constituents_user_index_awkward=_constituents_user_index_awkward,
+            subtracted_constituents=subtracted_constituents,
+            subtracted_index_to_unsubtracted_user_index=subtracted_index_to_unsubtracted_user_index,
         )
     else:
         if user_index is not None:
