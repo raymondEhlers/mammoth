@@ -200,6 +200,12 @@ def test_jet_finding_with_subtraction_multiple_events(caplog: Any, separate_back
     # First event is the standard fastjet test particles,
     # while the second event is the standard with px <-> py.
     # The output jets should be the same as well, but with px <-> py.
+    additional_fields = {}
+    if use_custom_user_index:
+        additional_fields["user_index"] = [
+            [4, -5, 6],
+            [7, -8, 9],
+        ]
     input_particles = ak.zip(
         {
             "px": [
@@ -218,10 +224,11 @@ def test_jet_finding_with_subtraction_multiple_events(caplog: Any, separate_back
                 [100.0, 5.0, 99.0],
                 [100.0, 5.0, 99.0],
             ],
-            "user_index" if use_custom_user_index else "source_index": [
-                [4, -5, 6],
-                [7, -8, 9],
+            "source_index": [
+                [4, 5, 6],
+                [7, 8, 9],
             ],
+            **additional_fields,
         },
         with_name="Momentum4D",
     )
@@ -275,17 +282,18 @@ def test_jet_finding_with_subtraction_multiple_events(caplog: Any, separate_back
     logger.info(f"expected_jets: {expected_jets.to_list()}")
 
     # Check four momenta
-    assert all([np.allclose(np.asarray(measured.px), np.asarray(expected.px))
+    assert all(np.allclose(np.asarray(measured.px), np.asarray(expected.px))
                 and np.allclose(np.asarray(measured.py), np.asarray(expected.py))
                 and np.allclose(np.asarray(measured.pz), np.asarray(expected.pz))
                 and np.allclose(np.asarray(measured.E), np.asarray(expected.E))
-                for event, event_expected in zip(jets, expected_jets) for measured, expected in zip(event, event_expected)])
+                for event, event_expected in zip(jets, expected_jets) for measured, expected in zip(event, event_expected))
 
     # only for testing - we want to see any fastjet warnings
     #assert False
 
 
-def test_jet_finding_with_constituent_subtraction_does_something_multiple_events(caplog: Any) -> None:
+@pytest.mark.parametrize("use_custom_user_index", [True, False])
+def test_jet_finding_with_constituent_subtraction_does_something_multiple_events(caplog: Any, use_custom_user_index: bool) -> None:
     """ Jet finding with constituent subtraction modifies the jets somehow for multiple events.
 
     NOTE:
@@ -300,6 +308,12 @@ def test_jet_finding_with_constituent_subtraction_does_something_multiple_events
     # First event is the standard fastjet test particles,
     # while the second event is the standard with px <-> py.
     # The output jets should be the same as well, but with px <-> py.
+    additional_fields = {}
+    if use_custom_user_index:
+        additional_fields["user_index"] = [
+            [4, -5, 6],
+            [7, -8, 9],
+        ]
     input_particles = ak.zip(
         {
             "px": [
@@ -322,6 +336,7 @@ def test_jet_finding_with_constituent_subtraction_does_something_multiple_events
                 [1, 2, 3],
                 [4, 5, 6],
             ],
+            **additional_fields,
         },
         with_name="Momentum4D",
     )
