@@ -4,11 +4,11 @@
 """
 
 import logging
-import pytest  # noqa: F401
 from typing import Any
 
 import awkward as ak
 import numpy as np
+import pytest
 import vector
 
 from mammoth.framework import jet_finding
@@ -58,11 +58,11 @@ def test_jet_finding_basic_single_event(caplog: Any) -> None:
     logger.info(f"expected_jets: {expected_jets.to_list()}")
 
     # Check four momenta
-    assert all([np.allclose(np.asarray(measured.px), np.asarray(expected.px))
+    assert all(np.allclose(np.asarray(measured.px), np.asarray(expected.px))
                 and np.allclose(np.asarray(measured.py), np.asarray(expected.py))
                 and np.allclose(np.asarray(measured.pz), np.asarray(expected.pz))
                 and np.allclose(np.asarray(measured.E), np.asarray(expected.E))
-                for event, event_expected in zip(jets, expected_jets) for measured, expected in zip(event, event_expected)])
+                for event, event_expected in zip(jets, expected_jets) for measured, expected in zip(event, event_expected))
 
     # only for testing - we want to see any fastjet warnings
     #assert False
@@ -149,11 +149,11 @@ def test_jet_finding_basic_multiple_events(caplog: Any, calculate_area: bool, al
     logger.info(f"expected_jets: {expected_jets.to_list()}")
 
     # Check four momenta
-    assert all([np.allclose(np.asarray(measured.px), np.asarray(expected.px))
+    assert all(np.allclose(np.asarray(measured.px), np.asarray(expected.px))
                 and np.allclose(np.asarray(measured.py), np.asarray(expected.py))
                 and np.allclose(np.asarray(measured.pz), np.asarray(expected.pz))
                 and np.allclose(np.asarray(measured.E), np.asarray(expected.E))
-                for event, event_expected in zip(jets, expected_jets) for measured, expected in zip(event, event_expected)])
+                for event, event_expected in zip(jets, expected_jets) for measured, expected in zip(event, event_expected))
 
     # Check that we've handled the area properly
     if calculate_area:
@@ -354,11 +354,11 @@ def test_jet_finding_with_constituent_subtraction_does_something_multiple_events
     # constituent subtraction has modified the four vectors. We don't have a simple
     # and convenient reference, so we effectively require that it is changed _somehow_
     # by the constituent subtraction. It will have to be validated elsewhere.
-    assert not all([np.allclose(np.asarray(measured.px), np.asarray(expected.px))
+    assert not all(np.allclose(np.asarray(measured.px), np.asarray(expected.px))
                     and np.allclose(np.asarray(measured.py), np.asarray(expected.py))
                     and np.allclose(np.asarray(measured.pz), np.asarray(expected.pz))
                     and np.allclose(np.asarray(measured.E), np.asarray(expected.E))
-                    for event, event_expected in zip(jets, expected_jets) for measured, expected in zip(event, event_expected)])
+                    for event, event_expected in zip(jets, expected_jets) for measured, expected in zip(event, event_expected))
 
     # only for testing - we want to see any fastjet warnings
     #assert False
@@ -450,11 +450,11 @@ def test_negative_energy_recombiner(caplog: Any) -> None:
     logger.info(f"expected_jets: {expected_jets.to_list()}")
 
     # Check four momenta
-    assert all([np.allclose(np.asarray(measured.px), np.asarray(expected.px))
+    assert all(np.allclose(np.asarray(measured.px), np.asarray(expected.px))
                 and np.allclose(np.asarray(measured.py), np.asarray(expected.py))
                 and np.allclose(np.asarray(measured.pz), np.asarray(expected.pz))
                 and np.allclose(np.asarray(measured.E), np.asarray(expected.E))
-                for event, event_expected in zip(jets, expected_jets) for measured, expected in zip(event, event_expected)])
+                for event, event_expected in zip(jets, expected_jets) for measured, expected in zip(event, event_expected))
 
     # only for testing - we want to see any fastjet warnings
     #assert False
