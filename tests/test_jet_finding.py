@@ -16,6 +16,29 @@ from mammoth.framework import jet_finding
 logger = logging.getLogger(__name__)
 
 
+def test_find_unsubtracted_constituent_index_from_subtracted_index_via_user_index(caplog: Any) -> None:
+    """Test relating the unsubtracted constituent index to the """
+    # Setup
+    caplog.set_level(logging.DEBUG)
+
+    # NOTE: This user_index permutations are probably more general than we'll see in data, but better to test fully
+    _user_index = ak.Array(
+        [[1, -2, 3, 4], [6, -5, 4], [9, 7, -8]]
+    )
+    _subtracted_index_to_unsubtracted_user_index_awkward = ak.Array(
+        [[1, -2, 3, 4], [4, -5, 6], [7, -8, 9]]
+    )
+
+    result = jet_finding.find_unsubtracted_constituent_index_from_subtracted_index_via_user_index(
+        user_indices=_user_index,
+        subtracted_index_to_unsubtracted_user_index=_subtracted_index_to_unsubtracted_user_index_awkward,
+    )
+
+    assert result.to_list() == [
+        [0, 1, 2, 3], [2, 1, 0], [1, 2, 0]
+    ]
+
+
 def test_jet_finding_basic_single_event(caplog: Any) -> None:
     """ Basic jet finding test with a single event. """
     # Setup
