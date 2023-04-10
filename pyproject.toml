@@ -169,7 +169,7 @@ unfixable = [
 target-version = 'py38'
 
 [tool.ruff.mccabe]
-max-complexity = 10
+max-complexity = 12
 
 [tool.ruff.isort]
 known-first-party = ["mammoth", "mammoth_cpp"]
