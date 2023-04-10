@@ -501,7 +501,7 @@ def _indices_for_event_boundaries(array: ak.Array) -> npt.NDArray[np.int64]:
     return sum_counts  # noqa: RET504
 
 
-#@nb.njit  # type: ignore[misc]
+@nb.njit  # type: ignore[misc]
 def _find_constituent_indices_via_user_index(
     user_indices: ak.Array, constituents_user_index: ak.Array, number_of_constituents: int
 ) -> ak.Array:
@@ -548,6 +548,7 @@ def find_constituent_indices_via_user_index(
         axis=1
     )
 
+@nb.njit  # type: ignore[misc]
 def _find_unsubtracted_constituent_index_from_subtracted_index_via_user_index(
     user_indices: ak.Array,
     subtracted_index_to_unsubtracted_user_index: ak.Array,
