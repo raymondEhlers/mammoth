@@ -8,18 +8,17 @@ from __future__ import annotations
 import collections
 import logging
 from pathlib import Path
-from typing import Any, Dict, Literal, Mapping, Optional, Sequence, Tuple, Union
+from typing import Any, Mapping, Sequence
 
 import awkward as ak
 import numpy as np
+
 from mammoth import helpers
 from mammoth.framework import load_data, sources
+from mammoth.framework.analysis import jets as analysis_jets
+from mammoth.framework.analysis import objects as analysis_objects
 from mammoth.framework.io import HF_tree, track_skim
-from mammoth.framework.analysis import objects as analysis_objects, jets as analysis_jets
-from mammoth.hardest_kt import analysis_alice
-
-from mammoth.hardest_kt import skim_to_flat_tree
-
+from mammoth.hardest_kt import analysis_alice, skim_to_flat_tree
 
 logger = logging.getLogger(__name__)
 
@@ -30,7 +29,7 @@ SKIM_TYPES = [
     "HF_tree_creator_at_LBL",
 ]
 
-skim_types_to_file_source: Dict[str, sources.CanCreateDeferredSourceFromFilename] = {
+skim_types_to_file_source: dict[str, sources.CanCreateDeferredSourceFromFilename] = {
     "track_skim": track_skim.FileSource,
     "HF_tree_creator": HF_tree.FileSource,
     "HF_tree_creator_at_LBL": HF_tree.FileSource,
@@ -40,7 +39,7 @@ skim_types_to_file_source: Dict[str, sources.CanCreateDeferredSourceFromFilename
 def _convert_analyzed_jets_to_all_jets_for_skim(
     jets: ak.Array,
     convert_data_format_prefixes: Mapping[str, str],
-) -> Dict[str, ak.Array]:
+) -> dict[str, ak.Array]:
     # Need the unsubtracted leading track pt for hybrid
     additional_columns_per_prefix = {}
     for prefix_to_check in convert_data_format_prefixes:
@@ -97,8 +96,8 @@ def _hardest_kt_data_skim(
     iterative_splittings: bool,
     convert_data_format_prefixes: Mapping[str, str],
     output_filename: Path,
-    scale_factors: Optional[Mapping[int, float]] = None,
-    pt_hat_bin: Optional[int] = -1,
+    scale_factors: Mapping[int, float] | None = None,
+    pt_hat_bin: int | None = -1,
 ) -> None:
     """Implementation of the hardest kt data skim.
 
@@ -143,15 +142,15 @@ def hardest_kt_data_skim(
     output_filename: Path,
     convert_data_format_prefixes: Mapping[str, str],
     # Data specific
-    loading_data_rename_prefix: Optional[Mapping[str, str]] = None,
+    loading_data_rename_prefix: Mapping[str, str] | None = None,
     # Pythia specific
-    pt_hat_bin: Optional[int] = -1,
-    scale_factors: Optional[Mapping[int, float]] = None,
+    pt_hat_bin: int | None = -1,
+    scale_factors: Mapping[int, float] | None = None,
     det_level_artificial_tracking_efficiency: float | analysis_jets.PtDependentTrackingEfficiencyParameters | None = 1.0,
     # Validation
     validation_mode: bool = False,
-    background_subtraction: Optional[Mapping[str, Any]] = None,
-) -> Tuple[bool, str]:
+    background_subtraction: Mapping[str, Any] | None = None,
+) -> tuple[bool, str]:
     # Validation
     if loading_data_rename_prefix is None:
         loading_data_rename_prefix = {"data": "data"}
@@ -215,7 +214,8 @@ def hardest_kt_data_skim(
                 validation_mode=validation_mode,
             )
         else:
-            raise NotImplementedError(f"Not yet implemented for {collision_system}...")
+            _msg = f"Not yet implemented for {collision_system}..."
+            raise NotImplementedError(_msg)
     except sources.NoDataAvailableError as e:
         # Just create the empty filename and return. This will prevent trying to re-run with no jets in the future.
         # Remember that this depends heavily on the jet pt cuts!
@@ -288,7 +288,7 @@ def _description_from_parameters(parameters: Mapping[str, Any]) -> str:
     return ", ".join([f"{k}={v}" for k, v in parameters.items()])
 
 
-def _check_for_output_file(output_filename: Path, description: str) -> Tuple[bool, str]:
+def _check_for_output_file(output_filename: Path, description: str) -> tuple[bool, str]:
     # Try to bail out as early to avoid reprocessing if possible.
     # First, check for the empty filename
     empty_filename = output_filename.with_suffix(".empty")
@@ -315,7 +315,7 @@ def _check_for_output_file(output_filename: Path, description: str) -> Tuple[boo
 
 def hardest_kt_embed_thermal_model_skim(  # noqa: C901
     collision_system: str,
-    signal_input: Union[Path, Sequence[Path]],
+    signal_input: Path | Sequence[Path],
     convert_data_format_prefixes: Mapping[str, str],
     jet_R: float,
     min_jet_pt: Mapping[str, float],
@@ -327,7 +327,7 @@ def hardest_kt_embed_thermal_model_skim(  # noqa: C901
     scale_factor: float,
     chunk_size: sources.T_ChunkSize = sources.ChunkSizeSentinel.SINGLE_FILE,
     validation_mode: bool = False,
-) -> Tuple[bool, str]:
+) -> tuple[bool, str]:
     # Validation
     signal_input_filenames = []
     if not isinstance(signal_input, collections.abc.Iterable):
@@ -465,8 +465,8 @@ def hardest_kt_embed_thermal_model_skim(  # noqa: C901
 
 def hardest_kt_embedding_skim(  # noqa: C901
     collision_system: str,
-    signal_input: Union[Path, Sequence[Path]],
-    background_input: Union[Path, Sequence[Path]],
+    signal_input: Path | Sequence[Path],
+    background_input: Path | Sequence[Path],
     convert_data_format_prefixes: Mapping[str, str],
     jet_R: float,
     min_jet_pt: Mapping[str, float],
@@ -478,7 +478,7 @@ def hardest_kt_embedding_skim(  # noqa: C901
     chunk_size: sources.T_ChunkSize = sources.ChunkSizeSentinel.FULL_SOURCE,
     validation_mode: bool = False,
     background_is_constrained_source: bool = True,
-) -> Tuple[bool, str]:
+) -> tuple[bool, str]:
     # Validation
     signal_input_filenames = []
     if not isinstance(signal_input, collections.abc.Iterable):
