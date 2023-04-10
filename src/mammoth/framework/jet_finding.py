@@ -600,14 +600,18 @@ def calculate_user_index_with_encoded_sign_info(
     if ak.any(
         ak.local_index(particles.px, axis=-1)[mask_to_encode_with_negative] == 0
     ):
-        # TODO: Test, but with and without this!
         _msg = "Particles requested to be encoded contain index of 0. We will miss this encoded info for this index. This is probably wrong, but you need to think through how to fix this!"
         raise ValueError(_msg)
 
-    # Use px as a proxy - any particle property field would be fine
+    # Now, apply the masking. Since ak can't do it inplace, we need to flatten to np, apply, and then transform back
+    # NOTE: Use px as a proxy - any particle property field would be fine
     user_index = ak.local_index(particles.px, axis=-1)
-    user_index[mask_to_encode_with_negative] = -1 * user_index[mask_to_encode_with_negative]
-    return user_index
+    # NOTE: Need the `to_numpy` in addition to flatten here so we can assign to the slice
+    user_index_flattened = ak.to_numpy(ak.flatten(user_index))
+    mask_to_encode_with_negative_flattened = ak.flatten(mask_to_encode_with_negative)
+    # Finally, we can the sign
+    user_index_flattened[mask_to_encode_with_negative_flattened] = -1 * user_index_flattened[mask_to_encode_with_negative_flattened]
+    return ak.unflatten(user_index_flattened, ak.num(user_index, axis=1))
 
 
 def _handle_subtracted_constituents(

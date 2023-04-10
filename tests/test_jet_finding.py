@@ -58,6 +58,102 @@ def test_find_unsubtracted_constituent_index_from_subtracted_index_via_user_inde
         [0, 1, 2, 3], [2, 1, 0], [1, 2, 0]
     ]
 
+def test_calculate_user_index_with_encoded_sign_info(caplog: Any) -> None:
+    """Test calculating a custom user_index where we encode sign info."""
+    # Setup
+    caplog.set_level(logging.DEBUG)
+
+    # An event with three particles
+    # First event is the standard fastjet test particles,
+    # while the second event is the standard with px <-> py.
+    input_particles = ak.zip(
+        {
+            "px": [
+                [99.0, 4.0, -99.0],
+                [0.1, -0.1, 0],
+            ],
+            "py": [
+                [0.1, -0.1, 0],
+                [99.0, 4.0, -99.0],
+            ],
+            "pz": [
+                [0, 0, 0],
+                [0, 0, 0],
+            ],
+            "E": [
+                [100.0, 5.0, 99.0],
+                [100.0, 5.0, 99.0],
+            ],
+            "source_index": [
+                [1, 2, 3],
+                [4, 5, 6],
+            ],
+        },
+        with_name="Momentum4D",
+    )
+    values_to_encode = ak.Array(
+        [
+            [1, 1, 0], [1, 0, 1]
+        ]
+    )
+    mask_to_encode_with_negative = (values_to_encode == 0)
+
+    res = jet_finding.calculate_user_index_with_encoded_sign_info(
+        particles=input_particles,
+        mask_to_encode_with_negative=mask_to_encode_with_negative,
+    )
+
+    assert res.to_list() == [
+        [0, 1, -2], [0, -1, 2]
+    ]
+
+
+def test_calculate_user_index_with_encoded_sign_info_detect_error(caplog: Any) -> None:
+    """Test calculating a custom user_index where we encode sign info."""
+    # Setup
+    caplog.set_level(logging.DEBUG)
+
+    # An event with three particles
+    # First event is the standard fastjet test particles,
+    # while the second event is the standard with px <-> py.
+    input_particles = ak.zip(
+        {
+            "px": [
+                [99.0, 4.0, -99.0],
+                [0.1, -0.1, 0],
+            ],
+            "py": [
+                [0.1, -0.1, 0],
+                [99.0, 4.0, -99.0],
+            ],
+            "pz": [
+                [0, 0, 0],
+                [0, 0, 0],
+            ],
+            "E": [
+                [100.0, 5.0, 99.0],
+                [100.0, 5.0, 99.0],
+            ],
+            "source_index": [
+                [1, 2, 3],
+                [4, 5, 6],
+            ],
+        },
+        with_name="Momentum4D",
+    )
+    values_to_encode = ak.Array(
+        [
+            [1, 1, 0], [0, 1, 1]
+        ]
+    )
+    mask_to_encode_with_negative = (values_to_encode == 0)
+
+    with pytest.raises(ValueError, match="contain index of 0"):
+        jet_finding.calculate_user_index_with_encoded_sign_info(
+            particles=input_particles,
+            mask_to_encode_with_negative=mask_to_encode_with_negative,
+        )
+
 
 def test_jet_finding_basic_single_event(caplog: Any) -> None:
     """ Basic jet finding test with a single event. """
