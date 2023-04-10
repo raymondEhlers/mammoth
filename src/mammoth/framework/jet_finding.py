@@ -888,7 +888,7 @@ def find_jets(
 
     """
     NOTE: We don't need the constituent indices themselves since we've already mapped the constituents
-          to the jets. Those constituents can identify their source via `index`. If we later decide that
+          to the jets. Those constituents can identify their source via `identifier`. If we later decide that
           we need them, it's as simple as the zipping everything together. Example:
 
     ```python
@@ -929,7 +929,6 @@ def find_jets(
         # Limit of 2 is based on: 1 for events + 1 for jets
         depth_limit=2,
     )
-    #import IPython; IPython.embed()
 
     return output_jets  # noqa: RET504
 
