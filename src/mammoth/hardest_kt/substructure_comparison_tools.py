@@ -277,7 +277,7 @@ def compare_flat_substructure(  # noqa: C901
                 # log it in the correct place for convenience in understanding the logs
                 logger.warning(warning_for_user)
                 # And further emit it in case the test passes so the user doesn't overlook this
-                warnings.warn(UserWarning(warning_for_user))
+                warnings.warn(UserWarning(warning_for_user), stacklevel=2)
             else:
                 reorder_mask = reorder_map[(collision_system, jet_R)]
                 track_skim = track_skim[reorder_mask]
@@ -324,7 +324,7 @@ def compare_flat_substructure(  # noqa: C901
                 # log it in the correct place for convenience in understanding the logs
                 logger.warning(warning_for_user)
                 # And further emit it in case the test passes so the user doesn't overlook this
-                warnings.warn(UserWarning(warning_for_user))
+                warnings.warn(UserWarning(warning_for_user), stacklevel=2)
                 track_skim = track_skim[reorder_mask]
             except ValueError:
                 # If this fails, it's probably because the arrays are different lengths.
