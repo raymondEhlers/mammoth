@@ -694,6 +694,26 @@ def _handle_subtracted_constituents(
     return _particles_for_constituents, _constituent_indices_awkward
 
 
+def _extract_additional_jet_level_fields(
+    particles: ak.Array,
+    jet_finding_settings: JetFindingSettings,
+    jets: dict[str, list[np.float32 | np.float64 | npt.NDArray[np.float32 | np.float64]]],
+    output_constituents: ak.Array,
+    subtracted_index_to_unsubtracted_user_index: list[npt.NDArray[np.int64]],
+) -> dict[str, ak.Array]:
+    additional_jet_level_fields = {}
+    # Only include if we actually calculated the area
+    if jet_finding_settings.area_settings:
+        additional_jet_level_fields["area"] = jets["area"]
+    if subtracted_index_to_unsubtracted_user_index:
+        # Here, we add the unsubtracted constituent max pt
+        additional_jet_level_fields["unsubtracted_leading_track_pt"] = calculate_unsubtracted_constituent_max_pt(
+            arrays=particles,
+            constituents=output_constituents,
+        )
+    return additional_jet_level_fields
+
+
 def find_jets(
     particles: ak.Array,
     jet_finding_settings: JetFindingSettings,
@@ -736,9 +756,8 @@ def find_jets(
     pz: npt.NDArray[np.float64] = np.asarray(flattened_particles.pz, dtype=np.float64)
     E: npt.NDArray[np.float64] = np.asarray(flattened_particles.E, dtype=np.float64)
     # Provide this value only if it's available in the array
-    user_index = None
-    if "user_index" in ak.fields(flattened_particles):
-        user_index = np.asarray(flattened_particles.user_index, dtype=np.int64)
+    user_index = np.asarray(flattened_particles.user_index, dtype=np.int64) \
+        if "user_index" in ak.fields(flattened_particles) else None
 
     # Now, onto the background particles. If background particles were passed, we want to do the
     # same thing as the input particles
@@ -921,17 +940,14 @@ def find_jets(
     ```
     """
 
-    # Add additional columns that only apply for subtracted constituents
-    additional_jet_level_fields = {}
-    # Only include if we actually calculated the area
-    if jet_finding_settings.area_settings:
-        additional_jet_level_fields["area"] = jets["area"]
-    if subtracted_index_to_unsubtracted_user_index:
-        # Here, we add the unsubtracted constituent max pt
-        additional_jet_level_fields["unsubtracted_leading_track_pt"] = calculate_unsubtracted_constituent_max_pt(
-            arrays=particles,
-            constituents=output_constituents,
-        )
+    # Add additional columns that only apply in some cases
+    additional_jet_level_fields = _extract_additional_jet_level_fields(
+        particles=particles,
+        jet_finding_settings=jet_finding_settings,
+        jets=jets,
+        output_constituents=output_constituents,
+        subtracted_index_to_unsubtracted_user_index=subtracted_index_to_unsubtracted_user_index,
+    )
 
     # Finally, construct the output
     output_jets = ak.zip(
