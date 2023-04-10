@@ -757,7 +757,7 @@ def find_jets(
         jets["area"].append(res.jets_area)
         jets["rho_value"].append(res.rho_value)
         # Next, associate the indices of the constituents that are associated with each jet
-        constituents_user_index.append(res.constituent_indices)
+        constituents_user_index.append(res.constituents_user_index)
 
         # Finally, we'll handle the subtracted constituents if relevant
         subtracted_info = res.subtracted_info

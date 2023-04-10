@@ -223,7 +223,7 @@ void wrapOutputWrapper(py::module & m, const std::string & typestr)
   std::string pythonClassName = "OutputWrapper" + typestr;
   py::class_<Class>(m, pythonClassName.c_str(), "Output wrapper")
     .def_readonly("jets", &Class::jets)
-    .def_readonly("constituent_indices", &Class::constituent_indices)
+    .def_readonly("constituents_user_index", &Class::constituents_user_index)
     .def_readonly("jets_area", &Class::jetsArea)
     .def_readonly("rho_value", &Class::rho)
     .def_readonly("subtracted_info", &Class::subtracted)

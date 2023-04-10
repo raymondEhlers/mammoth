@@ -140,7 +140,7 @@ class JetSubstructureSplittings:
 class OutputWrapperDouble:
     def __init__(self, *args, **kwargs) -> None: ...  # type: ignore[no-untyped-def]  # noqa: E704
     @property
-    def constituent_indices(self) -> List[List[int]]: ...  # noqa: E301,E704
+    def constituents_user_index(self) -> List[List[int]]: ...  # noqa: E301,E704
     @property  # noqa: E301
     def jets(  # noqa: E301,E704
         self,
@@ -162,7 +162,7 @@ class OutputWrapperDouble:
 class OutputWrapperFloat:
     def __init__(self, *args, **kwargs) -> None: ...  # type: ignore[no-untyped-def]  # noqa: E704
     @property
-    def constituent_indices(self) -> List[List[int]]: ...  # noqa: E704
+    def constituents_user_index(self) -> List[List[int]]: ...  # noqa: E704
     @property  # noqa: E301
     def jets(  # noqa: E704
         self,

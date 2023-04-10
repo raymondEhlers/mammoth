@@ -110,7 +110,7 @@ using FourVectorTuple = std::tuple<std::vector<T>, std::vector<T>, std::vector<T
 template<typename T>
 struct OutputWrapper {
   FourVectorTuple<T> jets;
-  std::vector<std::vector<int>> constituent_indices;
+  std::vector<std::vector<int>> constituents_user_index;
   std::vector<T> jetsArea;
   T rho;
   std::optional<std::tuple<FourVectorTuple<T>, std::vector<int>>> subtracted;
