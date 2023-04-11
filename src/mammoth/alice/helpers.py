@@ -3,21 +3,22 @@
 .. codeauthor:: Raymond Ehlers <raymond.ehlers@cern.ch>, LBL/UCB
 """
 
-import logging
+from __future__ import annotations
+
 import functools
+import logging
 import operator
-from typing import Final, List, Mapping, Optional, Sequence
+from typing import Final, Mapping, Sequence
 
 import awkward as ak
 import numpy as np
 
 from mammoth.framework import jet_finding, particle_ID
 
-
 logger = logging.getLogger(__name__)
 
 
-_DEFAULT_CHARGED_HADRON_PIDs: Final[List[int]] = [11, 13, 211, 321, 2212, 3222, 3112, 3312, 3334]
+_DEFAULT_CHARGED_HADRON_PIDs: Final[list[int]] = [11, 13, 211, 321, 2212, 3222, 3112, 3312, 3334]
 
 def standard_event_selection(arrays: ak.Array, return_mask: bool = False) -> ak.Array:
     """ALICE standard event selection
@@ -55,7 +56,7 @@ def standard_event_selection(arrays: ak.Array, return_mask: bool = False) -> ak.
     return arrays
 
 
-def _determine_particle_column_names(arrays: ak.Array, selected_particle_column_name: str) -> List[str]:
+def _determine_particle_column_names(arrays: ak.Array, selected_particle_column_name: str) -> list[str]:
     """ Determine particle column names
 
     Args:
@@ -77,7 +78,8 @@ def _determine_particle_column_names(arrays: ak.Array, selected_particle_column_
 
         # Double check that we got something
         if not particle_columns:
-            raise ValueError(f"No particle columns found in the array. Double check your inputs. columns: {ak.fields(arrays)}")
+            _msg = f"No particle columns found in the array. Double check your inputs. columns: {ak.fields(arrays)}"
+            raise ValueError(_msg)
     else:
         particle_columns = [selected_particle_column_name]
     return particle_columns
@@ -86,8 +88,8 @@ def _determine_particle_column_names(arrays: ak.Array, selected_particle_column_
 def standard_track_selection(arrays: ak.Array,
                              require_at_least_one_particle_in_each_collection_per_event: bool,
                              selected_particle_column_name: str = "",
-                             columns_to_explicitly_select_charged_particles: Optional[Sequence[str]] = None,
-                             charged_hadron_PIDs: Optional[Sequence[int]] = None,
+                             columns_to_explicitly_select_charged_particles: Sequence[str] | None = None,
+                             charged_hadron_PIDs: Sequence[int] | None = None,
                              ) -> ak.Array:
     """ALICE standard track selection
 
@@ -140,9 +142,8 @@ def standard_track_selection(arrays: ak.Array,
         # Optionally apply selection of only charged particles if requested
         if column_name in columns_to_explicitly_select_charged_particles:
             if "particle_ID" not in ak.fields(arrays["column_name"]):
-                raise ValueError(
-                    f"Cannot select charged particles for {column_name} because the particle_ID column is not present."
-                )
+                _msg = f"Cannot select charged particles for {column_name} because the particle_ID column is not present."
+                raise ValueError(_msg)
             charged_particles_mask = particle_ID.build_PID_selection_mask(
                 arrays[column_name], absolute_pids=charged_hadron_PIDs
             )
@@ -174,7 +175,7 @@ def standard_jet_selection(jets: ak.Array,
                            collision_system: str,
                            substructure_constituent_requirements: bool,
                            selected_particle_column_name: str = "",
-                           max_constituent_pt_values: Optional[Mapping[str, float]] = None,
+                           max_constituent_pt_values: Mapping[str, float] | None = None,
                            ) -> ak.Array:
     """Standard ALICE jet selection
 
@@ -258,7 +259,7 @@ def standard_jet_selection(jets: ak.Array,
         # We generically associate it with substructure, so we describe the switch for it as:
         # `substructure_constituent_requirements`
         # *************
-        if substructure_constituent_requirements and collision_system not in ["PbPb"] and "embed" not in collision_system:
+        if substructure_constituent_requirements and collision_system not in ["PbPb"] and "embed" not in collision_system:  # noqa: SIM102
             # We only want to apply this to det_level or data, so skip both "part_level" and "hybrid"
             if column_name not in ["part_level", "hybrid"]:
                 masks[column_name] = (masks[column_name]) & (ak.num(jets[column_name, "constituents"], axis=2) > 1)

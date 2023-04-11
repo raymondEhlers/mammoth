@@ -313,7 +313,7 @@ def _check_for_output_file(output_filename: Path, description: str) -> tuple[boo
     return (False, "")
 
 
-def hardest_kt_embed_thermal_model_skim(  # noqa: C901
+def hardest_kt_embed_thermal_model_skim(
     collision_system: str,
     signal_input: Path | Sequence[Path],
     convert_data_format_prefixes: Mapping[str, str],

@@ -3,8 +3,10 @@
 .. codeauthor:: Raymond Ehlers <raymond.ehlers@cern.ch>, LBL/UCB
 """
 
-from typing import List, Optional, Sequence
+from __future__ import annotations
+
 from pathlib import Path
+from typing import Sequence
 
 import attr
 
@@ -19,18 +21,13 @@ class Dependency:
 
 
 def _validate_productions_and_tasks_to_run(
-    productions: Optional[Sequence[production.ProductionSettings]] = None,
-    tasks_to_run: Optional[Sequence[Sequence[str]]] = None,
-) -> List[List[str]]:
+    productions: Sequence[production.ProductionSettings] | None = None,
+    tasks_to_run: Sequence[Sequence[str]] | None = None,
+) -> list[list[str]]:
     if productions is None and tasks_to_run is None:
-        raise ValueError("Need to provide either productions or tasks to run.")
-    if tasks_to_run is not None:
-        _tasks_to_run = [
-            list(tasks)
-            for tasks in tasks_to_run
-        ]
-    else:
-        _tasks_to_run = []
+        _msg = "Need to provide either productions or tasks to run."
+        raise ValueError(_msg)
+    _tasks_to_run = [list(tasks) for tasks in tasks_to_run] if tasks_to_run is not None else []
     if productions is not None:
         _tasks_to_run.extend(
             [
@@ -42,11 +39,11 @@ def _validate_productions_and_tasks_to_run(
 
 
 def determine_additional_worker_init_alibuild(
-    productions: Optional[Sequence[production.ProductionSettings]] = None,
-    tasks_to_run: Optional[Sequence[Sequence[str]]] = None,
-    tasks_requiring_root: Optional[Sequence[str]] = None,
-    tasks_requiring_aliphysics: Optional[Sequence[str]] = None,
-    tasks_requiring_roounfold: Optional[Sequence[str]] = None,
+    productions: Sequence[production.ProductionSettings] | None = None,
+    tasks_to_run: Sequence[Sequence[str]] | None = None,
+    tasks_requiring_root: Sequence[str] | None = None,
+    tasks_requiring_aliphysics: Sequence[str] | None = None,
+    tasks_requiring_roounfold: Sequence[str] | None = None,
     software_version_tag: str = "latest",
 ) -> str:
     # Validation
@@ -58,7 +55,7 @@ def determine_additional_worker_init_alibuild(
     if tasks_requiring_roounfold is None:
         tasks_requiring_roounfold = []
 
-    _software_to_load: List[str] = []
+    _software_to_load: list[str] = []
     _additional_worker_init_script = ""
     _software_options = [
         # NOTE: It's important that ROOT is handled first so that we can remove it later if we need to do so. See below.
@@ -69,11 +66,9 @@ def determine_additional_worker_init_alibuild(
     for _software in _software_options:
         # fmt: off
         if any(
-            (
-                task in tasks_requiring_root
-                for tasks in tasks_to_run
-                for task in tasks
-            )
+            task in tasks_requiring_root
+            for tasks in tasks_to_run
+            for task in tasks
         ):
             if _software.depends_on_ROOT:
                 # NOTE: This is a little unconventional to redefine the list here, but ROOT is already
@@ -94,11 +89,11 @@ def determine_additional_worker_init_alibuild(
 
 def determine_additional_worker_init_conda(
     environment_name: str,
-    productions: Optional[Sequence[production.ProductionSettings]] = None,
-    tasks_to_run: Optional[Sequence[Sequence[str]]] = None,
-    tasks_requiring_root: Optional[Sequence[str]] = None,
-    tasks_requiring_aliphysics: Optional[Sequence[str]] = None,
-    tasks_requiring_roounfold: Optional[Sequence[str]] = None,
+    productions: Sequence[production.ProductionSettings] | None = None,
+    tasks_to_run: Sequence[Sequence[str]] | None = None,
+    tasks_requiring_root: Sequence[str] | None = None,
+    tasks_requiring_aliphysics: Sequence[str] | None = None,
+    tasks_requiring_roounfold: Sequence[str] | None = None,
 ) -> str:
     # Validation
     tasks_to_run = _validate_productions_and_tasks_to_run(productions=productions, tasks_to_run=tasks_to_run)
@@ -115,30 +110,25 @@ def determine_additional_worker_init_conda(
     # NOTE: Each if statement here is required to write the full set of commands required to load the piece of software.
     # fmt: off
     if any(
-        (
-            task in tasks_requiring_root
-            for tasks in tasks_to_run
-            for task in tasks
-        )
+        task in tasks_requiring_root
+        for tasks in tasks_to_run
+        for task in tasks
     ):
         # Nothing to be done here - just note that it needs to be done
         _load_conda_env = True
     if any(
-        (
-            task in tasks_requiring_aliphysics
-            for tasks in tasks_to_run
-            for task in tasks
-        )
+        task in tasks_requiring_aliphysics
+        for tasks in tasks_to_run
+        for task in tasks
     ):
         # Additional validation
         # We probably won't support AliPhysics, so tell the user
-        raise ValueError("AliPhysics isn't currently supported via conda, sorry!")
+        _msg = "AliPhysics isn't currently supported via conda, sorry!"
+        raise ValueError(_msg)
     if any(
-        (
-            task in tasks_requiring_roounfold
-            for tasks in tasks_to_run
-            for task in tasks
-        )
+        task in tasks_requiring_roounfold
+        for tasks in tasks_to_run
+        for task in tasks
     ):
         _load_conda_env = True
         # Assume that we're using a local install of mammoth. As of Nov 2022, I don't forsee any case
@@ -158,12 +148,12 @@ def determine_additional_worker_init_conda(
 
 
 def determine_additional_worker_init(
-    productions: Optional[Sequence[production.ProductionSettings]] = None,
-    tasks_to_run: Optional[Sequence[Sequence[str]]] = None,
-    tasks_requiring_root: Optional[Sequence[str]] = None,
-    tasks_requiring_aliphysics: Optional[Sequence[str]] = None,
-    tasks_requiring_roounfold: Optional[Sequence[str]] = None,
-    conda_environment_name: Optional[str] = None,
+    productions: Sequence[production.ProductionSettings] | None = None,
+    tasks_to_run: Sequence[Sequence[str]] | None = None,
+    tasks_requiring_root: Sequence[str] | None = None,
+    tasks_requiring_aliphysics: Sequence[str] | None = None,
+    tasks_requiring_roounfold: Sequence[str] | None = None,
+    conda_environment_name: str | None = None,
 ) -> str:
     """Wrapper for convenience"""
     if conda_environment_name:
@@ -175,7 +165,7 @@ def determine_additional_worker_init(
             tasks_requiring_aliphysics=tasks_requiring_aliphysics,
             tasks_requiring_roounfold=tasks_requiring_roounfold,
         )
-    else:
+    else:  # noqa: RET505
         return determine_additional_worker_init_alibuild(
             productions=productions,
             tasks_to_run=tasks_to_run,

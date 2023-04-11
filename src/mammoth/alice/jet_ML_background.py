@@ -3,9 +3,11 @@
 .. codeauthor:: Raymond Ehlers <raymond.ehlers@cern.ch>, ORNL
 """
 
+from __future__ import annotations
+
 import logging
 from pathlib import Path
-from typing import Dict, Mapping, Tuple, Union
+from typing import Mapping
 
 import awkward as ak
 import numpy as np
@@ -22,7 +24,7 @@ def load_embedding(
     signal_filename: Path,
     background_filename: Path,
     background_collision_system_tag: str,
-) -> Tuple[Dict[str, int], ak.Array]:
+) -> tuple[dict[str, int], ak.Array]:
     # Setup
     logger.info("Loading embedded data")
     source_index_identifiers = {"signal": 0, "background": 100_000}
@@ -102,7 +104,8 @@ def analysis_embedding(source_index_identifiers: Mapping[str, int],
                        ) -> ak.Array:
     # Validation
     if use_standard_rho_subtract and use_constituent_subtraction:
-        raise ValueError("Selected both rho subtraction and constituent subtraction. Select only one.")
+        _msg = "Selected both rho subtraction and constituent subtraction. Select only one."
+        raise ValueError(_msg)
 
     # Event selection
     # This would apply to the signal events, because this is what we propagate from the embedding transform
@@ -140,7 +143,7 @@ def analysis_embedding(source_index_identifiers: Mapping[str, int],
     background_only_particles_mask = ~(arrays["hybrid", "source_index"] < source_index_identifiers["background"])
 
     # Since rho subtraction is the default, we start with that
-    subtractor: Union[jet_finding.RhoSubtractor, jet_finding.ConstituentSubtractor] = jet_finding.RhoSubtractor()
+    subtractor: jet_finding.RhoSubtractor | jet_finding.ConstituentSubtractor = jet_finding.RhoSubtractor()
     if use_constituent_subtraction:
         subtractor = jet_finding.ConstituentSubtractor(r_max=0.25)
     jets = ak.zip(
@@ -370,10 +373,10 @@ def analysis_embedding(source_index_identifiers: Mapping[str, int],
         logger.info(f"Removing {n_jets_removed} events out of {len(jets)} total jets ({round(n_jets_removed / len(jets) * 100, 2)}%) due to shared momentum fraction")
         jets = jets[shared_momentum_fraction_mask]
     except Exception as e:
-        print(e)
+        print(e)  # noqa: T201
         import IPython
 
-        IPython.embed()
+        IPython.embed()  # type: ignore[no-untyped-call]
 
     # Now, the final transformation into a form that can be used to skim into a flat tree.
     return jets
@@ -472,7 +475,7 @@ if __name__ == "__main__":
 
     import IPython
 
-    IPython.start_ipython(user_ns={**globals(), **locals()})
+    IPython.start_ipython(user_ns={**globals(), **locals()})  # type: ignore[no-untyped-call]
 
 
 def mask_for_flat_distribution(

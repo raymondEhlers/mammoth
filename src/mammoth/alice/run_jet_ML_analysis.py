@@ -88,8 +88,8 @@ def setup_jet_background_ML_embedding_analysis(
         Futures containing the status of the embedding analysis.
     """
     # NOTE: Sort by lower bin edge of the pt hat bin
-    signal_input_files = list(sorted(signal_input_dir.glob("*.parquet"), key=lambda p: int(str(p.name).split("_")[4].replace("PtHard", ""))))
-    background_input_files = list(sorted(background_input_dir.glob("*/*.root")))
+    signal_input_files = sorted(signal_input_dir.glob("*.parquet"), key=lambda p: int(str(p.name).split("_")[4].replace("PtHard", "")))
+    background_input_files = sorted(background_input_dir.glob("*/*.root"))
 
     # TEMP for testing
     #background_input_files = background_input_files[:2]
@@ -106,7 +106,7 @@ def setup_jet_background_ML_embedding_analysis(
         signal_input_files_by_pt_hat_bin_label[pt_hat_bin_label].append(signal_input)
     # NOTE: We convert back to list in the end because random choice is expecting a
     #       sequence, and it's more efficient to convert it only once.
-    pt_hat_bin_labels = list(set(list(signal_input_files_by_pt_hat_bin_label)))
+    pt_hat_bin_labels = list(set(signal_input_files_by_pt_hat_bin_label))
 
     results = []
     logger.info("Creating embedding tasks. This may make time a minute...")
