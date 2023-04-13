@@ -8,7 +8,7 @@ from __future__ import annotations
 import fnmatch
 import logging
 from pathlib import Path
-from typing import Any, List, Mapping, Sequence, Tuple
+from typing import Any, Mapping, Sequence
 
 import numpy as np
 import uproot
@@ -18,18 +18,17 @@ from mammoth import helpers
 from mammoth.framework import utils
 from mammoth.framework.analysis import objects as analysis_objects
 
-
 logger = logging.getLogger(__name__)
 
 
-def scale_factor_ROOT_wrapper(base_path: Path, train_number: int) -> Tuple[int, int, Any, Any]:
+def scale_factor_ROOT_wrapper(base_path: Path, train_number: int) -> tuple[int, int, Any, Any]:
     # Setup
     filenames = utils.ensure_and_expand_paths([Path(str(base_path).format(train_number=train_number))])
 
     return scale_factor_ROOT(filenames)
 
 
-def scale_factor_ROOT(filenames: Sequence[Path], list_name: str = "") -> Tuple[int, int, Any, Any]:
+def scale_factor_ROOT(filenames: Sequence[Path], list_name: str = "") -> tuple[int, int, Any, Any]:
     """Calculate the scale factor for a given train.
 
     Args:
@@ -64,13 +63,13 @@ def scale_factor_ROOT(filenames: Sequence[Path], list_name: str = "") -> Tuple[i
                 name for name in task_hists_name if "Tree" not in name and "tree" not in name
             ]
             if len(task_hists_name) != 1:
-                raise RuntimeError(f"Cannot find unique task name. Names: {task_hists_name}. Skipping!")
-            else:
+                _msg = f"Cannot find unique task name. Names: {task_hists_name}. Skipping!"
+                raise RuntimeError(_msg)
+            else:  # noqa: RET506
                 hists = f.Get(task_hists_name[0])
                 if not hists:
-                    raise RuntimeError(
-                        f"Cannot find a task output list. Tried: {task_hists_name[0]}. Keys: {list(f.GetListOfKeys())}"
-                    )
+                    _msg = f"Cannot find a task output list. Tried: {task_hists_name[0]}. Keys: {list(f.GetListOfKeys())}"
+                    raise RuntimeError(_msg)
 
         # This list is usually an AliEmcalList. Although we don't care about any of the AliEmcalList functionality
         # here, this still requires an AliPhysics installation, which may not always be so convenient.
@@ -104,14 +103,14 @@ def scale_factor_ROOT(filenames: Sequence[Path], list_name: str = "") -> Tuple[i
 
 def scale_factor_uproot_wrapper(
     base_path: Path, train_number: int
-) -> Tuple[int, int, Any, Any]:
+) -> tuple[int, int, Any, Any]:
     # Setup
     filenames = utils.ensure_and_expand_paths([Path(str(base_path).format(train_number=train_number))])
 
     return scale_factor_uproot(filenames=filenames)
 
 
-def _find_list_with_hists_via_uproot(f: Any, list_name: str) -> List[Any]:
+def _find_list_with_hists_via_uproot(f: Any, list_name: str) -> list[Any]:
     """Retrieve the list which contains the hists that we're interested in."""
     # Need to determine the list which contains the histograms of interest.
     # First, try to retrieve the embedding helper to extract the cross section and ntrials.
@@ -124,9 +123,8 @@ def _find_list_with_hists_via_uproot(f: Any, list_name: str) -> List[Any]:
             cycle=False, filter_name=list_name, filter_classname=["AliEmcalList", "TList"]
         )
         if len(_possible_task_hists_names) != 1:
-            raise ValueError(
-                f"Ambiguous list name '{list_name}'. Please revise it as needed. Options: {_possible_task_hists_names}"
-            )
+            _msg = f"Ambiguous list name '{list_name}'. Please revise it as needed. Options: {_possible_task_hists_names}"
+            raise ValueError(_msg)
         # We're good - let's keep going
         hists = f.get(_possible_task_hists_names[0], None)
 
@@ -141,7 +139,7 @@ def _find_list_with_hists_via_uproot(f: Any, list_name: str) -> List[Any]:
     return hists  # type: ignore[no-any-return]
 
 
-def scale_factor_uproot(filenames: Sequence[Path], list_name: str = "") -> Tuple[int, int, Any, Any]:
+def scale_factor_uproot(filenames: Sequence[Path], list_name: str = "") -> tuple[int, int, Any, Any]:
     # Validation
     if not list_name:
         list_name = "*TrackSkim*"
@@ -212,7 +210,7 @@ def create_scale_factor_tree_for_cross_check_task_output(
         # This should usually get us the tree name, regardless of what task actually generated it.
         # NOTE: Adding a suffix will yield "Raw{grooming_method}Tree", so instead we search for "tree"
         #       and one of the task names.
-        tree_name = [k for k in f.keys() if "RawTree" in k and ("HardestKt" in k or "DynamicalGrooming" in k)][0]
+        tree_name = [k for k in f if "RawTree" in k and ("HardestKt" in k or "DynamicalGrooming" in k)][0]
         n_entries = f[tree_name].num_entries
         logger.debug(f"n entries: {n_entries}")
 
@@ -278,8 +276,8 @@ def pt_hat_spectra_from_hists(
 
     output_filename.parent.mkdir(exist_ok=True, parents=True)
     y = yaml.yaml(modules_to_register=[binned_data])
-    with open(output_filename, "w") as f_out:
-        y.dump([final_spectra, {i: p for i, p in enumerate(pt_hard_spectra, start=1)}], f_out)
+    with output_filename.open("w") as f_out:
+        y.dump([final_spectra, dict(enumerate(pt_hard_spectra, start=1))], f_out)
 
     return True
 
@@ -294,7 +292,7 @@ def scale_factor_from_hists(
         n_entries=n_entries,
     )
 
-    return scale_factor
+    return scale_factor  # noqa: RET504
 
 
 def are_scale_factors_close(scale_factors_one: Mapping[int, analysis_objects.ScaleFactor], scale_factors_two: Mapping[int, analysis_objects.ScaleFactor]) -> bool:
@@ -371,7 +369,7 @@ def test() -> None:
     logger.info(f"Equal? {are_scale_factors_close(scale_factors_ROOT, scale_factors_uproot)}")
     import IPython
 
-    IPython.start_ipython(user_ns=locals())
+    IPython.start_ipython(user_ns=locals())  # type: ignore[no-untyped-call]
 
 
 def run() -> None:
@@ -384,7 +382,7 @@ def run() -> None:
         input_files = list(base_path.glob(f"run_by_run/LHC18b8_*/*/{pt_hat_bin}/AnalysisResults.*.root"))
         # To save time and memory
         #input_files = input_files[:20]
-        print(f"{input_files=}")
+        logger.info(f"{input_files=}")
         scale_factors_ROOT[pt_hat_bin] = scale_factor_from_hists(
             *scale_factor_ROOT(filenames=input_files, list_name="*TrackSkim*")
         )
@@ -395,7 +393,7 @@ def run() -> None:
         # res_uproot = scale_factor_uproot(base_path=base_path, train_number=train_number)
 
     y = yaml.yaml(classes_to_register=[analysis_objects.ScaleFactor])
-    with open("trains/pythia/LHC18b8_AOD_2619/scale_factors_ROOT.yaml", "w") as f:
+    with Path("trains/pythia/LHC18b8_AOD_2619/scale_factors_ROOT.yaml").open("w") as f:
         y.dump(scale_factors_ROOT, f)
         # y.dump(scale_factors_uproot, f)
 

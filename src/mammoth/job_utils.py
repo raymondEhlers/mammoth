@@ -6,6 +6,7 @@
 from __future__ import annotations
 
 import concurrent.futures
+import contextlib
 import enum
 import logging
 import math
@@ -15,27 +16,26 @@ import typing
 from collections.abc import Callable
 from functools import wraps
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple, TypeVar, Union
-
+from typing import Any, Iterable, Sequence, TypeVar
 
 import attr
 import dask
 import dask.distributed
 import parsl
-from parsl.app.app import python_app as parsl_python_app
 from parsl.addresses import address_by_hostname
+from parsl.app.app import python_app as parsl_python_app
 from parsl.config import Config
 from parsl.executors import HighThroughputExecutor
 from parsl.executors.high_throughput.errors import WorkerLost
-from parsl.providers import LocalProvider, SlurmProvider
 from parsl.launchers import SingleNodeLauncher, SrunLauncher
 from parsl.launchers.launchers import Launcher
 from parsl.monitoring.monitoring import MonitoringHub
+from parsl.providers import LocalProvider, SlurmProvider
 
 from mammoth import helpers
 
 if sys.version_info < (3, 8):
-    from typing_extensions import Literal
+    from typing import Literal
 else:
     from typing import Literal
 
@@ -61,12 +61,12 @@ FACILITIES = Literal[
 
 
 def _expand_vars_in_work_dir(
-    value: Union[str, Path],
+    value: str | Path,
 ) -> Path:
     """Validate work dir."""
     _p = os.path.expandvars(str(value))
     p = Path(_p)
-    return p
+    return p  # noqa: RET504
 
 
 @attr.define
@@ -86,7 +86,7 @@ class TaskConfig:
 
     name: str
     n_cores_per_task: int
-    memory_per_task: Optional[int] = attr.field(default=None)
+    memory_per_task: int | None = attr.field(default=None)
 
 
 @attr.define
@@ -128,20 +128,20 @@ class Facility:
     node_spec: NodeSpec
     partition_name: str
     # Number of cores to target allocating. Default: Full node.
-    _target_allocate_n_cores: Optional[int] = attr.field(default=None)
+    _target_allocate_n_cores: int | None = attr.field(default=None)
     allocation_account: str = attr.field(default="")
-    task_configs: Dict[str, TaskConfig] = attr.Factory(dict)
+    task_configs: dict[str, TaskConfig] = attr.Factory(dict)
     node_work_dir: Path = attr.field(default=Path("."))
     storage_work_dir: Path = attr.field(
         converter=_expand_vars_in_work_dir, default=Path(".")
     )
-    directories_to_mount_in_singularity: List[Path] = attr.Factory(list)
+    directories_to_mount_in_singularity: list[Path] = attr.Factory(list)
     worker_init_script: str = attr.field(default="")
-    high_throughput_executor_additional_options: Dict[str, Any] = attr.Factory(dict)
+    high_throughput_executor_additional_options: dict[str, Any] = attr.Factory(dict)
     launcher: Callable[[], Launcher] = attr.field(default=SrunLauncher)
-    parsl_config_additional_options: Dict[str, Any] = attr.Factory(dict)
+    parsl_config_additional_options: dict[str, Any] = attr.Factory(dict)
     cmd_timeout: int = attr.field(default=10)
-    nodes_to_exclude: List[str] = attr.Factory(list)
+    nodes_to_exclude: list[str] = attr.Factory(list)
 
     @property
     def target_allocate_n_cores(self) -> int:
@@ -232,14 +232,15 @@ def python_app(func: Callable[P, R]) -> Callable[P, concurrent.futures.Future[R]
         job_framework = kwargs.get("job_framework", JobFramework.parsl)
         if job_framework == JobFramework.dask_delayed:
             return dask.delayed(func)(*args, **kwargs)  # type: ignore[no-any-return]
-        elif job_framework == JobFramework.parsl:
+        elif job_framework == JobFramework.parsl:  # noqa: RET505
             return parsl_python_app(func)(*args, **kwargs)  # type: ignore[no-any-return]
         elif job_framework == JobFramework.immediate_execution_debug:
             # NOTE: This is lying about the return value. But that's okay because this is just for
             #       immediate execution for debugging.
             return func(*args, **kwargs)   #type: ignore[return-value]
         else:
-            raise ValueError(f"Unrecognized job framework {job_framework}")
+            _msg = f"Unrecognized job framework {job_framework}"
+            raise ValueError(_msg)
 
     return inner
 
@@ -252,9 +253,9 @@ def config(
     target_n_tasks_to_run_simultaneously: int,
     walltime: str,
     enable_monitoring: bool = False,
-    request_n_blocks: Optional[int] = None,
+    request_n_blocks: int | None = None,
     additional_worker_init_script: str = "",
-) -> Tuple[Config, Facility, List[helpers.LogMessage]]: ...
+) -> tuple[Config, Facility, list[helpers.LogMessage]]: ...
 
 @typing.overload
 def config(
@@ -264,9 +265,9 @@ def config(
     target_n_tasks_to_run_simultaneously: int,
     walltime: str,
     enable_monitoring: bool = False,
-    request_n_blocks: Optional[int] = None,
+    request_n_blocks: int | None = None,
     additional_worker_init_script: str = "",
-) -> Tuple[dask.distributed.Client, Facility, List[helpers.LogMessage]]: ...
+) -> tuple[dask.distributed.Client, Facility, list[helpers.LogMessage]]: ...
 
 @typing.overload
 def config(
@@ -276,9 +277,9 @@ def config(
     target_n_tasks_to_run_simultaneously: int,
     walltime: str,
     enable_monitoring: bool = False,
-    request_n_blocks: Optional[int] = None,
+    request_n_blocks: int | None = None,
     additional_worker_init_script: str = "",
-) -> Tuple[Union[dask.distributed.client, Config], Facility, List[helpers.LogMessage]]: ...
+) -> tuple[dask.distributed.client | Config, Facility, list[helpers.LogMessage]]: ...
 
 def config(
     job_framework: JobFramework,
@@ -287,9 +288,9 @@ def config(
     target_n_tasks_to_run_simultaneously: int,
     walltime: str,
     enable_monitoring: bool = False,
-    request_n_blocks: Optional[int] = None,
+    request_n_blocks: int | None = None,
     additional_worker_init_script: str = "",
-) -> Tuple[Union[dask.distributed.client, Config], Facility, List[helpers.LogMessage]]:
+) -> tuple[dask.distributed.client | Config, Facility, list[helpers.LogMessage]]:
     """Retrieve the appropriate parsl configuration for a facility and task.
 
     This is the main interface for retrieving these configurations.
@@ -313,7 +314,8 @@ def config(
     """
     # Validation
     if facility not in _facilities_configs:
-        raise ValueError(f"Facility '{facility}' is invalid. Possible values: {_facilities_configs}")
+        _msg = f"Facility '{facility}' is invalid. Possible values: {_facilities_configs}"
+        raise ValueError(_msg)
     _facility = _facilities_configs[facility]
     # Create the work directory once we know the facility.
     _facility.storage_work_dir.mkdir(parents=True, exist_ok=True)
@@ -331,7 +333,7 @@ def config(
     )
 
 
-def _potentially_immediately_log_message(log_messages: List[helpers.LogMessage], immediately_log_messages: bool) -> None:
+def _potentially_immediately_log_message(log_messages: list[helpers.LogMessage], immediately_log_messages: bool) -> None:
     """If we can log immediately, let's do it. Otherwise, we leave it in place for later."""
     if immediately_log_messages:
         log_messages.pop().log()
@@ -344,9 +346,9 @@ def _define_config(
     facility: Facility,
     walltime: str,
     enable_monitoring: bool,
-    request_n_blocks: Optional[int] = None,
+    request_n_blocks: int | None = None,
     additional_worker_init_script: str = "",
-) -> Tuple[Config, Facility, List[helpers.LogMessage]]:
+) -> tuple[Config, Facility, list[helpers.LogMessage]]:
     """Define the parsl config based on the facility and task.
 
     Args:
@@ -367,7 +369,7 @@ def _define_config(
             execute all tasks, facility config, stored log messages.
     """
     # Setup
-    log_messages: List[helpers.LogMessage] = []
+    log_messages: list[helpers.LogMessage] = []
     # If we're not dealing with parsl, there's no reason not to log immediately.
     immediately_log_messages = (job_framework != JobFramework.parsl)
 
@@ -490,7 +492,7 @@ def _define_dask_distributed_cluster(
     n_cores_to_allocate_per_block: int,
     memory_to_allocate_per_block: int | None,
     additional_worker_init_script: str = "",
-) -> Tuple[dask.distributed.SpecCluster, List[helpers.LogMessage]]:
+) -> tuple[dask.distributed.SpecCluster, list[helpers.LogMessage]]:
     """Dask distributed cluster config"""
     # NOTE: We're fine to log directly here because we know that logging with dask is fine.
     if enable_monitoring:
@@ -566,7 +568,7 @@ def _define_dask_distributed_cluster(
     return cluster, []
 
 
-def _default_parsl_config_kwargs(workflow_name: str, enable_monitoring: bool = True) -> Dict[str, Any]:
+def _default_parsl_config_kwargs(workflow_name: str, enable_monitoring: bool = True) -> dict[str, Any]:
     """Default parsl config keyword arguments.
 
     These are shared regardless of the facility.
@@ -577,14 +579,14 @@ def _default_parsl_config_kwargs(workflow_name: str, enable_monitoring: bool = T
     Returns:
         Default config keyword arguments.
     """
-    config_kwargs = dict(
+    config_kwargs = {
         # This strategy is required to scale down blocks in the HTEX.
-        strategy="htex_auto_scale",
+        "strategy": "htex_auto_scale",
         # Identify a node as being idle after 20 seconds.
         # This is a balance - if we're too aggressive, then the blocks may be stopped while we still
         # have work remaining. However, if we're not aggressive enough, then we're wasting our allocation.
-        max_idletime=20,
-    )
+        "max_idletime": 20,
+    }
 
     # Setup
     # Monitoring Information
@@ -605,13 +607,13 @@ def _define_parsl_config(
     walltime: str,
     enable_monitoring: bool,
     n_blocks: int,
-    n_tasks_per_block: int,
+    n_tasks_per_block: int,  # noqa: ARG001
     n_cores_to_allocate_per_block: int,
     memory_to_allocate_per_block: int | None,
     additional_worker_init_script: str = "",
-) -> Tuple[Config, List[helpers.LogMessage]]:
+) -> tuple[Config, list[helpers.LogMessage]]:
     # Setup
-    log_messages: List[helpers.LogMessage] = []
+    log_messages: list[helpers.LogMessage] = []
     config_kwargs = _default_parsl_config_kwargs(workflow_name=task_config.name, enable_monitoring=enable_monitoring)
 
     # We need to treat the case of the local facility differently because
@@ -697,7 +699,7 @@ def setup_job_framework(
     target_n_tasks_to_run_simultaneously: int,
     log_level: int,
     additional_worker_init_script: str = "",
-) -> Tuple[dask.distributed.Client, dask.distributed.SpecCluster]: ...
+) -> tuple[dask.distributed.Client, dask.distributed.SpecCluster]: ...
 
 @typing.overload
 def setup_job_framework(
@@ -708,7 +710,7 @@ def setup_job_framework(
     target_n_tasks_to_run_simultaneously: int,
     log_level: int,
     additional_worker_init_script: str = "",
-) -> Tuple[parsl.DataFlowKernel, Config]: ...
+) -> tuple[parsl.DataFlowKernel, Config]: ...
 
 @typing.overload
 def setup_job_framework(
@@ -719,7 +721,7 @@ def setup_job_framework(
     target_n_tasks_to_run_simultaneously: int,
     log_level: int,
     additional_worker_init_script: str = "",
-) -> Tuple[parsl.DataFlowKernel, parsl.Config] | Tuple[dask.distributed.Client, dask.distributed.SpecCluster]: ...
+) -> tuple[parsl.DataFlowKernel, parsl.Config] | tuple[dask.distributed.Client, dask.distributed.SpecCluster]: ...
 
 def setup_job_framework(
     job_framework: JobFramework,
@@ -729,7 +731,7 @@ def setup_job_framework(
     target_n_tasks_to_run_simultaneously: int,
     log_level: int,
     additional_worker_init_script: str = "",
-) -> Tuple[parsl.DataFlowKernel, parsl.Config] | Tuple[dask.distributed.Client, dask.distributed.SpecCluster]:
+) -> tuple[parsl.DataFlowKernel, parsl.Config] | tuple[dask.distributed.Client, dask.distributed.SpecCluster]:
 
     # Basic setup: logging and parsl.
     # Setup job frameworks
@@ -757,7 +759,7 @@ def setup_job_framework(
     if job_framework == JobFramework.immediate_execution_debug:
         # This is a debug option, so it will break typing
         return None, None  # type: ignore[return-value]
-    elif job_framework == JobFramework.dask_delayed:
+    elif job_framework == JobFramework.dask_delayed:  # noqa: RET505
         return dask.distributed.Client(job_framework_config), job_framework_config  # type: ignore[no-untyped-call,return-value]
     else:
         # Keep track of the dfk to keep parsl alive
@@ -782,14 +784,12 @@ def _cancel_future(job: concurrent.futures.Future[Any]) -> None:
     Args:
         job: AppFuture to try to cancel
     """
-    try:
+    with contextlib.suppress(NotImplementedError):
         # NOTE: This is not implemented with parsl AppFutures
         job.cancel()
-    except NotImplementedError:
-        pass
 
 
-def provide_results_as_completed(input_futures: Sequence[concurrent.futures.Future[Any]], timeout: Optional[float] = None, running_with_parsl: bool = False) -> Iterable[Any]:  # noqa: C901
+def provide_results_as_completed(input_futures: Sequence[concurrent.futures.Future[Any]], timeout: float | None = None, running_with_parsl: bool = False) -> Iterable[Any]:
     """Provide results as futures are completed.
 
     Taken from `coffea.processor.executor`, with small modifications for parsl specific issues
@@ -852,7 +852,7 @@ def provide_results_as_completed(input_futures: Sequence[concurrent.futures.Futu
             _cancel_future(futures.pop())
 
 
-def merge_results(a: Dict[Any, Any], b: Dict[Any, Any]) -> Dict[Any, Any]:
+def merge_results(a: dict[Any, Any], b: dict[Any, Any]) -> dict[Any, Any]:
     """Merge job results together.
 
     By convention, we merge into the first dict to try to avoid unnecessary copying.
@@ -896,7 +896,8 @@ def merge_results(a: Dict[Any, Any], b: Dict[Any, Any]) -> Dict[Any, Any]:
             a[k] = b_value
             continue
         # At this point, both a_value and b_value should be not None
-        assert a_value is not None and b_value is not None
+        assert a_value is not None
+        assert b_value is not None
 
         # Recursive on dict
         if isinstance(a_value, dict):

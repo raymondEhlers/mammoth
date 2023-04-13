@@ -14,7 +14,6 @@ import rich.progress
 from rich.console import Console
 from rich.logging import RichHandler
 
-
 logger = logging.getLogger(__name__)
 
 # We need a consistent console object to set everything up properly
@@ -82,7 +81,7 @@ class RichModuleNameHandler(RichHandler):
             line_no=record.lineno,
             link_path=record.pathname if self.enable_link_path else None,
         )
-        return log_renderable
+        return log_renderable  # noqa: RET504
 
 
 def progress_bar() -> rich.progress.Progress:
@@ -134,7 +133,8 @@ def setup_logging_and_parsl(
     # later. Which is the source of all of the problems).
     res = setup_logging(level=logging.CRITICAL)
     if not res:
-        raise RuntimeError("Failed to setup logging. Wat?")
+        _msg = "Failed to setup logging. Wat?"
+        raise RuntimeError(_msg)
 
     # Next, load the parsl config
     dfk = parsl.load(parsl_config)

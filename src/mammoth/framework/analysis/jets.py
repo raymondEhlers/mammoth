@@ -184,7 +184,7 @@ def jet_matching_embedding(
     )
     jets = jets[jets_present_mask]
 
-    return jets  # noqa: RET504
+    return jets
 
 
 def hybrid_background_particles_only_mask(

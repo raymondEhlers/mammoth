@@ -98,7 +98,7 @@ def write_trees_with_root(arrays: ak.Array, base_output_dir: Path, tag: str = ""
     # LZ4: Very fast, but relatively poor compression ratio.
     # ZLIB: Middle-ground. Modest compression ratio, modest speed.
     #
-    # If you’re interested in LZ4, try kLZ4 as the algorithm and 4 as the level.
+    # If you're interested in LZ4, try kLZ4 as the algorithm and 4 as the level.
 
     #for level in [2, 3, 4, 5, 7]:
     #    for name, compression in [(f"zlib_{level}", ROOT.ROOT.RCompressionSetting.EAlgorithm.kZLIB),
@@ -160,7 +160,7 @@ def write_trees_with_parquet(arrays: ak.Array, base_output_dir: Path, tag: str =
 
     output_dir = base_output_dir / "parquet"
     output_dir.mkdir(parents=True, exist_ok=True)
-    # Valid values: {‘NONE’, ‘SNAPPY’, ‘GZIP’, ‘LZO’, ‘BROTLI’, ‘LZ4’, ‘ZSTD’}.
+    # Valid values: {'NONE', 'SNAPPY', 'GZIP', 'LZO', 'BROTLI', 'LZ4', 'ZSTD'}.
     for compression in ["snappy",
                         "gzip",
                         # Skip lz4 due to some bug, apparently. The package reports the issue.
@@ -190,7 +190,7 @@ def data_distribution(arrays: ak.Array, events_per_chunk: int, pt_hat_range: str
 
     output_dir = base_output_dir / "parquet_data_distribution"
     output_dir.mkdir(parents=True, exist_ok=True)
-    # Valid values: {‘NONE’, ‘SNAPPY’, ‘GZIP’, ‘LZO’, ‘BROTLI’, ‘LZ4’, ‘ZSTD’}.
+    # Valid values: {'NONE', 'SNAPPY', 'GZIP', 'LZO', 'BROTLI', 'LZ4', 'ZSTD'}.
     fig, ax = plt.subplots(figsize=(8, 6))
     for compression in ["snappy",
                         "gzip",

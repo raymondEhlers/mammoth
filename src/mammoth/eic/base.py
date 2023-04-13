@@ -39,13 +39,14 @@ def load_hists(filename: Path, filter: Optional[str] = "", filters: Optional[Seq
     """
     # Raise error if both are passed
     if filter and filters:
-        raise ValueError(f"Please provide only a single filter, or a list of filters. Not both. filter: {filter}, filters: {filters}")
+        _msg = f"Please provide only a single filter, or a list of filters. Not both. filter: {filter}, filters: {filters}"
+        raise ValueError(_msg)
     # Ensure the filters list is always iterable
     if filters is None:
         filters = []
     # We always want to use the filters list. So if only a filter is passed, then put it into the filters list.
     # This reduces the number of code paths, which makes the code simpler
-    if filter != "" and filter is not None:
+    if filter and filter is not None:
         filters = [filter]
 
     hists = {}
@@ -101,7 +102,7 @@ class DatasetSpecPythia(DatasetSpec):
     def q2(self) -> str:
         if len(self._q2_selection) == 2:
             return f"q2-{self._q2_selection[0]}-to-{self._q2_selection[1]}"
-        elif len(self._q2_selection) == 1:
+        elif len(self._q2_selection) == 1:  # noqa: RET505
             return f"q2-{self._q2_selection[0]}"
         return ""
 
@@ -109,7 +110,7 @@ class DatasetSpecPythia(DatasetSpec):
     def q2_display(self) -> str:
         if len(self._q2_selection) == 2:
             return fr"{self._q2_selection[0]} < Q^{{2}} < {self._q2_selection[1]}"
-        elif len(self._q2_selection) == 1:
+        elif len(self._q2_selection) == 1:  # noqa: RET505
             return fr"Q^{{2}} > {self._q2_selection[0]}"
         return ""
 

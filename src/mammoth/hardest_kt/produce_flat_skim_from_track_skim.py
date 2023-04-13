@@ -342,7 +342,7 @@ def steer_extract_scale_factors(
 
     if writing_yaml_success is not True:
         logger.warning("Some issue with the scale factor extraction! Check on them!")
-        IPython.start_ipython(user_ns={**locals(), **globals()})
+        IPython.start_ipython(user_ns={**locals(), **globals()})  # type: ignore[no-untyped-call]
         # We want to stop here, so help ourselves out by raising the exception.
         _msg = "Some issue with the scale factor extraction!"
         raise ValueError(_msg)
@@ -1300,7 +1300,7 @@ def process_futures(
     # By embedded here, we can inspect results, etc in the meantime.
     # NOTE: This may be commented out sometimes when I have long running processes and wil
     #       probably forget to close it.
-    IPython.start_ipython(user_ns={**locals(), **globals()})
+    IPython.start_ipython(user_ns={**locals(), **globals()})  # type: ignore[no-untyped-call]
 
     # In case we close IPython early, wait for all apps to complete
     # Also allows for a summary at the end.
