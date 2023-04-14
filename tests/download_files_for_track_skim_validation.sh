@@ -49,7 +49,7 @@ if [[ ! ${#referenceDirFiles[@]} -eq 12 ]];
 then
     echo "--> Downloading missing reference files"
     pushd ${referenceDir}
-    echo "current dir: $(PWD)"
+    echo "current dir: $(pwd)"
     # NOTE: To get the download link, I had to share, open the share incognito, go to the details, and then copy the direct link
     curl -O -J -L https://new.cernbox.cern.ch/remote.php/dav/public-files/mMAUdHDFsWAuegk/${referenceTarGzFilename}
     # Extract the files in the referenceDir
