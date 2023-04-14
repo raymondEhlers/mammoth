@@ -342,48 +342,54 @@ def compare_flat_substructure(  # noqa: C901
         logger.info(f"Comparing prefix '{prefix}'")
 
         text = f"{collision_system.replace('_', ' ')}: {prefix.replace('_', ' ')}"
-        plot_attribute_compare(
-            other=Input(arrays=standard, attribute=f"{prefix}_jet_pt", name="Standard"),
-            mine=Input(arrays=track_skim, attribute=f"{prefix}_jet_pt", name="Track skim"),
-            plot_config=pb.PlotConfig(
-                name=f"{prefix}_jet_pt",
-                panels=[
-                    # Main panel
-                    pb.Panel(
-                        axes=[
-                            pb.AxisConfig(
-                                "y",
-                                label="Prob.",
-                                log=True,
-                                font_size=22,
-                            ),
-                        ],
-                        text=pb.TextConfig(x=0.97, y=0.97, text=text, font_size=22),
-                        legend=pb.LegendConfig(location="center right", anchor=(0.985, 0.52), font_size=22),
-                    ),
-                    # Data ratio
-                    pb.Panel(
-                        axes=[
-                            pb.AxisConfig(
-                                "x",
-                                label=r"$p_{\text{T,ch jet}}$ (GeV/$c$)",
-                                font_size=22,
-                            ),
-                            pb.AxisConfig(
-                                "y",
-                                label=r"Track skim/Standard",
-                                range=(0.6, 1.4),
-                                font_size=22,
-                            ),
-                        ],
-                    ),
-                ],
-                figure=pb.Figure(edge_padding={"left": 0.13, "bottom": 0.115}),
-            ),
-            output_dir=output_dir,
-            axis=hist.axis.Regular(50, 0, 100),
-            normalize=True,
-        )
+        try:
+            plot_attribute_compare(
+                other=Input(arrays=standard, attribute=f"{prefix}_jet_pt", name="Standard"),
+                mine=Input(arrays=track_skim, attribute=f"{prefix}_jet_pt", name="Track skim"),
+                plot_config=pb.PlotConfig(
+                    name=f"{prefix}_jet_pt",
+                    panels=[
+                        # Main panel
+                        pb.Panel(
+                            axes=[
+                                pb.AxisConfig(
+                                    "y",
+                                    label="Prob.",
+                                    log=True,
+                                    font_size=22,
+                                ),
+                            ],
+                            text=pb.TextConfig(x=0.97, y=0.97, text=text, font_size=22),
+                            legend=pb.LegendConfig(location="center right", anchor=(0.985, 0.52), font_size=22),
+                        ),
+                        # Data ratio
+                        pb.Panel(
+                            axes=[
+                                pb.AxisConfig(
+                                    "x",
+                                    label=r"$p_{\text{T,ch jet}}$ (GeV/$c$)",
+                                    font_size=22,
+                                ),
+                                pb.AxisConfig(
+                                    "y",
+                                    label=r"Track skim/Standard",
+                                    range=(0.6, 1.4),
+                                    font_size=22,
+                                ),
+                            ],
+                        ),
+                    ],
+                    figure=pb.Figure(edge_padding={"left": 0.13, "bottom": 0.115}),
+                ),
+                output_dir=output_dir,
+                axis=hist.axis.Regular(50, 0, 100),
+                normalize=True,
+            )
+        except RuntimeError as e:
+            # This can fail if latex isn't setup correctly. In this case, we just need to close the plot and move on
+            logger.info(f"Skipping plotting for {prefix} jet pt due to RuntimeError {e}")
+            plt.close()
+
         result = compare_branch(
             standard=standard,
             track_skim=track_skim,
@@ -419,48 +425,52 @@ def compare_flat_substructure(  # noqa: C901
                 if not result:
                     _msg += " due to the comparison not agreeing."
                 logger.info(_msg)
-                plot_attribute_compare(
-                    other=Input(arrays=standard, attribute=f"{grooming_method}_{prefix}_kt", name="Standard"),
-                    mine=Input(arrays=track_skim, attribute=f"{grooming_method}_{prefix}_kt", name="Track skim"),
-                    plot_config=pb.PlotConfig(
-                        name=f"{grooming_method}_{prefix}_kt",
-                        panels=[
-                            # Main panel
-                            pb.Panel(
-                                axes=[
-                                    pb.AxisConfig(
-                                        "y",
-                                        label="Prob.",
-                                        log=True,
-                                        font_size=22,
-                                    ),
-                                ],
-                                text=pb.TextConfig(x=0.97, y=0.97, text=text, font_size=22),
-                                legend=pb.LegendConfig(location="center right", anchor=(0.985, 0.52), font_size=22),
-                            ),
-                            # Data ratio
-                            pb.Panel(
-                                axes=[
-                                    pb.AxisConfig(
-                                        "x",
-                                        label=r"$k_{\text{T,g}}$ (GeV/$c$)",
-                                        font_size=22,
-                                    ),
-                                    pb.AxisConfig(
-                                        "y",
-                                        label=r"Track skim/Standard",
-                                        range=(0.6, 1.4),
-                                        font_size=22,
-                                    ),
-                                ],
-                            ),
-                        ],
-                        figure=pb.Figure(edge_padding={"left": 0.13, "bottom": 0.115}),
-                    ),
-                    normalize=True,
-                    axis=hist.axis.Regular(50, 0, 10),
-                    output_dir=output_dir,
-                )
+                try:
+                    plot_attribute_compare(
+                        other=Input(arrays=standard, attribute=f"{grooming_method}_{prefix}_kt", name="Standard"),
+                        mine=Input(arrays=track_skim, attribute=f"{grooming_method}_{prefix}_kt", name="Track skim"),
+                        plot_config=pb.PlotConfig(
+                            name=f"{grooming_method}_{prefix}_kt",
+                            panels=[
+                                # Main panel
+                                pb.Panel(
+                                    axes=[
+                                        pb.AxisConfig(
+                                            "y",
+                                            label="Prob.",
+                                            log=True,
+                                            font_size=22,
+                                        ),
+                                    ],
+                                    text=pb.TextConfig(x=0.97, y=0.97, text=text, font_size=22),
+                                    legend=pb.LegendConfig(location="center right", anchor=(0.985, 0.52), font_size=22),
+                                ),
+                                # Data ratio
+                                pb.Panel(
+                                    axes=[
+                                        pb.AxisConfig(
+                                            "x",
+                                            label=r"$k_{\text{T,g}}$ (GeV/$c$)",
+                                            font_size=22,
+                                        ),
+                                        pb.AxisConfig(
+                                            "y",
+                                            label=r"Track skim/Standard",
+                                            range=(0.6, 1.4),
+                                            font_size=22,
+                                        ),
+                                    ],
+                                ),
+                            ],
+                            figure=pb.Figure(edge_padding={"left": 0.13, "bottom": 0.115}),
+                        ),
+                        normalize=True,
+                        axis=hist.axis.Regular(50, 0, 10),
+                        output_dir=output_dir,
+                    )
+                except RuntimeError as e:
+                    # This can fail if latex isn't setup correctly. In this case, we just need to close the plot and move on
+                    logger.info(f"Skipping plotting for {prefix}, {grooming_method} kt due to RuntimeError {e}")
 
             # Rg
             result = compare_branch(
@@ -478,48 +488,52 @@ def compare_flat_substructure(  # noqa: C901
 
             # Only plot if failed or a representative case
             if grooming_method in grooming_methods_for_plotting_comparison or not result:
-                plot_attribute_compare(
-                    other=Input(arrays=standard, attribute=f"{grooming_method}_{prefix}_delta_R", name="Standard"),
-                    mine=Input(arrays=track_skim, attribute=f"{grooming_method}_{prefix}_delta_R", name="Track skim"),
-                    plot_config=pb.PlotConfig(
-                        name=f"{grooming_method}_{prefix}_delta_R",
-                        panels=[
-                            # Main panel
-                            pb.Panel(
-                                axes=[
-                                    pb.AxisConfig(
-                                        "y",
-                                        label="Prob.",
-                                        log=True,
-                                        font_size=22,
-                                    ),
-                                ],
-                                text=pb.TextConfig(x=0.97, y=0.97, text=text, font_size=22),
-                                legend=pb.LegendConfig(location="upper left", font_size=22),
-                            ),
-                            # Data ratio
-                            pb.Panel(
-                                axes=[
-                                    pb.AxisConfig(
-                                        "x",
-                                        label=r"$R_{\text{g}}$",
-                                        font_size=22,
-                                    ),
-                                    pb.AxisConfig(
-                                        "y",
-                                        label=r"Track skim/Standard",
-                                        range=(0.6, 1.4),
-                                        font_size=22,
-                                    ),
-                                ],
-                            ),
-                        ],
-                        figure=pb.Figure(edge_padding={"left": 0.13, "bottom": 0.115}),
-                    ),
-                    output_dir=output_dir,
-                    axis=hist.axis.Regular(50, 0, 0.6),
-                    normalize=True,
-                )
+                try:
+                    plot_attribute_compare(
+                        other=Input(arrays=standard, attribute=f"{grooming_method}_{prefix}_delta_R", name="Standard"),
+                        mine=Input(arrays=track_skim, attribute=f"{grooming_method}_{prefix}_delta_R", name="Track skim"),
+                        plot_config=pb.PlotConfig(
+                            name=f"{grooming_method}_{prefix}_delta_R",
+                            panels=[
+                                # Main panel
+                                pb.Panel(
+                                    axes=[
+                                        pb.AxisConfig(
+                                            "y",
+                                            label="Prob.",
+                                            log=True,
+                                            font_size=22,
+                                        ),
+                                    ],
+                                    text=pb.TextConfig(x=0.97, y=0.97, text=text, font_size=22),
+                                    legend=pb.LegendConfig(location="upper left", font_size=22),
+                                ),
+                                # Data ratio
+                                pb.Panel(
+                                    axes=[
+                                        pb.AxisConfig(
+                                            "x",
+                                            label=r"$R_{\text{g}}$",
+                                            font_size=22,
+                                        ),
+                                        pb.AxisConfig(
+                                            "y",
+                                            label=r"Track skim/Standard",
+                                            range=(0.6, 1.4),
+                                            font_size=22,
+                                        ),
+                                    ],
+                                ),
+                            ],
+                            figure=pb.Figure(edge_padding={"left": 0.13, "bottom": 0.115}),
+                        ),
+                        output_dir=output_dir,
+                        axis=hist.axis.Regular(50, 0, 0.6),
+                        normalize=True,
+                    )
+                except RuntimeError as e:
+                    # This can fail if latex isn't setup correctly. In this case, we just need to close the plot and move on
+                    logger.info(f"Skipping plotting for {prefix}, {grooming_method} Rg due to RuntimeError {e}")
 
             # Zg
             result = compare_branch(
@@ -537,48 +551,52 @@ def compare_flat_substructure(  # noqa: C901
 
             # Only plot if failed or a representative case
             if grooming_method in grooming_methods_for_plotting_comparison or not result:
-                plot_attribute_compare(
-                    other=Input(arrays=standard, attribute=f"{grooming_method}_{prefix}_z", name="Standard"),
-                    mine=Input(arrays=track_skim, attribute=f"{grooming_method}_{prefix}_z", name="Track skim"),
-                    plot_config=pb.PlotConfig(
-                        name=f"{grooming_method}_{prefix}_z",
-                        panels=[
-                            # Main panel
-                            pb.Panel(
-                                axes=[
-                                    pb.AxisConfig(
-                                        "y",
-                                        label="Prob.",
-                                        log=True,
-                                        font_size=22,
-                                    ),
-                                ],
-                                text=pb.TextConfig(x=0.97, y=0.97, text=text, font_size=22),
-                                legend=pb.LegendConfig(location="upper left", font_size=22),
-                            ),
-                            # Data ratio
-                            pb.Panel(
-                                axes=[
-                                    pb.AxisConfig(
-                                        "x",
-                                        label=r"$z_{\text{g}}$",
-                                        font_size=22,
-                                    ),
-                                    pb.AxisConfig(
-                                        "y",
-                                        label=r"Track skim/Standard",
-                                        range=(0.6, 1.4),
-                                        font_size=22,
-                                    ),
-                                ],
-                            ),
-                        ],
-                        figure=pb.Figure(edge_padding={"left": 0.13, "bottom": 0.115}),
-                    ),
-                    normalize=True,
-                    axis=hist.axis.Regular(50, 0, 0.5),
-                    output_dir=output_dir,
-                )
+                try:
+                    plot_attribute_compare(
+                        other=Input(arrays=standard, attribute=f"{grooming_method}_{prefix}_z", name="Standard"),
+                        mine=Input(arrays=track_skim, attribute=f"{grooming_method}_{prefix}_z", name="Track skim"),
+                        plot_config=pb.PlotConfig(
+                            name=f"{grooming_method}_{prefix}_z",
+                            panels=[
+                                # Main panel
+                                pb.Panel(
+                                    axes=[
+                                        pb.AxisConfig(
+                                            "y",
+                                            label="Prob.",
+                                            log=True,
+                                            font_size=22,
+                                        ),
+                                    ],
+                                    text=pb.TextConfig(x=0.97, y=0.97, text=text, font_size=22),
+                                    legend=pb.LegendConfig(location="upper left", font_size=22),
+                                ),
+                                # Data ratio
+                                pb.Panel(
+                                    axes=[
+                                        pb.AxisConfig(
+                                            "x",
+                                            label=r"$z_{\text{g}}$",
+                                            font_size=22,
+                                        ),
+                                        pb.AxisConfig(
+                                            "y",
+                                            label=r"Track skim/Standard",
+                                            range=(0.6, 1.4),
+                                            font_size=22,
+                                        ),
+                                    ],
+                                ),
+                            ],
+                            figure=pb.Figure(edge_padding={"left": 0.13, "bottom": 0.115}),
+                        ),
+                        normalize=True,
+                        axis=hist.axis.Regular(50, 0, 0.5),
+                        output_dir=output_dir,
+                    )
+                except RuntimeError as e:
+                    # This can fail if latex isn't setup correctly. In this case, we just need to close the plot and move on
+                    logger.info(f"Skipping plotting for {prefix}, {grooming_method} Zg due to RuntimeError {e}")
 
             # Compare further splitting variables beyond standard kinematics.
             # We don't plot here since it would take time to determine all of the right plotting ranges, etc,
