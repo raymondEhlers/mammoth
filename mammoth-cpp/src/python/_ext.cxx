@@ -286,10 +286,64 @@ mammoth::JetSubstructure::JetSubstructureSplittings reclusterJet(
   const py::array_t<T, py::array::c_style | py::array::forcecast> & pzIn,
   const py::array_t<T, py::array::c_style | py::array::forcecast> & EIn,
   const mammoth::JetFindingSettings & jetFindingSettings,
-  const bool storeRecursiveSplittings
+  const bool storeRecursiveSplittings,
+  const bool releaseGil
 )
 {
+  // Preprocessing
+  // NOTE: Any cout/cerr in these preprocessing functions won't be forwarded to our usual logging.
+  //       We do this so we can release the GIL later. If this becomes an issue, we just need to
+  //       define the return values at the function scope, and then scope the logging redirects
+  //       (as is done below when running the actual jet finding).
+  //       By default, this is fine, since we usually aren't verbose here - it's just copying
+
+  // Convert from python -> cpp types
   auto fourVectors = numpyToColumnFourVector<T>(pxIn, pyIn, pzIn, EIn);
+
+  if (releaseGil) {
+    mammoth::JetSubstructure::JetSubstructureSplittings result;
+    std::stringstream ssCout;
+    std::stringstream ssCerr;
+    {
+      // Setup logging to stringstream types. We'll log them after the function is executed.
+      // NOTE: We put this in a scope to ensure that it releases this redirect after we reacquire
+      //       the gil, allowing us to switch back to the python logging
+      mammoth::python::scoped_ostream_redirect_with_sstream outputCout(std::cout, ssCout);
+      mammoth::python::scoped_ostream_redirect_with_sstream outputCerr(std::cerr, ssCerr);
+
+      // Now that we're done with grabbing information from python, we can release the GIL and
+      // actually run the calculation
+      py::gil_scoped_release release;
+      result = mammoth::jetReclustering(fourVectors, jetFindingSettings, storeRecursiveSplittings);
+      // Once finished, reacquire the GIL to be able to access python objects
+      // NOTE: As of April 2023, I think this may be redundant, but I don't think it will hurt anything.
+      py::gil_scoped_acquire acquire;
+    }
+    {
+      // Now that we've gotten the GIL back, we can log as normal
+      mammoth::python::JetFindingLoggingStdout outputCoutPythonLogging;
+      mammoth::python::JetFindingLoggingStderr outputCerrPythonLogging;
+      // NOTE: We only want to log if there's anything to actually log
+      // NOTE: Obviously it will be out of order. However, for now, it seems better to have the severity separation
+      //       rather than focusing on the order. If this changes, we could always pass the same stringstream to the
+      //       redirect. In that case, we need to decide which string to redirect to, because there's only one ss and
+      //       we won't be able to differentiate the source of the message anymore.
+      std::string logCout = ssCout.str();
+      if (logCout.size() > 0) {
+        std::cout << ssCout.str() << "\n";
+      }
+      std::string logCerr= ssCerr.str();
+      if (logCerr.size() > 0) {
+        std::cerr << ssCerr.str() << "\n";
+      }
+    }
+    // And we're all done
+    return result;
+  }
+
+  // If not releasing the GIL, then just run the calculation as usual with the standard logging
+  mammoth::python::JetFindingLoggingStdout outputCoutPythonLogging;
+  mammoth::python::JetFindingLoggingStderr outputCerrPythonLogging;
   return mammoth::jetReclustering(fourVectors, jetFindingSettings, storeRecursiveSplittings);
 }
 
@@ -517,13 +571,17 @@ PYBIND11_MODULE(_ext, m) {
 
   // Jet reclustering
   m.def("recluster_jet", &reclusterJet<float>, "px"_a, "py"_a, "pz"_a, "E"_a,
+                                               py::kw_only(),
                                                "jet_finding_settings"_a,
                                                "store_recursive_splittings"_a = true,
-                                               "Recluster the given jet", py::call_guard<mammoth::python::JetFindingLoggingStdout, mammoth::python::JetFindingLoggingStderr>());
+                                               "release_gil"_a = false,
+                                               "Recluster the given jet");
   m.def("recluster_jet", &reclusterJet<double>, "px"_a, "py"_a, "pz"_a, "E"_a,
+                                               py::kw_only(),
                                                "jet_finding_settings"_a,
                                                "store_recursive_splittings"_a = true,
-                                               "Recluster the given jet", py::call_guard<mammoth::python::JetFindingLoggingStdout, mammoth::python::JetFindingLoggingStderr>());
+                                               "release_gil"_a = false,
+                                               "Recluster the given jet");
 
   // ALICE
   // Fast sim

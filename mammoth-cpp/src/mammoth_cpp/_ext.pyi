@@ -209,7 +209,7 @@ def find_jets(  # noqa: E704
     background_E: npt.NDArray[np.float64],
     background_subtraction: BackgroundSubtraction,
     user_index: npt.NDArray[np.int64] | None,
-    release_gil: bool,
+    release_gil: bool = ...,
 ) -> OutputWrapperDouble: ...
 @overload
 def recluster_jet(  # noqa: E704
@@ -219,6 +219,7 @@ def recluster_jet(  # noqa: E704
     E: npt.NDArray[np.float32],
     jet_finding_settings: JetFindingSettings,
     store_recursive_splittings: bool = ...,
+    release_gil: bool = ...,
 ) -> JetSubstructureSplittings: ...
 @overload
 def recluster_jet(  # noqa: E704
@@ -228,6 +229,7 @@ def recluster_jet(  # noqa: E704
     E: npt.NDArray[np.float64],
     jet_finding_settings: JetFindingSettings,
     store_recursive_splittings: bool = ...,
+    release_gil: bool = ...,
 ) -> JetSubstructureSplittings: ...
 
 # ALICE

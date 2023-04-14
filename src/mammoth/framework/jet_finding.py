@@ -1049,6 +1049,7 @@ def recluster_jets(
                 E=E[lower:upper],
                 jet_finding_settings=jet_finding_settings,
                 store_recursive_splittings=store_recursive_splittings,
+                release_gil=True,
             )
             _temp_splittings = res.splittings()
             _temp_subjets = res.subjets()
