@@ -13,7 +13,7 @@ from typing import Tuple
 
 import awkward as ak
 import boost_histogram as bh
-import matplotlib
+import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numba as nb
 import numpy as np
@@ -27,10 +27,10 @@ pachyderm.plot.configure()
 # Enable ticks on all sides
 # Unfortunately, some of this is overriding the pachyderm plotting style.
 # That will have to be updated eventually...
-matplotlib.rcParams["xtick.top"] = True
-matplotlib.rcParams["xtick.minor.top"] = True
-matplotlib.rcParams["ytick.right"] = True
-matplotlib.rcParams["ytick.minor.right"] = True
+mpl.rcParams["xtick.top"] = True
+mpl.rcParams["xtick.minor.top"] = True
+mpl.rcParams["ytick.right"] = True
+mpl.rcParams["ytick.minor.right"] = True
 
 
 def find_jets_arr(array: ak.Array) -> ak.Array:
@@ -47,7 +47,7 @@ def find_jets_arr(array: ak.Array) -> ak.Array:
     new_array = vector.Array(new_array)
 
     jets = jet_finding.find_jets(
-        arrays=new_array,
+        particles=new_array,
         jet_finding_settings=jet_finding.JetFindingSettings(
             R=0.4,
             algorithm="anti_kt",
@@ -56,7 +56,7 @@ def find_jets_arr(array: ak.Array) -> ak.Array:
             area_settings=jet_finding.AreaPP(),
         )
     )
-    return jets
+    return jets  # noqa: RET504
 
 
 def particle_pt_by_status(arrays: ak.Array, pt_hat_bin: Tuple[int, int], base_output_dir: Path) -> None:
@@ -77,14 +77,14 @@ def particle_pt_by_status(arrays: ak.Array, pt_hat_bin: Tuple[int, int], base_ou
     fig, ax = plt.subplots(figsize=(8, 6))
 
     for status_code in all_status_codes:
-        print(f"status_code: {status_code}")
+        print(f"status_code: {status_code}")  # noqa: T201
         mask = (arrays["status"] == status_code)
         pt_hist = bh.Histogram(bh.axis.Regular(100, 0, 50), storage=bh.storage.Weight())
         pt_hist.fill(ak.to_numpy(ak.flatten(arrays[mask]["pt"])))
         hist = binned_data.BinnedData.from_existing_data(pt_hist)
 
         fraction_of_particles = ak.sum(ak.num(arrays[mask], axis=1)) / n_total_particles
-        print(f"Fraction of particles: {fraction_of_particles:.02g}")
+        print(f"Fraction of particles: {fraction_of_particles:.02g}")  # noqa: T201
 
         # Normalize
         hist /= hist.axes[0].bin_widths
@@ -102,7 +102,7 @@ def particle_pt_by_status(arrays: ak.Array, pt_hat_bin: Tuple[int, int], base_ou
     ax.text(
         0.45,
         0.97,
-        r"$\hat{p_{\text{T}}} =$ " + f"{pt_hat_bin[0]}-{pt_hat_bin[1]}",
+        r"$\hat{p_{\text{T}}} =$ " + f"{pt_hat_bin[0]}-{pt_hat_bin[1]}",  # noqa: ISC003
         transform=ax.transAxes,
         horizontalalignment="left", verticalalignment="top", multialignment="left",
     )
@@ -116,7 +116,7 @@ def particle_pt_by_status(arrays: ak.Array, pt_hat_bin: Tuple[int, int], base_ou
     plt.close(fig)
 
 
-@nb.njit
+@nb.njit  # type: ignore[misc]
 def phi_minus_pi_to_pi(phi_array: ak.Array, builder: ak.ArrayBuilder) -> ak.ArrayBuilder:
     for event in phi_array:
         builder.begin_list()
@@ -132,7 +132,7 @@ def phi_minus_pi_to_pi(phi_array: ak.Array, builder: ak.ArrayBuilder) -> ak.Arra
     return builder
 
 
-def convert_local_phi(phi):
+def convert_local_phi(phi: float) -> float:
     if phi > np.pi:
         phi -= 2 * np.pi
     elif phi < -np.pi:
@@ -264,7 +264,7 @@ def angular_distribution_around_jet(jets: ak.Array, arrays: ak.Array, pt_hat_bin
         for jets_in_event, particles_in_event in zip(jets[:50], vector.Array(arrays[particle_mask])[:50]):
             for jet in jets_in_event:
                 if counter % 10000 == 0:
-                    print(f"Counter: {counter}")
+                    print(f"Counter: {counter}")  # noqa: T201
                 for p in particles_in_event:
                     distance_hist.fill(jet.deltaR(p))
                     #output[counter] = jet_fj.delta_R(particle_fj)
@@ -349,7 +349,7 @@ def angular_distribution_around_jet(jets: ak.Array, arrays: ak.Array, pt_hat_bin
         }
         # Plot
         mesh = ax_eta_phi.pcolormesh(
-            hist.axes[0].bin_edges.T, hist.axes[1].bin_edges.T, hist.values.T, norm=matplotlib.colors.Normalize(**z_axis_range),
+            hist.axes[0].bin_edges.T, hist.axes[1].bin_edges.T, hist.values.T, norm=mpl.colors.Normalize(**z_axis_range),
         )
         fig_eta_phi.colorbar(mesh, pad=0.02)
 
@@ -358,7 +358,7 @@ def angular_distribution_around_jet(jets: ak.Array, arrays: ak.Array, pt_hat_bin
         plt.close(fig_eta_phi)
 
     # Plot summary
-    h_all = sum(hists)
+    h_all: binned_data.BinnedData = sum(hists)  # type: ignore[assignment]
     ax.errorbar(
         h_all.axes[0].bin_centers,
         h_all.values,
@@ -368,7 +368,7 @@ def angular_distribution_around_jet(jets: ak.Array, arrays: ak.Array, pt_hat_bin
         linestyle="",
     )
     # For fj comparison
-    h_fj_all = sum(hists_fj)
+    h_fj_all: binned_data.BinnedData = sum(hists_fj)  # type: ignore[assignment]
     ax_fj.errorbar(
         h_fj_all.axes[0].bin_centers,
         h_fj_all.values,
@@ -383,7 +383,7 @@ def angular_distribution_around_jet(jets: ak.Array, arrays: ak.Array, pt_hat_bin
         a.text(
             0.03,
             0.97,
-            "R = 0.4 " + r"anti-$k_{\text{T}}$ jets"
+            "R = 0.4 " + r"anti-$k_{\text{T}}$ jets"  # noqa: ISC003
             "\n" + r"$p_{\text{T}}^{\text{jet}} > " + fr"{min_jet_pt}\:\text{{GeV}}/c$"
             "\n" + r"$\hat{p_{\text{T}}} =$ " + f"{pt_hat_bin[0]}-{pt_hat_bin[1]}",
             transform=a.transAxes,
@@ -417,7 +417,7 @@ def angular_distribution_around_jet(jets: ak.Array, arrays: ak.Array, pt_hat_bin
 if __name__ == "__main__":
     for pt_hat_bin in [(7, 9), (20, 25), (50, 55), (100, 110), (250, 260), (500, 550), (900, 1000)]:
         pt_hat_range = f"{pt_hat_bin[0]}_{pt_hat_bin[1]}"
-        print(f"Running for pt hat range: {pt_hat_range}")
+        print(f"Running for pt hat range: {pt_hat_range}")  # noqa: T201
         events_per_chunk = 1000
         filename = f"JetscapeHadronListBin{pt_hat_range}"
         base_output_dir = Path("performance_studies")
