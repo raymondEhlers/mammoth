@@ -852,6 +852,7 @@ def find_jets(
             background_E=background_E[background_lower:background_upper],
             background_subtraction=background_subtraction,
             user_index=user_index[lower:upper] if user_index is not None else None,
+            release_gil=True,
         )
 
         # Store the results temporarily so we can perform all of the jet finding immediately.

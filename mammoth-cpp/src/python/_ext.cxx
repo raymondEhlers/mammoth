@@ -15,6 +15,67 @@ using namespace pybind11::literals;
 // First up, some convenient constants
 constexpr double DEFAULT_RAPIDITY_MAX = 1.0;
 
+namespace mammoth {
+namespace python {
+
+/**
+ * Minimally modified from the pybind11 class scoped_ostream_redirect.
+ *
+ * Modified to not rely on python objects, allowing the use of this redirect while releasing the GIL.
+ * The easiest approach here is to pass a stringstream for the newStream.
+ */
+class scoped_ostream_redirect_with_sstream {
+  protected:
+      std::streambuf *old;
+      std::ostream &costream;
+      std::ostream &newStream;
+
+  public:
+      explicit scoped_ostream_redirect_with_sstream(std::ostream &costream,
+                                       std::iostream &newStream)
+          : costream(costream), newStream(newStream) {
+          old = costream.rdbuf(newStream.rdbuf());
+      }
+
+      ~scoped_ostream_redirect_with_sstream() { costream.rdbuf(old); }
+
+      scoped_ostream_redirect_with_sstream(const scoped_ostream_redirect_with_sstream &) = delete;
+      scoped_ostream_redirect_with_sstream(scoped_ostream_redirect_with_sstream &&other) = default;
+      scoped_ostream_redirect_with_sstream &operator=(const scoped_ostream_redirect_with_sstream &) = delete;
+      scoped_ostream_redirect_with_sstream &operator=(scoped_ostream_redirect_with_sstream &&) = delete;
+};
+
+ /**
+  * @brief Redirect stdout for logging for jet finding functionality.
+  *
+  * It's a trivial wrapper so we can use call_guard, which makes things simpler but
+  * can't pass arguments, so we need to set the defaults.
+  */
+class JetFindingLoggingStdout : public py::scoped_ostream_redirect {
+  public:
+    JetFindingLoggingStdout(): py::scoped_ostream_redirect(
+        std::cout,                               // std::ostream&
+        py::module_::import("mammoth_cpp.logging").attr("jet_finding_logger_stdout") // Python output
+    ) {}
+};
+
+ /**
+  * @brief Redirect stderr for logging for jet finding functionality.
+  *
+  * It's a trivial wrapper so we can use call_guard, which makes things simpler but
+  * ca't pass arguments, so we need to set the defaults.
+  */
+class JetFindingLoggingStderr : public py::scoped_ostream_redirect {
+  public:
+    JetFindingLoggingStderr(): py::scoped_ostream_redirect(
+        std::cerr,                               // std::ostream&
+        py::module_::import("mammoth_cpp.logging").attr("jet_finding_logger_stderr") // Python output
+    ) {}
+};
+
+} /* namespace python */
+} /* namespace mammoth */
+
 /**
   * Convert numpy array of px, py, pz, E to a four vector tuple.
   *
@@ -101,7 +162,6 @@ std::vector<T> numpyToUserIndexVector(
 }
 
 
-
  /**
   * @brief Find jets with background subtraction.
   *
@@ -137,9 +197,18 @@ mammoth::OutputWrapper<T> findJets(
   const py::array_t<T, py::array::c_style | py::array::forcecast> & backgroundPzIn,
   const py::array_t<T, py::array::c_style | py::array::forcecast> & backgroundEIn,
   const mammoth::BackgroundSubtraction & backgroundSubtraction,
-  const std::optional<py::array_t<T, py::array::c_style | py::array::forcecast>> userIndexIn
+  const std::optional<py::array_t<T, py::array::c_style | py::array::forcecast>> userIndexIn,
+  const bool releaseGil
 )
 {
+  // Preprocessing
+  // NOTE: Any cout/cerr in these preprocessing functions won't be forwarded to our usual logging.
+  //       We do this so we can release the GIL later. If this becomes an issue, we just need to
+  //       define the return values at the function scope, and then scope the logging redirects
+  //       (as is done below when running the actual jet finding).
+  //       By default, this is fine, since we usually aren't verbose here - it's just copying
+
+  // Convert from python -> cpp types
   auto fourVectors = numpyToColumnFourVector<T>(pxIn, pyIn, pzIn, EIn);
   // NOTE: These may be empty. If they are, the user index is generated automatically with the index of the array.
   //       We have to be a bit careful here because we pass a nullptr by default, which will break if passed naively.
@@ -149,6 +218,51 @@ mammoth::OutputWrapper<T> findJets(
   }
   // NOTE: These may be empty. If they are, the input four vectors are used for the background estimator
   auto backgroundFourVectors = numpyToColumnFourVector<T>(backgroundPxIn, backgroundPyIn, backgroundPzIn, backgroundEIn);
+
+  if (releaseGil) {
+    mammoth::OutputWrapper<T> result;
+    std::stringstream ssCout;
+    std::stringstream ssCerr;
+    {
+      // Setup logging to stringstream types. We'll log them after the function is executed.
+      // NOTE: We put this in a scope to ensure that it releases this redirect after we reacquire
+      //       the gil, allowing us to switch back to the python logging
+      mammoth::python::scoped_ostream_redirect_with_sstream outputCout(std::cout, ssCout);
+      mammoth::python::scoped_ostream_redirect_with_sstream outputCerr(std::cerr, ssCerr);
+
+      // Now that we're done with grabbing information from python, we can release the GIL and
+      // actually run the calculation
+      py::gil_scoped_release release;
+      result = mammoth::findJets(fourVectors, userIndex, jetFindingSettings, backgroundFourVectors, backgroundSubtraction);
+      // Once finished, reacquire the GIL to be able to access python objects
+      // NOTE: As of April 2023, I think this may be redundant, but I don't think it will hurt anything.
+      py::gil_scoped_acquire acquire;
+    }
+    {
+      // Now that we've gotten the GIL back, we can log as normal
+      mammoth::python::JetFindingLoggingStdout outputCoutPythonLogging;
+      mammoth::python::JetFindingLoggingStderr outputCerrPythonLogging;
+      // NOTE: We only want to log if there's anything to actually log
+      // NOTE: Obviously it will be out of order. However, for now, it seems better to have the severity separation
+      //       rather than focusing on the order. If this changes, we could always pass the same stringstream to the
+      //       redirect. In that case, we need to decide which string to redirect to, because there's only one ss and
+      //       we won't be able to differentiate the source of the message anymore.
+      std::string logCout = ssCout.str();
+      if (logCout.size() > 0) {
+        std::cout << ssCout.str() << "\n";
+      }
+      std::string logCerr= ssCerr.str();
+      if (logCerr.size() > 0) {
+        std::cerr << ssCerr.str() << "\n";
+      }
+    }
+    // And we're all done
+    return result;
+  }
+
+  // If not releasing the GIL, then just run the calculation as usual with the standard logging
+  mammoth::python::JetFindingLoggingStdout outputCoutPythonLogging;
+  mammoth::python::JetFindingLoggingStderr outputCerrPythonLogging;
   return mammoth::findJets(fourVectors, userIndex, jetFindingSettings, backgroundFourVectors, backgroundSubtraction);
 }
 
@@ -178,34 +292,6 @@ mammoth::JetSubstructure::JetSubstructureSplittings reclusterJet(
   auto fourVectors = numpyToColumnFourVector<T>(pxIn, pyIn, pzIn, EIn);
   return mammoth::jetReclustering(fourVectors, jetFindingSettings, storeRecursiveSplittings);
 }
-
- /**
-  * @brief Redirect stdout for logging for jet finding functionality.
-  *
-  * It's a trivial wrapper so we can use call_guard, which makes things simpler but
-  * can't pass arguments, so we need to set the defaults.
-  */
-class JetFindingLoggingStdout : public py::scoped_ostream_redirect {
-  public:
-    JetFindingLoggingStdout(): py::scoped_ostream_redirect(
-        std::cout,                               // std::ostream&
-        py::module_::import("mammoth_cpp.logging").attr("jet_finding_logger_stdout") // Python output
-    ) {}
-};
-
- /**
-  * @brief Redirect stderr for logging for jet finding functionality.
-  *
-  * It's a trivial wrapper so we can use call_guard, which makes things simpler but
-  * ca't pass arguments, so we need to set the defaults.
-  */
-class JetFindingLoggingStderr : public py::scoped_ostream_redirect {
-  public:
-    JetFindingLoggingStderr(): py::scoped_ostream_redirect(
-        std::cerr,                               // std::ostream&
-        py::module_::import("mammoth_cpp.logging").attr("jet_finding_logger_stderr") // Python output
-    ) {}
-};
 
 /**
  * @brief Wrap the output wrapper with pybind11
@@ -389,18 +475,22 @@ PYBIND11_MODULE(_ext, m) {
   ;
 
   m.def("find_jets", &findJets<float>, "px"_a, "py"_a, "pz"_a, "E"_a,
+                                          py::kw_only(),
                                           "jet_finding_settings"_a,
                                           "background_px"_a, "background_py"_a, "background_pz"_a, "background_E"_a,
                                           "background_subtraction"_a,
                                           "user_index"_a = std::nullopt,
-                                          "Jet finding function", py::call_guard<JetFindingLoggingStdout, JetFindingLoggingStderr>()
+                                          "release_gil"_a = false,
+                                          "Jet finding function"
                                           );
   m.def("find_jets", &findJets<double>, "px"_a, "py"_a, "pz"_a, "E"_a,
+                                           py::kw_only(),
                                            "jet_finding_settings"_a,
                                            "background_px"_a, "background_py"_a, "background_pz"_a, "background_E"_a,
                                            "background_subtraction"_a,
                                            "user_index"_a = std::nullopt,
-                                           "Jet finding function", py::call_guard<JetFindingLoggingStdout, JetFindingLoggingStderr>()
+                                           "release_gil"_a = false,
+                                           "Jet finding function"
                                            );
 
   // Wrapper for reclustered jet outputs
@@ -429,11 +519,11 @@ PYBIND11_MODULE(_ext, m) {
   m.def("recluster_jet", &reclusterJet<float>, "px"_a, "py"_a, "pz"_a, "E"_a,
                                                "jet_finding_settings"_a,
                                                "store_recursive_splittings"_a = true,
-                                               "Recluster the given jet", py::call_guard<JetFindingLoggingStdout, JetFindingLoggingStderr>());
+                                               "Recluster the given jet", py::call_guard<mammoth::python::JetFindingLoggingStdout, mammoth::python::JetFindingLoggingStderr>());
   m.def("recluster_jet", &reclusterJet<double>, "px"_a, "py"_a, "pz"_a, "E"_a,
                                                "jet_finding_settings"_a,
                                                "store_recursive_splittings"_a = true,
-                                               "Recluster the given jet", py::call_guard<JetFindingLoggingStdout, JetFindingLoggingStderr>());
+                                               "Recluster the given jet", py::call_guard<mammoth::python::JetFindingLoggingStdout, mammoth::python::JetFindingLoggingStderr>());
 
   // ALICE
   // Fast sim
@@ -457,5 +547,5 @@ PYBIND11_MODULE(_ext, m) {
         "Utility to convert a numerical event activity value to an event activity enumeration value for calling the tracking efficiency.");
   m.def("fast_sim_tracking_efficiency", py::vectorize(alice::fastsim::trackingEfficiencyByPeriod),
         "track_pt"_a, "track_eta"_a, "event_activity"_a, "period"_a,
-        "Fast sim via tracking efficiency parametrization", py::call_guard<JetFindingLoggingStdout, JetFindingLoggingStderr>());
+        "Fast sim via tracking efficiency parametrization", py::call_guard<mammoth::python::JetFindingLoggingStdout, mammoth::python::JetFindingLoggingStderr>());
 }
