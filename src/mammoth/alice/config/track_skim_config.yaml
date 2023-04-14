@@ -6,7 +6,7 @@ skimmed_datasets:
     sqrt_s: 5020
     period: "LHC17pq"
     # Keep track of the skim type for documentation
-    skim_type: "track_skim_task"
+    skim_type: "track_skim"
     # Parameters of the output
     list_name: "AliAnalysisTaskTrackSkim_pp"
     tree_name: "AliAnalysisTaskTrackSkim_pp_tree"
@@ -30,7 +30,7 @@ skimmed_datasets:
     period: "LHC18b8"
     anchor_period: ["LHC17p", "LHC17q"]
     # Keep track of the skim type for documentation
-    skim_type: "track_skim_task"
+    skim_type: "track_skim"
     # Parameters of the output
     list_name: "AliAnalysisTaskTrackSkim_pythia"
     tree_name: "AliAnalysisTaskTrackSkim_pythia_tree"
@@ -49,7 +49,7 @@ skimmed_datasets:
     period: "LHC20g4"
     anchor_period: ["LHC18q", "LHC18r"]
     # Keep track of the skim type for documentation
-    skim_type: "track_skim_task"
+    skim_type: "track_skim"
     # Parameters of the output
     list_name: "AliAnalysisTaskTrackSkim_pythia"
     tree_name: "AliAnalysisTaskTrackSkim_pythia_tree"
@@ -107,7 +107,7 @@ skimmed_datasets:
     sqrt_s: 5020
     period: ["LHC18q", "LHC18r"]
     # Keep track of the skim type for documentation
-    skim_type: "track_skim_task"
+    skim_type: "track_skim"
     # Parameters of the output
     list_name: "AliAnalysisTaskTrackSkim_PbPb_central"
     tree_name: "AliAnalysisTaskTrackSkim_PbPb_central_tree"
@@ -122,7 +122,7 @@ skimmed_datasets:
     sqrt_s: 5020
     period: ["LHC18q", "LHC18r"]
     # Keep track of the skim type for documentation
-    skim_type: "track_skim_task"
+    skim_type: "track_skim"
     # Parameters of the output
     list_name: "AliAnalysisTaskTrackSkim_PbPb_semi_central"
     tree_name: "AliAnalysisTaskTrackSkim_PbPb_semi_central_tree"
@@ -137,7 +137,7 @@ skimmed_datasets:
     sqrt_s: 5020
     period: "LHC15o"
     # Keep track of the skim type for documentation
-    skim_type: "track_skim_task"
+    skim_type: "track_skim"
     # Parameters of the output
     list_name: "AliAnalysisTaskTrackSkim_PbPb_central"
     tree_name: "AliAnalysisTaskTrackSkim_PbPb_central_tree"
@@ -151,7 +151,7 @@ skimmed_datasets:
     sqrt_s: 5020
     period: "LHC15o"
     # Keep track of the skim type for documentation
-    skim_type: "track_skim_task"
+    skim_type: "track_skim"
     # Parameters of the output
     list_name: "AliAnalysisTaskTrackSkim_PbPb_semi_central"
     tree_name: "AliAnalysisTaskTrackSkim_PbPb_semi_central_tree"
