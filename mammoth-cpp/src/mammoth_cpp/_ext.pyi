@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import ClassVar, Generator, List, Optional, Protocol, Tuple, Union, overload
+from typing import ClassVar, Generator, Protocol, overload
 
 import numpy as np
 import numpy.typing as npt
@@ -15,7 +15,7 @@ class AreaSettings:
     area_type: str
     ghost_area: float
     rapidity_max: float
-    def __init__(  # noqa: E301,E704
+    def __init__(
         self,
         area_type: str = ...,
         ghost_area: float = ...,
@@ -24,29 +24,29 @@ class AreaSettings:
         grid_scatter: float = ...,
         kt_scatter: float = ...,
         kt_mean: float = ...,
-        random_seed: List[int] = ...,
+        random_seed: list[int] = ...,
     ) -> None: ...
 
 class NegativeEnergyRecombiner:
-    def __init__(self, identifier_index: int = ...) -> None: ...  # noqa: E301,E704
+    def __init__(self, identifier_index: int = ...) -> None: ...
     @property
-    def identifier_index(self) -> int: ...  # noqa: E301,E704
+    def identifier_index(self) -> int: ...
 
 class JetFindingSettings:
     R: float
     area_settings: AreaSettings | None
     recombiner: NegativeEnergyRecombiner | None
-    def __init__(  # noqa: E301,E704
+    def __init__(
         self,
         R: float,
         algorithm: str,
-        pt_range: Tuple[float, float],
-        eta_range: Tuple[float, float],
+        pt_range: tuple[float, float],
+        eta_range: tuple[float, float],
         recombination_scheme: str = ...,
         strategy: str = ...,
-        area_settings: Optional[AreaSettings] = ...,
-        recombiner: Optional[NegativeEnergyRecombiner] = ...,
-        additional_algorithm_parameter: Optional[str] = ...,
+        area_settings: AreaSettings | None = ...,
+        recombiner: NegativeEnergyRecombiner | None = ...,
+        additional_algorithm_parameter: str | None = ...,
     ) -> None: ...
 
 class JetMedianBackgroundEstimator:
@@ -54,7 +54,7 @@ class JetMedianBackgroundEstimator:
     constituent_pt_max: float
     exclude_n_hardest_jets: int
     use_area_four_vector: bool
-    def __init__(  # noqa: E301,E704
+    def __init__(
         self,
         jet_finding_settings: JetFindingSettings,
         compute_rho_m: bool = ...,
@@ -66,123 +66,113 @@ class JetMedianBackgroundEstimator:
 class GridMedianBackgroundEstimator:
     grid_spacing: float
     rapidity_max: float
-    def __init__(self, rapidity_max: float = ..., grid_spacing: float = ...) -> None: ...  # noqa: E301,E704
+    def __init__(self, rapidity_max: float = ..., grid_spacing: float = ...) -> None: ...
 
 class BackgroundSubtractionType:
     disabled: ClassVar[BackgroundSubtractionType] = ...
     event_wise_constituent_subtraction: ClassVar[BackgroundSubtractionType] = ...
     jet_wise_constituent_subtraction: ClassVar[BackgroundSubtractionType] = ...
     rho: ClassVar[BackgroundSubtractionType] = ...
-    def __init__(self, value: int) -> None: ...  # noqa: E301,E704
-    def __eq__(self, other: object) -> bool: ...  # noqa: E301,E704
-    def __ge__(self, other: object) -> bool: ...  # noqa: E301,E704
-    def __getstate__(self) -> int: ...  # noqa: E301,E704
-    def __gt__(self, other: object) -> bool: ...  # noqa: E301,E704
-    def __hash__(self) -> int: ...  # noqa: E301,E704
-    def __index__(self) -> int: ...  # noqa: E301,E704
-    def __int__(self) -> int: ...  # noqa: E301,E704
-    def __le__(self, other: object) -> bool: ...  # noqa: E301,E704
-    def __lt__(self, other: object) -> bool: ...  # noqa: E301,E704
-    def __ne__(self, other: object) -> bool: ...  # noqa: E301,E704
-    def __setstate__(self, state: int) -> None: ...  # noqa: E301,E704
+    def __init__(self, value: int) -> None: ...
+    def __eq__(self, other: object) -> bool: ...
+    def __ge__(self, other: object) -> bool: ...
+    def __getstate__(self) -> int: ...
+    def __gt__(self, other: object) -> bool: ...
+    def __hash__(self) -> int: ...
+    def __index__(self) -> int: ...
+    def __int__(self) -> int: ...
+    def __le__(self, other: object) -> bool: ...
+    def __lt__(self, other: object) -> bool: ...
+    def __ne__(self, other: object) -> bool: ...
+    def __setstate__(self, state: int) -> None: ...
     @property
-    def name(self) -> str: ...  # noqa: E301,E704
+    def name(self) -> str: ...
     @property
-    def value(self) -> int: ...  # noqa: E301,E704
+    def value(self) -> int: ...
 
 class RhoSubtractor:
     use_rho_M: bool
     use_safe_mass: bool
-    def __init__(self, use_rho_M: bool = ..., use_safe_mass: bool = ...) -> None: ...  # noqa: E301,E704
+    def __init__(self, use_rho_M: bool = ..., use_safe_mass: bool = ...) -> None: ...
 
 class ConstituentSubtractor:
     alpha: float
     distance_measure: str
     r_max: float
     rapidity_max: float
-    def __init__(  # noqa: E301,E704
+    def __init__(
         self, r_max: float = ..., alpha: float = ..., rapidity_max: float = ..., distance_measure: str = ...
     ) -> None: ...
 
 class BackgroundSubtraction:
-    def __init__(  # noqa: E301,E704
+    def __init__(
         self,
         type: BackgroundSubtractionType,
-        estimator: Optional[Union[JetMedianBackgroundEstimator, GridMedianBackgroundEstimator]] = ...,
-        subtractor: Optional[Union[RhoSubtractor, ConstituentSubtractor]] = ...,
+        estimator: JetMedianBackgroundEstimator | GridMedianBackgroundEstimator | None = ...,
+        subtractor: RhoSubtractor | ConstituentSubtractor | None = ...,
     ) -> None: ...
 
 class ColumnarSplittings:
-    def __init__(self, *args, **kwargs) -> None: ...  # type: ignore[no-untyped-def]  # noqa: E704
+    def __init__(self, *args, **kwargs) -> None: ...  # type: ignore[no-untyped-def]
     @property
-    def delta_R(self) -> npt.NDArray[np.float32]: ...  # noqa: E301,E704
+    def delta_R(self) -> npt.NDArray[np.float32]: ...
     @property
-    def kt(self) -> npt.NDArray[np.float32]: ...  # noqa: E301,E704
+    def kt(self) -> npt.NDArray[np.float32]: ...
     @property
-    def parent_index(self) -> npt.NDArray[np.float32]: ...  # noqa: E301,E704
+    def parent_index(self) -> npt.NDArray[np.float32]: ...
     @property
-    def z(self) -> npt.NDArray[np.float32]: ...  # noqa: E301,E704
+    def z(self) -> npt.NDArray[np.float32]: ...
 
 class ColumnarSubjets:
-    def __init__(self, *args, **kwargs) -> None: ...  # type: ignore[no-untyped-def]  # noqa: E704
+    def __init__(self, *args, **kwargs) -> None: ...  # type: ignore[no-untyped-def]
     @property
-    def constituent_indices(self) -> List[List[int]]: ...  # noqa: E301,E704
+    def constituent_indices(self) -> list[list[int]]: ...
     @property
-    def part_of_iterative_splitting(self) -> npt.NDArray[np.bool_]: ...  # noqa: E301,E704
+    def part_of_iterative_splitting(self) -> npt.NDArray[np.bool_]: ...
     @property
-    def splitting_node_index(self) -> npt.NDArray[np.int64]: ...  # noqa: E301,E704
+    def splitting_node_index(self) -> npt.NDArray[np.int64]: ...
 
 class JetSubstructureSplittings:
-    def __init__(self, *args, **kwargs) -> None: ...  # type: ignore[no-untyped-def]  # noqa: E704
-    def splittings(self) -> ColumnarSplittings: ...  # noqa: E301,E704
-    def subjets(self) -> ColumnarSubjets: ...  # noqa: E301,E704
+    def __init__(self, *args, **kwargs) -> None: ...  # type: ignore[no-untyped-def]
+    def splittings(self) -> ColumnarSplittings: ...
+    def subjets(self) -> ColumnarSubjets: ...
 
 class OutputWrapperDouble:
-    def __init__(self, *args, **kwargs) -> None: ...  # type: ignore[no-untyped-def]  # noqa: E704
+    def __init__(self, *args, **kwargs) -> None: ...  # type: ignore[no-untyped-def]
     @property
-    def constituents_user_index(self) -> List[List[int]]: ...  # noqa: E301,E704
-    @property  # noqa: E301
-    def jets(  # noqa: E301,E704
+    def constituents_user_index(self) -> list[list[int]]: ...
+    @property
+    def jets(
         self,
-    ) -> Tuple[npt.NDArray[np.float64], npt.NDArray[np.float64], npt.NDArray[np.float64], npt.NDArray[np.float64]]: ...
+    ) -> tuple[npt.NDArray[np.float64], npt.NDArray[np.float64], npt.NDArray[np.float64], npt.NDArray[np.float64]]: ...
     @property
-    def jets_area(self) -> npt.NDArray[np.float64]: ...  # noqa: E301,E704
+    def jets_area(self) -> npt.NDArray[np.float64]: ...
     @property
-    def rho_value(self) -> np.float64: ...  # noqa: E301,E704
-    @property  # noqa: E301
-    def subtracted_info(  # noqa: E301,E704
+    def rho_value(self) -> np.float64: ...
+    @property
+    def subtracted_info(
         self,
-    ) -> Optional[
-        Tuple[
-            Tuple[npt.NDArray[np.float64], npt.NDArray[np.float64], npt.NDArray[np.float64], npt.NDArray[np.float64]],
-            npt.NDArray[np.int64],
-        ]
-    ]: ...
+    ) -> tuple[tuple[npt.NDArray[np.float64], npt.NDArray[np.float64], npt.NDArray[np.float64], npt.NDArray[np.float64]], npt.NDArray[np.int64]] | None: ...
 
 class OutputWrapperFloat:
-    def __init__(self, *args, **kwargs) -> None: ...  # type: ignore[no-untyped-def]  # noqa: E704
+    def __init__(self, *args, **kwargs) -> None: ...  # type: ignore[no-untyped-def]
     @property
-    def constituents_user_index(self) -> List[List[int]]: ...  # noqa: E704
-    @property  # noqa: E301
-    def jets(  # noqa: E704
+    def constituents_user_index(self) -> list[list[int]]: ...
+    @property
+    def jets(
         self,
-    ) -> Tuple[npt.NDArray[np.float32], npt.NDArray[np.float32], npt.NDArray[np.float32], npt.NDArray[np.float32]]: ...
+    ) -> tuple[npt.NDArray[np.float32], npt.NDArray[np.float32], npt.NDArray[np.float32], npt.NDArray[np.float32]]: ...
     @property
-    def jets_area(self) -> npt.NDArray[np.float32]: ...  # noqa: E704
+    def jets_area(self) -> npt.NDArray[np.float32]: ...
     @property
-    def rho_value(self) -> np.float32: ...  # noqa: E704
-    @property  # noqa: E301
-    def subtracted_info(  # noqa: E704
+    def rho_value(self) -> np.float32: ...
+    @property
+    def subtracted_info(
         self,
-    ) -> Optional[
-        Tuple[
-            Tuple[npt.NDArray[np.float32], npt.NDArray[np.float32], npt.NDArray[np.float32], npt.NDArray[np.float32]],
-            npt.NDArray[np.int64],
-        ]
-    ]: ...
+    ) -> tuple[tuple[npt.NDArray[np.float32], npt.NDArray[np.float32], npt.NDArray[np.float32], npt.NDArray[np.float32]], npt.NDArray[np.int64]] | None: ...
 
 @overload
-def find_jets(   # type: ignore[misc]  # noqa: E704
+def find_jets(   # type: ignore[misc]
     px: npt.NDArray[np.float32],
     py: npt.NDArray[np.float32],
     pz: npt.NDArray[np.float32],
@@ -197,7 +187,7 @@ def find_jets(   # type: ignore[misc]  # noqa: E704
     release_gil: bool,
 ) -> OutputWrapperFloat: ...
 @overload
-def find_jets(  # noqa: E704
+def find_jets(
     px: npt.NDArray[np.float64],
     py: npt.NDArray[np.float64],
     pz: npt.NDArray[np.float64],
@@ -212,7 +202,7 @@ def find_jets(  # noqa: E704
     release_gil: bool = ...,
 ) -> OutputWrapperDouble: ...
 @overload
-def recluster_jet(  # noqa: E704
+def recluster_jet(
     px: npt.NDArray[np.float32],
     py: npt.NDArray[np.float32],
     pz: npt.NDArray[np.float32],
@@ -222,7 +212,7 @@ def recluster_jet(  # noqa: E704
     release_gil: bool = ...,
 ) -> JetSubstructureSplittings: ...
 @overload
-def recluster_jet(  # noqa: E704
+def recluster_jet(
     px: npt.NDArray[np.float64],
     py: npt.NDArray[np.float64],
     pz: npt.NDArray[np.float64],
@@ -241,22 +231,22 @@ class TrackingEfficiencyEventActivity:
     mid_central_10_30: ClassVar[TrackingEfficiencyEventActivity] = ...
     peripheral_50_90: ClassVar[TrackingEfficiencyEventActivity] = ...
     semi_central_30_50: ClassVar[TrackingEfficiencyEventActivity] = ...
-    def __init__(self, value: int) -> None: ...  # noqa: E704
-    def __eq__(self, other: object) -> bool: ...  # noqa: E704
-    def __ge__(self, other: object) -> bool: ...  # noqa: E704
-    def __getstate__(self) -> int: ...  # noqa: E704
-    def __gt__(self, other: object) -> bool: ...  # noqa: E704
-    def __hash__(self) -> int: ...  # noqa: E704
-    def __index__(self) -> int: ...  # noqa: E704
-    def __int__(self) -> int: ...  # noqa: E704
-    def __le__(self, other: object) -> bool: ...  # noqa: E704
-    def __lt__(self, other: object) -> bool: ...  # noqa: E704
-    def __ne__(self, other: object) -> bool: ...  # noqa: E704
-    def __setstate__(self, state: int) -> None: ...  # noqa: E704
+    def __init__(self, value: int) -> None: ...
+    def __eq__(self, other: object) -> bool: ...
+    def __ge__(self, other: object) -> bool: ...
+    def __getstate__(self) -> int: ...
+    def __gt__(self, other: object) -> bool: ...
+    def __hash__(self) -> int: ...
+    def __index__(self) -> int: ...
+    def __int__(self) -> int: ...
+    def __le__(self, other: object) -> bool: ...
+    def __lt__(self, other: object) -> bool: ...
+    def __ne__(self, other: object) -> bool: ...
+    def __setstate__(self, state: int) -> None: ...
     @property
-    def name(self) -> str: ...  # noqa: E704
+    def name(self) -> str: ...
     @property
-    def value(self) -> int: ...  # noqa: E704
+    def value(self) -> int: ...
 
 class TrackingEfficiencyPeriod:
     LHC11a: ClassVar[TrackingEfficiencyPeriod] = ...
@@ -266,27 +256,27 @@ class TrackingEfficiencyPeriod:
     disabled: ClassVar[TrackingEfficiencyPeriod] = ...
     pA: ClassVar[TrackingEfficiencyPeriod] = ...
     pp: ClassVar[TrackingEfficiencyPeriod] = ...
-    def __init__(self, value: int) -> None: ...  # noqa: E704
-    def __eq__(self, other: object) -> bool: ...  # noqa: E704
-    def __ge__(self, other: object) -> bool: ...  # noqa: E704
-    def __getstate__(self) -> int: ...  # noqa: E704
-    def __gt__(self, other: object) -> bool: ...  # noqa: E704
-    def __hash__(self) -> int: ...  # noqa: E704
-    def __index__(self) -> int: ...  # noqa: E704
-    def __int__(self) -> int: ...  # noqa: E704
-    def __le__(self, other: object) -> bool: ...  # noqa: E704
-    def __lt__(self, other: object) -> bool: ...  # noqa: E704
-    def __ne__(self, other: object) -> bool: ...  # noqa: E704
-    def __setstate__(self, state: int) -> None: ...  # noqa: E704
+    def __init__(self, value: int) -> None: ...
+    def __eq__(self, other: object) -> bool: ...
+    def __ge__(self, other: object) -> bool: ...
+    def __getstate__(self) -> int: ...
+    def __gt__(self, other: object) -> bool: ...
+    def __hash__(self) -> int: ...
+    def __index__(self) -> int: ...
+    def __int__(self) -> int: ...
+    def __le__(self, other: object) -> bool: ...
+    def __lt__(self, other: object) -> bool: ...
+    def __ne__(self, other: object) -> bool: ...
+    def __setstate__(self, state: int) -> None: ...
     @property
-    def name(self) -> str: ...  # noqa: E704
+    def name(self) -> str: ...
     @property
-    def value(self) -> int: ...  # noqa: E704
+    def value(self) -> int: ...
 
-def fast_sim_tracking_efficiency(  # noqa: E704
+def fast_sim_tracking_efficiency(
     track_pt: npt.NDArray[np.float64],
     track_eta: npt.NDArray[np.float64],
     event_activity: TrackingEfficiencyEventActivity,
     period: TrackingEfficiencyPeriod,
 ) -> object: ...
-def find_event_activity(value: float) -> TrackingEfficiencyEventActivity: ...  # noqa: E704
+def find_event_activity(value: float) -> TrackingEfficiencyEventActivity: ...
