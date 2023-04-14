@@ -76,7 +76,9 @@ skimmed_datasets:
     number_of_parent_directories_to_pt_hat_bin: 3
     # Number of parent directories to go up to create the relative output filename
     # NOTE: Only needed if the inputs are not in the trains directory, as is the cause on hiccup
-    number_of_parent_directories_for_relative_output_filename: 4
+    # NOTE: We go up to 5 since the run numbers overlap between FAST and CENT_woSDD, so they will
+    #       overwrite each other unless we known which child train output they are from.
+    number_of_parent_directories_for_relative_output_filename: 5
     files:
       - "trains/pythia/258314/files.txt"
   # Anchored is unclear, but I suspect that it's LHC17pq (?)
