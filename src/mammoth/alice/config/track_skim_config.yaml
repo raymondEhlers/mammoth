@@ -265,10 +265,16 @@ analysis_settings:
   pp_R02: &analysis_settings_pp_R02
     <<: *_base_analysis_settings_pp
     jet_R: 0.2
+  pp_R04: &analysis_settings_pp_R04
+    <<: *_base_analysis_settings_pp
+    jet_R: 0.4
 
   pythia_R02: &analysis_settings_pythia_R02
     <<: *_base_analysis_settings_pythia
     jet_R: 0.2
+  pythia_R04: &analysis_settings_pythia_R04
+    <<: *_base_analysis_settings_pythia
+    jet_R: 0.4
 
   PbPb_R02: &analysis_settings_PbPb_R02
     <<: *_base_analysis_settings_PbPb
@@ -285,7 +291,6 @@ analysis_settings:
 productions:
   pp:
     2:
-      name: "LHC17pq_pp_R02_60"
       metadata:
         <<: *base_metadata_pp
         dataset: *LHC17pq_pp
@@ -294,7 +299,7 @@ productions:
       settings:
         <<: *analysis_settings_pp_R02
     60:
-      name: "LHC17pq_pp_R02_60"
+      # R = 0.2 pp production
       metadata:
         <<: *base_metadata_pp
         dataset: *LHC17pq_pp
@@ -302,6 +307,15 @@ productions:
         label: ""
       settings:
         <<: *analysis_settings_pp_R02
+    61:
+      # R = 0.4 pp production
+      metadata:
+        <<: *base_metadata_pp
+        dataset: *LHC17pq_pp
+        production_number: 61
+        label: ""
+      settings:
+        <<: *analysis_settings_pp_R04
 
   pythia:
     # Debug
@@ -367,6 +381,25 @@ productions:
         label: "pythia_fastsim"
       settings:
         <<: *analysis_settings_pythia_R02
+    65:
+      # R = 0.4 production
+      metadata:
+        <<: *base_metadata_pythia
+        dataset: *LHC18b8_pythia
+        production_number: 65
+        label: ""
+      settings:
+        <<: *analysis_settings_pythia_R04
+    66:
+      # R = 0.4 production, tracking efficiency systematic
+      metadata:
+        <<: *base_metadata_pythia
+        dataset: *LHC18b8_pythia
+        production_number: 66
+        label: ""
+      settings:
+        <<: *analysis_settings_pythia_R04
+        apply_pt_dependent_tracking_efficiency_uncertainty: true
 
 
   PbPb:
