@@ -16,7 +16,6 @@ from mammoth import helpers
 from mammoth.eic import base as ecce_base
 from mammoth.eic import plot_ecce_track_comparison, run_ecce_analysis
 
-
 pb.configure()
 
 logger = logging.getLogger(__name__)
@@ -210,6 +209,7 @@ def run() -> None:  # noqa: C901
     # - [x] Pythia in four forward regions for each config
 
     from importlib import reload  # noqa: F401
+
     import IPython
     IPython.embed()
 
@@ -223,7 +223,7 @@ def run() -> None:  # noqa: C901
                 output_dir_for_input_spec.mkdir(parents=True, exist_ok=True)
                 text = "ECCE Simulation"
                 text += "\n" + _input_spec_labels[str(input_spec)]
-                text += "\n" + "Single " + latex_label + fr", ${input_spec.momentum_selection[0]:g} < p_{{\text{{T}}}} < {input_spec.momentum_selection[1]:g}$"
+                text += "\n" + "Single " + latex_label + fr", ${input_spec.momentum_selection[0]:g} < p_{{\text{{T}}}} < {input_spec.momentum_selection[1]:g}$"  # noqa: ISC003
 
                 hist_name_template = "histPResol_{particle}_FitMean_{eta_region_index}"
                 plot_ecce_track_comparison.plot_tracking_comparison(
@@ -270,7 +270,7 @@ def run() -> None:  # noqa: C901
             for i in region_indices:
                 # Labels
                 text = "ECCE Simulation"
-                text += "\n" + "Single " + latex_label
+                text += "\n" + "Single " + latex_label  # noqa: ISC003
                 text += "\n" + plot_ecce_track_comparison.get_eta_label(eta_ranges[i])
 
                 hist_name_template = "histPResol_{particle}_FitMean_{eta_region_index}"
@@ -309,7 +309,7 @@ def run() -> None:  # noqa: C901
                 output_dir_for_input_spec.mkdir(parents=True, exist_ok=True)
                 text = "ECCE Simulation"
                 text += "\n" + _input_spec_labels[str(input_spec)]
-                text += "\n" + "PYTHIA 8 10x100, " + (latex_label + "," if latex_label else "") + f"${input_spec.q2_display}$"
+                text += "\n" + "PYTHIA 8 10x100, " + (latex_label + "," if latex_label else "") + f"${input_spec.q2_display}$"  # noqa: ISC003
 
                 hist_name_template = "histPResol_{particle}_FitMean_{eta_region_index}"
                 plot_ecce_track_comparison.plot_tracking_comparison(
@@ -357,7 +357,7 @@ def run() -> None:  # noqa: C901
                 for i in region_indices:
                     # Labels
                     text = "ECCE Simulation"
-                    text += "\n" + "PYTHIA 8 10x100, " + (latex_label + "," if latex_label else "") + f"${input_spec.q2_display}$"
+                    text += "\n" + "PYTHIA 8 10x100, " + (latex_label + "," if latex_label else "") + f"${input_spec.q2_display}$"  # noqa: ISC003
                     text += "\n" + plot_ecce_track_comparison.get_eta_label(eta_ranges[i])
 
                     hist_name_template = "histPResol_{particle}_FitMean_{eta_region_index}"
@@ -406,8 +406,8 @@ def run() -> None:  # noqa: C901
                     output_dir_for_input_spec.mkdir(parents=True, exist_ok=True)
                     text = "ECCE Simulation"
                     text += "\n" + _input_spec_labels[str(input_spec)]
-                    text += "\n" + "PYTHIA 8 10x100, " + f"${input_spec.q2_display}$"
-                    text += "\n" + r"anti-$k_{\text{T}}$ $R$=0.5 jets"
+                    text += "\n" + "PYTHIA 8 10x100, " + f"${input_spec.q2_display}$"  # noqa: ISC003
+                    text += "\n" + r"anti-$k_{\text{T}}$ $R$=0.5 jets"  # noqa: ISC003
 
                     x_label = r"$p^{\text{jet}}\:(\text{GeV}/c)$"
                     y_label_var = r"p"
@@ -468,8 +468,8 @@ def run() -> None:  # noqa: C901
                     for i in region_indices:
                         # Labels
                         text = "ECCE Simulation"
-                        text += "\n" + "PYTHIA 8 10x100, " + f"${input_spec.q2_display}$"
-                        text += "\n" + r"anti-$k_{\text{T}}$ $R$=0.5 jets"
+                        text += "\n" + "PYTHIA 8 10x100, " + f"${input_spec.q2_display}$"  # noqa: ISC003
+                        text += "\n" + r"anti-$k_{\text{T}}$ $R$=0.5 jets"  # noqa: ISC003
                         text += "\n" + plot_ecce_track_comparison.get_eta_label(eta_ranges[i])
 
                         x_label = r"$p^{\text{jet}}\:(\text{GeV}/c)$"

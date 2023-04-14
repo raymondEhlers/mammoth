@@ -85,7 +85,7 @@ def scale_jets(input_hists: Dict[str, Dict[str, hist.Hist]],
                             # luminosity while keeping the overall scale (values) fixed
                             # For all those complicated tests, it measures that we just need to scale the variance by 1 / expected_luminosity,
                             # which propagates to a 1/sqrt(expected_luminosity) in the error.
-                            h_scaled.variances()[:] = h_scaled.variances() / expected_luminosity  # type: ignore
+                            h_scaled.variances()[:] = h_scaled.variances() / expected_luminosity  # type: ignore[index, operator]
 
                             # Store the new hist
                             scaled_hists[pdf_name][parameters_spectra.name_eA if pdf_name != "ep" else parameters_spectra.name_ep] = h_scaled

@@ -3,8 +3,8 @@
 .. codeauthor:: Raymond Ehlers <raymond.ehlers@cern.ch>, ORNL
 """
 
-from typing import Any, Dict, Mapping, Sequence, Tuple
 from pathlib import Path
+from typing import Any, Dict, Mapping, Sequence, Tuple
 
 import awkward as ak
 import boost_histogram as bh
@@ -24,8 +24,8 @@ def run(event_properties: ak.Array,
         particles: ak.Array,
         jet_R_values: Sequence[float],
         jet_eta_limits: Tuple[float, float],
-        min_Q2: float,
-        x_limits: Tuple[float, float],
+        min_Q2: float,  # noqa: ARG001
+        x_limits: Tuple[float, float],  # noqa: ARG001
         hists: Mapping[str, Mapping[str, bh.Histogram]]) -> None:
     # The outgoing parton always seems to be in index 7 (pythia index #8)
     # Need to be retrieved immediately because it will be cut in the "status" cut.
@@ -88,7 +88,7 @@ def run(event_properties: ak.Array,
     # Setup
     particles = vector.Array(particles)
     for jet_R in jet_R_values:
-        print(f"Jet R: {jet_R}")
+        print(f"Jet R: {jet_R}")  # noqa: T201
         # Run the jet finder
         jets = jet_finding.find_jets(
             particles=particles,
@@ -115,12 +115,12 @@ def run(event_properties: ak.Array,
 
         # NOTE: A small number of events won't have jets in the acceptance. So we need to make sure the
         #       event level properties match. Since qt uses the jets explicitly, it will pick this up naturally.
-        #       The outgoing_partons also broadcats with qt, so it doesn't need any modifications here.
+        #       The outgoing_partons also broadcast with qt, so it doesn't need any modifications here.
         event_properties_R_dependent = event_properties[~ak.is_none(jets)]
 
         # Print the means out of curiosity. Saved in histograms below.
-        print(f"Mean Q2: {ak.mean(event_properties_R_dependent['q2'])}")
-        print(f"Mean x: {ak.mean(event_properties_R_dependent['x2'])}")
+        print(f"Mean Q2: {ak.mean(event_properties_R_dependent['q2'])}")  # noqa: T201
+        print(f"Mean x: {ak.mean(event_properties_R_dependent['x2'])}")  # noqa: T201
 
         try:
             jet_R_str = jet_R_to_str(jet_R)
@@ -134,9 +134,9 @@ def run(event_properties: ak.Array,
             hists[jet_R_str]["q2"].fill(ak.flatten(jets.p, axis=None), sample=ak.flatten(event_properties_R_dependent.q2, axis=None))
             hists[jet_R_str]["x"].fill(ak.flatten(jets.p, axis=None), sample=ak.flatten(event_properties_R_dependent.x2, axis=None))
         except ValueError as e:
-            print(f"Womp womp: {e}")
+            print(f"Womp womp: {e}")  # noqa: T201
             import IPython
-            IPython.embed()
+            IPython.embed()  # type: ignore[no-untyped-call]
 
 
 def setup_hists() -> Dict[str, bh.Histogram]:
@@ -177,7 +177,7 @@ if __name__ == "__main__":
         hists[jet_R_to_str(jet_R)] = setup_hists()
 
     for i, arrays in enumerate(uproot.iterate(f"{input_file}:tree", step_size="100 MB"), start=1):
-        print(f"Processing iter {i}")
+        print(f"Processing iter {i}")  # noqa: T201
         # Split into event level and particle level properties. This makes working with the data
         # (slicing, etc) much easier.
         event_property_names = ["event_ID", "x1", "x2", "q2"]
@@ -202,15 +202,15 @@ if __name__ == "__main__":
         means[jet_R_str] = {}
         for p_range in p_ranges:
             means[jet_R_str][p_range] = {
-                "x": hists[jet_R_str]["x"][bh.loc(p_range[0]):bh.loc(p_range[1]):bh.sum].value,
-                "Q2": hists[jet_R_str]["q2"][bh.loc(p_range[0]):bh.loc(p_range[1]):bh.sum].value,
+                "x": hists[jet_R_str]["x"][bh.loc(p_range[0]):bh.loc(p_range[1]):bh.sum].value,  # type: ignore[misc]
+                "Q2": hists[jet_R_str]["q2"][bh.loc(p_range[0]):bh.loc(p_range[1]):bh.sum].value,  # type: ignore[misc]
             }
 
-    print("Done. Writing hist + info...")
+    print("Done. Writing hist + info...")  # noqa: T201
     # Write out...
     y = yaml.yaml(modules_to_register=[binned_data])
     #h = binned_data.BinnedData.from_existing_data(hists["qt"])
-    with open(output_dir / "qt.yaml", "w") as f:
+    with (output_dir / "qt.yaml").open("w") as f:
         output: Dict[str, Any] = {}
         for jet_R_str, output_hists in hists.items():
             output[jet_R_str] = {k: binned_data.BinnedData.from_existing_data(v) for k, v in output_hists.items()}
@@ -218,5 +218,5 @@ if __name__ == "__main__":
         y.dump(output, f)
 
     import IPython
-    IPython.embed()
+    IPython.embed()  # type: ignore[no-untyped-call]
 

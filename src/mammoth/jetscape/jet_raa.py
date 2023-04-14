@@ -16,9 +16,9 @@ import numpy as np
 import uproot
 
 from mammoth import helpers
-from mammoth.framework import jet_finding, load_data as _load_data, particle_ID, sources
+from mammoth.framework import jet_finding, particle_ID, sources
+from mammoth.framework import load_data as _load_data
 from mammoth.jetscape import utils
-
 
 logger = logging.getLogger(__name__)
 
@@ -116,7 +116,7 @@ def find_jets_for_analysis(arrays: ak.Array, jet_R_values: Sequence[float], part
         ).snapshot()
 
     # Store the cross section with each jet. This way, we can flatten from events -> jets
-    for jet_label, jet_collection in jets.items():
+    for jet_label, _ in jets.items():
         # Before any jets cuts, add in cross section
         # NOTE: There can be different number of events for full vs charged jets, so we need
         #       to apply the appropriate event mask to the holes
@@ -209,7 +209,7 @@ def read_jet_skims(filename: Path, jet_R_values: Sequence[float]) -> Dict[JetLab
             try:
                 with uproot.open(jet_collection_filename) as f:
                     jet_inputs[tag] = f["tree"].arrays()
-            except IOError as e:
+            except OSError as e:
                 logger.info(f"Skipping {tag} due to IO error {e}")
                 continue
 
@@ -237,10 +237,7 @@ def analyze_jets(arrays: ak.Array, jets: Mapping[JetLabel, ak.Array]) -> Dict[st
     first_jet_label = next(iter(jets))
     # NOTE: Apparently this can be empty, so we have to retrieve the value carefully
     first_cross_section = ak.flatten(jets[first_jet_label].cross_section)
-    if len(first_cross_section) == 0:
-        _cross_section_weight_factor = 1
-    else:
-        _cross_section_weight_factor = first_cross_section[0]
+    _cross_section_weight_factor = 1 if len(first_cross_section) == 0 else first_cross_section[0]
     hists["n_events_weighted"].fill(0, weight=len(arrays) * _cross_section_weight_factor)
     for jet_label, jet_collection in jets.items():
         hists[f"{jet_label}_jet_pt"].fill(
@@ -278,7 +275,8 @@ def run(arrays: ak.Array,
     if jet_R_values is None:
         jet_R_values = [0.2, 0.4, 0.6]
     if read_jet_skim_from_file and jets_skim_filename is None:
-        raise ValueError("If reading jet skim from file, must pass jets skims filename")
+        _msg = "If reading jet skim from file, must pass jets skims filename"
+        raise ValueError(_msg)
 
     # Find jets
     if read_jet_skim_from_file:
@@ -335,4 +333,4 @@ if __name__ == "__main__":
 
     import IPython
 
-    IPython.embed()
+    IPython.embed()  # type: ignore[no-untyped-call]

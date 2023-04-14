@@ -8,6 +8,7 @@ import hist
 import matplotlib.pyplot as plt
 import numpy as np
 import pachyderm.plot as pb
+
 from mammoth.eic import run_ecce_analysis
 
 pb.configure()
@@ -32,7 +33,7 @@ def get_eta_label(eta_range: Tuple[float, float]) -> str:
 
 
 def _plot_tracking_comparison(input_specs: Sequence[run_ecce_analysis.DatasetSpec], input_spec_labels: Mapping[str, str], hists: Mapping[str, Mapping[int, hist.Hist]],
-                              all_regions: Sequence[Tuple[float, float]], regions_index: Sequence[int],
+                              all_regions: Sequence[Tuple[float, float]], regions_index: Sequence[int],  # noqa: ARG001
                               plot_config: pb.PlotConfig, output_dir: Path) -> None:
     fig, ax = plt.subplots(figsize=(10, 7.5))
     ax.set_prop_cycle(cycler.cycler(
@@ -72,7 +73,7 @@ def _plot_tracking_comparison(input_specs: Sequence[run_ecce_analysis.DatasetSpe
                 h.axes[0].centers,
                 h.values(),
                 xerr=h.axes[0].widths / 2,
-                yerr=np.sqrt(h.variances()),  # type: ignore
+                yerr=np.sqrt(h.variances()),  # type: ignore[arg-type]
                 label=input_spec_labels[str(input_spec)] if len(input_spec_hists) == 1 else get_eta_label(all_regions[eta_index]),
                 marker=markers[i_eta_index if len(input_spec_hists) > 1 else i_input_spec],
                 linestyle="",
@@ -143,7 +144,7 @@ def plot_tracking_comparison(input_specs: Sequence[run_ecce_analysis.DatasetSpec
                 text=pb.TextConfig(x=0.97, y=0.97, text=text, font_size=22),
                 legend=pb.LegendConfig(location="upper left", font_size=22),
             ),
-            figure=pb.Figure(edge_padding=dict(left=0.10 if "width" in plot_name else 0.13, bottom=0.10)),
+            figure=pb.Figure(edge_padding={"left": 0.10 if "width" in plot_name else 0.13, "bottom": 0.10}),
         ),
         output_dir=output_dir,
     )

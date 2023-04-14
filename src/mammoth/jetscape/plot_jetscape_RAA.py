@@ -19,7 +19,6 @@ import uproot
 from pachyderm import binned_data
 from pachyderm import plot as pb
 
-
 pachyderm.plot.configure()
 
 _okabe_ito_colors = [
@@ -86,7 +85,7 @@ def _ML_jet_binning(system: str, jet_R: float) -> npt.NDArray[np.float64]:
                                np.arange(70, 100, 15),
                                # + 0.1 to make sure that we include the end point.
                                np.arange(100, max_pt_values[system] + 0.1, 20)])
-    return new_bins
+    return new_bins  # noqa: RET504
 
 
 def plot(output_dir: Path,  # noqa: C901
@@ -134,13 +133,13 @@ def plot(output_dir: Path,  # noqa: C901
 
                 text = fr"{jet_type.capitalize()} jets, $R$ = {jet_R}"
                 # Just for some user feedback
-                print(text)
+                print(text)  # noqa: T201
 
                 # Finish labeling
-                text += "\n" + r"JETSCAPE Work in Progress" + "\n" + "MATTER + LBT"
-                text += "\n" + r"$\alpha_{s} = 0.3$, $Q_{\text{switch}} = 2$ GeV"
+                text += "\n" + r"JETSCAPE Work in Progress" + "\n" + "MATTER + LBT"  # noqa: ISC003
+                text += "\n" + r"$\alpha_{s} = 0.3$, $Q_{\text{switch}} = 2$ GeV"  # noqa: ISC003
                 jet_eta_range = 0.9 if jet_type == "charged" else 0.7
-                text += "\n" + r"anti-$k_{\text{T}}$ jets, $|\eta_{\text{jet}}| < " + str(jet_eta_range) + " - R$"
+                text += "\n" + r"anti-$k_{\text{T}}$ jets, $|\eta_{\text{jet}}| < " + str(jet_eta_range) + " - R$"  # noqa: ISC003
 
                 plot_config = pb.PlotConfig(
                     name=f"jet_pt_{jet_type}_R{format_R(jet_R)}",
@@ -159,7 +158,7 @@ def plot(output_dir: Path,  # noqa: C901
                             legend=pb.LegendConfig(location="upper right", font_size=22),
                         ),
                     ],
-                    figure=pb.Figure(edge_padding=dict(left=0.12, bottom=0.08)),
+                    figure=pb.Figure(edge_padding={"left": 0.12, "bottom": 0.08}),
                 )
                 plot_config_scaled = pb.PlotConfig(
                     name=f"jet_pt_{jet_type}_R{format_R(jet_R)}_scaled",
@@ -178,7 +177,7 @@ def plot(output_dir: Path,  # noqa: C901
                             legend=pb.LegendConfig(location="upper right", font_size=22),
                         ),
                     ],
-                    figure=pb.Figure(edge_padding=dict(left=0.12, bottom=0.08)),
+                    figure=pb.Figure(edge_padding={"left": 0.12, "bottom": 0.08}),
                 )
                 plot_config_RAA = pb.PlotConfig(
                     name=f"jet_RAA_{jet_type}_R{format_R(jet_R)}",
@@ -197,7 +196,7 @@ def plot(output_dir: Path,  # noqa: C901
                             legend=pb.LegendConfig(location="upper right", font_size=22),
                         ),
                     ],
-                    figure=pb.Figure(edge_padding=dict(left=0.12, bottom=0.08)),
+                    figure=pb.Figure(edge_padding={"left": 0.12, "bottom": 0.08}),
                 )
 
                 # Get scaled pp ref for RAA
@@ -223,14 +222,14 @@ def plot(output_dir: Path,  # noqa: C901
                     (h_jet_pt_scaled[::hist.rebin(5)] / 5).plot(ax=ax_scaled, label=labels[system], linewidth=2)
 
                     # Skip for now just to reduce the number of curves
-                    if system != "pp" and False:
+                    if False:
                         # why da faq doesn't this work...
                         #h_RAA = h_pp_ref_jet_pt / h_jet_pt_scaled
                         #(h_RAA[::hist.rebin(5)] / 5).plot(ax=ax_RAA, label=labels[system], linewidth=2)
                         # Some bug somewhere. Not my problem... Back to binned_data...
                         h_RAA = (
-                            binned_data.BinnedData.from_existing_data((h_jet_pt_scaled[::hist.rebin(5)] / 5))
-                            / binned_data.BinnedData.from_existing_data((h_pp_ref_jet_pt[::hist.rebin(5)] / 5))
+                            binned_data.BinnedData.from_existing_data(h_jet_pt_scaled[::hist.rebin(5)] / 5)
+                            / binned_data.BinnedData.from_existing_data(h_pp_ref_jet_pt[::hist.rebin(5)] / 5)
                         )
                         ax_RAA.errorbar(
                             h_RAA.axes[0].bin_centers,
@@ -257,8 +256,8 @@ def plot(output_dir: Path,  # noqa: C901
                 #    / binned_data.BinnedData.from_existing_data((h_pp_ref_jet_pt[10j::hist.rebin(10)] / 10))
                 #)
                 h_RAA = (
-                    binned_data.BinnedData.from_existing_data((h_PbPb_00_10_jet_pt[10j:]))
-                    / binned_data.BinnedData.from_existing_data((h_pp_ref_jet_pt[10j:]))
+                    binned_data.BinnedData.from_existing_data(h_PbPb_00_10_jet_pt[10j:])
+                    / binned_data.BinnedData.from_existing_data(h_pp_ref_jet_pt[10j:])
                 )
                 RAA_hists["PbPb_00_10"][f"{jet_type}_R{format_R(jet_R)}"] = h_RAA
                 ax_RAA.errorbar(
@@ -278,8 +277,8 @@ def plot(output_dir: Path,  # noqa: C901
                 #    / binned_data.BinnedData.from_existing_data((h_pp_ref_jet_pt[10j::hist.rebin(10)] / 10))
                 #)
                 h_RAA = (
-                    binned_data.BinnedData.from_existing_data((h_PbPb_30_50_jet_pt[10j:]))
-                    / binned_data.BinnedData.from_existing_data((h_pp_ref_jet_pt[10j:]))
+                    binned_data.BinnedData.from_existing_data(h_PbPb_30_50_jet_pt[10j:])
+                    / binned_data.BinnedData.from_existing_data(h_pp_ref_jet_pt[10j:])
                 )
                 RAA_hists["PbPb_30_50"][f"{jet_type}_R{format_R(jet_R)}"] = h_RAA
                 ax_RAA.errorbar(
@@ -314,13 +313,13 @@ def plot(output_dir: Path,  # noqa: C901
             for restricted_range in [False, True]:
                 text = fr"{labels[system]}, {jet_type.capitalize()} jets"
                 # Just for some user feedback
-                print(text)
+                print(text)  # noqa: T201
 
                 # Finish labeling
-                text += "\n" + r"JETSCAPE Work in Progress" + "\n" + "MATTER + LBT"
-                text += "\n" + r"$\alpha_{s} = 0.3$, $Q_{\text{switch}} = 2$ GeV"
+                text += "\n" + r"JETSCAPE Work in Progress" + "\n" + "MATTER + LBT"  # noqa: ISC003
+                text += "\n" + r"$\alpha_{s} = 0.3$, $Q_{\text{switch}} = 2$ GeV"  # noqa: ISC003
                 jet_eta_range = 0.9 if jet_type == "charged" else 0.7
-                text += "\n" + r"anti-$k_{\text{T}}$ jets, $|\eta_{\text{jet}}| < " + str(jet_eta_range) + " - R$"
+                text += "\n" + r"anti-$k_{\text{T}}$ jets, $|\eta_{\text{jet}}| < " + str(jet_eta_range) + " - R$"  # noqa: ISC003
 
                 for jet_R_label, jet_R_values_to_iterate in [("", jet_R_values), ("_alice_comparison", [0.2, 0.4]), ("_requested", [0.2, 0.4, 0.6])]:
                     x_axis_kwargs: Dict[str, Any] = {}
@@ -346,12 +345,12 @@ def plot(output_dir: Path,  # noqa: C901
                                 legend=pb.LegendConfig(location="upper right", font_size=22),
                             ),
                         ],
-                        figure=pb.Figure(edge_padding=dict(left=0.10, bottom=0.09)),
+                        figure=pb.Figure(edge_padding={"left": 0.10, "bottom": 0.09}),
                     )
 
                     fig, ax = plt.subplots(figsize=(10, 8))
                     for jet_R in jet_R_values_to_iterate:
-                        print(f"jet_R_label: {jet_R_label}")
+                        print(f"jet_R_label: {jet_R_label}")  # noqa: T201
 
                         if jet_R_label != "_requested":
                             # 10 GeV wide bins up to 100 GeV, followed by 100 GeV wide bins beyond there.
@@ -381,7 +380,7 @@ def plot(output_dir: Path,  # noqa: C901
                         #original_bin_width = 10
                         original_bin_width = 1
 
-                        print(f"jet_R: {jet_R}")
+                        print(f"jet_R: {jet_R}")  # noqa: T201
                         h_RAA = RAA_hists[system][f"{jet_type}_R{format_R(jet_R)}"][:: new_bins]
                         # Normalize by bin width
                         h_RAA /= (h_RAA.axes[0].bin_widths / original_bin_width)
@@ -426,16 +425,16 @@ def plot(output_dir: Path,  # noqa: C901
     # RAA ratios
     for jet_type in jet_types:
         for system in ["PbPb_00_10", "PbPb_30_50"]:
-            for ratio_R in [0.4, 0.6]:
+            for _ratio_R in [0.4, 0.6]:
                 text = fr"{labels[system]}, {jet_type.capitalize()} jets"
                 # Just for some user feedback
-                print(text)
+                print(text)  # noqa: T201
 
                 # Finish labeling
-                text += "\n" + r"JETSCAPE Work in Progress" + "\n" + "MATTER + LBT"
-                text += "\n" + r"$\alpha_{s} = 0.3$, $Q_{\text{switch}} = 2$ GeV"
+                text += "\n" + r"JETSCAPE Work in Progress" + "\n" + "MATTER + LBT"  # noqa: ISC003
+                text += "\n" + r"$\alpha_{s} = 0.3$, $Q_{\text{switch}} = 2$ GeV"  # noqa: ISC003
                 jet_eta_range = 0.9 if jet_type == "charged" else 0.7
-                text += "\n" + r"anti-$k_{\text{T}}$ jets, $|\eta_{\text{jet}}| < " + str(jet_eta_range) + " - R$"
+                text += "\n" + r"anti-$k_{\text{T}}$ jets, $|\eta_{\text{jet}}| < " + str(jet_eta_range) + " - R$"  # noqa: ISC003
 
                 x_axis_kwargs = {"range": (15, 145)}
 
@@ -456,13 +455,13 @@ def plot(output_dir: Path,  # noqa: C901
                             legend=pb.LegendConfig(location="upper right", font_size=22),
                         ),
                     ],
-                    figure=pb.Figure(edge_padding=dict(left=0.10, bottom=0.09)),
+                    figure=pb.Figure(edge_padding={"left": 0.10, "bottom": 0.09}),
                 )
 
                 fig, ax = plt.subplots(figsize=(10, 8))
 
                 for jet_R in [0.4, 0.6]:
-                    print(f"jet_R: {jet_R}")
+                    print(f"jet_R: {jet_R}")  # noqa: T201
 
                     # Get the denominator (R = 0.2), but with the bins of the larger R so that they match.
                     new_bins = _ML_jet_binning(system=system, jet_R=jet_R)
