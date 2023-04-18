@@ -65,6 +65,18 @@ if(NOT FastJet_FOUND)
     find_package(FastJet REQUIRED)
 endif()
 
+## boost (for EECs)
+## NOTE: We skip this for now since the code seems rather tricky to use.
+##       Better to just keep it simple for now. But we also keep this here
+##       for possible future use.
+#find_package(Boost)
+#if(NOT Boost_FOUND)
+#  include("${CMAKE_MODULE_PATH}/DownloadBoostHistogram.cmake")
+#  download_boost_histogram(BOOST_TAG 1.81.0)
+#endif()
+## They're now found - no need to do find_package again since histogram is header only
+#message(STATUS "POST: BH_INCLUDE_DIRS: ${BH_INCLUDE_DIRS}")
+
 # Setup libmammoth, which includes jet finding functionality.
 file(GLOB MAMMOTH_SOURCES "src/libmammoth/*.cxx")
 add_library(mammoth SHARED ${MAMMOTH_SOURCES})
