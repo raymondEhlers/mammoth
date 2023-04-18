@@ -1,0 +1,4 @@
+---
+general:
+  encodeAdditionalParticleInformation: true
+  MCAnalysisUtilsGenerator: "kPythia"
