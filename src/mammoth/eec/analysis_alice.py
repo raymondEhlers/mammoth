@@ -417,14 +417,17 @@ def analysis_embedding(
             event_selected_array = arrays[level][
                 event_selection_mask[level][trigger_name]
             ]
+            logger.info(f"{level}, {trigger_name}: About to find particles within recoil cone")
             within_cone = (recoil_direction[level][trigger_name].deltaR(event_selected_array) < 0.6)
             eec_particles = event_selected_array[within_cone]
 
+            logger.info(f"{level}, {trigger_name}: About to calculate combinations")
             left, right = ak.unzip(ak.combinations(eec_particles, 2))
             distances = left.deltaR(right)
 
             # One argument should be the power
             # First, need to broadcast the trigger pt
+            logger.info(f"{level}, {trigger_name}: About to fill hists")
             trigger_pt, _ = ak.broadcast_arrays(
                 triggers_dict[level][trigger_name].pt,
                 distances,
