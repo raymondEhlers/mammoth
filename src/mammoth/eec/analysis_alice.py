@@ -381,6 +381,12 @@ def analysis_embedding(
             event_selection_mask[level][trigger_name] = trigger_event_mask
 
     # Setup
+    # TODO: Make into argument
+    min_pt = {
+        "part_level": 1,
+        "det_level": 1,
+        "hybrid": 1,
+    }
     for level in ["part_level", "det_level", "hybrid"]:
         for trigger_name, _ in trigger_ranges.items():
             hists[f"{level}_{trigger_name}_eec"] = hist.Hist(
@@ -417,9 +423,12 @@ def analysis_embedding(
             event_selected_array = arrays[level][
                 event_selection_mask[level][trigger_name]
             ]
+            # Min pt selection
+            particle_pt_mask = event_selected_array.pt > min_pt[level]
+            event_selected_array = event_selected_array[particle_pt_mask]
             logger.info(f"{level}, {trigger_name}: About to find particles within recoil cone")
-            within_cone = (recoil_direction[level][trigger_name].deltaR(event_selected_array) < 0.6)
-            eec_particles = event_selected_array[within_cone]
+            within_hemisphere = (recoil_direction[level][trigger_name].deltaphi(event_selected_array) < np.pi/4)
+            eec_particles = event_selected_array[within_hemisphere]
 
             # TODO: Profile memory (with dask?). I think this is the really expensive point...
             #       Worst case, I have to move this into c++, but to be seen.
