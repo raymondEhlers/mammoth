@@ -161,7 +161,7 @@ def standard_track_selection(arrays: ak.Array,
         masks = [
             ak.num(arrays[column_name], axis=1) > 0 for column_name in particle_columns
         ]
-        # We need to do a bitwise hand of the masks
+        # We need to do a bitwise and of the masks
         event_has_particles_mask = functools.reduce(operator.and_, masks)
 
         arrays = arrays[event_has_particles_mask]
