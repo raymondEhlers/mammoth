@@ -290,7 +290,7 @@ def _setup_embedding_QA_hists() -> dict[str, hist.Hist]:
 
     for level in ["part_level", "det_level", "hybrid"]:
         hists[f"{level}_inclusive_trigger_spectra"] = hist.Hist(
-            hist.axis.Regular(300, 0, 150, label="trigger_pt"), storage=hist.storage.Weight()
+            hist.axis.Regular(200, 0, 100, label="trigger_pt"), storage=hist.storage.Weight()
         )
 
     return hists
@@ -385,14 +385,14 @@ def analysis_embedding(
         for trigger_name, _ in trigger_ranges.items():
             hists[f"{level}_{trigger_name}_eec"] = hist.Hist(
                 *[
-                    hist.axis.Regular(300, 1e-4, 5, label="R_L"),
+                    hist.axis.Regular(200, 1e-4, 1.5, label="R_L"),
                     hist.axis.Regular(250, 0, 50, label="trigger_pt"),
                 ],
                 storage=hist.storage.Weight()
             )
             hists[f"{level}_{trigger_name}_eec_log"] = hist.Hist(
                 *[
-                    hist.axis.Regular(300, 1e-4, 5, label="R_L", transform=hist.axis.transform.log),
+                    hist.axis.Regular(200, 1e-4, 1.5, label="R_L", transform=hist.axis.transform.log),
                     hist.axis.Regular(250, 0, 50, label="trigger_pt"),
                 ],
                 storage=hist.storage.Weight()
@@ -421,6 +421,8 @@ def analysis_embedding(
             within_cone = (recoil_direction[level][trigger_name].deltaR(event_selected_array) < 0.6)
             eec_particles = event_selected_array[within_cone]
 
+            # TODO: Profile memory (with dask?). I think this is the really expensive point...
+            #       Worst case, I have to move this into c++, but to be seen.
             logger.info(f"{level}, {trigger_name}: About to calculate combinations")
             left, right = ak.unzip(ak.combinations(eec_particles, 2))
             distances = left.deltaR(right)
@@ -432,13 +434,28 @@ def analysis_embedding(
                 triggers_dict[level][trigger_name].pt,
                 distances,
             )
+            weight = ak.flatten(
+                (left.pt * right.pt) / (triggers_dict[level][trigger_name].pt ** 2)
+            )
+            # TODO: Look at background only correlations (already part level vs hybrid level is a good start...)
             hists[f"{level}_{trigger_name}_eec"].fill(
                 ak.flatten(distances),
                 ak.flatten(trigger_pt),
-                weight=ak.flatten(
-                    (left.pt * right.pt) / triggers_dict[level][trigger_name].pt
-                ),
+                weight=weight,
             )
+            hists[f"{level}_{trigger_name}_eec_log"].fill(
+                ak.flatten(distances),
+                ak.flatten(trigger_pt),
+                weight=weight,
+            )
+
+            # Probably makes no difference...
+            del eec_particles
+            del left
+            del right
+            del distances
+            del trigger_pt
+            del weight
 
     #IPython.embed()  # type: ignore[no-untyped-call]
 
