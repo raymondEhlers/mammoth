@@ -428,7 +428,9 @@ def analysis_embedding(
                 ),
             )
 
-    IPython.embed()  # type: ignore[no-untyped-call]
+    #IPython.embed()  # type: ignore[no-untyped-call]
+
+    return hists
 
 
     ## Jet finding
@@ -696,9 +698,10 @@ if __name__ == "__main__":
         chunk_size=2500,
     )
 
+    output_hists = []
     for i_chunk, arrays in enumerate(iter_arrays):
         logger.info(f"Processing chunk: {i_chunk}")
-        jets = analysis_embedding(
+        output_hists.append(analysis_embedding(
             source_index_identifiers=source_index_identifiers,
             arrays=arrays,
             jet_R=0.2,
@@ -711,8 +714,14 @@ if __name__ == "__main__":
                 "reference": (5, 7),
                 "signal": (20, 50),
             }
-        )
+        ))
 
     import IPython
 
     IPython.embed()  # type: ignore[no-untyped-call]
+
+    # Just for quick testing!
+    import mammoth.job_utils
+    merged = output_hists[0]
+    for hists in output_hists[1:]:
+        merged = mammoth.job_utils.merge_results(merged, hists)
