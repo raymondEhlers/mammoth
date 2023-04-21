@@ -91,6 +91,11 @@ def _plot_RL(
         "reference": (5, 9),
         "signal": (20, 50),
     }
+    # TODO: Collect this in the task...
+    trigger_name_to_fraction = {
+        "reference": 0.2,
+        "signal": 0.8,
+    }
 
     _palette_6_mod = {
         "purple": "#7e459e",
@@ -135,20 +140,22 @@ def _plot_RL(
 
         ax.set_prop_cycle(cycler.cycler(color=list(_method_to_color.values())))
 
-        for name, label in names_and_labels.items():
+        for name, (level, label, legend_entry) in names_and_labels.items():
+            is_signal = "signal" == label
             h = hists[name]
             # Project by trigger range
-            if "signal" in name:
-                trigger_range = trigger_name_to_range["signal"]
-            else:
-                trigger_range = trigger_name_to_range["reference"]
+            trigger_range = trigger_name_to_range[label]
             # Project to range
             h = h[:, hist.loc(trigger_range[0]):hist.loc(trigger_range[1]):hist.sum]
             # Convert
             h = binned_data.BinnedData.from_existing_data(h)
 
             # Normalize
-            h /= np.sum(h.values)
+            # TODO: Collect n_trig without being reliant on fraction...
+            n_trig = hists[f"{level}_inclusive_trigger_spectra"][
+                hist.loc(trigger_range[0]): hist.loc(trigger_range[1]):hist.sum
+            ].value * trigger_name_to_fraction[label]
+            h /= n_trig
             # Bin widths
             h /= h.axes[0].bin_widths
 
@@ -161,13 +168,13 @@ def _plot_RL(
                 markersize=11,
                 linestyle="",
                 linewidth=3,
-                label=label,
+                label=legend_entry,
             )
 
     # Labeling and presentation
     plot_config.apply(fig=fig, ax=ax)
     # A few additional tweaks.
-    ax.xaxis.set_major_locator(mpl.ticker.MultipleLocator(base=1.0))
+    #ax.xaxis.set_major_locator(mpl.ticker.MultipleLocator(base=1.0))
 
     filename = f"{plot_config.name}"
     fig.savefig(output_dir / f"{filename}.pdf")
@@ -201,10 +208,11 @@ def plot_RL(
                         ),
                         pb.AxisConfig(
                             "y",
-                            label=r"$1/N_{\text{pair}}\:\text{d}N/\text{d}R_{\text{L}}$",
+                            label=r"$1/N_{\text{trig}}\:\text{d}N/\text{d}R_{\text{L}}$",
                             font_size=text_font_size,
-                            log=True,
+                            #log=True,
                             #range=(1e2, 1e7),
+                            range=(0, 10),
                         ),
                     ],
                     text=pb.TextConfig(x=0.02, y=0.98, text=text, font_size=text_font_size),
@@ -221,17 +229,17 @@ def plot_RL(
 # -
 
 for names_and_labels in [
-    #{
-    #    "det_level_signal_eec_log": "Det. level",
-    #    "hybrid_signal_eec_log": "Hybrid",
-    #},
     {
-        "det_level_reference_eec_log": "Det. level ref.",
-        "det_level_signal_eec_log": "Det. level signal",
+        "det_level_signal_eec_log": ("det_level", "signal", "Det. level"),
+        "hybrid_signal_eec_log": ("hybrid", "signal", "Hybrid"),
     },
     {
-        "hybrid_reference_eec_log": "Hybrid ref.",
-        "hybrid_signal_eec_log": "Hybrid signal",
+        "det_level_reference_eec_log": ("det_level", "reference", "Det. level ref."),
+        "det_level_signal_eec_log": ("det_level", "signal", "Det. level signal"),
+    },
+    {
+        "hybrid_reference_eec_log": ("hybrid", "reference", "Hybrid ref."),
+        "hybrid_signal_eec_log": ("hybrid", "signal", "Hybrid signal"),
     },
 ]:
     plot_RL(
