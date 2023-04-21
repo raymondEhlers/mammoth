@@ -289,7 +289,9 @@ def _setup_embedding_QA_hists() -> dict[str, hist.Hist]:
     hists = {}
 
     for level in ["part_level", "det_level", "hybrid"]:
-        hists[f"{level}_inclusive_trigger_spectra"] = hist.Hist(hist.axis.Regular(300, 0, 150, label="jet_pt"), storage=hist.storage.Weight())
+        hists[f"{level}_inclusive_trigger_spectra"] = hist.Hist(
+            hist.axis.Regular(300, 0, 150, label="trigger_pt"), storage=hist.storage.Weight()
+        )
 
     return hists
 
@@ -383,8 +385,15 @@ def analysis_embedding(
         for trigger_name, _ in trigger_ranges.items():
             hists[f"{level}_{trigger_name}_eec"] = hist.Hist(
                 *[
-                    hist.axis.Regular(100, 1e-4, 1, label="R_L", transform=hist.axis.transform.log),
-                    hist.axis.Regular(300, 0, 150, label="trigger_pt"),
+                    hist.axis.Regular(300, 1e-4, 5, label="R_L"),
+                    hist.axis.Regular(250, 0, 50, label="trigger_pt"),
+                ],
+                storage=hist.storage.Weight()
+            )
+            hists[f"{level}_{trigger_name}_eec_log"] = hist.Hist(
+                *[
+                    hist.axis.Regular(300, 1e-4, 5, label="R_L", transform=hist.axis.transform.log),
+                    hist.axis.Regular(250, 0, 50, label="trigger_pt"),
                 ],
                 storage=hist.storage.Weight()
             )
