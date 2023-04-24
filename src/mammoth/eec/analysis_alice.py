@@ -347,6 +347,11 @@ def analysis_embedding(
 
     import IPython
 
+    for level in ["part_level", "det_level", "hybrid"]:
+        hists[f"{level}_trigger_spectra"] = hist.Hist(
+            hist.axis.Regular(50, 0, 50, label="trigger_pt"), storage=hist.storage.Weight()
+        )
+
     # Random choice args
     random_choice_kwargs: dict[str, Any] = {}
     if validation_mode:
@@ -380,6 +385,11 @@ def analysis_embedding(
             triggers_dict[level][trigger_name] = ak.to_regular(triggers[select_trigger_mask])
             event_selection_mask[level][trigger_name] = trigger_event_mask
 
+            # Fill in spectra
+            hists[f"{level}_trigger_spectra"].fill(
+                ak.flatten(triggers_dict[level][trigger_name].pt)
+            )
+
     # Setup
     # TODO: Make into argument
     min_pt = {
@@ -403,6 +413,7 @@ def analysis_embedding(
                 ],
                 storage=hist.storage.Weight()
             )
+
     recoil_direction: dict[str, dict[str, ak.Array]] = {}
     for level in ["part_level", "det_level", "hybrid"]:
         recoil_direction[level] = {}
@@ -741,7 +752,8 @@ if __name__ == "__main__":
         signal_input=[Path("trains/pythia/2619/run_by_run/LHC18b8_fast/282125/14/AnalysisResults.18b8_fast.008.root")],
         signal_source=track_skim.FileSource.create_deferred_source(collision_system="pythia"),
         thermal_model_parameters=sources.THERMAL_MODEL_SETTINGS["5020_central"],
-        chunk_size=2500,
+        #chunk_size=2500,
+        chunk_size=1000,
     )
 
     # NOTE: Just for quick testing
