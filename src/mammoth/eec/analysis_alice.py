@@ -297,20 +297,21 @@ def _setup_embedding_QA_hists() -> dict[str, hist.Hist]:
 
 
 def analysis_embedding(
-    source_index_identifiers: Mapping[str, int],
+    source_index_identifiers: Mapping[str, int],  # noqa: ARG001
     arrays: ak.Array,
-    jet_R: float,
-    min_jet_pt: Mapping[str, float],
-    trigger_ranges: dict[str, tuple[float, float]],
-    background_subtraction_settings: Mapping[str, Any] | None = None,
-    validation_mode: bool = False,
-    shared_momentum_fraction_min: float = 0.5,
+    trigger_pt_ranges: dict[str, tuple[float, float]],
+    min_track_pt: dict[str, float],
     det_level_artificial_tracking_efficiency: float | analysis_jets.PtDependentTrackingEfficiencyParameters = 1.0,
     qa_plots: bool = True,
+    validation_mode: bool = False,
 ) -> ak.Array:
-    # Validation
-    if background_subtraction_settings is None:
-        background_subtraction_settings = {}
+    # TODO: Move these values to config
+    min_track_pt = {
+        "part_level": 1.,
+        "det_level": 1.,
+        "hybrid": 1.,
+    }
+
     # Setup
     hists = {}
     if qa_plots:
@@ -333,20 +334,23 @@ def analysis_embedding(
 
     if qa_plots:
         for level in ["part_level", "det_level", "hybrid"]:
-            # TODO: weights? I don't have them available, so it's not so convenient...
+            # TODO: scale factors? I don't have them available, so it's not so convenient...
             #       I should wait as long as possible to QA so that I can have the scaling available.
+            #       Since a skim isn't really plausible here, I think it's better to just take the plunge
+            #       and pass the scale factors, etc, here.
             hists[f"{level}_inclusive_trigger_spectra"].fill(ak.flatten(arrays[level].pt))
 
-    # TODO: Trigger spectra
-    # TODO: Use ranges from previous h-jet analysis
     logger.info("Finding trigger(s)")
     triggers_dict: dict[str, dict[str, ak.Array]] = {}
     event_selection_mask: dict[str, dict[str, ak.Array]] = {}
 
     # TODO: Edge effects? Do I need to go 0.9-0.3 in from eta?
+    #       I guess not? Since they will be accounted for in the mixed event correction.
+    #       But it may also help for sanity to just take a quick look.
 
     import IPython
 
+    # Setup for trigger spectra
     for level in ["part_level", "det_level", "hybrid"]:
         hists[f"{level}_trigger_spectra"] = hist.Hist(
             hist.axis.Regular(50, 0, 50, label="trigger_pt"), storage=hist.storage.Weight()
@@ -359,7 +363,7 @@ def analysis_embedding(
     for level in ["part_level", "det_level", "hybrid"]:
         triggers_dict[level] = {}
         event_selection_mask[level] = {}
-        for trigger_name, trigger_range_tuple in trigger_ranges.items():
+        for trigger_name, trigger_range_tuple in trigger_pt_ranges.items():
             trigger_mask = (
                 (arrays[level].pt >= trigger_range_tuple[0])
                 & (arrays[level].pt < trigger_range_tuple[1])
@@ -375,6 +379,7 @@ def analysis_embedding(
             triggers = triggers[trigger_event_mask]
 
             # TODO: Need to record number of events overall (not just those with a trigger)
+            #       Actually, do I? I think we normalize later, so this may not actually be critical
 
             # Randomly select if there is more than one trigger
             # NOTE: This must operator on a concrete field, so we use px as a proxy.
@@ -391,14 +396,8 @@ def analysis_embedding(
             )
 
     # Setup
-    # TODO: Make into argument
-    min_pt = {
-        "part_level": 1,
-        "det_level": 1,
-        "hybrid": 1,
-    }
     for level in ["part_level", "det_level", "hybrid"]:
-        for trigger_name, _ in trigger_ranges.items():
+        for trigger_name, _ in trigger_pt_ranges.items():
             hists[f"{level}_{trigger_name}_eec"] = hist.Hist(
                 *[
                     hist.axis.Regular(200, 1e-4, 1.5, label="R_L"),
@@ -417,7 +416,7 @@ def analysis_embedding(
     recoil_direction: dict[str, dict[str, ak.Array]] = {}
     for level in ["part_level", "det_level", "hybrid"]:
         recoil_direction[level] = {}
-        for trigger_name, _ in trigger_ranges.items():
+        for trigger_name, _ in trigger_pt_ranges.items():
             # Next, go to away side and define cone
             recoil_vector = -1 * triggers_dict[level][trigger_name]
             # Mock up a four vector so we can use the calculation functionality from vector
@@ -435,7 +434,7 @@ def analysis_embedding(
                 event_selection_mask[level][trigger_name]
             ]
             # Min pt selection
-            particle_pt_mask = event_selected_array.pt > min_pt[level]
+            particle_pt_mask = event_selected_array.pt > min_track_pt[level]
             event_selected_array = event_selected_array[particle_pt_mask]
             logger.info(f"{level}, {trigger_name}: About to find particles within recoil cone")
             within_hemisphere = (recoil_direction[level][trigger_name].deltaphi(event_selected_array) < np.pi/4)
@@ -765,16 +764,16 @@ if __name__ == "__main__":
         hists = analysis_embedding(
             source_index_identifiers=source_index_identifiers,
             arrays=arrays,
-            jet_R=0.2,
-            min_jet_pt={
-                "hybrid": 20,
-            },
-            background_subtraction_settings={"r_max": 0.1},
-            det_level_artificial_tracking_efficiency=0.99,
-            trigger_ranges={
+            trigger_pt_ranges={
                 "reference": (5, 7),
                 "signal": (20, 50),
-            }
+            },
+            min_track_pt={
+                "part_level": 1.,
+                "det_level": 1.,
+                "hybrid": 1.,
+            },
+            det_level_artificial_tracking_efficiency=0.99,
         )
         merged_hists = mammoth.job_utils.merge_results(merged_hists, hists)
 
