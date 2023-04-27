@@ -400,6 +400,24 @@ productions:
       settings:
         <<: *analysis_settings_pythia_R04
         apply_pt_dependent_tracking_efficiency_uncertainty: true
+    67:
+      # R = 0.4 HERWIG fastsim
+      metadata:
+        <<: *base_metadata_pythia
+        dataset: *LBL20_Herwig_FastSim_1_17pq
+        production_number: 67
+        label: "herwig_fastsim"
+      settings:
+        <<: *analysis_settings_pythia_R04
+    68:
+      # R = 0.4 PYTHIA fastsim
+      metadata:
+        <<: *base_metadata_pythia
+        dataset: *LBL20_Pythia_FastSim_1_17pq
+        production_number: 68
+        label: "pythia_fastsim"
+      settings:
+        <<: *analysis_settings_pythia_R04
 
 
   PbPb:
