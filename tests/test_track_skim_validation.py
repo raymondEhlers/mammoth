@@ -9,11 +9,12 @@ from typing import Any, Dict, List, Optional, Sequence
 
 import attr
 import pytest
+from mammoth.alice import substructure_comparison_tools
 
 from mammoth.framework import sources
 from mammoth.framework.io import track_skim as io_track_skim
 from mammoth.framework.analysis import jet_substructure as analysis_jet_substructure, objects as analysis_objects
-from mammoth.hardest_kt import analysis_track_skim_to_flat_tree, run_macro, skim_to_flat_tree, substructure_comparison_tools
+from mammoth.hardest_kt import analysis_track_skim_to_flat_tree, run_macro, skim_to_flat_tree
 
 
 logger = logging.getLogger(__name__)
