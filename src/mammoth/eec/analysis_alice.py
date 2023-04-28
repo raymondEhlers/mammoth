@@ -769,6 +769,7 @@ if __name__ == "__main__":
                 "det_level": 1.,
                 "hybrid": 1.,
             },
+            momentum_weighting_exponent=1,
             scale_factor=1,
             det_level_artificial_tracking_efficiency=0.99,
         )
