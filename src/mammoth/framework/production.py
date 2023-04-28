@@ -10,7 +10,7 @@ import functools
 import logging
 import subprocess
 from pathlib import Path
-from typing import Any, Mapping, Protocol, Sequence
+from typing import Any, Mapping, MutableMapping, Protocol, Sequence
 
 import attrs
 import pachyderm.yaml
@@ -134,7 +134,7 @@ def _extract_hf_tree_files_txt_filename(files: list[str]) -> Path:
 
 
 class ProductionSpecialization(Protocol):
-    def customize_identifier(self, analysis_settings: Mapping[str, Any]) -> str:
+    def customize_identifier(self, analysis_settings: MutableMapping[str, Any]) -> str:
         ...
 
     def tasks_to_execute(self, collision_system: str) -> list[str]:
@@ -213,6 +213,8 @@ class ProductionSettings:
             for k, v in _background_subtraction_settings.items():
                 name += f"_{k}_{str(v)}"
         # Allow for customization
+        # NOTE: Remember to pop keys here - otherwise they will be repeated when trying to
+        #       iterate and record the remaining settings.
         name += self.specialization.customize_identifier(analysis_settings=_analysis_settings)
         # And then all the rest
         for k, v in _analysis_settings.items():

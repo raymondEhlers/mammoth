@@ -10,7 +10,7 @@ import logging
 import secrets
 from concurrent.futures import Future
 from pathlib import Path
-from typing import Any, Iterable, Mapping, Sequence
+from typing import Any, Iterable, Mapping, MutableMapping, Sequence
 
 import attrs
 import IPython
@@ -36,10 +36,10 @@ class SplittingsSelection(enum.Enum):
 
 @attrs.frozen()
 class HardestKtProductionSpecialization:
-    def customize_identifier(self, analysis_settings: Mapping[str, Any]) -> str:
+    def customize_identifier(self, analysis_settings: MutableMapping[str, Any]) -> str:
         name = ""
         # Selection of splittings
-        splittings_selection_value = SplittingsSelection[analysis_settings["splittings_selection"]]
+        splittings_selection_value = SplittingsSelection[analysis_settings.pop("splittings_selection")]
         name += f"_{str(splittings_selection_value)}"
         return name
 
