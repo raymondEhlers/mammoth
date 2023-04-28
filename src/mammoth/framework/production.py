@@ -195,12 +195,15 @@ class ProductionSettings:
         # We want particular handling for some analysis settings, so we do those by hand.
         # The rest are included automatically
         # Jet R
-        jet_R_value = _analysis_settings["jet_R"]
-        name += f"_jet_R{round(jet_R_value * 100):03}"
+        jet_R_value = _analysis_settings.get("jet_R", None)
+        if jet_R_value is not None:
+            name += f"_jet_R{round(jet_R_value * 100):03}"
         # Min jet pt
-        name += "_min_jet_pt"
-        for k, v in _analysis_settings["min_jet_pt"].items():
-            name += f"_{k}_{round(v)}"
+        _min_jet_pt = _analysis_settings.get("min_jet_pt", {})
+        if _min_jet_pt:
+            name += "_min_jet_pt"
+            for k, v in _min_jet_pt.items():
+                name += f"_{k}_{round(v)}"
         # Background subtraction
         name += "_background_subtraction"
         _background_subtraction_settings = _analysis_settings.get("background_subtraction", {})
