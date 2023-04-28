@@ -15,6 +15,7 @@ import numpy as np
 
 from mammoth import helpers
 from mammoth.framework import load_data, sources
+from mammoth.framework.analysis import conventions as analysis_conventions
 from mammoth.framework.analysis import jets as analysis_jets
 from mammoth.framework.analysis import objects as analysis_objects
 from mammoth.framework.io import HF_tree, track_skim
@@ -156,7 +157,7 @@ def hardest_kt_data_skim(
         loading_data_rename_prefix = {"data": "data"}
 
     # Setup
-    _description = _description_from_parameters(
+    _description = analysis_conventions.description_from_parameters(
         parameters={
             "collision_system": collision_system,
             "R": jet_R,
@@ -164,7 +165,7 @@ def hardest_kt_data_skim(
         }
     )
     # Try to bail out as early to avoid reprocessing if possible.
-    res = _check_for_output_file(output_filename=output_filename, description=_description)
+    res = analysis_conventions.check_for_skim_output_file(output_filename=output_filename, description=_description)
     if res[0]:
         return res
 
@@ -284,35 +285,6 @@ def _hardest_kt_embedding_skim(
     )
 
 
-def _description_from_parameters(parameters: Mapping[str, Any]) -> str:
-    return ", ".join([f"{k}={v}" for k, v in parameters.items()])
-
-
-def _check_for_output_file(output_filename: Path, description: str) -> tuple[bool, str]:
-    # Try to bail out as early to avoid reprocessing if possible.
-    # First, check for the empty filename
-    empty_filename = output_filename.with_suffix(".empty")
-    if empty_filename.exists():
-        # It will be empty, so there's nothing to check. Just return
-        return (True, f"Done - found empty file indicating that there are no jets to analyze for {description}")
-
-    # Next, check the contents of the output file
-    if output_filename.exists():
-        import uproot
-
-        try:
-            with uproot.open(output_filename) as f:
-                # If the tree exists, can be read, and has more than 0 entries, we should be good
-                if f["tree"].num_entries > 0:
-                    # Return immediately to indicate that we're done.
-                    return (True, f"already processed for {description}")
-        except Exception:
-            # If it fails for some reason, give up - we want to try again
-            pass
-
-    return (False, "")
-
-
 def hardest_kt_embed_thermal_model_skim(
     collision_system: str,
     signal_input: Path | Sequence[Path],
@@ -343,11 +315,11 @@ def hardest_kt_embed_thermal_model_skim(
     }
     if chunk_size is not sources.ChunkSizeSentinel.FULL_SOURCE:
         _parameters["chunk_size"] = chunk_size
-    _description = _description_from_parameters(parameters=_parameters)
+    _description = analysis_conventions.description_from_parameters(parameters=_parameters)
 
     # Try to bail out early to avoid reprocessing if possible.
     # This would only work if is was previously processed with one chunk, but it doesn't hurt to try
-    res = _check_for_output_file(output_filename=output_filename, description=_description)
+    res = analysis_conventions.check_for_skim_output_file(output_filename=output_filename, description=_description)
     if res[0]:
         return res
 
@@ -388,7 +360,7 @@ def hardest_kt_embed_thermal_model_skim(
             _output_filename = output_filename
 
         # Try to bail out as early to avoid reprocessing if possible.
-        res = _check_for_output_file(output_filename=_output_filename, description=_description)
+        res = analysis_conventions.check_for_skim_output_file(output_filename=_output_filename, description=_description)
         if res[0]:
             _nonstandard_results.append(res)
             logger.info(f"Skipping already processed chunk {i_chunk}: {res}")
@@ -500,11 +472,11 @@ def hardest_kt_embedding_skim(  # noqa: C901
     }
     if chunk_size is not sources.ChunkSizeSentinel.FULL_SOURCE:
         _parameters["chunk_size"] = chunk_size
-    _description = _description_from_parameters(parameters=_parameters)
+    _description = analysis_conventions.description_from_parameters(parameters=_parameters)
 
     # Try to bail out early to avoid reprocessing if possible.
     # This would only work if is was previously processed with one chunk, but it doesn't hurt to try
-    res = _check_for_output_file(output_filename=output_filename, description=_description)
+    res = analysis_conventions.check_for_skim_output_file(output_filename=output_filename, description=_description)
     if res[0]:
         return res
 
@@ -549,7 +521,7 @@ def hardest_kt_embedding_skim(  # noqa: C901
             _output_filename = output_filename
 
         # Try to bail out as early to avoid reprocessing if possible.
-        res = _check_for_output_file(output_filename=_output_filename, description=_description)
+        res = analysis_conventions.check_for_skim_output_file(output_filename=_output_filename, description=_description)
         if res[0]:
             _nonstandard_results.append(res)
             logger.info(f"Skipping already processed chunk {i_chunk}: {res}")
