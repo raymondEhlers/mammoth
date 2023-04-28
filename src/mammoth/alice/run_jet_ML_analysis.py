@@ -200,6 +200,7 @@ def run() -> None:
     #       it's super verbose and a huge pain to turn off. Note that by passing on the storage messages,
     #       we don't actually lose any info.
     config, facility_config, stored_messages = job_utils.config(
+        job_framework=job_utils.JobFramework.parsl,
         facility="ORNL_b587_vip",
         task_config=task_config,
         target_n_tasks_to_run_simultaneously=n_cores_to_allocate,
@@ -285,7 +286,7 @@ def run() -> None:
     # asking for the result. By embedded here, we can inspect results, etc in the meantime.
     # NOTE: This may be commented out sometimes when I have long running processes and wil
     #       probably forget to close it.
-    IPython.start_ipython(user_ns=locals())
+    IPython.start_ipython(user_ns=locals())  # type: ignore[no-untyped-call]
 
     # In case we close IPython early, wait for all apps to complete
     # Also allows for a summary at the end.
