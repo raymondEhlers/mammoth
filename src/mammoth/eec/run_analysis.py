@@ -913,7 +913,7 @@ def _run_embed_thermal_model_skim(
     collision_system: str,
     trigger_pt_ranges: dict[str, tuple[float, float]],
     min_track_pt: dict[str, float],
-    momentum_weighting_exponent: int | float,
+    momentum_weight_exponent: int | float,
     det_level_artificial_tracking_efficiency: float,
     thermal_model_parameters: sources.ThermalModelParameters,
     chunk_size: int,
@@ -933,7 +933,7 @@ def _run_embed_thermal_model_skim(
             signal_input=[Path(_input_file.filepath) for _input_file in inputs],
             trigger_pt_ranges=trigger_pt_ranges,
             min_track_pt=min_track_pt,
-            momentum_weighting_exponent=momentum_weighting_exponent,
+            momentum_weight_exponent=momentum_weight_exponent,
             det_level_artificial_tracking_efficiency=det_level_artificial_tracking_efficiency,
             thermal_model_parameters=thermal_model_parameters,
             scale_factor=scale_factor,
@@ -1021,7 +1021,7 @@ def setup_calculate_embed_thermal_model_skim(
                     collision_system=prod.collision_system,
                     trigger_pt_ranges=_analysis_config["trigger_pt_ranges"],
                     min_track_pt=_analysis_config["min_track_pt"],
-                    momentum_weighting_exponent=_analysis_config["momentum_weighting_exponent"],
+                    momentum_weight_exponent=_analysis_config["momentum_weight_exponent"],
                     det_level_artificial_tracking_efficiency=_analysis_config[
                         "det_level_artificial_tracking_efficiency"
                     ],

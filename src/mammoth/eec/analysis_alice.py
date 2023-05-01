@@ -325,7 +325,7 @@ def analysis_embedding(
     arrays: ak.Array,
     trigger_pt_ranges: dict[str, tuple[float, float]],
     min_track_pt: dict[str, float],
-    momentum_weighting_exponent: int | float,
+    momentum_weight_exponent: int | float,
     scale_factor: float,
     det_level_artificial_tracking_efficiency: float | analysis_jets.PtDependentTrackingEfficiencyParameters = 1.0,
     validation_mode: bool = False,
@@ -443,12 +443,12 @@ def analysis_embedding(
                 distances,
             )
             # Save an additional set of calls to exponent if can be avoided
-            if momentum_weighting_exponent == 1:
+            if momentum_weight_exponent == 1:
                 weight = ak.flatten(
                     (left.pt * right.pt) / (triggers_dict[level][trigger_name].pt ** 2)
                 )
             else:
-                w = momentum_weighting_exponent
+                w = momentum_weight_exponent
                 weight = ak.flatten(
                     ((left.pt ** w) * (right.pt ** w)) / (triggers_dict[level][trigger_name].pt ** (2*w))
                 )
@@ -769,7 +769,7 @@ if __name__ == "__main__":
                 "det_level": 1.,
                 "hybrid": 1.,
             },
-            momentum_weighting_exponent=1,
+            momentum_weight_exponent=1,
             scale_factor=1,
             det_level_artificial_tracking_efficiency=0.99,
         )
