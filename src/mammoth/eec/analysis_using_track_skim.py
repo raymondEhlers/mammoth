@@ -21,7 +21,7 @@ from mammoth.framework.io import track_skim
 logger = logging.getLogger(__name__)
 
 
-def eec_embed_thermal_model_analysis(
+def eec_embed_thermal_model_analysis(  # noqa: C901
     collision_system: str,
     signal_input: Path | Sequence[Path],
     trigger_pt_ranges: dict[str, tuple[float, float]],
@@ -33,15 +33,7 @@ def eec_embed_thermal_model_analysis(
     scale_factor: float,
     chunk_size: sources.T_ChunkSize = sources.ChunkSizeSentinel.SINGLE_FILE,
     validation_mode: bool = False,
-) -> tuple[bool, str, dict[str, hist.Hist]]:
-    # TODO: Move these values to config
-    min_track_pt = {
-        "part_level": 1.,
-        "det_level": 1.,
-        "hybrid": 1.,
-    }
-    momentum_weighting_exponent = 1
-
+) -> tuple[bool, str, str, dict[str, hist.Hist]]:
     # Validation
     signal_input_filenames = []
     if not isinstance(signal_input, collections.abc.Iterable):
