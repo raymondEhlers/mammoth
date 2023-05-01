@@ -1010,7 +1010,7 @@ def setup_calculate_embed_thermal_model_skim(
             #        -> "2111__run_by_run__LHC17p_CENT_woSDD__282341__AnalysisResults_17p_001"
             output_identifier = safe_output_filename_from_relative_path(
                 filename=input_filename, output_dir=prod.output_dir,
-                number_of_parent_directories_for_relative_output_filename=_metadata_config["signal_dataset"].get(
+                number_of_parent_directories_for_relative_output_filename=_metadata_config["dataset"].get(
                     "number_of_parent_directories_for_relative_output_filename", None
                 ),
             )
