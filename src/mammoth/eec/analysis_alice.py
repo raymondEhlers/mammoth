@@ -301,7 +301,7 @@ def _setup_embedding_hists(trigger_pt_ranges: dict[str, tuple[float, float]]) ->
     # EECs
     for level in ["part_level", "det_level", "hybrid"]:
         for trigger_name, trigger_range_tuple in trigger_pt_ranges.items():
-            trigger_pt_bin_args = (round((trigger_range_tuple[1] - trigger_range_tuple[0]) / 4), *trigger_range_tuple)
+            trigger_pt_bin_args = (round((trigger_range_tuple[1] - trigger_range_tuple[0]) * 4), *trigger_range_tuple)
             hists[f"{level}_{trigger_name}_eec"] = hist.Hist(
                 *[
                     hist.axis.Regular(200, 1e-4, 1.5, label="R_L"),
