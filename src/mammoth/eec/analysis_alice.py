@@ -391,7 +391,7 @@ def analysis_embedding(
     output_trigger_skim: bool,
     det_level_artificial_tracking_efficiency: float | analysis_jets.PtDependentTrackingEfficiencyParameters = 1.0,
     validation_mode: bool = False,
-) -> tuple[dict[str, hist.Hist], ak.Array] | dict[str, hist.Hist]: ...
+) -> tuple[dict[str, hist.Hist], dict[str, ak.Array]] | dict[str, hist.Hist]: ...
 
 def analysis_embedding(
     source_index_identifiers: Mapping[str, int],
@@ -400,13 +400,13 @@ def analysis_embedding(
     min_track_pt: dict[str, float],
     momentum_weight_exponent: int | float,
     scale_factor: float,
-    output_trigger_skim: bool,  # TODO: Implement
+    output_trigger_skim: bool,
     det_level_artificial_tracking_efficiency: float | analysis_jets.PtDependentTrackingEfficiencyParameters = 1.0,
     validation_mode: bool = False,
-) -> tuple[dict[str, hist.Hist], ak.Array] | dict[str, hist.Hist]:
+) -> tuple[dict[str, hist.Hist], dict[str, ak.Array]] | dict[str, hist.Hist]:
     # Setup
     hists = _setup_embedding_hists(trigger_pt_ranges=trigger_pt_ranges)
-    trigger_skim_output: dict[str, dict[str, ak.Array]] = {}
+    trigger_skim_output: dict[str, ak.Array] = {}
 
     # Event selection
     # This would apply to the signal events, because this is what we propagate from the embedding transform
@@ -501,7 +501,7 @@ def analysis_embedding(
             eec_particles = event_selected_array[within_hemisphere]
 
             if output_trigger_skim:
-                trigger_skim_output[level][trigger_name] = ak.zip(
+                trigger_skim_output[f"{level}_{trigger_name}"] = ak.zip(
                     {
                         "triggers": triggers_dict[level][trigger_name],
                         "particles": eec_particles,
