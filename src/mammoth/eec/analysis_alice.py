@@ -316,20 +316,54 @@ def _setup_embedding_hists(trigger_pt_ranges: dict[str, tuple[float, float]]) ->
                 ],
                 storage=hist.storage.Weight()
             )
+            if level == "hybrid":
+                hists[f"{level}_{trigger_name}_eec_bg_only"] = hist.Hist(
+                    *[
+                        hist.axis.Regular(200, 1e-4, 1.5, label="R_L"),
+                        hist.axis.Regular(*trigger_pt_bin_args, label="trigger_pt"),
+                    ],
+                    storage=hist.storage.Weight()
+                )
+                hists[f"{level}_{trigger_name}_eec_log_bg_only"] = hist.Hist(
+                    *[
+                        hist.axis.Regular(200, 1e-4, 1.5, label="R_L", transform=hist.axis.transform.log),
+                        hist.axis.Regular(*trigger_pt_bin_args, label="trigger_pt"),
+                    ],
+                    storage=hist.storage.Weight()
+                )
 
     return hists
 
 
+def _calculate_weight(
+    left: ak.Array,
+    right: ak.Array,
+    trigger_pt_event_wise: ak.Array,
+    momentum_weight_exponent: int | float,
+) -> ak.Array:
+    if momentum_weight_exponent == 1:
+        weight = ak.flatten(
+            (left.pt * right.pt) / (trigger_pt_event_wise.pt ** 2)
+        )
+    else:
+        w = momentum_weight_exponent
+        weight = ak.flatten(
+            ((left.pt ** w) * (right.pt ** w)) / (trigger_pt_event_wise ** (2*w))
+        )
+    return weight
+
+
 def analysis_embedding(
-    source_index_identifiers: Mapping[str, int],  # noqa: ARG001
+    source_index_identifiers: Mapping[str, int],
     arrays: ak.Array,
     trigger_pt_ranges: dict[str, tuple[float, float]],
     min_track_pt: dict[str, float],
     momentum_weight_exponent: int | float,
     scale_factor: float,
     det_level_artificial_tracking_efficiency: float | analysis_jets.PtDependentTrackingEfficiencyParameters = 1.0,
+    output_a_skim: bool = False,  # TODO: Implement
     validation_mode: bool = False,
-) -> dict[str, hist.Hist]:
+) -> tuple[dict[str, hist.Hist], ak.Array] | dict[str, hist.Hist]:
 
     # Setup
     hists = _setup_embedding_hists(trigger_pt_ranges=trigger_pt_ranges)
@@ -344,11 +378,12 @@ def analysis_embedding(
     )
 
     # Find trigger(s)
-    # NOTE: We need this be cause we can't overlap between signal and reference events!
+    # NOTE: Use the signal fraction because we don't want any overlap between signal and reference events!
     signal_event_fraction = 0.8
     _rng = np.random.default_rng()
     is_signal_event = _rng.random(ak.num(arrays, axis=0)) < signal_event_fraction
 
+    # Trigger QA
     for level in ["part_level", "det_level", "hybrid"]:
         hists[f"{level}_inclusive_trigger_spectra"].fill(ak.flatten(arrays[level].pt), weight=scale_factor)
 
@@ -356,14 +391,10 @@ def analysis_embedding(
     triggers_dict: dict[str, dict[str, ak.Array]] = {}
     event_selection_mask: dict[str, dict[str, ak.Array]] = {}
 
-    # TODO: Edge effects? Do I need to go 0.9-0.3 in from eta?
-    #       I guess not? Since they will be accounted for in the mixed event correction.
-    #       But it may also help for sanity to just take a quick look.
-
     # Random choice args
     random_choice_kwargs: dict[str, Any] = {}
     if validation_mode:
-        random_choice_kwargs["random_seed"] = jet_finding.VALIDATION_MODE_RANDOM_SEED
+        random_choice_kwargs["random_seed"] = jet_finding.VALIDATION_MODE_RANDOM_SEED[0]
     for level in ["part_level", "det_level", "hybrid"]:
         triggers_dict[level] = {}
         event_selection_mask[level] = {}
@@ -429,6 +460,10 @@ def analysis_embedding(
             within_hemisphere = (recoil_direction[level][trigger_name].deltaphi(event_selected_array) < np.pi/4)
             eec_particles = event_selected_array[within_hemisphere]
 
+            # NOTE: These selections could have the potential edge effects in eta, but since we have those in both
+            #       the signal and reference, these should be accounted for automatically.
+            #       This correspondence will be even better when we use mixed events.
+
             # TODO: Profile memory (with dask?). I think this is the really expensive point...
             #       Worst case, I have to move this into c++ (ie implement the combinatorics there), but to be seen.
             logger.info(f"{level}, {trigger_name}: About to calculate combinations")
@@ -443,16 +478,10 @@ def analysis_embedding(
                 distances,
             )
             # Save an additional set of calls to exponent if can be avoided
-            if momentum_weight_exponent == 1:
-                weight = ak.flatten(
-                    (left.pt * right.pt) / (triggers_dict[level][trigger_name].pt ** 2)
-                )
-            else:
-                w = momentum_weight_exponent
-                weight = ak.flatten(
-                    ((left.pt ** w) * (right.pt ** w)) / (triggers_dict[level][trigger_name].pt ** (2*w))
-                )
-            # TODO: Look at background only correlations (already part level vs hybrid level is a good start...)
+            weight = _calculate_weight(
+                left=left, right=right, trigger_pt_event_wise=triggers_dict[level][trigger_name].pt,
+                momentum_weight_exponent=momentum_weight_exponent,
+            )
             hists[f"{level}_{trigger_name}_eec"].fill(
                 ak.flatten(distances),
                 ak.flatten(trigger_pt),
@@ -463,6 +492,33 @@ def analysis_embedding(
                 ak.flatten(trigger_pt),
                 weight=weight * scale_factor,
             )
+            if level == "hybrid":
+                # Compare to background only particles
+                # Need to select distances of particles for left and right which only are background particles
+                left_mask = left["source_index"] >= source_index_identifiers["background"]
+                right_mask = right["source_index"] >= source_index_identifiers["background"]
+                distances = left[left_mask].deltaR(right[right_mask])
+
+                trigger_pt, _ = ak.broadcast_arrays(
+                    triggers_dict[level][trigger_name].pt,
+                    distances,
+                )
+                # Recalculate weight
+                weight = _calculate_weight(
+                    left=left[left_mask], right=right[right_mask], trigger_pt_event_wise=triggers_dict[level][trigger_name].pt,
+                    momentum_weight_exponent=momentum_weight_exponent,
+                )
+
+                hists[f"{level}_{trigger_name}_eec_bg_only"].fill(
+                    ak.flatten(distances),
+                    ak.flatten(trigger_pt),
+                    weight=weight * scale_factor,
+                )
+                hists[f"{level}_{trigger_name}_eec_log_bg_only"].fill(
+                    ak.flatten(distances),
+                    ak.flatten(trigger_pt),
+                    weight=weight * scale_factor,
+                )
 
             # Probably makes no difference...
             del eec_particles
@@ -475,7 +531,6 @@ def analysis_embedding(
     #IPython.embed()  # type: ignore[no-untyped-call]
 
     return hists
-
 
     ## Jet finding
     #logger.info("Find jets")
