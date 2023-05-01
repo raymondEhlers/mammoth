@@ -284,6 +284,42 @@ analysis_settings:
     <<: *_base_analysis_settings_embed
     jet_R: 0.2
 
+  _EEC_analysis_settings:
+    base_analysis_settings:
+      base: &_base_analysis_settings_EEC
+        trigger_pt_ranges:
+          reference: [5., 7.]
+          signal: [20., 50.]
+        momentum_weight_exponent: 1
+
+    analysis_settings:
+      pp: &analysis_settings_EEC_pp
+        <<: *_base_analysis_settings_EEC
+        # In GeV
+        min_track_pt:
+          data: 1.
+
+      pythia: &analysis_settings_EEC_pythia
+        <<: *_base_analysis_settings_EEC
+        # In GeV
+        min_track_pt:
+          part_level: 1.
+          det_level: 1.
+
+      PbPb: &analysis_settings_EEC_PbPb
+        <<: *_base_analysis_settings_EEC
+        # In GeV
+        min_track_pt:
+          data: 1.
+
+      embed: &analysis_settings_EEC_embed
+        <<: *_base_analysis_settings_EEC
+        # In GeV
+        min_track_pt:
+          part_level: 1.
+          det_level: 1.
+          hybrid: 1.
+
   # NOTE: We don't need an explicit one for embedding into a thermal model - we can
   #       just take the standard embedding analysis settings
 
@@ -961,6 +997,25 @@ productions:
         # 0-10% \approx .98
         # Apply only to embedded particles
         det_level_artificial_tracking_efficiency: 0.99
+
+    3:
+      metadata:
+        # TODO: I'm not sure this metadata is useful for EEC. It would be better if we can wall this off somehow!
+        <<: *base_metadata_embed_thermal_model
+        dataset: *LHC20g4_pythia
+        # Equivalent to train number, but a more general term makes more sense here.
+        production_number: 3
+        label: "embed_pythia_semi_central"
+      settings:
+        <<: *analysis_settings_EEC_embed
+        event_activity: "central"
+        chunk_size: 1000
+        # Artificial tracking efficiency derived from the full jet R_AA paper.
+        # 10-30 \approx .99
+        # 0-10% \approx .98
+        # Apply only to embedded particles
+        det_level_artificial_tracking_efficiency: 0.98
+
     60:
       metadata:
         <<: *base_metadata_embed_thermal_model
