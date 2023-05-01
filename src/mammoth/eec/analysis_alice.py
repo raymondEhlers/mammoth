@@ -8,8 +8,9 @@ Note that the embedding analysis supports analyzing embedding data as well as in
 from __future__ import annotations
 
 import logging
+import typing
 from pathlib import Path
-from typing import Any, Mapping
+from typing import Any, Literal, Mapping
 
 import awkward as ak
 import hist
@@ -353,6 +354,7 @@ def _calculate_weight(
     return weight
 
 
+@typing.overload
 def analysis_embedding(
     source_index_identifiers: Mapping[str, int],
     arrays: ak.Array,
@@ -360,13 +362,51 @@ def analysis_embedding(
     min_track_pt: dict[str, float],
     momentum_weight_exponent: int | float,
     scale_factor: float,
+    output_trigger_skim: Literal[False],
     det_level_artificial_tracking_efficiency: float | analysis_jets.PtDependentTrackingEfficiencyParameters = 1.0,
-    output_a_skim: bool = False,  # TODO: Implement
+    validation_mode: bool = False,
+) -> dict[str, hist.Hist]: ...
+
+@typing.overload
+def analysis_embedding(
+    source_index_identifiers: Mapping[str, int],
+    arrays: ak.Array,
+    trigger_pt_ranges: dict[str, tuple[float, float]],
+    min_track_pt: dict[str, float],
+    momentum_weight_exponent: int | float,
+    scale_factor: float,
+    output_trigger_skim: Literal[True],
+    det_level_artificial_tracking_efficiency: float | analysis_jets.PtDependentTrackingEfficiencyParameters = 1.0,
+    validation_mode: bool = False,
+) -> tuple[dict[str, hist.Hist], ak.Array]: ...
+
+@typing.overload
+def analysis_embedding(
+    source_index_identifiers: Mapping[str, int],
+    arrays: ak.Array,
+    trigger_pt_ranges: dict[str, tuple[float, float]],
+    min_track_pt: dict[str, float],
+    momentum_weight_exponent: int | float,
+    scale_factor: float,
+    output_trigger_skim: bool,
+    det_level_artificial_tracking_efficiency: float | analysis_jets.PtDependentTrackingEfficiencyParameters = 1.0,
+    validation_mode: bool = False,
+) -> tuple[dict[str, hist.Hist], ak.Array] | dict[str, hist.Hist]: ...
+
+def analysis_embedding(
+    source_index_identifiers: Mapping[str, int],
+    arrays: ak.Array,
+    trigger_pt_ranges: dict[str, tuple[float, float]],
+    min_track_pt: dict[str, float],
+    momentum_weight_exponent: int | float,
+    scale_factor: float,
+    output_trigger_skim: bool,  # TODO: Implement
+    det_level_artificial_tracking_efficiency: float | analysis_jets.PtDependentTrackingEfficiencyParameters = 1.0,
     validation_mode: bool = False,
 ) -> tuple[dict[str, hist.Hist], ak.Array] | dict[str, hist.Hist]:
-
     # Setup
     hists = _setup_embedding_hists(trigger_pt_ranges=trigger_pt_ranges)
+    trigger_skim_output: dict[str, dict[str, ak.Array]] = {}
 
     # Event selection
     # This would apply to the signal events, because this is what we propagate from the embedding transform
@@ -460,6 +500,15 @@ def analysis_embedding(
             within_hemisphere = (recoil_direction[level][trigger_name].deltaphi(event_selected_array) < np.pi/4)
             eec_particles = event_selected_array[within_hemisphere]
 
+            if output_trigger_skim:
+                trigger_skim_output[level][trigger_name] = ak.zip(
+                    {
+                        "triggers": triggers_dict[level][trigger_name],
+                        "particles": eec_particles,
+                    },
+                    depth_limit=1
+                )
+
             # NOTE: These selections could have the potential edge effects in eta, but since we have those in both
             #       the signal and reference, these should be accounted for automatically.
             #       This correspondence will be even better when we use mixed events.
@@ -529,6 +578,9 @@ def analysis_embedding(
             del weight
 
     #IPython.embed()  # type: ignore[no-untyped-call]
+
+    if output_trigger_skim:
+        return hists, trigger_skim_output
 
     return hists
 
@@ -827,6 +879,7 @@ if __name__ == "__main__":
             momentum_weight_exponent=1,
             scale_factor=1,
             det_level_artificial_tracking_efficiency=0.99,
+            output_trigger_skim=False,
         )
         merged_hists = mammoth.job_utils.merge_results(merged_hists, hists)
 
