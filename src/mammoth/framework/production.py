@@ -5,6 +5,7 @@
 
 from __future__ import annotations
 
+import copy
 import datetime
 import functools
 import logging
@@ -215,10 +216,12 @@ class ProductionSettings:
         # Allow for customization
         # NOTE: Remember to pop keys here - otherwise they will be repeated when trying to
         #       iterate and record the remaining settings.
-        name += self.specialization.customize_identifier(analysis_settings=_analysis_settings)
+        _analysis_settings_copy = copy.deepcopy(_analysis_settings)
+        name += self.specialization.customize_identifier(analysis_settings=_analysis_settings_copy)
+        _settings_handled_in_customization = set(_analysis_settings) - set(_analysis_settings_copy)
         # And then all the rest
         for k, v in _analysis_settings.items():
-            if k in self._manual_analysis_parameter_keys:
+            if k in self._manual_analysis_parameter_keys or k in _settings_handled_in_customization:
                 continue
             name += f"_{k}_{str(v)}"
         # And finally, the production details
