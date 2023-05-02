@@ -12,7 +12,7 @@ import typing
 from pathlib import Path
 from typing import Any, Callable, Iterator, List, Optional, Union
 
-import attr
+import attrs
 import awkward as ak
 import numpy as np
 import numpy.typing as npt
@@ -36,18 +36,18 @@ class ReachedXSecAtEndOfFileException(ReachedEndOfFileException):
     ...
 
 
-@attr.frozen
+@attrs.frozen
 class CrossSection:
     value: float
     error: float
 
 
-@attr.frozen
+@attrs.frozen
 class HeaderInfo:
     event_number: int
     event_plane_angle: float
     n_particles: int
-    event_weight: float = attr.field(default=-1)
+    event_weight: float = attrs.field(default=-1)
 
 
 def _retrieve_last_line_of_file(f: typing.TextIO, read_chunk_size: int = 100) -> str:
@@ -306,7 +306,7 @@ class ChunkNotReadyException(Exception):
     ...
 
 
-@attr.define
+@attrs.define
 class ChunkGenerator:
     """Generator a chunk of the file.
 
@@ -320,10 +320,10 @@ class ChunkGenerator:
 
     g: Iterator[str]
     _events_per_chunk: int
-    cross_section: Optional[CrossSection] = attr.field(default=None)
-    _file_format_version: int = attr.field(default=-1)
-    _headers: List[HeaderInfo] = attr.Factory(list)
-    _reached_end_of_file: bool = attr.field(default=False)
+    cross_section: Optional[CrossSection] = attrs.field(default=None)
+    _file_format_version: int = attrs.field(default=-1)
+    _headers: List[HeaderInfo] = attrs.Factory(list)
+    _reached_end_of_file: bool = attrs.field(default=False)
 
     def _is_chunk_ready(self) -> bool:
         """True if the chunk is ready"""

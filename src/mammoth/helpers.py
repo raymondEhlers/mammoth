@@ -7,7 +7,7 @@ import logging
 from datetime import datetime
 from typing import Any, BinaryIO, Mapping, Optional, Sequence
 
-import attr
+import attrs
 import parsl
 import rich
 import rich.progress
@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 rich_console = Console()
 
 
-@attr.define
+@attrs.define
 class LogMessage:
     """Stores a log message for logging later.
 

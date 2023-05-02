@@ -11,7 +11,7 @@ import typing
 from pathlib import Path
 from typing import Any, Final, Mapping, Sequence, TypeVar, cast
 
-import attr
+import attrs
 import awkward as ak
 import numpy as np
 import numpy.typing as npt
@@ -844,7 +844,7 @@ def parquet_to_substructure_analysis(filename: Path, prefixes: Mapping[str, str]
     }
 
 
-@attr.define
+@attrs.define
 class DoubleCountingCutParameters:
     """Parameters for double counting cut."""
 

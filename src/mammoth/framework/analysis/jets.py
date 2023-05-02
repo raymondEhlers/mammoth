@@ -12,7 +12,7 @@ import logging
 from pathlib import Path
 from typing import Mapping, Sequence
 
-import attr
+import attrs
 import awkward as ak
 import numpy as np
 import numpy.typing as npt
@@ -206,7 +206,7 @@ def hybrid_background_particles_only_mask(
     return background_only_particles_mask  # noqa: RET504
 
 
-@attr.define(frozen=True)
+@attrs.define(frozen=True)
 class PtDependentTrackingEfficiencyParameters:
     bin_edges: npt.NDArray[np.float64]
     values: npt.NDArray[np.float64]

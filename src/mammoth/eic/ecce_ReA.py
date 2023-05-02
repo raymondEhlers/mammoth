@@ -4,7 +4,7 @@ import logging
 from pathlib import Path
 from typing import Dict, Iterable, Mapping, Optional, Sequence
 
-import attr
+import attrs
 import cycler
 import hist
 import matplotlib
@@ -22,11 +22,11 @@ pb.configure()
 logger = logging.getLogger(__name__)
 
 
-@attr.frozen
+@attrs.frozen
 class InputSpec:
     n_PDF_name: str
     n_variations: int
-    base_filename: str = attr.field(default="output_JetObservables")
+    base_filename: str = attrs.field(default="output_JetObservables")
 
     @property
     def variations(self) -> Iterable[int]:
@@ -46,7 +46,7 @@ _n_PDF_name_display_name = {
 }
 
 
-@attr.define
+@attrs.define
 class SimulationConfig:
     dataset_spec: ecce_base.DatasetSpecPythia
     input_specs: Sequence[InputSpec]

@@ -7,12 +7,12 @@ import collections.abc
 from pathlib import Path
 from typing import List, Optional, Sequence, Union
 
-import attr
+import attrs
 import awkward as ak
 import numpy as np
 
 
-@attr.frozen
+@attrs.frozen
 class Range:
     min: Optional[float]
     max: Optional[float]

@@ -15,7 +15,7 @@ import uuid
 from pathlib import Path
 from typing import Any, Sequence, TypeVar
 
-import attr
+import attrs
 import numpy as np
 
 import mammoth.helpers
@@ -29,9 +29,9 @@ AnalysisTask = Any
 AnalysisManager = Any
 
 
-@attr.s
+@attrs.define
 class CppEnum:
-    value: str = attr.ib()
+    value: str = attrs.field()
 
     def __str__(self) -> str:
         """Return the str without quotes by calling `str`.
@@ -1603,7 +1603,7 @@ def start_analysis_manager(
         raise RuntimeError(_msg)
 
 
-@attr.define
+@attrs.define
 class AnalysisModeParameters:
     analysis_mode: AnalysisMode
     period_name: str
@@ -1611,7 +1611,7 @@ class AnalysisModeParameters:
     # As a function of jet_R
     grooming_jet_pt_threshold: dict[float, float]
     input_files: list[Path]
-    embed_input_files: list[Path] = attr.Factory(list)
+    embed_input_files: list[Path] = attrs.Factory(list)
 
     @property
     def physics_selection(self) -> Any:

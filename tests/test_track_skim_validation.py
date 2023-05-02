@@ -7,7 +7,7 @@ import logging
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence
 
-import attr
+import attrs
 import pytest
 from mammoth.alice import substructure_comparison_tools
 
@@ -57,7 +57,7 @@ _collision_system_to_aod_files = {
 # For convenience
 _collision_system_to_aod_files["embed_pythia-PbPb"] = _collision_system_to_aod_files["embed_pythia"]
 
-@attr.define
+@attrs.define
 class AnalysisParameters:
     """Centralize some general track skim validation parameters"""
     reference_analysis_prefixes: Dict[str, str]
@@ -121,7 +121,7 @@ _all_analysis_parameters = {
 }
 
 
-@attr.define
+@attrs.define
 class TrackSkimValidationFilenames:
     """Helper to generate relevant filenames"""
     base_path: Path
@@ -338,7 +338,7 @@ def _get_scale_factors_for_test() -> Dict[int, float]:
     return scale_factors
 
 
-@attr.define
+@attrs.define
 class ConvertTreeToParquetArguments:
     """Trivial class to help organize arguments for converting AliPhysics output trees to parquet files."""
 

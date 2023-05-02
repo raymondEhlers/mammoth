@@ -1,7 +1,7 @@
 import functools
 from typing import Any, Callable, Union
 
-import attr
+import attrs
 import numpy as np
 import numpy.typing as npt
 from scipy.interpolate import interp1d
@@ -53,7 +53,7 @@ def x_exp(
 sample_x_exp = inverse_sample_decorator(x_exp)
 
 
-@attr.define
+@attrs.define
 class ALICEFastSimParameters:
     period: ALICETrackingEfficiencyPeriod
     event_activity: ALICETrackingEfficiencyEventActivity

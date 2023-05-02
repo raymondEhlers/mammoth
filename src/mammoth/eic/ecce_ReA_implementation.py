@@ -2,13 +2,13 @@
 import logging
 from typing import Any, Dict, List, Mapping
 
-import attr
+import attrs
 import hist
 
 logger = logging.getLogger(__name__)
 
 
-@attr.define
+@attrs.define
 class AnalysisConfig:
     jet_R_values: List[float]
     jet_types: List[str]
@@ -16,7 +16,7 @@ class AnalysisConfig:
     variables: List[str]
 
 
-@attr.frozen
+@attrs.frozen
 class JetParameters:
     _jet_R: float
     jet_type: str

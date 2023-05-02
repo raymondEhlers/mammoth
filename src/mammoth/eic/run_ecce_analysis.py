@@ -8,7 +8,7 @@ import itertools
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Sequence, Tuple, Union
 
-import attr
+import attrs
 import IPython
 import parsl
 from mammoth import helpers, job_utils
@@ -37,7 +37,7 @@ def iterate_in_chunks(n: int, iterable: Iterable[Any]) -> Iterable[Any]:
         yield itertools.chain((first_el,), chunk_it)
 
 
-@attr.frozen
+@attrs.frozen
 class Dataset:
     data: Path
     geometry: Path

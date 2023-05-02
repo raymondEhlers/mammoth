@@ -12,7 +12,7 @@ import logging
 from pathlib import Path
 from typing import Iterable, Mapping
 
-import attr
+import attrs
 import awkward as ak
 import numba as nb
 import numpy as np
@@ -26,7 +26,7 @@ from mammoth.framework.typing import AwkwardArray, Scalar
 logger = logging.getLogger(__name__)
 
 
-@attr.define
+@attrs.define
 class Calculation:
     """Similar to `FillHistogramInput`, but adds the splittings indices.
 
@@ -36,15 +36,15 @@ class Calculation:
         by the calculation.
     """
 
-    input_jets: ak.Array = attr.field()
-    input_splittings: analysis_jet_substructure.JetSplittingArray = attr.field()
-    input_splittings_indices: AwkwardArray[AwkwardArray[int]] = attr.field()
-    values: npt.NDArray[np.float32] = attr.field()
-    indices: AwkwardArray[int] = attr.field()
+    input_jets: ak.Array = attrs.field()
+    input_splittings: analysis_jet_substructure.JetSplittingArray = attrs.field()
+    input_splittings_indices: AwkwardArray[AwkwardArray[int]] = attrs.field()
+    values: npt.NDArray[np.float32] = attrs.field()
+    indices: AwkwardArray[int] = attrs.field()
     # If there's no additional grooming selection, then this will be identical to input_splittings_indices.
-    possible_indices: AwkwardArray[AwkwardArray[int]] = attr.field()
+    possible_indices: AwkwardArray[AwkwardArray[int]] = attrs.field()
     # NOTE: We don't initialize here because we want to cache the calculation of the selected set of splittings
-    _restricted_splittings: analysis_jet_substructure.JetSplittingArray = attr.field(init=False)
+    _restricted_splittings: analysis_jet_substructure.JetSplittingArray = attrs.field(init=False)
 
     @property
     def splittings(self) -> analysis_jet_substructure.JetSplittingArray:
@@ -83,31 +83,31 @@ class Calculation:
         )
 
 
-@attr.s
+@attrs.define
 class MaskedJets:
     """Container for masked jets.
 
     This just provides a consistent named interface to keep track of everything.
     """
 
-    jets: ak.Array = attr.ib()
-    selected_splittings: analysis_jet_substructure.JetSplittingArray = attr.ib()
-    selected_splittings_index: AwkwardArray[AwkwardArray[int]] = attr.ib()
+    jets: ak.Array = attrs.field()
+    selected_splittings: analysis_jet_substructure.JetSplittingArray = attrs.field()
+    selected_splittings_index: AwkwardArray[AwkwardArray[int]] = attrs.field()
 
 
-@attr.s
+@attrs.define
 class GroomingResultForTree:
-    grooming_method: str = attr.ib()
-    delta_R: npt.NDArray[np.float32] = attr.ib()
-    z: npt.NDArray[np.float32] = attr.ib()
-    kt: npt.NDArray[np.float32] = attr.ib()
-    n_to_split: npt.NDArray[np.int16] = attr.ib()
-    n_groomed_to_split: npt.NDArray[np.int16] = attr.ib()
+    grooming_method: str = attrs.field()
+    delta_R: npt.NDArray[np.float32] = attrs.field()
+    z: npt.NDArray[np.float32] = attrs.field()
+    kt: npt.NDArray[np.float32] = attrs.field()
+    n_to_split: npt.NDArray[np.int16] = attrs.field()
+    n_groomed_to_split: npt.NDArray[np.int16] = attrs.field()
     # For SoftDrop, this is equivalent to n_sd.
-    n_passed_grooming: npt.NDArray[np.int16] = attr.ib()
+    n_passed_grooming: npt.NDArray[np.int16] = attrs.field()
 
     def asdict(self, prefix: str) -> Iterable[tuple[str, npt.NDArray[np.generic]]]:
-        for k, v in attr.asdict(self, recurse=False).items():
+        for k, v in attrs.asdict(self, recurse=False).items():
             # Skip the label
             if isinstance(v, str):
                 continue

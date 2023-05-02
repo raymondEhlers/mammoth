@@ -8,12 +8,12 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Sequence
 
-import attr
+import attrs
 
 from mammoth.framework import production
 
 
-@attr.define(frozen=True)
+@attrs.define(frozen=True)
 class Dependency:
     name: str
     tasks: Sequence[str]

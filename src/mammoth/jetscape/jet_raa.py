@@ -9,7 +9,7 @@ import logging
 from pathlib import Path
 from typing import Dict, List, Mapping, Optional, Sequence
 
-import attr
+import attrs
 import awkward as ak
 import hist
 import numpy as np
@@ -23,7 +23,7 @@ from mammoth.jetscape import utils
 logger = logging.getLogger(__name__)
 
 
-@attr.frozen
+@attrs.frozen
 class JetLabel:
     jet_R: float
     label: str

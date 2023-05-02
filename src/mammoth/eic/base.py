@@ -8,7 +8,7 @@ import logging
 from pathlib import Path
 from typing import Dict, List, Optional, Sequence
 
-import attr
+import attrs
 import hist
 import uproot
 
@@ -65,7 +65,7 @@ def load_hists(filename: Path, filter: Optional[str] = "", filters: Optional[Seq
     return hists
 
 
-@attr.frozen
+@attrs.frozen
 class DatasetSpec:
     site: str
     label: str
@@ -81,7 +81,7 @@ class DatasetSpec:
         return s
 
 
-@attr.frozen
+@attrs.frozen
 class DatasetSpecSingleParticle(DatasetSpec):
     particle: str
     momentum_selection: List[float]
@@ -91,7 +91,7 @@ class DatasetSpecSingleParticle(DatasetSpec):
         return f"single{self.particle.capitalize()}-p-{self.momentum_selection[0]:g}-to-{self.momentum_selection[1]:g}"
 
 
-@attr.frozen
+@attrs.frozen
 class DatasetSpecPythia(DatasetSpec):
     generator: str
     electron_beam_energy: int

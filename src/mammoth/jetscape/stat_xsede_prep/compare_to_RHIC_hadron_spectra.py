@@ -6,7 +6,7 @@
 from pathlib import Path
 from typing import Dict, Mapping
 
-import attr
+import attrs
 import awkward as ak
 import boost_histogram as bh
 import matplotlib.pyplot as plt
@@ -25,7 +25,7 @@ from mammoth.framework.io import jetscape as jetscape_io
 pachyderm.plot.configure()
 
 
-@attr.define
+@attrs.define
 class ReferenceData:
     data: binned_data.BinnedData
     _stat_errors: binned_data.BinnedData

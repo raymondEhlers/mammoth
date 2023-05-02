@@ -23,7 +23,7 @@ from typing import (
     Union,
 )
 
-import attr
+import attrs
 import awkward as ak
 import numpy as np
 import uproot
@@ -185,14 +185,14 @@ def generator_from_existing_data(
     return None
 
 
-@attr.define
+@attrs.define
 class UprootSource:
-    _filename: Path = attr.field(converter=Path)
+    _filename: Path = attrs.field(converter=Path)
     _tree_name: str
-    _columns: Sequence[str] = attr.Factory(list)
-    _entry_range: utils.Range = attr.field(converter=convert_sequence_to_range, default=utils.Range(None, None))
-    _default_chunk_size: int | ChunkSizeSentinel = attr.field(default=ChunkSizeSentinel.FULL_SOURCE)
-    metadata: MutableMapping[str, Any] = attr.Factory(dict)
+    _columns: Sequence[str] = attrs.Factory(list)
+    _entry_range: utils.Range = attrs.field(converter=convert_sequence_to_range, default=utils.Range(None, None))
+    _default_chunk_size: int | ChunkSizeSentinel = attrs.field(default=ChunkSizeSentinel.FULL_SOURCE)
+    metadata: MutableMapping[str, Any] = attrs.Factory(dict)
 
     def _data(self) -> ak.Array:
         with uproot.open(self._filename) as f:
@@ -294,12 +294,12 @@ def define_multiple_sources_from_single_root_file(
     return sources
 
 
-@attr.define
+@attrs.define
 class ParquetSource:
-    _filename: Path = attr.field(converter=Path)
-    _columns: Sequence[str] = attr.Factory(list)
-    _default_chunk_size: int | ChunkSizeSentinel = attr.field(default=ChunkSizeSentinel.FULL_SOURCE)
-    metadata: MutableMapping[str, Any] = attr.Factory(dict)
+    _filename: Path = attrs.field(converter=Path)
+    _columns: Sequence[str] = attrs.Factory(list)
+    _default_chunk_size: int | ChunkSizeSentinel = attrs.field(default=ChunkSizeSentinel.FULL_SOURCE)
+    metadata: MutableMapping[str, Any] = attrs.Factory(dict)
 
     def _data(self) -> ak.Array:
         arrays = ak.from_parquet(
@@ -322,7 +322,7 @@ class ParquetSource:
         )
 
 
-@attr.define
+@attrs.define
 class ALICEFastSimTrackingEfficiency:
     """ALICE fast simulation based on tracking efficiency
 
@@ -331,8 +331,8 @@ class ALICEFastSimTrackingEfficiency:
 
     particle_level_source: Source
     fast_sim_parameters: models.ALICEFastSimParameters
-    _default_chunk_size: int | ChunkSizeSentinel = attr.field(default=ChunkSizeSentinel.FULL_SOURCE)
-    metadata: MutableMapping[str, Any] = attr.Factory(dict)
+    _default_chunk_size: int | ChunkSizeSentinel = attrs.field(default=ChunkSizeSentinel.FULL_SOURCE)
+    metadata: MutableMapping[str, Any] = attrs.Factory(dict)
 
     def _data(self, particle_level_data: ak.Array) -> ak.Array:
         # Setup
@@ -395,22 +395,22 @@ class ALICEFastSimTrackingEfficiency:
             pass
 
 
-@attr.define
+@attrs.define
 class PythiaSource:
-    config: Path = attr.field(converter=Path)
-    _default_chunk_size: int | ChunkSizeSentinel = attr.field(default=ChunkSizeSentinel.FIXED_SIZE)
-    metadata: MutableMapping[str, Any] = attr.Factory(dict)
+    config: Path = attrs.field(converter=Path)
+    _default_chunk_size: int | ChunkSizeSentinel = attrs.field(default=ChunkSizeSentinel.FIXED_SIZE)
+    metadata: MutableMapping[str, Any] = attrs.Factory(dict)
 
     def gen_data(self, chunk_size: T_ChunkSize = ChunkSizeSentinel.SOURCE_DEFAULT) -> T_GenData:  # noqa: ARG002
         _msg = "Working on it..."
         raise NotImplementedError(_msg)
 
 
-@attr.define
+@attrs.define
 class ThermalModelParameters:
     mean: float
     sigma: float
-    pt_exponential_scale: float = attr.field(default=0.4)
+    pt_exponential_scale: float = attrs.field(default=0.4)
 
 
 THERMAL_MODEL_SETTINGS = {
@@ -419,7 +419,7 @@ THERMAL_MODEL_SETTINGS = {
 }
 
 
-@attr.define
+@attrs.define
 class ThermalModelExponential:
     """Thermal background model from Leticia
 
@@ -437,10 +437,10 @@ class ThermalModelExponential:
     """
 
     thermal_model_parameters: ThermalModelParameters
-    _particle_column_prefix: str = attr.field(default="data")
-    _stop_iterating_after_one_chunk: bool = attr.field(default=False)
-    _default_chunk_size: int | ChunkSizeSentinel = attr.field(default=ChunkSizeSentinel.FIXED_SIZE)
-    metadata: MutableMapping[str, Any] = attr.Factory(dict)
+    _particle_column_prefix: str = attrs.field(default="data")
+    _stop_iterating_after_one_chunk: bool = attrs.field(default=False)
+    _default_chunk_size: int | ChunkSizeSentinel = attrs.field(default=ChunkSizeSentinel.FIXED_SIZE)
+    metadata: MutableMapping[str, Any] = attrs.Factory(dict)
 
     def gen_data(self, chunk_size: T_ChunkSize = ChunkSizeSentinel.SOURCE_DEFAULT) -> T_GenData:
         # Setup
@@ -590,12 +590,12 @@ def _determine_request_chunk_size(_target_chunk_size: int, _accumulated_data_siz
     return _request_chunk_size, _do_not_request_more_data
 
 
-@attr.define
+@attrs.define
 class MultiSource:
-    sources: Sequence[Source] = attr.field(converter=_sources_to_list)
-    repeat: bool = attr.field(default=False)
-    _default_chunk_size: int | ChunkSizeSentinel = attr.field(default=ChunkSizeSentinel.FULL_SOURCE)
-    metadata: MutableMapping[str, Any] = attr.Factory(dict)
+    sources: Sequence[Source] = attrs.field(converter=_sources_to_list)
+    repeat: bool = attrs.field(default=False)
+    _default_chunk_size: int | ChunkSizeSentinel = attrs.field(default=ChunkSizeSentinel.FULL_SOURCE)
+    metadata: MutableMapping[str, Any] = attrs.Factory(dict)
 
     def gen_data(self, chunk_size: T_ChunkSize = ChunkSizeSentinel.SOURCE_DEFAULT) -> T_GenData:  # noqa: C901
         # Validation
@@ -774,7 +774,7 @@ class MultiSource:
 
 def _only_one_source(
     instance: CombineSources,
-    attribute: attr.Attribute[Mapping[str, int]],  # noqa: ARG001
+    attribute: attrs.Attribute[Mapping[str, int]],  # noqa: ARG001
     value: Mapping[str, int],  # noqa: ARG001
 ) -> None:
     if len(instance._constrained_size_source) != 1:
@@ -784,7 +784,7 @@ def _only_one_source(
 
 def _no_overlapping_keys(
     instance: CombineSources,
-    attribute: attr.Attribute[Mapping[str, int]],  # noqa: ARG001
+    attribute: attrs.Attribute[Mapping[str, int]],  # noqa: ARG001
     value: Mapping[str, int],  # noqa: ARG001
 ) -> None:
     if set(instance._constrained_size_source).intersection(set(instance._unconstrained_size_sources)):
@@ -794,7 +794,7 @@ def _no_overlapping_keys(
 
 def _contains_signal_and_background(
     instance: CombineSources,  # noqa: ARG001
-    attribute: attr.Attribute[Mapping[str, int]],  # noqa: ARG001
+    attribute: attrs.Attribute[Mapping[str, int]],  # noqa: ARG001
     value: Mapping[str, int],
 ) -> None:
     found_signal = False
@@ -814,7 +814,7 @@ def _contains_signal_and_background(
 
 def _has_offset_per_source(
     instance: CombineSources,
-    attribute: attr.Attribute[Mapping[str, int]],  # noqa: ARG001
+    attribute: attrs.Attribute[Mapping[str, int]],  # noqa: ARG001
     value: Mapping[str, int],  # noqa: ARG001
 ) -> None:
     if (set(instance._constrained_size_source) | set(instance._unconstrained_size_sources)) != set(
@@ -824,7 +824,7 @@ def _has_offset_per_source(
         raise ValueError(_msg)
 
 
-@attr.define
+@attrs.define
 class CombineSources:
     """Combine multiple data sources together.
 
@@ -841,14 +841,14 @@ class CombineSources:
         _source_index_identifiers: Map containing an integer identifier for each source.
     """
 
-    _constrained_size_source: Mapping[str, Source] = attr.field(validator=[_only_one_source, _no_overlapping_keys])
-    _unconstrained_size_sources: Mapping[str, Source] = attr.field(validator=[_no_overlapping_keys])
-    _source_index_identifiers: Mapping[str, int] = attr.field(
+    _constrained_size_source: Mapping[str, Source] = attrs.field(validator=[_only_one_source, _no_overlapping_keys])
+    _unconstrained_size_sources: Mapping[str, Source] = attrs.field(validator=[_no_overlapping_keys])
+    _source_index_identifiers: Mapping[str, int] = attrs.field(
         factory=dict,
         validator=[_contains_signal_and_background, _has_offset_per_source],
     )
-    _default_chunk_size: T_ChunkSize = attr.field(default=ChunkSizeSentinel.SOURCE_DEFAULT)
-    metadata: MutableMapping[str, Any] = attr.Factory(dict)
+    _default_chunk_size: T_ChunkSize = attrs.field(default=ChunkSizeSentinel.SOURCE_DEFAULT)
+    metadata: MutableMapping[str, Any] = attrs.Factory(dict)
 
     # def data(self) -> ak.Array:
     #    return next(self.gen_data(chunk_size=ChunkSizeSentinel.FULL_SOURCE))
