@@ -1024,7 +1024,7 @@ def setup_calculate_embed_thermal_model_skim(
                     "number_of_parent_directories_for_relative_output_filename", None
                 ),
             )
-            output_filename = output_dir / f"{output_identifier}.root"
+            output_filename = output_dir / f"{output_identifier}.parquet"
             # And create the tasks
             results.append(
                 _run_embed_thermal_model_skim(
