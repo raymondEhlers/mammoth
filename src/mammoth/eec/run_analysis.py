@@ -926,8 +926,9 @@ def _run_embed_thermal_model_skim(
     momentum_weight_exponent: int | float,
     det_level_artificial_tracking_efficiency: float,
     thermal_model_parameters: sources.ThermalModelParameters,
-    chunk_size: int,
     scale_factor: float,
+    chunk_size: int,
+    output_trigger_skim: bool,
     job_framework: job_utils.JobFramework,  # noqa: ARG001
     inputs: Sequence[File] = [],
     outputs: Sequence[File] = [],
@@ -949,6 +950,7 @@ def _run_embed_thermal_model_skim(
             thermal_model_parameters=thermal_model_parameters,
             scale_factor=scale_factor,
             chunk_size=chunk_size,
+            output_trigger_skim=output_trigger_skim,
             output_filename=Path(outputs[0].filepath),
         )
     except Exception:
@@ -1037,8 +1039,9 @@ def setup_calculate_embed_thermal_model_skim(
                         "det_level_artificial_tracking_efficiency"
                     ],
                     thermal_model_parameters=thermal_model_parameters,
-                    chunk_size=chunk_size,
                     scale_factor=scale_factors[pt_hat_bin],
+                    chunk_size=chunk_size,
+                    output_trigger_skim=_analysis_config["output_trigger_skim"],
                     job_framework=job_framework,
                     inputs=[
                         File(str(input_filename)),

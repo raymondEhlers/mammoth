@@ -1010,10 +1010,9 @@ productions:
         <<: *analysis_settings_EEC_embed
         event_activity: "central"
         chunk_size: 1000
-        # Artificial tracking efficiency derived from the full jet R_AA paper.
-        # 10-30 \approx .99
-        # 0-10% \approx .98
-        # Apply only to embedded particles
+        output_trigger_skim: true
+        # Artificial tracking efficiency to convert tracking in PYTHIA to similar performance as PbPb
+        # Applied only to embedded particles
         det_level_artificial_tracking_efficiency: 0.98
 
     60:
