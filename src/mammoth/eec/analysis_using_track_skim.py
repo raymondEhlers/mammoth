@@ -82,7 +82,7 @@ def eec_embed_thermal_model_analysis(  # noqa: C901
     assert not isinstance(iter_arrays, ak.Array), "Check configuration. This should be an iterable, not an ak.Array!"
 
     _nonstandard_results = []
-    _hists: dict[str, hist.Hist] = {}
+    hists: dict[str, hist.Hist] = {}
     for i_chunk, arrays in enumerate(iter_arrays):
         # Setup
         # We need to identify the chunk in the output name
@@ -103,7 +103,7 @@ def eec_embed_thermal_model_analysis(  # noqa: C901
             continue
 
         try:
-            _output = analysis_alice.analysis_embedding(
+            analysis_output = analysis_alice.analysis_embedding(
                 source_index_identifiers=source_index_identifiers,
                 arrays=arrays,
                 trigger_pt_ranges=trigger_pt_ranges,
@@ -126,35 +126,43 @@ def eec_embed_thermal_model_analysis(  # noqa: C901
             logger.info(_message)
             continue
 
-        _skim: dict[str, ak.Array] | None = None
+        trigger_skim: dict[str, ak.Array] | None = None
         if output_trigger_skim:
-            assert not isinstance(_output, dict)
-            _output_hists, _skim = _output
+            assert not isinstance(analysis_output, dict)
+            analysis_hists, trigger_skim = analysis_output
         else:
-            assert isinstance(_output, dict)
-            _output_hists = _output
+            assert isinstance(analysis_output, dict)
+            analysis_hists = analysis_output
 
         # Merge the output hists
-        if _output_hists:
+        if analysis_hists:
             from mammoth import job_utils
 
-            job_utils.merge_results(_hists, _output_hists)
+            job_utils.merge_results(hists, analysis_hists)
 
-        if _skim:
-            # Write the skim...
-            pass
+        if trigger_skim:
+            # Write the skim
+            ak.to_parquet(
+                array=arrays,
+                destination=str(_output_filename),
+                compression="zstd",
+                # Optimize for columns with anything other than floats
+                parquet_dictionary_encoding=True,
+                # Optimize for columns with floats
+                parquet_byte_stream_split=True,
+            )
 
         # Cleanup (may not be necessary, but it doesn't hurt)
         del arrays
-        del _output_hists
-        del _output
-        if _skim:
-            del _skim
+        del analysis_hists
+        del analysis_output
+        if trigger_skim:
+            del trigger_skim
 
     return framework_task.Output(
         True,
         f"success for {_description}"
         + (f". Additional non-standard results: {_nonstandard_results}" if _nonstandard_results else ""),
         collision_system,
-        _hists,
+        hists,
     )
