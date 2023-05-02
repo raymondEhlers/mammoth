@@ -272,7 +272,7 @@ class PtDependentTrackingEfficiencyParameters:
             1.0 - self.baseline_tracking_efficiency_shift
         )
 
-        return _pt_dependent_tracking_efficiency  # noqa: RET504
+        return _pt_dependent_tracking_efficiency
 
 
 def hybrid_level_particles_mask_for_jet_finding(
