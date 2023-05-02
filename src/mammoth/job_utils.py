@@ -16,9 +16,9 @@ import typing
 from collections.abc import Callable
 from functools import wraps
 from pathlib import Path
-from typing import Any, Iterable, Sequence, TypeVar
+from typing import Any, Iterable, Literal, Sequence, TypeVar
 
-import attr
+import attrs
 import dask
 import dask.distributed
 import parsl
@@ -33,11 +33,6 @@ from parsl.monitoring.monitoring import MonitoringHub
 from parsl.providers import LocalProvider, SlurmProvider
 
 from mammoth import helpers
-
-if sys.version_info < (3, 8):
-    from typing import Literal
-else:
-    from typing import Literal
 
 if sys.version_info < (3, 10):
     from typing_extensions import ParamSpec
@@ -69,7 +64,7 @@ def _expand_vars_in_work_dir(
     return p  # noqa: RET504
 
 
-@attr.define
+@attrs.define
 class TaskConfig:
     """Configuration for a single task.
 
@@ -86,17 +81,17 @@ class TaskConfig:
 
     name: str
     n_cores_per_task: int
-    memory_per_task: int | None = attr.field(default=None)
+    memory_per_task: int | None = attrs.field(default=None)
 
 
-@attr.define
+@attrs.define
 class NodeSpec:
     n_cores: int
     # Denoted in GB.
     memory: int
 
 
-@attr.define
+@attrs.define
 class Facility:
     """Facility configuration.
 
@@ -128,20 +123,20 @@ class Facility:
     node_spec: NodeSpec
     partition_name: str
     # Number of cores to target allocating. Default: Full node.
-    _target_allocate_n_cores: int | None = attr.field(default=None)
-    allocation_account: str = attr.field(default="")
-    task_configs: dict[str, TaskConfig] = attr.Factory(dict)
-    node_work_dir: Path = attr.field(default=Path("."))
-    storage_work_dir: Path = attr.field(
+    _target_allocate_n_cores: int | None = attrs.field(default=None)
+    allocation_account: str = attrs.field(default="")
+    task_configs: dict[str, TaskConfig] = attrs.Factory(dict)
+    node_work_dir: Path = attrs.field(default=Path("."))
+    storage_work_dir: Path = attrs.field(
         converter=_expand_vars_in_work_dir, default=Path(".")
     )
-    directories_to_mount_in_singularity: list[Path] = attr.Factory(list)
-    worker_init_script: str = attr.field(default="")
-    high_throughput_executor_additional_options: dict[str, Any] = attr.Factory(dict)
-    launcher: Callable[[], Launcher] = attr.field(default=SrunLauncher)
-    parsl_config_additional_options: dict[str, Any] = attr.Factory(dict)
-    cmd_timeout: int = attr.field(default=10)
-    nodes_to_exclude: list[str] = attr.Factory(list)
+    directories_to_mount_in_singularity: list[Path] = attrs.Factory(list)
+    worker_init_script: str = attrs.field(default="")
+    high_throughput_executor_additional_options: dict[str, Any] = attrs.Factory(dict)
+    launcher: Callable[[], Launcher] = attrs.field(default=SrunLauncher)
+    parsl_config_additional_options: dict[str, Any] = attrs.Factory(dict)
+    cmd_timeout: int = attrs.field(default=10)
+    nodes_to_exclude: list[str] = attrs.Factory(list)
 
     @property
     def target_allocate_n_cores(self) -> int:
@@ -909,3 +904,4 @@ def merge_results(a: dict[Any, Any], b: dict[Any, Any]) -> dict[Any, Any]:
             a[k] = a_value + b_value
 
     return a
+
