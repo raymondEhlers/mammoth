@@ -9,7 +9,7 @@ import logging
 import secrets
 from concurrent.futures import Future
 from pathlib import Path
-from typing import Any, Iterable, Mapping, Sequence
+from typing import Any, Iterable, Mapping, MutableMapping, Sequence
 
 import attrs
 import hist
@@ -29,10 +29,20 @@ logger = logging.getLogger(__name__)
 
 @attrs.frozen()
 class EECProductionSpecialization:
-    def customize_identifier(self, analysis_settings: Mapping[str, Any]) -> str:  # noqa: ARG002
-        # NOTE: We have nothing that needs special handling for now, but we want to maintain the interface,
-        #       so we leave this trivial function here
-        return ""
+    def customize_identifier(self, analysis_settings: MutableMapping[str, Any]) -> str:
+        # NOTE: Only handle things here that need special treatment!
+        # Trigger pt ranges
+        name = "_trigger_pt_ranges_"
+        trigger_pt_ranges: dict[str, tuple[float, float]] = analysis_settings.pop("trigger_pt_ranges")
+        for trigger_name, trigger_pt_tuple in trigger_pt_ranges.items():
+            #name += f"_{trigger_name}_{'_'.join(map(str, trigger_pt_tuple))}"
+            name += f"_{trigger_name}_{trigger_pt_tuple[0]:g}_{trigger_pt_tuple[1]:g}"
+        name += "_"
+        # Min track pt
+        name += "_min_track_pt"
+        for level, value in analysis_settings.pop("min_track_pt").items():
+            name += f"_{level}_{value:g}"
+        return name
 
     def tasks_to_execute(self, collision_system: str) -> list[str]:
         _tasks = []
