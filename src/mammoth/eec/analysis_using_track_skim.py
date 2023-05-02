@@ -15,6 +15,7 @@ import hist
 
 from mammoth.eec import analysis_alice
 from mammoth.framework import load_data, sources
+from mammoth.framework import task as framework_task
 from mammoth.framework.analysis import conventions as analysis_conventions
 from mammoth.framework.io import track_skim
 
@@ -33,7 +34,7 @@ def eec_embed_thermal_model_analysis(  # noqa: C901
     scale_factor: float,
     chunk_size: sources.T_ChunkSize = sources.ChunkSizeSentinel.SINGLE_FILE,
     validation_mode: bool = False,
-) -> tuple[bool, str, str, dict[str, hist.Hist]]:
+) -> framework_task.Output:
     # Validation
     signal_input_filenames = []
     if not isinstance(signal_input, collections.abc.Iterable):
@@ -54,7 +55,7 @@ def eec_embed_thermal_model_analysis(  # noqa: C901
     # This would only work if is was previously processed with one chunk, but it doesn't hurt to try
     res = analysis_conventions.check_for_skim_output_file(output_filename=output_filename, description=_description)
     if res[0]:
-        return (*res, {})
+        return framework_task.Output(*res, collision_system, {})
 
     # Setup iteration over the input files
     # If we don't use a processing chunk size, it should all be done in one chunk by default.
@@ -72,7 +73,7 @@ def eec_embed_thermal_model_analysis(  # noqa: C901
         # Just create the empty filename and return. This will prevent trying to re-run with no jets in the future.
         # Remember that this depends heavily on the jet pt cuts!
         output_filename.with_suffix(".empty").touch()
-        return (True, f"Done - no data available (reason: {e}), so not trying to skim for {_description}", {})
+        return framework_task.Output(True, f"Done - no data available (reason: {e}), so not trying to skim for {_description}", collision_system, {})
 
     # Validate that the arrays are in an a format that we can iterate over
     if isinstance(iter_arrays, ak.Array):
@@ -133,9 +134,10 @@ def eec_embed_thermal_model_analysis(  # noqa: C901
         del arrays
         del _output_hists
 
-    return (
+    return framework_task.Output(
         True,
         f"success for {_description}"
         + (f". Additional non-standard results: {_nonstandard_results}" if _nonstandard_results else ""),
+        collision_system,
         _hists,
     )
