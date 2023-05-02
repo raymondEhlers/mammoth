@@ -3,13 +3,14 @@
 .. codeauthor:: Raymond Ehlers <raymond.ehlers@cern.ch> ORNL
 """
 
+import logging
 from pathlib import Path
 from typing import Mapping, Optional, Sequence, Tuple, Union
 
 import boost_histogram as bh
-import mplhep
-import matplotlib
+import matplotlib as mpl
 import matplotlib.pyplot as plt
+import mplhep
 import numpy as np
 import numpy.typing as npt
 import pachyderm.plot
@@ -17,16 +18,18 @@ import seaborn as sns
 from pachyderm import binned_data, yaml
 from scipy import optimize
 
+import mammoth.helpers
 from mammoth.eic import eic_qt
 
+logger = logging.getLogger(__name__)
 pachyderm.plot.configure()
 # Enable ticks on all sides
 # Unfortunately, some of this is overriding the pachyderm plotting style.
 # That will have to be updated eventually...
-matplotlib.rcParams["xtick.top"] = True
-matplotlib.rcParams["xtick.minor.top"] = True
-matplotlib.rcParams["ytick.right"] = True
-matplotlib.rcParams["ytick.minor.right"] = True
+mpl.rcParams["xtick.top"] = True
+mpl.rcParams["xtick.minor.top"] = True
+mpl.rcParams["ytick.right"] = True
+mpl.rcParams["ytick.minor.right"] = True
 
 
 def _gaussian(x: Union[npt.NDArray[np.float64], float], mean: float, sigma: float, amplitude: float) -> Union[npt.NDArray[np.float64], float]:
@@ -44,7 +47,7 @@ def _gaussian(x: Union[npt.NDArray[np.float64], float], mean: float, sigma: floa
     Returns:
         Calculated gaussian value(s).
     """
-    return amplitude / np.sqrt(2 * np.pi * np.square(sigma)) * np.exp(-1.0 / 2.0 * np.square((x - mean) / sigma))  # type: ignore
+    return amplitude / np.sqrt(2 * np.pi * np.square(sigma)) * np.exp(-1.0 / 2.0 * np.square((x - mean) / sigma))  # type: ignore[no-any-return]
 
 
 def _base_plot_label(eta_limits: Tuple[float, float], jet_R: Optional[float] = None,
@@ -142,7 +145,7 @@ def plot_jet_pt(
     fig, ax = plt.subplots(figsize=(12, 9))
     for p_range in p_ranges:
         h = binned_data.BinnedData.from_existing_data(
-            bh_hist[bh.loc(p_range[0]):bh.loc(p_range[1]):bh.sum, :]  # type: ignore
+            bh_hist[bh.loc(p_range[0]):bh.loc(p_range[1]):bh.sum, :]  # type: ignore[misc]
         )
 
         # Normalize
@@ -205,7 +208,7 @@ def plot_jet_constituent_multiplicity(
     fig, ax = plt.subplots(figsize=(12, 9))
     for p_range in p_ranges:
         h = binned_data.BinnedData.from_existing_data(
-            bh_hist[bh.loc(p_range[0]):bh.loc(p_range[1]):bh.sum, :]  # type: ignore
+            bh_hist[bh.loc(p_range[0]):bh.loc(p_range[1]):bh.sum, :]  # type: ignore[misc]
         )
 
         # Normalize
@@ -269,11 +272,11 @@ def plot_qt(hist: binned_data.BinnedData,
     pt_ranges = [(10, 15), (20, 25), (30, 40)]
     for pt_range in pt_ranges:
         hists[pt_range] = binned_data.BinnedData.from_existing_data(
-            bh_hist[bh.loc(pt_range[0]):bh.loc(pt_range[1]):bh.sum, :: bh.rebin(2)]  # type: ignore
+            bh_hist[bh.loc(pt_range[0]):bh.loc(pt_range[1]):bh.sum, :: bh.rebin(2)]  # type: ignore[misc]
         )
 
         # Normalize
-        print(f"pt_range: {pt_range}, normalization: {np.sum(hists[pt_range].values)}")
+        logger.info(f"pt_range: {pt_range}, normalization: {np.sum(hists[pt_range].values)}")
         hists[pt_range] /= np.sum(hists[pt_range].values)
 
     fig, ax = plt.subplots(figsize=(12, 9))
@@ -330,7 +333,7 @@ def plot_qt(hist: binned_data.BinnedData,
     return True
 
 
-def plot_qt_pt_as_function_of_p(hist: binned_data.BinnedData,  # noqa: C901
+def plot_qt_pt_as_function_of_p(hist: binned_data.BinnedData,
                                 label: str,
                                 base_plot_label: str,
                                 jet_R: float,
@@ -348,11 +351,11 @@ def plot_qt_pt_as_function_of_p(hist: binned_data.BinnedData,  # noqa: C901
 
     for p_range in p_ranges:
         hists[p_range] = binned_data.BinnedData.from_existing_data(
-            bh_hist[bh.loc(p_range[0]):bh.loc(p_range[1]):bh.sum, :]  # type: ignore
+            bh_hist[bh.loc(p_range[0]):bh.loc(p_range[1]):bh.sum, :]  # type: ignore[misc]
         )
 
         # Normalize
-        print(f"p_range: {p_range}, normalization: {np.sum(hists[p_range].values)}")
+        logger.info(f"p_range: {p_range}, normalization: {np.sum(hists[p_range].values)}")
         hists[p_range] /= np.sum(hists[p_range].values)
         #hists[p_range] /= hists[p_range].axes[0].bin_widths
 
@@ -362,16 +365,16 @@ def plot_qt_pt_as_function_of_p(hist: binned_data.BinnedData,  # noqa: C901
             # Fit and plot
             width = -100
             if do_fit:
-                print(f"p_range: {p_range}")
+                logger.info(f"p_range: {p_range}")
                 x_linspace_min_for_plotting = -0.2 if debug_fit else 0.0
                 if False:
-                    fixed_gaussian_mean = 0.0
+                    fixed_gaussian_mean = 0.0  # type: ignore[unreachable]
                     popt, _ = optimize.curve_fit(
-                        lambda x, w, a: _gaussian(x, fixed_gaussian_mean, w, a), h.axes[0].bin_centers, h.values,
+                        lambda x, w, a, fixed_gaussian_mean: _gaussian(x, fixed_gaussian_mean, w, a), h.axes[0].bin_centers, h.values,
                         p0 = [0.1, 1],
                         maxfev = 2000,
                     )
-                    print(f"Mean: {fixed_gaussian_mean}, Width: {popt[0]:.03g}, amplitude: {popt[1]:.03g}")
+                    logger.info(f"Mean: {fixed_gaussian_mean}, Width: {popt[0]:.03g}, amplitude: {popt[1]:.03g}")
                     p = ax.plot(
                         #h.axes[0].bin_centers,
                         #_gaussian(h.axes[0].bin_centers, 0.025, *popt),
@@ -393,8 +396,8 @@ def plot_qt_pt_as_function_of_p(hist: binned_data.BinnedData,  # noqa: C901
                         #p0 = [0.0, 0.1],
                         maxfev = 50000,
                     )
-                    #print(f"Mean: {popt[0]}, Width: {popt[1]}, amplitude: {popt[2]}")
-                    print(f"Mean: {popt[0]:.03g}, Width: {popt[1]:.03g}")
+                    #logger.info(f"Mean: {popt[0]}, Width: {popt[1]}, amplitude: {popt[2]}")
+                    logger.info(f"Mean: {popt[0]:.03g}, Width: {popt[1]:.03g}")
                     p = ax.plot(
                         #h.axes[0].bin_centers,
                         #_gaussian(h.axes[0].bin_centers, *popt),
@@ -411,13 +414,13 @@ def plot_qt_pt_as_function_of_p(hist: binned_data.BinnedData,  # noqa: C901
 
                 # RMS from ROOT
                 try:
-                    import ROOT  # noqa: F401
+                    import ROOT  # pyright: ignore [reportMissingImports] # noqa: F401
                     h_ROOT = h.to_ROOT()
                     #fu = ROOT.TF1("fu", "[2] * TMath::Gaus(x,[0],[1])")
                     #fu.SetParameters(0, 0.1, 0.1)
                     #res = h_ROOT.Fit("fu")
                     #import IPython; IPython.embed()
-                    print(f"RMS from ROOT: {h_ROOT.GetRMS():.03g}, Std Dev: {h_ROOT.GetStdDev():.03g}")
+                    logger.info(f"RMS from ROOT: {h_ROOT.GetRMS():.03g}, Std Dev: {h_ROOT.GetStdDev():.03g}")
                 except ImportError:
                     pass
 
@@ -510,9 +513,9 @@ def plot_qt_pt_comparison(
         for label, hist in hists.items():
             bh_hist = hist.to_boost_histogram()
             h = binned_data.BinnedData.from_existing_data(
-                bh_hist[bh.loc(p_range[0]):bh.loc(p_range[1]):bh.sum, :]  # type: ignore
+                bh_hist[bh.loc(p_range[0]):bh.loc(p_range[1]):bh.sum, :]  # type: ignore[misc]
             )
-            print(f"label: {label}, p_range: {p_range}, normalization: {np.sum(h.values)}")
+            logger.info(f"label: {label}, p_range: {p_range}, normalization: {np.sum(h.values)}")
             h /= np.sum(h.values)
 
             mplhep.histplot(
@@ -559,6 +562,9 @@ def plot_qt_pt_comparison(
 
 
 if __name__ == "__main__":
+    # Setup
+    mammoth.helpers.setup_logging(level=logging.INFO)
+
     jet_R_values = [0.5, 0.7, 1.0]
     eta_limits = (1.1, 3.5)
     p_ranges = [(100, 150), (150, 200), (200, 250)]
@@ -567,18 +573,18 @@ if __name__ == "__main__":
     output_dir = Path("output") / "eic_qt_all_q2_cuts_narrow_bins_jet_R_dependence"
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    print("Loading hists. One sec...")
+    logger.info("Loading hists. One sec...")
     y = yaml.yaml(modules_to_register=[binned_data])
-    with open(output_dir / "qt.yaml", "r") as f:
+    with (output_dir / "qt.yaml").open() as f:
         hists = y.load(f)
 
     # pop because it's not a hist...
     means = hists.pop("means")
 
-    print("Beginning plotting")
+    logger.info("Beginning plotting")
     with sns.color_palette("Set2"):
-        # We have no p dependence here by defintion, so plot all spectra together.
-        print("Jet p")
+        # We have no p dependence here by definition, so plot all spectra together.
+        logger.info("Jet p")
         plot_jet_p(
             hists=hists,
             # Intentionally leave out jet_R from the label.
@@ -588,10 +594,10 @@ if __name__ == "__main__":
             output_dir=output_dir,
         )
         for jet_R in jet_R_values:
-            print(f"Plotting jet R = {jet_R}")
+            logger.info(f"Plotting jet R = {jet_R}")
             jet_R_str = eic_qt.jet_R_to_str(jet_R)
             base_plot_label = _base_plot_label(jet_R=jet_R, eta_limits=eta_limits)
-            print("Jet pt")
+            logger.info("Jet pt")
             plot_jet_pt(
                 hist=hists[jet_R_str]["jet_pt"],
                 base_plot_label=base_plot_label,
@@ -599,7 +605,7 @@ if __name__ == "__main__":
                 means=means[jet_R_str],
                 output_dir=output_dir,
             )
-            print("Jet multiplicity")
+            logger.info("Jet multiplicity")
             plot_jet_constituent_multiplicity(
                 hist=hists[jet_R_str]["jet_multiplicity"],
                 base_plot_label=base_plot_label,
@@ -607,7 +613,7 @@ if __name__ == "__main__":
                 means=means[jet_R_str],
                 output_dir=output_dir,
             )
-            print("Plotting qt")
+            logger.info("Plotting qt")
             plot_qt(
                 hist=hists[jet_R_str]["qt"],
                 base_plot_label=base_plot_label,
@@ -615,7 +621,7 @@ if __name__ == "__main__":
                 means=means[jet_R_str],
                 output_dir=output_dir,
             )
-            print("Plotting qt/pt jet")
+            logger.info("Plotting qt/pt jet")
             plot_qt_pt_as_function_of_p(
                 hist=hists[jet_R_str]["qt_pt_jet"],
                 label="jet",
@@ -624,7 +630,7 @@ if __name__ == "__main__":
                 means=means[jet_R_str],
                 output_dir=output_dir,
             )
-            print("Plotting qt/pt e")
+            logger.info("Plotting qt/pt e")
             plot_qt_pt_as_function_of_p(
                 hist=hists[jet_R_str]["qt_pt_electron"],
                 label="e",
@@ -633,7 +639,7 @@ if __name__ == "__main__":
                 means=means[jet_R_str],
                 output_dir=output_dir,
             )
-            print("Plotting qt/pt parton")
+            logger.info("Plotting qt/pt parton")
             plot_qt_pt_as_function_of_p(
                 hist=hists[jet_R_str]["qt_pt_parton"],
                 label="parton",
@@ -642,7 +648,7 @@ if __name__ == "__main__":
                 means=means[jet_R_str],
                 output_dir=output_dir,
             )
-            print("Plotting qt/pt jet vs e comparison")
+            logger.info("Plotting qt/pt jet vs e comparison")
             plot_qt_pt_comparison(
                 hists={
                     "jet": hists[jet_R_str]["qt_pt_jet"],

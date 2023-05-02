@@ -3,21 +3,21 @@
 .. codeauthor:: Raymond Ehlers <raymond.ehlers@cern.ch>, ORNL
 """
 
-import logging
 import itertools
+import logging
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Sequence, Tuple, Union
 
 import attrs
 import IPython
 import parsl
-from mammoth import helpers, job_utils
-from mammoth.eic.base import DatasetSpec, DatasetSpecPythia, DatasetSpecSingleParticle
 from parsl.app.app import bash_app, python_app
 from parsl.data_provider.files import File
 from parsl.dataflow.futures import AppFuture
 from rich.progress import Progress
 
+from mammoth import helpers, job_utils
+from mammoth.eic.base import DatasetSpec, DatasetSpecPythia, DatasetSpecSingleParticle
 
 logger = logging.getLogger(__name__)
 
@@ -58,19 +58,19 @@ def run_ecce_afterburner_bash(
     remove_tracklets: bool = False,
     track_projections_are_broken: bool = True,
     jet_algorithm: str = "anti-kt",
-    jet_R_parameters: Sequence[float] = [0.3, 0.5, 0.8, 1.0],
-    max_track_pt_in_jet: float = 30.0,
+    jet_R_parameters: Sequence[float] = [0.3, 0.5, 0.8, 1.0],  # noqa: ARG001
+    max_track_pt_in_jet: float = 30.0,  # noqa: ARG001
     inputs: Sequence[File] = [],
-    outputs: Sequence[File] = [],
-    stdout: Union[int, str] = parsl.AUTO_LOGNAME,
-    stderr: Union[int, str] = parsl.AUTO_LOGNAME,
+    outputs: Sequence[File] = [],  # noqa: ARG001
+    stdout: Union[int, str] = parsl.AUTO_LOGNAME,  # noqa: ARG001
+    stderr: Union[int, str] = parsl.AUTO_LOGNAME,  # noqa: ARG001
 ) -> str:
     import uuid
     from pathlib import Path
 
     # Apparently NamedTemporarilyFile doesn't work here (reasons are unclear), so let's do it by hand...
     temp_filename = f"/tmp/{uuid.uuid4()}.txt"
-    with open(temp_filename, "w") as f:
+    with Path(temp_filename).open("w") as f:
         f.write("\n".join([input_file.filepath for input_file in inputs[:-1]]))
 
     args = [
@@ -92,7 +92,7 @@ def run_ecce_afterburner_bash(
 
     # NOTE: Includes the cleanup of the temporary file
     s = f"root -b -q '{tree_processing_code_directory}/treeProcessing.C({', '.join(args)})'; rm {temp_filename}"
-    return s
+    return s  # noqa: RET504
 
 
 @python_app
@@ -113,12 +113,12 @@ def run_ecce_afterburner(
     jet_R_parameters: Sequence[float] = [0.3, 0.5, 0.8, 1.0],
     max_track_pt_in_jet: float = 30.0,
     inputs: Sequence[File] = [],
-    outputs: Sequence[File] = [],
-    stdout: Union[int, str] = parsl.AUTO_LOGNAME,
-    stderr: Union[int, str] = parsl.AUTO_LOGNAME,
+    outputs: Sequence[File] = [],  # noqa: ARG001
+    stdout: Union[int, str] = parsl.AUTO_LOGNAME,  # noqa: ARG001
+    stderr: Union[int, str] = parsl.AUTO_LOGNAME,  # noqa: ARG001
 ) -> Tuple[bool, str]:
-    import traceback
     import tempfile
+    import traceback
     from pathlib import Path
 
     from mammoth.eic import ecce_afterburner
@@ -172,14 +172,14 @@ def setup_ecce_afterburner(
     # Validate that the processing code is available.
     tree_processing_entry_point = tree_processing_code_directory / "treeProcessing.C"
     if not tree_processing_entry_point.exists():
-        raise ValueError(f"Tree processing at {tree_processing_entry_point} doesn't appear to be available. Check your path")
+        _msg = f"Tree processing at {tree_processing_entry_point} doesn't appear to be available. Check your path"
+        raise ValueError(_msg)
     # Further validation
-    if use_bash_app:
+    if use_bash_app:  # noqa: SIM102
         # Can't set a vector via bash (as far as I know), so if we're non default, we need to notify immediately.
         if jet_R_parameters != [0.3, 0.5, 0.8, 1.0]:
-            raise RuntimeError(
-                f"Cannot specify non-default values of jet_R_parameters ({jet_R_parameters}). Please update the default values in treeProcessing.C to change them."
-            )
+            _msg = f"Cannot specify non-default values of jet_R_parameters ({jet_R_parameters}). Please update the default values in treeProcessing.C to change them."
+            raise RuntimeError(_msg)
 
     # Find all of the input files.
     input_files = sorted(dataset.data.glob("*.root"))
@@ -194,8 +194,8 @@ def setup_ecce_afterburner(
 
     futures = []
     func = run_ecce_afterburner_bash if use_bash_app else run_ecce_afterburner
-    for index, input_files in enumerate(iterate_in_chunks(n_files_per_job, input_files)):
-        input_files_list = list(input_files)
+    for index, _input_files in enumerate(iterate_in_chunks(n_files_per_job, input_files)):
+        input_files_list = list(_input_files)
         logger.info(f"Adding {index}: {input_files_list}")
 
         output_identifier = f"{str(dataset_spec)}/{index:03}"
@@ -204,7 +204,7 @@ def setup_ecce_afterburner(
                 tree_processing_code_directory=tree_processing_code_directory,
                 output_identifier=output_identifier,
                 output_dir=output_dir,
-                do_jet_finding=(jet_algorithm != ""),
+                do_jet_finding=(jet_algorithm != ""),  # noqa: PLC1901
                 do_calo_res=False,
                 is_single_particle_production=isinstance(dataset, DatasetSpecSingleParticle),
                 jet_algorithm=jet_algorithm,
@@ -228,7 +228,7 @@ def setup_ecce_afterburner(
     return futures
 
 
-def run() -> None:  # noqa: C901
+def run() -> None:
     # Basic setup
     afterburner_dir = Path("/software/rehlers/dev/eic/analysis_software_EIC")
     output_dir = Path("/alf/data/rehlers/eic/afterburner/ReA/2022-01-12/min_p_cut_EPPS")
@@ -460,9 +460,10 @@ def run() -> None:  # noqa: C901
         ),
     }
     for d in datasets_to_process:
-        print(str(d))
+        print(str(d))  # noqa: T201
         if str(d) not in _datasets:
-            raise ValueError(f"Invalid dataset name: {d}")
+            _msg = f"Invalid dataset name: {d}"
+            raise ValueError(_msg)
 
     # Basic setup: logging and parsl.
     # We need ROOT, fastjet, and LHAPDF for these jobs, so we need to setup an additional initialization.
@@ -474,6 +475,7 @@ def run() -> None:  # noqa: C901
     #       it's super verbose and a huge pain to turn off. Note that by passing on the storage messages,
     #       we don't actually lose any info.
     config, facility_config, stored_messages = job_utils.config(
+        job_framework=job_utils.JobFramework.parsl,
         facility="ORNL_b587_long",
         #facility="ORNL_b587_short",
         #facility="ORNL_b587_vip",
@@ -573,7 +575,7 @@ def run() -> None:  # noqa: C901
     # asking for the result. By embedded here, we can inspect results, etc in the meantime.
     # NOTE: This may be commented out sometimes when I have long running processes and wil
     #       probably forget to close it.
-    IPython.start_ipython(user_ns=locals())
+    IPython.start_ipython(user_ns=locals())  # type: ignore[no-untyped-call]
 
     # In case we close IPython early, wait for all apps to complete
     # Also allows for a summary at the end.

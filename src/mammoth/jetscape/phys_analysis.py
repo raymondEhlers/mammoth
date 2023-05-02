@@ -3,18 +3,22 @@
 .. codeauthor:: Raymond Ehlers <raymond.ehlers@cern.ch>, ORNL
 """
 
-from typing import Sequence, Tuple
+import logging
 from pathlib import Path
+from typing import Sequence, Tuple
 
 import awkward as ak
 import numba as nb
 import numpy as np
 import vector
 
+import mammoth.helpers
 from mammoth.framework import jet_finding, particle_ID
 
+logger = logging.getLogger(__name__)
 
-@nb.njit  # type: ignore
+
+@nb.njit  # type: ignore[misc]
 def _delta_phi(phi_a: float, phi_b: float, output_range: Tuple[float, float] = (-np.pi, np.pi)) -> float:
     # Ensure that they're in the same range.
     phi_a = phi_a % (2 * np.pi)
@@ -26,12 +30,12 @@ def _delta_phi(phi_a: float, phi_b: float, output_range: Tuple[float, float] = (
         delta_phi -= (2 * np.pi)
     return delta_phi
 
-@nb.njit  # type: ignore
+@nb.njit  # type: ignore[misc]
 def _delta_R(eta_one: float, phi_one: float, eta_two: float, phi_two: float) -> float:
-    return np.sqrt(_delta_phi(phi_one, phi_two) ** 2 + (eta_one - eta_two) ** 2)  # type: ignore
+    return np.sqrt(_delta_phi(phi_one, phi_two) ** 2 + (eta_one - eta_two) ** 2)  # type: ignore[no-any-return]
 
 
-@nb.njit  # type: ignore
+@nb.njit  # type: ignore[misc]
 def _subtract_holes_from_jets_pt(jets_pt: ak.Array, jets_eta: ak.Array, jets_phi: ak.Array,
                                  particles_holes_pt: ak.Array, particles_holes_eta: ak.Array, particles_holes_phi: ak.Array,
                                  jet_R: float, builder: ak.ArrayBuilder) -> ak.Array:
@@ -41,13 +45,13 @@ def _subtract_holes_from_jets_pt(jets_pt: ak.Array, jets_eta: ak.Array, jets_phi
         for jet_pt, jet_eta, jet_phi in zip(jets_pt_in_event, jets_eta_in_event, jets_phi_in_event):
             for p_pt, p_eta, p_phi in zip(holes_pt_in_event, holes_eta_in_event, holes_phi_in_event):
                 if _delta_R(eta_one=jet_eta, phi_one=jet_phi, eta_two=p_eta, phi_two=p_phi) < jet_R:
-                    jet_pt -= p_pt
+                    jet_pt -= p_pt  # noqa: PLW2901
             builder.append(jet_pt)
         builder.end_list()
 
     return builder
 
-@nb.njit  # type: ignore
+@nb.njit  # type: ignore[misc]
 def _calculate_leading_track_cut_mask(constituents: ak.Array, leading_track_cut: float, charged_particle_PIDs: Sequence[int], builder: ak.ArrayBuilder) -> ak.Array:
     """ Calculate the leading track cut mask
 
@@ -149,7 +153,7 @@ def run(particles: ak.Array) -> None:
     alice_jets = jets[alice_jets_eta_mask]
     # Apply leading track cut (ie. charged hadron).
     # Assuming R = 0.4
-    jets.constituents.pt
+    #jets.constituents.pt
     leading_track_cut_mask = _calculate_leading_track_cut_mask(
         constituents=jets.constituents,
         leading_track_cut=7,
@@ -161,13 +165,14 @@ def run(particles: ak.Array) -> None:
     #cms_jets = jets[np.abs(jets.eta) < 2.0]
 
     import IPython
-    IPython.embed()
+    IPython.embed()  # type: ignore[no-untyped-call]
 
 
 if __name__ == "__main__":
+    mammoth.helpers.setup_logging(level=logging.INFO)
     for pt_hat_bin in [(7, 9), (20, 25), (50, 55), (100, 110), (250, 260), (500, 550), (900, 1000)]:
         pt_hat_range = f"{pt_hat_bin[0]}_{pt_hat_bin[1]}"
-        print(f"Running for pt hat range: {pt_hat_range}")
+        logger.info(f"Running for pt hat range: {pt_hat_range}")
         events_per_chunk = 1000
         filename = f"JetscapeHadronListBin{pt_hat_range}"
         base_output_dir = Path("performance_studies")

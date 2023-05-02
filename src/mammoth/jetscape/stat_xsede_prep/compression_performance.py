@@ -14,7 +14,6 @@ import pachyderm.plot
 
 from mammoth.framework.io import jetscape as parse_ascii
 
-
 pachyderm.plot.configure()
 
 
@@ -25,16 +24,16 @@ def setup(filename: str, events_per_chunk: int, base_output_dir: Path) -> None:
     full_filename = f"../phys_paper/AAPaperData/{directory_name}/{filename}.out"
     #max_chunks = 1
 
-    print("First iteration - saving with awkward")
-    for i, chunk_generator in enumerate(parse_ascii.read_events_in_chunks(filename=Path(full_filename), events_per_chunk=events_per_chunk)):
-        print("Loading chunk")
+    print("First iteration - saving with awkward")  # noqa: T201
+    for _i, chunk_generator in enumerate(parse_ascii.read_events_in_chunks(filename=Path(full_filename), events_per_chunk=events_per_chunk)):
+        print("Loading chunk")  # noqa: T201
         event_split_index = chunk_generator.event_split_index()
         start_time = timeit.default_timer()
 
         hadrons = np.loadtxt(chunk_generator)
         array_with_events = ak.Array(np.split(hadrons, event_split_index))
         elapsed = timeit.default_timer() - start_time
-        print(f"Loading {events_per_chunk} events with numpy.loadtxt: {elapsed}")
+        print(f"Loading {events_per_chunk} events with numpy.loadtxt: {elapsed}")  # noqa: T201
 
         # Bail out after one chunk
         break
@@ -46,21 +45,21 @@ def setup(filename: str, events_per_chunk: int, base_output_dir: Path) -> None:
 
     # NOTE: We have to do a second separate iteration because we can't clone generators easily. (Maybe itertools.tee, but this is also easier...)
     #       Plus, I'd like to get a reasonable estimate for the np.loadtxt performance alone.
-    print("Second iteration - saving text file")
+    print("Second iteration - saving text file")  # noqa: T201
     lines = []
-    for i, chunk_generator in enumerate(parse_ascii.read_events_in_chunks(filename=Path(full_filename), events_per_chunk=events_per_chunk)):
-        print("Loading chunk")
+    for _i, chunk_generator in enumerate(parse_ascii.read_events_in_chunks(filename=Path(full_filename), events_per_chunk=events_per_chunk)):
+        print("Loading chunk")  # noqa: T201
         start_time = timeit.default_timer()
-        lines.extend([el for el in chunk_generator])
+        lines.extend(list(chunk_generator))
         elapsed = timeit.default_timer() - start_time
-        print(f"Loading {events_per_chunk} events with text: {elapsed}")
+        print(f"Loading {events_per_chunk} events with text: {elapsed}")  # noqa: T201
 
         # Bail out after one chunk
         break
 
     # Write the text for size comparison
     output_filename = output_dir / f"{filename}_{events_per_chunk}_00.out"
-    with open(output_filename, "w") as f:
+    with output_filename.open("w") as f:
         f.write("".join(lines))
     # Write the tars here for convenience.
     with tarfile.open(output_filename.with_suffix(".tar.gz"), "w:gz") as tar:
@@ -68,7 +67,7 @@ def setup(filename: str, events_per_chunk: int, base_output_dir: Path) -> None:
 
     # Try also writing in binary encoding with utf-8
     output_filename = output_dir / f"{filename}_{events_per_chunk}_00_binary_utf-8.out"
-    with open(output_filename, "wb") as f_bytes:
+    with output_filename.open("wb") as f_bytes:
         f_bytes.write("".join(lines).encode("utf-8"))
     # Write the tars here for convenience.
     with tarfile.open(output_filename.with_suffix(".tar.gz"), "w:gz") as tar:
@@ -76,7 +75,7 @@ def setup(filename: str, events_per_chunk: int, base_output_dir: Path) -> None:
 
     # Try also writing in binary encoding with ascii
     output_filename = output_dir / f"{filename}_{events_per_chunk}_00_binary_ascii.out"
-    with open(output_filename, "wb") as f_bytes:
+    with output_filename.open("wb") as f_bytes:
         f_bytes.write("".join(lines).encode("ascii"))
     # Write the tars here for convenience.
     with tarfile.open(output_filename.with_suffix(".tar.gz"), "w:gz") as tar:
@@ -107,18 +106,18 @@ def write_trees_with_root(arrays: ak.Array, base_output_dir: Path, tag: str = ""
     #                              (f"zstd_{level}", ROOT.ROOT.RCompressionSetting.EAlgorithm.kZSTD)]:
     # Better, use the ROOT default levels...
     # If the case of uncompressed, the algorithm shouldn't matter.
-    for name, compression, level in [("zlib_{level}", ROOT.ROOT.RCompressionSetting.EAlgorithm.kZLIB, ROOT.ROOT.RCompressionSetting.ELevel.kDefaultZLIB),
-                                     ("lzma_{level}", ROOT.ROOT.RCompressionSetting.EAlgorithm.kLZMA, ROOT.ROOT.RCompressionSetting.ELevel.kDefaultLZMA),
-                                     ("lz4_{level}", ROOT.ROOT.RCompressionSetting.EAlgorithm.kLZ4, ROOT.ROOT.RCompressionSetting.ELevel.kDefaultLZ4),
-                                     #("none_{level}", ROOT.ROOT.RCompressionSetting.EAlgorithm.kZLIB, ROOT.ROOT.RCompressionSetting.ELevel.kUncompressed),
-                                     #("zstd_{level}", ROOT.ROOT.RCompressionSetting.EAlgorithm.kZSTD, ROOT.ROOT.RCompressionSetting.ELevel.kDefaultZSTD),
-                                     ]:
+    for _name, compression, level in [("zlib_{level}", ROOT.ROOT.RCompressionSetting.EAlgorithm.kZLIB, ROOT.ROOT.RCompressionSetting.ELevel.kDefaultZLIB),
+                                      ("lzma_{level}", ROOT.ROOT.RCompressionSetting.EAlgorithm.kLZMA, ROOT.ROOT.RCompressionSetting.ELevel.kDefaultLZMA),
+                                      ("lz4_{level}", ROOT.ROOT.RCompressionSetting.EAlgorithm.kLZ4, ROOT.ROOT.RCompressionSetting.ELevel.kDefaultLZ4),
+                                      #("none_{level}", ROOT.ROOT.RCompressionSetting.EAlgorithm.kZLIB, ROOT.ROOT.RCompressionSetting.ELevel.kUncompressed),
+                                      #("zstd_{level}", ROOT.ROOT.RCompressionSetting.EAlgorithm.kZSTD, ROOT.ROOT.RCompressionSetting.ELevel.kDefaultZSTD),
+                                      ]:
         # Setup
-        name = name.format(level=level)
+        name = _name.format(level=level)
         compress = ROOT.ROOT.CompressionSettings(compression, level)
         start_time = timeit.default_timer()
         filename = output_dir / f"{name}{tag}.root"
-        print(f"Setup: ROOT {name}")
+        print(f"Setup: ROOT {name}")  # noqa: T201
         f = ROOT.TFile(str(filename), "RECREATE", "", compress)
 
         # It seems that we need to define the tree here for compression to apply. So this is going to be slow....
@@ -136,7 +135,7 @@ def write_trees_with_root(arrays: ak.Array, base_output_dir: Path, tag: str = ""
         phi = ROOT.vector("float" if tag[1:] == "optimized_types" else "double")()
         tree.Branch("phi", phi)
 
-        print("Filling tree")
+        print("Filling tree")  # noqa: T201
         for event in arrays[:200]:
             for particle in event:
                 # Apparently pyroot can't handle type conversions. Cool.
@@ -146,12 +145,12 @@ def write_trees_with_root(arrays: ak.Array, base_output_dir: Path, tag: str = ""
                 eta.push_back(particle["eta"])
                 phi.push_back(particle["phi"])
             tree.Fill()
-        print("Done filling. Writing files...")
+        print("Done filling. Writing files...")  # noqa: T201
 
         tree.Write()
         f.Close()
         elapsed = timeit.default_timer() - start_time
-        print(f"ROOT (includes filling...): {name}: {elapsed}")
+        print(f"ROOT (includes filling...): {name}: {elapsed}")  # noqa: T201
 
 
 def write_trees_with_parquet(arrays: ak.Array, base_output_dir: Path, tag: str = "") -> None:
@@ -176,7 +175,7 @@ def write_trees_with_parquet(arrays: ak.Array, base_output_dir: Path, tag: str =
             explode_records=True,
         )
         elapsed = timeit.default_timer() - start_time
-        print(f"Parquet: {compression}, tag: \"{tag[1:]}\": {elapsed}")
+        print(f"Parquet: {compression}, tag: \"{tag[1:]}\": {elapsed}")  # noqa: T201
 
 
 def data_distribution(arrays: ak.Array, events_per_chunk: int, pt_hat_range: str, base_output_dir: Path, tag: str = "") -> None:
@@ -213,7 +212,7 @@ def data_distribution(arrays: ak.Array, events_per_chunk: int, pt_hat_range: str
                 explode_records=True,
             )
             elapsed = timeit.default_timer() - start_time
-            print(f"Parquet data distribution: {compression}, tag: \"{tag[1:]}\": {elapsed}")
+            print(f"Parquet data distribution: {compression}, tag: \"{tag[1:]}\": {elapsed}")  # noqa: T201
 
             x.append(high - (high - low) / 2)
             x_err.append((high - low) / 2)
@@ -256,9 +255,9 @@ def write_ascii_ish(arrays: ak.Array, base_output_dir: Path, tag: str = "") -> N
     output_dir.mkdir(parents=True, exist_ok=True)
     filename = output_dir / f"ascii{tag}.out"
 
-    print(f"Writing to ascii (six digit truncation) for \"{tag[1:]}\"")
+    print(f"Writing to ascii (six digit truncation) for \"{tag[1:]}\"")  # noqa: T201
     start_time = timeit.default_timer()
-    with open(filename, "w") as f:
+    with filename.open("w") as f:
         for event in arrays:
             f.write("# Some random header...\n")
             #np.savetxt(ak.to_numpy(event[["particle_ID", "status", "pt", "eta", "phi"]]), fmt=)
@@ -266,7 +265,7 @@ def write_ascii_ish(arrays: ak.Array, base_output_dir: Path, tag: str = "") -> N
                 #print(f"{int(particle['particle_ID']):d} {int(particle['status']):d} {formatted(particle['pt'])} {formatted(particle['eta'])} {formatted(particle['phi'])}")
                 f.write(f"{int(particle['particle_ID']):d} {int(particle['status']):d} {formatted(particle['pt'])} {formatted(particle['eta'])} {formatted(particle['phi'])}\n")
     elapsed = timeit.default_timer() - start_time
-    print(f"Finshed writing in {elapsed}")
+    print(f"Finshed writing in {elapsed}")  # noqa: T201
 
     # Write the tar here for convenience.
     with tarfile.open(filename.with_suffix(".tar.gz"), "w:gz") as tar:
@@ -276,7 +275,7 @@ def write_ascii_ish(arrays: ak.Array, base_output_dir: Path, tag: str = "") -> N
 if __name__ == "__main__":
     # Setup
     for pt_hat_range in ["7_9", "20_25", "50_55", "100_110", "250_260", "500_550", "900_1000"]:
-        print(f"Running for pt hat range: {pt_hat_range}")
+        print(f"Running for pt hat range: {pt_hat_range}")  # noqa: T201
         events_per_chunk = 1000
         filename = f"JetscapeHadronListBin{pt_hat_range}"
         input_filename = Path("compression") / pt_hat_range / "input" / f"{filename}_{events_per_chunk}_00.parquet"

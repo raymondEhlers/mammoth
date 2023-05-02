@@ -3,6 +3,7 @@
 .. codeauthor:: Raymond Ehlers <raymond.ehlers@cern.ch>, ORNL
 """
 
+import logging
 from pathlib import Path
 from typing import Dict, Mapping
 
@@ -17,11 +18,11 @@ import uproot
 import vector
 from pachyderm import binned_data
 
-
+import mammoth.helpers
 from mammoth.framework import particle_ID
 from mammoth.framework.io import jetscape as jetscape_io
 
-
+logger = logging.getLogger(__name__)
 pachyderm.plot.configure()
 
 
@@ -54,7 +55,7 @@ def load_reference_data() -> Dict[str, binned_data.BinnedData]:
     # 200 GeV charged pions - https://inspirehep.net/literature/709170
     # I average the measurements and add the statistical and systematic errors in quadrature
     with uproot.open(input_data_path / "STAR" / "HEPData-ins709170-v1-Table_2.root") as f:
-        print(f.keys())
+        logger.info(f.keys())
         data = binned_data.BinnedData.from_existing_data(f["Table 2"]["Hist1D_y1"])
         stat_errors = binned_data.BinnedData.from_existing_data(f["Table 2"]["Hist1D_y1_e1"])
         sys_errors = binned_data.BinnedData.from_existing_data(f["Table 2"]["Hist1D_y1_e2"])
@@ -166,6 +167,7 @@ def analyze(output_dir: Path, reference_data: Mapping[str, binned_data.BinnedDat
 
 
 if __name__ == "__main__":
+    mammoth.helpers.setup_logging(level=logging.INFO)
     # Setup doesn't autodetect if it needs to run. Instead, it's up to the user.
     #setup()
     reference_data = load_reference_data()

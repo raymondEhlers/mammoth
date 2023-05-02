@@ -6,21 +6,20 @@
 
 from typing import Dict, Mapping, Sequence, Tuple
 
-import matplotlib
-import matplotlib.pyplot as plt
+import matplotlib as mpl
 import matplotlib.patches as mpatches
+import matplotlib.pyplot as plt
 import numpy as np
 import pachyderm.plot
-
 
 pachyderm.plot.configure()
 # Enable ticks on all sides
 # Unfortunately, some of this is overriding the pachyderm plotting style.
 # That will have to be updated eventually...
-matplotlib.rcParams["xtick.top"] = True
-matplotlib.rcParams["xtick.minor.top"] = True
-matplotlib.rcParams["ytick.right"] = True
-matplotlib.rcParams["ytick.minor.right"] = True
+mpl.rcParams["xtick.top"] = True
+mpl.rcParams["xtick.minor.top"] = True
+mpl.rcParams["ytick.right"] = True
+mpl.rcParams["ytick.minor.right"] = True
 
 def error_prop_divide(num_value: np.float64, num_delta: np.float64, denom_value: np.float64, denom_delta: np.float64) -> Tuple[np.float64, np.float64]:
     val = num_value / denom_value
@@ -82,8 +81,8 @@ def plot(scaling: Mapping[int, Tuple[np.float64, np.float64, np.float64, np.floa
     x_error = np.array([1] * len(x_values))
     pachyderm.plot.error_boxes(
         ax=ax,
-        x_data=x_values,  # type: ignore
-        y_data=y_values,  # type: ignore
+        x_data=x_values,  # type: ignore[arg-type]
+        y_data=y_values,  # type: ignore[arg-type]
         x_errors=x_error,
         y_errors=y_stochastic_5,
         color="green",

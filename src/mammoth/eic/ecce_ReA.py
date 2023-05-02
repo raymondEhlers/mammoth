@@ -7,15 +7,16 @@ from typing import Dict, Iterable, Mapping, Optional, Sequence
 import attrs
 import cycler
 import hist
-import matplotlib
+import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
 import pachyderm.plot as pb
+from pachyderm import binned_data
+
 from mammoth import helpers
 from mammoth.eic import base as ecce_base
 from mammoth.eic import ecce_ReA_implementation
 from mammoth.eic.ecce_ReA_implementation import JetParameters
-from pachyderm import binned_data
 
 pb.configure()
 
@@ -37,8 +38,7 @@ class InputSpec:
         filename = self.base_filename
         if self.n_PDF_name != "ep":
             filename = f"{filename}_{self.n_PDF_name}"
-        p = Path(filename).with_suffix(".root")
-        return p
+        return Path(filename).with_suffix(".root")
 
 _n_PDF_name_display_name = {
     "EPPS16nlo_CT14nlo_Au197": "EPPS16 NLO, CT14 NLO",
@@ -98,7 +98,7 @@ def _calculate_ReA(ep_hists: Dict[str, hist.Hist], eA_hists: Dict[str, hist.Hist
 
     combined = hist.Hist(binned_data.BinnedData(axes=[bin_edges], values=values, variances=variances).to_boost_histogram())
 
-    return combined
+    return combined  # noqa: RET504
 
 
 def calculate_ReA(input_hists: Dict[str, Dict[str, hist.Hist]],
@@ -136,7 +136,7 @@ def calculate_ReA(input_hists: Dict[str, Dict[str, hist.Hist]],
     return ReA_hists
 
 
-def calculate_double_ratio(ReA_hists: Dict[str, Dict[JetParameters, hist.Hist]],  # noqa: C901
+def calculate_double_ratio(ReA_hists: Dict[str, Dict[JetParameters, hist.Hist]],
                            sim_config: SimulationConfig,
                            analysis_config: ecce_ReA_implementation.AnalysisConfig,
                            rebin_factor: int = 1,
@@ -194,7 +194,7 @@ def calculate_double_ratio(ReA_hists: Dict[str, Dict[JetParameters, hist.Hist]],
 def _calculate_nominal_variations(variation_hists: Dict[str, Dict[str, hist.Hist]], nominal_hist: hist.Hist) -> bool:
     # Collect all of the differences from all of the variations
     differences_list = []
-    for k, v in variation_hists.items():
+    for _k, v in variation_hists.items():
         differences_list.append(
             nominal_hist.values() - v.values()
         )
@@ -254,7 +254,7 @@ def _plot_spectra_2D(hist: hist.Hist, plot_config: pb.PlotConfig, output_dir: Pa
         hist.axes[0].edges.T,
         hist.axes[1].edges.T,
         hist.values().T,
-        norm=matplotlib.colors.LogNorm(**z_axis_range),
+        norm=mpl.colors.LogNorm(**z_axis_range),
     )
     fig.colorbar(mesh, pad=0.02)
 
@@ -280,7 +280,7 @@ def _plot_multiple_R(hists: Mapping[JetParameters, hist.Hist], is_ReA_related: b
             v.axes[0].centers,
             v.values(),
             xerr=v.axes[0].widths / 2,
-            yerr=np.sqrt(v.variances()),  # type: ignore
+            yerr=np.sqrt(v.variances()),  # type: ignore[arg-type]
             linestyle="",
             label=f"$R = {round(int(k.jet_R) / 100, 2):01}$",
             marker="d",
@@ -319,7 +319,7 @@ def _plot_n_PDF_variations(hists: Mapping[JetParameters, hist.Hist], is_ReA_rela
     fig, ax = plt.subplots(figsize=(10, 7.5))
     ax.set_prop_cycle(cycler.cycler(color=_okabe_ito_colors))
 
-    jet_R_values = set([k.jet_R_value for k in hists])
+    jet_R_values = {k.jet_R_value for k in hists}
     labeled_jet_R = {j: False for j in jet_R_values}
 
     for k, v in hists.items():
@@ -373,7 +373,7 @@ def _plot_true_vs_det_level_ReA(true_hists: Mapping[JetParameters, hist.Hist], d
                 v.axes[0].centers,
                 v.values(),
                 xerr=v.axes[0].widths / 2,
-                yerr=np.sqrt(v.variances()),  # type: ignore
+                yerr=np.sqrt(v.variances()),  # type: ignore[arg-type]
                 linestyle="",
                 #label=f"$R = {round(int(k.jet_R) / 100, 2):01}$",
                 label=k.jet_type.replace("_", " "),
@@ -499,7 +499,7 @@ def plot_ReA(sim_config: SimulationConfig, analysis_config: ecce_ReA_implementat
                                         text=pb.TextConfig(x=0.97, y=0.03, text=text, font_size=22),
                                         #legend=pb.LegendConfig(location="lower left", font_size=22),
                                     ),
-                                    figure=pb.Figure(edge_padding=dict(left=0.125, bottom=0.1)),
+                                    figure=pb.Figure(edge_padding={"left": 0.125, "bottom": 0.1}),
                                 ),
                                 output_dir=sim_config.output_dir,
                             )
@@ -544,7 +544,7 @@ def plot_ReA(sim_config: SimulationConfig, analysis_config: ecce_ReA_implementat
                                         text=pb.TextConfig(x=0.97, y=0.03, text=text, font_size=22),
                                         #legend=pb.LegendConfig(location="lower left", font_size=22),
                                     ),
-                                    figure=pb.Figure(edge_padding=dict(left=0.125, bottom=0.1)),
+                                    figure=pb.Figure(edge_padding={"left": 0.125, "bottom": 0.1}),
                                 ),
                                 output_dir=sim_config.output_dir,
                             )
@@ -623,7 +623,7 @@ def plot_ReA(sim_config: SimulationConfig, analysis_config: ecce_ReA_implementat
                                 text=pb.TextConfig(x=0.97, y=0.97, text=text, font_size=22),
                                 legend=pb.LegendConfig(location="lower left", font_size=22),
                             ),
-                            figure=pb.Figure(edge_padding=dict(left=0.125, bottom=0.1)),
+                            figure=pb.Figure(edge_padding={"left": 0.125, "bottom": 0.1}),
                         ),
                         output_dir=sim_config.output_dir,
                     )
@@ -684,7 +684,7 @@ def plot_ReA(sim_config: SimulationConfig, analysis_config: ecce_ReA_implementat
                                         text=pb.TextConfig(x=0.97, y=0.97, text=text, font_size=22),
                                         legend=pb.LegendConfig(location="lower left", font_size=22),
                                     ),
-                                    figure=pb.Figure(edge_padding=dict(left=0.125, bottom=0.1)),
+                                    figure=pb.Figure(edge_padding={"left": 0.125, "bottom": 0.1}),
                                 ),
                                 output_dir=sim_config.output_dir,
                             )
@@ -764,7 +764,7 @@ def plot_ReA(sim_config: SimulationConfig, analysis_config: ecce_ReA_implementat
                                 ],
                                 legend=pb.LegendConfig(location="lower left", font_size=22),
                             ),
-                            figure=pb.Figure(edge_padding=dict(left=0.12, bottom=0.1)),
+                            figure=pb.Figure(edge_padding={"left": 0.12, "bottom": 0.1}),
                         ),
                         output_dir=sim_config.output_dir,
                     )
@@ -822,7 +822,7 @@ def plot_ReA(sim_config: SimulationConfig, analysis_config: ecce_ReA_implementat
                                     ],
                                     legend=pb.LegendConfig(location="lower left", font_size=22),
                                 ),
-                                figure=pb.Figure(edge_padding=dict(left=0.125, bottom=0.1)),
+                                figure=pb.Figure(edge_padding={"left": 0.125, "bottom": 0.1}),
                             ),
                             output_dir=sim_config.output_dir,
                         )
@@ -907,7 +907,7 @@ def plot_ReA(sim_config: SimulationConfig, analysis_config: ecce_ReA_implementat
                                 ],
                                 legend=pb.LegendConfig(location="lower left", font_size=22),
                             ),
-                            figure=pb.Figure(edge_padding=dict(left=0.12, bottom=0.1)),
+                            figure=pb.Figure(edge_padding={"left": 0.12, "bottom": 0.1}),
                         ),
                         output_dir=sim_config.output_dir,
                     )
@@ -966,7 +966,7 @@ def plot_ReA(sim_config: SimulationConfig, analysis_config: ecce_ReA_implementat
                                         ],
                                         legend=pb.LegendConfig(location="lower left", font_size=22),
                                     ),
-                                    figure=pb.Figure(edge_padding=dict(left=0.12, bottom=0.1)),
+                                    figure=pb.Figure(edge_padding={"left": 0.12, "bottom": 0.1}),
                                 ),
                                 output_dir=sim_config.output_dir,
                             )
@@ -1036,7 +1036,7 @@ def plot_ReA(sim_config: SimulationConfig, analysis_config: ecce_ReA_implementat
                                     ],
                                     legend=pb.LegendConfig(location="lower left", font_size=22),
                                 ),
-                                figure=pb.Figure(edge_padding=dict(left=0.12, bottom=0.1)),
+                                figure=pb.Figure(edge_padding={"left": 0.12, "bottom": 0.1}),
                             ),
                             output_dir=sim_config.output_dir,
                         )
