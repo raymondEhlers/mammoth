@@ -1,0 +1,3 @@
+distributed:
+  scheduler:
+    worker-ttl: "10 minutes"
