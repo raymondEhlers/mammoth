@@ -12,7 +12,6 @@ from pathlib import Path
 from typing import Any, Iterable, Mapping, MutableMapping, Sequence
 
 import attrs
-import hist
 import IPython
 from pachyderm import yaml
 from parsl.data_provider.files import File
@@ -20,6 +19,7 @@ from parsl.data_provider.files import File
 from mammoth import helpers, job_utils
 from mammoth.alice import job_utils as alice_job_utils
 from mammoth.framework import production, sources
+from mammoth.framework import task as framework_task
 from mammoth.framework.analysis import jets as analysis_jets
 from mammoth.framework.analysis import objects as analysis_objects
 from mammoth.job_utils import python_app
@@ -931,11 +931,12 @@ def _run_embed_thermal_model_skim(
     job_framework: job_utils.JobFramework,  # noqa: ARG001
     inputs: Sequence[File] = [],
     outputs: Sequence[File] = [],
-) -> tuple[bool, str, str, dict[str, hist.Hist]]:
+) -> framework_task.Output:
     import traceback
     from pathlib import Path
 
     from mammoth.eec import analysis_using_track_skim
+    from mammoth.framework import task as framework_task
 
     try:
         result = analysis_using_track_skim.eec_embed_thermal_model_analysis(
@@ -951,7 +952,7 @@ def _run_embed_thermal_model_skim(
             output_filename=Path(outputs[0].filepath),
         )
     except Exception:
-        result = (
+        result = framework_task.Output(
             False,
             f"failure for {collision_system}, signal={[_f.filepath for _f in inputs]} with: \n{traceback.format_exc()}",
             collision_system,
@@ -964,7 +965,7 @@ def setup_calculate_embed_thermal_model_skim(
     prod: production.ProductionSettings,
     job_framework: job_utils.JobFramework,
     debug_mode: bool,
-) -> list[Future[tuple[bool, str, str, dict[str, hist.Hist]]]]:
+) -> list[Future[framework_task.Output]]:
     """Create futures to produce hardest kt embedded pythia skim"""
     # Setup input and output
     # Need to handle pt hat bin productions differently than standard productions
