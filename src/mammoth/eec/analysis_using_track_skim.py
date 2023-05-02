@@ -143,7 +143,7 @@ def eec_embed_thermal_model_analysis(  # noqa: C901
         if trigger_skim:
             # Write the skim
             ak.to_parquet(
-                array=arrays,
+                array=trigger_skim,
                 destination=str(_output_filename),
                 compression="zstd",
                 # Optimize for columns with anything other than floats
