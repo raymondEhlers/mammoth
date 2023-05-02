@@ -136,10 +136,10 @@ def plot(output_dir: Path,  # noqa: C901
                 print(text)  # noqa: T201
 
                 # Finish labeling
-                text += "\n" + r"JETSCAPE Work in Progress" + "\n" + "MATTER + LBT"  # noqa: ISC003
-                text += "\n" + r"$\alpha_{s} = 0.3$, $Q_{\text{switch}} = 2$ GeV"  # noqa: ISC003
+                text += "\n" + r"JETSCAPE Work in Progress" + "\n" + "MATTER + LBT"
+                text += "\n" + r"$\alpha_{s} = 0.3$, $Q_{\text{switch}} = 2$ GeV"
                 jet_eta_range = 0.9 if jet_type == "charged" else 0.7
-                text += "\n" + r"anti-$k_{\text{T}}$ jets, $|\eta_{\text{jet}}| < " + str(jet_eta_range) + " - R$"  # noqa: ISC003
+                text += "\n" + r"anti-$k_{\text{T}}$ jets, $|\eta_{\text{jet}}| < " + str(jet_eta_range) + " - R$"
 
                 plot_config = pb.PlotConfig(
                     name=f"jet_pt_{jet_type}_R{format_R(jet_R)}",
@@ -316,10 +316,10 @@ def plot(output_dir: Path,  # noqa: C901
                 print(text)  # noqa: T201
 
                 # Finish labeling
-                text += "\n" + r"JETSCAPE Work in Progress" + "\n" + "MATTER + LBT"  # noqa: ISC003
-                text += "\n" + r"$\alpha_{s} = 0.3$, $Q_{\text{switch}} = 2$ GeV"  # noqa: ISC003
+                text += "\n" + r"JETSCAPE Work in Progress" + "\n" + "MATTER + LBT"
+                text += "\n" + r"$\alpha_{s} = 0.3$, $Q_{\text{switch}} = 2$ GeV"
                 jet_eta_range = 0.9 if jet_type == "charged" else 0.7
-                text += "\n" + r"anti-$k_{\text{T}}$ jets, $|\eta_{\text{jet}}| < " + str(jet_eta_range) + " - R$"  # noqa: ISC003
+                text += "\n" + r"anti-$k_{\text{T}}$ jets, $|\eta_{\text{jet}}| < " + str(jet_eta_range) + " - R$"
 
                 for jet_R_label, jet_R_values_to_iterate in [("", jet_R_values), ("_alice_comparison", [0.2, 0.4]), ("_requested", [0.2, 0.4, 0.6])]:
                     x_axis_kwargs: Dict[str, Any] = {}
@@ -431,10 +431,10 @@ def plot(output_dir: Path,  # noqa: C901
                 print(text)  # noqa: T201
 
                 # Finish labeling
-                text += "\n" + r"JETSCAPE Work in Progress" + "\n" + "MATTER + LBT"  # noqa: ISC003
-                text += "\n" + r"$\alpha_{s} = 0.3$, $Q_{\text{switch}} = 2$ GeV"  # noqa: ISC003
+                text += "\n" + r"JETSCAPE Work in Progress" + "\n" + "MATTER + LBT"
+                text += "\n" + r"$\alpha_{s} = 0.3$, $Q_{\text{switch}} = 2$ GeV"
                 jet_eta_range = 0.9 if jet_type == "charged" else 0.7
-                text += "\n" + r"anti-$k_{\text{T}}$ jets, $|\eta_{\text{jet}}| < " + str(jet_eta_range) + " - R$"  # noqa: ISC003
+                text += "\n" + r"anti-$k_{\text{T}}$ jets, $|\eta_{\text{jet}}| < " + str(jet_eta_range) + " - R$"
 
                 x_axis_kwargs = {"range": (15, 145)}
 

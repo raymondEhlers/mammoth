@@ -102,7 +102,7 @@ def particle_pt_by_status(arrays: ak.Array, pt_hat_bin: Tuple[int, int], base_ou
     ax.text(
         0.45,
         0.97,
-        r"$\hat{p_{\text{T}}} =$ " + f"{pt_hat_bin[0]}-{pt_hat_bin[1]}",  # noqa: ISC003
+        r"$\hat{p_{\text{T}}} =$ " + f"{pt_hat_bin[0]}-{pt_hat_bin[1]}",
         transform=ax.transAxes,
         horizontalalignment="left", verticalalignment="top", multialignment="left",
     )
@@ -383,7 +383,7 @@ def angular_distribution_around_jet(jets: ak.Array, arrays: ak.Array, pt_hat_bin
         a.text(
             0.03,
             0.97,
-            "R = 0.4 " + r"anti-$k_{\text{T}}$ jets"  # noqa: ISC003
+            "R = 0.4 " + r"anti-$k_{\text{T}}$ jets"
             "\n" + r"$p_{\text{T}}^{\text{jet}} > " + fr"{min_jet_pt}\:\text{{GeV}}/c$"
             "\n" + r"$\hat{p_{\text{T}}} =$ " + f"{pt_hat_bin[0]}-{pt_hat_bin[1]}",
             transform=a.transAxes,

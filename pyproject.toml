@@ -161,6 +161,8 @@ ignore = [
     "E722",
     "RUF001",  # Unicode chars
     "PLR",
+    "ISC003",  # Force string to be implicitly concatenated. However, I find this structure to be useful for better
+               # readability due to consistent spacing with plotting labels.
 ]
 unfixable = [
     "T20",  # Removes print statements
