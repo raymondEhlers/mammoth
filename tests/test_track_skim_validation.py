@@ -9,13 +9,13 @@ from typing import Any, Dict, List, Optional, Sequence
 
 import attrs
 import pytest
+
 from mammoth.alice import substructure_comparison_tools
-
 from mammoth.framework import sources
+from mammoth.framework.analysis import jet_substructure as analysis_jet_substructure
+from mammoth.framework.analysis import objects as analysis_objects
 from mammoth.framework.io import track_skim as io_track_skim
-from mammoth.framework.analysis import jet_substructure as analysis_jet_substructure, objects as analysis_objects
 from mammoth.hardest_kt import analysis_track_skim_to_flat_tree, run_macro, skim_to_flat_tree
-
 
 logger = logging.getLogger(__name__)
 
@@ -173,7 +173,7 @@ def _check_for_alice_input_files(input_files: Sequence[Path]) -> List[bool]:
     return missing_files
 
 
-def _aliphysics_to_analysis_results(  # noqa: C901
+def _aliphysics_to_analysis_results(
     collision_system: str, jet_R: float, input_files: Sequence[Path], validation_mode: bool = True, filename_to_rename_output_to: Optional[Path] = None,
     allow_multiple_executions_of_run_macro: bool = True,
     write_logs_to_file: bool = False,
@@ -211,16 +211,16 @@ def _aliphysics_to_analysis_results(  # noqa: C901
     # They might be missing since they're too large to store in the repo
     missing_files = _check_for_alice_input_files(input_files=input_files)
     if any(missing_files):
+        msg = f"Cannot generate AliPhysics reference due to missing inputs files. Missing: {[f for f, missing in zip(input_files, missing_files) if missing]}"
         raise RuntimeError(
-            "Cannot generate AliPhysics reference due to missing inputs files."
-            f" Missing: {[f for f, missing in zip(input_files, missing_files) if missing]}"
+            msg
         )
 
     # Need this to be available to use the run macro
     # Strictly speaking, we need AliPHysics, so we then try to grab a value from AliPhysics
-    ROOT = pytest.importorskip("ROOT")  # noqa: F841
+    ROOT = pytest.importorskip("ROOT")
     try:
-        ROOT.AliAnalysisTaskSE
+        ROOT.AliAnalysisTaskSE  # noqa: B018
     except AttributeError:
         pytest.skip(
             "Need AliPhysics for generating reference file, but it appears that you only have ROOT."
@@ -235,9 +235,9 @@ def _aliphysics_to_analysis_results(  # noqa: C901
         _analysis_parameters = _all_analysis_parameters[collision_system]
         missing_files = _check_for_alice_input_files(input_files=_collision_system_to_aod_files["embed_pythia-pythia"])
         if any(missing_files):
+            msg = f"Cannot generate AliPhysics reference due to missing embedding inputs files. Missing: {[f for f, missing in zip(input_files, missing_files) if missing]}"
             raise RuntimeError(
-                "Cannot generate AliPhysics reference due to missing embedding inputs files."
-                f" Missing: {[f for f, missing in zip(input_files, missing_files) if missing]}"
+                msg
             )
         optional_kwargs.update(
             {
@@ -279,15 +279,16 @@ def _aliphysics_to_analysis_results(  # noqa: C901
         except subprocess.CalledProcessError as e:
             logger.info(f"stdout: {e.stdout.decode()}")
             logger.info(f"stderr: {e.stderr.decode()}")
-            raise RuntimeError("Failed to execute run macro in subprocess") from e
+            msg = "Failed to execute run macro in subprocess"
+            raise RuntimeError(msg) from e
         # Include as debug info in case we need to compare the reclustering, etc
         logger.info(f"stdout: {subprocess_result.stdout.decode()}")
         logger.info(f"stderr: {subprocess_result.stderr.decode()}")
         # Further possible help by writing the logs to file (if enabled)
         if write_logs_to_file and filename_to_rename_output_to:
-            with open(filename_to_rename_output_to.with_suffix(".stdout"), "w") as f_stdout:
+            with filename_to_rename_output_to.with_suffix(".stdout").open("w") as f_stdout:
                 f_stdout.write(subprocess_result.stdout.decode())
-            with open(filename_to_rename_output_to.with_suffix(".stderr"), "w") as f_stderr:
+            with filename_to_rename_output_to.with_suffix(".stderr").open("w") as f_stderr:
                 f_stderr.write(subprocess_result.stderr.decode())
     else:
         run_macro.run(
@@ -308,7 +309,7 @@ def _aliphysics_to_analysis_results(  # noqa: C901
     return output_file
 
 
-def _reference_aliphysics_tree_name(collision_system: str, jet_R: float, dyg_task: bool = True) -> str:
+def _reference_aliphysics_tree_name(collision_system: str, jet_R: float) -> str:
     """Determine the AliPhysics reference task tree name"""
     _jet_labels = {
         "pp": "Jet",
@@ -335,7 +336,7 @@ def _get_scale_factors_for_test() -> Dict[int, float]:
     scale_factors = analysis_objects.read_extracted_scale_factors(
         path=_track_skim_base_path / "input" / "LHC20g4_AOD_2640_scale_factors.yaml"
     )
-    return scale_factors
+    return scale_factors  # noqa: RET504
 
 
 @attrs.define
@@ -535,7 +536,8 @@ def test_track_skim_validation(  # noqa: C901
                 output_filename=reference_filenames.skim(),
             )
         if not res[0]:
-            raise ValueError(f"Failed to generate reference for {collision_system}, {jet_R}")
+            msg = f"Failed to generate reference for {collision_system}, {jet_R}"
+            raise ValueError(msg)
 
     """
     For mammoth:
@@ -616,10 +618,9 @@ def test_track_skim_validation(  # noqa: C901
     _min_jet_pt_from_run_macro = _run_macro_default_analysis_parameters.grooming_jet_pt_threshold[jet_R]
     _values_align = [_min_jet_pt_from_run_macro == v for v in _analysis_parameters.min_jet_pt_by_R_and_prefix[jet_R].values()]
     if not all(_values_align):
+        msg = f"Misalignment between min pt cuts! min jet pt from run macro: {_min_jet_pt_from_run_macro}, min jet pt dict: {_analysis_parameters.min_jet_pt_by_R_and_prefix[jet_R]}"
         raise RuntimeError(
-            "Misalignment between min pt cuts!"
-            f" min jet pt from run macro: {_min_jet_pt_from_run_macro}"
-            f", min jet pt dict: {_analysis_parameters.min_jet_pt_by_R_and_prefix[jet_R]}"
+            msg
         )
 
     scale_factors = _get_scale_factors_for_test()
@@ -664,7 +665,8 @@ def test_track_skim_validation(  # noqa: C901
             validation_mode=True,
         )
     if not result[0]:
-        raise ValueError(f"Skim failed for {collision_system}, {jet_R}")
+        msg = f"Skim failed for {collision_system}, {jet_R}"
+        raise ValueError(msg)
 
     comparison_result, _failed_variables = substructure_comparison_tools.compare_flat_substructure(
         collision_system=collision_system,
