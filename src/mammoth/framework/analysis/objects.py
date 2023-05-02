@@ -10,16 +10,14 @@ import logging
 from pathlib import Path
 from typing import Any, Dict, Type
 
-import attr
 import attrs
+import numpy as np
 import pachyderm.yaml
 from pachyderm import binned_data
 
 logger = logging.getLogger(__name__)
 
-# NOTE: If we use attr.frozen instead, the yaml serialization won't work. The reason isn't clear
-#       as of Sept 2022, but there's no point in investigating further since the old method seems to work fine.
-@attr.s(frozen=True)
+@attrs.frozen
 class ScaleFactor:
     """Store scale factors for a particular pt hard bin.
 
@@ -39,6 +37,24 @@ class ScaleFactor:
     n_trials_total: int = attrs.field(converter=int)
     n_entries: int = attrs.field(converter=int)
     n_accepted_events: int = attrs.field(converter=int)
+
+    def __eq__(self, other: Any) -> bool:
+        """Check for equality.
+
+        We define this by hand because some of the cross_section values are so small that they can suffer
+        from numerical precision issues.
+        """
+        attributes = [k for k in attrs.asdict(self, recurse=False) if not k.startswith("_")]
+        other_attributes = [k for k in attrs.asdict(other, recurse=False) if not k.startswith("_")]
+
+        # As a beginning check, they must have the same attributes available.
+        if attributes != other_attributes:
+            return False
+
+        # The values and variances are numpy arrays, so we compare the arrays using ``np.allclose``
+        agreement = [np.allclose(getattr(self, a), getattr(other, a)) for a in attributes]
+        # All arrays and the metadata must agree.
+        return all(agreement)
 
     def value(self) -> float:
         """Value of the scale factor.
