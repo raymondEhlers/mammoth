@@ -8,7 +8,7 @@ from __future__ import annotations
 import collections
 import logging
 from pathlib import Path
-from typing import Any, Sequence
+from typing import Any, Literal, Sequence
 
 import awkward as ak
 import hist
@@ -33,6 +33,7 @@ def eec_embed_thermal_model_analysis(  # noqa: C901
     output_filename: Path,
     scale_factor: float,
     chunk_size: sources.T_ChunkSize = sources.ChunkSizeSentinel.SINGLE_FILE,
+    output_trigger_skim: Literal[False, True] = False,
     validation_mode: bool = False,
 ) -> framework_task.Output:
     # Validation
@@ -102,7 +103,7 @@ def eec_embed_thermal_model_analysis(  # noqa: C901
             continue
 
         try:
-            _output_hists = analysis_alice.analysis_embedding(
+            _output = analysis_alice.analysis_embedding(
                 source_index_identifiers=source_index_identifiers,
                 arrays=arrays,
                 trigger_pt_ranges=trigger_pt_ranges,
@@ -110,6 +111,7 @@ def eec_embed_thermal_model_analysis(  # noqa: C901
                 momentum_weight_exponent=momentum_weight_exponent,
                 scale_factor=scale_factor,
                 det_level_artificial_tracking_efficiency=det_level_artificial_tracking_efficiency,
+                output_trigger_skim=output_trigger_skim,
                 validation_mode=validation_mode,
             )
         except sources.NoDataAvailableError as e:
@@ -124,15 +126,30 @@ def eec_embed_thermal_model_analysis(  # noqa: C901
             logger.info(_message)
             continue
 
+        _skim: dict[str, ak.Array] | None = None
+        if output_trigger_skim:
+            assert not isinstance(_output, dict)
+            _output_hists, _skim = _output
+        else:
+            assert isinstance(_output, dict)
+            _output_hists = _output
+
         # Merge the output hists
         if _output_hists:
             from mammoth import job_utils
 
             job_utils.merge_results(_hists, _output_hists)
 
+        if _skim:
+            # Write the skim...
+            pass
+
         # Cleanup (may not be necessary, but it doesn't hurt)
         del arrays
         del _output_hists
+        del _output
+        if _skim:
+            del _skim
 
     return framework_task.Output(
         True,
