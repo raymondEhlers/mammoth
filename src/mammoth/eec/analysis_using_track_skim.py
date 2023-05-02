@@ -8,7 +8,7 @@ from __future__ import annotations
 import collections
 import logging
 from pathlib import Path
-from typing import Any, Literal, Sequence
+from typing import Any, Sequence
 
 import awkward as ak
 import hist
@@ -33,7 +33,7 @@ def eec_embed_thermal_model_analysis(  # noqa: C901
     output_filename: Path,
     scale_factor: float,
     chunk_size: sources.T_ChunkSize = sources.ChunkSizeSentinel.SINGLE_FILE,
-    output_trigger_skim: Literal[False, True] = False,
+    output_trigger_skim: bool = False,
     validation_mode: bool = False,
 ) -> framework_task.Output:
     # Validation
