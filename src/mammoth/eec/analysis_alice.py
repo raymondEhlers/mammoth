@@ -336,22 +336,37 @@ def _setup_embedding_hists(trigger_pt_ranges: dict[str, tuple[float, float]]) ->
     return hists
 
 
-def _calculate_weight(
+def _calculate_weight_for_plotting(
     left: ak.Array,
     right: ak.Array,
     trigger_pt_event_wise: ak.Array,
     momentum_weight_exponent: int | float,
+    left_right_mask: ak.Array | None = None
 ) -> ak.Array:
+    """Calculate the weight for plotting the EECs.
+
+    Args:
+        left: Left side of combination of particles.
+        right: Right side of combination of particles.
+        trigger_pt_event_wise: The trigger pt for the event.
+        momentum_weight_exponent: The exponent to use for the momentum weighting.
+        left_right_mask: A mask to apply to the combined left and right arrays.
+    Returns:
+        The weight for plotting the EECs.
+    """
     if momentum_weight_exponent == 1:
-        weight = ak.flatten(
-            (left.pt * right.pt) / (trigger_pt_event_wise.pt ** 2)
-        )
+        left_right = (left.pt * right.pt)
+        trigger_pt = trigger_pt_event_wise ** 2
     else:
         w = momentum_weight_exponent
-        weight = ak.flatten(
-            ((left.pt ** w) * (right.pt ** w)) / (trigger_pt_event_wise ** (2*w))
-        )
-    return weight
+        left_right = (left.pt ** w) * (right.pt ** w)
+        trigger_pt = trigger_pt_event_wise ** (2*w)
+
+    if left_right_mask is not None:
+        left_right = left_right[left_right_mask]
+    return ak.flatten(
+        left_right / trigger_pt
+    )
 
 
 @typing.overload
@@ -527,7 +542,7 @@ def analysis_embedding(
                 distances,
             )
             # Save an additional set of calls to exponent if can be avoided
-            weight = _calculate_weight(
+            weight = _calculate_weight_for_plotting(
                 left=left, right=right, trigger_pt_event_wise=triggers_dict[level][trigger_name].pt,
                 momentum_weight_exponent=momentum_weight_exponent,
             )
@@ -546,16 +561,18 @@ def analysis_embedding(
                 # Need to select distances of particles for left and right which only are background particles
                 left_mask = left["source_index"] >= source_index_identifiers["background"]
                 right_mask = right["source_index"] >= source_index_identifiers["background"]
-                distances = left[left_mask].deltaR(right[right_mask])
+                background_mask = left_mask & right_mask
+                distances = distances[background_mask]
 
                 trigger_pt, _ = ak.broadcast_arrays(
                     triggers_dict[level][trigger_name].pt,
                     distances,
                 )
                 # Recalculate weight
-                weight = _calculate_weight(
-                    left=left[left_mask], right=right[right_mask], trigger_pt_event_wise=triggers_dict[level][trigger_name].pt,
+                weight = _calculate_weight_for_plotting(
+                    left=left, right=right, trigger_pt_event_wise=triggers_dict[level][trigger_name].pt,
                     momentum_weight_exponent=momentum_weight_exponent,
+                    left_right_mask=background_mask,
                 )
 
                 hists[f"{level}_{trigger_name}_eec_bg_only"].fill(
