@@ -3,9 +3,11 @@
 .. codeauthor:: Raymond Ehlers <raymond.ehlers@cern.ch>, ORNL
 """
 
+from __future__ import annotations
+
 import collections.abc
 from pathlib import Path
-from typing import List, Optional, Sequence, Union
+from typing import Sequence
 
 import attrs
 import awkward as ak
@@ -14,12 +16,12 @@ import numpy as np
 
 @attrs.frozen
 class Range:
-    min: Optional[float]
-    max: Optional[float]
+    min: float | None
+    max: float | None
 
 
-def expand_wildcards_in_filenames(paths: Sequence[Path]) -> List[Path]:
-    return_paths: List[Path] = []
+def expand_wildcards_in_filenames(paths: Sequence[Path]) -> list[Path]:
+    return_paths: list[Path] = []
     for path in paths:
         p = str(path)
         if "*" in p:
@@ -35,17 +37,17 @@ def expand_wildcards_in_filenames(paths: Sequence[Path]) -> List[Path]:
     return sorted(return_paths, key=lambda p: str(p))
 
 
-def ensure_and_expand_paths(paths: Sequence[Union[str, Path]]) -> List[Path]:
+def ensure_and_expand_paths(paths: Sequence[str | Path]) -> list[Path]:
     return expand_wildcards_in_filenames([Path(p) for p in paths])
 
 
-def _lexsort_for_groupby(array: ak.Array, columns: Sequence[Union[str, int]]) -> ak.Array:
+def _lexsort_for_groupby(array: ak.Array, columns: Sequence[str | int]) -> ak.Array:
     """Sort for groupby."""
     sort = np.lexsort(tuple(np.asarray(array[:, col]) for col in reversed(columns)))
     return array[sort]
 
 
-def group_by(array: ak.Array, by: Sequence[Union[str, int]]) -> ak.Array:
+def group_by(array: ak.Array, by: Sequence[str | int] | str) -> ak.Array:
     """Group by for awkward arrays.
 
     Args:
@@ -56,7 +58,7 @@ def group_by(array: ak.Array, by: Sequence[Union[str, int]]) -> ak.Array:
         Array grouped by the columns.
     """
     # Validation
-    if not (isinstance(by, collections.abc.Sequence) and not isinstance(by, str)):
+    if not (isinstance(by, collections.abc.Sequence) and not isinstance(by, str)):  # type: ignore[redundant-expr]
         by = [by]
 
     # First, sort

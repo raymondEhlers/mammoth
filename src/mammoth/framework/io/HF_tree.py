@@ -388,7 +388,7 @@ def run_standalone_tests() -> None:
 
         import IPython
 
-        IPython.embed()
+        IPython.embed()  # type: ignore[no-untyped-call]
 
 
 if __name__ == "__main__":
