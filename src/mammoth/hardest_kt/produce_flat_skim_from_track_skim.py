@@ -997,7 +997,8 @@ def setup_calculate_embed_thermal_model_skim(
         raise ValueError(_msg)
 
     # Cross check
-    if set(scale_factors) != set(input_files):
+    if set(scale_factors) != set(input_files) and not debug_mode:
+        # NOTE: We have to skip this on debug mode because we frequently only want to run a few files
         _msg = f"Mismatch between the pt hat bins in the scale factors ({set(scale_factors)}) and the pt hat bins ({set(input_files)})"
         raise ValueError(_msg)
 
