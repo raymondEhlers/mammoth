@@ -666,7 +666,7 @@ productions:
         # Apply only to embedded particles
         det_level_artificial_tracking_efficiency: 0.99
     3:
-      # Nominal, r_max = 0.1
+      # Debug EECs
       metadata:
         <<: *base_metadata_embed
         dataset: *LHC18qr_PbPb_semi_central
@@ -681,7 +681,7 @@ productions:
           r_max: 0.1
         det_level_artificial_tracking_efficiency: 0.99
     4:
-      # Nominal, r_max = 0.1
+      # EECs with a fraction of stats on my MBP
       metadata:
         <<: *base_metadata_embed
         dataset: *LHC18qr_PbPb_semi_central
@@ -1003,6 +1003,20 @@ productions:
         dataset: *LHC20g4_pythia
         # Equivalent to train number, but a more general term makes more sense here.
         production_number: 3
+        label: "embed_pythia_semi_central"
+      settings:
+        <<: *analysis_settings_EEC_embed
+        event_activity: "central"
+        chunk_size: 1000
+        output_trigger_skim: true
+        # Artificial tracking efficiency to convert tracking in PYTHIA to similar performance as PbPb
+        # Applied only to embedded particles
+        det_level_artificial_tracking_efficiency: 0.98
+    4:
+      metadata:
+        dataset: *LHC20g4_pythia
+        # Equivalent to train number, but a more general term makes more sense here.
+        production_number: 4
         label: "embed_pythia_semi_central"
       settings:
         <<: *analysis_settings_EEC_embed
