@@ -1000,8 +1000,6 @@ productions:
 
     3:
       metadata:
-        # TODO: I'm not sure this metadata is useful for EEC. It would be better if we can wall this off somehow!
-        <<: *base_metadata_embed_thermal_model
         dataset: *LHC20g4_pythia
         # Equivalent to train number, but a more general term makes more sense here.
         production_number: 3
