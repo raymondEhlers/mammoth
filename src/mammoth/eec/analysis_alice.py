@@ -432,6 +432,20 @@ def analysis_embedding(
         arrays=arrays, require_at_least_one_particle_in_each_collection_per_event=True
     )
 
+    # Apply artificial tracking efficiency
+    # 1. We may need to mask the hybrid level particles to apply an artificial tracking inefficiency
+    # 2. We usually calculate rho only using the PbPb particles (ie. not including the embedded det_level),
+    #    so we need to select only them.
+    # NOTE: Technically, we aren't doing jet finding here, but the convention is still the same.
+    #       I suppose this would call for a refactor, but I don't want to deal with that right now.
+    hybrid_level_mask, _ = analysis_jets.hybrid_level_particles_mask_for_jet_finding(
+        arrays=arrays,
+        det_level_artificial_tracking_efficiency=det_level_artificial_tracking_efficiency,
+        source_index_identifiers=source_index_identifiers,
+        validation_mode=validation_mode
+    )
+    arrays["hybrid"] = arrays["hybrid"][hybrid_level_mask]
+
     # Find trigger(s)
     # NOTE: Use the signal fraction because we don't want any overlap between signal and reference events!
     signal_event_fraction = 0.8
