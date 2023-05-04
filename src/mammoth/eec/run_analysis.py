@@ -886,7 +886,7 @@ def setup_calculate_embed_pythia_skim(  # noqa: C901
                 min_jet_pt=_analysis_config["min_jet_pt"],
                 iterative_splittings=splittings_selection == SplittingsSelection.iterative,
                 background_subtraction=_analysis_config["background_subtraction"],
-                det_level_artificial_tracking_efficiency=_analysis_config["det_level_artificial_tracking_efficiency"],
+                det_level_artificial_tracking_efficiency=det_level_artificial_tracking_efficiency,
                 convert_data_format_prefixes=_metadata_config["convert_data_format_prefixes"],
                 chunk_size=_chunk_size,
                 scale_factor=scale_factors[pt_hat_bin],
