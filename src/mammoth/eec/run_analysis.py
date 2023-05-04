@@ -982,7 +982,8 @@ def setup_calculate_embed_thermal_model_skim(
     output_dir.mkdir(parents=True, exist_ok=True)
 
     if debug_mode:
-        input_files = {10: [Path("trains/pythia/2619/run_by_run/LHC18b8_cent_woSDD/282008/10/AnalysisResults.18b8_cent_woSDD.003.root")]}
+        #input_files = {10: [Path("trains/pythia/2619/run_by_run/LHC18b8_cent_woSDD/282008/10/AnalysisResults.18b8_cent_woSDD.003.root")]}
+        input_files = {10: [Path("trains/pythia/2640/run_by_run/LHC20g4/296415/4/AnalysisResults.20g4.011.root")]}
 
     # Setup for analysis and dataset settings
     _metadata_config = prod.config["metadata"]

@@ -882,7 +882,8 @@ if __name__ == "__main__":
     from mammoth.framework import sources
     source_index_identifiers, iter_arrays = load_data.embedding_thermal_model(
         # NOTE: This isn't anchored, but it's convenient for testing...
-        signal_input=[Path("trains/pythia/2619/run_by_run/LHC18b8_fast/282125/14/AnalysisResults.18b8_fast.008.root")],
+        #signal_input=[Path("trains/pythia/2619/run_by_run/LHC18b8_fast/282125/14/AnalysisResults.18b8_fast.008.root")],
+        signal_input=[Path("trains/pythia/2640/run_by_run/LHC20g4/296415/4/AnalysisResults.20g4.011.root")],
         signal_source=track_skim.FileSource.create_deferred_source(collision_system="pythia"),
         thermal_model_parameters=sources.THERMAL_MODEL_SETTINGS["5020_central"],
         #chunk_size=2500,
