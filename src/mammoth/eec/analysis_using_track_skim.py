@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import Any, Sequence
 
 import awkward as ak
+import numpy as np
 import hist
 
 from mammoth.eec import analysis_alice
@@ -141,16 +142,26 @@ def eec_embed_thermal_model_analysis(  # noqa: C901
             job_utils.merge_results(hists, analysis_hists)
 
         if trigger_skim:
-            # Write the skim
-            ak.to_parquet(
-                array=ak.zip(trigger_skim, depth_limit=1),
-                destination=str(_output_filename),
-                compression="zstd",
-                # Optimize for columns with anything other than floats
-                parquet_dictionary_encoding=True,
-                # Optimize for columns with floats
-                parquet_byte_stream_split=True,
-            )
+            for skim_name, skim_array in trigger_skim.items():
+                _skim_output_filename = _output_filename.parent / skim_name / _output_filename.name
+                _skim_output_filename.parent.mkdir(parents=True, exist_ok=True)
+                if ak.num(skim_array, axis=0) == 0:
+                    # Skip the skim if it's empty
+                    _skim_output_filename.with_suffix(".empty").touch()
+                else:
+                    # Write the skim
+                    ak.to_parquet(
+                        array=skim_array,
+                        #array={k: v for k, v in trigger_skim.items() if k}
+                        # NOTE: Record is needed because otherwise awkward can't figure out how to write it.
+                        #array=ak.Record(trigger_skim),
+                        destination=str(_skim_output_filename),
+                        compression="zstd",
+                        # Optimize for columns with anything other than floats
+                        parquet_dictionary_encoding=True,
+                        # Optimize for columns with floats
+                        parquet_byte_stream_split=True,
+                    )
 
         # Cleanup (may not be necessary, but it doesn't hurt)
         del arrays
