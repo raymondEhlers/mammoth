@@ -11,7 +11,6 @@ from pathlib import Path
 from typing import Any, Sequence
 
 import awkward as ak
-import numpy as np
 import hist
 
 from mammoth.eec import analysis_alice
