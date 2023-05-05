@@ -17,8 +17,8 @@ class Output:
     success: bool
     message: str
     collision_system: str
-    hists: dict[str, hist.Hist] = attrs.field(factory=dict)
-    results: dict[str, Any] = attrs.field(factory=dict)
+    hists: dict[str, hist.Hist] = attrs.field(factory=dict, kw_only=True)
+    results: dict[str, Any] = attrs.field(factory=dict, kw_only=True)
 
     def print(self) -> None:
         """Print the message to the logger.
