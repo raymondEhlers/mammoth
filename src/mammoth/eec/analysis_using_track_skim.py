@@ -24,6 +24,66 @@ from mammoth.framework.io import track_skim
 logger = logging.getLogger(__name__)
 
 
+def output_path_hist(output_filename: Path) -> Path:
+    return output_filename.parent / "hists" / output_filename.with_suffix(".root").name
+
+
+def output_path_skim(output_filename: Path, skim_name: str) -> Path:
+    return output_filename.parent / skim_name / output_filename.name
+
+
+def check_for_parquet_skim_output_file(output_filename: Path, description: str, reference_array_name: str = "") -> tuple[bool, str]:
+    # Try to bail out as early to avoid reprocessing if possible.
+    # First, check for the empty filename
+    empty_filename = output_filename.with_suffix(".empty")
+    if empty_filename.exists():
+        # It will be empty, so there's nothing to check. Just return
+        return (True, f"Done - found empty file indicating that there are no hists after analysis for {description}")
+
+    # Next, check the contents of the output file
+    if output_filename.exists():
+        if reference_array_name:
+            try:
+                arrays = ak.from_parquet(output_filename)
+                # If the reference array exists, can be read, and has more than 0 entries, we have analyzed successfully
+                # and don't need to do it again
+                if ak.num(arrays[reference_array_name], axis=0) > 0:
+                    # Return immediately to indicate that we're done.
+                    return (True, f"already processed for {description}")
+            except Exception:
+                # If it fails for some reason, give up - we want to try again
+                pass
+        else:
+            return (True, f"already processed for {description} (no reference array name provided, but file exists)")
+
+    return (False, "")
+
+def check_for_hist_output_file(output_filename: Path, description: str, reference_hist_name: str = "") -> tuple[bool, str]:
+    # Try to bail out as early to avoid reprocessing if possible.
+    # First, check for the empty filename
+    empty_filename = output_filename.with_suffix(".empty")
+    if empty_filename.exists():
+        # It will be empty, so there's nothing to check. Just return
+        return (True, f"Done - found empty file indicating that there are no hists after analysis for {description}")
+
+    # Next, check the contents of the output file
+    if output_filename.exists():
+        if reference_hist_name:
+            try:
+                with uproot.open(output_filename) as f:
+                    # If the tree exists, can be read, and has more than 0 entries, we should be good
+                    if ak.any(f[reference_hist_name].values > 0):
+                        # Return immediately to indicate that we're done.
+                        return (True, f"already processed for {description}")
+            except Exception:
+                # If it fails for some reason, give up - we want to try again
+                pass
+        else:
+            return (True, f"already processed for {description} (no reference hist name provided, but file exists)")
+
+    return (False, "")
+
+
 def eec_embed_thermal_model_analysis(  # noqa: C901
     collision_system: str,
     signal_input: Path | Sequence[Path],
@@ -55,10 +115,27 @@ def eec_embed_thermal_model_analysis(  # noqa: C901
     _description = analysis_conventions.description_from_parameters(parameters=_parameters)
 
     # Try to bail out early to avoid reprocessing if possible.
-    # This would only work if is was previously processed with one chunk, but it doesn't hurt to try
-    res = analysis_conventions.check_for_skim_output_file(output_filename=output_filename, description=_description)
-    if res[0]:
-        return framework_task.Output(*res, collision_system, {})
+    if chunk_size == sources.ChunkSizeSentinel.SINGLE_FILE or chunk_size == sources.ChunkSizeSentinel.FULL_SOURCE:
+        # We need to exercise a bit of care here in the case that have chunk sizes smaller than an individual file.
+        # In that case, the first file could be empty, but later chunks may not be so. To avoid that case, we only
+        # perform this check if we are using a single file or the full source.
+        # NOTE: Use "hybrid_reference" as a proxy. Better to use reference than signal since we're more likely
+        #       to have reference triggers.
+        if output_trigger_skim:
+            res = check_for_parquet_skim_output_file(
+                output_filename=output_path_skim(output_filename=output_filename, skim_name="hybrid_reference"),
+                description=_description,
+                reference_array_name="hybrid_reference",
+            )
+        else:
+            res = check_for_hist_output_file(
+                output_filename=output_path_hist(output_filename=output_filename),
+                description=_description,
+                reference_hist_name="hybrid_reference_eec",
+            )
+        if res[0]:
+            return framework_task.Output(*res, collision_system=collision_system)
+
 
     # Setup iteration over the input files
     # If we don't use a processing chunk size, it should all be done in one chunk by default.
@@ -76,7 +153,7 @@ def eec_embed_thermal_model_analysis(  # noqa: C901
         # Just create the empty filename and return. This will prevent trying to re-run with no jets in the future.
         # Remember that this depends heavily on the jet pt cuts!
         output_filename.with_suffix(".empty").touch()
-        return framework_task.Output(True, f"Done - no data available (reason: {e}), so not trying to skim for {_description}", collision_system, {})
+        return framework_task.Output(True, f"Done - no data available (reason: {e}), so not trying to skim for {_description}", collision_system)
 
     # Validate that the arrays are in an a format that we can iterate over
     if isinstance(iter_arrays, ak.Array):
@@ -98,7 +175,18 @@ def eec_embed_thermal_model_analysis(  # noqa: C901
             _output_filename = output_filename
 
         # Try to bail out as early to avoid reprocessing if possible.
-        res = analysis_conventions.check_for_skim_output_file(output_filename=_output_filename, description=_description)
+        if output_trigger_skim:
+            res = check_for_parquet_skim_output_file(
+                output_filename=output_path_skim(output_filename=_output_filename, skim_name="hybrid_reference"),
+                description=_description,
+                reference_array_name="hybrid_reference",
+            )
+        else:
+            res = check_for_hist_output_file(
+                output_filename=output_path_hist(output_filename=_output_filename),
+                description=_description,
+                reference_hist_name="hybrid_reference_eec",
+            )
         if res[0]:
             _nonstandard_results.append(res)
             logger.info(f"Skipping already processed chunk {i_chunk}: {res}")
@@ -153,9 +241,6 @@ def eec_embed_thermal_model_analysis(  # noqa: C901
                     # Write the skim
                     ak.to_parquet(
                         array=skim_array,
-                        #array={k: v for k, v in trigger_skim.items() if k}
-                        # NOTE: Record is needed because otherwise awkward can't figure out how to write it.
-                        #array=ak.Record(trigger_skim),
                         destination=str(_skim_output_filename),
                         compression="zstd",
                         # Optimize for columns with anything other than floats
@@ -183,5 +268,5 @@ def eec_embed_thermal_model_analysis(  # noqa: C901
         f"success for {_description}"
         + (f". Additional non-standard results: {_nonstandard_results}" if _nonstandard_results else ""),
         collision_system,
-        hists,
+        hists=hists,
     )
