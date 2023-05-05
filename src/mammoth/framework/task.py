@@ -31,4 +31,6 @@ class Output:
             or __repr__ since those require an additional function call (ie. explicit print).
             This is all just for convenience.
         """
+        logger.info(f"{self.production_identifier} {self.collision_system} {self.success}:")
+        # NOTE: Evaluate the message separately to ensure that newlines are evaluated.
         logger.info(self.message)
