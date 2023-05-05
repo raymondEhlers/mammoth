@@ -276,4 +276,5 @@ def eec_embed_thermal_model_analysis(  # noqa: C901
         message=f"success for {_description}"
         + (f". Additional non-standard results: {_nonstandard_results}" if _nonstandard_results else ""),
         hists=hists,
+        metadata=output_metadata,
     )
