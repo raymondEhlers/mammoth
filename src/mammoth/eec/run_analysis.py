@@ -1223,10 +1223,10 @@ def process_futures(
         for result in gen_results:
             # r = a.result()
             logger.info(f"result: {result[:2]}")
-            if result[0] and len(result) == 4 and isinstance(result[3], dict):
-                k = result[2]
+            if result.success and result.hists:
+                k = result.collision_system
                 logger.info(f"Found result for key {k}")
-                output_hists[k] = job_utils.merge_results(output_hists[k], result[3])
+                output_hists[k] = job_utils.merge_results(output_hists[k], result.hists)
             logger.info(f"output_hists: {output_hists}")
             progress.update(track_results, advance=1)
 
