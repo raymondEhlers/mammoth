@@ -13,6 +13,7 @@ from typing import Any, Iterable, Mapping, MutableMapping, Sequence
 
 import attrs
 import IPython
+import numpy as np
 from pachyderm import yaml
 from parsl.data_provider.files import File
 
@@ -990,6 +991,18 @@ def setup_calculate_embed_thermal_model_skim(
     # Setup for analysis and dataset settings
     _metadata_config = prod.config["metadata"]
     _analysis_config = prod.config["settings"]
+    # Sample fraction of input events (for quick analysis)
+    sample_dataset_fraction =_metadata_config.get("sample_dataset_fraction", 1.0)
+    if sample_dataset_fraction < 1.0:
+        # Sample the input files, but require at least one entry so we have something
+        # in each pt hat bin
+        input_files = {
+            _pt_hat_bin: [
+                secrets.choice(_input_files) for _ in range(int(np.ceil(sample_dataset_fraction * len(_input_files))))
+            ]
+            for _pt_hat_bin, _input_files in input_files.items()
+        }
+
     # Thermal model parameters
     thermal_model_parameters = sources.THERMAL_MODEL_SETTINGS[
         f"{_metadata_config['dataset']['sqrt_s']}_{_analysis_config['event_activity']}"
