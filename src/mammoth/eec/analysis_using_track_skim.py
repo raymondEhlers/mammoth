@@ -12,7 +12,9 @@ from typing import Any, Sequence
 
 import awkward as ak
 import hist
+import uproot
 
+import mammoth.helpers
 from mammoth.eec import analysis_alice
 from mammoth.framework import load_data, sources
 from mammoth.framework import task as framework_task
@@ -168,6 +170,13 @@ def eec_embed_thermal_model_analysis(  # noqa: C901
         del analysis_output
         if trigger_skim:
             del trigger_skim
+
+    # Write hists
+    if hists:
+        output_hist_filename = output_filename.parent / "hists" / output_filename.with_suffix(".root").name
+        output_hist_filename.parent.mkdir(parents=True, exist_ok=True)
+        with uproot.recreate(output_hist_filename) as f:
+            mammoth.helpers.write_hists_to_file(hists=hists, f=f)
 
     return framework_task.Output(
         True,
