@@ -312,7 +312,7 @@ def _setup_embedding_hists(trigger_pt_ranges: dict[str, tuple[float, float]]) ->
             )
             hists[f"{level}_{trigger_name}_eec_log"] = hist.Hist(
                 *[
-                    hist.axis.Regular(200, 1e-4, 1.5, label="R_L", transform=hist.axis.transform.log),
+                    hist.axis.Regular(200, 1e-4, 1.5, label="ln(R_L)", transform=hist.axis.transform.log),
                     hist.axis.Regular(*trigger_pt_bin_args, label="trigger_pt"),
                 ],
                 storage=hist.storage.Weight()
@@ -327,7 +327,7 @@ def _setup_embedding_hists(trigger_pt_ranges: dict[str, tuple[float, float]]) ->
                 )
                 hists[f"{level}_{trigger_name}_eec_log_bg_only"] = hist.Hist(
                     *[
-                        hist.axis.Regular(200, 1e-4, 1.5, label="R_L", transform=hist.axis.transform.log),
+                        hist.axis.Regular(200, 1e-4, 1.5, label="ln(R_L)", transform=hist.axis.transform.log),
                         hist.axis.Regular(*trigger_pt_bin_args, label="trigger_pt"),
                     ],
                     storage=hist.storage.Weight()
