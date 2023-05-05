@@ -930,6 +930,7 @@ def _run_embed_thermal_model_skim(
     scale_factor: float,
     chunk_size: int,
     output_trigger_skim: bool,
+    return_hists: bool,
     production_identifier: str,
     job_framework: job_utils.JobFramework,  # noqa: ARG001
     inputs: Sequence[File] = [],
@@ -954,6 +955,7 @@ def _run_embed_thermal_model_skim(
             scale_factor=scale_factor,
             chunk_size=chunk_size,
             output_trigger_skim=output_trigger_skim,
+            return_hists=return_hists,
             output_filename=Path(outputs[0].filepath),
         )
     except Exception:
@@ -1059,6 +1061,9 @@ def setup_calculate_embed_thermal_model_skim(
                     scale_factor=scale_factors[pt_hat_bin],
                     chunk_size=chunk_size,
                     output_trigger_skim=_analysis_config["output_trigger_skim"],
+                    # This can become quite expensive in terms of memory since we have to keep copies in memory.
+                    # So by default, we will write them to file, but won't return them.
+                    return_hists=_analysis_config.get("return_hists_during_execution", False),
                     production_identifier=prod.identifier,
                     job_framework=job_framework,
                     inputs=[

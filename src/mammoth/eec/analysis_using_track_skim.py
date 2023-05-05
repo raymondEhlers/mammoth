@@ -98,6 +98,7 @@ def eec_embed_thermal_model_analysis(  # noqa: C901
     scale_factor: float,
     chunk_size: sources.T_ChunkSize = sources.ChunkSizeSentinel.SINGLE_FILE,
     output_trigger_skim: bool = False,
+    return_hists: bool = False,
     validation_mode: bool = False,
 ) -> framework_task.Output:
     # Validation
@@ -274,12 +275,16 @@ def eec_embed_thermal_model_analysis(  # noqa: C901
         with uproot.recreate(output_hist_filename) as f:
             mammoth.helpers.write_hists_to_file(hists=hists, f=f)
 
+    # Cleanup
+    if not return_hists:
+        del hists
+
     return framework_task.Output(
         production_identifier=production_identifier,
         collision_system=collision_system,
         success=True,
         message=f"success for {_description}"
         + (f". Additional non-standard results: {_nonstandard_results}" if _nonstandard_results else ""),
-        hists=hists,
+        hists=hists if return_hists else {},
         metadata=output_metadata,
     )
