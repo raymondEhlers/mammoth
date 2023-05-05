@@ -285,7 +285,7 @@ def _hardest_kt_embedding_skim(
     )
 
 
-def hardest_kt_embed_thermal_model_skim(
+def hardest_kt_embed_thermal_model_skim(  # noqa: C901
     collision_system: str,
     signal_input: Path | Sequence[Path],
     convert_data_format_prefixes: Mapping[str, str],
@@ -319,9 +319,13 @@ def hardest_kt_embed_thermal_model_skim(
 
     # Try to bail out early to avoid reprocessing if possible.
     # This would only work if is was previously processed with one chunk, but it doesn't hurt to try
-    res = analysis_conventions.check_for_root_skim_output_file(output_filename=output_filename, description=_description)
-    if res[0]:
-        return res
+    if chunk_size == sources.ChunkSizeSentinel.SINGLE_FILE or chunk_size == sources.ChunkSizeSentinel.FULL_SOURCE:
+        # We need to exercise a bit of care here in the case that have chunk sizes smaller than an individual file.
+        # In that case, the first file could be empty, but later chunks may not be so. To avoid that case, we only
+        # perform this check if we are using a single file or the full source.
+        res = analysis_conventions.check_for_root_skim_output_file(output_filename=output_filename, description=_description)
+        if res[0]:
+            return res
 
     # Setup iteration over the input files
     # If we don't use a processing chunk size, it should all be done in one chunk by default.
@@ -476,9 +480,13 @@ def hardest_kt_embedding_skim(  # noqa: C901
 
     # Try to bail out early to avoid reprocessing if possible.
     # This would only work if is was previously processed with one chunk, but it doesn't hurt to try
-    res = analysis_conventions.check_for_root_skim_output_file(output_filename=output_filename, description=_description)
-    if res[0]:
-        return res
+    if chunk_size == sources.ChunkSizeSentinel.SINGLE_FILE or chunk_size == sources.ChunkSizeSentinel.FULL_SOURCE:
+        # We need to exercise a bit of care here in the case that have chunk sizes smaller than an individual file.
+        # In that case, the first file could be empty, but later chunks may not be so. To avoid that case, we only
+        # perform this check if we are using a single file or the full source.
+        res = analysis_conventions.check_for_root_skim_output_file(output_filename=output_filename, description=_description)
+        if res[0]:
+            return res
 
     # Setup iteration over the input files
     # If we don't use a processing chunk size, it should all be done in one chunk by default.
