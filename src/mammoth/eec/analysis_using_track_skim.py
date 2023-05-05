@@ -72,7 +72,7 @@ def check_for_hist_output_file(output_filename: Path, reference_hist_name: str =
             try:
                 with uproot.open(output_filename) as f:
                     # If the tree exists, can be read, and has more than 0 entries, we should be good
-                    if ak.any(f[reference_hist_name].values > 0):
+                    if ak.any(f[reference_hist_name].values() > 0):
                         # Return immediately to indicate that we're done.
                         return (True, "already processed")
             except Exception:
@@ -117,29 +117,28 @@ def eec_embed_thermal_model_analysis(  # noqa: C901
     output_metadata = {"description": _description}
 
     # Try to bail out early to avoid reprocessing if possible.
-    if chunk_size == sources.ChunkSizeSentinel.SINGLE_FILE or chunk_size == sources.ChunkSizeSentinel.FULL_SOURCE:
+    if (chunk_size == sources.ChunkSizeSentinel.SINGLE_FILE or chunk_size == sources.ChunkSizeSentinel.FULL_SOURCE) and output_trigger_skim:
         # We need to exercise a bit of care here in the case that have chunk sizes smaller than an individual file.
         # In that case, the first file could be empty, but later chunks may not be so. To avoid that case, we only
         # perform this check if we are using a single file or the full source.
         # NOTE: Use "hybrid_reference" as a proxy. Better to use reference than signal since we're more likely
         #       to have reference triggers.
-        if output_trigger_skim:
-            res = check_for_parquet_skim_output_file(
-                output_filename=output_path_skim(output_filename=output_filename, skim_name="hybrid_reference"),
-                reference_array_name="hybrid_reference",
-            )
-        else:
-            res = check_for_hist_output_file(
-                output_filename=output_path_hist(output_filename=output_filename),
-                reference_hist_name="hybrid_reference_eec",
-            )
-        if res[0]:
-            return framework_task.Output(
-                production_identifier,
-                collision_system,
-                *res,
-                metadata=output_metadata,
-            )
+        res = check_for_parquet_skim_output_file(
+            output_filename=output_path_skim(output_filename=output_filename, skim_name="hybrid_reference"),
+            reference_array_name="triggers",
+        )
+    else:
+        res = check_for_hist_output_file(
+            output_filename=output_path_hist(output_filename=output_filename),
+            reference_hist_name="hybrid_reference_eec",
+        )
+    if res[0]:
+        return framework_task.Output(
+            production_identifier,
+            collision_system,
+            *res,
+            metadata=output_metadata,
+        )
 
     # Setup iteration over the input files
     # If we don't use a processing chunk size, it should all be done in one chunk by default.
