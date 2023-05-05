@@ -18,7 +18,7 @@ class Output:
     collision_system: str
     success: bool
     message: str
-    hists: dict[str, hist.Hist] = attrs.field(factory=dict, kw_only=True)
+    hists: dict[str, hist.Hist] = attrs.field(factory=dict, kw_only=True, repr=lambda value: str(list(value.keys())))
     results: dict[str, Any] = attrs.field(factory=dict, kw_only=True)
     metadata: dict[str, Any] = attrs.field(factory=dict, kw_only=True)
 
@@ -31,6 +31,6 @@ class Output:
             or __repr__ since those require an additional function call (ie. explicit print).
             This is all just for convenience.
         """
-        logger.info(f"{self.production_identifier} {self.collision_system} {self.success}:")
+        logger.info(f"collision_system={self.collision_system}, success={self.success}, identifier={self.production_identifier}")
         # NOTE: Evaluate the message separately to ensure that newlines are evaluated.
         logger.info(self.message)

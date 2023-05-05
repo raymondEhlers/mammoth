@@ -49,7 +49,7 @@ def check_for_parquet_skim_output_file(output_filename: Path, reference_array_na
                 # and don't need to do it again
                 if ak.num(arrays[reference_array_name], axis=0) > 0:
                     # Return immediately to indicate that we're done.
-                    return (True, "already processed")
+                    return (True, "already processed (confirmed)")
             except Exception:
                 # If it fails for some reason, give up - we want to try again
                 pass
@@ -57,6 +57,7 @@ def check_for_parquet_skim_output_file(output_filename: Path, reference_array_na
             return (True, "already processed (no reference array name provided, but file exists)")
 
     return (False, "")
+
 
 def check_for_hist_output_file(output_filename: Path, reference_hist_name: str = "") -> tuple[bool, str]:
     # Try to bail out as early to avoid reprocessing if possible.
@@ -74,7 +75,7 @@ def check_for_hist_output_file(output_filename: Path, reference_hist_name: str =
                     # If the tree exists, can be read, and has more than 0 entries, we should be good
                     if ak.any(f[reference_hist_name].values() > 0):
                         # Return immediately to indicate that we're done.
-                        return (True, "already processed")
+                        return (True, "already processed (confirmed)")
             except Exception:
                 # If it fails for some reason, give up - we want to try again
                 pass
@@ -114,7 +115,12 @@ def eec_embed_thermal_model_analysis(  # noqa: C901
     if chunk_size is not sources.ChunkSizeSentinel.FULL_SOURCE:
         _parameters["chunk_size"] = chunk_size
     _description = analysis_conventions.description_from_parameters(parameters=_parameters)
-    output_metadata = {"description": _description}
+    output_metadata = {
+        # Useful to have the summary as a string
+        "description": _description,
+        # but also useful to have programmatic access
+        "parameters": _parameters,
+    }
 
     # Try to bail out early to avoid reprocessing if possible.
     if (chunk_size == sources.ChunkSizeSentinel.SINGLE_FILE or chunk_size == sources.ChunkSizeSentinel.FULL_SOURCE) and output_trigger_skim:
@@ -237,7 +243,7 @@ def eec_embed_thermal_model_analysis(  # noqa: C901
 
         if trigger_skim:
             for skim_name, skim_array in trigger_skim.items():
-                _skim_output_filename = _output_filename.parent / skim_name / _output_filename.name
+                _skim_output_filename = output_path_skim(output_filename=_output_filename, skim_name=skim_name)
                 _skim_output_filename.parent.mkdir(parents=True, exist_ok=True)
                 if ak.num(skim_array, axis=0) == 0:
                     # Skip the skim if it's empty
@@ -263,7 +269,7 @@ def eec_embed_thermal_model_analysis(  # noqa: C901
 
     # Write hists
     if hists:
-        output_hist_filename = output_filename.parent / "hists" / output_filename.with_suffix(".root").name
+        output_hist_filename = output_path_hist(output_filename=output_filename)
         output_hist_filename.parent.mkdir(parents=True, exist_ok=True)
         with uproot.recreate(output_hist_filename) as f:
             mammoth.helpers.write_hists_to_file(hists=hists, f=f)
