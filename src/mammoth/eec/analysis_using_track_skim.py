@@ -138,7 +138,7 @@ def eec_embed_thermal_model_analysis(  # noqa: C901
         if analysis_hists:
             from mammoth import job_utils
 
-            job_utils.merge_results(hists, analysis_hists)
+            hists = job_utils.merge_results(hists, analysis_hists)
 
         if trigger_skim:
             for skim_name, skim_array in trigger_skim.items():
