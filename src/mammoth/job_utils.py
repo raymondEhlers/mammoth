@@ -783,8 +783,9 @@ def _cancel_future(job: concurrent.futures.Future[Any]) -> None:
         # NOTE: This is not implemented with parsl AppFutures
         job.cancel()
 
+_T = TypeVar("_T")
 
-def provide_results_as_completed(input_futures: Sequence[concurrent.futures.Future[Any]], timeout: float | None = None, running_with_parsl: bool = False) -> Iterable[Any]:
+def provide_results_as_completed(input_futures: Sequence[concurrent.futures.Future[_T]], timeout: float | None = None, running_with_parsl: bool = False) -> Iterable[_T]:
     """Provide results as futures are completed.
 
     Taken from `coffea.processor.executor`, with small modifications for parsl specific issues
