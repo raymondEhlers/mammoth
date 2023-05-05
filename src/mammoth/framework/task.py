@@ -14,11 +14,13 @@ logger = logging.getLogger(__name__)
 
 @attrs.frozen
 class Output:
+    production_identifier: str
+    collision_system: str
     success: bool
     message: str
-    collision_system: str
     hists: dict[str, hist.Hist] = attrs.field(factory=dict, kw_only=True)
     results: dict[str, Any] = attrs.field(factory=dict, kw_only=True)
+    metadata: dict[str, Any] = attrs.field(factory=dict, kw_only=True)
 
     def print(self) -> None:
         """Print the message to the logger.

@@ -929,6 +929,7 @@ def _run_embed_thermal_model_skim(
     scale_factor: float,
     chunk_size: int,
     output_trigger_skim: bool,
+    production_identifier: str,
     job_framework: job_utils.JobFramework,  # noqa: ARG001
     inputs: Sequence[File] = [],
     outputs: Sequence[File] = [],
@@ -941,6 +942,7 @@ def _run_embed_thermal_model_skim(
 
     try:
         result = analysis_using_track_skim.eec_embed_thermal_model_analysis(
+            production_identifier=production_identifier,
             collision_system=collision_system,
             signal_input=[Path(_input_file.filepath) for _input_file in inputs],
             trigger_pt_ranges=trigger_pt_ranges,
@@ -955,10 +957,10 @@ def _run_embed_thermal_model_skim(
         )
     except Exception:
         result = framework_task.Output(
+            production_identifier,
+            collision_system,
             False,
             f"failure for {collision_system}, signal={[_f.filepath for _f in inputs]} with: \n{traceback.format_exc()}",
-            collision_system,
-            {}
         )
     return result
 
@@ -1044,6 +1046,7 @@ def setup_calculate_embed_thermal_model_skim(
                     scale_factor=scale_factors[pt_hat_bin],
                     chunk_size=chunk_size,
                     output_trigger_skim=_analysis_config["output_trigger_skim"],
+                    production_identifier=prod.identifier,
                     job_framework=job_framework,
                     inputs=[
                         File(str(input_filename)),
