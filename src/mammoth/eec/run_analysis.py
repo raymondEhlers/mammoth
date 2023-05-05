@@ -1166,7 +1166,7 @@ def setup_and_submit_tasks(
     debug_mode: bool,
     job_executor: job_utils.parsl.DataFlowKernel | job_utils.dask.distributed.Client,
 ) -> list[Future[Any]]:
-    all_results: list[Future[Any]] = []
+    all_results: list[Future[framework_task.Output]] = []
     for prod in productions:
         tasks_to_execute = prod.tasks_to_execute
         logger.info(f"Tasks to execute: {tasks_to_execute} for production \"{prod.collision_system}\" #{prod.formatted_number}")
@@ -1225,7 +1225,7 @@ def setup_and_submit_tasks(
 
 def process_futures(
     productions: Sequence[production.ProductionSettings],
-    all_results: Sequence[Future[Any]],
+    all_results: Sequence[Future[framework_task.Output]],
     job_framework: job_utils.JobFramework,
 ) -> None:
     # Process the futures, showing processing progress
@@ -1237,13 +1237,11 @@ def process_futures(
 
     # In order to support writing histograms from multiple systems, we need to index the output histograms
     # by the collision system + centrality.
-    output_hists: dict[str, dict[Any, Any]] = {_p.collision_system: {} for _p in productions}
+    output_hists: dict[str, dict[Any, Any]] = {_p.identifier: {} for _p in productions}
     with helpers.progress_bar() as progress:
         track_results = progress.add_task(total=len(all_results), description="Processing results...")
-        # for a in all_results:
         for result in gen_results:
-            # r = a.result()
-            logger.info(f"result: {result[:2]}")
+            logger.info(f"result: {result.production_identifier}")
             if result.success and result.hists:
                 k = result.collision_system
                 logger.info(f"Found result for key {k}")
@@ -1280,7 +1278,7 @@ def process_futures(
     # Also allows for a summary at the end.
     # By taking only the first two, it just tells use the status and a quick message.
     # Otherwise, we can overwhelm with trying to print large objects
-    res = [r.result()[:2] for r in all_results]
+    res = [r.result().success for r in all_results]
     logger.info(res)
 
 
