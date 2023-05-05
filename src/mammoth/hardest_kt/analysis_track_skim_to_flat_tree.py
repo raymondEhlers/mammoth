@@ -165,7 +165,7 @@ def hardest_kt_data_skim(
         }
     )
     # Try to bail out as early to avoid reprocessing if possible.
-    res = analysis_conventions.check_for_skim_output_file(output_filename=output_filename, description=_description)
+    res = analysis_conventions.check_for_root_skim_output_file(output_filename=output_filename, description=_description)
     if res[0]:
         return res
 
@@ -319,7 +319,7 @@ def hardest_kt_embed_thermal_model_skim(
 
     # Try to bail out early to avoid reprocessing if possible.
     # This would only work if is was previously processed with one chunk, but it doesn't hurt to try
-    res = analysis_conventions.check_for_skim_output_file(output_filename=output_filename, description=_description)
+    res = analysis_conventions.check_for_root_skim_output_file(output_filename=output_filename, description=_description)
     if res[0]:
         return res
 
@@ -360,7 +360,7 @@ def hardest_kt_embed_thermal_model_skim(
             _output_filename = output_filename
 
         # Try to bail out as early to avoid reprocessing if possible.
-        res = analysis_conventions.check_for_skim_output_file(output_filename=_output_filename, description=_description)
+        res = analysis_conventions.check_for_root_skim_output_file(output_filename=_output_filename, description=_description)
         if res[0]:
             _nonstandard_results.append(res)
             logger.info(f"Skipping already processed chunk {i_chunk}: {res}")
@@ -476,7 +476,7 @@ def hardest_kt_embedding_skim(  # noqa: C901
 
     # Try to bail out early to avoid reprocessing if possible.
     # This would only work if is was previously processed with one chunk, but it doesn't hurt to try
-    res = analysis_conventions.check_for_skim_output_file(output_filename=output_filename, description=_description)
+    res = analysis_conventions.check_for_root_skim_output_file(output_filename=output_filename, description=_description)
     if res[0]:
         return res
 
@@ -521,7 +521,7 @@ def hardest_kt_embedding_skim(  # noqa: C901
             _output_filename = output_filename
 
         # Try to bail out as early to avoid reprocessing if possible.
-        res = analysis_conventions.check_for_skim_output_file(output_filename=_output_filename, description=_description)
+        res = analysis_conventions.check_for_root_skim_output_file(output_filename=_output_filename, description=_description)
         if res[0]:
             _nonstandard_results.append(res)
             logger.info(f"Skipping already processed chunk {i_chunk}: {res}")

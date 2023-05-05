@@ -15,7 +15,7 @@ def description_from_parameters(parameters: Mapping[str, Any]) -> str:
     return ", ".join([f"{k}={v}" for k, v in parameters.items()])
 
 
-def check_for_skim_output_file(output_filename: Path, description: str) -> tuple[bool, str]:
+def check_for_root_skim_output_file(output_filename: Path, description: str) -> tuple[bool, str]:
     # Try to bail out as early to avoid reprocessing if possible.
     # First, check for the empty filename
     empty_filename = output_filename.with_suffix(".empty")
