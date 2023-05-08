@@ -988,7 +988,10 @@ def setup_calculate_embed_thermal_model_skim(
 
     if debug_mode:
         #input_files = {10: [Path("trains/pythia/2619/run_by_run/LHC18b8_cent_woSDD/282008/10/AnalysisResults.18b8_cent_woSDD.003.root")]}
-        input_files = {10: [Path("trains/pythia/2640/run_by_run/LHC20g4/296415/4/AnalysisResults.20g4.011.root")]}
+        input_files = {10: [
+            Path("trains/pythia/2640/run_by_run/LHC20g4/296415/4/AnalysisResults.20g4.007.root"),
+            Path("trains/pythia/2640/run_by_run/LHC20g4/296415/4/AnalysisResults.20g4.010.root"),
+        ]}
 
     # Setup for analysis and dataset settings
     _metadata_config = prod.config["metadata"]
@@ -1141,7 +1144,7 @@ def define_productions() -> list[production.ProductionSettings]:
             # ),
             # Production
             production.ProductionSettings.read_config(
-                collision_system="embed_thermal_model", number=63,
+                collision_system="embed_thermal_model", number=3,
                 specialization=EECProductionSpecialization(),
                 track_skim_config_filename=config_filename,
             ),
@@ -1232,6 +1235,8 @@ def process_futures(
     # Since it returns the results, we can actually use this to accumulate results.
     if job_framework == job_utils.JobFramework.dask_delayed:
         gen_results: Iterable[Any] = job_utils.dask.distributed.as_completed(all_results)  # type: ignore[no-untyped-call]
+    elif job_framework == job_utils.JobFramework.immediate_execution_debug:
+        gen_results = all_results
     else:
         gen_results = job_utils.provide_results_as_completed(all_results, running_with_parsl=True)
 
@@ -1295,12 +1300,13 @@ def run(job_framework: job_utils.JobFramework) -> list[Future[Any]]:
     target_n_tasks_to_run_simultaneously = 60
     log_level = logging.INFO
     walltime = "24:00:00"
-    debug_mode = False
+    debug_mode = True
     if debug_mode:
         # Usually, we want to run in the short queue
         target_n_tasks_to_run_simultaneously = 2
         walltime = "1:59:00"
-    facility: job_utils.FACILITIES = "ORNL_b587_long" if _hours_in_walltime(walltime) >= 2 else "ORNL_b587_short"
+    #facility: job_utils.FACILITIES = "ORNL_b587_long" if _hours_in_walltime(walltime) >= 2 else "ORNL_b587_short"
+    facility: job_utils.FACILITIES = "rehlers_mbp_m1pro"
 
     # Keep the job executor just to keep it alive
     job_executor, _job_framework_config = setup_job_framework(
@@ -1327,4 +1333,4 @@ def run(job_framework: job_utils.JobFramework) -> list[Future[Any]]:
 
 
 if __name__ == "__main__":
-    run(job_framework=job_utils.JobFramework.parsl)
+    run(job_framework=job_utils.JobFramework.immediate_execution_debug)

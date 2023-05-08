@@ -9,11 +9,12 @@ import timeit
 from pathlib import Path
 from typing import Union
 
-import awkward1 as ak
+import awkward as ak
 import numpy as np
 import pandas as pd
 
-from mammoth import parse_ascii
+from mammoth.framework.io import jetscape
+
 
 def test_read(filename: Union[str, Path], events_per_chunk: int, max_chunks: int = 1) -> None:
     # Validation
@@ -22,7 +23,7 @@ def test_read(filename: Union[str, Path], events_per_chunk: int, max_chunks: int
     # Compare against the known result to ensure that it's working correctly!
     ref = None
     for loader in ["np", "pandas", "python"]:
-        for i, (chunk_generator, event_split_index, event_header_info) in enumerate(parse_ascii.read_events_in_chunks(filename=filename, events_per_chunk=events_per_chunk)):
+        for i, (chunk_generator, event_split_index, event_header_info) in enumerate(jetscape.read_events_in_chunks(filename=filename, events_per_chunk=events_per_chunk)):
             # Bail out if we've done enough.
             if i == max_chunks:
                 break
@@ -33,12 +34,12 @@ def test_read(filename: Union[str, Path], events_per_chunk: int, max_chunks: int
             elif loader == "pandas":
                 start_time = timeit.default_timer()
                 hadrons = pd.read_csv(
-                    parse_ascii.FileLikeGenerator(chunk_generator),
+                    jetscape.FileLikeGenerator(chunk_generator),
                     names=["particle_index", "particle_ID", "status", "E", "px", "py", "pz", "eta", "phi"],
                     skiprows=[0],
                     header=None,
                     comment="#",
-                    sep="\s+",
+                    sep=r"\s+",
                     # Converting to numpy makes the dtype conversion moot.
                     #dtype={
                     #    "particle_index": np.int32, "particle_ID": np.int32, "status": np.int8,
@@ -60,10 +61,11 @@ def test_read(filename: Union[str, Path], events_per_chunk: int, max_chunks: int
                         particles.append(np.array(p.rstrip("\n").split(), dtype=np.float64))
                 hadrons = np.stack(particles)
             else:
-                raise ValueError(f"Unrecognized loader '{loader}'")
+                _msg = f"Unrecognized loader '{loader}'"
+                raise ValueError(_msg)
 
             elapsed = timeit.default_timer() - start_time
-            print(f"Loading {events_per_chunk} events with {loader}: {elapsed}")
+            print(f"Loading {events_per_chunk} events with {loader}: {elapsed}")  # noqa: T201
 
             array_with_events = ak.Array(np.split(hadrons, event_split_index))
             if ref is None:

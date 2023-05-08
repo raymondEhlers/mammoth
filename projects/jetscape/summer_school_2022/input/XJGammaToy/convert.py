@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
 
-from typing import Tuple, Mapping
+from pathlib import Path
+from typing import Mapping, Tuple
 
 import numpy as np
-import numpy.typing as npt
-from pachyderm import binned_data
 import uproot
+from pachyderm import binned_data
+
 
 def get_data(centrality: str, normalize: bool) -> Tuple[binned_data.BinnedData, binned_data.BinnedData, binned_data.BinnedData]:
     centrality_index_map = {
@@ -31,7 +32,7 @@ def get_data(centrality: str, normalize: bool) -> Tuple[binned_data.BinnedData, 
 
     val = np.sum(data.values)
     if normalize:
-        print(f"integral: {val}")
+        print(f"integral: {val}")  # noqa: T201
         data /= val
         stat_error /= val
         sys_error /= val
@@ -51,8 +52,8 @@ def run(centrality_to_filename: Mapping[Tuple[int, int], str], normalize: bool) 
         # Unpack loaded data
         data, stat_error, sys_error = all_data[name]
 
-        with open(filename, "w") as f:
-            print(name)
+        with Path(filename).open("w") as f:
+            print(name)  # noqa: T201
             # First, write the header
             f.write(f"""# Version 1.0
 # DOI

@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Any, MutableMapping, Sequence
 
 import numpy as np
-import pytest  # noqa: F401
+import pytest
 
 from mammoth.framework import sources
 
@@ -56,7 +56,7 @@ def test_manual_thermal_model_embedding() -> None:
 
 @pytest.mark.parametrize("chunk_size", [500, sources.ChunkSizeSentinel.FULL_SOURCE])
 @pytest.mark.parametrize("background_is_constrained_source", [False, True])
-def test_manual_data_embedding(caplog: Any, chunk_size: int, background_is_constrained_source: bool) -> None:
+def test_manual_data_embedding(caplog: Any, chunk_size: sources.T_ChunkSize, background_is_constrained_source: bool) -> None:
     # Setup
     caplog.set_level(logging.DEBUG, logger="mammoth.framework.sources")
 
@@ -65,13 +65,15 @@ def test_manual_data_embedding(caplog: Any, chunk_size: int, background_is_const
     # I don't want to make it public because the user shouldn't be doing this in normal operation.
     if chunk_size is sources.ChunkSizeSentinel.FULL_SOURCE:
         chunk_size = sources._FULL_SOURCE_SIZE
+    # Help out mypy after validation
+    assert isinstance(chunk_size, int)
 
     pythia_kwargs: MutableMapping[str, Any] = {}
     PbPb_kwargs: MutableMapping[str, Any] = {}
     if background_is_constrained_source:
-        pythia_kwargs = dict(repeat=True)
+        pythia_kwargs = {"repeat": True}
     else:
-        PbPb_kwargs = dict(repeat=True)
+        PbPb_kwargs = {"repeat": True}
 
     pythia_source = sources.MultiSource(
         sources=sources.define_multiple_sources_from_single_root_file(
@@ -96,15 +98,15 @@ def test_manual_data_embedding(caplog: Any, chunk_size: int, background_is_const
     # Now, just zip them together, effectively.
     combined_source_kwargs: MutableMapping[str, Any] = {}
     if background_is_constrained_source:
-        combined_source_kwargs = dict(
-            constrained_size_source={"background": PbPb_source},
-            unconstrained_size_sources={"signal": pythia_source},
-        )
+        combined_source_kwargs = {
+            "constrained_size_source": {"background": PbPb_source},
+            "unconstrained_size_sources": {"signal": pythia_source},
+        }
     else:
-        combined_source_kwargs = dict(
-            constrained_size_source={"signal": pythia_source},
-            unconstrained_size_sources={"background": PbPb_source},
-        )
+        combined_source_kwargs = {
+            "constrained_size_source": {"signal": pythia_source},
+            "unconstrained_size_sources": {"background": PbPb_source},
+        }
     combined_source = sources.CombineSources(
         **combined_source_kwargs,
         source_index_identifiers={"signal": 0, "background": 100_000},
@@ -149,7 +151,7 @@ def test_chunk_generation_from_existing_data_with_fixed_chunk_size(
     # Finally, actually access the data and check the chunk sizes.
     gen = pythia_source.gen_data(chunk_size=chunk_size)
 
-    for i, (data, expected_size) in enumerate(zip(gen, yielded_data_sizes)):
+    for _, (data, expected_size) in enumerate(zip(gen, yielded_data_sizes)):
         assert len(data) == expected_size
 
     # For the last iteration, we want to check whether it's matching the chunk size as appropriate
@@ -262,7 +264,7 @@ def test_multi_source_source_fixed_size_chunks(caplog: Any, chunk_size: int, num
     gen = pythia_source.gen_data(chunk_size=chunk_size)
 
     total_data_size = 0
-    for i, (data, expected_chunk_size) in enumerate(zip(gen, yielded_data_sizes)):
+    for _, (data, expected_chunk_size) in enumerate(zip(gen, yielded_data_sizes)):
         assert len(data) == expected_chunk_size
         total_data_size += len(data)
 

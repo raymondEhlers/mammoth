@@ -9,8 +9,8 @@ import logging
 from pathlib import Path
 
 import uproot
-from mammoth import helpers
 
+from mammoth import helpers
 
 logger = logging.getLogger(__name__)
 

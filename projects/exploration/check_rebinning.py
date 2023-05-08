@@ -60,7 +60,7 @@ def test_rebin(h_ROOT: TH1D, h_ROOT_already_rebinned: TH1D) -> bool:
     h_temp_already_rebinned = binned_data.BinnedData.from_existing_data(h_ROOT_already_rebinned)
 
     # binned_data
-    h_binned_data_rebin = h_temp[::binning_broader]  # type: ignore[misc]
+    h_binned_data_rebin = h_temp[::binning_broader]
     logger.info(f"{h_binned_data_rebin.axes[0].bin_edges=}")
     logger.info(f"{h_binned_data_rebin.values=}, {h_binned_data_rebin.variances=}")
 
@@ -95,7 +95,7 @@ def test_steer_rebinning() -> None:
     # Undo scaling
     h_binned_data_handled_properly *= h_binned_data_handled_properly.axes[0].bin_widths
     # Rebin
-    h_binned_data_handled_properly = h_binned_data_handled_properly[::binned_data.BinnedData.from_existing_data(h_ROOT_already_rebinned_scale).axes[0].bin_edges]  # type: ignore[misc]
+    h_binned_data_handled_properly = h_binned_data_handled_properly[::binned_data.BinnedData.from_existing_data(h_ROOT_already_rebinned_scale).axes[0].bin_edges]
     # Scale by bin width
     h_binned_data_handled_properly /= h_binned_data_handled_properly.axes[0].bin_widths
     # Finally, compare the scale + rebin with the rebin + scale

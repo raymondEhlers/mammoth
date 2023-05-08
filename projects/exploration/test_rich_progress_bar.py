@@ -2,20 +2,21 @@
 import logging
 import time
 
-from mammoth import helpers
 from rich.progress import Progress
+
+from mammoth import helpers
 
 logger = logging.getLogger(__name__)
 
 def test_rich_progress_bar() -> None:
-    stored_messages = [
+    stored_messages = [  # noqa: F841
         helpers.LogMessage(
             __name__,
             "info",
             "Stored message at info level",
         )
     ]
-    rich_console = helpers.setup_logging(stored_messages=stored_messages)
+    rich_console = helpers.rich_console
 
     logger.warning("First warning")
 
@@ -29,8 +30,8 @@ def test_rich_progress_bar() -> None:
             progress.console.print(f"progress object: {r}")
             progress.update(track_results, advance=1)
             time.sleep(0.5)
-    
-    logger.info("aftewards...")
+
+    logger.info("afterwards...")
 
 if __name__ == "__main__":
     test_rich_progress_bar()

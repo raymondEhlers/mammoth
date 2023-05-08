@@ -22,14 +22,14 @@ def add_xsec_to_output_files(output_file_dir: Path, output_filename_template: st
         # print(f"pt_hat_bin: {pt_hat_bin}")
         x_sec_filename = xsec_dir / f"SigmaHardBin{pt_hat_bin}.out"
 
-        with open(x_sec_filename, "r") as f:
+        with x_sec_filename.open() as f:
             x_sec, x_sec_error = f.read().split()
 
         line_to_write = f"#\tsigmaGen\t{x_sec}\tsigmaErr\t{x_sec_error}"
         # print(f"line_to_write: {line_to_write}")
 
-        print(f"Writing line to file '{output_filename}': {line_to_write}")
-        with open(output_filename, "a") as f:
+        print(f"Writing line to file '{output_filename}': {line_to_write}")  # noqa: T201
+        with output_filename.open("a") as f:
             f.write(line_to_write)
 
 

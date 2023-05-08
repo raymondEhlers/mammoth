@@ -82,7 +82,7 @@ import numpy as np
 
 def _plot_RL(
     hists: Mapping[str, hist.Hist],
-    names_and_labels: Mapping[str, str],
+    names_and_labels: Mapping[str, tuple[str, str, str]],
     plot_config: pb.PlotConfig,
     output_dir: Path,
 ) -> None:
@@ -141,25 +141,25 @@ def _plot_RL(
         ax.set_prop_cycle(cycler.cycler(color=list(_method_to_color.values())))
 
         for name, (level, label, legend_entry) in names_and_labels.items():
-            is_signal = "signal" == label
-            h = hists[name]
+            is_signal = label == "signal"
+            h_temp = hists[name]
             # Project by trigger range
             trigger_range = trigger_name_to_range[label]
             # Project to range
-            h = h[:, hist.loc(trigger_range[0]):hist.loc(trigger_range[1]):hist.sum]
+            h_temp = h_temp[:, hist.loc(trigger_range[0]):hist.loc(trigger_range[1]):hist.sum]  # type: ignore[misc,union-attr]
             # Convert
-            h = binned_data.BinnedData.from_existing_data(h)
+            h = binned_data.BinnedData.from_existing_data(h_temp)
 
             # Normalize
             # TODO: Collect n_trig without being reliant on fraction...
-            n_trig = hists[f"{level}_inclusive_trigger_spectra"][
-                hist.loc(trigger_range[0]): hist.loc(trigger_range[1]):hist.sum
+            n_trig = hists[f"{level}_inclusive_trigger_spectra"][  # type: ignore[union-attr]
+                hist.loc(trigger_range[0]): hist.loc(trigger_range[1]):hist.sum  # type: ignore[misc]
             ].value * trigger_name_to_fraction[label]
             h /= n_trig
             # Bin widths
             h /= h.axes[0].bin_widths
 
-            p = ax.errorbar(
+            ax.errorbar(
                 h.axes[0].bin_centers,
                 h.values,
                 yerr=h.errors,

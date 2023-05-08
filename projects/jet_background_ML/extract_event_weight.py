@@ -2,10 +2,10 @@
 
 This provides a single weight (the mean of the event weight) that we can use to reweight
 each JEWEL pt hat bin. This is basically a hack so we can reweight after having done the
-embedding (because there was some initial miscommuncation about including the event weight
+embedding (because there was some initial miscommunication about including the event weight
 in the tree).  Future embedding won't need this, so we store it as a one-off script.
 
-JEWEL 0-10% no reocils provides:
+JEWEL 0-10% no recoils provides:
 
 ```
 05_15: 2.521352877530242e-05

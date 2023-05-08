@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import Any
 
 import numpy as np
-import pytest  # noqa: F401
+import pytest
 
 logger = logging.getLogger(__name__)
 
@@ -15,7 +15,7 @@ _track_skim_base_path = _here / "track_skim_validation"
 @pytest.mark.parametrize("chunk_size", [2000])
 @pytest.mark.parametrize("background_is_constrained_source", [False, True])
 @pytest.mark.parametrize("use_additional_files", [False, True])
-def test_embedding_load_data_source_fixed_size_chunks(caplog: Any, chunk_size: int, background_is_constrained_source: bool, use_additional_files: bool) -> None:
+def test_embedding_load_data_source_fixed_size_chunks(caplog: Any, chunk_size: int, background_is_constrained_source: bool, use_additional_files: bool) -> None:  # noqa: ARG001
     """Test the MultiSource with fixed size chunks.
 
     Usually, this would be via an uproot source. Here, I'm using the track skim for some extra convenience,
@@ -42,7 +42,7 @@ def test_embedding_load_data_source_fixed_size_chunks(caplog: Any, chunk_size: i
     )
 
     # We need the full size to figure out the expect values.
-    if background_is_constrained_source:
+    if background_is_constrained_source:  # noqa: SIM108
         _constrained_collision_system = "PbPb"
     else:
         _constrained_collision_system = "pythia"
@@ -57,7 +57,7 @@ def test_embedding_load_data_source_fixed_size_chunks(caplog: Any, chunk_size: i
     yielded_data_sizes = [chunk_size for _ in range(int(np.floor(full_file_size / chunk_size)))]
     yielded_data_sizes.append(full_file_size % chunk_size)
 
-    for i, (data, expected_size) in enumerate(zip(iter_arrays, yielded_data_sizes)):
+    for _, (data, expected_size) in enumerate(zip(iter_arrays, yielded_data_sizes)):
         assert len(data) == expected_size
 
     # For the last iteration, we want to check whether it's matching the chunk size as appropriate

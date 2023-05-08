@@ -9,7 +9,6 @@ import logging
 
 import attrs
 import numpy as np
-import numpy.typing as npt
 
 from mammoth import helpers
 
