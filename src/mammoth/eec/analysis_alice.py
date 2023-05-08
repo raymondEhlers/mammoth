@@ -571,6 +571,9 @@ def analysis_embedding(
                 weight=weight * scale_factor,
             )
             if level == "hybrid":
+                # We're about to recalculate the weights and trigger pt, so let's release them now
+                del weight
+                del trigger_pt
                 # Compare to background only particles
                 # Need to select distances of particles for left and right which only are background particles
                 left_mask = left["source_index"] >= source_index_identifiers["background"]
