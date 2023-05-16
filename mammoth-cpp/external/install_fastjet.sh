@@ -14,16 +14,9 @@ cd ${currentDir}
 
 # Setup
 export CXXFLAGS="-std=c++17 -O2"
-# My reference AliPhysics Run2 build uses
-#fastjet_version=3.3.3
-#fjcontrib_version=1.042
-# More update to date verision in the same set of patch releases would be:
-#fastjet_version=3.3.4
-#fjcontrib_version=1.045
-# Update to date as of Feb 2022
-# Validated these versions in pp, pythia, and rho subtracted PbPb vs 3.3.3_1.042 in AliPhysics, giving the same results
-fastjet_version=3.4.0
-fjcontrib_version=1.048
+# NOTE: Validated 3.4.0 (fj) and 1.048 (contrib) in pp, pythia, and rho subtracted PbPb vs 3.3.3_1.042 in AliPhysics, giving the same results
+fastjet_version=3.4.1
+fjcontrib_version=1.051
 prefix=$PWD/install/fastjet
 
 # Build in a new folder
