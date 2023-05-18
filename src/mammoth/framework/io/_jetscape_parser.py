@@ -308,7 +308,7 @@ class ChunkNotReadyException(Exception):
 
 @attrs.define
 class ChunkGenerator:
-    """Generator a chunk of the file.
+    """Generate a chunk of the file.
 
     Args:
         g: Iterator over the input file.
@@ -680,7 +680,7 @@ def read(filename: Path | str, events_per_chunk: int, parser: str = "pandas") ->
         )
 
 
-def _full_events_to_only_necessary_columns_E_px_py_pz(arrays: ak.Array) -> ak.Array:
+def full_events_to_only_necessary_columns_E_px_py_pz(arrays: ak.Array) -> ak.Array:
     """Reduce the number of columns to store.
 
     Note:
@@ -736,7 +736,7 @@ def parse_to_parquet(
     for i, arrays in enumerate(read(filename=input_filename, events_per_chunk=events_per_chunk, parser=parser)):
         # Reduce to the minimum required data.
         if store_only_necessary_columns:
-            arrays = _full_events_to_only_necessary_columns_E_px_py_pz(arrays)  # noqa: PLW2901
+            arrays = full_events_to_only_necessary_columns_E_px_py_pz(arrays)  # noqa: PLW2901
         else:
             # To match the steps taken when reducing the columns, we'll re-zip with the depth limited to 1.
             # As of April 2021, I'm not certainly this is truly required anymore, but it may be needed for
