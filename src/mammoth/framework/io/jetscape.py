@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import Any, Generator, Iterator, MutableMapping
+from typing import Any, Generator, MutableMapping
 
 import attrs
 import awkward as ak
@@ -123,8 +123,7 @@ class FileSource:
                     gen_data=source.gen_data(chunk_size=chunk_size),
                     source_default_chunk_size=self._default_chunk_size
                 )
-            else:
-                return source.gen_data(chunk_size=chunk_size)
+            return source.gen_data(chunk_size=chunk_size)
 
     @classmethod
     def create_deferred_source(
@@ -172,7 +171,7 @@ def _transform_output(
         })
         while True:
             # Reduce to the minimum required data.
-            data = _jetscape_parser.full_events_to_only_necessary_columns_E_px_py_pz(arrays=data)  # noqa: PLW2901
+            data = _jetscape_parser.full_events_to_only_necessary_columns_E_px_py_pz(arrays=data)
             _result = yield ak.Array({
                 "part_level": ak.zip(
                     dict(

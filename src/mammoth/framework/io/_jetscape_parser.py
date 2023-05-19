@@ -325,7 +325,8 @@ def _parse_header_line_format_v3(line: str) -> HeaderInfo:
         #       we've raised an exception here.
         raise ReachedXSecAtEndOfFileException(_parse_cross_section(line))
     else:
-        raise ValueError(f"Parsing of comment line failed: {values}")
+        msg = f"Parsing of comment line failed: {values}"
+        raise ValueError(msg)
 
     return info
 
