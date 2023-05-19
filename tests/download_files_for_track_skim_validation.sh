@@ -17,10 +17,10 @@ referenceTarGzFilename="reference_files-${referenceFilesDate}.tar.gz"
 bold=$(tput bold)
 normal=$(tput sgr0)
 
-## Arbitrarily use the first file to check if the input is available.
 echo "=> ${bold}Input files${normal}"
 if [[ ! -z "${downloadInputFiles}" ]];
 then
+    # Arbitrarily use the first file to check if the input is available.
     if [[ ! -f ${inputDir}/alice/data/2017/LHC17p/000282343/pass1_FAST/AOD234/0001/root_archive.zip ]];
     then
         echo "--> Downloading missing ALICE input files"
