@@ -77,6 +77,8 @@ def array_looks_good(reference_arrays: ak.Array, arrays: ak.Array, header_versio
 )
 def test_parsing(header_version: int, events_per_chunk: int) -> None:
     input_filename = here / "jetscape_parser" / f"final_state_hadrons_header_v{header_version}.dat"
+    if not input_filename.exists():
+        raise ValueError("Missing input files - please download the files with the script")
 
     for i, arrays in enumerate(_jetscape_parser.read(filename=input_filename, events_per_chunk=events_per_chunk, parser="pandas")):
         # Get the reference array
@@ -106,6 +108,8 @@ def test_parsing(header_version: int, events_per_chunk: int) -> None:
 def test_parsing_with_parquet(header_version: int, events_per_chunk: int, tmp_path: Path) -> None:
     """Parse to parquet, read back, and compare."""
     input_filename = here / "jetscape_parser" / f"final_state_hadrons_header_v{header_version}.dat"
+    if not input_filename.exists():
+        raise ValueError("Missing input files - please download the files with the script")
 
     # Convert to chunks in a temp directory.
     base_output_filename = tmp_path / "test.parquet"
