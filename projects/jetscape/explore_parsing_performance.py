@@ -13,7 +13,7 @@ import awkward as ak
 import numpy as np
 import pandas as pd
 
-from mammoth.framework.io import jetscape
+from mammoth.framework.io import _jetscape_parser
 
 
 def test_read(filename: Union[str, Path], events_per_chunk: int, max_chunks: int = 1) -> None:
@@ -23,7 +23,7 @@ def test_read(filename: Union[str, Path], events_per_chunk: int, max_chunks: int
     # Compare against the known result to ensure that it's working correctly!
     ref = None
     for loader in ["np", "pandas", "python"]:
-        for i, (chunk_generator, event_split_index, event_header_info) in enumerate(jetscape.read_events_in_chunks(filename=filename, events_per_chunk=events_per_chunk)):
+        for i, chunk_generator in enumerate(_jetscape_parser.read_events_in_chunks(filename=filename, events_per_chunk=events_per_chunk)):
             # Bail out if we've done enough.
             if i == max_chunks:
                 break
@@ -34,7 +34,7 @@ def test_read(filename: Union[str, Path], events_per_chunk: int, max_chunks: int
             elif loader == "pandas":
                 start_time = timeit.default_timer()
                 hadrons = pd.read_csv(
-                    jetscape.FileLikeGenerator(chunk_generator),
+                    _jetscape_parser.FileLikeGenerator(iter(chunk_generator)),
                     names=["particle_index", "particle_ID", "status", "E", "px", "py", "pz", "eta", "phi"],
                     skiprows=[0],
                     header=None,
@@ -67,7 +67,7 @@ def test_read(filename: Union[str, Path], events_per_chunk: int, max_chunks: int
             elapsed = timeit.default_timer() - start_time
             print(f"Loading {events_per_chunk} events with {loader}: {elapsed}")  # noqa: T201
 
-            array_with_events = ak.Array(np.split(hadrons, event_split_index))
+            array_with_events = ak.Array(np.split(hadrons, chunk_generator.event_split_index()))
             if ref is None:
                 ref = array_with_events
 
