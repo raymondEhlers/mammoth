@@ -111,22 +111,29 @@ class FileSource:
         cls,
         collision_system: str,
         default_chunk_size: sources.T_ChunkSize = sources.ChunkSizeSentinel.FULL_SOURCE,
+        metadata: MutableMapping[str, Any] | None = None,
     ) -> sources.SourceFromFilename:
         """Create a FileSource with a closure such that all arguments are set except for the filename.
 
         Args:
             collision_system: The collision system of the data.
             default_chunk_size: The default chunk size to use when generating data.
+            metadata: Source metadata.
 
         Returns:
             A Callable which takes the filename and creates the FileSource.
         """
+        if metadata is None:
+            metadata = {}
 
         def wrap(filename: Path) -> FileSource:
+            # Help out mypy
+            assert metadata is not None
             return cls(
                 filename=filename,
                 collision_system=collision_system,
                 default_chunk_size=default_chunk_size,
+                metadata=metadata,
             )
 
         return wrap

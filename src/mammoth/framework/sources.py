@@ -76,7 +76,12 @@ class CanCreateDeferredSourceFromFilename(Protocol):
     if it's available from the sources module.
     """
 
-    def create_deferred_source(self, collision_system: str) -> SourceFromFilename:
+    def create_deferred_source(
+        self,
+        collision_system: str,
+        default_chunk_size: T_ChunkSize = ChunkSizeSentinel.FULL_SOURCE,
+        metadata: MutableMapping[str, Any] | None = None,
+    ) -> SourceFromFilename:
         ...
 
 
