@@ -125,7 +125,7 @@ def convert_sequence_to_range(entry_range: utils.Range | Sequence[float]) -> uti
     return utils.Range(*entry_range)
 
 
-def _validate_chunk_size(chunk_size: T_ChunkSize, source_default_chunk_size: T_ChunkSize) -> int:
+def validate_chunk_size(chunk_size: T_ChunkSize, source_default_chunk_size: T_ChunkSize) -> int:
     # Initial validation
     if chunk_size is ChunkSizeSentinel.SOURCE_DEFAULT:
         chunk_size = source_default_chunk_size
@@ -155,7 +155,7 @@ def generator_from_existing_data(
 ) -> T_GenData:
     # Validation
     # Chunk size
-    chunk_size = _validate_chunk_size(chunk_size=chunk_size, source_default_chunk_size=source_default_chunk_size)
+    chunk_size = validate_chunk_size(chunk_size=chunk_size, source_default_chunk_size=source_default_chunk_size)
     # Input data
     full_data_length = len(data)
     if full_data_length < chunk_size and warn_on_not_enough_data:
@@ -179,7 +179,7 @@ def generator_from_existing_data(
 
         # If we received a send argument, use this to update the chunk_size
         if _result is not None:
-            chunk_size = _validate_chunk_size(chunk_size=_result, source_default_chunk_size=source_default_chunk_size)
+            chunk_size = validate_chunk_size(chunk_size=_result, source_default_chunk_size=source_default_chunk_size)
 
     # And indicate we're done. Not necessarily required, but I want to be quite explicit here.
     return None
@@ -449,7 +449,7 @@ class ThermalModelExponential:
         while True:
             # Validation
             # We put it inside the for loop because it could change from loop to loop
-            chunk_size = _validate_chunk_size(chunk_size=chunk_size, source_default_chunk_size=self._default_chunk_size)
+            chunk_size = validate_chunk_size(chunk_size=chunk_size, source_default_chunk_size=self._default_chunk_size)
 
             self.metadata["n_entries"] = chunk_size
 
@@ -501,7 +501,7 @@ class ThermalModelExponential:
             )
             # Update the chunk size if necessary
             if _result is not None:
-                chunk_size = _validate_chunk_size(
+                chunk_size = validate_chunk_size(
                     chunk_size=_result,
                     source_default_chunk_size=self._default_chunk_size,
                 )
@@ -603,7 +603,7 @@ class MultiSource:
             chunk_size = self._default_chunk_size
         # Need to keep track of this separately because we handle the single file case separately.
         is_single_file_at_a_time = chunk_size is ChunkSizeSentinel.SINGLE_FILE
-        chunk_size = _validate_chunk_size(chunk_size=chunk_size, source_default_chunk_size=self._default_chunk_size)
+        chunk_size = validate_chunk_size(chunk_size=chunk_size, source_default_chunk_size=self._default_chunk_size)
 
         if self.repeat:
             # See: https://stackoverflow.com/a/24225372/12907985
@@ -725,7 +725,7 @@ class MultiSource:
                     # First, update the chunk size if received a new one
                     # logger.info(f"=>{_next_chunk_size_request=}")
                     if _next_chunk_size_request is not None:
-                        _target_chunk_size = _validate_chunk_size(
+                        _target_chunk_size = validate_chunk_size(
                             chunk_size=_next_chunk_size_request, source_default_chunk_size=source._default_chunk_size
                         )
                         # And don't forget to reset the request size for the next chunk
