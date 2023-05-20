@@ -56,27 +56,6 @@ class Columns:
         )
 
 
-#@attrs.define
-#class JetscapeParserSource:
-#    _filename: Path = attrs.field(converter=Path)
-#    _default_chunk_size: int | sources.ChunkSizeSentinel = attrs.field(default=sources.ChunkSizeSentinel.FULL_SOURCE)
-#    metadata: MutableMapping[str, Any] = attrs.Factory(dict)
-#
-#    def gen_data(self, chunk_size: sources.T_ChunkSize = sources.ChunkSizeSentinel.SOURCE_DEFAULT) -> sources.T_GenData:
-#        """A iterator over a fixed size of data from the source.
-#
-#        Returns:
-#            Iterable containing chunk size data in an awkward array.
-#        """
-#        assert isinstance(chunk_size, int)
-#        parser_source = _jetscape_parser.read(
-#            filename=self._filename,
-#            events_per_chunk=chunk_size,
-#            parser=self.metadata.get("parser", "pandas"),
-#        )
-#        yield from parser_source
-
-
 @attrs.define
 class FileSource:
     _filename: Path = attrs.field(converter=Path)
@@ -103,13 +82,6 @@ class FileSource:
                 gen_data=parser_source,
                 source_default_chunk_size=self._default_chunk_size
             )
-            #source: sources.Source = sources.MultiSource(
-            #    sources=[JetscapeParserSource(self._filename, self._default_chunk_size)],
-            #    repeat=False,
-            #)
-            #return _transform_output(
-            #    gen_data=source.gen_data(chunk_size=chunk_size),
-            #)
         else:  # noqa: RET505
             source = sources.ParquetSource(
                 filename=self._filename,
