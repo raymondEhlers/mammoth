@@ -101,6 +101,19 @@ skimmed_datasets:
     number_of_parent_directories_for_relative_output_filename: 3
     files:
       - "trains/pythia/266374/files.txt"
+  # JETSCAPE PP19
+  # Arbitrarily defined as #1 in JETSCAPE productions
+  JETSCAPE_PP19_1: &JETSCAPE_PP19
+    name: "JETSCAPE_PP19_1"
+    collision_system: "pp_MC"
+    sqrt_s: 5020
+    period: ""
+    # Keep track of the skim type for documentation
+    skim_type: "track_skim"
+    # Parameters of the output
+    n_pt_hat_bins: 66
+    files:
+      - "trains/pp_MC/jetscape/0001/JetscapeHadronListBin*.parquet"
 
   # PbPb
   LHC18qr_pass3_AOD252_central_642: &LHC18qr_PbPb_central
@@ -454,6 +467,14 @@ productions:
         label: "pythia_fastsim"
       settings:
         <<: *analysis_settings_pythia_R04
+  pp_MC:
+    3:
+      metadata:
+        dataset: *jetscape_pp19
+        production_number: 3
+        label: ""
+      settings:
+        <<: *analysis_settings_pythia_R02
 
 
   PbPb:
