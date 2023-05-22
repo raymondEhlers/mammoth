@@ -202,8 +202,8 @@ if __name__ == "__main__":
         means[jet_R_str] = {}
         for p_range in p_ranges:
             means[jet_R_str][p_range] = {
-                "x": hists[jet_R_str]["x"][bh.loc(p_range[0]):bh.loc(p_range[1]):bh.sum].value,  # type: ignore[misc]
-                "Q2": hists[jet_R_str]["q2"][bh.loc(p_range[0]):bh.loc(p_range[1]):bh.sum].value,  # type: ignore[misc]
+                "x": hists[jet_R_str]["x"][bh.loc(p_range[0]):bh.loc(p_range[1]):bh.sum].value,  # type: ignore[union-attr,misc]
+                "Q2": hists[jet_R_str]["q2"][bh.loc(p_range[0]):bh.loc(p_range[1]):bh.sum].value,  # type: ignore[union-attr,misc]
             }
 
     print("Done. Writing hist + info...")  # noqa: T201

@@ -52,11 +52,11 @@ def combine_spectra_in_cent_bins(hists: Mapping[str, hist.Hist], jet_type: str, 
     name = f"{jet_type}_jetR{format_R(jet_R)}_n_events_weighted"
     #name = "n_events_weighted"
 
-    a_n_events: hist.Hist = hists[f"PbPb_{a}"][name]
-    b_n_events: hist.Hist = hists[f"PbPb_{b}"][name]
+    a_n_events: hist.Hist = hists[f"PbPb_{a}"][name]  # type: ignore[assignment]
+    b_n_events: hist.Hist = hists[f"PbPb_{b}"][name]  # type: ignore[assignment]
     name = f"{jet_type}_jetR{format_R(jet_R)}_jet_pt"
-    a_jet_pt: hist.Hist = hists[f"PbPb_{a}"][name]
-    b_jet_pt: hist.Hist = hists[f"PbPb_{b}"][name]
+    a_jet_pt: hist.Hist = hists[f"PbPb_{a}"][name]  # type: ignore[assignment]
+    b_jet_pt: hist.Hist = hists[f"PbPb_{b}"][name]  # type: ignore[assignment]
 
     # See Laura's note on adding
     #return ((a_jet_pt / a_n_events.values()[0]) + (b_jet_pt / b_n_events.values()[0])) / 2

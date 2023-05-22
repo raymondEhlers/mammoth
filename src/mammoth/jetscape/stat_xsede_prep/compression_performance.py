@@ -12,7 +12,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pachyderm.plot
 
-from mammoth.framework.io import jetscape as parse_ascii
+from mammoth.framework.io import _jetscape_parser as parse_ascii
 
 pachyderm.plot.configure()
 
@@ -265,7 +265,7 @@ def write_ascii_ish(arrays: ak.Array, base_output_dir: Path, tag: str = "") -> N
                 #print(f"{int(particle['particle_ID']):d} {int(particle['status']):d} {formatted(particle['pt'])} {formatted(particle['eta'])} {formatted(particle['phi'])}")
                 f.write(f"{int(particle['particle_ID']):d} {int(particle['status']):d} {formatted(particle['pt'])} {formatted(particle['eta'])} {formatted(particle['phi'])}\n")
     elapsed = timeit.default_timer() - start_time
-    print(f"Finshed writing in {elapsed}")  # noqa: T201
+    print(f"Finished writing in {elapsed}")  # noqa: T201
 
     # Write the tar here for convenience.
     with tarfile.open(filename.with_suffix(".tar.gz"), "w:gz") as tar:

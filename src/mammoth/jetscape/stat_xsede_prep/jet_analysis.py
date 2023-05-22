@@ -250,7 +250,7 @@ def angular_distribution_around_jet(jets: ak.Array, arrays: ak.Array, pt_hat_bin
         #jets_fj = [[fj.PseudoJet(j.x, j.y, j.z, j.t) for j in _jets_in_event] for _jets_in_event in jets.jets]
         #particles_fj = [
         #    [fj.PseudoJet(p.x, p.y, p.z, p.t) for p in
-        #    LorentzVectorArray.from_ptetaphie(particles.pt, particles.eta, particles.phi, particles.E)]
+        #    LorentzVectorArray.from_pt_eta_phi_e(particles.pt, particles.eta, particles.phi, particles.E)]
         #    for particles in arrays[particle_mask]
         #]
 

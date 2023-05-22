@@ -20,7 +20,7 @@ from pachyderm import binned_data
 
 import mammoth.helpers
 from mammoth.framework import particle_ID
-from mammoth.framework.io import jetscape as jetscape_io
+from mammoth.framework.io import _jetscape_parser as jetscape_io
 
 logger = logging.getLogger(__name__)
 pachyderm.plot.configure()
