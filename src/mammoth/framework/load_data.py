@@ -3,10 +3,12 @@
 .. codeauthor:: Raymond Ehlers <raymond.ehlers@cern.ch>, ORNL
 """
 
+from __future__ import annotations
+
 import collections
 import logging
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, Mapping, Optional, Sequence, Tuple, Union
+from typing import Any, Iterable, Mapping, Sequence
 
 import awkward as ak
 import numpy as np
@@ -28,15 +30,15 @@ _default_particle_columns = {
 }
 
 
-def _validate_potential_list_of_inputs(inputs: Union[Path, Sequence[Path]]) -> List[Path]:
+def _validate_potential_list_of_inputs(inputs: Path | Sequence[Path]) -> list[Path]:
     return [inputs] if not isinstance(inputs, collections.abc.Iterable) else list(inputs)
 
 
 def normalize_for_data(
     arrays: ak.Array,
-    rename_prefix: Optional[Mapping[str, str]] = None,
-    mass_hypothesis: Union[float, Mapping[str, float]] = 0.139,
-    particle_columns: Optional[Mapping[str, npt.DTypeLike]] = None,
+    rename_prefix: Mapping[str, str] | None = None,
+    mass_hypothesis: float | Mapping[str, float] = 0.139,
+    particle_columns: Mapping[str, npt.DTypeLike] | None = None,
 ) -> ak.Array:
     """Transform into a form appropriate for data analysis.
 
@@ -96,9 +98,9 @@ def normalize_for_data(
 
 def normalize_for_MC(
     arrays: ak.Array,
-    rename_prefix: Optional[Mapping[str, str]] = None,
-    mass_hypothesis: Union[float, Mapping[str, float]] = 0.139,
-    particle_columns: Optional[Mapping[str, npt.DTypeLike]] = None,
+    rename_prefix: Mapping[str, str] | None = None,
+    mass_hypothesis: float | Mapping[str, float] = 0.139,
+    particle_columns: Mapping[str, npt.DTypeLike] | None = None,
 ) -> ak.Array:
     """Transform into a form appropriate for MC analysis.
 
@@ -204,12 +206,12 @@ def _transform_data(
 
 
 def data(
-    data_input: Union[Path, Sequence[Path]],
+    data_input: Path | Sequence[Path],
     data_source: sources.SourceFromFilename,
     collision_system: str,
     rename_prefix: Mapping[str, str],
     chunk_size: sources.T_ChunkSize = sources.ChunkSizeSentinel.FULL_SOURCE,
-) -> Union[ak.Array, Iterable[ak.Array]]:
+) -> ak.Array | Iterable[ak.Array]:
     """Load data for ALICE analysis from the track skim task output.
 
     Could come from a ROOT file or a converted parquet file.
@@ -254,9 +256,9 @@ def data(
 def normalize_for_embedding(
     arrays: ak.Array,
     source_index_identifiers: Mapping[str, int],
-    mass_hypothesis: Union[float, Mapping[str, float]] = 0.139,
-    particle_columns: Optional[Mapping[str, npt.DTypeLike]] = None,
-    fixed_background_index_value: Optional[int] = None,
+    mass_hypothesis: float | Mapping[str, float] = 0.139,
+    particle_columns: Mapping[str, npt.DTypeLike] | None = None,
+    fixed_background_index_value: int | None = None,
 ) -> ak.Array:
     """Transform into a form appropriate for embedding.
 
@@ -411,15 +413,15 @@ def _event_select_and_transform_embedding(
 
 
 def embedding(
-    signal_input: Union[Path, Sequence[Path]],
-    signal_source: Union[sources.SourceFromFilename, sources.DelayedSource],
-    background_input: Union[Path, Sequence[Path]],
-    background_source: Union[sources.SourceFromFilename, sources.DelayedSource],
+    signal_input: Path | Sequence[Path],
+    signal_source: sources.SourceFromFilename | sources.DelayedSource,
+    background_input: Path | Sequence[Path],
+    background_source: sources.SourceFromFilename | sources.DelayedSource,
     chunk_size: sources.T_ChunkSize = sources.ChunkSizeSentinel.FULL_SOURCE,
     repeat_unconstrained_when_needed_for_statistics: bool = True,
     background_is_constrained_source: bool = True,
     use_alice_standard_event_selection_on_background: bool = True,
-) -> Union[Tuple[Dict[str, int], ak.Array], Tuple[Dict[str, int], Iterable[ak.Array]]]:
+) -> tuple[dict[str, int], ak.Array] | tuple[dict[str, int], Iterable[ak.Array]]:
     """Load data for embedding.
 
     Note:
@@ -459,8 +461,8 @@ def embedding(
 
     # We only want to pass this to the unconstrained kwargs
     unconstrained_source_kwargs = {"repeat": repeat_unconstrained_when_needed_for_statistics}
-    pythia_source_kwargs: Dict[str, Any] = {}
-    pbpb_source_kwargs: Dict[str, Any] = {}
+    pythia_source_kwargs: dict[str, Any] = {}
+    pbpb_source_kwargs: dict[str, Any] = {}
     if background_is_constrained_source:
         pythia_source_kwargs = unconstrained_source_kwargs
     else:
@@ -512,11 +514,11 @@ def embedding(
 
 
 def embedding_thermal_model(
-    signal_input: Union[Path, Sequence[Path]],
+    signal_input: Path | Sequence[Path],
     signal_source: sources.SourceFromFilename,
     thermal_model_parameters: sources.ThermalModelParameters,
     chunk_size: sources.T_ChunkSize = sources.ChunkSizeSentinel.FULL_SOURCE,
-) -> Union[Tuple[Dict[str, int], ak.Array], Tuple[Dict[str, int], Iterable[ak.Array]]]:
+) -> tuple[dict[str, int], ak.Array] | tuple[dict[str, int], Iterable[ak.Array]]:
     # Setup
     logger.info("Loading thermal model for embedding")
 
