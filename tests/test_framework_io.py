@@ -34,5 +34,8 @@ def test_file_source(caplog: Any, module: str, production_name: str) -> None:
     assert file_source.func.__module__ == f"mammoth.framework.io.{module}"  # type: ignore[attr-defined]
 
     # Since it returns a partial, we can check what arguments are bound
+    # NOTE: We can't actually generate data since we don't have samples for all of the sources.
+    #       If we find this gets brittle in the future, we can add them in, but that requires additional
+    #       coordination to be able to download the files, etc. Easier just to leave as is for now (May 2023).
     assert isinstance(file_source(filename=Path("test.root")), io.sources.Source)
 
