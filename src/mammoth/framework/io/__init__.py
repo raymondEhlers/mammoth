@@ -8,14 +8,8 @@ import inspect
 from functools import partial
 from typing import Any
 
-from mammoth.framework.io import HF_tree
-from mammoth.framework.io import jet_extractor
-from mammoth.framework.io import jetscape
-from mammoth.framework.io import jewel_from_laura
-from mammoth.framework.io import track_skim
-
 from mammoth.framework import sources
-
+from mammoth.framework.io import HF_tree, jet_extractor, jetscape, jewel_from_laura, track_skim
 
 file_source_registry: dict[str, sources.DelayedSource] = {
     "HF_tree": HF_tree.FileSource,
@@ -41,7 +35,8 @@ def file_source(
     try:
         FileSource = file_source_registry[skim_type]
     except KeyError as e:
-        raise ValueError(f"Unknown skim type: {skim_type}") from e
+        msg = f"Unknown skim type: {skim_type}"
+        raise ValueError(msg) from e
 
     # We need to pass only valid args to the file source.
     # The rest of the info will be stored in the metadata.
