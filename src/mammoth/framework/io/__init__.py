@@ -1,0 +1,54 @@
+"""File sources for IO.
+
+.. codeauthor:: Raymond Ehlers <raymond.ehlers@cern.ch>, LBL/UCB
+"""
+
+import copy
+import inspect
+from functools import partial
+from typing import Any
+
+from mammoth.framework.io import HF_tree
+from mammoth.framework.io import jet_extractor
+from mammoth.framework.io import jetscape
+from mammoth.framework.io import jewel_from_laura
+from mammoth.framework.io import track_skim
+
+from mammoth.framework import sources
+
+
+file_source_registry: dict[str, sources.DelayedSource] = {
+    "HF_tree": HF_tree.FileSource,
+    "jet_extractor_jewel": jet_extractor.JEWELFileSource,
+    "jetscape": jetscape.FileSource,
+    "jewel_from_laura": jewel_from_laura.FileSource,
+    "track_skim": track_skim.FileSource,
+}
+
+def file_source(
+    file_source_config: dict[str, Any]
+) -> sources.SourceFromFilename:
+    """Factory to create a file source from a configuration.
+
+    Args:
+        file_source_config: Configuration for the file source.
+
+    Returns:
+        File source with the filename as the remaining argument.
+    """
+    skim_type = file_source_config["skim_type"]
+    FileSource = file_source_registry[skim_type]
+
+    # We need to pass only valid args to the file source.
+    # The rest of the info will be stored in the metadata.
+    # This is a bit of a hack, but I don't want to make the interface too strict, so good enough.
+    metadata = copy.deepcopy(file_source_config)
+    kwargs = {}
+    relevant_kwargs_for_file_source = list(inspect.signature(FileSource).parameters.keys())
+    for k in relevant_kwargs_for_file_source:
+        v = metadata.pop(k, None)
+        if v is not None:
+            kwargs[k] = v
+    kwargs["metadata"] = metadata
+
+    return partial(FileSource, **kwargs)
