@@ -21,6 +21,7 @@ from typing import (
     Protocol,
     Sequence,
     Union,
+    runtime_checkable,
 )
 
 import attrs
@@ -89,6 +90,7 @@ class CanCreateDeferredSourceFromFilename(Protocol):
 _FULL_SOURCE_SIZE: Final[int] = int(1e10)
 
 
+@runtime_checkable
 class Source(Protocol):
     """Data source.
 

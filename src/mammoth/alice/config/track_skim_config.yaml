@@ -69,7 +69,7 @@ skimmed_datasets:
     period: "LBL20_Pythia_FastSim_1"
     anchor_period: ["LHC17p", "LHC17q"]
     # Keep track of the skim type for documentation
-    skim_type: "HF_tree_creator_at_LBL"
+    skim_type: "HF_tree_at_LBL"
     # NOTE: The scale factors need to be copied to the appropriate production directory
     # Binning is the standard binning for LHC18b8
     n_pt_hat_bins: 20
@@ -91,7 +91,7 @@ skimmed_datasets:
     period: "LBL20_Herwig_FastSim_1"
     anchor_period: ["LHC17p", "LHC17q"]
     # Keep track of the skim type for documentation
-    skim_type: "HF_tree_creator_at_LBL"
+    skim_type: "HF_tree_at_LBL"
     # NOTE: The scale factors need to be copied to the appropriate production directory
     # Binning: (5 7 9 12 16 21 28 36 45 57 70 85 99 115 132 150 169 190 212 235 260)
     n_pt_hat_bins: 20
@@ -109,7 +109,7 @@ skimmed_datasets:
     sqrt_s: 5020
     period: ""
     # Keep track of the skim type for documentation
-    skim_type: "track_skim"
+    skim_type: "jetscape"
     legacy_skim: true
     # Parameters of the output
     n_pt_hat_bins: 66

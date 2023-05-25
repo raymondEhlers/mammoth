@@ -19,6 +19,7 @@ from mammoth.framework import sources
 
 file_source_registry: dict[str, sources.DelayedSource] = {
     "HF_tree": HF_tree.FileSource,
+    "HF_tree_at_LBL": HF_tree.FileSource,
     "jet_extractor_jewel": jet_extractor.JEWELFileSource,
     "jetscape": jetscape.FileSource,
     "jewel_from_laura": jewel_from_laura.FileSource,
@@ -37,7 +38,10 @@ def file_source(
         File source with the filename as the remaining argument.
     """
     skim_type = file_source_config["skim_type"]
-    FileSource = file_source_registry[skim_type]
+    try:
+        FileSource = file_source_registry[skim_type]
+    except KeyError as e:
+        raise ValueError(f"Unknown skim type: {skim_type}") from e
 
     # We need to pass only valid args to the file source.
     # The rest of the info will be stored in the metadata.
