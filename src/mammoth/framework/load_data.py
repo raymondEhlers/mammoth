@@ -8,7 +8,7 @@ from __future__ import annotations
 import collections
 import logging
 from pathlib import Path
-from typing import Any, Iterable, Mapping, Sequence
+from typing import Any, Iterator, Mapping, Sequence
 
 import awkward as ak
 import numpy as np
@@ -211,7 +211,7 @@ def data(
     collision_system: str,
     rename_prefix: Mapping[str, str],
     chunk_size: sources.T_ChunkSize = sources.ChunkSizeSentinel.FULL_SOURCE,
-) -> ak.Array | Iterable[ak.Array]:
+) -> ak.Array | Iterator[ak.Array]:
     """Load data for ALICE analysis from the track skim task output.
 
     Could come from a ROOT file or a converted parquet file.
@@ -414,14 +414,14 @@ def _event_select_and_transform_embedding(
 
 def embedding(
     signal_input: Path | Sequence[Path],
-    signal_source: sources.SourceFromFilename | sources.DelayedSource,
+    signal_source: sources.SourceFromFilename,
     background_input: Path | Sequence[Path],
-    background_source: sources.SourceFromFilename | sources.DelayedSource,
+    background_source: sources.SourceFromFilename,
     chunk_size: sources.T_ChunkSize = sources.ChunkSizeSentinel.FULL_SOURCE,
     repeat_unconstrained_when_needed_for_statistics: bool = True,
     background_is_constrained_source: bool = True,
     use_alice_standard_event_selection_on_background: bool = True,
-) -> tuple[dict[str, int], ak.Array] | tuple[dict[str, int], Iterable[ak.Array]]:
+) -> tuple[dict[str, int], ak.Array] | tuple[dict[str, int], Iterator[ak.Array]]:
     """Load data for embedding.
 
     Note:
@@ -518,7 +518,7 @@ def embedding_thermal_model(
     signal_source: sources.SourceFromFilename,
     thermal_model_parameters: sources.ThermalModelParameters,
     chunk_size: sources.T_ChunkSize = sources.ChunkSizeSentinel.FULL_SOURCE,
-) -> tuple[dict[str, int], ak.Array] | tuple[dict[str, int], Iterable[ak.Array]]:
+) -> tuple[dict[str, int], ak.Array] | tuple[dict[str, int], Iterator[ak.Array]]:
     # Setup
     logger.info("Loading thermal model for embedding")
 
