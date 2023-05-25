@@ -22,6 +22,7 @@ from mammoth.alice import helpers as alice_helpers
 from mammoth.framework import jet_finding, load_data
 from mammoth.framework.analysis import array_helpers as analysis_array_helpers
 from mammoth.framework.analysis import jets as analysis_jets
+from mammoth.framework.io import output_utils
 from mammoth.framework.io import track_skim
 
 logger = logging.getLogger(__name__)
@@ -916,7 +917,7 @@ if __name__ == "__main__":
             det_level_artificial_tracking_efficiency=0.99,
             output_trigger_skim=False,
         )
-        merged_hists = mammoth.job_utils.merge_results(merged_hists, hists)
+        merged_hists = output_utils.merge_results(merged_hists, hists)
 
     import IPython
 
@@ -926,4 +927,4 @@ if __name__ == "__main__":
     import uproot
 
     with uproot.recreate("test_eec_thermal_model.root") as f:
-        helpers.write_hists_to_file(hists=merged_hists, f=f)
+        output_utils.write_hists_to_file(hists=merged_hists, f=f)

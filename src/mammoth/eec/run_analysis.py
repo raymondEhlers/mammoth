@@ -23,6 +23,7 @@ from mammoth.framework import production, sources
 from mammoth.framework import task as framework_task
 from mammoth.framework.analysis import jets as analysis_jets
 from mammoth.framework.analysis import objects as analysis_objects
+from mammoth.framework.io import output_utils
 from mammoth.job_utils import python_app
 
 logger = logging.getLogger(__name__)
@@ -1250,7 +1251,7 @@ def process_futures(
             if result.success and result.hists:
                 k = result.collision_system
                 logger.info(f"Found result for key {k}")
-                output_hists[k] = job_utils.merge_results(output_hists[k], result.hists)
+                output_hists[k] = output_utils.merge_results(output_hists[k], result.hists)
             logger.info(f"output_hists: {output_hists}")
             progress.update(track_results, advance=1)
 
@@ -1272,7 +1273,7 @@ def process_futures(
             output_hist_filename.parent.mkdir(parents=True, exist_ok=True)
             logger.info(f"Writing output_hists to {output_hist_filename} for system {system}")
             with uproot.recreate(output_hist_filename) as f:
-                helpers.write_hists_to_file(hists=hists, f=f)
+                output_utils.write_hists_to_file(hists=hists, f=f)
 
     # By embedded here, we can inspect results, etc in the meantime.
     # NOTE: This may be commented out sometimes when I have long running processes and wil

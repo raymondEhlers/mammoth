@@ -16,6 +16,7 @@ from parsl.dataflow.futures import AppFuture
 from rich.progress import Progress
 
 from mammoth import helpers, job_utils
+from mammoth.framework.io import output_utils
 
 logger = logging.getLogger(__name__)
 
@@ -256,7 +257,7 @@ def run() -> None:
             if result[0] and len(result) == 4 and isinstance(result[3], dict):
                 k = result[2]
                 logger.info(f"Found result for key {k}. Merging...")
-                output_hists[k] = job_utils.merge_results(output_hists[k], result[3])
+                output_hists[k] = output_utils.merge_results(output_hists[k], result[3])
             #logger.info(f"output_hists: {output_hists}")
             progress.update(track_results, advance=1)
 
@@ -277,7 +278,7 @@ def run() -> None:
             output_hist_filename.parent.mkdir(parents=True, exist_ok=True)
             logger.info(f"Writing output_hists to {output_hist_filename} for system {system}")
             with uproot.recreate(output_hist_filename) as f:
-                helpers.write_hists_to_file(hists=hists, f=f)
+                output_utils.write_hists_to_file(hists=hists, f=f)
 
     # Add a log message here to get the time that the futures are done
     logger.info("Futures done!")
