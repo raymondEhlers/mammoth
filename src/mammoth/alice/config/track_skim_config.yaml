@@ -470,7 +470,7 @@ productions:
   pp_MC:
     3:
       metadata:
-        dataset: *jetscape_pp19
+        dataset: *JETSCAPE_PP19
         production_number: 3
         label: ""
       settings:
