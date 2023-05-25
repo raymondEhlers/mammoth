@@ -110,6 +110,7 @@ skimmed_datasets:
     period: ""
     # Keep track of the skim type for documentation
     skim_type: "track_skim"
+    legacy_skim: true
     # Parameters of the output
     n_pt_hat_bins: 66
     files:
