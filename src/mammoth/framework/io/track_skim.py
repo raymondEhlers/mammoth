@@ -54,7 +54,7 @@ class Columns:
             column.format(prefix="particle_data"): field_name for column, field_name in _base_particle_columns.items()
         }
         # Pick up the extra columns in the case of pythia
-        if collision_system == "pythia":
+        if collision_system == "pythia" or collision_system == "pp_MC":
             particle_columns.update({
                 column.format(prefix="particle_data"): field_name for column, field_name in _MC_particle_columns.items()
             })
@@ -121,7 +121,7 @@ def _transform_output(
     try:
         data = next(gen_data)
         while True:
-            if collision_system == "pythia":
+            if collision_system == "pythia" or collision_system == "pp_MC":
                 # NOTE: The return values are formatted in this manner to avoid unnecessary copies of the data.
                 particle_gen_columns = {c: v for c, v in _columns.particle_level.items() if "particle_gen" in c}
                 _result = yield ak.Array(

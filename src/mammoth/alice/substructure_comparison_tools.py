@@ -669,7 +669,7 @@ def run(jet_R: float, collision_system: str, prefixes: Sequence[str] | None = No
     logger.info(f"Running {collision_system} with prefixes {prefixes}")
     path_to_mammoth = Path(mammoth.helpers.__file__).parent.parent
     standard_base_filename = "AnalysisResults"
-    if collision_system == "pythia":
+    if (collision_system == "pythia" or collision_system == "pp_MC"):
         standard_base_filename += ".12"
     compare_flat_substructure(
         collision_system=collision_system,

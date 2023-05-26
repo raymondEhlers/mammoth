@@ -117,7 +117,7 @@ def _hardest_kt_data_skim(
     # ak.to_parquet(all_jets, input_filename.parent / Path("intermediate.parquet"))
 
     prefixes = {"data": "data"}
-    if collision_system == "pythia":
+    if (collision_system == "pythia" or collision_system == "pp_MC"):
         assert pt_hat_bin is not None
         # Store externally provided pt hard bin
         all_jets["pt_hard_bin"] = np.ones(len(all_jets["data"]["jet_pt"])) * pt_hat_bin

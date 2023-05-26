@@ -443,7 +443,7 @@ def setup_calculate_data_skim(
         scale_factors = prod.scale_factors()
     # Det level artificial tracking efficiency (pythia only)
     det_level_artificial_tracking_efficiency = None
-    if prod.collision_system == "pythia":
+    if (prod.collision_system == "pythia" or prod.collision_system == "pp_MC"):
         # Artificial tracking efficiency (including the option for pt dependent tracking eff)
         # NOTE: This depends on period, so it's better to do it here!
         det_level_artificial_tracking_efficiency = _analysis_config.get("det_level_artificial_tracking_efficiency", None)

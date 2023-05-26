@@ -116,7 +116,7 @@ def analysis_MC(
     jets = alice_helpers.standard_jet_selection(
         jets=jets,
         jet_R=jet_R,
-        collision_system="pythia",
+        collision_system="pp_MC",
         substructure_constituent_requirements=True,
     )
     logger.info(

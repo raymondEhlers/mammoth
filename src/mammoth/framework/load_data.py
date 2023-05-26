@@ -196,7 +196,7 @@ def _transform_data(
 
         # If we are renaming one of the prefixes to "data", that means that we want to treat it
         # as if it were standard data rather than pythia.
-        if collision_system in ["pythia"] and "data" not in list(rename_prefix.keys()):
+        if collision_system in ["pythia", "pp_MC"] and "data" not in list(rename_prefix.keys()):
             logger.info("Transforming as MC")
             yield normalize_for_MC(arrays=arrays, rename_prefix=rename_prefix)
 

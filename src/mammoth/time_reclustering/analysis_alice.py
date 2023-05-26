@@ -116,7 +116,7 @@ def analysis_MC(
     jets = alice_helpers.standard_jet_selection(
         jets=jets,
         jet_R=jet_R,
-        collision_system="pythia",
+        collision_system="pp_MC",
         substructure_constituent_requirements=True,
     )
     logger.info(
@@ -479,10 +479,10 @@ def run_some_standalone_tests() -> None:
     # pp: needs min_jet_pt = 5 to have any jets
     # collision_system = "pp"
     # pythia: Can test both "part_level" and "det_level" in the rename map.
-    # collision_system = "pythia"
+    # collision_system = "pp_MC"
     # PbPb:
     # collision_system = "PbPb"
-    # for collision_system in ["pp", "pythia", "PbPb"]:
+    # for collision_system in ["pp", "pp_MC", "PbPb"]:
     for collision_system in ["pp"]:
         logger.info(f'Analyzing "{collision_system}"')
         jets = analysis_data(  # noqa: F841
@@ -493,7 +493,7 @@ def run_some_standalone_tests() -> None:
                 ),
                 data_source=partial(track_skim.FileSource, collision_system=collision_system),
                 collision_system=collision_system,
-                rename_prefix={"data": "data"} if collision_system != "pythia" else {"data": "det_level"},
+                rename_prefix={"data": "data"} if collision_system != "pp_MC" else {"data": "det_level"},
             ),
             jet_R=0.4,
             min_jet_pt={"data": 5.0 if collision_system == "pp" else 20.0},
@@ -561,7 +561,7 @@ if __name__ == "__main__":
     #        ),
     #        data_source=partial(track_skim.FileSource, collision_system=collision_system),
     #        collision_system=collision_system,
-    #        rename_prefix={"data": "data"} if collision_system != "pythia" else {"data": "det_level"},
+    #        rename_prefix={"data": "data"} if collision_system != "pp_MC" else {"data": "det_level"},
     #    ),
     #    jet_R=0.2,
     #    min_jet_pt={"data": 20.0 if collision_system == "pp" else 20.0},
@@ -570,7 +570,7 @@ if __name__ == "__main__":
 
     source_index_identifiers, iter_arrays = load_data.embedding(
         signal_input=[Path("trains/pythia/2640/run_by_run/LHC20g4/296191/1/AnalysisResults.20g4.008.root")],
-        signal_source=partial(track_skim.FileSource, collision_system="pythia"),
+        signal_source=partial(track_skim.FileSource, collision_system="pp_MC"),
         background_input=[
             Path("trains/PbPb/645/run_by_run/LHC18r/296799/AnalysisResults.18r.179.root"),
             Path("trains/PbPb/645/run_by_run/LHC18r/296894/AnalysisResults.18r.337.root"),
