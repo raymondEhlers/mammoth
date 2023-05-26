@@ -33,13 +33,39 @@ def output_path_skim(output_filename: Path, skim_name: str) -> Path:
     return output_filename.parent / skim_name / output_filename.name
 
 
+def check_for_root_skim_output_file(output_filename: Path, reference_tree_name: str = "tree") -> tuple[bool, str]:
+    # Try to bail out as early to avoid reprocessing if possible.
+    # First, check for the empty filename
+    empty_filename = output_filename.with_suffix(".empty")
+    if empty_filename.exists():
+        # It will be empty, so there's nothing to check. Just return
+        return (True, "Done - found empty file indicating that there are no tree outputs after analysis")
+
+    # Next, check the contents of the output file
+    if output_filename.exists():
+        if reference_tree_name:
+            try:
+                with uproot.open(output_filename) as f:
+                    # If the tree exists, can be read, and has more than 0 entries, we should be good
+                    if f[reference_tree_name].num_entries > 0:
+                        # Return immediately to indicate that we're done.
+                        return (True, f"already processed (confirmed)")
+            except Exception:
+                # If it fails for some reason, give up - we want to try again
+                pass
+        else:
+            return (True, "already processed (no reference tree name provided, but file exists)")
+
+    return (False, "")
+
+
 def check_for_parquet_skim_output_file(output_filename: Path, reference_array_name: str = "") -> tuple[bool, str]:
     # Try to bail out as early to avoid reprocessing if possible.
     # First, check for the empty filename
     empty_filename = output_filename.with_suffix(".empty")
     if empty_filename.exists():
         # It will be empty, so there's nothing to check. Just return
-        return (True, "Done - found empty file indicating that there are no hists after analysis")
+        return (True, "Done - found empty file indicating that there are no array outputs after analysis")
 
     # Next, check the contents of the output file
     if output_filename.exists():
@@ -316,7 +342,6 @@ class FailedToSetupSourceError(Exception):
 
 def check_for_task_output(
     output_options: OutputOptions,
-    output_filename: Path,
     chunk_size: sources.T_ChunkSize | None = None,
 ) -> tuple[bool, str]:
     """ Check for outputs to skip processing early if possible.
@@ -343,15 +368,19 @@ def check_for_task_output(
     #       check when there is meaningful output, as defined by the two conditions above.
     if chunk_size is None or (chunk_size == sources.ChunkSizeSentinel.SINGLE_FILE or chunk_size == sources.ChunkSizeSentinel.FULL_SOURCE) or output_options.write_merged_hists:
         if output_options.primary_output.type == "skim":
-            # NOTE: Use "hybrid_reference" as a proxy. Better to use reference than signal since we're more likely
-            #       to have reference triggers.
-            res = check_for_parquet_skim_output_file(
-                output_filename=output_path_skim(output_filename=output_filename, skim_name=output_options.primary_output.name),
-                reference_array_name=output_options.primary_output.reference_name,
-            )
+            if output_options.output_filename.suffix == ".root":
+                res = check_for_root_skim_output_file(
+                    output_filename=output_path_skim(output_filename=output_options.output_filename, skim_name=output_options.primary_output.name),
+                    reference_tree_name=output_options.primary_output.reference_name,
+                )
+            else:
+                res = check_for_parquet_skim_output_file(
+                    output_filename=output_path_skim(output_filename=output_options.output_filename, skim_name=output_options.primary_output.name),
+                    reference_array_name=output_options.primary_output.reference_name,
+                )
         if output_options.primary_output.type == "hists":
             res = check_for_hist_output_file(
-                output_filename=output_path_hist(output_filename=output_filename),
+                output_filename=output_path_hist(output_filename=output_options.output_filename),
                 reference_hist_name=output_options.primary_output.reference_name,
             )
 
@@ -366,38 +395,9 @@ Concept:
 
 """
 
-import copy
-import inspect
 from functools import partial
 
-file_source_registry: dict[str, type[sources.SourceFromFilename]] = {}
-
-def register(module_name: str, cls: type[sources.SourceFromFilename]) -> type[sources.SourceFromFilename]:
-    file_source_registry[module_name] = cls
-    return cls
-
-
-# TODO: This should go in something like framework.io.file_source
-def file_source_factory(
-    file_source_config: dict[str, Any]
-) -> sources.SourceFromFilename:
-    skim_type = file_source_config["skim_type"]
-    FileSource = file_source_registry[skim_type]
-
-    # Grab possible arguments
-    metadata = copy.deepcopy(file_source_config)
-    kwargs = {}
-    relevant_kwargs_for_file_source = list(inspect.signature(FileSource).parameters.keys())
-    for k in relevant_kwargs_for_file_source:
-        v = metadata.pop(k, None)
-        if v is not None:
-            kwargs[k] = v
-    kwargs["metadata"] = metadata
-
-    return partial(FileSource, **kwargs)
-
-
-def setup_embedding_for_task(
+def setup_source_for_embedding(
     *,
     # Task settings
     task_settings: TaskSettings,
@@ -429,7 +429,6 @@ def setup_embedding_for_task(
 
     res = check_for_task_output(
         output_options=output_options,
-        output_filename=output_options.output_filename,
         chunk_size=task_settings.chunk_size
     )
     if res[0]:
@@ -468,7 +467,7 @@ def setup_embedding_for_task(
     return source_index_identifiers, iter_arrays
 
 
-def setup_embedding_thermal_model_source_for_task(
+def setup_source_for_embedding_thermal_model(
     *,
     # Task settings
     task_settings: TaskSettings,
@@ -493,7 +492,6 @@ def setup_embedding_thermal_model_source_for_task(
 
     res = check_for_task_output(
         output_options=output_options,
-        output_filename=output_options.output_filename,
         chunk_size=task_settings.chunk_size
     )
     if res[0]:
@@ -535,25 +533,14 @@ def setup_embedding_thermal_model_source_for_task(
 #) -> ...:
 #    ...
 
-
-def steer_embed_analysis(
+def steer_embed_task(
     task_settings: TaskSettings,
     #####
-    # I/O arguments
-    # Inputs
-    iter_arrays: Iterator[ak.Array],
-    # Outputs
-    output_options: OutputOptions,
-    # Analysis arguments
-    # ...
-    # trigger_pt_ranges: dict[str, tuple[float, float]],
-    # min_track_pt: dict[str, float],
-    # momentum_weight_exponent: int | float,
-    # det_level_artificial_tracking_efficiency: float,
-    # scale_factor: float,
-    # Default analysis parameters
-    validation_mode: bool = False,
 ) -> framework_task.Output:
+    # Validation
+    if "embed" not in task_settings.collision_system:
+        msg = f"Trying to use embedding steering with wrong collision system {task_settings.collision_system}"
+        raise RuntimeError(msg)
 
     # TODO: Parametrize this
     # Setup
@@ -568,9 +555,55 @@ def steer_embed_analysis(
     _description = analysis_conventions.description_from_parameters(parameters=_parameters)
     # ENDTODO
 
+    source_index_identifiers, iter_arrays = setup_source_for_embedding(task_settings=task_settings)
+
+    return steer_embed_task_exeuction(
+        task_settings=task_settings,
+        source_index_identifiers=source_index_identifiers,
+        iter_arrays=iter_arrays,
+        output_options=output_options,
+    )
+
+
+from typing import Protocol
+
+class EmbeddingAnalysis(Protocol):
+
+    def __call__(self, source_index_identifiers: dict[str, int], arrays: ak.Array) -> AnalysisOutput:
+        ...
+
+
+def steer_embed_task_execution(
+    *,
+    task_settings: TaskSettings,
+    #####
+    # I/O arguments
+    # Inputs
+    source_index_identifiers: dict[str, int],
+    iter_arrays: Iterator[ak.Array],
+    # Outputs
+    output_options: OutputOptions,
+    # Analysis arguments
+    analysis_func: EmbeddingAnalysis,
+    # ...
+    # trigger_pt_ranges: dict[str, tuple[float, float]],
+    # min_track_pt: dict[str, float],
+    # momentum_weight_exponent: int | float,
+    # det_level_artificial_tracking_efficiency: float,
+    # scale_factor: float,
+    # Default analysis parameters
+    validation_mode: bool = False,
+) -> framework_task.Output:
+    # Validation
+    if output_options.return_skim and not (task_settings.chunk_size == sources.ChunkSizeSentinel.SINGLE_FILE or task_settings.chunk_size == sources.ChunkSizeSentinel.FULL_SOURCE):
+        # NOTE: Returning the skim is only supported for the case where we're processing a single file or the full source
+        msg = "Cannot return skim if processing in chunks. Update your output options."
+        raise ValueError(msg)
+
     _nonstandard_results = []
-    hists: dict[str, hist.Hist] = {}
+    task_hists: dict[str, hist.Hist] = {}
     i_chunk = 0
+    # NOTE: We use a while loop here so that we can bail out on processing before we even read the data if the file already exists.
     try:
         while True:
             # Setup
@@ -583,11 +616,11 @@ def steer_embed_analysis(
                 )
             else:
                 _output_filename = output_options.output_filename
+            local_output_options = output_options.with_new_output_filename(_output_filename)
 
             # Try to bail out as early to avoid reprocessing if possible.
             res = check_for_task_output(
-                output_options=output_options,
-                output_filename=_output_filename,
+                output_options=local_output_options,
             )
             if res[0]:
                 _nonstandard_results.append(res)
@@ -598,17 +631,21 @@ def steer_embed_analysis(
             arrays = next(iter_arrays)
 
             try:
-                analysis_output = analysis_alice.analysis_embedding(
+                analysis_output = analysis_func(
                     source_index_identifiers=source_index_identifiers,
                     arrays=arrays,
-                    trigger_pt_ranges=trigger_pt_ranges,
-                    min_track_pt=min_track_pt,
-                    momentum_weight_exponent=momentum_weight_exponent,
-                    scale_factor=scale_factor,
-                    det_level_artificial_tracking_efficiency=det_level_artificial_tracking_efficiency,
-                    output_trigger_skim=output_skim,
-                    validation_mode=validation_mode,
                 )
+                #analysis_output = analysis_alice.analysis_embedding(
+                #    source_index_identifiers=source_index_identifiers,
+                #    arrays=arrays,
+                #    trigger_pt_ranges=trigger_pt_ranges,
+                #    min_track_pt=min_track_pt,
+                #    momentum_weight_exponent=momentum_weight_exponent,
+                #    scale_factor=scale_factor,
+                #    det_level_artificial_tracking_efficiency=det_level_artificial_tracking_efficiency,
+                #    output_trigger_skim=output_skim,
+                #    validation_mode=validation_mode,
+                #)
             except sources.NoDataAvailableError as e:
                 # Just create the empty filename and return. This will prevent trying to re-run with no jets in the future.
                 # Remember that this depends heavily on the jet pt cuts!
@@ -621,69 +658,40 @@ def steer_embed_analysis(
                 logger.info(_message)
                 continue
 
-            trigger_skim: dict[str, ak.Array] | None = None
-            if output_skim:
-                assert not isinstance(analysis_output, dict)
-                analysis_hists, trigger_skim = analysis_output
-            else:
-                assert isinstance(analysis_output, dict)
-                analysis_hists = analysis_output
-
-            # Merge the output hists
-            if analysis_hists:
-                from mammoth import job_utils
-
-                hists = output_utils.merge_results(hists, analysis_hists)
-
-            if trigger_skim:
-                for skim_name, skim_array in trigger_skim.items():
-                    _skim_output_filename = output_path_skim(output_filename=_output_filename, skim_name=skim_name)
-                    _skim_output_filename.parent.mkdir(parents=True, exist_ok=True)
-                    if ak.num(skim_array, axis=0) == 0:
-                        # Skip the skim if it's empty
-                        _skim_output_filename.with_suffix(".empty").touch()
-                    else:
-                        # Write the skim
-                        ak.to_parquet(
-                            array=skim_array,
-                            destination=str(_skim_output_filename),
-                            compression="zstd",
-                            # Optimize for columns with anything other than floats
-                            parquet_dictionary_encoding=True,
-                            # Optimize for columns with floats
-                            parquet_byte_stream_split=True,
-                        )
+            analysis_output.merge_hists(task_hists=task_hists)
+            analysis_output.write(output_filename=local_output_options.output_filename)
 
             # Cleanup (may not be necessary, but it doesn't hurt)
             del arrays
-            del analysis_hists
-            del analysis_output
-            if trigger_skim:
-                del trigger_skim
+            # We can't delete the analysis output if we're going to return the skim
+            # (again, we can only do this if we analyze in one chunk)
+            if not output_options.return_skim:
+                del analysis_output
 
             # Setup for next loop
-            i += 1
+            i_chunk += 1
     except StopIteration:
         ...
 
     # Write hists
-    if hists:
-        output_hist_filename = output_path_hist(output_filename=output_filename)
+    if task_hists:
+        output_hist_filename = output_path_hist(output_filename=output_options.output_filename)
         output_hist_filename.parent.mkdir(parents=True, exist_ok=True)
         with uproot.recreate(output_hist_filename) as f:
-            output_utils.write_hists_to_file(hists=hists, f=f)
+            output_utils.write_hists_to_file(hists=task_hists, f=f)
 
     # Cleanup
-    if not return_hists:
-        del hists
+    if not output_options.return_merged_hists:
+        del task_hists
 
     return framework_task.Output(
-        production_identifier=production_identifier,
-        collision_system=collision_system,
+        production_identifier=task_settings.production_identifier,
+        collision_system=task_settings.collision_system,
         success=True,
         message=f"success for {_description}"
         + (f". Additional non-standard results: {_nonstandard_results}" if _nonstandard_results else ""),
-        hists=hists if return_hists else {},
+        hists=task_hists if output_options.return_merged_hists else {},
+        results=analysis_output.skim if output_options.return_skim else {},
         metadata=output_metadata,
     )
 
@@ -698,9 +706,20 @@ class OutputOptions:
     primary_output: PrimaryOutput
     return_skim: bool | None = attrs.field(default=None)
     write_chunk_skim: bool | None = attrs.field(default=None)
-    return_hists: bool | None = attrs.field(default=None)
+    return_merged_hists: bool | None = attrs.field(default=None)
     write_chunk_hists: bool | None = attrs.field(default=None)
     write_merged_hists: bool | None = attrs.field(default=None)
+
+    def with_new_output_filename(self, new_output_filename: Path) -> OutputOptions:
+        return type(self)(
+            output_filename=new_output_filename,
+            primary_output=self.primary_output,
+            return_skim=self.return_skim,
+            write_chunk_skim=self.write_chunk_skim,
+            return_merged_hists=self.return_merged_hists,
+            write_chunk_hists=self.write_chunk_hists,
+            write_merged_hists=self.write_merged_hists,
+        )
 
 @attrs.frozen(kw_only=True)
 class PrimaryOutput:
@@ -721,21 +740,25 @@ from mammoth.framework.io import output_utils
 import attrs
 @attrs.frozen(kw_only=True)
 class AnalysisOutput:
-    output_filename: Path = attrs.field()
     hists: dict[str, hist.Hist] = attrs.field(factory=dict)
     write_hists: bool | None = attrs.field(default=None)
     skim: ak.Array | dict[str, ak.Array] = attrs.field(factory=dict)
     write_skim: bool | None = attrs.field(default=None)
 
-    def _write_hists(self) -> None:
-        output_hist_filename = output_path_hist(output_filename=self.output_filename)
+    def _write_hists(self, output_filename: Path) -> None:
+        output_hist_filename = output_path_hist(output_filename=output_filename)
         output_hist_filename.parent.mkdir(parents=True, exist_ok=True)
         with uproot.recreate(output_hist_filename) as f:
             output_utils.write_hists_to_file(hists=self.hists, f=f)
 
-    def _write_skim(self, skim: dict[str, ak.Array]) -> None:
+    def _write_skim(self, output_filename: Path, skim: dict[str, ak.Array]) -> None:
         for skim_name, skim_array in skim.items():
-            _skim_output_filename = output_path_skim(output_filename=self.output_filename, skim_name=skim_name)
+            # Enables the possibility of writing a single standard file (just wrap in a dict with an empty string as key).
+            if skim_name != "":
+                _skim_output_filename = output_path_skim(output_filename=output_filename, skim_name=skim_name)
+            else:
+                _skim_output_filename = output_filename
+
             _skim_output_filename.parent.mkdir(parents=True, exist_ok=True)
             if ak.num(skim_array, axis=0) == 0:
                 # Skip the skim if it's empty
@@ -752,7 +775,7 @@ class AnalysisOutput:
                     parquet_byte_stream_split=True,
                 )
 
-    def write(self) -> bool:
+    def write(self, output_filename: Path) -> None:
         # If not specified, fall back to the default, which is to write the analysis outputs if they're provided
         write_hists = self.write_hists
         if write_hists is None:
@@ -768,23 +791,16 @@ class AnalysisOutput:
             skim = self.skim
 
         # Write if requested
-        # TODO: What about merging hists?
-        #hists = output_utils.merge_results(hists, analysis_hists)
         if write_hists:
-            self._write_hists()
+            self._write_hists(output_filename=output_filename)
 
         if write_skim:
-            self._write_skim(skim=skim)
+            self._write_skim(output_filename=output_filename, skim=skim)
 
-        return True
-
-
-
-# NOTE: Needs to have information injected or bound...
-def analysis_func(
-    arrays: ak.Array,
-) -> tuple[dict[str, hist.Hist], ak.Array | dict[str, ak.Array]]:
-    ...
+    def merge_hists(self, task_hists: dict[str, hist.Hist]) -> None:
+        # No point in trying to merge if there are no hists!
+        if self.hists:
+            task_hists = output_utils.merge_results(task_hists, self.hists)
 
 
 def steer_embed_thermal_model_analysis(  # noqa: C901
