@@ -8,6 +8,7 @@ Note that the embedding analysis supports analyzing embedding data as well as in
 from __future__ import annotations
 
 import logging
+from functools import partial
 from pathlib import Path
 from typing import Any, Mapping
 
@@ -480,7 +481,7 @@ def run_some_standalone_tests() -> None:
                 data_input=Path(
                     f"/software/rehlers/dev/mammoth/projects/framework/{collision_system}/AnalysisResults_track_skim.parquet"
                 ),
-                data_source=track_skim.FileSource.create_deferred_source(collision_system=collision_system),
+                data_source=partial(track_skim.FileSource, collision_system=collision_system),
                 collision_system=collision_system,
                 rename_prefix={"data": "data"} if collision_system != "pythia" else {"data": "det_level"},
             ),
@@ -548,7 +549,7 @@ if __name__ == "__main__":
     #        data_input=Path(
     #            "trains/PbPb/645/run_by_run/LHC18q/296270/AnalysisResults.18q.580.root"
     #        ),
-    #        data_source=track_skim.FileSource.create_deferred_source(collision_system=collision_system),
+    #        data_source=partial(track_skim.FileSource, collision_system=collision_system),
     #        collision_system=collision_system,
     #        rename_prefix={"data": "data"} if collision_system != "pythia" else {"data": "det_level"},
     #    ),
@@ -559,12 +560,12 @@ if __name__ == "__main__":
 
     source_index_identifiers, iter_arrays = load_data.embedding(
         signal_input=[Path("trains/pythia/2640/run_by_run/LHC20g4/296191/1/AnalysisResults.20g4.008.root")],
-        signal_source=track_skim.FileSource.create_deferred_source(collision_system="pythia"),
+        signal_source=partial(track_skim.FileSource, collision_system="pythia"),
         background_input=[
             Path("trains/PbPb/645/run_by_run/LHC18r/296799/AnalysisResults.18r.179.root"),
             Path("trains/PbPb/645/run_by_run/LHC18r/296894/AnalysisResults.18r.337.root"),
         ],
-        background_source=track_skim.FileSource.create_deferred_source(collision_system="PbPb"),
+        background_source=partial(track_skim.FileSource, collision_system="PbPb"),
         background_is_constrained_source=False,
         chunk_size=2500,
     )

@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import logging
 import typing
+from functools import partial
 from pathlib import Path
 from typing import Any, Literal, Mapping
 
@@ -793,7 +794,7 @@ def run_some_standalone_tests() -> None:
                 data_input=Path(
                     f"/software/rehlers/dev/mammoth/projects/framework/{collision_system}/AnalysisResults_track_skim.parquet"
                 ),
-                data_source=track_skim.FileSource.create_deferred_source(collision_system=collision_system),
+                data_source=partial(track_skim.FileSource, collision_system=collision_system),
                 collision_system=collision_system,
                 rename_prefix={"data": "data"} if collision_system != "pythia" else {"data": "det_level"},
             ),
@@ -861,7 +862,7 @@ if __name__ == "__main__":
     #        data_input=Path(
     #            "trains/PbPb/645/run_by_run/LHC18q/296270/AnalysisResults.18q.580.root"
     #        ),
-    #        data_source=track_skim.FileSource.create_deferred_source(collision_system=collision_system),
+    #        data_source=partial(track_skim.FileSource, collision_system=collision_system),
     #        collision_system=collision_system,
     #        rename_prefix={"data": "data"} if collision_system != "pythia" else {"data": "det_level"},
     #    ),
@@ -874,12 +875,12 @@ if __name__ == "__main__":
     #    #signal_input=[Path("trains/pythia/2640/run_by_run/LHC20g4/296191/1/AnalysisResults.20g4.008.root")],
     #    # NOTE: This isn't anchored, but it's convenient for testing...
     #    signal_input=[Path("trains/pythia/2619/run_by_run/LHC18b8_fast/282125/14/AnalysisResults.18b8_fast.008.root")],
-    #    signal_source=track_skim.FileSource.create_deferred_source(collision_system="pythia"),
+    #    signal_source=partial(track_skim.FileSource, collision_system="pythia"),
     #    background_input=[
     #        Path("trains/PbPb/645/run_by_run/LHC18r/296799/AnalysisResults.18r.179.root"),
     #        Path("trains/PbPb/645/run_by_run/LHC18r/296894/AnalysisResults.18r.337.root"),
     #    ],
-    #    background_source=track_skim.FileSource.create_deferred_source(collision_system="PbPb"),
+    #    background_source=partial(track_skim.FileSource, collision_system="PbPb"),
     #    background_is_constrained_source=False,
     #    chunk_size=2500,
     #)
@@ -888,7 +889,7 @@ if __name__ == "__main__":
         # NOTE: This isn't anchored, but it's convenient for testing...
         #signal_input=[Path("trains/pythia/2619/run_by_run/LHC18b8_fast/282125/14/AnalysisResults.18b8_fast.008.root")],
         signal_input=[Path("trains/pythia/2640/run_by_run/LHC20g4/296415/4/AnalysisResults.20g4.011.root")],
-        signal_source=track_skim.FileSource.create_deferred_source(collision_system="pythia"),
+        signal_source=partial(track_skim.FileSource, collision_system="pythia"),
         thermal_model_parameters=sources.THERMAL_MODEL_SETTINGS["5020_central"],
         #chunk_size=2500,
         chunk_size=1000,

@@ -70,22 +70,6 @@ class SourceFromFilename(Protocol):
         ...
 
 
-class CanCreateDeferredSourceFromFilename(Protocol):
-    """Create a deferred source which will take a filename.
-
-    This is used for typing FileSource which create deferred sources, but it's much more convenient
-    if it's available from the sources module.
-    """
-
-    def create_deferred_source(
-        self,
-        collision_system: str,
-        default_chunk_size: T_ChunkSize = ChunkSizeSentinel.FULL_SOURCE,
-        metadata: MutableMapping[str, Any] | None = None,
-    ) -> SourceFromFilename:
-        ...
-
-
 # Allows loading all chunks by picking a number larger than any possible (set of) file(s).
 _FULL_SOURCE_SIZE: Final[int] = int(1e10)
 
@@ -516,34 +500,6 @@ class ThermalModelExponential:
             # If we want to stop after one iteration, we need to do it now
             if self._stop_iterating_after_one_chunk:
                 return
-
-    @classmethod
-    def create_deferred_source(
-        cls,
-        thermal_model_parameters: ThermalModelParameters,
-        particle_column_prefix: str = "data",
-        stop_iterating_after_one_chunk: bool = False,
-        default_chunk_size: T_ChunkSize = ChunkSizeSentinel.FIXED_SIZE,
-    ) -> DelayedSource:
-        """Create a FileSource with a closure such that all arguments are set except for the filename.
-
-        Args:
-            collision_system: The collision system of the data.
-            default_chunk_size: The default chunk size to use when generating data.
-
-        Returns:
-            A Callable which takes the filename and creates the FileSource.
-        """
-
-        def wrap(*args: Any, **kwargs: Any) -> ThermalModelExponential:  # noqa: ARG001
-            return cls(
-                thermal_model_parameters=thermal_model_parameters,
-                particle_column_prefix=particle_column_prefix,
-                stop_iterating_after_one_chunk=stop_iterating_after_one_chunk,
-                default_chunk_size=default_chunk_size,
-            )
-
-        return wrap
 
 
 def _sources_to_list(sources: Source | Sequence[Source]) -> Sequence[Source]:

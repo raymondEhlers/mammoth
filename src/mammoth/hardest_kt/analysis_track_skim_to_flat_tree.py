@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import collections
 import logging
+from functools import partial
 from pathlib import Path
 from typing import Any, Mapping, Sequence
 
@@ -18,7 +19,7 @@ from mammoth.framework import load_data, sources
 from mammoth.framework.analysis import conventions as analysis_conventions
 from mammoth.framework.analysis import jets as analysis_jets
 from mammoth.framework.analysis import objects as analysis_objects
-from mammoth.framework.io import HF_tree, track_skim
+from mammoth.framework.io import jetscape, HF_tree, track_skim
 from mammoth.hardest_kt import analysis_alice, skim_to_flat_tree
 
 logger = logging.getLogger(__name__)
@@ -28,12 +29,14 @@ SKIM_TYPES = [
     "track_skim",
     "HF_tree_creator",
     "HF_tree_creator_at_LBL",
+    "jetscape",
 ]
 
-skim_types_to_file_source: dict[str, sources.CanCreateDeferredSourceFromFilename] = {
+skim_types_to_file_source: dict[str, sources.DelayedSource] = {
     "track_skim": track_skim.FileSource,
     "HF_tree_creator": HF_tree.FileSource,
     "HF_tree_creator_at_LBL": HF_tree.FileSource,
+    "jetscape": jetscape.FileSource,
 }
 
 
@@ -185,7 +188,7 @@ def hardest_kt_data_skim(
                 collision_system=collision_system,
                 arrays=load_data.data(
                     data_input=input_filename,
-                    data_source=FileSource.create_deferred_source(collision_system=collision_system),
+                    data_source=partial(FileSource, collision_system=collision_system),
                     collision_system=collision_system,
                     rename_prefix=loading_data_rename_prefix,
                 ),
@@ -205,7 +208,7 @@ def hardest_kt_data_skim(
             jets = analysis_alice.analysis_MC(
                 arrays=load_data.data(
                     data_input=input_filename,
-                    data_source=FileSource.create_deferred_source(collision_system=collision_system),
+                    data_source=partial(FileSource, collision_system=collision_system),
                     collision_system=collision_system,
                     rename_prefix=loading_data_rename_prefix,
                 ),
@@ -335,7 +338,7 @@ def hardest_kt_embed_thermal_model_skim(  # noqa: C901
     try:
         source_index_identifiers, iter_arrays = load_data.embedding_thermal_model(
             signal_input=signal_input_filenames,
-            signal_source=track_skim.FileSource.create_deferred_source(collision_system="pythia"),
+            signal_source=partial(track_skim.FileSource, collision_system="pythia"),
             thermal_model_parameters=thermal_model_parameters,
             chunk_size=chunk_size,
         )
@@ -498,9 +501,9 @@ def hardest_kt_embedding_skim(  # noqa: C901
     try:
         source_index_identifiers, iter_arrays = load_data.embedding(
             signal_input=signal_input_filenames,
-            signal_source=track_skim.FileSource.create_deferred_source(collision_system="pythia"),
+            signal_source=partial(track_skim.FileSource, collision_system="pythia"),
             background_input=background_input_filenames,
-            background_source=track_skim.FileSource.create_deferred_source(collision_system="PbPb"),
+            background_source=partial(track_skim.FileSource, collision_system="PbPb"),
             background_is_constrained_source=background_is_constrained_source,
             chunk_size=chunk_size,
         )

@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import collections
 import logging
+from functools import partial
 from pathlib import Path
 from typing import Any, Iterator, Mapping, Sequence
 
@@ -528,7 +529,8 @@ def embedding_thermal_model(
         # NOTE: We can't just pass an empty list because we loop over this list to create the background source.
         #       However, since we don't actually care about the value, we just pass a dummy value.
         background_input=[Path("dummy")],
-        background_source=sources.ThermalModelExponential.create_deferred_source(
+        background_source=partial(
+            sources.ThermalModelExponential,
             thermal_model_parameters=thermal_model_parameters,
         ),
         chunk_size=chunk_size,

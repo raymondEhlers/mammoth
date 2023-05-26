@@ -1,5 +1,6 @@
 
 import logging
+from functools import partial
 from pathlib import Path
 from typing import Any
 
@@ -34,9 +35,9 @@ def test_embedding_load_data_source_fixed_size_chunks(caplog: Any, chunk_size: i
 
     _, iter_arrays = load_data.embedding(
         signal_input=[_track_skim_base_path / "reference" / "AnalysisResults__pythia__jet_R020.root"] * _n_repeat_pythia,
-        signal_source=track_skim.FileSource.create_deferred_source(collision_system="pythia"),
+        signal_source=partial(track_skim.FileSource, collision_system="pythia"),
         background_input=[_track_skim_base_path / "reference" / "AnalysisResults__PbPb__jet_R020.root"] * _n_repeat_background,
-        background_source=track_skim.FileSource.create_deferred_source(collision_system="PbPb"),
+        background_source=partial(track_skim.FileSource, collision_system="PbPb"),
         background_is_constrained_source=background_is_constrained_source,
         chunk_size=chunk_size,
     )
