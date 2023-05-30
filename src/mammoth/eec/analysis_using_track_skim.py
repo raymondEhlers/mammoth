@@ -111,6 +111,9 @@ def check_for_hist_output_file(output_filename: Path, reference_hist_name: str =
 
     return (False, "")
 
+def description_from_parameters(parameters: dict[str, Any]) -> str:
+    return ", ".join([f"{k}={v}" for k, v in parameters.items()])
+
 
 def eec_embed_thermal_model_analysis(  # noqa: C901
     production_identifier: str,
@@ -319,6 +322,8 @@ def eec_embed_thermal_model_analysis(  # noqa: C901
 
 # TODO: Need to finish prototyping how I'm actually going to do this...
 
+# New code starting from here
+
 class FailedToSetupSourceError(Exception):
     """Failed to setup the input source for the task.
 
@@ -387,6 +392,35 @@ def check_for_task_output(
     return res
 
 
+
+class SetupSource(Protocol):
+    def __call__(
+            self,
+            *,
+            task_settings: TaskSettings,
+            output_options: OutputOptions,
+            **kwargs: Any,
+        #) -> tuple[Iterator[ak.Array], dict[str, Any]]:
+        # TODO: If this doesn't unpack correctly, then can just split into a separate embedding source protocol..
+        ) -> tuple[Iterator[ak.Array], dict[str, Any]] | tuple[Iterator[ak.Array], dict[str, Any], dict[str, int]]:
+        ...
+
+#class SetupEmbeddingSource(Protocol):
+#    def __call__(
+#            self,
+#            *,
+#            task_settings: TaskSettings,
+#            output_options: OutputOptions,
+#            signal_input: Path | Sequence[Path],
+#            **kwargs: Any,
+#        ) -> tuple[Iterator[ak.Array], dict[str, Any]] | tuple[Iterator[ak.Array], dict[str, Any], dict[str, int]]:
+#        ...
+#
+#
+#def test_func(test_f: SetupSource) -> None:
+#
+#    a, b, c = test_f(task_settings=task_settings, output_options=output_options)
+
 """
 
 Concept:
@@ -409,9 +443,22 @@ def setup_source_for_embedding(
     background_is_constrained_source: bool,
     # Outputs
     output_options: OutputOptions,
-) -> tuple[dict[str, int], Iterator[ak.Array]]:
+) -> tuple[Iterator[ak.Array], dict[str, Any], dict[str, int]]:
     """ Setup embed MC source for a analysis task.
 
+    Args:
+        task_settings: Task settings.
+        signal_input: Input signal file(s).
+        signal_source: Source for the signal.
+        background_input: Input background file(s).
+        background_source: Source for the background.
+        background_is_constrained_source: Whether the background is the constrained source.
+        output_options: Output options.
+    Returns:
+        (iter_arrays, description_parameters, source_index_identifiers), where:
+            iter_arrays: Iterator over the arrays to process.
+            description_parameters: Parameters for the task description.
+            source_index_identifiers: Mapping of source index to identifier.
     Raises:
         FailedToSetupSourceError: If the source could not be setup.
     """
@@ -426,6 +473,12 @@ def setup_source_for_embedding(
         background_input_filenames = [background_input]
     else:
         background_input_filenames = list(background_input)
+
+    # Description parameters
+    description_parameters = {
+        "signal_input_filenames": str([str(_filename) for _filename in signal_input_filenames]),
+        "background_input_filename": str([str(_filename) for _filename in background_input_filenames]),
+    }
 
     res = check_for_task_output(
         output_options=output_options,
@@ -464,7 +517,7 @@ def setup_source_for_embedding(
         iter_arrays = iter([iter_arrays])
     assert not isinstance(iter_arrays, ak.Array), "Check configuration. This should be an iterable, not an ak.Array!"
 
-    return source_index_identifiers, iter_arrays
+    return iter_arrays, description_parameters, source_index_identifiers
 
 
 def setup_source_for_embedding_thermal_model(
@@ -477,9 +530,20 @@ def setup_source_for_embedding_thermal_model(
     thermal_model_parameters: sources.ThermalModelParameters,
     # Outputs
     output_options: OutputOptions,
-) -> tuple[dict[str, int], Iterator[ak.Array]]:
-    """ Setup embed MC source for a analysis task.
+) -> tuple[Iterator[ak.Array], dict[str, Any], dict[str, int]]:
+    """ Setup embed MC into thermal model source for a analysis task.
 
+    Args:
+        task_settings: Task settings.
+        signal_input: Input signal file(s).
+        signal_source: Source for the signal.
+        thermal_model_parameters: Parameters for the thermal model.
+        output_options: Output options.
+    Returns:
+        (iter_arrays, description_parameters, source_index_identifiers), where:
+            iter_arrays: Iterator over the arrays to process.
+            description_parameters: Parameters for the task description.
+            source_index_identifiers: Mapping of source index to identifier.
     Raises:
         FailedToSetupSourceError: If the source could not be setup.
     """
@@ -489,6 +553,11 @@ def setup_source_for_embedding_thermal_model(
         signal_input_filenames = [signal_input]
     else:
         signal_input_filenames = list(signal_input)
+
+    # Description parameters
+    description_parameters = {
+        "signal_input_filenames": str([str(_filename) for _filename in signal_input_filenames]),
+    }
 
     res = check_for_task_output(
         output_options=output_options,
@@ -523,182 +592,25 @@ def setup_source_for_embedding_thermal_model(
         iter_arrays = iter([iter_arrays])
     assert not isinstance(iter_arrays, ak.Array), "Check configuration. This should be an iterable, not an ak.Array!"
 
-    return source_index_identifiers, iter_arrays
+    return iter_arrays, description_parameters, source_index_identifiers
 
-
-# TODO: Double wrap - we want to be able to pass the full set of arguments to the function, and have it pass on the analysis arguments
-#@embedding_task(preprocess_arguemnts=_my_preprocessing_func, parameters=_my_parameters_func)
-#def embed_analysis(
-#    analysis_arguments,
-#) -> ...:
-#    ...
-
-def steer_embed_task(
-    task_settings: TaskSettings,
-    #####
-) -> framework_task.Output:
-    # Validation
-    if "embed" not in task_settings.collision_system:
-        msg = f"Trying to use embedding steering with wrong collision system {task_settings.collision_system}"
-        raise RuntimeError(msg)
-
-    # TODO: Parametrize this
-    # Setup
-    _parameters = {
-        "collision_system": task_settings.collision_system,
-        "R": jet_R,
-        "signal_input_filenames": str([str(_filename) for _filename in signal_input_filenames]),
-        "background_input_filename": str([str(_filename) for _filename in background_input_filenames]),
-    }
-    if chunk_size is not sources.ChunkSizeSentinel.FULL_SOURCE:
-        _parameters["chunk_size"] = chunk_size
-    _description = analysis_conventions.description_from_parameters(parameters=_parameters)
-    # ENDTODO
-
-    source_index_identifiers, iter_arrays = setup_source_for_embedding(task_settings=task_settings)
-
-    return steer_embed_task_exeuction(
-        task_settings=task_settings,
-        source_index_identifiers=source_index_identifiers,
-        iter_arrays=iter_arrays,
-        output_options=output_options,
-    )
-
-
-from typing import Protocol
-
-class EmbeddingAnalysis(Protocol):
-
-    def __call__(self, source_index_identifiers: dict[str, int], arrays: ak.Array) -> AnalysisOutput:
-        ...
-
-
-def steer_embed_task_execution(
-    *,
-    task_settings: TaskSettings,
-    #####
-    # I/O arguments
-    # Inputs
-    source_index_identifiers: dict[str, int],
-    iter_arrays: Iterator[ak.Array],
-    # Outputs
-    output_options: OutputOptions,
-    # Analysis arguments
-    analysis_func: EmbeddingAnalysis,
-    # ...
-    # trigger_pt_ranges: dict[str, tuple[float, float]],
-    # min_track_pt: dict[str, float],
-    # momentum_weight_exponent: int | float,
-    # det_level_artificial_tracking_efficiency: float,
-    # scale_factor: float,
-    # Default analysis parameters
-    validation_mode: bool = False,
-) -> framework_task.Output:
-    # Validation
-    if output_options.return_skim and not (task_settings.chunk_size == sources.ChunkSizeSentinel.SINGLE_FILE or task_settings.chunk_size == sources.ChunkSizeSentinel.FULL_SOURCE):
-        # NOTE: Returning the skim is only supported for the case where we're processing a single file or the full source
-        msg = "Cannot return skim if processing in chunks. Update your output options."
-        raise ValueError(msg)
-
-    _nonstandard_results = []
-    task_hists: dict[str, hist.Hist] = {}
-    i_chunk = 0
-    # NOTE: We use a while loop here so that we can bail out on processing before we even read the data if the file already exists.
-    try:
-        while True:
-            # Setup
-            # We need to identify the chunk in the output name
-            # NOTE: To be consistent with expectations for a single chunk, the output name should only append the suffix
-            #       if it's more than the first chunk
-            if i_chunk > 0:
-                _output_filename = (
-                    output_options.output_filename.parent / f"{output_options.output_filename.stem}_chunk_{i_chunk:03}{output_options.output_filename.suffix}"
-                )
-            else:
-                _output_filename = output_options.output_filename
-            local_output_options = output_options.with_new_output_filename(_output_filename)
-
-            # Try to bail out as early to avoid reprocessing if possible.
-            res = check_for_task_output(
-                output_options=local_output_options,
-            )
-            if res[0]:
-                _nonstandard_results.append(res)
-                logger.info(f"Skipping already processed chunk {i_chunk}: {res}")
-                continue
-
-            # We know we need to process, so now it's time to actually grab the data!
-            arrays = next(iter_arrays)
-
-            try:
-                analysis_output = analysis_func(
-                    source_index_identifiers=source_index_identifiers,
-                    arrays=arrays,
-                )
-                #analysis_output = analysis_alice.analysis_embedding(
-                #    source_index_identifiers=source_index_identifiers,
-                #    arrays=arrays,
-                #    trigger_pt_ranges=trigger_pt_ranges,
-                #    min_track_pt=min_track_pt,
-                #    momentum_weight_exponent=momentum_weight_exponent,
-                #    scale_factor=scale_factor,
-                #    det_level_artificial_tracking_efficiency=det_level_artificial_tracking_efficiency,
-                #    output_trigger_skim=output_skim,
-                #    validation_mode=validation_mode,
-                #)
-            except sources.NoDataAvailableError as e:
-                # Just create the empty filename and return. This will prevent trying to re-run with no jets in the future.
-                # Remember that this depends heavily on the jet pt cuts!
-                _output_filename.with_suffix(".empty").touch()
-                _message = (
-                    True,
-                    f"Chunk {i_chunk}: Done - no data available (reason: {e}), so not trying to skim",
-                )
-                _nonstandard_results.append(_message)
-                logger.info(_message)
-                continue
-
-            analysis_output.merge_hists(task_hists=task_hists)
-            analysis_output.write(output_filename=local_output_options.output_filename)
-
-            # Cleanup (may not be necessary, but it doesn't hurt)
-            del arrays
-            # We can't delete the analysis output if we're going to return the skim
-            # (again, we can only do this if we analyze in one chunk)
-            if not output_options.return_skim:
-                del analysis_output
-
-            # Setup for next loop
-            i_chunk += 1
-    except StopIteration:
-        ...
-
-    # Write hists
-    if task_hists:
-        output_hist_filename = output_path_hist(output_filename=output_options.output_filename)
-        output_hist_filename.parent.mkdir(parents=True, exist_ok=True)
-        with uproot.recreate(output_hist_filename) as f:
-            output_utils.write_hists_to_file(hists=task_hists, f=f)
-
-    # Cleanup
-    if not output_options.return_merged_hists:
-        del task_hists
-
-    return framework_task.Output(
-        production_identifier=task_settings.production_identifier,
-        collision_system=task_settings.collision_system,
-        success=True,
-        message=f"success for {_description}"
-        + (f". Additional non-standard results: {_nonstandard_results}" if _nonstandard_results else ""),
-        hists=task_hists if output_options.return_merged_hists else {},
-        results=analysis_output.skim if output_options.return_skim else {},
-        metadata=output_metadata,
-    )
-
+import attrs
 
 #@attrs.frozen(kw_only=True)
 #class InputOptions:
 #    background_is_constrained_source: bool = True
+
+@attrs.frozen(kw_only=True)
+class TaskSettings:
+    production_identifier: str
+    collision_system: str
+    chunk_size: sources.T_ChunkSize
+
+@attrs.frozen(kw_only=True)
+class PrimaryOutput:
+    type: str = attrs.field(validator=[attrs.validators.in_(["hists", "skim"])])
+    reference_name: str
+    name: str = attrs.field(default="")
 
 @attrs.frozen(kw_only=True)
 class OutputOptions:
@@ -721,23 +633,10 @@ class OutputOptions:
             write_merged_hists=self.write_merged_hists,
         )
 
-@attrs.frozen(kw_only=True)
-class PrimaryOutput:
-    type: str = attrs.field(validator=[attrs.validators.in_(["hists", "skim"])])
-    reference_name: str
-    name: str = attrs.field(default="")
-
-@attrs.frozen(kw_only=True)
-class TaskSettings:
-    production_identifier: str
-    collision_system: str
-    chunk_size: sources.T_ChunkSize
-
 import uproot
 
 from mammoth.framework.io import output_utils
 
-import attrs
 @attrs.frozen(kw_only=True)
 class AnalysisOutput:
     hists: dict[str, hist.Hist] = attrs.field(factory=dict)
@@ -801,6 +700,205 @@ class AnalysisOutput:
         # No point in trying to merge if there are no hists!
         if self.hists:
             task_hists = output_utils.merge_results(task_hists, self.hists)
+
+from typing import Protocol
+
+class CustomizeParameters(Protocol):
+    def __call__(
+            self,
+            task_settings: TaskSettings,
+            analysis_arguments: dict[str, Any],
+        ) -> dict[str, Any]:
+        ...
+class EmbeddingAnalysis(Protocol):
+
+    def __call__(self, source_index_identifiers: dict[str, int], arrays: ak.Array) -> AnalysisOutput:
+        ...
+
+
+########################
+# All good through here!
+########################
+
+# TODO: Double wrap - we want to be able to pass the full set of arguments to the function, and have it pass on the analysis arguments
+#@embedding_task(preprocess_arguments=_my_preprocessing_func, parameters=_my_parameters_func)
+#def embed_analysis(
+#    analysis_arguments,
+#) -> ...:
+#    ...
+
+def description_and_output_metadata(description_parameters: dict[str, Any]) -> tuple[str, dict[str, Any]]:
+    description = analysis_conventions.description_from_parameters(parameters=description_parameters)
+    output_metadata = {
+        # Useful to have the summary as a string
+        "description": description,
+        # but also useful to have programmatic access
+        "parameters": description_parameters,
+    }
+    return description, output_metadata
+
+
+def steer_embed_task(
+    task_settings: TaskSettings,
+    customize_parameters: CustomizeParameters,
+    #####
+    output_options: OutputOptions,
+    analysis_func: EmbeddingAnalysis,
+    analysis_arguments: dict[str, Any],
+) -> framework_task.Output:
+    # Validation
+    if "embed" not in task_settings.collision_system:
+        msg = f"Trying to use embedding steering with wrong collision system {task_settings.collision_system}"
+        raise RuntimeError(msg)
+
+    # Description parameters
+    description_parameters: dict[str, Any] = {
+        "collision_system": task_settings.collision_system,
+    }
+    if task_settings.chunk_size is not sources.ChunkSizeSentinel.FULL_SOURCE:
+        description_parameters["chunk_size"] = task_settings.chunk_size
+    description_parameters.update(customize_parameters(task_settings=task_settings, analysis_arguments=analysis_arguments))
+    description, output_metadata = description_and_output_metadata(description_parameters=description_parameters)
+
+    iter_arrays, source_description_parameters, source_index_identifiers = setup_source_for_embedding(
+        task_settings=task_settings
+    )
+    # Update description with the source parameters
+    description_parameters.update(source_description_parameters)
+    description = analysis_conventions.description_from_parameters(parameters=description_parameters)
+    description, output_metadata = description_and_output_metadata(description_parameters=description_parameters)
+
+    return steer_embed_task_execution(
+        task_settings=task_settings,
+        source_index_identifiers=source_index_identifiers,
+        iter_arrays=iter_arrays,
+        output_options=output_options,
+        analysis_func=analysis_func,
+    )
+
+
+def steer_embed_task_execution(
+    *,
+    task_settings: TaskSettings,
+    #####
+    # I/O arguments
+    # Inputs
+    source_index_identifiers: dict[str, int],
+    iter_arrays: Iterator[ak.Array],
+    # Outputs
+    output_options: OutputOptions,
+    # Analysis arguments
+    analysis_func: EmbeddingAnalysis,
+    # ...
+    # trigger_pt_ranges: dict[str, tuple[float, float]],
+    # min_track_pt: dict[str, float],
+    # momentum_weight_exponent: int | float,
+    # det_level_artificial_tracking_efficiency: float,
+    # scale_factor: float,
+    # Default analysis parameters
+    validation_mode: bool = False,
+) -> framework_task.Output:
+    # Validation
+    if output_options.return_skim and not (task_settings.chunk_size == sources.ChunkSizeSentinel.SINGLE_FILE or task_settings.chunk_size == sources.ChunkSizeSentinel.FULL_SOURCE):
+        # NOTE: Returning the skim is only supported for the case where we're processing a single file or the full source
+        msg = "Cannot return skim if processing in chunks. Update your output options."
+        raise ValueError(msg)
+
+    _nonstandard_results = []
+    task_hists: dict[str, hist.Hist] = {}
+    i_chunk = 0
+    # NOTE: We use a while loop here so that we can bail out on processing before we even read the data if the file already exists.
+    try:
+        while True:
+            # Setup
+            # We need to identify the chunk in the output name
+            # NOTE: To be consistent with expectations for a single chunk, the output name should only append the suffix
+            #       if it's more than the first chunk
+            if i_chunk > 0:
+                _output_filename = (
+                    output_options.output_filename.parent / f"{output_options.output_filename.stem}_chunk_{i_chunk:03}{output_options.output_filename.suffix}"
+                )
+            else:
+                _output_filename = output_options.output_filename
+            local_output_options = output_options.with_new_output_filename(_output_filename)
+
+            # Try to bail out as early to avoid reprocessing if possible.
+            res = check_for_task_output(
+                output_options=local_output_options,
+            )
+            if res[0]:
+                _nonstandard_results.append(res)
+                logger.info(f"Skipping already processed chunk {i_chunk}: {res}")
+                continue
+
+            # We know we need to process, so now it's time to actually grab the data!
+            arrays = next(iter_arrays)
+
+            try:
+                analysis_output = analysis_func(
+                    source_index_identifiers=source_index_identifiers,
+                    arrays=arrays,
+                    validation_mode=validation_mode,
+                )
+                #analysis_output = analysis_alice.analysis_embedding(
+                #    source_index_identifiers=source_index_identifiers,
+                #    arrays=arrays,
+                #    trigger_pt_ranges=trigger_pt_ranges,
+                #    min_track_pt=min_track_pt,
+                #    momentum_weight_exponent=momentum_weight_exponent,
+                #    scale_factor=scale_factor,
+                #    det_level_artificial_tracking_efficiency=det_level_artificial_tracking_efficiency,
+                #    output_trigger_skim=output_skim,
+                #    validation_mode=validation_mode,
+                #)
+            except sources.NoDataAvailableError as e:
+                # Just create the empty filename and return. This will prevent trying to re-run with no jets in the future.
+                # Remember that this depends heavily on the jet pt cuts!
+                _output_filename.with_suffix(".empty").touch()
+                _message = (
+                    True,
+                    f"Chunk {i_chunk}: Done - no data available (reason: {e}), so not trying to skim",
+                )
+                _nonstandard_results.append(_message)
+                logger.info(_message)
+                continue
+
+            analysis_output.merge_hists(task_hists=task_hists)
+            analysis_output.write(output_filename=local_output_options.output_filename)
+
+            # Cleanup (may not be necessary, but it doesn't hurt)
+            del arrays
+            # We can't delete the analysis output if we're going to return the skim
+            # (again, we can only do this if we analyze in one chunk)
+            if not output_options.return_skim:
+                del analysis_output
+
+            # Setup for next loop
+            i_chunk += 1
+    except StopIteration:
+        ...
+
+    # Write hists
+    if task_hists:
+        output_hist_filename = output_path_hist(output_filename=output_options.output_filename)
+        output_hist_filename.parent.mkdir(parents=True, exist_ok=True)
+        with uproot.recreate(output_hist_filename) as f:
+            output_utils.write_hists_to_file(hists=task_hists, f=f)
+
+    # Cleanup
+    if not output_options.return_merged_hists:
+        del task_hists
+
+    return framework_task.Output(
+        production_identifier=task_settings.production_identifier,
+        collision_system=task_settings.collision_system,
+        success=True,
+        message=f"success for {_description}"
+        + (f". Additional non-standard results: {_nonstandard_results}" if _nonstandard_results else ""),
+        hists=task_hists if output_options.return_merged_hists else {},
+        results=analysis_output.skim if output_options.return_skim else {},
+        metadata=output_metadata,
+    )
 
 
 def steer_embed_thermal_model_analysis(  # noqa: C901
