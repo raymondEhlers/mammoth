@@ -17,6 +17,12 @@ from mammoth.framework import sources
 logger = logging.getLogger(__name__)
 
 
+@attrs.frozen(kw_only=True)
+class Settings:
+    production_identifier: str
+    collision_system: str
+    chunk_size: sources.T_ChunkSize
+
 @attrs.frozen
 class Output:
     production_identifier: str
@@ -41,7 +47,7 @@ class Output:
         logger.info(self.message)
 
 
-def embed_MC_into_data_python_app(
+def python_app_embed_MC_into_thermal_model(
     f: Callable[..., Output],
 ) -> Callable[..., concurrent.futures.Future[Output]]:
     # Delay this import since we don't want to load all job utils functionality
@@ -54,13 +60,13 @@ def embed_MC_into_data_python_app(
     module_import_path = f.__module__
     function_name = f.__name__
 
-    @functools.wraps(f)
     @job_utils.python_app
+    @functools.wraps(f)
     def my_app(
         *,
         production_identifier: str,
         collision_system: str,
-        chunk_size: int,
+        chunk_size: sources.T_ChunkSize,
         thermal_model_parameters: sources.ThermalModelParameters,
         analysis_arguments: dict[str, Any],
         job_framework: job_utils.JobFramework,  # noqa: ARG001
@@ -79,10 +85,16 @@ def embed_MC_into_data_python_app(
 
         try:
             result = steer_embed_task(
-                production_identifier=production_identifier,
-                collision_system=collision_system,
+                # General task settings
+                task_settings=Settings(
+                    production_identifier=production_identifier,
+                    collision_system=collision_system,
+                    chunk_size=chunk_size,
+                ),
+                # Inputs
                 signal_input=[Path(_input_file.filepath) for _input_file in inputs],
                 thermal_model_parameters=thermal_model_parameters,
+                # Analysis
                 analysis_func=functools.partial(
                     func,
                     **analysis_arguments
@@ -91,10 +103,10 @@ def embed_MC_into_data_python_app(
             )
         except Exception:
             result = framework_task.Output(
-                production_identifier,
-                collision_system,
-                False,
-                f"failure for {collision_system}, signal={[_f.filepath for _f in inputs]} with: \n{traceback.format_exc()}",
+                production_identifier=production_identifier,
+                collision_system=collision_system,
+                success=False,
+                message=f"failure for {collision_system}, signal={[_f.filepath for _f in inputs]} with: \n{traceback.format_exc()}",
             )
         return result
 

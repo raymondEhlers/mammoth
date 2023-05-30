@@ -397,7 +397,7 @@ class SetupSource(Protocol):
     def __call__(
             self,
             *,
-            task_settings: TaskSettings,
+            task_settings: framework_task.Settings,
             output_options: OutputOptions,
             **kwargs: Any,
         #) -> tuple[Iterator[ak.Array], dict[str, Any]]:
@@ -409,7 +409,7 @@ class SetupSource(Protocol):
 #    def __call__(
 #            self,
 #            *,
-#            task_settings: TaskSettings,
+#            task_settings: Settings,
 #            output_options: OutputOptions,
 #            signal_input: Path | Sequence[Path],
 #            **kwargs: Any,
@@ -434,7 +434,7 @@ from functools import partial
 def setup_source_for_embedding(
     *,
     # Task settings
-    task_settings: TaskSettings,
+    task_settings: framework_task.Settings,
     # Inputs
     signal_input: Path | Sequence[Path],
     signal_source: sources.SourceFromFilename | sources.DelayedSource,
@@ -523,7 +523,7 @@ def setup_source_for_embedding(
 def setup_source_for_embedding_thermal_model(
     *,
     # Task settings
-    task_settings: TaskSettings,
+    task_settings: framework_task.Settings,
     # Inputs
     signal_input: Path | Sequence[Path],
     signal_source: sources.SourceFromFilename | sources.DelayedSource,
@@ -599,12 +599,6 @@ import attrs
 #@attrs.frozen(kw_only=True)
 #class InputOptions:
 #    background_is_constrained_source: bool = True
-
-@attrs.frozen(kw_only=True)
-class TaskSettings:
-    production_identifier: str
-    collision_system: str
-    chunk_size: sources.T_ChunkSize
 
 @attrs.frozen(kw_only=True)
 class PrimaryOutput:
@@ -706,7 +700,7 @@ from typing import Protocol
 class CustomizeParameters(Protocol):
     def __call__(
             self,
-            task_settings: TaskSettings,
+            task_settings: framework_task.Settings,
             analysis_arguments: dict[str, Any],
         ) -> dict[str, Any]:
         ...
@@ -714,18 +708,6 @@ class EmbeddingAnalysis(Protocol):
 
     def __call__(self, source_index_identifiers: dict[str, int], arrays: ak.Array) -> AnalysisOutput:
         ...
-
-
-########################
-# All good through here!
-########################
-
-# TODO: Double wrap - we want to be able to pass the full set of arguments to the function, and have it pass on the analysis arguments
-#@embedding_task(preprocess_arguments=_my_preprocessing_func, parameters=_my_parameters_func)
-#def embed_analysis(
-#    analysis_arguments,
-#) -> ...:
-#    ...
 
 def description_and_output_metadata(description_parameters: dict[str, Any]) -> tuple[str, dict[str, Any]]:
     description = analysis_conventions.description_from_parameters(parameters=description_parameters)
@@ -738,48 +720,16 @@ def description_and_output_metadata(description_parameters: dict[str, Any]) -> t
     return description, output_metadata
 
 
-def steer_embed_task(
-    task_settings: TaskSettings,
-    customize_parameters: CustomizeParameters,
-    #####
-    output_options: OutputOptions,
-    analysis_func: EmbeddingAnalysis,
-    analysis_arguments: dict[str, Any],
-) -> framework_task.Output:
-    # Validation
-    if "embed" not in task_settings.collision_system:
-        msg = f"Trying to use embedding steering with wrong collision system {task_settings.collision_system}"
-        raise RuntimeError(msg)
-
-    # Description parameters
-    description_parameters: dict[str, Any] = {
-        "collision_system": task_settings.collision_system,
-    }
-    if task_settings.chunk_size is not sources.ChunkSizeSentinel.FULL_SOURCE:
-        description_parameters["chunk_size"] = task_settings.chunk_size
-    description_parameters.update(customize_parameters(task_settings=task_settings, analysis_arguments=analysis_arguments))
-    description, output_metadata = description_and_output_metadata(description_parameters=description_parameters)
-
-    iter_arrays, source_description_parameters, source_index_identifiers = setup_source_for_embedding(
-        task_settings=task_settings
-    )
-    # Update description with the source parameters
-    description_parameters.update(source_description_parameters)
-    description = analysis_conventions.description_from_parameters(parameters=description_parameters)
-    description, output_metadata = description_and_output_metadata(description_parameters=description_parameters)
-
-    return steer_embed_task_execution(
-        task_settings=task_settings,
-        source_index_identifiers=source_index_identifiers,
-        iter_arrays=iter_arrays,
-        output_options=output_options,
-        analysis_func=analysis_func,
-    )
+########################
+# All good through here!
+########################
 
 
 def steer_embed_task_execution(
     *,
-    task_settings: TaskSettings,
+    task_settings: framework_task.Settings,
+    description: str,
+    output_metadata: dict[str, Any],
     #####
     # I/O arguments
     # Inputs
@@ -795,6 +745,7 @@ def steer_embed_task_execution(
     # momentum_weight_exponent: int | float,
     # det_level_artificial_tracking_efficiency: float,
     # scale_factor: float,
+    # ...
     # Default analysis parameters
     validation_mode: bool = False,
 ) -> framework_task.Output:
@@ -836,8 +787,8 @@ def steer_embed_task_execution(
 
             try:
                 analysis_output = analysis_func(
-                    source_index_identifiers=source_index_identifiers,
                     arrays=arrays,
+                    source_index_identifiers=source_index_identifiers,
                     validation_mode=validation_mode,
                 )
                 #analysis_output = analysis_alice.analysis_embedding(
@@ -876,6 +827,7 @@ def steer_embed_task_execution(
             # Setup for next loop
             i_chunk += 1
     except StopIteration:
+        # All done!
         ...
 
     # Write hists
@@ -893,13 +845,84 @@ def steer_embed_task_execution(
         production_identifier=task_settings.production_identifier,
         collision_system=task_settings.collision_system,
         success=True,
-        message=f"success for {_description}"
+        message=f"success for {description}"
         + (f". Additional non-standard results: {_nonstandard_results}" if _nonstandard_results else ""),
         hists=task_hists if output_options.return_merged_hists else {},
         results=analysis_output.skim if output_options.return_skim else {},
         metadata=output_metadata,
     )
 
+
+# TODO: Double wrap - we want to be able to pass the full set of arguments to the function, and have it pass on the analysis arguments
+#@embedding_task(preprocess_arguments=_my_preprocessing_func, parameters=_my_parameters_func)
+#def embed_analysis(
+#    analysis_arguments,
+#) -> ...:
+#    ...
+
+def steer_embed_task(
+    task_settings: framework_task.Settings,
+    customize_parameters: CustomizeParameters,
+    #####
+    output_options: OutputOptions,
+    analysis_func: EmbeddingAnalysis,
+    analysis_arguments: dict[str, Any],
+) -> framework_task.Output:
+    # Validation
+    if "embed" not in task_settings.collision_system:
+        msg = f"Trying to use embedding steering with wrong collision system {task_settings.collision_system}"
+        raise RuntimeError(msg)
+
+    # Description parameters
+    description_parameters: dict[str, Any] = {
+        "collision_system": task_settings.collision_system,
+    }
+    if task_settings.chunk_size is not sources.ChunkSizeSentinel.FULL_SOURCE:
+        description_parameters["chunk_size"] = task_settings.chunk_size
+    description_parameters.update(customize_parameters(task_settings=task_settings, analysis_arguments=analysis_arguments))
+    description, output_metadata = description_and_output_metadata(description_parameters=description_parameters)
+
+    try:
+        iter_arrays, source_description_parameters, source_index_identifiers = setup_source_for_embedding(
+            task_settings=task_settings
+        )
+    except FailedToSetupSourceError as e:
+        # Source wasn't suitable for some reason - bail out.
+        return framework_task.Output(
+            production_identifier=task_settings.production_identifier,
+            collision_system=task_settings.collision_system,
+            success=e.result_success,
+            message=e.result_message,
+            metadata=output_metadata,
+        )
+
+    # Update description with the source parameters
+    description_parameters.update(source_description_parameters)
+    description, output_metadata = description_and_output_metadata(description_parameters=description_parameters)
+
+    return steer_embed_task_execution(
+        task_settings=task_settings,
+        description=description,
+        output_metadata=output_metadata,
+        source_index_identifiers=source_index_identifiers,
+        iter_arrays=iter_arrays,
+        output_options=output_options,
+        analysis_func=analysis_func,
+    )
+
+
+
+
+
+
+
+
+
+
+
+#########################
+# Original/reference code
+#########################
 
 def steer_embed_thermal_model_analysis(  # noqa: C901
     production_identifier: str,
