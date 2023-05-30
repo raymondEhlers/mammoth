@@ -969,6 +969,8 @@ def _run_embed_thermal_model_skim(
     return result
 
 
+# def setup_embed() -> list[Future[framework_task.Output]]
+
 def setup_calculate_embed_thermal_model_skim(
     prod: production.ProductionSettings,
     job_framework: job_utils.JobFramework,
