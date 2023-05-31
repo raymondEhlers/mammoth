@@ -397,24 +397,24 @@ class SetupSource(Protocol):
             self,
             *,
             task_settings: framework_task.Settings,
-            output_options: OutputOptions,
             task_metadata: framework_task.Metadata,
+            output_options: OutputOptions,
             **kwargs: Any,
-        #) -> tuple[Iterator[ak.Array], dict[str, Any]]:
         # TODO: If this doesn't unpack correctly, then can just split into a separate embedding source protocol..
-        ) -> tuple[Iterator[ak.Array]] | tuple[dict[str, int], Iterator[ak.Array]]:
-        ...
+        #) -> tuple[Iterator[ak.Array]] | tuple[dict[str, int], Iterator[ak.Array]]:
+        ) -> tuple[Iterator[ak.Array]]:
+            ...
 
-#class SetupEmbeddingSource(Protocol):
-#    def __call__(
-#            self,
-#            *,
-#            task_settings: Settings,
-#            output_options: OutputOptions,
-#            signal_input: Path | Sequence[Path],
-#            **kwargs: Any,
-#        ) -> tuple[Iterator[ak.Array], dict[str, Any]] | tuple[Iterator[ak.Array], dict[str, Any], dict[str, int]]:
-#        ...
+class SetupEmbeddingSource(Protocol):
+    def __call__(
+            self,
+            *,
+            task_settings: framework_task.Settings,
+            task_metadata: framework_task.Metadata,
+            output_options: OutputOptions,
+            **kwargs: Any,
+        ) -> tuple[dict[str, int], Iterator[ak.Array]]:
+        ...
 #
 #
 #def test_func(test_f: SetupSource) -> None:
@@ -707,7 +707,7 @@ class CustomizeParameters(Protocol):
         ...
 class EmbeddingAnalysis(Protocol):
 
-    def __call__(self, source_index_identifiers: dict[str, int], arrays: ak.Array) -> AnalysisOutput:
+    def __call__(self, *, source_index_identifiers: dict[str, int], arrays: ak.Array) -> AnalysisOutput:
         ...
 
 def description_and_output_metadata(task_metadata: framework_task.Metadata) -> tuple[str, dict[str, Any]]:
@@ -869,7 +869,7 @@ def steer_embed_task(
     task_settings: framework_task.Settings,
     #customize_task_metadata: CustomizeParameters,
     # I/O
-    setup_input_source: SetupSource,
+    setup_input_source: SetupEmbeddingSource,
     output_options: OutputOptions,
     # Analysis
     # NOTE: The analysis arguments are bound before passing here
