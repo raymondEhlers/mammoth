@@ -17,6 +17,8 @@ from mammoth.framework import sources
 logger = logging.getLogger(__name__)
 
 
+Metadata = dict[str, Any]
+
 @attrs.frozen(kw_only=True)
 class Settings:
     """Settings for the task.
@@ -112,8 +114,11 @@ def python_app_embed_MC_into_thermal_model(
                     chunk_size=chunk_size,
                 ),
                 # Inputs
-                signal_input=[Path(_input_file.filepath) for _input_file in inputs],
-                thermal_model_parameters=thermal_model_parameters,
+                setup_input_source=functools.partial(
+                    setup_source_for_embedding_thermal_model,
+                    signal_input=[Path(_input_file.filepath) for _input_file in inputs],
+                    thermal_model_parameters=thermal_model_parameters,
+                ),
                 # Analysis
                 analysis_func=functools.partial(
                     func,

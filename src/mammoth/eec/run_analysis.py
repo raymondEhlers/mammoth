@@ -992,15 +992,15 @@ def run_embed_MC_into_thermal_model(
     # TODO: Update to the proper callable...
     analysis_function: Callable[..., framework_task.Output],
     # This is for the steering!
-    analysis_steering_argument_preprocessing_function: Callable[..., dict[str, Any]] | None = None,
+    analysis_steering_argument_preprocessing_function: CustomizeParameters | None = None,
     # And this is for the task description
-    task_description_metadata_function: CustomizeParameters | None = None,
+    #task_description_metadata_function: CustomizeParameters | None = None,
 ) -> list[Future[framework_task.Output]]:
     # Validation
     if analysis_steering_argument_preprocessing_function is None:
         analysis_steering_argument_preprocessing_function = lambda *args, **kwargs: {}
-    if task_description_metadata_function is None:
-        task_description_metadata_function = lambda *args, **kwargs: {}
+    #if task_description_metadata_function is None:
+    #    task_description_metadata_function = lambda *args, **kwargs: {}
 
     # Setup
     func = framework_task.python_app_embed_MC_into_thermal_model(analysis_function)
@@ -1097,12 +1097,12 @@ def run_embed_MC_into_thermal_model(
                             "det_level_artificial_tracking_efficiency"
                         ],
                     ),
+                    job_framework=job_framework,
+                    inputs=[
+                        File(str(input_filename)),
+                    ],
+                    outputs=[File(str(output_filename))],
                 )
-                analysis_arguments: dict[str, Any],
-                job_framework: job_utils.JobFramework,  # noqa: ARG001
-                inputs: list[File] = [],
-                outputs: list[File] = [],
-
             )
             results.append(
                 _run_embed_thermal_model_skim(

@@ -398,10 +398,11 @@ class SetupSource(Protocol):
             *,
             task_settings: framework_task.Settings,
             output_options: OutputOptions,
+            task_metadata: framework_task.Metadata,
             **kwargs: Any,
         #) -> tuple[Iterator[ak.Array], dict[str, Any]]:
         # TODO: If this doesn't unpack correctly, then can just split into a separate embedding source protocol..
-        ) -> tuple[Iterator[ak.Array], dict[str, Any]] | tuple[Iterator[ak.Array], dict[str, Any], dict[str, int]]:
+        ) -> tuple[Iterator[ak.Array]] | tuple[dict[str, int], Iterator[ak.Array]]:
         ...
 
 #class SetupEmbeddingSource(Protocol):
@@ -434,6 +435,7 @@ def setup_source_for_embedding(
     *,
     # Task settings
     task_settings: framework_task.Settings,
+    task_metadata: framework_task.Metadata,
     # Inputs
     signal_input: Path | Sequence[Path],
     signal_source: sources.SourceFromFilename | sources.DelayedSource,
@@ -442,11 +444,12 @@ def setup_source_for_embedding(
     background_is_constrained_source: bool,
     # Outputs
     output_options: OutputOptions,
-) -> tuple[Iterator[ak.Array], dict[str, Any], dict[str, int]]:
+) -> tuple[dict[str, int], Iterator[ak.Array]]:
     """ Setup embed MC source for a analysis task.
 
     Args:
         task_settings: Task settings.
+        task_metadata: Task metadata.
         signal_input: Input signal file(s).
         signal_source: Source for the signal.
         background_input: Input background file(s).
@@ -454,10 +457,9 @@ def setup_source_for_embedding(
         background_is_constrained_source: Whether the background is the constrained source.
         output_options: Output options.
     Returns:
-        (iter_arrays, description_parameters, source_index_identifiers), where:
-            iter_arrays: Iterator over the arrays to process.
-            description_parameters: Parameters for the task description.
+        (source_index_identifiers, iter_arrays), where:
             source_index_identifiers: Mapping of source index to identifier.
+            iter_arrays: Iterator over the arrays to process.
     Raises:
         FailedToSetupSourceError: If the source could not be setup.
     """
@@ -474,10 +476,10 @@ def setup_source_for_embedding(
         background_input_filenames = list(background_input)
 
     # Description parameters
-    description_parameters = {
+    task_metadata.update({
         "signal_input_filenames": str([str(_filename) for _filename in signal_input_filenames]),
         "background_input_filename": str([str(_filename) for _filename in background_input_filenames]),
-    }
+    })
 
     res = check_for_task_output(
         output_options=output_options,
@@ -516,20 +518,21 @@ def setup_source_for_embedding(
         iter_arrays = iter([iter_arrays])
     assert not isinstance(iter_arrays, ak.Array), "Check configuration. This should be an iterable, not an ak.Array!"
 
-    return iter_arrays, description_parameters, source_index_identifiers
+    return source_index_identifiers, iter_arrays
 
 
 def setup_source_for_embedding_thermal_model(
     *,
     # Task settings
     task_settings: framework_task.Settings,
+    task_metadata: framework_task.Metadata,
     # Inputs
     signal_input: Path | Sequence[Path],
     signal_source: sources.SourceFromFilename | sources.DelayedSource,
     thermal_model_parameters: sources.ThermalModelParameters,
     # Outputs
     output_options: OutputOptions,
-) -> tuple[Iterator[ak.Array], dict[str, Any], dict[str, int]]:
+) -> tuple[dict[str, int], Iterator[ak.Array]]:
     """ Setup embed MC into thermal model source for a analysis task.
 
     Args:
@@ -539,10 +542,9 @@ def setup_source_for_embedding_thermal_model(
         thermal_model_parameters: Parameters for the thermal model.
         output_options: Output options.
     Returns:
-        (iter_arrays, description_parameters, source_index_identifiers), where:
-            iter_arrays: Iterator over the arrays to process.
-            description_parameters: Parameters for the task description.
+        (source_index_identifiers, iter_arrays), where:
             source_index_identifiers: Mapping of source index to identifier.
+            iter_arrays: Iterator over the arrays to process.
     Raises:
         FailedToSetupSourceError: If the source could not be setup.
     """
@@ -554,9 +556,9 @@ def setup_source_for_embedding_thermal_model(
         signal_input_filenames = list(signal_input)
 
     # Description parameters
-    description_parameters = {
+    task_metadata.update({
         "signal_input_filenames": str([str(_filename) for _filename in signal_input_filenames]),
-    }
+    })
 
     res = check_for_task_output(
         output_options=output_options,
@@ -591,7 +593,7 @@ def setup_source_for_embedding_thermal_model(
         iter_arrays = iter([iter_arrays])
     assert not isinstance(iter_arrays, ak.Array), "Check configuration. This should be an iterable, not an ak.Array!"
 
-    return iter_arrays, description_parameters, source_index_identifiers
+    return source_index_identifiers, iter_arrays
 
 import attrs
 
@@ -708,13 +710,13 @@ class EmbeddingAnalysis(Protocol):
     def __call__(self, source_index_identifiers: dict[str, int], arrays: ak.Array) -> AnalysisOutput:
         ...
 
-def description_and_output_metadata(description_parameters: dict[str, Any]) -> tuple[str, dict[str, Any]]:
-    description = analysis_conventions.description_from_parameters(parameters=description_parameters)
+def description_and_output_metadata(task_metadata: framework_task.Metadata) -> tuple[str, dict[str, Any]]:
+    description = analysis_conventions.description_from_parameters(parameters=task_metadata)
     output_metadata = {
         # Useful to have the summary as a string
         "description": description,
         # but also useful to have programmatic access
-        "parameters": description_parameters,
+        "parameters": task_metadata,
     }
     return description, output_metadata
 
@@ -863,12 +865,15 @@ python_app_embed_MC_into_thermal_model = framework_task.python_app_embed_MC_into
 #    ...
 
 def steer_embed_task(
+    # Task settings
     task_settings: framework_task.Settings,
-    customize_description_parameters: CustomizeParameters,
-    #####
+    #customize_task_metadata: CustomizeParameters,
+    # I/O
+    setup_input_source: SetupSource,
     output_options: OutputOptions,
+    # Analysis
+    # NOTE: The analysis arguments are bound before passing here
     analysis_func: EmbeddingAnalysis,
-    analysis_arguments: dict[str, Any],
 ) -> framework_task.Output:
     # Validation
     if "embed" not in task_settings.collision_system:
@@ -876,20 +881,26 @@ def steer_embed_task(
         raise RuntimeError(msg)
 
     # Description parameters
-    description_parameters: dict[str, Any] = {
+    task_metadata: framework_task.Metadata = {
         "collision_system": task_settings.collision_system,
     }
     if task_settings.chunk_size is not sources.ChunkSizeSentinel.FULL_SOURCE:
-        description_parameters["chunk_size"] = task_settings.chunk_size
-    description_parameters.update(customize_description_parameters(task_settings=task_settings, analysis_arguments=analysis_arguments))
-    description, output_metadata = description_and_output_metadata(description_parameters=description_parameters)
+        task_metadata["chunk_size"] = task_settings.chunk_size
+    # NOTE: Always call `description_and_output_metadata` right before they're needed to ensure they
+    #       up to date since they may change
 
     try:
-        iter_arrays, source_description_parameters, source_index_identifiers = setup_source_for_embedding(
-            task_settings=task_settings
+        #iter_arrays, source_index_identifiers = setup_source_for_embedding(
+        #    task_settings=task_settings
+        #)
+        source_index_identifiers, iter_arrays = setup_input_source(
+            task_settings=task_settings,
+            output_options=output_options,
+            task_metadata=task_metadata,
         )
     except FailedToSetupSourceError as e:
         # Source wasn't suitable for some reason - bail out.
+        description, output_metadata = description_and_output_metadata(task_metadata=task_metadata)
         return framework_task.Output(
             production_identifier=task_settings.production_identifier,
             collision_system=task_settings.collision_system,
@@ -898,9 +909,8 @@ def steer_embed_task(
             metadata=output_metadata,
         )
 
-    # Update description with the source parameters
-    description_parameters.update(source_description_parameters)
-    description, output_metadata = description_and_output_metadata(description_parameters=description_parameters)
+    # Update these values here, since they may have changed
+    description, output_metadata = description_and_output_metadata(task_metadata=task_metadata)
 
     return steer_embed_task_execution(
         task_settings=task_settings,
