@@ -705,9 +705,13 @@ class CustomizeParameters(Protocol):
             analysis_arguments: dict[str, Any],
         ) -> dict[str, Any]:
         ...
-class EmbeddingAnalysis(Protocol):
 
-    def __call__(self, *, source_index_identifiers: dict[str, int], arrays: ak.Array) -> AnalysisOutput:
+class Analysis(Protocol):
+    def __call__(self, *, arrays: ak.Array, validation_mode: bool = False) -> AnalysisOutput:
+        ...
+
+class EmbeddingAnalysis(Protocol):
+    def __call__(self, *, source_index_identifiers: dict[str, int], arrays: ak.Array, validation_mode: bool = False) -> AnalysisOutput:
         ...
 
 def description_and_output_metadata(task_metadata: framework_task.Metadata) -> tuple[str, dict[str, Any]]:
@@ -867,7 +871,6 @@ python_app_embed_MC_into_thermal_model = framework_task.python_app_embed_MC_into
 def steer_embed_task(
     # Task settings
     task_settings: framework_task.Settings,
-    #customize_task_metadata: CustomizeParameters,
     # I/O
     setup_input_source: SetupEmbeddingSource,
     output_options: OutputOptions,
