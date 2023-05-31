@@ -19,12 +19,32 @@ logger = logging.getLogger(__name__)
 
 @attrs.frozen(kw_only=True)
 class Settings:
+    """Settings for the task.
+
+    Attributes:
+        production_identifier: Unique production identifier for the task.
+        collision_system: Collision system
+        chunk_size: Chunk size for the task.
+    """
     production_identifier: str
     collision_system: str
     chunk_size: sources.T_ChunkSize
 
 @attrs.frozen
 class Output:
+    """Task output.
+
+    Attributes:
+        production_identifier: Unique production identifier for the task.
+        collision_system: Collision system
+        success: Whether the task was successful.
+        message: Message about the task execution.
+        hists: Histograms returned by this task. Default: {}.
+        results: Any additional results returned by this task. eg. skimmed arrays. Default: {}.
+        metadata: Any additional metadata returned by this task. Collision system could go
+            into this metadata, but it's fairly useful for identification, etc, so we call
+            it out explicitly. Default: {}.
+    """
     production_identifier: str
     collision_system: str
     success: bool
