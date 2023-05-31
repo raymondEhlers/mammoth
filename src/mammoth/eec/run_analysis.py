@@ -5,6 +5,7 @@
 
 from __future__ import annotations
 
+import copy
 import logging
 import secrets
 from concurrent.futures import Future
@@ -994,6 +995,7 @@ def run_embed_MC_into_thermal_model(
     # This is for the steering!
     analysis_steering_argument_preprocessing_function: CustomizeParameters | None = None,
     # And this is for the task description
+    task_metadata_for_analysis: Callable[..., framework_task.Metadata] | None = None
     #task_description_metadata_function: CustomizeParameters | None = None,
 ) -> list[Future[framework_task.Output]]:
     # Validation
@@ -1023,8 +1025,7 @@ def run_embed_MC_into_thermal_model(
             Path("trains/pythia/2640/run_by_run/LHC20g4/296415/4/AnalysisResults.20g4.007.root"),
             Path("trains/pythia/2640/run_by_run/LHC20g4/296415/4/AnalysisResults.20g4.010.root"),
         ]}
-
-    # Setup for analysis and dataset settings
+    # Setup for dataset settings
     _metadata_config = prod.config["metadata"]
     _analysis_config = prod.config["settings"]
     # Sample fraction of input events (for quick analysis)
@@ -1039,13 +1040,15 @@ def run_embed_MC_into_thermal_model(
             ]
             for _pt_hat_bin, _input_files in input_files.items()
         }
-
     # Thermal model parameters
     thermal_model_parameters = sources.THERMAL_MODEL_SETTINGS[
         f"{_metadata_config['dataset']['sqrt_s']}_{_analysis_config['event_activity']}"
     ]
     chunk_size = _analysis_config["chunk_size"]
     logger.info(f"Processing chunk size for {chunk_size}")
+
+    # Analysis settings
+    analysis_arguments = copy.deepcopy(_analysis_config)
     # Scale factors
     scale_factors = None
     if prod.has_scale_factors:
@@ -1053,7 +1056,7 @@ def run_embed_MC_into_thermal_model(
     else:
         _msg = "Check the thermal model config - you need a signal dataset."
         raise ValueError(_msg)
-
+    analysis_arguments["scale_factors"] = scale_factors
     # Cross check
     if set(scale_factors) != set(input_files) and not debug_mode:
         # NOTE: We have to skip this on debug mode because we frequently only want to run a few files
@@ -1088,15 +1091,16 @@ def run_embed_MC_into_thermal_model(
                     production_identifier=prod.identifier,
                     collision_system=prod.collision_system,
                     chunk_size=chunk_size,
+                    analysis_arguments=analysis_arguments,
+                    #analysis_arguments=dict(
+                    #    trigger_pt_ranges=_analysis_config["trigger_pt_ranges"],
+                    #    min_track_pt=_analysis_config["min_track_pt"],
+                    #    momentum_weight_exponent=_analysis_config["momentum_weight_exponent"],
+                    #    det_level_artificial_tracking_efficiency=_analysis_config[
+                    #        "det_level_artificial_tracking_efficiency"
+                    #    ],
+                    #),
                     thermal_model_parameters=thermal_model_parameters,
-                    analysis_arguments=dict(
-                        trigger_pt_ranges=_analysis_config["trigger_pt_ranges"],
-                        min_track_pt=_analysis_config["min_track_pt"],
-                        momentum_weight_exponent=_analysis_config["momentum_weight_exponent"],
-                        det_level_artificial_tracking_efficiency=_analysis_config[
-                            "det_level_artificial_tracking_efficiency"
-                        ],
-                    ),
                     job_framework=job_framework,
                     inputs=[
                         File(str(input_filename)),

@@ -698,14 +698,6 @@ class AnalysisOutput:
 
 from typing import Protocol
 
-class CustomizeParameters(Protocol):
-    def __call__(
-            self,
-            task_settings: framework_task.Settings,
-            analysis_arguments: dict[str, Any],
-        ) -> dict[str, Any]:
-        ...
-
 class Analysis(Protocol):
     def __call__(self, *, arrays: ak.Array, validation_mode: bool = False) -> AnalysisOutput:
         ...
@@ -733,8 +725,7 @@ def description_and_output_metadata(task_metadata: framework_task.Metadata) -> t
 def steer_embed_task_execution(
     *,
     task_settings: framework_task.Settings,
-    description: str,
-    output_metadata: dict[str, Any],
+    task_metadata: framework_task.Metadata,
     #####
     # I/O arguments
     # Inputs
@@ -743,7 +734,7 @@ def steer_embed_task_execution(
     # Outputs
     output_options: OutputOptions,
     # Analysis arguments
-    analysis_func: EmbeddingAnalysis,
+    analysis_function: EmbeddingAnalysis,
     # ...
     # trigger_pt_ranges: dict[str, tuple[float, float]],
     # min_track_pt: dict[str, float],
@@ -752,7 +743,7 @@ def steer_embed_task_execution(
     # scale_factor: float,
     # ...
     # Default analysis parameters
-    validation_mode: bool = False,
+    validation_mode: bool,
 ) -> framework_task.Output:
     # Validation
     if output_options.return_skim and not (task_settings.chunk_size == sources.ChunkSizeSentinel.SINGLE_FILE or task_settings.chunk_size == sources.ChunkSizeSentinel.FULL_SOURCE):
@@ -791,7 +782,7 @@ def steer_embed_task_execution(
             arrays = next(iter_arrays)
 
             try:
-                analysis_output = analysis_func(
+                analysis_output = analysis_function(
                     arrays=arrays,
                     source_index_identifiers=source_index_identifiers,
                     validation_mode=validation_mode,
@@ -846,6 +837,7 @@ def steer_embed_task_execution(
     if not output_options.return_merged_hists:
         del task_hists
 
+    description, output_metadata = description_and_output_metadata(task_metadata=task_metadata)
     return framework_task.Output(
         production_identifier=task_settings.production_identifier,
         collision_system=task_settings.collision_system,
@@ -858,7 +850,7 @@ def steer_embed_task_execution(
     )
 
 python_app_embed_MC_into_thermal_model = framework_task.python_app_embed_MC_into_thermal_model(
-    f=analysis_alice.analysis_embedding,
+    analysis=analysis_alice.analysis_embedding,
 )
 
 # TODO: Double wrap - we want to be able to pass the full set of arguments to the function, and have it pass on the analysis arguments
@@ -868,6 +860,14 @@ python_app_embed_MC_into_thermal_model = framework_task.python_app_embed_MC_into
 #) -> ...:
 #    ...
 
+class CustomizeAnalysisMetadata(Protocol):
+    def __call__(
+            self,
+            task_settings: framework_task.Settings,
+        ) -> framework_task.Metadata:
+        ...
+
+
 def steer_embed_task(
     # Task settings
     task_settings: framework_task.Settings,
@@ -875,8 +875,10 @@ def steer_embed_task(
     setup_input_source: SetupEmbeddingSource,
     output_options: OutputOptions,
     # Analysis
-    # NOTE: The analysis arguments are bound before passing here
-    analysis_func: EmbeddingAnalysis,
+    # NOTE: The analysis arguments are bound to both of these functions before passing here
+    analysis_function: EmbeddingAnalysis,
+    analysis_metadata_function: CustomizeAnalysisMetadata,
+    validation_mode: bool,
 ) -> framework_task.Output:
     # Validation
     if "embed" not in task_settings.collision_system:
@@ -889,6 +891,9 @@ def steer_embed_task(
     }
     if task_settings.chunk_size is not sources.ChunkSizeSentinel.FULL_SOURCE:
         task_metadata["chunk_size"] = task_settings.chunk_size
+    # Add in the customized analysis parameters
+    task_metadata.update(analysis_metadata_function(task_settings=task_settings))
+
     # NOTE: Always call `description_and_output_metadata` right before they're needed to ensure they
     #       up to date since they may change
 
@@ -903,7 +908,7 @@ def steer_embed_task(
         )
     except FailedToSetupSourceError as e:
         # Source wasn't suitable for some reason - bail out.
-        description, output_metadata = description_and_output_metadata(task_metadata=task_metadata)
+        _, output_metadata = description_and_output_metadata(task_metadata=task_metadata)
         return framework_task.Output(
             production_identifier=task_settings.production_identifier,
             collision_system=task_settings.collision_system,
@@ -912,17 +917,14 @@ def steer_embed_task(
             metadata=output_metadata,
         )
 
-    # Update these values here, since they may have changed
-    description, output_metadata = description_and_output_metadata(task_metadata=task_metadata)
-
     return steer_embed_task_execution(
         task_settings=task_settings,
-        description=description,
-        output_metadata=output_metadata,
+        task_metadata=task_metadata,
         source_index_identifiers=source_index_identifiers,
         iter_arrays=iter_arrays,
         output_options=output_options,
-        analysis_func=analysis_func,
+        analysis_function=analysis_function,
+        validation_mode=validation_mode,
     )
 
 

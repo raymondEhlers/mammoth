@@ -3,6 +3,8 @@
 .. codeauthor:: Raymond Ehlers <raymond.ehlers@cern.ch>, LBL/UCB
 """
 
+from __future__ import annotations
+
 import concurrent.futures
 import functools
 import importlib
@@ -70,7 +72,9 @@ class Output:
 
 
 def python_app_embed_MC_into_thermal_model(
-    f: Callable[..., Output],
+    *,
+    analysis: Callable[..., Output],
+    analysis_metadata: Callable[..., Metadata] | None = None,
 ) -> Callable[..., concurrent.futures.Future[Output]]:
     # Delay this import since we don't want to load all job utils functionality
     # when simply loading the module. However, it doesn't to make sense to split this up otherwise, so
@@ -79,11 +83,19 @@ def python_app_embed_MC_into_thermal_model(
 
     from mammoth import job_utils
 
-    module_import_path = f.__module__
-    function_name = f.__name__
+    # We need to reimport in the parsl app, so we grab the parameters here, and then put them into the closure.
+    # Analysis function
+    analysis_function_module_import_path = analysis.__module__
+    analysis_function_function_name = analysis.__name__
+    # Task metadata
+    analysis_metadata_module_import_path = ""
+    analysis_metadata_function_name = ""
+    if analysis_metadata is not None:
+        analysis_metadata_module_import_path = analysis_metadata.__module__
+        analysis_metadata_function_name = analysis_metadata.__name__
 
     @job_utils.python_app
-    @functools.wraps(f)
+    @functools.wraps(analysis)
     def my_app(
         *,
         production_identifier: str,
@@ -101,9 +113,16 @@ def python_app_embed_MC_into_thermal_model(
 
         from mammoth.framework import task as framework_task
 
-        # Get the task
-        module_containing_function = importlib.import_module(module_import_path)
-        func = getattr(module_containing_function, function_name)
+        # Get the analysis
+        module_containing_analysis_function = importlib.import_module(analysis_function_module_import_path)
+        analysis_function = getattr(module_containing_analysis_function, analysis_function_function_name)
+        # And metadata customization
+        # We handle this more carefully because it may not always be specified
+        if analysis_metadata_module_import_path:
+            module_containing_analysis_metadata_function = importlib.import_module(analysis_metadata_module_import_path)
+            metadata_function = getattr(module_containing_analysis_metadata_function, analysis_metadata_function_name)
+        else:
+            metadata_function = lambda *args, **kwargs: {}
 
         try:
             result = steer_embed_task(
@@ -120,18 +139,23 @@ def python_app_embed_MC_into_thermal_model(
                     thermal_model_parameters=thermal_model_parameters,
                 ),
                 # Analysis
-                analysis_func=functools.partial(
-                    func,
-                    **analysis_arguments
+                analysis_function=functools.partial(
+                    analysis_function,
+                    **analysis_arguments,
                 ),
-                analysis_arguments=analysis_arguments,
+                analysis_metadata_function=functools.partial(
+                    metadata_function,
+                    **analysis_arguments,
+                ),
+                # Pass it separately to ensure that it's accounted for explicitly.
+                validation_mode=analysis_arguments.get("validation_mode", False),
             )
         except Exception:
             result = framework_task.Output(
                 production_identifier=production_identifier,
                 collision_system=collision_system,
                 success=False,
-                message=f"failure for {collision_system}, signal={[_f.filepath for _f in inputs]} with: \n{traceback.format_exc()}",
+                message=f"failure during execution of task with: \n{traceback.format_exc()}",
             )
         return result
 
