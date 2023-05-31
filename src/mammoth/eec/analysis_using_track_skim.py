@@ -392,7 +392,6 @@ def check_for_task_output(
     return res
 
 
-
 class SetupSource(Protocol):
     def __call__(
             self,
@@ -852,6 +851,9 @@ def steer_embed_task_execution(
         metadata=output_metadata,
     )
 
+python_app_embed_MC_into_thermal_model = framework_task.python_app_embed_MC_into_thermal_model(
+    f=analysis_alice.analysis_embedding,
+)
 
 # TODO: Double wrap - we want to be able to pass the full set of arguments to the function, and have it pass on the analysis arguments
 #@embedding_task(preprocess_arguments=_my_preprocessing_func, parameters=_my_parameters_func)
@@ -862,7 +864,7 @@ def steer_embed_task_execution(
 
 def steer_embed_task(
     task_settings: framework_task.Settings,
-    customize_parameters: CustomizeParameters,
+    customize_description_parameters: CustomizeParameters,
     #####
     output_options: OutputOptions,
     analysis_func: EmbeddingAnalysis,
@@ -879,7 +881,7 @@ def steer_embed_task(
     }
     if task_settings.chunk_size is not sources.ChunkSizeSentinel.FULL_SOURCE:
         description_parameters["chunk_size"] = task_settings.chunk_size
-    description_parameters.update(customize_parameters(task_settings=task_settings, analysis_arguments=analysis_arguments))
+    description_parameters.update(customize_description_parameters(task_settings=task_settings, analysis_arguments=analysis_arguments))
     description, output_metadata = description_and_output_metadata(description_parameters=description_parameters)
 
     try:
@@ -912,7 +914,13 @@ def steer_embed_task(
 
 
 
-
+#def run_embedding(
+#    #prod: production.ProductionSettings,
+#    #job_framework: job_utils.JobFramework,
+#    #debug_mode: bool,
+#) -> :
+#    ...
+#    return source = partial
 
 
 

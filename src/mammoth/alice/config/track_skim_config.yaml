@@ -1065,6 +1065,16 @@ productions:
         # Artificial tracking efficiency to convert tracking in PYTHIA to similar performance as PbPb
         # Applied only to embedded particles
         det_level_artificial_tracking_efficiency: 0.98
+        output_options:
+          primary_output:
+            type: "hists"
+            reference_name: ""
+            name: ""
+          return_skim: false
+          write_chunk_skim: false
+          return_merged_hists: false
+          write_chunk_hists: false
+          write_merged_hists: true
 
     60:
       metadata:
