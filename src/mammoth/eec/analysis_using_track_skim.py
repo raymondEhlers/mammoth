@@ -751,7 +751,7 @@ def steer_embed_task_execution(
         msg = "Cannot return skim if processing in chunks. Update your output options."
         raise ValueError(msg)
 
-    _nonstandard_results = []
+    _nonstandard_processing_outcome = []
     task_hists: dict[str, hist.Hist] = {}
     i_chunk = 0
     # NOTE: We use a while loop here so that we can bail out on processing before we even read the data if the file already exists.
@@ -774,7 +774,7 @@ def steer_embed_task_execution(
                 output_options=local_output_options,
             )
             if res[0]:
-                _nonstandard_results.append(res)
+                _nonstandard_processing_outcome.append(res)
                 logger.info(f"Skipping already processed chunk {i_chunk}: {res}")
                 continue
 
@@ -806,7 +806,7 @@ def steer_embed_task_execution(
                     True,
                     f"Chunk {i_chunk}: Done - no data available (reason: {e}), so not trying to skim",
                 )
-                _nonstandard_results.append(_message)
+                _nonstandard_processing_outcome.append(_message)
                 logger.info(_message)
                 continue
 
@@ -843,7 +843,7 @@ def steer_embed_task_execution(
         collision_system=task_settings.collision_system,
         success=True,
         message=f"success for {description}"
-        + (f". Additional non-standard results: {_nonstandard_results}" if _nonstandard_results else ""),
+        + (f". Additional non-standard processing outcomes: {_nonstandard_processing_outcome}" if _nonstandard_processing_outcome else ""),
         hists=task_hists if output_options.return_merged_hists else {},
         results=analysis_output.skim if output_options.return_skim else {},
         metadata=output_metadata,
