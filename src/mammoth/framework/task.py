@@ -150,11 +150,24 @@ class Output:
 
 
 class Analysis(Protocol):
-    def __call__(self, *, arrays: ak.Array, validation_mode: bool = False) -> AnalysisOutput:
+    def __call__(
+            self,
+            *,
+            arrays: ak.Array,
+            validation_mode: bool = False,
+            return_skim: bool = False
+        ) -> AnalysisOutput:
         ...
 
 class EmbeddingAnalysis(Protocol):
-    def __call__(self, *, source_index_identifiers: dict[str, int], arrays: ak.Array, validation_mode: bool = False) -> AnalysisOutput:
+    def __call__(
+            self,
+            *,
+            source_index_identifiers: dict[str, int],
+            arrays: ak.Array,
+            validation_mode: bool = False,
+            return_skim: bool = False,
+        ) -> AnalysisOutput:
         ...
 class CustomizeAnalysisMetadata(Protocol):
     """Customize metadata based on the analysis arguments.

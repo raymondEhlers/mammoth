@@ -153,7 +153,7 @@ def eec_embed_thermal_model_analysis(  # noqa: C901
                 momentum_weight_exponent=momentum_weight_exponent,
                 scale_factor=scale_factor,
                 det_level_artificial_tracking_efficiency=det_level_artificial_tracking_efficiency,
-                output_trigger_skim=output_trigger_skim,
+                return_skim=output_trigger_skim,
                 validation_mode=validation_mode,
             )
         except sources.NoDataAvailableError as e:
@@ -503,12 +503,6 @@ def setup_source_for_embedding_thermal_model(
 
     return source_index_identifiers, iter_arrays
 
-import attrs
-
-#@attrs.frozen(kw_only=True)
-#class InputOptions:
-#    background_is_constrained_source: bool = True
-
 
 import uproot
 
@@ -587,18 +581,11 @@ def steer_embed_task_execution(
                     arrays=arrays,
                     source_index_identifiers=source_index_identifiers,
                     validation_mode=validation_mode,
+                    # Although return_skim is an output option that we try to abstract away, it can be quite costly in terms of memory.
+                    # Consequently, we break the abstraction and pass it, since many tasks are under memory pressure.
+                    # NOTE: Need to specify a concrete value here, so we default to False if nothing is specified.
+                    return_skim=False if output_options.return_skim is None else output_options.return_skim,
                 )
-                #analysis_output = analysis_alice.analysis_embedding(
-                #    source_index_identifiers=source_index_identifiers,
-                #    arrays=arrays,
-                #    trigger_pt_ranges=trigger_pt_ranges,
-                #    min_track_pt=min_track_pt,
-                #    momentum_weight_exponent=momentum_weight_exponent,
-                #    scale_factor=scale_factor,
-                #    det_level_artificial_tracking_efficiency=det_level_artificial_tracking_efficiency,
-                #    output_trigger_skim=output_skim,
-                #    validation_mode=validation_mode,
-                #)
             except sources.NoDataAvailableError as e:
                 # Just create the empty filename and return. This will prevent trying to re-run with no jets in the future.
                 # Remember that this depends heavily on the jet pt cuts!
@@ -671,6 +658,7 @@ python_app_embed_MC_into_thermal_model = framework_task.python_app_embed_MC_into
 
 
 def steer_embed_task(
+    *,
     # Task settings
     task_settings: framework_task.Settings,
     # I/O
@@ -882,7 +870,7 @@ def steer_embed_thermal_model_analysis(  # noqa: C901
                 momentum_weight_exponent=momentum_weight_exponent,
                 scale_factor=scale_factor,
                 det_level_artificial_tracking_efficiency=det_level_artificial_tracking_efficiency,
-                output_trigger_skim=output_skim,
+                return_skim=output_skim,
                 validation_mode=validation_mode,
             )
         except sources.NoDataAvailableError as e:
