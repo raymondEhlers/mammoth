@@ -255,9 +255,18 @@ class AnalysisOutput:
 # Python apps
 #############
 
+
+def _module_and_name_from_func(func: Callable[..., Any]) -> tuple[str, str]:
+    """Get the module and name from a function.
+
+    Used to import them in the app, which is required by parsl.
+    """
+    return (func.__module__, func.__name__)
+
+
 def python_app_embed_MC_into_thermal_model(
     *,
-    analysis: Callable[..., Output],
+    analysis: Callable[..., AnalysisOutput],
     analysis_metadata: CustomizeAnalysisMetadata | None = None,
 ) -> Callable[..., concurrent.futures.Future[Output]]:
     # Delay this import since we don't want to load all job utils functionality
@@ -269,14 +278,12 @@ def python_app_embed_MC_into_thermal_model(
 
     # We need to reimport in the parsl app, so we grab the parameters here, and then put them into the closure.
     # Analysis function
-    analysis_function_module_import_path = analysis.__module__
-    analysis_function_function_name = analysis.__name__
+    analysis_function_module_import_path, analysis_function_function_name = _module_and_name_from_func(func=analysis)
     # Task metadata
     analysis_metadata_module_import_path = ""
     analysis_metadata_function_name = ""
     if analysis_metadata is not None:
-        analysis_metadata_module_import_path = analysis_metadata.__module__
-        analysis_metadata_function_name = analysis_metadata.__name__
+        analysis_metadata_module_import_path, analysis_metadata_function_name = _module_and_name_from_func(func=analysis_metadata)
 
     @job_utils.python_app
     @functools.wraps(analysis)
