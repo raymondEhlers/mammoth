@@ -170,6 +170,13 @@ class CustomizeAnalysisMetadata(Protocol):
     @property
     def __name__(self) -> str:
         ...
+
+def NoOpCustomizeAnalysisMetadata(
+    task_settings: Settings,
+    **analysis_arguments: dict[str, Any],
+) -> Metadata:
+    return {}
+
 @attrs.frozen(kw_only=True)
 class AnalysisOutput:
     hists: dict[str, hist.Hist] = attrs.field(factory=dict)
@@ -284,9 +291,9 @@ def python_app_embed_MC_into_thermal_model(
         # We handle this more carefully because it may not always be specified
         if analysis_metadata_module_import_path:
             module_containing_analysis_metadata_function = importlib.import_module(analysis_metadata_module_import_path)
-            metadata_function = getattr(module_containing_analysis_metadata_function, analysis_metadata_function_name)
+            metadata_function: CustomizeAnalysisMetadata = getattr(module_containing_analysis_metadata_function, analysis_metadata_function_name)
         else:
-            metadata_function = lambda *args, **kwargs: {}
+            metadata_function = NoOpCustomizeAnalysisMetadata
 
         try:
             result = steer_embed_task(

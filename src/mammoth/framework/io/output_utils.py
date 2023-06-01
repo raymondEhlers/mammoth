@@ -3,7 +3,6 @@
 .. codeauthor:: Raymond Ehlers <raymond.ehlers@cern.ch>, LBL/UCB
 """
 
-
 import logging
 from pathlib import Path
 from typing import Any, BinaryIO, Mapping
