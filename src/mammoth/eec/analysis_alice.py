@@ -21,6 +21,7 @@ import vector
 from mammoth import helpers
 from mammoth.alice import helpers as alice_helpers
 from mammoth.framework import jet_finding, load_data
+from mammoth.framework import task as framework_task
 from mammoth.framework.analysis import array_helpers as analysis_array_helpers
 from mammoth.framework.analysis import jets as analysis_jets
 from mammoth.framework.io import output_utils
@@ -371,56 +372,20 @@ def _calculate_weight_for_plotting(
     )
 
 
-@typing.overload
 def analysis_embedding(
-    source_index_identifiers: Mapping[str, int],
+    *,
     arrays: ak.Array,
+    source_index_identifiers: Mapping[str, int],
+    # Analysis arguments
     trigger_pt_ranges: dict[str, tuple[float, float]],
     min_track_pt: dict[str, float],
     momentum_weight_exponent: int | float,
     scale_factor: float,
-    output_trigger_skim: Literal[False],
     det_level_artificial_tracking_efficiency: float | analysis_jets.PtDependentTrackingEfficiencyParameters = 1.0,
+    # Default analysis arguments
     validation_mode: bool = False,
-) -> dict[str, hist.Hist]: ...
-
-@typing.overload
-def analysis_embedding(
-    source_index_identifiers: Mapping[str, int],
-    arrays: ak.Array,
-    trigger_pt_ranges: dict[str, tuple[float, float]],
-    min_track_pt: dict[str, float],
-    momentum_weight_exponent: int | float,
-    scale_factor: float,
-    output_trigger_skim: Literal[True],
-    det_level_artificial_tracking_efficiency: float | analysis_jets.PtDependentTrackingEfficiencyParameters = 1.0,
-    validation_mode: bool = False,
-) -> tuple[dict[str, hist.Hist], ak.Array]: ...
-
-@typing.overload
-def analysis_embedding(
-    source_index_identifiers: Mapping[str, int],
-    arrays: ak.Array,
-    trigger_pt_ranges: dict[str, tuple[float, float]],
-    min_track_pt: dict[str, float],
-    momentum_weight_exponent: int | float,
-    scale_factor: float,
-    output_trigger_skim: bool,
-    det_level_artificial_tracking_efficiency: float | analysis_jets.PtDependentTrackingEfficiencyParameters = 1.0,
-    validation_mode: bool = False,
-) -> tuple[dict[str, hist.Hist], dict[str, ak.Array]] | dict[str, hist.Hist]: ...
-
-def analysis_embedding(
-    source_index_identifiers: Mapping[str, int],
-    arrays: ak.Array,
-    trigger_pt_ranges: dict[str, tuple[float, float]],
-    min_track_pt: dict[str, float],
-    momentum_weight_exponent: int | float,
-    scale_factor: float,
-    output_trigger_skim: bool,
-    det_level_artificial_tracking_efficiency: float | analysis_jets.PtDependentTrackingEfficiencyParameters = 1.0,
-    validation_mode: bool = False,
-) -> tuple[dict[str, hist.Hist], dict[str, ak.Array]] | dict[str, hist.Hist]:
+    return_skim: bool = False,
+) -> framework_task.AnalysisOutput:
     # Setup
     hists = _setup_embedding_hists(trigger_pt_ranges=trigger_pt_ranges)
     trigger_skim_output: dict[str, ak.Array] = {}
@@ -531,7 +496,7 @@ def analysis_embedding(
             within_hemisphere = (recoil_direction[level][trigger_name].deltaphi(event_selected_array) < np.pi/4)
             eec_particles = event_selected_array[within_hemisphere]
 
-            if output_trigger_skim:
+            if return_skim:
                 trigger_skim_output[f"{level}_{trigger_name}"] = ak.zip(
                     {
                         "triggers": triggers_dict[level][trigger_name],
@@ -615,10 +580,10 @@ def analysis_embedding(
 
     #IPython.embed()  # type: ignore[no-untyped-call]
 
-    if output_trigger_skim:
-        return hists, trigger_skim_output
-
-    return hists
+    return framework_task.AnalysisOutput(
+        hists=hists,
+        skim=trigger_skim_output,
+    )
 
     ## Jet finding
     #logger.info("Find jets")
@@ -901,7 +866,7 @@ if __name__ == "__main__":
     # END NOTE
     for i_chunk, arrays in enumerate(iter_arrays):
         logger.info(f"Processing chunk: {i_chunk}")
-        hists = analysis_embedding(
+        analysis_output = analysis_embedding(
             source_index_identifiers=source_index_identifiers,
             arrays=arrays,
             trigger_pt_ranges={
@@ -916,9 +881,9 @@ if __name__ == "__main__":
             momentum_weight_exponent=1,
             scale_factor=1,
             det_level_artificial_tracking_efficiency=0.99,
-            output_trigger_skim=False,
+            return_skim=False,
         )
-        merged_hists = output_utils.merge_results(merged_hists, hists)
+        merged_hists = output_utils.merge_results(merged_hists, analysis_output.hists)
 
     import IPython
 
