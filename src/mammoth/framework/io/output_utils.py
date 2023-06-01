@@ -14,14 +14,30 @@ logger = logging.getLogger(__name__)
 
 
 def task_output_path_hist(output_filename: Path) -> Path:
+    """Get the path of the hist output file for a task."""
     return output_filename.parent / "hists" / output_filename.with_suffix(".root").name
 
 
 def task_output_path_skim(output_filename: Path, skim_name: str) -> Path:
+    """Get the path of the skim output file for a task."""
     return output_filename.parent / skim_name / output_filename.name
 
 
 def check_for_task_root_skim_output_file(output_filename: Path, reference_tree_name: str = "tree") -> tuple[bool, str]:
+    """Check if the ROOT skim output file for a task has already been processed.
+
+    Note:
+        We also check for an empty file, which indicates that we've run the analysis, but there's nothing
+        to output.
+
+    Args:
+        output_filename: Output filename to be checked.
+        reference_array_name: Name of the reference array to check for. If it exists and has
+            entries, then we known the file has been processed. Default: "tree".
+    Returns:
+        Tuple of (bool, str) indicating if the file has been processed and a message indicating
+            what has been found.
+    """
     # Try to bail out as early to avoid reprocessing if possible.
     # First, check for the empty filename
     empty_filename = output_filename.with_suffix(".empty")
@@ -39,7 +55,7 @@ def check_for_task_root_skim_output_file(output_filename: Path, reference_tree_n
                         # Return immediately to indicate that we're done.
                         return (True, f"already processed (confirmed)")
             except Exception:
-                # If it fails for some reason, give up - we want to try again
+                # If it fails for some reason, give up - we want to try running the analysis
                 pass
         else:
             return (True, "already processed (no reference tree name provided, but file exists)")
@@ -48,6 +64,21 @@ def check_for_task_root_skim_output_file(output_filename: Path, reference_tree_n
 
 
 def check_for_task_parquet_skim_output_file(output_filename: Path, reference_array_name: str = "") -> tuple[bool, str]:
+    """Check if the parquet skim output file for a task has already been processed.
+
+    Note:
+        We also check for an empty file, which indicates that we've run the analysis, but there's nothing
+        to output.
+
+    Args:
+        output_filename: Output filename to be checked.
+        reference_array_name: Name of the reference array to check for. If it exists and has
+            entries, then we known the file has been processed. Default: "", which means that
+            we will just check for the existence of the file.
+    Returns:
+        Tuple of (bool, str) indicating if the file has been processed and a message indicating
+            what has been found.
+    """
     # Try to bail out as early to avoid reprocessing if possible.
     # First, check for the empty filename
     empty_filename = output_filename.with_suffix(".empty")
@@ -66,7 +97,7 @@ def check_for_task_parquet_skim_output_file(output_filename: Path, reference_arr
                     # Return immediately to indicate that we're done.
                     return (True, "already processed (confirmed)")
             except Exception:
-                # If it fails for some reason, give up - we want to try again
+                # If it fails for some reason, give up - we want to try running the analysis
                 pass
         else:
             return (True, "already processed (no reference array name provided, but file exists)")
@@ -75,6 +106,21 @@ def check_for_task_parquet_skim_output_file(output_filename: Path, reference_arr
 
 
 def check_for_task_hist_output_file(output_filename: Path, reference_hist_name: str = "") -> tuple[bool, str]:
+    """Check if the hist output file for a task has already been processed.
+
+    Note:
+        We also check for an empty file, which indicates that we've run the analysis, but there's nothing
+        to output.
+
+    Args:
+        output_filename: Output filename to be checked.
+        reference_hist_name: Name of the reference histogram to check for. If it exists and has
+            entries, then we known the file has been processed. Default: "", which means that
+            we will just check for the existence of the file.
+    Returns:
+        Tuple of (bool, str) indicating if the file has been processed and a message indicating
+            what has been found.
+    """
     # Try to bail out as early to avoid reprocessing if possible.
     # First, check for the empty filename
     empty_filename = output_filename.with_suffix(".empty")
@@ -87,12 +133,12 @@ def check_for_task_hist_output_file(output_filename: Path, reference_hist_name: 
         if reference_hist_name:
             try:
                 with uproot.open(output_filename) as f:
-                    # If the tree exists, can be read, and has more than 0 entries, we should be good
+                    # If the hist exists, can be read, and has more than 0 entries in any bin, we should be good
                     if ak.any(f[reference_hist_name].values() > 0):
                         # Return immediately to indicate that we're done.
                         return (True, "already processed (confirmed)")
             except Exception:
-                # If it fails for some reason, give up - we want to try again
+                # If it fails for some reason, give up - we want to try running the analysis
                 pass
         else:
             return (True, "already processed (no reference hist name provided, but file exists)")
