@@ -346,7 +346,7 @@ class FailedToSetupSourceError(Exception):
 
 
 def check_for_task_output(
-    output_options: OutputOptions,
+    output_options: framework_task.OutputSettings,
     chunk_size: sources.T_ChunkSize | None = None,
 ) -> tuple[bool, str]:
     """ Check for outputs to skip processing early if possible.
@@ -398,7 +398,7 @@ class SetupSource(Protocol):
             *,
             task_settings: framework_task.Settings,
             task_metadata: framework_task.Metadata,
-            output_options: OutputOptions,
+            output_options: framework_task.OutputSettings,
             **kwargs: Any,
         # TODO: If this doesn't unpack correctly, then can just split into a separate embedding source protocol..
         #) -> tuple[Iterator[ak.Array]] | tuple[dict[str, int], Iterator[ak.Array]]:
@@ -411,7 +411,7 @@ class SetupEmbeddingSource(Protocol):
             *,
             task_settings: framework_task.Settings,
             task_metadata: framework_task.Metadata,
-            output_options: OutputOptions,
+            output_options: framework_task.OutputSettings,
             **kwargs: Any,
         ) -> tuple[dict[str, int], Iterator[ak.Array]]:
         ...
@@ -443,7 +443,7 @@ def setup_source_for_embedding(
     background_source: sources.SourceFromFilename | sources.DelayedSource,
     background_is_constrained_source: bool,
     # Outputs
-    output_options: OutputOptions,
+    output_options: framework_task.OutputSettings,
 ) -> tuple[dict[str, int], Iterator[ak.Array]]:
     """ Setup embed MC source for a analysis task.
 
@@ -531,7 +531,7 @@ def setup_source_for_embedding_thermal_model(
     signal_source: sources.SourceFromFilename | sources.DelayedSource,
     thermal_model_parameters: sources.ThermalModelParameters,
     # Outputs
-    output_options: OutputOptions,
+    output_options: framework_task.OutputSettings,
 ) -> tuple[dict[str, int], Iterator[ak.Array]]:
     """ Setup embed MC into thermal model source for a analysis task.
 
@@ -601,32 +601,6 @@ import attrs
 #class InputOptions:
 #    background_is_constrained_source: bool = True
 
-@attrs.frozen(kw_only=True)
-class PrimaryOutput:
-    type: str = attrs.field(validator=[attrs.validators.in_(["hists", "skim"])])
-    reference_name: str
-    name: str = attrs.field(default="")
-
-@attrs.frozen(kw_only=True)
-class OutputOptions:
-    output_filename: Path
-    primary_output: PrimaryOutput
-    return_skim: bool | None = attrs.field(default=None)
-    write_chunk_skim: bool | None = attrs.field(default=None)
-    return_merged_hists: bool | None = attrs.field(default=None)
-    write_chunk_hists: bool | None = attrs.field(default=None)
-    write_merged_hists: bool | None = attrs.field(default=None)
-
-    def with_new_output_filename(self, new_output_filename: Path) -> OutputOptions:
-        return type(self)(
-            output_filename=new_output_filename,
-            primary_output=self.primary_output,
-            return_skim=self.return_skim,
-            write_chunk_skim=self.write_chunk_skim,
-            return_merged_hists=self.return_merged_hists,
-            write_chunk_hists=self.write_chunk_hists,
-            write_merged_hists=self.write_merged_hists,
-        )
 
 import uproot
 
@@ -635,9 +609,7 @@ from mammoth.framework.io import output_utils
 @attrs.frozen(kw_only=True)
 class AnalysisOutput:
     hists: dict[str, hist.Hist] = attrs.field(factory=dict)
-    write_hists: bool | None = attrs.field(default=None)
     skim: ak.Array | dict[str, ak.Array] = attrs.field(factory=dict)
-    write_skim: bool | None = attrs.field(default=None)
 
     def _write_hists(self, output_filename: Path) -> None:
         output_hist_filename = output_path_hist(output_filename=output_filename)
@@ -669,12 +641,10 @@ class AnalysisOutput:
                     parquet_byte_stream_split=True,
                 )
 
-    def write(self, output_filename: Path) -> None:
+    def write(self, output_filename: Path, write_hists: bool | None, write_skim: bool | None) -> None:
         # If not specified, fall back to the default, which is to write the analysis outputs if they're provided
-        write_hists = self.write_hists
         if write_hists is None:
             write_hists = bool(self.hists)
-        write_skim = self.write_skim
         if write_skim is None:
             write_skim = bool(self.skim)
 
@@ -732,7 +702,7 @@ def steer_embed_task_execution(
     source_index_identifiers: dict[str, int],
     iter_arrays: Iterator[ak.Array],
     # Outputs
-    output_options: OutputOptions,
+    output_options: framework_task.OutputSettings,
     # Analysis arguments
     analysis_function: EmbeddingAnalysis,
     # ...
@@ -811,7 +781,11 @@ def steer_embed_task_execution(
                 continue
 
             analysis_output.merge_hists(task_hists=task_hists)
-            analysis_output.write(output_filename=local_output_options.output_filename)
+            analysis_output.write(
+                output_filename=local_output_options.output_filename,
+                write_hists=local_output_options.write_chunk_hists,
+                write_skim=local_output_options.write_chunk_skim,
+            )
 
             # Cleanup (may not be necessary, but it doesn't hurt)
             del arrays
@@ -827,7 +801,11 @@ def steer_embed_task_execution(
         ...
 
     # Write hists
-    if task_hists:
+    if output_options.write_merged_hists:
+        # Cross check that we have something to write
+        assert task_hists
+
+        # And then actually write it
         output_hist_filename = output_path_hist(output_filename=output_options.output_filename)
         output_hist_filename.parent.mkdir(parents=True, exist_ok=True)
         with uproot.recreate(output_hist_filename) as f:
@@ -860,24 +838,18 @@ python_app_embed_MC_into_thermal_model = framework_task.python_app_embed_MC_into
 #) -> ...:
 #    ...
 
-class CustomizeAnalysisMetadata(Protocol):
-    def __call__(
-            self,
-            task_settings: framework_task.Settings,
-        ) -> framework_task.Metadata:
-        ...
-
 
 def steer_embed_task(
     # Task settings
     task_settings: framework_task.Settings,
     # I/O
     setup_input_source: SetupEmbeddingSource,
-    output_options: OutputOptions,
+    output_options: framework_task.OutputSettings,
     # Analysis
     # NOTE: The analysis arguments are bound to both of these functions before passing here
     analysis_function: EmbeddingAnalysis,
-    analysis_metadata_function: CustomizeAnalysisMetadata,
+    analysis_metadata_function: framework_task.CustomizeAnalysisMetadata,
+    # We split these argument out to ensure that they're explicitly supported
     validation_mode: bool,
 ) -> framework_task.Output:
     # Validation
@@ -898,9 +870,6 @@ def steer_embed_task(
     #       up to date since they may change
 
     try:
-        #iter_arrays, source_index_identifiers = setup_source_for_embedding(
-        #    task_settings=task_settings
-        #)
         source_index_identifiers, iter_arrays = setup_input_source(
             task_settings=task_settings,
             output_options=output_options,

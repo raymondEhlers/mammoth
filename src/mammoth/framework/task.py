@@ -9,7 +9,8 @@ import concurrent.futures
 import functools
 import importlib
 import logging
-from typing import Any, Callable
+from pathlib import Path
+from typing import Any, Callable, Protocol
 
 import attrs
 import hist
@@ -36,7 +37,7 @@ class Settings:
 
 @attrs.frozen
 class Output:
-    """Task output.
+    """Task output wrapper.
 
     Attributes:
         production_identifier: Unique production identifier for the task.
@@ -71,10 +72,77 @@ class Output:
         logger.info(self.message)
 
 
+
+@attrs.frozen(kw_only=True)
+class PrimaryOutput:
+    type: str = attrs.field(validator=[attrs.validators.in_(["hists", "skim"])])
+    reference_name: str
+    name: str = attrs.field(default="")
+
+@attrs.frozen(kw_only=True)
+class OutputSettings:
+    """Task output settings.
+
+    Note:
+        Default: None for many of the parameters means that it will be determined by whether output was provided.
+        If it's available, then it will be written and/or returned.
+
+    Attributes:
+        output_filename: Output filename.
+        primary_output: Primary output, which should be used as a proxy for whether there are existing outputs.
+        return_skim: Whether to return the skim. Default: None.
+        write_chunk_skim: Whether to write the skim for each chunk. Default: None.
+        return_merged_hists: Whether to return the merged histograms. Default: None.
+        write_chunk_hists: Whether to write the histograms for each chunk. Default: None.
+        write_merged_hists: Whether to write the merged histograms. Default: None.
+    """
+    output_filename: Path
+    primary_output: PrimaryOutput
+    return_skim: bool | None = attrs.field(default=None)
+    write_chunk_skim: bool | None = attrs.field(default=None)
+    return_merged_hists: bool | None = attrs.field(default=None)
+    write_chunk_hists: bool | None = attrs.field(default=None)
+    write_merged_hists: bool | None = attrs.field(default=None)
+
+    def with_new_output_filename(self, new_output_filename: Path) -> OutputSettings:
+        return type(self)(
+            output_filename=new_output_filename,
+            primary_output=self.primary_output,
+            return_skim=self.return_skim,
+            write_chunk_skim=self.write_chunk_skim,
+            return_merged_hists=self.return_merged_hists,
+            write_chunk_hists=self.write_chunk_hists,
+            write_merged_hists=self.write_merged_hists,
+        )
+
+
+##############################
+# Chunk analysis functionality
+##############################
+class CustomizeAnalysisMetadata(Protocol):
+    """Customize metadata based on the analysis arguments.
+
+    """
+    def __call__(
+            self,
+            task_settings: Settings,
+            **analysis_arguments: dict[str, Any],
+        ) -> Metadata:
+        ...
+
+    @property
+    def __name__(self) -> str:
+        ...
+
+
+#############
+# Python apps
+#############
+
 def python_app_embed_MC_into_thermal_model(
     *,
     analysis: Callable[..., Output],
-    analysis_metadata: Callable[..., Metadata] | None = None,
+    analysis_metadata: CustomizeAnalysisMetadata | None = None,
 ) -> Callable[..., concurrent.futures.Future[Output]]:
     # Delay this import since we don't want to load all job utils functionality
     # when simply loading the module. However, it doesn't to make sense to split this up otherwise, so
@@ -137,6 +205,9 @@ def python_app_embed_MC_into_thermal_model(
                     setup_source_for_embedding_thermal_model,
                     signal_input=[Path(_input_file.filepath) for _input_file in inputs],
                     thermal_model_parameters=thermal_model_parameters,
+                ),
+                output_options=framework_task.OutputSettings(
+                    ...
                 ),
                 # Analysis
                 analysis_function=functools.partial(
