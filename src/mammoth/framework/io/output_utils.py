@@ -1,8 +1,104 @@
+""" Output utilities
+
+.. codeauthor:: Raymond Ehlers <raymond.ehlers@cern.ch>, LBL/UCB
+"""
+
 
 import logging
+from pathlib import Path
 from typing import Any, BinaryIO, Mapping
 
+import awkward as ak
+import uproot
+
 logger = logging.getLogger(__name__)
+
+
+def task_output_path_hist(output_filename: Path) -> Path:
+    return output_filename.parent / "hists" / output_filename.with_suffix(".root").name
+
+
+def task_output_path_skim(output_filename: Path, skim_name: str) -> Path:
+    return output_filename.parent / skim_name / output_filename.name
+
+
+def check_for_task_root_skim_output_file(output_filename: Path, reference_tree_name: str = "tree") -> tuple[bool, str]:
+    # Try to bail out as early to avoid reprocessing if possible.
+    # First, check for the empty filename
+    empty_filename = output_filename.with_suffix(".empty")
+    if empty_filename.exists():
+        # It will be empty, so there's nothing to check. Just return
+        return (True, "Done - found empty file indicating that there are no tree outputs after analysis")
+
+    # Next, check the contents of the output file
+    if output_filename.exists():
+        if reference_tree_name:
+            try:
+                with uproot.open(output_filename) as f:
+                    # If the tree exists, can be read, and has more than 0 entries, we should be good
+                    if f[reference_tree_name].num_entries > 0:
+                        # Return immediately to indicate that we're done.
+                        return (True, f"already processed (confirmed)")
+            except Exception:
+                # If it fails for some reason, give up - we want to try again
+                pass
+        else:
+            return (True, "already processed (no reference tree name provided, but file exists)")
+
+    return (False, "")
+
+
+def check_for_task_parquet_skim_output_file(output_filename: Path, reference_array_name: str = "") -> tuple[bool, str]:
+    # Try to bail out as early to avoid reprocessing if possible.
+    # First, check for the empty filename
+    empty_filename = output_filename.with_suffix(".empty")
+    if empty_filename.exists():
+        # It will be empty, so there's nothing to check. Just return
+        return (True, "Done - found empty file indicating that there are no array outputs after analysis")
+
+    # Next, check the contents of the output file
+    if output_filename.exists():
+        if reference_array_name:
+            try:
+                arrays = ak.from_parquet(output_filename)
+                # If the reference array exists, can be read, and has more than 0 entries, we have analyzed successfully
+                # and don't need to do it again
+                if ak.num(arrays[reference_array_name], axis=0) > 0:
+                    # Return immediately to indicate that we're done.
+                    return (True, "already processed (confirmed)")
+            except Exception:
+                # If it fails for some reason, give up - we want to try again
+                pass
+        else:
+            return (True, "already processed (no reference array name provided, but file exists)")
+
+    return (False, "")
+
+
+def check_for_task_hist_output_file(output_filename: Path, reference_hist_name: str = "") -> tuple[bool, str]:
+    # Try to bail out as early to avoid reprocessing if possible.
+    # First, check for the empty filename
+    empty_filename = output_filename.with_suffix(".empty")
+    if empty_filename.exists():
+        # It will be empty, so there's nothing to check. Just return
+        return (True, "Done - found empty file indicating that there are no hists after analysis")
+
+    # Next, check the contents of the output file
+    if output_filename.exists():
+        if reference_hist_name:
+            try:
+                with uproot.open(output_filename) as f:
+                    # If the tree exists, can be read, and has more than 0 entries, we should be good
+                    if ak.any(f[reference_hist_name].values() > 0):
+                        # Return immediately to indicate that we're done.
+                        return (True, "already processed (confirmed)")
+            except Exception:
+                # If it fails for some reason, give up - we want to try again
+                pass
+        else:
+            return (True, "already processed (no reference hist name provided, but file exists)")
+
+    return (False, "")
 
 
 def merge_results(a: dict[Any, Any], b: dict[Any, Any]) -> dict[Any, Any]:

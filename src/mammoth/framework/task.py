@@ -1,4 +1,8 @@
-"""Task related functionality
+"""Task (and analysis) related functionality
+
+Overall concept:
+    task: Corresponds to one unit (eg. file), which will be handled by an app
+    analysis: Corresponds to analysis of one chunk (eg. one file, or one chunk of a file). Doesn't care about I/O, etc.
 
 .. codeauthor:: Raymond Ehlers <raymond.ehlers@cern.ch>, LBL/UCB
 """
@@ -13,14 +17,37 @@ from pathlib import Path
 from typing import Any, Callable, Protocol
 
 import attrs
+import awkward as ak
 import hist
+import uproot
 
 from mammoth.framework import sources
+from mammoth.framework.io import output_utils
 
 logger = logging.getLogger(__name__)
 
+####################
+# Task functionality
+####################
 
 Metadata = dict[str, Any]
+
+
+def description_from_metadata(metadata: dict[str, Any]) -> str:
+    return ", ".join([f"{k}={v}" for k, v in metadata.items()])
+
+
+def description_and_output_metadata(task_metadata: Metadata) -> tuple[str, dict[str, Any]]:
+    """Create a str description and output metadata from the task metadata."""
+    description = description_from_metadata(metadata=task_metadata)
+    output_metadata = {
+        # Useful to have the summary as a string
+        "description": description,
+        # but also useful to have programmatic access
+        "parameters": task_metadata,
+    }
+    return description, output_metadata
+
 
 @attrs.frozen(kw_only=True)
 class Settings:
@@ -35,49 +62,13 @@ class Settings:
     collision_system: str
     chunk_size: sources.T_ChunkSize
 
-@attrs.frozen
-class Output:
-    """Task output wrapper.
-
-    Attributes:
-        production_identifier: Unique production identifier for the task.
-        collision_system: Collision system
-        success: Whether the task was successful.
-        message: Message about the task execution.
-        hists: Histograms returned by this task. Default: {}.
-        results: Any additional results returned by this task. eg. skimmed arrays. Default: {}.
-        metadata: Any additional metadata returned by this task. Collision system could go
-            into this metadata, but it's fairly useful for identification, etc, so we call
-            it out explicitly. Default: {}.
-    """
-    production_identifier: str
-    collision_system: str
-    success: bool
-    message: str
-    hists: dict[str, hist.Hist] = attrs.field(factory=dict, kw_only=True, repr=lambda value: str(list(value.keys())))
-    results: dict[str, Any] = attrs.field(factory=dict, kw_only=True)
-    metadata: dict[str, Any] = attrs.field(factory=dict, kw_only=True)
-
-    def print(self) -> None:
-        """Print the message to the logger.
-
-        Note:
-            This is implemented as a convenience function since it otherwise
-            won't evaluate newlines in the message. We don't implement __str__
-            or __repr__ since those require an additional function call (ie. explicit print).
-            This is all just for convenience.
-        """
-        logger.info(f"collision_system={self.collision_system}, success={self.success}, identifier={self.production_identifier}")
-        # NOTE: Evaluate the message separately to ensure that newlines are evaluated.
-        logger.info(self.message)
-
-
 
 @attrs.frozen(kw_only=True)
 class PrimaryOutput:
     type: str = attrs.field(validator=[attrs.validators.in_(["hists", "skim"])])
     reference_name: str
     name: str = attrs.field(default="")
+
 
 @attrs.frozen(kw_only=True)
 class OutputSettings:
@@ -116,9 +107,55 @@ class OutputSettings:
         )
 
 
+@attrs.frozen
+class Output:
+    """Task output wrapper.
+
+    Attributes:
+        production_identifier: Unique production identifier for the task.
+        collision_system: Collision system
+        success: Whether the task was successful.
+        message: Message about the task execution.
+        hists: Histograms returned by this task. Default: {}.
+        results: Any additional results returned by this task. eg. skimmed arrays. Default: {}.
+        metadata: Any additional metadata returned by this task. Collision system could go
+            into this metadata, but it's fairly useful for identification, etc, so we call
+            it out explicitly. Default: {}.
+    """
+    production_identifier: str
+    collision_system: str
+    success: bool
+    message: str
+    hists: dict[str, hist.Hist] = attrs.field(factory=dict, kw_only=True, repr=lambda value: str(list(value.keys())))
+    results: dict[str, Any] = attrs.field(factory=dict, kw_only=True)
+    metadata: dict[str, Any] = attrs.field(factory=dict, kw_only=True)
+
+    def print(self) -> None:
+        """Print the message to the logger.
+
+        Note:
+            This is implemented as a convenience function since it otherwise
+            won't evaluate newlines in the message. We don't implement __str__
+            or __repr__ since those require an additional function call (ie. explicit print).
+            This is all just for convenience.
+        """
+        logger.info(f"collision_system={self.collision_system}, success={self.success}, identifier={self.production_identifier}")
+        # NOTE: Evaluate the message separately to ensure that newlines are evaluated.
+        logger.info(self.message)
+
+
 ##############################
 # Chunk analysis functionality
 ##############################
+
+
+class Analysis(Protocol):
+    def __call__(self, *, arrays: ak.Array, validation_mode: bool = False) -> AnalysisOutput:
+        ...
+
+class EmbeddingAnalysis(Protocol):
+    def __call__(self, *, source_index_identifiers: dict[str, int], arrays: ak.Array, validation_mode: bool = False) -> AnalysisOutput:
+        ...
 class CustomizeAnalysisMetadata(Protocol):
     """Customize metadata based on the analysis arguments.
 
@@ -133,6 +170,65 @@ class CustomizeAnalysisMetadata(Protocol):
     @property
     def __name__(self) -> str:
         ...
+@attrs.frozen(kw_only=True)
+class AnalysisOutput:
+    hists: dict[str, hist.Hist] = attrs.field(factory=dict)
+    skim: ak.Array | dict[str, ak.Array] = attrs.field(factory=dict)
+
+    def _write_hists(self, output_filename: Path) -> None:
+        output_hist_filename = output_utils.task_output_path_hist(output_filename=output_filename)
+        output_hist_filename.parent.mkdir(parents=True, exist_ok=True)
+        with uproot.recreate(output_hist_filename) as f:
+            output_utils.write_hists_to_file(hists=self.hists, f=f)
+
+    def _write_skim(self, output_filename: Path, skim: dict[str, ak.Array]) -> None:
+        for skim_name, skim_array in skim.items():
+            # Enables the possibility of writing a single standard file (just wrap in a dict with an empty string as key).
+            if skim_name != "":
+                _skim_output_filename = output_utils.task_output_path_skim(output_filename=output_filename, skim_name=skim_name)
+            else:
+                _skim_output_filename = output_filename
+
+            _skim_output_filename.parent.mkdir(parents=True, exist_ok=True)
+            if ak.num(skim_array, axis=0) == 0:
+                # Skip the skim if it's empty
+                _skim_output_filename.with_suffix(".empty").touch()
+            else:
+                # Write the skim
+                ak.to_parquet(
+                    array=skim_array,
+                    destination=str(_skim_output_filename),
+                    compression="zstd",
+                    # Optimize for columns with anything other than floats
+                    parquet_dictionary_encoding=True,
+                    # Optimize for columns with floats
+                    parquet_byte_stream_split=True,
+                )
+
+    def write(self, output_filename: Path, write_hists: bool | None, write_skim: bool | None) -> None:
+        # If not specified, fall back to the default, which is to write the analysis outputs if they're provided
+        if write_hists is None:
+            write_hists = bool(self.hists)
+        if write_skim is None:
+            write_skim = bool(self.skim)
+
+        # Validation
+        if isinstance(self.skim, ak.Array):
+            skim = {"": self.skim}
+        else:
+            skim = self.skim
+
+        # Write if requested
+        if write_hists:
+            self._write_hists(output_filename=output_filename)
+
+        if write_skim:
+            self._write_skim(output_filename=output_filename, skim=skim)
+
+    def merge_hists(self, task_hists: dict[str, hist.Hist]) -> None:
+        # No point in trying to merge if there are no hists!
+        if self.hists:
+            task_hists = output_utils.merge_results(task_hists, self.hists)
 
 
 #############

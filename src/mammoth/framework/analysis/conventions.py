@@ -1,5 +1,7 @@
 """Functionality related to conventions for running analyses.
 
+DEPRECATED!
+
 .. codeauthor:: Raymond Ehlers <raymond.ehlers@cern.ch>, LBL/UCB
 """
 

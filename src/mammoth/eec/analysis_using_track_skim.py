@@ -25,96 +25,6 @@ from mammoth.framework.io import track_skim
 logger = logging.getLogger(__name__)
 
 
-def output_path_hist(output_filename: Path) -> Path:
-    return output_filename.parent / "hists" / output_filename.with_suffix(".root").name
-
-
-def output_path_skim(output_filename: Path, skim_name: str) -> Path:
-    return output_filename.parent / skim_name / output_filename.name
-
-
-def check_for_root_skim_output_file(output_filename: Path, reference_tree_name: str = "tree") -> tuple[bool, str]:
-    # Try to bail out as early to avoid reprocessing if possible.
-    # First, check for the empty filename
-    empty_filename = output_filename.with_suffix(".empty")
-    if empty_filename.exists():
-        # It will be empty, so there's nothing to check. Just return
-        return (True, "Done - found empty file indicating that there are no tree outputs after analysis")
-
-    # Next, check the contents of the output file
-    if output_filename.exists():
-        if reference_tree_name:
-            try:
-                with uproot.open(output_filename) as f:
-                    # If the tree exists, can be read, and has more than 0 entries, we should be good
-                    if f[reference_tree_name].num_entries > 0:
-                        # Return immediately to indicate that we're done.
-                        return (True, f"already processed (confirmed)")
-            except Exception:
-                # If it fails for some reason, give up - we want to try again
-                pass
-        else:
-            return (True, "already processed (no reference tree name provided, but file exists)")
-
-    return (False, "")
-
-
-def check_for_parquet_skim_output_file(output_filename: Path, reference_array_name: str = "") -> tuple[bool, str]:
-    # Try to bail out as early to avoid reprocessing if possible.
-    # First, check for the empty filename
-    empty_filename = output_filename.with_suffix(".empty")
-    if empty_filename.exists():
-        # It will be empty, so there's nothing to check. Just return
-        return (True, "Done - found empty file indicating that there are no array outputs after analysis")
-
-    # Next, check the contents of the output file
-    if output_filename.exists():
-        if reference_array_name:
-            try:
-                arrays = ak.from_parquet(output_filename)
-                # If the reference array exists, can be read, and has more than 0 entries, we have analyzed successfully
-                # and don't need to do it again
-                if ak.num(arrays[reference_array_name], axis=0) > 0:
-                    # Return immediately to indicate that we're done.
-                    return (True, "already processed (confirmed)")
-            except Exception:
-                # If it fails for some reason, give up - we want to try again
-                pass
-        else:
-            return (True, "already processed (no reference array name provided, but file exists)")
-
-    return (False, "")
-
-
-def check_for_hist_output_file(output_filename: Path, reference_hist_name: str = "") -> tuple[bool, str]:
-    # Try to bail out as early to avoid reprocessing if possible.
-    # First, check for the empty filename
-    empty_filename = output_filename.with_suffix(".empty")
-    if empty_filename.exists():
-        # It will be empty, so there's nothing to check. Just return
-        return (True, "Done - found empty file indicating that there are no hists after analysis")
-
-    # Next, check the contents of the output file
-    if output_filename.exists():
-        if reference_hist_name:
-            try:
-                with uproot.open(output_filename) as f:
-                    # If the tree exists, can be read, and has more than 0 entries, we should be good
-                    if ak.any(f[reference_hist_name].values() > 0):
-                        # Return immediately to indicate that we're done.
-                        return (True, "already processed (confirmed)")
-            except Exception:
-                # If it fails for some reason, give up - we want to try again
-                pass
-        else:
-            return (True, "already processed (no reference hist name provided, but file exists)")
-
-    return (False, "")
-
-def description_from_parameters(parameters: dict[str, Any]) -> str:
-    return ", ".join([f"{k}={v}" for k, v in parameters.items()])
-
-
 def eec_embed_thermal_model_analysis(  # noqa: C901
     production_identifier: str,
     collision_system: str,
@@ -160,13 +70,13 @@ def eec_embed_thermal_model_analysis(  # noqa: C901
         # perform this check if we are using a single file or the full source.
         # NOTE: Use "hybrid_reference" as a proxy. Better to use reference than signal since we're more likely
         #       to have reference triggers.
-        res = check_for_parquet_skim_output_file(
-            output_filename=output_path_skim(output_filename=output_filename, skim_name="hybrid_reference"),
+        res = output_utils.check_for_task_parquet_skim_output_file(
+            output_filename=output_utils.task_output_path_skim(output_filename=output_filename, skim_name="hybrid_reference"),
             reference_array_name="triggers",
         )
     else:
-        res = check_for_hist_output_file(
-            output_filename=output_path_hist(output_filename=output_filename),
+        res = output_utils.check_for_task_hist_output_file(
+            output_filename=output_utils.task_output_path_hist(output_filename=output_filename),
             reference_hist_name="hybrid_reference_eec",
         )
     if res[0]:
@@ -220,13 +130,13 @@ def eec_embed_thermal_model_analysis(  # noqa: C901
 
         # Try to bail out as early to avoid reprocessing if possible.
         if output_trigger_skim:
-            res = check_for_parquet_skim_output_file(
-                output_filename=output_path_skim(output_filename=_output_filename, skim_name="hybrid_reference"),
+            res = output_utils.check_for_task_parquet_skim_output_file(
+                output_filename=output_utils.task_output_path_skim(output_filename=_output_filename, skim_name="hybrid_reference"),
                 reference_array_name="hybrid_reference",
             )
         else:
-            res = check_for_hist_output_file(
-                output_filename=output_path_hist(output_filename=_output_filename),
+            res = output_utils.check_for_task_hist_output_file(
+                output_filename=output_utils.task_output_path_hist(output_filename=_output_filename),
                 reference_hist_name="hybrid_reference_eec",
             )
         if res[0]:
@@ -274,7 +184,7 @@ def eec_embed_thermal_model_analysis(  # noqa: C901
 
         if trigger_skim:
             for skim_name, skim_array in trigger_skim.items():
-                _skim_output_filename = output_path_skim(output_filename=_output_filename, skim_name=skim_name)
+                _skim_output_filename = output_utils.task_output_path_skim(output_filename=_output_filename, skim_name=skim_name)
                 _skim_output_filename.parent.mkdir(parents=True, exist_ok=True)
                 if ak.num(skim_array, axis=0) == 0:
                     # Skip the skim if it's empty
@@ -300,7 +210,7 @@ def eec_embed_thermal_model_analysis(  # noqa: C901
 
     # Write hists
     if hists:
-        output_hist_filename = output_path_hist(output_filename=output_filename)
+        output_hist_filename = output_utils.task_output_path_hist(output_filename=output_filename)
         output_hist_filename.parent.mkdir(parents=True, exist_ok=True)
         with uproot.recreate(output_hist_filename) as f:
             output_utils.write_hists_to_file(hists=hists, f=f)
@@ -319,8 +229,6 @@ def eec_embed_thermal_model_analysis(  # noqa: C901
         metadata=output_metadata,
     )
 
-
-# TODO: Need to finish prototyping how I'm actually going to do this...
 
 # New code starting from here
 
@@ -374,18 +282,18 @@ def check_for_task_output(
     if chunk_size is None or (chunk_size == sources.ChunkSizeSentinel.SINGLE_FILE or chunk_size == sources.ChunkSizeSentinel.FULL_SOURCE) or output_options.write_merged_hists:
         if output_options.primary_output.type == "skim":
             if output_options.output_filename.suffix == ".root":
-                res = check_for_root_skim_output_file(
-                    output_filename=output_path_skim(output_filename=output_options.output_filename, skim_name=output_options.primary_output.name),
+                res = output_utils.check_for_task_root_skim_output_file(
+                    output_filename=output_utils.task_output_path_skim(output_filename=output_options.output_filename, skim_name=output_options.primary_output.name),
                     reference_tree_name=output_options.primary_output.reference_name,
                 )
             else:
-                res = check_for_parquet_skim_output_file(
-                    output_filename=output_path_skim(output_filename=output_options.output_filename, skim_name=output_options.primary_output.name),
+                res = output_utils.check_for_task_parquet_skim_output_file(
+                    output_filename=output_utils.task_output_path_skim(output_filename=output_options.output_filename, skim_name=output_options.primary_output.name),
                     reference_array_name=output_options.primary_output.reference_name,
                 )
         if output_options.primary_output.type == "hists":
-            res = check_for_hist_output_file(
-                output_filename=output_path_hist(output_filename=output_options.output_filename),
+            res = output_utils.check_for_task_hist_output_file(
+                output_filename=output_utils.task_output_path_hist(output_filename=output_options.output_filename),
                 reference_hist_name=output_options.primary_output.reference_name,
             )
 
@@ -606,85 +514,8 @@ import uproot
 
 from mammoth.framework.io import output_utils
 
-@attrs.frozen(kw_only=True)
-class AnalysisOutput:
-    hists: dict[str, hist.Hist] = attrs.field(factory=dict)
-    skim: ak.Array | dict[str, ak.Array] = attrs.field(factory=dict)
-
-    def _write_hists(self, output_filename: Path) -> None:
-        output_hist_filename = output_path_hist(output_filename=output_filename)
-        output_hist_filename.parent.mkdir(parents=True, exist_ok=True)
-        with uproot.recreate(output_hist_filename) as f:
-            output_utils.write_hists_to_file(hists=self.hists, f=f)
-
-    def _write_skim(self, output_filename: Path, skim: dict[str, ak.Array]) -> None:
-        for skim_name, skim_array in skim.items():
-            # Enables the possibility of writing a single standard file (just wrap in a dict with an empty string as key).
-            if skim_name != "":
-                _skim_output_filename = output_path_skim(output_filename=output_filename, skim_name=skim_name)
-            else:
-                _skim_output_filename = output_filename
-
-            _skim_output_filename.parent.mkdir(parents=True, exist_ok=True)
-            if ak.num(skim_array, axis=0) == 0:
-                # Skip the skim if it's empty
-                _skim_output_filename.with_suffix(".empty").touch()
-            else:
-                # Write the skim
-                ak.to_parquet(
-                    array=skim_array,
-                    destination=str(_skim_output_filename),
-                    compression="zstd",
-                    # Optimize for columns with anything other than floats
-                    parquet_dictionary_encoding=True,
-                    # Optimize for columns with floats
-                    parquet_byte_stream_split=True,
-                )
-
-    def write(self, output_filename: Path, write_hists: bool | None, write_skim: bool | None) -> None:
-        # If not specified, fall back to the default, which is to write the analysis outputs if they're provided
-        if write_hists is None:
-            write_hists = bool(self.hists)
-        if write_skim is None:
-            write_skim = bool(self.skim)
-
-        # Validation
-        if isinstance(self.skim, ak.Array):
-            skim = {"": self.skim}
-        else:
-            skim = self.skim
-
-        # Write if requested
-        if write_hists:
-            self._write_hists(output_filename=output_filename)
-
-        if write_skim:
-            self._write_skim(output_filename=output_filename, skim=skim)
-
-    def merge_hists(self, task_hists: dict[str, hist.Hist]) -> None:
-        # No point in trying to merge if there are no hists!
-        if self.hists:
-            task_hists = output_utils.merge_results(task_hists, self.hists)
 
 from typing import Protocol
-
-class Analysis(Protocol):
-    def __call__(self, *, arrays: ak.Array, validation_mode: bool = False) -> AnalysisOutput:
-        ...
-
-class EmbeddingAnalysis(Protocol):
-    def __call__(self, *, source_index_identifiers: dict[str, int], arrays: ak.Array, validation_mode: bool = False) -> AnalysisOutput:
-        ...
-
-def description_and_output_metadata(task_metadata: framework_task.Metadata) -> tuple[str, dict[str, Any]]:
-    description = analysis_conventions.description_from_parameters(parameters=task_metadata)
-    output_metadata = {
-        # Useful to have the summary as a string
-        "description": description,
-        # but also useful to have programmatic access
-        "parameters": task_metadata,
-    }
-    return description, output_metadata
 
 
 ########################
@@ -704,7 +535,7 @@ def steer_embed_task_execution(
     # Outputs
     output_options: framework_task.OutputSettings,
     # Analysis arguments
-    analysis_function: EmbeddingAnalysis,
+    analysis_function: framework_task.EmbeddingAnalysis,
     # ...
     # trigger_pt_ranges: dict[str, tuple[float, float]],
     # min_track_pt: dict[str, float],
@@ -806,7 +637,7 @@ def steer_embed_task_execution(
         assert task_hists
 
         # And then actually write it
-        output_hist_filename = output_path_hist(output_filename=output_options.output_filename)
+        output_hist_filename = output_utils.task_output_path_hist(output_filename=output_options.output_filename)
         output_hist_filename.parent.mkdir(parents=True, exist_ok=True)
         with uproot.recreate(output_hist_filename) as f:
             output_utils.write_hists_to_file(hists=task_hists, f=f)
@@ -815,7 +646,7 @@ def steer_embed_task_execution(
     if not output_options.return_merged_hists:
         del task_hists
 
-    description, output_metadata = description_and_output_metadata(task_metadata=task_metadata)
+    description, output_metadata = framework_task.description_and_output_metadata(task_metadata=task_metadata)
     return framework_task.Output(
         production_identifier=task_settings.production_identifier,
         collision_system=task_settings.collision_system,
@@ -847,7 +678,7 @@ def steer_embed_task(
     output_options: framework_task.OutputSettings,
     # Analysis
     # NOTE: The analysis arguments are bound to both of these functions before passing here
-    analysis_function: EmbeddingAnalysis,
+    analysis_function: framework_task.EmbeddingAnalysis,
     analysis_metadata_function: framework_task.CustomizeAnalysisMetadata,
     # We split these argument out to ensure that they're explicitly supported
     validation_mode: bool,
@@ -877,7 +708,7 @@ def steer_embed_task(
         )
     except FailedToSetupSourceError as e:
         # Source wasn't suitable for some reason - bail out.
-        _, output_metadata = description_and_output_metadata(task_metadata=task_metadata)
+        _, output_metadata = framework_task.description_and_output_metadata(task_metadata=task_metadata)
         return framework_task.Output(
             production_identifier=task_settings.production_identifier,
             collision_system=task_settings.collision_system,
@@ -968,13 +799,13 @@ def steer_embed_thermal_model_analysis(  # noqa: C901
         # perform this check if we are using a single file or the full source.
         # NOTE: Use "hybrid_reference" as a proxy. Better to use reference than signal since we're more likely
         #       to have reference triggers.
-        res = check_for_parquet_skim_output_file(
-            output_filename=output_path_skim(output_filename=output_filename, skim_name="hybrid_reference"),
+        res = output_utils.check_for_task_parquet_skim_output_file(
+            output_filename=output_utils.task_output_path_skim(output_filename=output_filename, skim_name="hybrid_reference"),
             reference_array_name="triggers",
         )
     else:
-        res = check_for_hist_output_file(
-            output_filename=output_path_hist(output_filename=output_filename),
+        res = output_utils.check_for_task_hist_output_file(
+            output_filename=output_utils.task_output_path_hist(output_filename=output_filename),
             reference_hist_name="hybrid_reference_eec",
         )
     if res[0]:
@@ -1028,13 +859,13 @@ def steer_embed_thermal_model_analysis(  # noqa: C901
 
         # Try to bail out as early to avoid reprocessing if possible.
         if output_skim:
-            res = check_for_parquet_skim_output_file(
-                output_filename=output_path_skim(output_filename=_output_filename, skim_name="hybrid_reference"),
+            res = output_utils.check_for_task_parquet_skim_output_file(
+                output_filename=output_utils.task_output_path_skim(output_filename=_output_filename, skim_name="hybrid_reference"),
                 reference_array_name="hybrid_reference",
             )
         else:
-            res = check_for_hist_output_file(
-                output_filename=output_path_hist(output_filename=_output_filename),
+            res = output_utils.check_for_task_hist_output_file(
+                output_filename=output_utils.task_output_path_hist(output_filename=_output_filename),
                 reference_hist_name="hybrid_reference_eec",
             )
         if res[0]:
@@ -1082,7 +913,7 @@ def steer_embed_thermal_model_analysis(  # noqa: C901
 
         if trigger_skim:
             for skim_name, skim_array in trigger_skim.items():
-                _skim_output_filename = output_path_skim(output_filename=_output_filename, skim_name=skim_name)
+                _skim_output_filename = output_utils.task_output_path_skim(output_filename=_output_filename, skim_name=skim_name)
                 _skim_output_filename.parent.mkdir(parents=True, exist_ok=True)
                 if ak.num(skim_array, axis=0) == 0:
                     # Skip the skim if it's empty
@@ -1108,7 +939,7 @@ def steer_embed_thermal_model_analysis(  # noqa: C901
 
     # Write hists
     if hists:
-        output_hist_filename = output_path_hist(output_filename=output_filename)
+        output_hist_filename = output_utils.task_output_path_hist(output_filename=output_filename)
         output_hist_filename.parent.mkdir(parents=True, exist_ok=True)
         with uproot.recreate(output_hist_filename) as f:
             output_utils.write_hists_to_file(hists=hists, f=f)
