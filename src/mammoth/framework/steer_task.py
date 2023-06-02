@@ -19,16 +19,6 @@ from mammoth.framework.io import output_utils
 logger = logging.getLogger(__name__)
 
 
-class CustomizeParameters(Protocol):
-    def __call__(
-            self,
-            *,
-            task_settings: framework_task.Settings,
-            **analysis_arguments: Any,
-        ) -> dict[str, Any]:
-        ...
-
-
 def steer_embed_task_execution(
     *,
     task_settings: framework_task.Settings,
@@ -156,17 +146,6 @@ def steer_embed_task_execution(
         results=analysis_output.skim if output_options.return_skim else {},
         metadata=output_metadata,
     )
-
-python_app_embed_MC_into_thermal_model = framework_task.python_app_embed_MC_into_thermal_model(
-    analysis=analysis_alice.analysis_embedding,
-)
-
-# TODO: Double wrap - we want to be able to pass the full set of arguments to the function, and have it pass on the analysis arguments
-#@embedding_task(preprocess_arguments=_my_preprocessing_func, parameters=_my_parameters_func)
-#def embed_analysis(
-#    analysis_arguments,
-#) -> ...:
-#    ...
 
 
 def steer_embed_task(

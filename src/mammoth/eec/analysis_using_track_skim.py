@@ -14,7 +14,6 @@ import awkward as ak
 import hist
 import uproot
 
-import mammoth.helpers
 from mammoth.eec import analysis_alice
 from mammoth.framework import load_data, sources
 from mammoth.framework import task as framework_task

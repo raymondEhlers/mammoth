@@ -738,6 +738,10 @@ def analysis_embedding(
     ## Now, the final transformation into a form that can be used to skim into a flat tree.
     #return jets
 
+python_app_embed_MC_into_thermal_model = framework_task.python_app_embed_MC_into_thermal_model(
+    analysis=analysis_embedding,
+)
+
 
 def run_some_standalone_tests() -> None:
     # Some tests:
