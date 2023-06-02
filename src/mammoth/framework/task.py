@@ -21,7 +21,7 @@ import awkward as ak
 import hist
 import uproot
 
-from mammoth.framework import sources
+from mammoth.framework import sources, steer_task
 from mammoth.framework.io import output_utils
 
 logger = logging.getLogger(__name__)
@@ -421,7 +421,7 @@ def python_app_embed_MC_into_thermal_model(
 
         # NOTE: Be aware - this would be an import loop if moved to the top of the module!
         from mammoth.framework import task as framework_task
-        from mammoth.framework import io, load_data, steering
+        from mammoth.framework import io, load_data
 
         # Get the analysis
         module_containing_analysis_function = importlib.import_module(analysis_function_module_import_path)
@@ -435,7 +435,7 @@ def python_app_embed_MC_into_thermal_model(
             metadata_function = NoOpCustomizeAnalysisMetadata
 
         try:
-            result = steering.steer_embed_task(
+            result = steer_task.steer_embed_task(
                 # General task settings
                 task_settings=Settings(
                     production_identifier=production_identifier,
