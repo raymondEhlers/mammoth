@@ -419,6 +419,7 @@ def python_app_embed_MC_into_thermal_model(
         import traceback
         from pathlib import Path
 
+        # NOTE: Be aware - this would be an import loop if moved to the top of the module!
         from mammoth.framework import task as framework_task
         from mammoth.framework import io, load_data, steering
 
