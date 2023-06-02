@@ -232,95 +232,7 @@ def eec_embed_thermal_model_analysis(  # noqa: C901
 
 # New code starting from here
 
-class FailedToSetupSourceError(Exception):
-    """Failed to setup the input source for the task.
 
-    Attributes:
-        result_success: Whether the task was successful.
-        result_message: Message describing the result.
-    """
-    def __init__(self, result_success: bool, result_message: str):
-        self.result_success = result_success
-        self.result_message = result_message
-
-    def __iter__(self) -> tuple[bool, str]:
-        return (self.result_success, self.result_message)
-
-    def __str__(self) -> str:
-        return f"{type(self).__name__}(result_success={self.result_success}, result_message={self.result_message})"
-
-    def __repr__(self) -> str:
-        return f"{type(self).__name__}(result_success={self.result_success}, result_message={self.result_message})"
-
-
-def check_for_task_output(
-    output_options: framework_task.OutputSettings,
-    chunk_size: sources.T_ChunkSize | None = None,
-) -> tuple[bool, str]:
-    """ Check for outputs to skip processing early if possible.
-
-    Args:
-        output_options: Output options.
-        chunk_size: Chunk size for processing.
-
-    Returns:
-        Tuple of (skip_processing, message).
-    """
-    # Default to assuming that there's no output, and therefore we'll need to process again
-    res = (False, "")
-
-    # Try to bail out early to avoid reprocessing if possible.
-    # Conditions for when we'll want to check here:
-    #   1. We're processing in a single chunk (ie. we're using a single file input or the full input source)
-    #   OR
-    #   2. We write merged hists, which means we have a meaningful output without a chunk index in the filename
-    #   OR
-    #   3. Chunk size was not provided, so we can't figure out what state we're in, so we just go ahead and always check.
-    # NOTE: We have to exercise a bit of care here in the case that have chunk sizes smaller than an individual file.
-    #       In that case, the first file could be empty, but later chunks may not be empty. To avoid that case, we only
-    #       check when there is meaningful output, as defined by the two conditions above.
-    if chunk_size is None or (chunk_size == sources.ChunkSizeSentinel.SINGLE_FILE or chunk_size == sources.ChunkSizeSentinel.FULL_SOURCE) or output_options.write_merged_hists:
-        if output_options.primary_output.type == "skim":
-            if output_options.output_filename.suffix == ".root":
-                res = output_utils.check_for_task_root_skim_output_file(
-                    output_filename=output_utils.task_output_path_skim(output_filename=output_options.output_filename, skim_name=output_options.primary_output.name),
-                    reference_tree_name=output_options.primary_output.reference_name,
-                )
-            else:
-                res = output_utils.check_for_task_parquet_skim_output_file(
-                    output_filename=output_utils.task_output_path_skim(output_filename=output_options.output_filename, skim_name=output_options.primary_output.name),
-                    reference_array_name=output_options.primary_output.reference_name,
-                )
-        if output_options.primary_output.type == "hists":
-            res = output_utils.check_for_task_hist_output_file(
-                output_filename=output_utils.task_output_path_hist(output_filename=output_options.output_filename),
-                reference_hist_name=output_options.primary_output.reference_name,
-            )
-
-    return res
-
-
-class SetupSource(Protocol):
-    def __call__(
-            self,
-            *,
-            task_settings: framework_task.Settings,
-            task_metadata: framework_task.Metadata,
-            output_options: framework_task.OutputSettings,
-            **kwargs: Any,
-        ) -> tuple[Iterator[ak.Array]]:
-            ...
-
-class SetupEmbeddingSource(Protocol):
-    def __call__(
-            self,
-            *,
-            task_settings: framework_task.Settings,
-            task_metadata: framework_task.Metadata,
-            output_options: framework_task.OutputSettings,
-            **kwargs: Any,
-        ) -> tuple[dict[str, int], Iterator[ak.Array]]:
-        ...
 #
 #
 #def test_func(test_f: SetupSource) -> None:
@@ -341,162 +253,6 @@ from functools import partial
 def _validate_potential_list_of_inputs(inputs: Path | Sequence[Path]) -> list[Path]:
     return [inputs] if not isinstance(inputs, collections.abc.Iterable) else list(inputs)
 
-def setup_source_for_embedding(
-    *,
-    # Task settings
-    task_settings: framework_task.Settings,
-    task_metadata: framework_task.Metadata,
-    # Inputs
-    signal_input: Path | Sequence[Path],
-    signal_source: sources.SourceFromFilename | sources.DelayedSource,
-    background_input: Path | Sequence[Path],
-    background_source: sources.SourceFromFilename | sources.DelayedSource,
-    background_is_constrained_source: bool,
-    # Outputs
-    output_options: framework_task.OutputSettings,
-) -> tuple[dict[str, int], Iterator[ak.Array]]:
-    """ Setup embed MC source for a analysis task.
-
-    Note:
-        This is a lot like load_data.embedding(...), but it integrates better with our task input, and
-        it checks for existing inputs. We don't want such a check when we just define the inputs and normalize
-        the source, so we keep this as a bit of a wrapper.
-
-    Args:
-        task_settings: Task settings.
-        task_metadata: Task metadata.
-        signal_input: Input signal file(s).
-        signal_source: Source for the signal.
-        background_input: Input background file(s).
-        background_source: Source for the background.
-        background_is_constrained_source: Whether the background is the constrained source.
-        output_options: Output options.
-    Returns:
-        (source_index_identifiers, iter_arrays), where:
-            source_index_identifiers: Mapping of source index to identifier.
-            iter_arrays: Iterator over the arrays to process.
-    Raises:
-        FailedToSetupSourceError: If the source could not be setup.
-    """
-    # Validation
-    signal_input_filenames = _validate_potential_list_of_inputs(signal_input)
-    background_input_filenames = _validate_potential_list_of_inputs(background_input)
-
-    # Description parameters
-    task_metadata.update({
-        "signal_input_filenames": str([str(_filename) for _filename in signal_input_filenames]),
-        "background_input_filename": str([str(_filename) for _filename in background_input_filenames]),
-    })
-
-    res = check_for_task_output(
-        output_options=output_options,
-        chunk_size=task_settings.chunk_size
-    )
-    if res[0]:
-        raise FailedToSetupSourceError(result_success=res[0], result_message=res[1])
-
-    # Setup iteration over the input files
-    # If we don't use a processing chunk size, it should all be done in one chunk by default.
-    # However, the memory usage often gets too large if the signal is the constrained source,
-    # so this allows us to control the overall memory size by breaking it up into chunks,
-    # such that we only load the data chunks that's currently needed for processing.
-    # This is a bit idealistic because we often need to load the full file, but at least it sets
-    # for potential improvements
-    try:
-        source_index_identifiers, iter_arrays = load_data.embedding(
-            signal_input=signal_input_filenames,
-            signal_source=partial(signal_source, collision_system="pythia"),
-            background_input=background_input_filenames,
-            background_source=partial(background_source, collision_system="PbPb"),
-            background_is_constrained_source=background_is_constrained_source,
-            chunk_size=task_settings.chunk_size,
-        )
-    except sources.NoDataAvailableError as e:
-        # Just create the empty filename and return. This will prevent trying to re-run with no jets in the future.
-        # Remember that this depends heavily on the jet pt cuts!
-        output_options.output_filename.with_suffix(".empty").touch()
-        raise FailedToSetupSourceError(
-            result_success=True,
-            result_message=f"Done - no data available (reason: {e}), so not trying to skim",
-        ) from None
-
-    # Validate that the arrays are in an a format that we can iterate over
-    if isinstance(iter_arrays, ak.Array):
-        iter_arrays = iter([iter_arrays])
-    assert not isinstance(iter_arrays, ak.Array), "Check configuration. This should be an iterable, not an ak.Array!"
-
-    return source_index_identifiers, iter_arrays
-
-
-def setup_source_for_embedding_thermal_model(
-    *,
-    # Task settings
-    task_settings: framework_task.Settings,
-    task_metadata: framework_task.Metadata,
-    # Inputs
-    signal_input: Path | Sequence[Path],
-    signal_source: sources.SourceFromFilename | sources.DelayedSource,
-    thermal_model_parameters: sources.ThermalModelParameters,
-    # Outputs
-    output_options: framework_task.OutputSettings,
-) -> tuple[dict[str, int], Iterator[ak.Array]]:
-    """ Setup embed MC into thermal model source for a analysis task.
-
-    Args:
-        task_settings: Task settings.
-        signal_input: Input signal file(s).
-        signal_source: Source for the signal.
-        thermal_model_parameters: Parameters for the thermal model.
-        output_options: Output options.
-    Returns:
-        (source_index_identifiers, iter_arrays), where:
-            source_index_identifiers: Mapping of source index to identifier.
-            iter_arrays: Iterator over the arrays to process.
-    Raises:
-        FailedToSetupSourceError: If the source could not be setup.
-    """
-    # Validation
-    signal_input_filenames = _validate_potential_list_of_inputs(signal_input)
-
-    # Description parameters
-    task_metadata.update({
-        "signal_input_filenames": str([str(_filename) for _filename in signal_input_filenames]),
-    })
-
-    res = check_for_task_output(
-        output_options=output_options,
-        chunk_size=task_settings.chunk_size
-    )
-    if res[0]:
-        raise FailedToSetupSourceError(result_success=res[0], result_message=res[1])
-
-    # Setup iteration over the input files
-    # If we don't use a processing chunk size, it should all be done in one chunk by default.
-    # However, the memory usage often gets too large, so this allows us to control the overall memory
-    # size by breaking it up into chunks, such that we only generate the thermal model chunk
-    # that's currently needed for processing
-    try:
-        source_index_identifiers, iter_arrays = load_data.embedding_thermal_model(
-            signal_input=signal_input_filenames,
-            signal_source=partial(signal_source, collision_system="pythia"),
-            thermal_model_parameters=thermal_model_parameters,
-            chunk_size=task_settings.chunk_size,
-        )
-    except sources.NoDataAvailableError as e:
-        # Just create the empty filename and return. This will prevent trying to re-run with no jets in the future.
-        # Remember that this depends heavily on the jet pt cuts!
-        output_options.output_filename.with_suffix(".empty").touch()
-        raise FailedToSetupSourceError(
-            result_success=True,
-            result_message=f"Done - no data available (reason: {e}), so not trying to skim",
-        )
-
-    # Validate that the arrays are in an a format that we can iterate over
-    if isinstance(iter_arrays, ak.Array):
-        iter_arrays = iter([iter_arrays])
-    assert not isinstance(iter_arrays, ak.Array), "Check configuration. This should be an iterable, not an ak.Array!"
-
-    return source_index_identifiers, iter_arrays
 
 
 import uproot
@@ -555,7 +311,7 @@ def steer_embed_task_execution(
             local_output_options = output_options.with_new_output_filename(_output_filename)
 
             # Try to bail out as early to avoid reprocessing if possible.
-            res = check_for_task_output(
+            res = framework_task.check_for_task_output(
                 output_options=local_output_options,
             )
             if res[0]:
@@ -652,7 +408,7 @@ def steer_embed_task(
     # Task settings
     task_settings: framework_task.Settings,
     # I/O
-    setup_input_source: SetupEmbeddingSource,
+    setup_input_source: framework_task.SetupEmbeddingSource,
     output_options: framework_task.OutputSettings,
     # Analysis
     # NOTE: The analysis arguments are bound to both of these functions before passing here
@@ -684,7 +440,7 @@ def steer_embed_task(
             output_options=output_options,
             task_metadata=task_metadata,
         )
-    except FailedToSetupSourceError as e:
+    except framework_task.FailedToSetupSourceError as e:
         # Source wasn't suitable for some reason - bail out.
         _, output_metadata = framework_task.description_and_output_metadata(task_metadata=task_metadata)
         return framework_task.Output(

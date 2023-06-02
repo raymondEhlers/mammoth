@@ -16,7 +16,7 @@ import numpy as np
 import numpy.typing as npt
 import vector
 
-from mammoth.framework import particle_ID, sources
+from mammoth.framework import particle_ID, sources, task
 
 logger = logging.getLogger(__name__)
 
@@ -542,3 +542,161 @@ def embedding_thermal_model(
         # Not meaningful for thermal model, so disable
         use_alice_standard_event_selection_on_background=False,
     )
+
+
+def setup_source_for_embedding(
+    *,
+    # Task settings
+    task_settings: task.Settings,
+    task_metadata: task.Metadata,
+    # Inputs
+    signal_input: Path | Sequence[Path],
+    signal_source: sources.SourceFromFilename | sources.DelayedSource,
+    background_input: Path | Sequence[Path],
+    background_source: sources.SourceFromFilename | sources.DelayedSource,
+    background_is_constrained_source: bool,
+    # Outputs
+    output_options: task.OutputSettings,
+) -> tuple[dict[str, int], Iterator[ak.Array]]:
+    """ Setup embed MC source for a analysis task.
+
+    Note:
+        This is a lot like load_data.embedding(...), but it integrates better with our task input, and
+        it checks for existing inputs. We don't want such a check when we just define the inputs and normalize
+        the source, so we keep this as a bit of a wrapper.
+
+    Args:
+        task_settings: Task settings.
+        task_metadata: Task metadata.
+        signal_input: Input signal file(s).
+        signal_source: Source for the signal.
+        background_input: Input background file(s).
+        background_source: Source for the background.
+        background_is_constrained_source: Whether the background is the constrained source.
+        output_options: Output options.
+    Returns:
+        (source_index_identifiers, iter_arrays), where:
+            source_index_identifiers: Mapping of source index to identifier.
+            iter_arrays: Iterator over the arrays to process.
+    Raises:
+        FailedToSetupSourceError: If the source could not be setup.
+    """
+    # Validation
+    signal_input_filenames = _validate_potential_list_of_inputs(signal_input)
+    background_input_filenames = _validate_potential_list_of_inputs(background_input)
+
+    # Description parameters
+    task_metadata.update({
+        "signal_input_filenames": str([str(_filename) for _filename in signal_input_filenames]),
+        "background_input_filename": str([str(_filename) for _filename in background_input_filenames]),
+    })
+
+    res = task.check_for_task_output(
+        output_options=output_options,
+        chunk_size=task_settings.chunk_size
+    )
+    if res[0]:
+        raise task.FailedToSetupSourceError(result_success=res[0], result_message=res[1])
+
+    # Setup iteration over the input files
+    # If we don't use a processing chunk size, it should all be done in one chunk by default.
+    # However, the memory usage often gets too large if the signal is the constrained source,
+    # so this allows us to control the overall memory size by breaking it up into chunks,
+    # such that we only load the data chunks that's currently needed for processing.
+    # This is a bit idealistic because we often need to load the full file, but at least it sets
+    # for potential improvements
+    try:
+        source_index_identifiers, iter_arrays = embedding(
+            signal_input=signal_input_filenames,
+            signal_source=partial(signal_source, collision_system="pythia"),
+            background_input=background_input_filenames,
+            background_source=partial(background_source, collision_system="PbPb"),
+            background_is_constrained_source=background_is_constrained_source,
+            chunk_size=task_settings.chunk_size,
+        )
+    except sources.NoDataAvailableError as e:
+        # Just create the empty filename and return. This will prevent trying to re-run with no jets in the future.
+        # Remember that this depends heavily on the jet pt cuts!
+        output_options.output_filename.with_suffix(".empty").touch()
+        raise task.FailedToSetupSourceError(
+            result_success=True,
+            result_message=f"Done - no data available (reason: {e}), so not trying to skim",
+        ) from None
+
+    # Validate that the arrays are in an a format that we can iterate over
+    if isinstance(iter_arrays, ak.Array):
+        iter_arrays = iter([iter_arrays])
+    assert not isinstance(iter_arrays, ak.Array), "Check configuration. This should be an iterable, not an ak.Array!"
+
+    return source_index_identifiers, iter_arrays
+
+
+def setup_source_for_embedding_thermal_model(
+    *,
+    # Task settings
+    task_settings: task.Settings,
+    task_metadata: task.Metadata,
+    # Inputs
+    signal_input: Path | Sequence[Path],
+    signal_source: sources.SourceFromFilename | sources.DelayedSource,
+    thermal_model_parameters: sources.ThermalModelParameters,
+    # Outputs
+    output_options: task.OutputSettings,
+) -> tuple[dict[str, int], Iterator[ak.Array]]:
+    """ Setup embed MC into thermal model source for a analysis task.
+
+    Args:
+        task_settings: Task settings.
+        signal_input: Input signal file(s).
+        signal_source: Source for the signal.
+        thermal_model_parameters: Parameters for the thermal model.
+        output_options: Output options.
+    Returns:
+        (source_index_identifiers, iter_arrays), where:
+            source_index_identifiers: Mapping of source index to identifier.
+            iter_arrays: Iterator over the arrays to process.
+    Raises:
+        FailedToSetupSourceError: If the source could not be setup.
+    """
+    # Validation
+    signal_input_filenames = _validate_potential_list_of_inputs(signal_input)
+
+    # Description parameters
+    task_metadata.update({
+        "signal_input_filenames": str([str(_filename) for _filename in signal_input_filenames]),
+    })
+
+    res = task.check_for_task_output(
+        output_options=output_options,
+        chunk_size=task_settings.chunk_size
+    )
+    if res[0]:
+        raise task.FailedToSetupSourceError(result_success=res[0], result_message=res[1])
+
+    # Setup iteration over the input files
+    # If we don't use a processing chunk size, it should all be done in one chunk by default.
+    # However, the memory usage often gets too large, so this allows us to control the overall memory
+    # size by breaking it up into chunks, such that we only generate the thermal model chunk
+    # that's currently needed for processing
+    try:
+        source_index_identifiers, iter_arrays = embedding_thermal_model(
+            signal_input=signal_input_filenames,
+            signal_source=partial(signal_source, collision_system="pythia"),
+            thermal_model_parameters=thermal_model_parameters,
+            chunk_size=task_settings.chunk_size,
+        )
+    except sources.NoDataAvailableError as e:
+        # Just create the empty filename and return. This will prevent trying to re-run with no jets in the future.
+        # Remember that this depends heavily on the jet pt cuts!
+        output_options.output_filename.with_suffix(".empty").touch()
+        raise task.FailedToSetupSourceError(
+            result_success=True,
+            result_message=f"Done - no data available (reason: {e}), so not trying to skim",
+        )
+
+    # Validate that the arrays are in an a format that we can iterate over
+    if isinstance(iter_arrays, ak.Array):
+        iter_arrays = iter([iter_arrays])
+    assert not isinstance(iter_arrays, ak.Array), "Check configuration. This should be an iterable, not an ak.Array!"
+
+    return source_index_identifiers, iter_arrays

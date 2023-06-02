@@ -14,7 +14,7 @@ import functools
 import importlib
 import logging
 from pathlib import Path
-from typing import Any, Callable, Protocol
+from typing import Any, Callable, Iterator, Protocol
 
 import attrs
 import awkward as ak
@@ -142,6 +142,101 @@ class Output:
         logger.info(f"collision_system={self.collision_system}, success={self.success}, identifier={self.production_identifier}")
         # NOTE: Evaluate the message separately to ensure that newlines are evaluated.
         logger.info(self.message)
+
+
+#############
+# I/O sources
+#############
+
+
+class FailedToSetupSourceError(Exception):
+    """Failed to setup the input source for the task.
+
+    Attributes:
+        result_success: Whether the task was successful.
+        result_message: Message describing the result.
+    """
+    def __init__(self, result_success: bool, result_message: str):
+        self.result_success = result_success
+        self.result_message = result_message
+
+    def __iter__(self) -> tuple[bool, str]:
+        return (self.result_success, self.result_message)
+
+    def __str__(self) -> str:
+        return f"{type(self).__name__}(result_success={self.result_success}, result_message={self.result_message})"
+
+    def __repr__(self) -> str:
+        return f"{type(self).__name__}(result_success={self.result_success}, result_message={self.result_message})"
+
+class SetupSource(Protocol):
+    def __call__(
+            self,
+            *,
+            task_settings: Settings,
+            task_metadata: Metadata,
+            output_options: OutputSettings,
+            **kwargs: Any,
+        ) -> tuple[Iterator[ak.Array]]:
+            ...
+
+class SetupEmbeddingSource(Protocol):
+    def __call__(
+            self,
+            *,
+            task_settings: Settings,
+            task_metadata: Metadata,
+            output_options: OutputSettings,
+            **kwargs: Any,
+        ) -> tuple[dict[str, int], Iterator[ak.Array]]:
+        ...
+
+
+def check_for_task_output(
+    output_options: OutputSettings,
+    chunk_size: sources.T_ChunkSize | None = None,
+) -> tuple[bool, str]:
+    """ Check for outputs to skip processing early if possible.
+
+    Args:
+        output_options: Output options.
+        chunk_size: Chunk size for processing.
+
+    Returns:
+        Tuple of (skip_processing, message).
+    """
+    # Default to assuming that there's no output, and therefore we'll need to process again
+    res = (False, "")
+
+    # Try to bail out early to avoid reprocessing if possible.
+    # Conditions for when we'll want to check here:
+    #   1. We're processing in a single chunk (ie. we're using a single file input or the full input source)
+    #   OR
+    #   2. We write merged hists, which means we have a meaningful output without a chunk index in the filename
+    #   OR
+    #   3. Chunk size was not provided, so we can't figure out what state we're in, so we just go ahead and always check.
+    # NOTE: We have to exercise a bit of care here in the case that have chunk sizes smaller than an individual file.
+    #       In that case, the first file could be empty, but later chunks may not be empty. To avoid that case, we only
+    #       check when there is meaningful output, as defined by the two conditions above.
+    if chunk_size is None or (chunk_size == sources.ChunkSizeSentinel.SINGLE_FILE or chunk_size == sources.ChunkSizeSentinel.FULL_SOURCE) or output_options.write_merged_hists:
+        if output_options.primary_output.type == "skim":
+            if output_options.output_filename.suffix == ".root":
+                res = output_utils.check_for_task_root_skim_output_file(
+                    output_filename=output_utils.task_output_path_skim(output_filename=output_options.output_filename, skim_name=output_options.primary_output.name),
+                    reference_tree_name=output_options.primary_output.reference_name,
+                )
+            else:
+                res = output_utils.check_for_task_parquet_skim_output_file(
+                    output_filename=output_utils.task_output_path_skim(output_filename=output_options.output_filename, skim_name=output_options.primary_output.name),
+                    reference_array_name=output_options.primary_output.reference_name,
+                )
+        if output_options.primary_output.type == "hists":
+            res = output_utils.check_for_task_hist_output_file(
+                output_filename=output_utils.task_output_path_hist(output_filename=output_options.output_filename),
+                reference_hist_name=output_options.primary_output.reference_name,
+            )
+
+    return res
 
 
 ##############################
