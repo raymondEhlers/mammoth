@@ -308,8 +308,6 @@ class SetupSource(Protocol):
             task_metadata: framework_task.Metadata,
             output_options: framework_task.OutputSettings,
             **kwargs: Any,
-        # TODO: If this doesn't unpack correctly, then can just split into a separate embedding source protocol..
-        #) -> tuple[Iterator[ak.Array]] | tuple[dict[str, int], Iterator[ak.Array]]:
         ) -> tuple[Iterator[ak.Array]]:
             ...
 
@@ -339,6 +337,10 @@ Concept:
 
 from functools import partial
 
+# Copied from load_data - it's probably redundant...
+def _validate_potential_list_of_inputs(inputs: Path | Sequence[Path]) -> list[Path]:
+    return [inputs] if not isinstance(inputs, collections.abc.Iterable) else list(inputs)
+
 def setup_source_for_embedding(
     *,
     # Task settings
@@ -354,6 +356,11 @@ def setup_source_for_embedding(
     output_options: framework_task.OutputSettings,
 ) -> tuple[dict[str, int], Iterator[ak.Array]]:
     """ Setup embed MC source for a analysis task.
+
+    Note:
+        This is a lot like load_data.embedding(...), but it integrates better with our task input, and
+        it checks for existing inputs. We don't want such a check when we just define the inputs and normalize
+        the source, so we keep this as a bit of a wrapper.
 
     Args:
         task_settings: Task settings.
@@ -372,16 +379,8 @@ def setup_source_for_embedding(
         FailedToSetupSourceError: If the source could not be setup.
     """
     # Validation
-    signal_input_filenames = []
-    if not isinstance(signal_input, collections.abc.Iterable):
-        signal_input_filenames = [signal_input]
-    else:
-        signal_input_filenames = list(signal_input)
-    background_input_filenames = []
-    if not isinstance(background_input, collections.abc.Iterable):
-        background_input_filenames = [background_input]
-    else:
-        background_input_filenames = list(background_input)
+    signal_input_filenames = _validate_potential_list_of_inputs(signal_input)
+    background_input_filenames = _validate_potential_list_of_inputs(background_input)
 
     # Description parameters
     task_metadata.update({
@@ -457,11 +456,7 @@ def setup_source_for_embedding_thermal_model(
         FailedToSetupSourceError: If the source could not be setup.
     """
     # Validation
-    signal_input_filenames = []
-    if not isinstance(signal_input, collections.abc.Iterable):
-        signal_input_filenames = [signal_input]
-    else:
-        signal_input_filenames = list(signal_input)
+    signal_input_filenames = _validate_potential_list_of_inputs(signal_input)
 
     # Description parameters
     task_metadata.update({
@@ -510,11 +505,6 @@ from mammoth.framework.io import output_utils
 
 
 from typing import Protocol
-
-
-########################
-# All good through here!
-########################
 
 
 def steer_embed_task_execution(
@@ -714,6 +704,11 @@ def steer_embed_task(
         analysis_function=analysis_function,
         validation_mode=validation_mode,
     )
+
+
+########################
+# All good through here!
+########################
 
 
 

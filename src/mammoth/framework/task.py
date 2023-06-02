@@ -329,7 +329,7 @@ def python_app_embed_MC_into_thermal_model(
                     signal_input=[Path(_input_file.filepath) for _input_file in inputs],
                     thermal_model_parameters=thermal_model_parameters,
                 ),
-                output_options=framework_task.OutputSettings(
+                output_options=OutputSettings(
                     ...
                 ),
                 # Analysis
