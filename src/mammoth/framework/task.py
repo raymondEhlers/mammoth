@@ -263,47 +263,6 @@ class SetupEmbeddingSource(Protocol):
 # Chunk analysis functionality
 ##############################
 
-
-class Analysis(Protocol):
-    def __call__(
-            self,
-            *,
-            arrays: ak.Array,
-            validation_mode: bool = False,
-            return_skim: bool = False
-        ) -> AnalysisOutput:
-        ...
-
-class EmbeddingAnalysis(Protocol):
-    def __call__(
-            self,
-            *,
-            source_index_identifiers: dict[str, int],
-            arrays: ak.Array,
-            validation_mode: bool = False,
-            return_skim: bool = False,
-            # Additional arguments
-            **kwargs: Any,
-        ) -> AnalysisOutput:
-        ...
-class CustomizeAnalysisMetadata(Protocol):
-    """Customize metadata based on the analysis arguments.
-
-    """
-    def __call__(
-            self,
-            *,
-            task_settings: Settings,
-            **analysis_arguments: Any,
-        ) -> Metadata:
-        ...
-
-def NoOpCustomizeAnalysisMetadata(
-    task_settings: Settings,
-    **analysis_arguments: dict[str, Any],
-) -> Metadata:
-    return {}
-
 @attrs.frozen(kw_only=True)
 class AnalysisOutput:
     hists: dict[str, hist.Hist] = attrs.field(factory=dict)
@@ -365,6 +324,65 @@ class AnalysisOutput:
             task_hists = output_utils.merge_results(task_hists, self.hists)
 
 
+# NOTE: This needs to be extremely generic to pass typing...
+#       Also, it _must_ come after AnalysisOutput definition...
+Analysis = Callable[..., AnalysisOutput]
+
+class BoundAnalysis(Protocol):
+    def __call__(
+            self,
+            *,
+            arrays: ak.Array,
+            validation_mode: bool = False,
+            return_skim: bool = False
+        ) -> AnalysisOutput:
+        ...
+
+class BoundEmbeddingAnalysis(Protocol):
+    def __call__(
+            self,
+            *,
+            source_index_identifiers: dict[str, int],
+            arrays: ak.Array,
+            validation_mode: bool = False,
+            return_skim: bool = False,
+        ) -> AnalysisOutput:
+        ...
+
+class CustomizeAnalysisMetadata(Protocol):
+    """Customize metadata based on the analysis arguments.
+
+    """
+    def __call__(
+            self,
+            *,
+            task_settings: Settings,
+            **analysis_arguments: Any,
+        ) -> Metadata:
+        ...
+
+class BoundCustomizeAnalysisMetadata(Protocol):
+    """Customize metadata based on the analysis arguments.
+
+    This signature is if the analysis arguments have already been bound to the function.
+
+    """
+    def __call__(
+            self,
+            *,
+            task_settings: Settings,
+        ) -> Metadata:
+        ...
+
+
+def NoOpCustomizeAnalysisMetadata(
+    task_settings: Settings,
+    **analysis_arguments: Any,
+) -> Metadata:
+    return {}
+
+
+
 #############
 # Python apps
 #############
@@ -380,8 +398,7 @@ def _module_and_name_from_func(func: Callable[..., Any]) -> tuple[str, str]:
 
 def python_app_embed_MC_into_thermal_model(
     *,
-    #analysis: Callable[..., AnalysisOutput],
-    analysis: EmbeddingAnalysis,
+    analysis: Analysis,
     analysis_metadata: CustomizeAnalysisMetadata | None = None,
 ) -> Callable[..., concurrent.futures.Future[Output]]:
     # Delay this import since we don't want to load all job utils functionality
@@ -425,7 +442,7 @@ def python_app_embed_MC_into_thermal_model(
 
         # Get the analysis
         module_containing_analysis_function = importlib.import_module(analysis_function_module_import_path)
-        analysis_function: EmbeddingAnalysis = getattr(module_containing_analysis_function, analysis_function_function_name)
+        analysis_function: Analysis = getattr(module_containing_analysis_function, analysis_function_function_name)
         # And metadata customization
         # We handle this more carefully because it may not always be specified
         if analysis_metadata_module_import_path:

@@ -374,8 +374,8 @@ def _calculate_weight_for_plotting(
 
 def analysis_embedding(
     *,
+    source_index_identifiers: dict[str, int],
     arrays: ak.Array,
-    source_index_identifiers: Mapping[str, int],
     # Analysis arguments
     trigger_pt_ranges: dict[str, tuple[float, float]],
     min_track_pt: dict[str, float],
@@ -738,8 +738,15 @@ def analysis_embedding(
     ## Now, the final transformation into a form that can be used to skim into a flat tree.
     #return jets
 
+def customize_analysis_metadata(
+    task_settings: framework_task.Settings,
+    **analysis_arguments: Any,
+) -> framework_task.Metadata:
+    return {}
+
 python_app_embed_MC_into_thermal_model = framework_task.python_app_embed_MC_into_thermal_model(
     analysis=analysis_embedding,
+    analysis_metadata=customize_analysis_metadata,
 )
 
 

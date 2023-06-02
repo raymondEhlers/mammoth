@@ -543,6 +543,11 @@ def embedding_thermal_model(
         use_alice_standard_event_selection_on_background=False,
     )
 
+###############
+# Setup sources
+###############
+
+# TODO: Data + MC!
 
 def setup_source_for_embedding_task(
     *,
