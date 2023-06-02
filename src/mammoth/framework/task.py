@@ -169,49 +169,6 @@ class Output:
 #############
 
 
-class FailedToSetupSourceError(Exception):
-    """Failed to setup the input source for the task.
-
-    Attributes:
-        result_success: Whether the task was successful.
-        result_message: Message describing the result.
-    """
-    def __init__(self, result_success: bool, result_message: str):
-        self.result_success = result_success
-        self.result_message = result_message
-
-    def __iter__(self) -> tuple[bool, str]:
-        return (self.result_success, self.result_message)
-
-    def __str__(self) -> str:
-        return f"{type(self).__name__}(result_success={self.result_success}, result_message={self.result_message})"
-
-    def __repr__(self) -> str:
-        return f"{type(self).__name__}(result_success={self.result_success}, result_message={self.result_message})"
-
-class SetupSource(Protocol):
-    def __call__(
-            self,
-            *,
-            task_settings: Settings,
-            task_metadata: Metadata,
-            output_options: OutputSettings,
-            **kwargs: Any,
-        ) -> tuple[Iterator[ak.Array]]:
-            ...
-
-class SetupEmbeddingSource(Protocol):
-    def __call__(
-            self,
-            *,
-            task_settings: Settings,
-            task_metadata: Metadata,
-            output_options: OutputSettings,
-            **kwargs: Any,
-        ) -> tuple[dict[str, int], Iterator[ak.Array]]:
-        ...
-
-
 def check_for_task_output(
     output_options: OutputSettings,
     chunk_size: sources.T_ChunkSize | None = None,
@@ -257,6 +214,49 @@ def check_for_task_output(
             )
 
     return res
+
+
+class FailedToSetupSourceError(Exception):
+    """Failed to setup the input source for the task.
+
+    Attributes:
+        result_success: Whether the task was successful.
+        result_message: Message describing the result.
+    """
+    def __init__(self, result_success: bool, result_message: str):
+        self.result_success = result_success
+        self.result_message = result_message
+
+    def __iter__(self) -> tuple[bool, str]:
+        return (self.result_success, self.result_message)
+
+    def __str__(self) -> str:
+        return f"{type(self).__name__}(result_success={self.result_success}, result_message={self.result_message})"
+
+    def __repr__(self) -> str:
+        return f"{type(self).__name__}(result_success={self.result_success}, result_message={self.result_message})"
+
+class SetupSource(Protocol):
+    def __call__(
+            self,
+            *,
+            task_settings: Settings,
+            task_metadata: Metadata,
+            output_options: OutputSettings,
+            **kwargs: Any,
+        ) -> tuple[Iterator[ak.Array]]:
+            ...
+
+class SetupEmbeddingSource(Protocol):
+    def __call__(
+            self,
+            *,
+            task_settings: Settings,
+            task_metadata: Metadata,
+            output_options: OutputSettings,
+            **kwargs: Any,
+        ) -> tuple[dict[str, int], Iterator[ak.Array]]:
+        ...
 
 
 ##############################
