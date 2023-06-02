@@ -544,7 +544,7 @@ def embedding_thermal_model(
     )
 
 
-def setup_source_for_embedding(
+def setup_source_for_embedding_task(
     *,
     # Task settings
     task_settings: task.Settings,
@@ -565,7 +565,7 @@ def setup_source_for_embedding(
     """ Setup embed MC source for a analysis task.
 
     Note:
-        This is a lot like load_data.embedding(...), but it integrates better with our task input, and
+        This is a lot like `embedding(...)`, but it integrates better with our task input, and
         it checks for existing inputs. We don't want such a check when we just define the inputs and normalize
         the source, so we keep this as a bit of a wrapper.
 
@@ -635,7 +635,7 @@ def setup_source_for_embedding(
     return source_index_identifiers, iter_arrays
 
 
-def setup_source_for_embedding_thermal_model(
+def setup_source_for_embedding_thermal_model_task(
     *,
     # Task settings
     task_settings: task.Settings,
