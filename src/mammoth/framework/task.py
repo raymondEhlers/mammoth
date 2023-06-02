@@ -69,6 +69,14 @@ class PrimaryOutput:
     reference_name: str
     name: str = attrs.field(default="")
 
+    @classmethod
+    def from_config(cls, config: dict[str, str]) -> PrimaryOutput:
+        return cls(
+            type=config["type"],
+            reference_name=config["reference_name"],
+            name=config.get("name", ""),
+        )
+
 
 @attrs.frozen(kw_only=True)
 class OutputSettings:
@@ -94,6 +102,18 @@ class OutputSettings:
     return_merged_hists: bool | None = attrs.field(default=None)
     write_chunk_hists: bool | None = attrs.field(default=None)
     write_merged_hists: bool | None = attrs.field(default=None)
+
+    @classmethod
+    def from_config(cls, output_filename: Path, config: dict[str, Any]) -> OutputSettings:
+        return cls(
+            output_filename=output_filename,
+            primary_output=PrimaryOutput.from_config(config=config["primary_output"]),
+            return_skim=config.get("return_skim", None),
+            write_chunk_skim=config.get("write_chunk_skim", None),
+            return_merged_hists=config.get("return_merged_hists", None),
+            write_chunk_hists=config.get("write_chunk_hists", None),
+            write_merged_hists=config.get("write_merged_hists", None),
+        )
 
     def with_new_output_filename(self, new_output_filename: Path) -> OutputSettings:
         return type(self)(
