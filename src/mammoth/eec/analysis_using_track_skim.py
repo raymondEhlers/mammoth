@@ -232,35 +232,11 @@ def eec_embed_thermal_model_analysis(  # noqa: C901
 
 # New code starting from here
 
-
-#
-#
-#def test_func(test_f: SetupSource) -> None:
-#
-#    a, b, c = test_f(task_settings=task_settings, output_options=output_options)
-
-"""
-
-Concept:
-    task: Corresponds to one unit (eg. file)
-    analysis: Corresponds to analysis of one chunk (eg. one file, or one chunk of a file)
-
-"""
-
 from functools import partial
-
-# Copied from load_data - it's probably redundant...
-def _validate_potential_list_of_inputs(inputs: Path | Sequence[Path]) -> list[Path]:
-    return [inputs] if not isinstance(inputs, collections.abc.Iterable) else list(inputs)
-
-
 
 import uproot
 
 from mammoth.framework.io import output_utils
-
-
-from typing import Protocol
 
 
 def steer_embed_task_execution(
