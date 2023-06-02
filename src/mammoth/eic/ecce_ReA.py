@@ -1086,7 +1086,7 @@ def run() -> None:
     #label = "min_p_cut_with_tracklets_EPPS"
     #label = "min_p_cut_with_tracklets_nNNPDF"
     label = "min_p_cut_EPPS"
-    base_dir = Path(f"/Volumes/data/eic/ReA/current_best_knowledge/{str(dataset_spec)}")
+    base_dir = Path(f"/Volumes/data/eic/ReA/current_best_knowledge/{dataset_spec!s}")
     input_dir = base_dir / label
     output_dir = base_dir / "plots" / label
     output_dir.mkdir(parents=True, exist_ok=True)

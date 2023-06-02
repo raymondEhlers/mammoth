@@ -53,7 +53,7 @@ def check_for_task_root_skim_output_file(output_filename: Path, reference_tree_n
                     # If the tree exists, can be read, and has more than 0 entries, we should be good
                     if f[reference_tree_name].num_entries > 0:
                         # Return immediately to indicate that we're done.
-                        return (True, f"already processed (confirmed)")
+                        return (True, "already processed (confirmed)")
             except Exception:
                 # If it fails for some reason, give up - we want to try running the analysis
                 pass

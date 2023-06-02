@@ -24,7 +24,7 @@ def _setup_afterburner(code_dir: Path) -> None:
     # We only want to load it if it hasn't been already, so we use the `treeProcessing` function
     # as a proxy for this. Loading it twice appears to cause segfaults in some cases.
     if not hasattr(ROOT, "treeProcessing"):
-        ROOT.gInterpreter.ProcessLine(f""".L {str(tree_processing_cxx)} """)
+        ROOT.gInterpreter.ProcessLine(f""".L {tree_processing_cxx!s} """)
 
 
 def _array_to_ROOT(arr: Union[List[str], npt.NDArray[Any]], type_name: str = "double") -> Any:

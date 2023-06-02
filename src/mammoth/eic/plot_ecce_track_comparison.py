@@ -106,7 +106,7 @@ def plot_tracking_comparison(input_specs: Sequence[run_ecce_analysis.DatasetSpec
                              x_label: str = r"$p^{\text{MC}}\:(\text{GeV}/c)$",
                              x_range: Tuple[float, float] = (0.1, 30)) -> None:
     logger.info(f"hist_name_template: {hist_name_template}")
-    logger.info(f"input_specs: {str(input_specs[0])}")
+    logger.info(f"input_specs: {input_specs[0]!s}")
 
     hists: Dict[str, Dict[int, hist.Hist]] = {}
     for input_spec in input_specs:

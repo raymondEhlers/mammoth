@@ -41,7 +41,7 @@ class HardestKtProductionSpecialization:
         name = ""
         # Selection of splittings
         splittings_selection_value = SplittingsSelection[analysis_settings.pop("splittings_selection")]
-        name += f"_{str(splittings_selection_value)}"
+        name += f"_{splittings_selection_value!s}"
         return name
 
     def tasks_to_execute(self, collision_system: str) -> list[str]:
@@ -850,7 +850,7 @@ def setup_calculate_embed_pythia_skim(  # noqa: C901
             ),
         )
         # Finally, add the splittings selection
-        output_identifier += f"_{str(splittings_selection)}"
+        output_identifier += f"_{splittings_selection!s}"
 
         # Ensure that we don't use an output identifier twice.
         # If we've already used it, we add a counter to it

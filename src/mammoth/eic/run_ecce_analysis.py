@@ -76,9 +76,9 @@ def run_ecce_afterburner_bash(
 
     args = [
         f"\"{str(Path(inputs[0])) if len(inputs) == 2 else str(Path(f.name))}\"",
-        f"\"{str(Path(inputs[-1]))}\"",
-        f"\"{str(output_identifier)}\"",
-        f"\"{str(output_dir)}\"",
+        f"\"{Path(inputs[-1])!s}\"",
+        f"\"{output_identifier!s}\"",
+        f"\"{output_dir!s}\"",
         str(max_n_events),
         str(do_reclustering).lower(),
         str(do_jet_finding).lower(),
@@ -88,7 +88,7 @@ def run_ecce_afterburner_bash(
         str(primary_track_source),
         str(remove_tracklets).lower(),
         str(track_projections_are_broken).lower(),
-        f"\"{str(jet_algorithm)}\"",
+        f"\"{jet_algorithm!s}\"",
     ]
 
     # NOTE: Includes the cleanup of the temporary file
@@ -199,7 +199,7 @@ def setup_ecce_afterburner(
         input_files_list = list(_input_files)
         logger.info(f"Adding {index}: {input_files_list}")
 
-        output_identifier = f"{str(dataset_spec)}/{index:03}"
+        output_identifier = f"{dataset_spec!s}/{index:03}"
         futures.append(
             func(
                 tree_processing_code_directory=tree_processing_code_directory,

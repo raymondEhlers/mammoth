@@ -5,7 +5,7 @@
 
 import logging
 from datetime import datetime
-from typing import Any, Optional, Sequence
+from typing import Optional, Sequence
 
 import attrs
 import parsl

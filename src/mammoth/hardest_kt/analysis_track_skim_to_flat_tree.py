@@ -19,7 +19,7 @@ from mammoth.framework import load_data, sources
 from mammoth.framework.analysis import conventions as analysis_conventions
 from mammoth.framework.analysis import jets as analysis_jets
 from mammoth.framework.analysis import objects as analysis_objects
-from mammoth.framework.io import jetscape, HF_tree, track_skim
+from mammoth.framework.io import HF_tree, jetscape, track_skim
 from mammoth.hardest_kt import analysis_alice, skim_to_flat_tree
 
 logger = logging.getLogger(__name__)
