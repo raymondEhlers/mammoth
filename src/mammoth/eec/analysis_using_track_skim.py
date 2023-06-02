@@ -5,10 +5,10 @@
 
 from __future__ import annotations
 
-import collections
+import collections.abc
 import logging
 from pathlib import Path
-from typing import Any, Iterator, Sequence
+from typing import Any, Sequence
 
 import awkward as ak
 import hist
