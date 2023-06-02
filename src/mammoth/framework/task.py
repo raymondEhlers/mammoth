@@ -282,6 +282,8 @@ class EmbeddingAnalysis(Protocol):
             arrays: ak.Array,
             validation_mode: bool = False,
             return_skim: bool = False,
+            # Additional arguments
+            **kwargs: Any,
         ) -> AnalysisOutput:
         ...
 class CustomizeAnalysisMetadata(Protocol):
@@ -290,13 +292,10 @@ class CustomizeAnalysisMetadata(Protocol):
     """
     def __call__(
             self,
+            *,
             task_settings: Settings,
-            **analysis_arguments: dict[str, Any],
+            **analysis_arguments: Any,
         ) -> Metadata:
-        ...
-
-    @property
-    def __name__(self) -> str:
         ...
 
 def NoOpCustomizeAnalysisMetadata(
@@ -381,7 +380,8 @@ def _module_and_name_from_func(func: Callable[..., Any]) -> tuple[str, str]:
 
 def python_app_embed_MC_into_thermal_model(
     *,
-    analysis: Callable[..., AnalysisOutput],
+    #analysis: Callable[..., AnalysisOutput],
+    analysis: EmbeddingAnalysis,
     analysis_metadata: CustomizeAnalysisMetadata | None = None,
 ) -> Callable[..., concurrent.futures.Future[Output]]:
     # Delay this import since we don't want to load all job utils functionality
@@ -407,7 +407,9 @@ def python_app_embed_MC_into_thermal_model(
         production_identifier: str,
         collision_system: str,
         chunk_size: sources.T_ChunkSize,
+        input_source_config: dict[str, Any],
         thermal_model_parameters: sources.ThermalModelParameters,
+        output_options: dict[str, Any],
         analysis_arguments: dict[str, Any],
         job_framework: job_utils.JobFramework,  # noqa: ARG001
         inputs: list[File] = [],
@@ -418,10 +420,11 @@ def python_app_embed_MC_into_thermal_model(
         from pathlib import Path
 
         from mammoth.framework import task as framework_task
+        from mammoth.framework import io, load_data, steering
 
         # Get the analysis
         module_containing_analysis_function = importlib.import_module(analysis_function_module_import_path)
-        analysis_function = getattr(module_containing_analysis_function, analysis_function_function_name)
+        analysis_function: EmbeddingAnalysis = getattr(module_containing_analysis_function, analysis_function_function_name)
         # And metadata customization
         # We handle this more carefully because it may not always be specified
         if analysis_metadata_module_import_path:
@@ -431,7 +434,7 @@ def python_app_embed_MC_into_thermal_model(
             metadata_function = NoOpCustomizeAnalysisMetadata
 
         try:
-            result = steer_embed_task(
+            result = steering.steer_embed_task(
                 # General task settings
                 task_settings=Settings(
                     production_identifier=production_identifier,
@@ -440,12 +443,14 @@ def python_app_embed_MC_into_thermal_model(
                 ),
                 # Inputs
                 setup_input_source=functools.partial(
-                    setup_source_for_embedding_thermal_model,
+                    load_data.setup_source_for_embedding_thermal_model_task,
                     signal_input=[Path(_input_file.filepath) for _input_file in inputs],
+                    signal_source=io.file_source(file_source_config=input_source_config),
                     thermal_model_parameters=thermal_model_parameters,
                 ),
-                output_options=OutputSettings(
-                    ...
+                output_options=OutputSettings.from_config(
+                    output_filename=Path(outputs[0].filepath),
+                    config=output_options,
                 ),
                 # Analysis
                 analysis_function=functools.partial(
