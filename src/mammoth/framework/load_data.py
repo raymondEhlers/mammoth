@@ -557,6 +557,10 @@ def setup_source_for_embedding(
     background_is_constrained_source: bool,
     # Outputs
     output_options: task.OutputSettings,
+    # Repeat categories as above, but with default arguments
+    # Inputs
+    signal_source_collision_system: str = "pythia",
+    background_source_collision_system: str = "PbPb",
 ) -> tuple[dict[str, int], Iterator[ak.Array]]:
     """ Setup embed MC source for a analysis task.
 
@@ -608,9 +612,9 @@ def setup_source_for_embedding(
     try:
         source_index_identifiers, iter_arrays = embedding(
             signal_input=signal_input_filenames,
-            signal_source=partial(signal_source, collision_system="pythia"),
+            signal_source=partial(signal_source, collision_system=signal_source_collision_system),
             background_input=background_input_filenames,
-            background_source=partial(background_source, collision_system="PbPb"),
+            background_source=partial(background_source, collision_system=background_source_collision_system),
             background_is_constrained_source=background_is_constrained_source,
             chunk_size=task_settings.chunk_size,
         )
@@ -642,6 +646,9 @@ def setup_source_for_embedding_thermal_model(
     thermal_model_parameters: sources.ThermalModelParameters,
     # Outputs
     output_options: task.OutputSettings,
+    # Repeat categories as above, but with default arguments
+    # Inputs
+    signal_source_collision_system: str = "pythia",
 ) -> tuple[dict[str, int], Iterator[ak.Array]]:
     """ Setup embed MC into thermal model source for a analysis task.
 
@@ -681,7 +688,7 @@ def setup_source_for_embedding_thermal_model(
     try:
         source_index_identifiers, iter_arrays = embedding_thermal_model(
             signal_input=signal_input_filenames,
-            signal_source=partial(signal_source, collision_system="pythia"),
+            signal_source=partial(signal_source, collision_system=signal_source_collision_system),
             thermal_model_parameters=thermal_model_parameters,
             chunk_size=task_settings.chunk_size,
         )
