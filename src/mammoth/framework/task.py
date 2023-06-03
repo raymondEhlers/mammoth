@@ -328,7 +328,7 @@ class AnalysisOutput:
 #       Also, it _must_ come after AnalysisOutput definition...
 Analysis = Callable[..., AnalysisOutput]
 
-class BoundAnalysis(Protocol):
+class AnalysisBound(Protocol):
     def __call__(
             self,
             *,
@@ -338,7 +338,7 @@ class BoundAnalysis(Protocol):
         ) -> AnalysisOutput:
         ...
 
-class BoundEmbeddingAnalysis(Protocol):
+class EmbeddingAnalysisBound(Protocol):
     def __call__(
             self,
             *,
@@ -375,12 +375,11 @@ class BoundCustomizeAnalysisMetadata(Protocol):
         ...
 
 
-def NoOpCustomizeAnalysisMetadata(
+def no_op_customize_analysis_metadata(
     task_settings: Settings,
     **analysis_arguments: Any,
 ) -> Metadata:
     return {}
-
 
 
 #############
@@ -419,14 +418,14 @@ def python_app_embed_MC_into_thermal_model(
 
     @job_utils.python_app
     @functools.wraps(analysis)
-    def my_app(
+    def app_wrapper(
         *,
         production_identifier: str,
         collision_system: str,
         chunk_size: sources.T_ChunkSize,
         input_source_config: dict[str, Any],
         thermal_model_parameters: sources.ThermalModelParameters,
-        output_options: dict[str, Any],
+        output_options_config: dict[str, Any],
         analysis_arguments: dict[str, Any],
         job_framework: job_utils.JobFramework,  # noqa: ARG001
         inputs: list[File] = [],
@@ -449,7 +448,7 @@ def python_app_embed_MC_into_thermal_model(
             module_containing_analysis_metadata_function = importlib.import_module(analysis_metadata_module_import_path)
             metadata_function: CustomizeAnalysisMetadata = getattr(module_containing_analysis_metadata_function, analysis_metadata_function_name)
         else:
-            metadata_function = NoOpCustomizeAnalysisMetadata
+            metadata_function = no_op_customize_analysis_metadata
 
         try:
             result = steer_task.steer_embed_task(
@@ -468,7 +467,7 @@ def python_app_embed_MC_into_thermal_model(
                 ),
                 output_options=OutputSettings.from_config(
                     output_filename=Path(outputs[0].filepath),
-                    config=output_options,
+                    config=output_options_config,
                 ),
                 # Analysis
                 analysis_function=functools.partial(
@@ -491,4 +490,4 @@ def python_app_embed_MC_into_thermal_model(
             )
         return result
 
-    return my_app
+    return app_wrapper

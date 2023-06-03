@@ -31,7 +31,7 @@ def steer_embed_task_execution(
     # Outputs
     output_options: framework_task.OutputSettings,
     # Analysis arguments
-    analysis_function: framework_task.BoundEmbeddingAnalysis,
+    analysis_function: framework_task.EmbeddingAnalysisBound,
     # ...
     # trigger_pt_ranges: dict[str, tuple[float, float]],
     # min_track_pt: dict[str, float],
@@ -157,7 +157,7 @@ def steer_embed_task(
     output_options: framework_task.OutputSettings,
     # Analysis
     # NOTE: The analysis arguments are bound to both of these functions before passing here
-    analysis_function: framework_task.BoundEmbeddingAnalysis,
+    analysis_function: framework_task.EmbeddingAnalysisBound,
     analysis_metadata_function: framework_task.CustomizeAnalysisMetadata,
     # We split these argument out to ensure that they're explicitly supported
     validation_mode: bool,
