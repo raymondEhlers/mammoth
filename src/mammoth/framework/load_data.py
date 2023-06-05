@@ -632,6 +632,9 @@ def setup_source_for_embedding_task(
             result_message=f"Done - no data available (reason: {e}), so not trying to skim",
         ) from None
 
+    # Since we have the source index identifier, might as well add it into the metadata
+    task_metadata.update({"source_index_identifiers": source_index_identifiers})
+
     # Validate that the arrays are in an a format that we can iterate over
     if isinstance(iter_arrays, ak.Array):
         iter_arrays = iter([iter_arrays])
@@ -705,6 +708,9 @@ def setup_source_for_embedding_thermal_model_task(
             result_success=True,
             result_message=f"Done - no data available (reason: {e}), so not trying to skim",
         )
+
+    # Since we have the source index identifier, might as well add it into the metadata
+    task_metadata.update({"source_index_identifiers": source_index_identifiers})
 
     # Validate that the arrays are in an a format that we can iterate over
     if isinstance(iter_arrays, ak.Array):
