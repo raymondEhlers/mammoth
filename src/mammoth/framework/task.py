@@ -400,6 +400,15 @@ def python_app_embed_MC_into_data(
     analysis: Analysis,
     analysis_metadata: CustomizeAnalysisMetadata | None = None,
 ) -> Callable[..., concurrent.futures.Future[Output]]:
+    """Python app for embed MC in data task
+
+    Args:
+        analysis: Analysis function.
+        analysis_metadata: Function to customize the analysis metadata. Default: None.
+
+    Returns:
+        Wrapper for embed MC into data task.
+    """
     # Delay this import since we don't want to load all job utils functionality
     # when simply loading the module. However, it doesn't to make sense to split this up otherwise, so
     # we live with the delayed import.
@@ -485,12 +494,12 @@ def python_app_embed_MC_into_data(
                 # Pass it separately to ensure that it's accounted for explicitly.
                 validation_mode=analysis_arguments.get("validation_mode", False),
             )
-        except Exception:
+        except Exception as e:
             result = framework_task.Output(
                 production_identifier=production_identifier,
                 collision_system=collision_system,
                 success=False,
-                message=f"failure during execution of task with: \n{traceback.format_exc()}",
+                message=f"failure during execution of task with exception {e} with: \n{traceback.format_exc()}",
                 metadata={
                     "analysis_arguments": analysis_arguments,
                     "signal_input": [Path(_input_file.filepath) for _input_file in inputs[:n_signal_input_files]],
@@ -507,6 +516,15 @@ def python_app_embed_MC_into_thermal_model(
     analysis: Analysis,
     analysis_metadata: CustomizeAnalysisMetadata | None = None,
 ) -> Callable[..., concurrent.futures.Future[Output]]:
+    """Python app for embed MC in thermal model background task.
+
+    Args:
+        analysis: Analysis function.
+        analysis_metadata: Function to customize the analysis metadata. Default: None.
+
+    Returns:
+        Wrapper for embed MC into thermal model background task.
+    """
     # Delay this import since we don't want to load all job utils functionality
     # when simply loading the module. However, it doesn't to make sense to split this up otherwise, so
     # we live with the delayed import.
@@ -588,12 +606,12 @@ def python_app_embed_MC_into_thermal_model(
                 # Pass it separately to ensure that it's accounted for explicitly.
                 validation_mode=analysis_arguments.get("validation_mode", False),
             )
-        except Exception:
+        except Exception as e:
             result = framework_task.Output(
                 production_identifier=production_identifier,
                 collision_system=collision_system,
                 success=False,
-                message=f"failure during execution of task with: \n{traceback.format_exc()}",
+                message=f"failure during execution of task with exception {e} with: \n{traceback.format_exc()}",
                 metadata={
                     "analysis_arguments": analysis_arguments,
                     "signal_input": [Path(_input_file.filepath) for _input_file in inputs],
