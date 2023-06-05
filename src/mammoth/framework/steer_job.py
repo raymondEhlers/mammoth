@@ -319,7 +319,152 @@ def steer_data(
             analysis_metadata=analysis_metadata,
         )
 
-        ...
+        # Setup input and output
+        # Need to handle pt hat bin productions differently than standard productions
+        # since we need to keep track of the pt hat bin
+        if "n_pt_hat_bins" in prod.config["metadata"]["dataset"]:
+            input_files: dict[int, list[Path]] = prod.input_files_per_pt_hat()
+        else:
+            input_files = {-1: prod.input_files()}
+        output_dir = prod.output_dir / "skim"
+        output_dir.mkdir(parents=True, exist_ok=True)
+
+        # If we want to debug some particular files, we can directly set them here
+        if debug_mode:
+            input_files = {10: [Path("trains/pythia/2619/run_by_run/LHC18b8_cent_woSDD/282008/10/AnalysisResults.18b8_cent_woSDD.003.root")]}
+            #input_files = {-1: [Path("trains/pp/2111/run_by_run/LHC17p_CENT_woSDD/282341/AnalysisResults.17p.586.root")]}
+            #input_files = {-1: [Path("trains/PbPb/645/run_by_run/LHC18r/297595/AnalysisResults.18r.551.root")]}
+
+        # Setup for analysis and dataset settings
+        _metadata_config = prod.config["metadata"]
+        _analysis_config: dict[str, Any] = prod.config["settings"]
+        _output_options_config = _analysis_config.pop("output_options")
+        _input_options = copy.deepcopy(_metadata_config)
+        # Chunk size
+        chunk_size = _analysis_config.get("chunk_size", sources.ChunkSizeSentinel.FULL_SOURCE)
+        logger.info(f"Processing chunk size for {chunk_size}")
+        # Sample fraction of input events (for quick analysis)
+        sample_dataset_fraction =_metadata_config.get("sample_dataset_fraction", 1.0)
+        if sample_dataset_fraction < 1.0:
+            logger.warning(f"Sampling only a fraction of the statistics! Using {sample_dataset_fraction}")
+            # Sample the input files, but require at least one entry so we have something
+            # in each pt hat bin
+            input_files = {
+                _pt_hat_bin: [
+                    secrets.choice(_input_files) for _ in range(int(np.ceil(sample_dataset_fraction * len(_input_files))))
+                ]
+                for _pt_hat_bin, _input_files in input_files.items()
+            }
+
+        # Analysis settings
+        analysis_arguments = copy.deepcopy(_analysis_config)
+        # Det level artificial tracking efficiency (pythia / pp_MC only)
+        det_level_artificial_tracking_efficiency = None
+        if (prod.collision_system == "pythia" or prod.collision_system == "pp_MC"):
+            # NOTE: Delayed import since we don't want to depend on this in the main framework directly
+            from mammoth.framework.analysis import tracking as analysis_tracking
+
+            # Artificial tracking efficiency (including the option for pt dependent tracking eff)
+            # NOTE: This depends on period, so it's better to do it here!
+            det_level_artificial_tracking_efficiency = _analysis_config.get("det_level_artificial_tracking_efficiency", None)
+            # Pt dependent for tracking efficiency uncertainty
+            if _analysis_config.get("apply_pt_dependent_tracking_efficiency_uncertainty", False):
+                # NOTE: Careful - this needs to be added as 1-value. (ie. 1-.97=0.03 -> for .98 flat, we get .95)
+                det_level_artificial_tracking_efficiency = analysis_tracking.PtDependentTrackingEfficiencyParameters.from_file(
+                    # NOTE: We select "anchor_period" and "0_100" here because we know we're analyzing pythia
+                    period=_metadata_config["dataset"]["anchor_period"],
+                    event_activity="0_100",
+                    # NOTE: There should be the possibility to apply this on top of the .98, for example.
+                    baseline_tracking_efficiency_shift=det_level_artificial_tracking_efficiency,
+                )
+        analysis_arguments["det_level_artificial_tracking_efficiency"] = det_level_artificial_tracking_efficiency
+        # Preprocess the arguments
+        # NOTE: We do it last so we can access the other arguments if needed
+        analysis_arguments.update(
+            defined_argument_preprocessing(
+                **analysis_arguments,
+            )
+        )
+        # NOTE: We need to customize the analysis arguments to pass the relevant scale factor,
+        #       so we make a copy for clarity. We'll update it each loop.
+        analysis_arguments_with_pt_hat_scale_factor = copy.deepcopy(analysis_arguments)
+
+        # Scale factors
+        scale_factors = None
+        if prod.has_scale_factors:
+            scale_factors = prod.scale_factors()
+
+        results = []
+        _file_counter = 0
+        for pt_hat_bin, input_filenames in input_files.items():
+            if scale_factors is not None:
+                analysis_arguments_with_pt_hat_scale_factor["scale_factor"] = scale_factors[pt_hat_bin]
+
+            for input_filename in input_filenames:
+                if _file_counter % 500 == 0:
+                    logger.info(f"Adding {input_filename} for analysis")
+
+                # For debugging
+                if debug_mode and _file_counter > 1:
+                    break
+
+                # Setup file I/O
+                # Converts: "2111/run_by_run/LHC17p_CENT_woSDD/282341/AnalysisResults.17p.001.root"
+                #        -> "2111__run_by_run__LHC17p_CENT_woSDD__282341__AnalysisResults_17p_001"
+                output_identifier = safe_output_filename_from_relative_path(
+                    filename=input_filename, output_dir=prod.output_dir,
+                    number_of_parent_directories_for_relative_output_filename=_metadata_config["dataset"].get(
+                        "number_of_parent_directories_for_relative_output_filename", None
+                    ),
+                )
+                # Finally, add the customization
+                output_identifier += defined_analysis_output_identifier(**analysis_arguments_with_pt_hat_scale_factor)
+
+                # TODO: Customize extension....
+                output_filename = output_dir / f"{output_identifier}.root"
+                # And create the tasks
+                results.append(
+                    python_app_func(
+                        # Task settings
+                        production_identifier=prod.identifier,
+                        collision_system=prod.collision_system,
+                        chunk_size=chunk_size,
+                        # I/O
+                        # These are the general input options
+                        input_options=_metadata_config,
+                        # And these are the input options specific to the dataset
+                        source_config=_metadata_config["dataset"],
+                        output_options_config=_output_options_config,
+                        # Arguments
+                        analysis_arguments=analysis_arguments_with_pt_hat_scale_factor,
+                        # Framework options
+                        job_framework=job_framework,
+                        inputs=[File(str(input_filename))],
+                        outputs=[File(str(output_filename))],
+                    )
+                )
+                #results.append(
+                #    _run_data_skim(
+                #        collision_system=prod.collision_system,
+                #        jet_R=_analysis_config["jet_R"],
+                #        min_jet_pt=_analysis_config["min_jet_pt"],
+                #        iterative_splittings=splittings_selection == SplittingsSelection.iterative,
+                #        background_subtraction=_analysis_config.get("background_subtraction", {}),
+                #        skim_type=_metadata_config["dataset"]["skim_type"],
+                #        loading_data_rename_prefix=_metadata_config["loading_data_rename_prefix"],
+                #        convert_data_format_prefixes=_metadata_config["convert_data_format_prefixes"],
+                #        pt_hat_bin=pt_hat_bin,
+                #        scale_factors=scale_factors,
+                #        det_level_artificial_tracking_efficiency=det_level_artificial_tracking_efficiency,
+                #        job_framework=job_framework,
+                #        inputs=[File(str(input_filename))],
+                #        outputs=[File(str(output_filename))],
+                #    )
+                #)
+
+                _file_counter += 1
+
+        return results
 
     return wrap_setup
 
