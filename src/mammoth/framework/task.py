@@ -490,8 +490,12 @@ def python_app_embed_MC_into_data(
                 production_identifier=production_identifier,
                 collision_system=collision_system,
                 success=False,
-                # TODO: Add input files...
                 message=f"failure during execution of task with: \n{traceback.format_exc()}",
+                metadata={
+                    "analysis_arguments": analysis_arguments,
+                    "signal_input": [Path(_input_file.filepath) for _input_file in inputs[:n_signal_input_files]],
+                    "background_input": [Path(_input_file.filepath) for _input_file in inputs[n_signal_input_files:]],
+                }
             )
         return result
 
@@ -589,8 +593,12 @@ def python_app_embed_MC_into_thermal_model(
                 production_identifier=production_identifier,
                 collision_system=collision_system,
                 success=False,
-                # TODO: Add input files...
                 message=f"failure during execution of task with: \n{traceback.format_exc()}",
+                metadata={
+                    "analysis_arguments": analysis_arguments,
+                    "signal_input": [Path(_input_file.filepath) for _input_file in inputs],
+                    "thermal_model_parameters": thermal_model_parameters,
+                }
             )
         return result
 
