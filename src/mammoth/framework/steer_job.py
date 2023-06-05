@@ -707,6 +707,7 @@ def setup_embed_MC_into_data(
                     _output_identifier_stored = True
 
             # logger.info(f"output_identifier: {output_identifier}")
+            # TODO: Customize extension....
             output_filename = output_dir / f"{output_identifier}.root"
 
             # Store the file pairs for our records
@@ -814,10 +815,17 @@ def setup_embed_MC_into_thermal_model(
                 Path("trains/pythia/2640/run_by_run/LHC20g4/296415/4/AnalysisResults.20g4.007.root"),
                 Path("trains/pythia/2640/run_by_run/LHC20g4/296415/4/AnalysisResults.20g4.010.root"),
             ]}
-        # Setup for dataset settings
+        # Setup for dataset settings (and grab analysis config for output options)
         _metadata_config = prod.config["metadata"]
         _analysis_config = prod.config["settings"]
         _output_options_config = _analysis_config.pop("output_options")
+        # Thermal model parameters
+        thermal_model_parameters = sources.THERMAL_MODEL_SETTINGS[
+            f"{_metadata_config['dataset']['sqrt_s']}_{_analysis_config['event_activity']}"
+        ]
+        # Chunk size
+        chunk_size = _analysis_config["chunk_size"]
+        logger.info(f"Processing chunk size for {chunk_size}")
         # Sample fraction of input events (for quick analysis)
         sample_dataset_fraction =_metadata_config.get("sample_dataset_fraction", 1.0)
         if sample_dataset_fraction < 1.0:
@@ -830,12 +838,6 @@ def setup_embed_MC_into_thermal_model(
                 ]
                 for _pt_hat_bin, _input_files in input_files.items()
             }
-        # Thermal model parameters
-        thermal_model_parameters = sources.THERMAL_MODEL_SETTINGS[
-            f"{_metadata_config['dataset']['sqrt_s']}_{_analysis_config['event_activity']}"
-        ]
-        chunk_size = _analysis_config["chunk_size"]
-        logger.info(f"Processing chunk size for {chunk_size}")
 
         # Analysis settings
         analysis_arguments = copy.deepcopy(_analysis_config)
@@ -894,6 +896,7 @@ def setup_embed_MC_into_thermal_model(
                 # Finally, add the customization
                 output_identifier += defined_analysis_output_identifier(**analysis_arguments_with_pt_hat_scale_factor)
 
+                # TODO: Customize extension....
                 output_filename = output_dir / f"{output_identifier}.parquet"
                 # And create the tasks
                 results.append(
