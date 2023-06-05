@@ -265,6 +265,65 @@ def _determine_embed_pythia_input_files(
 
 # TODO: embedding, MC, data, etc...
 
+def _validate_setup_functions(
+    argument_preprocessing: PreprocessArguments | None = None,
+    analysis_output_identifier: OutputIdentifier | None = None,
+) -> tuple[PreprocessArguments, OutputIdentifier]:
+    """Standard validation for setup functions"""
+    if argument_preprocessing is None:
+        defined_argument_preprocessing = no_op_preprocess_arguments
+    else:
+        defined_argument_preprocessing = argument_preprocessing
+    if analysis_output_identifier is None:
+        defined_analysis_output_identifier = no_op_analysis_output_identifier
+    else:
+        defined_analysis_output_identifier = analysis_output_identifier
+
+    return defined_argument_preprocessing, defined_analysis_output_identifier
+
+
+def steer_data(
+    analysis_function: framework_task.Analysis,
+    argument_preprocessing: PreprocessArguments | None = None,
+    analysis_output_identifier: OutputIdentifier | None = None,
+    analysis_metadata: framework_task.CustomizeAnalysisMetadata | None = None,
+) -> SetupTasks:
+    """Setup processing data (ie. single input collection).
+
+    Args:
+        analysis_function: Analysis function to be run.
+        argument_preprocessing: Preprocess the arguments in the steering.
+        analysis_metadata: Customize the task metadata.
+        analysis_output_identifier: Customize the output identifier.
+
+    Returns:
+        Function that will setup the embedding of MC into data with the specified analysis function.
+    """
+    # Validation
+    # NOTE: We change the function name here to help out mypy. Something about the way that we're
+    #       wrapping the function causes an issue otherwise.
+    defined_argument_preprocessing, defined_analysis_output_identifier = _validate_setup_functions(
+        argument_preprocessing=argument_preprocessing,
+        analysis_output_identifier=analysis_output_identifier,
+    )
+    # Note: We'll handle analysis_metadata possibly being None in the python app
+
+    def wrap_setup(
+        prod: production.ProductionSettings,
+        job_framework: job_utils.JobFramework,
+        debug_mode: bool,
+    ) -> list[Future[framework_task.Output]]:
+        # Setup
+        python_app_func = framework_task.python_app_data(
+            analysis=analysis_function,
+            analysis_metadata=analysis_metadata,
+        )
+
+        ...
+
+    return wrap_setup
+
+
 def setup_embed_MC_into_data(
     analysis_function: framework_task.Analysis,
     argument_preprocessing: PreprocessArguments | None = None,
@@ -285,14 +344,10 @@ def setup_embed_MC_into_data(
     # Validation
     # NOTE: We change the function name here to help out mypy. Something about the way that we're
     #       wrapping the function causes an issue otherwise.
-    if argument_preprocessing is None:
-        defined_argument_preprocessing = no_op_preprocess_arguments
-    else:
-        defined_argument_preprocessing = argument_preprocessing
-    if analysis_output_identifier is None:
-        defined_analysis_output_identifier = no_op_analysis_output_identifier
-    else:
-        defined_analysis_output_identifier = analysis_output_identifier
+    defined_argument_preprocessing, defined_analysis_output_identifier = _validate_setup_functions(
+        argument_preprocessing=argument_preprocessing,
+        analysis_output_identifier=analysis_output_identifier,
+    )
     # Note: We'll handle analysis_metadata possibly being None in the python app
 
     def wrap_setup(
@@ -576,14 +631,10 @@ def setup_embed_MC_into_thermal_model(
     # Validation
     # NOTE: We change the function name here to help out mypy. Something about the way that we're
     #       wrapping the function causes an issue otherwise.
-    if argument_preprocessing is None:
-        defined_argument_preprocessing = no_op_preprocess_arguments
-    else:
-        defined_argument_preprocessing = argument_preprocessing
-    if analysis_output_identifier is None:
-        defined_analysis_output_identifier = no_op_analysis_output_identifier
-    else:
-        defined_analysis_output_identifier = analysis_output_identifier
+    defined_argument_preprocessing, defined_analysis_output_identifier = _validate_setup_functions(
+        argument_preprocessing=argument_preprocessing,
+        analysis_output_identifier=analysis_output_identifier,
+    )
     # Note: We'll handle analysis_metadata possibly being None in the python app
 
     def wrap_setup(
