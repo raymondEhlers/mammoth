@@ -649,7 +649,17 @@ def _convert_tree_to_parquet(
     arrays = tree.arrays(all_branches, **additional_kwargs)
 
     # Write out to parquet.
-    ak.to_parquet(arrays, output_filename, compression="zstd")
+    ak.to_parquet(
+        array=arrays,
+        destination=str(output_filename),
+        compression="zstd",
+        # Optimize the compression via improved encodings for floats and strings.
+        # Conveniently, awkward 2.x will now select the right columns for each if simply set to `True`
+        # Optimize for columns with anything other than floats
+        parquet_dictionary_encoding=True,
+        # Optimize for columns with floats
+        parquet_byte_stream_split=True,
+    )
 
     # I don't think this will really help, but it's worth a try, since memory is
     # leaking somewhere (perhaps in awkward1 itself).
