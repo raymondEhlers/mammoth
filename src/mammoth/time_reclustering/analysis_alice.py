@@ -20,6 +20,7 @@ from mammoth import helpers
 from mammoth.alice import helpers as alice_helpers
 from mammoth.framework import jet_finding, load_data
 from mammoth.framework.analysis import jets as analysis_jets
+from mammoth.framework.analysis import tracking as analysis_tracking
 from mammoth.framework.io import track_skim
 
 logger = logging.getLogger(__name__)
@@ -30,7 +31,7 @@ def analysis_MC(
     arrays: ak.Array,
     jet_R: float,
     min_jet_pt: Mapping[str, float],
-    det_level_artificial_tracking_efficiency: float | analysis_jets.PtDependentTrackingEfficiencyParameters = 1.0,
+    det_level_artificial_tracking_efficiency: float | analysis_tracking.PtDependentTrackingEfficiencyParameters = 1.0,
     validation_mode: bool = False
 ) -> ak.Array:
     logger.info("Start analyzing")
@@ -51,7 +52,7 @@ def analysis_MC(
 
     # Calculate the relevant masks for det level particles to potentially apply an
     # artificial tracking inefficiency
-    det_level_mask = analysis_jets.det_level_particles_mask_for_jet_finding(
+    det_level_mask = analysis_tracking.det_level_particles_mask_for_jet_finding(
         arrays=arrays,
         det_level_artificial_tracking_efficiency=det_level_artificial_tracking_efficiency,
         validation_mode=validation_mode,
@@ -298,7 +299,7 @@ def analysis_embedding(
     background_subtraction_settings: Mapping[str, Any] | None = None,
     validation_mode: bool = False,
     shared_momentum_fraction_min: float = 0.5,
-    det_level_artificial_tracking_efficiency: float | analysis_jets.PtDependentTrackingEfficiencyParameters = 1.0,
+    det_level_artificial_tracking_efficiency: float | analysis_tracking.PtDependentTrackingEfficiencyParameters = 1.0,
 ) -> ak.Array:
     # Validation
     if background_subtraction_settings is None:
@@ -324,7 +325,7 @@ def analysis_embedding(
     # 1. We may need to mask the hybrid level particles to apply an artificial tracking inefficiency
     # 2. We usually calculate rho only using the PbPb particles (ie. not including the embedded det_level),
     #    so we need to select only them.
-    hybrid_level_mask, background_only_particles_mask = analysis_jets.hybrid_level_particles_mask_for_jet_finding(
+    hybrid_level_mask, background_only_particles_mask = analysis_tracking.hybrid_level_particles_mask_for_jet_finding(
         arrays=arrays,
         det_level_artificial_tracking_efficiency=det_level_artificial_tracking_efficiency,
         source_index_identifiers=source_index_identifiers,

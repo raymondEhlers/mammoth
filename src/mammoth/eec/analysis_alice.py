@@ -8,10 +8,9 @@ Note that the embedding analysis supports analyzing embedding data as well as in
 from __future__ import annotations
 
 import logging
-import typing
 from functools import partial
 from pathlib import Path
-from typing import Any, Literal, Mapping
+from typing import Any, Mapping
 
 import awkward as ak
 import hist
@@ -23,7 +22,7 @@ from mammoth.alice import helpers as alice_helpers
 from mammoth.framework import jet_finding, load_data
 from mammoth.framework import task as framework_task
 from mammoth.framework.analysis import array_helpers as analysis_array_helpers
-from mammoth.framework.analysis import jets as analysis_jets
+from mammoth.framework.analysis import tracking as analysis_tracking
 from mammoth.framework.io import output_utils
 from mammoth.framework.io import track_skim
 
@@ -35,7 +34,7 @@ def analysis_MC(
     arrays: ak.Array,
     jet_R: float,
     min_jet_pt: Mapping[str, float],
-    det_level_artificial_tracking_efficiency: float | analysis_jets.PtDependentTrackingEfficiencyParameters = 1.0,
+    det_level_artificial_tracking_efficiency: float | analysis_tracking.PtDependentTrackingEfficiencyParameters = 1.0,
     validation_mode: bool = False
 ) -> ak.Array:
     logger.info("Start analyzing")
@@ -56,7 +55,7 @@ def analysis_MC(
 
     # Calculate the relevant masks for det level particles to potentially apply an
     # artificial tracking inefficiency
-    det_level_mask = analysis_jets.det_level_particles_mask_for_jet_finding(
+    det_level_mask = analysis_tracking.det_level_particles_mask_for_jet_finding(
         arrays=arrays,
         det_level_artificial_tracking_efficiency=det_level_artificial_tracking_efficiency,
         validation_mode=validation_mode,
@@ -133,31 +132,31 @@ def analysis_MC(
     #       _before_ the matching, while AliPhysics does it after. However, I think removing really
     #       soft jets before matching makes more sense - it can avoid a mismatch to something really
     #       soft that just happens to be closer.
-    logger.info("Matching jets")
-    jets = analysis_jets.jet_matching_MC(
-        jets=jets,
-        # NOTE: This is larger than the matching distance that I would usually use (where we usually use 0.3 =
-        #       in embedding), but this is apparently what we use in pythia. So just go with it.
-        part_level_det_level_max_matching_distance=1.0,
-    )
+    #logger.info("Matching jets")
+    #jets = analysis_tracking.jet_matching_MC(
+    #    jets=jets,
+    #    # NOTE: This is larger than the matching distance that I would usually use (where we usually use 0.3 =
+    #    #       in embedding), but this is apparently what we use in pythia. So just go with it.
+    #    part_level_det_level_max_matching_distance=1.0,
+    #)
 
-    # Reclustering
-    logger.info("Reclustering jets...")
-    for level in ["part_level", "det_level"]:
-        logger.info(f"Reclustering {level}")
-        # We only do the area calculation for data.
-        reclustering_kwargs = {}
-        if level != "part_level":
-            reclustering_kwargs["area_settings"] = jet_finding.AreaSubstructure(**area_kwargs)
-        jets[level, "reclustering"] = jet_finding.recluster_jets(
-            jets=jets[level],
-            jet_finding_settings=jet_finding.ReclusteringJetFindingSettings(**reclustering_kwargs),
-            store_recursive_splittings=True,
-        )
-    logger.info("Done with reclustering")
+    ## Reclustering
+    #logger.info("Reclustering jets...")
+    #for level in ["part_level", "det_level"]:
+    #    logger.info(f"Reclustering {level}")
+    #    # We only do the area calculation for data.
+    #    reclustering_kwargs = {}
+    #    if level != "part_level":
+    #        reclustering_kwargs["area_settings"] = jet_finding.AreaSubstructure(**area_kwargs)
+    #    jets[level, "reclustering"] = jet_finding.recluster_jets(
+    #        jets=jets[level],
+    #        jet_finding_settings=jet_finding.ReclusteringJetFindingSettings(**reclustering_kwargs),
+    #        store_recursive_splittings=True,
+    #    )
+    #logger.info("Done with reclustering")
 
-    logger.info(f"n events: {len(jets)}")
-    logger.info(f"n jets accepted: {np.count_nonzero(np.asarray(ak.flatten(jets['det_level'].px, axis=None)))}")
+    #logger.info(f"n events: {len(jets)}")
+    #logger.info(f"n jets accepted: {np.count_nonzero(np.asarray(ak.flatten(jets['det_level'].px, axis=None)))}")
 
     # Next step for using existing skimming:
     # Flatten from events -> jets
@@ -381,7 +380,7 @@ def analysis_embedding(
     min_track_pt: dict[str, float],
     momentum_weight_exponent: int | float,
     scale_factor: float,
-    det_level_artificial_tracking_efficiency: float | analysis_jets.PtDependentTrackingEfficiencyParameters = 1.0,
+    det_level_artificial_tracking_efficiency: float | analysis_tracking.PtDependentTrackingEfficiencyParameters = 1.0,
     # Default analysis arguments
     validation_mode: bool = False,
     return_skim: bool = False,
@@ -405,7 +404,7 @@ def analysis_embedding(
     #    so we need to select only them.
     # NOTE: Technically, we aren't doing jet finding here, but the convention is still the same.
     #       I suppose this would call for a refactor, but I don't want to deal with that right now.
-    hybrid_level_mask, _ = analysis_jets.hybrid_level_particles_mask_for_jet_finding(
+    hybrid_level_mask, _ = analysis_tracking.hybrid_level_particles_mask_for_jet_finding(
         arrays=arrays,
         det_level_artificial_tracking_efficiency=det_level_artificial_tracking_efficiency,
         source_index_identifiers=source_index_identifiers,
@@ -596,7 +595,7 @@ def analysis_embedding(
     ## 1. We may need to mask the hybrid level particles to apply an artificial tracking inefficiency
     ## 2. We usually calculate rho only using the PbPb particles (ie. not including the embedded det_level),
     ##    so we need to select only them.
-    #hybrid_level_mask, background_only_particles_mask = analysis_jets.hybrid_level_particles_mask_for_jet_finding(
+    #hybrid_level_mask, background_only_particles_mask = analysis_tracking.hybrid_level_particles_mask_for_jet_finding(
     #    arrays=arrays,
     #    det_level_artificial_tracking_efficiency=det_level_artificial_tracking_efficiency,
     #    source_index_identifiers=source_index_identifiers,
@@ -672,7 +671,7 @@ def analysis_embedding(
     ##       soft jets before matching makes more sense - it can avoid a mismatch to something really
     ##       soft that just happens to be closer.
     #logger.info("Matching jets")
-    #jets = analysis_jets.jet_matching_embedding(
+    #jets = analysis_tracking.jet_matching_embedding(
     #    jets=jets,
     #    # Values match those used in previous substructure analyses
     #    det_level_hybrid_max_matching_distance=0.3,

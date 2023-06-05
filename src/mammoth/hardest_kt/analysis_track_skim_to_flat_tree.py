@@ -17,8 +17,8 @@ import numpy as np
 from mammoth import helpers
 from mammoth.framework import load_data, sources
 from mammoth.framework.analysis import conventions as analysis_conventions
-from mammoth.framework.analysis import jets as analysis_jets
 from mammoth.framework.analysis import objects as analysis_objects
+from mammoth.framework.analysis import tracking as analysis_tracking
 from mammoth.framework.io import HF_tree, jetscape, track_skim
 from mammoth.hardest_kt import analysis_alice, skim_to_flat_tree
 
@@ -149,7 +149,7 @@ def hardest_kt_data_skim(
     # Pythia specific
     pt_hat_bin: int | None = -1,
     scale_factors: Mapping[int, float] | None = None,
-    det_level_artificial_tracking_efficiency: float | analysis_jets.PtDependentTrackingEfficiencyParameters | None = 1.0,
+    det_level_artificial_tracking_efficiency: float | analysis_tracking.PtDependentTrackingEfficiencyParameters | None = 1.0,
     # Validation
     validation_mode: bool = False,
     background_subtraction: Mapping[str, Any] | None = None,

@@ -22,7 +22,7 @@ from mammoth import helpers, job_utils
 from mammoth.alice import job_utils as alice_job_utils
 from mammoth.framework import production, sources
 from mammoth.framework import task as framework_task
-from mammoth.framework.analysis import jets as analysis_jets
+from mammoth.framework.analysis import tracking as analysis_tracking
 from mammoth.framework.analysis import objects as analysis_objects
 from mammoth.framework.io import output_utils
 from mammoth.job_utils import python_app
@@ -346,7 +346,7 @@ def _run_data_skim(
     convert_data_format_prefixes: Mapping[str, str],
     pt_hat_bin: int,
     scale_factors: Mapping[int, float] | None,
-    det_level_artificial_tracking_efficiency: float | analysis_jets.PtDependentTrackingEfficiencyParameters | None,
+    det_level_artificial_tracking_efficiency: float | analysis_tracking.PtDependentTrackingEfficiencyParameters | None,
     job_framework: job_utils.JobFramework,  # noqa: ARG001
     inputs: Sequence[File] = [],
     outputs: Sequence[File] = [],
@@ -420,7 +420,7 @@ def setup_calculate_data_skim(
         # Pt dependent for tracking efficiency uncertainty
         if _analysis_config.get("apply_pt_dependent_tracking_efficiency_uncertainty", False):
             # NOTE: Careful - this needs to be added as 1-value. (ie. 1-.97=0.03 -> for .98 flat, we get .95)
-            det_level_artificial_tracking_efficiency = analysis_jets.PtDependentTrackingEfficiencyParameters.from_file(
+            det_level_artificial_tracking_efficiency = analysis_tracking.PtDependentTrackingEfficiencyParameters.from_file(
                 # NOTE: We select "anchor_period" and "0_100" here because we know we're analyzing pythia
                 period=_metadata_config["dataset"]["anchor_period"],
                 event_activity="0_100",
@@ -600,7 +600,7 @@ def setup_calculate_embed_pythia_skim(  # noqa: C901
             "semi_central": "30_50",
         }
         # NOTE: Careful - this needs to be added as 1-value. (ie. 1-.97=0.03 -> for .98 flat, we get .95)
-        det_level_artificial_tracking_efficiency = analysis_jets.PtDependentTrackingEfficiencyParameters.from_file(
+        det_level_artificial_tracking_efficiency = analysis_tracking.PtDependentTrackingEfficiencyParameters.from_file(
             period=_metadata_config["dataset"]["period"],
             event_activity=_event_activity_name_to_centrality_values[_analysis_config["event_activity"]],
             # NOTE: There should be the possibility to apply this on top of the .98, for example.
