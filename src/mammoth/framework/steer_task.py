@@ -5,8 +5,9 @@
 
 from __future__ import annotations
 
+import functools
 import logging
-from typing import Any, Iterator, Protocol
+from typing import Iterator
 
 import awkward as ak
 import hist
@@ -19,27 +20,20 @@ from mammoth.framework.io import output_utils
 logger = logging.getLogger(__name__)
 
 
-def steer_embed_task_execution(
+def steer_task_execution(
     *,
     task_settings: framework_task.Settings,
     task_metadata: framework_task.Metadata,
     #####
     # I/O arguments
     # Inputs
-    source_index_identifiers: dict[str, int],
     iter_arrays: Iterator[ak.Array],
     # Outputs
     output_options: framework_task.OutputSettings,
+    #####
     # Analysis arguments
-    analysis_function: framework_task.EmbeddingAnalysisBound,
-    # ...
-    # trigger_pt_ranges: dict[str, tuple[float, float]],
-    # min_track_pt: dict[str, float],
-    # momentum_weight_exponent: int | float,
-    # det_level_artificial_tracking_efficiency: float,
-    # scale_factor: float,
-    # ...
-    # Default analysis parameters
+    analysis_function: framework_task.AnalysisBound,
+    # Default (ie. one's which must be implemented) analysis parameters
     validation_mode: bool,
 ) -> framework_task.Output:
     # Validation
@@ -81,7 +75,6 @@ def steer_embed_task_execution(
             try:
                 analysis_output = analysis_function(
                     arrays=arrays,
-                    source_index_identifiers=source_index_identifiers,
                     validation_mode=validation_mode,
                     # Although return_skim is an output option that we try to abstract away, it can be quite costly in terms of memory.
                     # Consequently, we break the abstraction and pass it, since many tasks are under memory pressure.
@@ -148,6 +141,95 @@ def steer_embed_task_execution(
     )
 
 
+def _default_task_metadata(task_settings: framework_task.Settings) -> framework_task.Metadata:
+    """Default task metadata.
+
+    Args:
+        task_settings: Task settings.
+    Returns:
+        Default task metadata.
+    """
+    task_metadata: framework_task.Metadata = {
+        "collision_system": task_settings.collision_system,
+    }
+    if task_settings.chunk_size is not sources.ChunkSizeSentinel.FULL_SOURCE:
+        task_metadata["chunk_size"] = task_settings.chunk_size
+
+    return task_metadata
+
+
+def steer_data_task(
+    *,
+    # Task settings
+    task_settings: framework_task.Settings,
+    # I/O
+    setup_input_source: framework_task.SetupSource,
+    output_options: framework_task.OutputSettings,
+    # Analysis
+    # NOTE: The analysis arguments are bound to both of these functions before passing here
+    analysis_function: framework_task.AnalysisBound,
+    analysis_metadata_function: framework_task.CustomizeAnalysisMetadata,
+    # We split these argument out to ensure that they're explicitly supported
+    validation_mode: bool,
+) -> framework_task.Output:
+    """ Steering for a data task.
+
+    Note:
+        This doesn't vary significantly from the embedding case. Mostly, we just pass through the
+        source index identifier and update the typing. This is a possible candidate for combining
+        together in the future, although I appreciate the explicitness of the current configuration.
+
+    Args:
+        task_settings: Task settings.
+        setup_input_source: Function to setup the input source.
+        output_options: Output options.
+        analysis_function: Analysis function.
+        analysis_metadata_function: Function to customize the analysis metadata.
+        validation_mode: Whether or not to run in validation mode.
+
+    Returns:
+        Output from the task.
+    """
+    # Validation
+    if "embed" in task_settings.collision_system:
+        msg = f"Trying to use embedding collision system '{task_settings.collision_system}' with data steering. You probably want the dedicated function."
+        raise RuntimeError(msg)
+
+    # Task metadata
+    task_metadata = _default_task_metadata(task_settings=task_settings)
+    # Add in the customized analysis parameters
+    task_metadata.update(analysis_metadata_function(task_settings=task_settings))
+
+    # NOTE: Always call `description_and_output_metadata` right before they're needed to ensure they
+    #       up to date since they may change
+
+    try:
+        iter_arrays = setup_input_source(
+            task_settings=task_settings,
+            output_options=output_options,
+            task_metadata=task_metadata,
+        )
+    except framework_task.FailedToSetupSourceError as e:
+        # Source wasn't suitable for some reason - bail out.
+        _, output_metadata = framework_task.description_and_output_metadata(task_metadata=task_metadata)
+        return framework_task.Output(
+            production_identifier=task_settings.production_identifier,
+            collision_system=task_settings.collision_system,
+            success=e.result_success,
+            message=e.result_message,
+            metadata=output_metadata,
+        )
+
+    return steer_task_execution(
+        task_settings=task_settings,
+        task_metadata=task_metadata,
+        iter_arrays=iter_arrays,
+        output_options=output_options,
+        analysis_function=analysis_function,
+        validation_mode=validation_mode,
+    )
+
+
 def steer_embed_task(
     *,
     # Task settings
@@ -162,17 +244,31 @@ def steer_embed_task(
     # We split these argument out to ensure that they're explicitly supported
     validation_mode: bool,
 ) -> framework_task.Output:
+    """ Steering for an embedding task.
+
+    Note:
+        This doesn't vary significantly from the data case. Mostly, we just pass through the
+        source index identifier and update the typing. This is a possible candidate for combining
+        together in the future, although I appreciate the explicitness of the current configuration.
+
+    Args:
+        task_settings: Task settings.
+        setup_input_source: Function to setup the input source.
+        output_options: Output options.
+        analysis_function: Analysis function.
+        analysis_metadata_function: Function to customize the analysis metadata.
+        validation_mode: Whether or not to run in validation mode.
+
+    Returns:
+        Output from the task.
+    """
     # Validation
     if "embed" not in task_settings.collision_system:
         msg = f"Trying to use embedding steering with wrong collision system {task_settings.collision_system}"
         raise RuntimeError(msg)
 
-    # Description parameters
-    task_metadata: framework_task.Metadata = {
-        "collision_system": task_settings.collision_system,
-    }
-    if task_settings.chunk_size is not sources.ChunkSizeSentinel.FULL_SOURCE:
-        task_metadata["chunk_size"] = task_settings.chunk_size
+    # Task metadata
+    task_metadata = _default_task_metadata(task_settings=task_settings)
     # Add in the customized analysis parameters
     task_metadata.update(analysis_metadata_function(task_settings=task_settings))
 
@@ -196,12 +292,19 @@ def steer_embed_task(
             metadata=output_metadata,
         )
 
-    return steer_embed_task_execution(
+    # Add the source index identifiers to the analysis task arguments.
+    # This way, we can abstract away what type of function is being called,
+    # and use a uniform interface for task execution.
+    standard_analysis_function: framework_task.AnalysisBound = functools.partial(
+        analysis_function,
+        source_index_identifiers=source_index_identifiers
+    )
+
+    return steer_task_execution(
         task_settings=task_settings,
         task_metadata=task_metadata,
-        source_index_identifiers=source_index_identifiers,
         iter_arrays=iter_arrays,
         output_options=output_options,
-        analysis_function=analysis_function,
+        analysis_function=standard_analysis_function,
         validation_mode=validation_mode,
     )
