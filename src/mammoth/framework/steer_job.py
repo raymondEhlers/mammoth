@@ -432,8 +432,10 @@ def setup_embed_MC_into_data(
             f"Configuring embed pythia with {'background' if _background_is_constrained_source else 'signal'} as the constrained source."
         )
         # Sample fraction of input events (for quick analysis)
-        sample_dataset_fraction =_metadata_config.get("sample_dataset_fraction", 1.0)
+        sample_dataset_fraction = _metadata_config.get("sample_dataset_fraction", 1.0)
         rng_for_sample_dataset_fraction = np.random.default_rng()
+        # NOTE: In this case (ie. embedding MC into data), we need to implement this as
+        #       we loop over files because it's significantly simpler. See below.
         if sample_dataset_fraction < 1.0:
             logger.warning(f"Sampling only a fraction of the statistics! Using {sample_dataset_fraction}")
 
@@ -517,7 +519,8 @@ def setup_embed_MC_into_data(
             #       is worth this trade off.
             if sample_dataset_fraction < 1.0:
                 # This isn't very efficient, but good enough for this purpose since it's just in the steering.
-                rng_for_sample_dataset_fraction.random() < sample_dataset_fraction
+                if rng_for_sample_dataset_fraction.random() > sample_dataset_fraction:
+                    continue
 
             # For debugging
             if debug_mode and _file_counter > 1:
