@@ -395,6 +395,117 @@ def _module_and_name_from_func(func: Callable[..., Any]) -> tuple[str, str]:
     return (func.__module__, func.__name__)
 
 
+def python_app_data(
+    *,
+    analysis: Analysis,
+    analysis_metadata: CustomizeAnalysisMetadata | None = None,
+) -> Callable[..., concurrent.futures.Future[Output]]:
+    """Python app for data task (ie. one particle collection)
+
+    Args:
+        analysis: Analysis function.
+        analysis_metadata: Function to customize the analysis metadata. Default: None.
+
+    Returns:
+        Wrapper for data task.
+    """
+    # Delay this import since we don't want to load all job utils functionality
+    # when simply loading the module. However, it doesn't to make sense to split this up otherwise, so
+    # we live with the delayed import.
+    from parsl import File
+
+    from mammoth import job_utils
+
+    # We need to reimport in the parsl app, so we grab the parameters here, and then put them into the closure.
+    # Analysis function
+    analysis_function_module_import_path, analysis_function_function_name = _module_and_name_from_func(func=analysis)
+    # Task metadata
+    analysis_metadata_module_import_path = ""
+    analysis_metadata_function_name = ""
+    if analysis_metadata is not None:
+        analysis_metadata_module_import_path, analysis_metadata_function_name = _module_and_name_from_func(func=analysis_metadata)
+
+    @job_utils.python_app
+    @functools.wraps(analysis)
+    def app_wrapper(
+        *,
+        production_identifier: str,
+        collision_system: str,
+        chunk_size: sources.T_ChunkSize,
+        input_options: dict[str, Any],
+        input_source_config: dict[str, Any],
+        output_options_config: dict[str, Any],
+        analysis_arguments: dict[str, Any],
+        job_framework: job_utils.JobFramework,  # noqa: ARG001
+        inputs: list[File] = [],
+        outputs: list[File] = [],
+    ) -> Output:
+        # Standard imports in the app
+        import traceback
+        from pathlib import Path
+
+        # NOTE: Be aware - this would be an import loop if moved to the top of the module!
+        from mammoth.framework import task as framework_task
+        from mammoth.framework import io, load_data
+
+        # Get the analysis
+        module_containing_analysis_function = importlib.import_module(analysis_function_module_import_path)
+        analysis_function: Analysis = getattr(module_containing_analysis_function, analysis_function_function_name)
+        # And metadata customization
+        # We handle this more carefully because it may not always be specified
+        if analysis_metadata_module_import_path:
+            module_containing_analysis_metadata_function = importlib.import_module(analysis_metadata_module_import_path)
+            metadata_function: CustomizeAnalysisMetadata = getattr(module_containing_analysis_metadata_function, analysis_metadata_function_name)
+        else:
+            metadata_function = no_op_customize_analysis_metadata
+
+        try:
+            result = steer_task.steer_data_task(
+                # General task settings
+                task_settings=Settings(
+                    production_identifier=production_identifier,
+                    collision_system=collision_system,
+                    chunk_size=chunk_size,
+                ),
+                # Inputs
+                setup_input_source=functools.partial(
+                    load_data.setup_source_for_data_or_MC_task,
+                    signal_input=[Path(_input_file.filepath) for _input_file in inputs],
+                    signal_source=io.file_source(file_source_config=input_source_config),
+                    **input_options,
+                ),
+                output_options=OutputSettings.from_config(
+                    output_filename=Path(outputs[0].filepath),
+                    config=output_options_config,
+                ),
+                # Analysis
+                analysis_function=functools.partial(
+                    analysis_function,
+                    **analysis_arguments,
+                ),
+                analysis_metadata_function=functools.partial(
+                    metadata_function,
+                    **analysis_arguments,
+                ),
+                # Pass it separately to ensure that it's accounted for explicitly.
+                validation_mode=analysis_arguments.get("validation_mode", False),
+            )
+        except Exception as e:
+            result = framework_task.Output(
+                production_identifier=production_identifier,
+                collision_system=collision_system,
+                success=False,
+                message=f"failure during execution of task with exception {e} with: \n{traceback.format_exc()}",
+                metadata={
+                    "analysis_arguments": analysis_arguments,
+                    "signal_input": [Path(_input_file.filepath) for _input_file in inputs],
+                }
+            )
+        return result
+
+    return app_wrapper
+
+
 def python_app_embed_MC_into_data(
     *,
     analysis: Analysis,
