@@ -336,6 +336,11 @@ def setup_embed_MC_into_data(
         _metadata_config: dict[str, Any] = prod.config["metadata"]
         _input_handling_config: dict[str, Any] = _metadata_config["input_handling"]
         _background_is_constrained_source: bool = _metadata_config["input_constrained_source"].lower() != "signal"
+        source_input_options = {
+            "background_is_constrained_source": _background_is_constrained_source,
+            "signal_source_collision_system": _input_handling_config["signal"]["collision_system"],
+            "background_source_collision_system": _input_handling_config["background"]["collision_system"],
+        }
         _analysis_config: dict[str, Any] = prod.config["settings"]
         _output_options_config = _analysis_config.pop("output_options")
         # Chunk size
@@ -473,11 +478,14 @@ def setup_embed_MC_into_data(
                     collision_system=prod.collision_system,
                     chunk_size=chunk_size,
                     # I/O
-                    input_source_config=_metadata_config["dataset"],
+                    source_input_options=source_input_options,
+                    signal_input_source_config=_metadata_config["signal_dataset"],
+                    n_signal_input_files=len(signal_input),
+                    background_input_source_config=_metadata_config["dataset"],
                     output_options_config=_output_options_config,
                     # Arguments
                     analysis_arguments=analysis_arguments_with_pt_hat_scale_factor,
-                    n_signal_input_files=len(signal_input),
+                    # Framework options
                     job_framework=job_framework,
                     inputs=[
                         *[File(str(_filename)) for _filename in signal_input],
@@ -490,17 +498,21 @@ def setup_embed_MC_into_data(
             # And create the tasks
             results.append(
                 _run_embedding_skim(
+                    # Task settings
                     collision_system=prod.collision_system,
+                    chunk_size=chunk_size,
+                    # I/O
+                    background_is_constrained_source=_background_is_constrained_source,
+                    n_signal_input_files=len(signal_input),
+                    # Analysis arguments
                     jet_R=_analysis_config["jet_R"],
                     min_jet_pt=_analysis_config["min_jet_pt"],
                     iterative_splittings=splittings_selection == SplittingsSelection.iterative,
                     background_subtraction=_analysis_config["background_subtraction"],
                     det_level_artificial_tracking_efficiency=det_level_artificial_tracking_efficiency,
                     convert_data_format_prefixes=_metadata_config["convert_data_format_prefixes"],
-                    chunk_size=chunk_size,
                     scale_factor=scale_factors[pt_hat_bin],
-                    background_is_constrained_source=_background_is_constrained_source,
-                    n_signal_input_files=len(signal_input),
+                    # ...
                     job_framework=job_framework,
                     inputs=[
                         *[File(str(_filename)) for _filename in signal_input],

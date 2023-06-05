@@ -242,6 +242,7 @@ analysis_settings:
         input_constrained_source: "signal"
         input_handling:
           signal_parameters:
+            collision_system: "pythia"
             constrained_source:  # ie. signal is the constraint
               n_files_to_use_per_task: 1
             unconstrained_source:
@@ -252,6 +253,7 @@ analysis_settings:
               # This ensures some additional diversity if we end up with a very small signal file
               n_files_to_use_per_task: 3
           background_parameters:
+            collision_system: "PbPb"
             constrained_source:  # ie. background is the constraint
               n_files_to_use_per_task: 1
             unconstrained_source:
