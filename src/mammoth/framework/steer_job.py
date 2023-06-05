@@ -47,6 +47,20 @@ def no_op_preprocess_arguments(
     return {}
 
 
+class OutputIdentifier(Protocol):
+    def __call__(
+            self,
+            **analysis_arguments: Any,
+        ) -> str:
+        ...
+
+
+def no_op_analysis_output_identifier(
+    **analysis_arguments: Any,
+) -> str:
+    return ""
+
+
 def safe_output_filename_from_relative_path(
     filename: Path,
     output_dir: Path,
@@ -252,13 +266,22 @@ def _determine_embed_pythia_input_files(
 # TODO: embedding, MC, data, etc...
 
 def setup_embed_MC_into_data(
-    # Analysis function
     analysis_function: framework_task.Analysis,
-    # Preprocess the arguments in the steering
     argument_preprocessing: PreprocessArguments | None = None,
-    # Customize the task metadata
-    analysis_metadata: framework_task.CustomizeAnalysisMetadata | None = None
+    analysis_output_identifier: OutputIdentifier | None = None,
+    analysis_metadata: framework_task.CustomizeAnalysisMetadata | None = None,
 ) -> SetupTasks:
+    """Setup the embedding of MC into data.
+
+    Args:
+        analysis_function: Analysis function to be run.
+        argument_preprocessing: Preprocess the arguments in the steering.
+        analysis_metadata: Customize the task metadata.
+        analysis_output_identifier: Customize the output identifier.
+
+    Returns:
+        Function that will setup the embedding of MC into data with the specified analysis function.
+    """
     # Validation
     # NOTE: We change the function name here to help out mypy. Something about the way that we're
     #       wrapping the function causes an issue otherwise.
@@ -266,6 +289,10 @@ def setup_embed_MC_into_data(
         defined_argument_preprocessing = no_op_preprocess_arguments
     else:
         defined_argument_preprocessing = argument_preprocessing
+    if analysis_output_identifier is None:
+        defined_analysis_output_identifier = no_op_analysis_output_identifier
+    else:
+        defined_analysis_output_identifier = analysis_output_identifier
     # Note: We'll handle analysis_metadata possibly being None in the python app
 
     def wrap_setup(
@@ -440,10 +467,8 @@ def setup_embed_MC_into_data(
                     "number_of_parent_directories_for_relative_output_filename", None
                 ),
             )
-            # Finally, add the splittings selection
-            # TODO: Need this to be customizable too!
-            # TODO: Add this into the thermal model too!
-            output_identifier += f"_{str(splittings_selection)}"
+            # Finally, add the customization
+            output_identifier += defined_analysis_output_identifier(**analysis_arguments_with_pt_hat_scale_factor)
 
             # Ensure that we don't use an output identifier twice.
             # If we've already used it, we add a counter to it
@@ -541,13 +566,22 @@ def setup_embed_MC_into_data(
 
 
 def setup_embed_MC_into_thermal_model(
-    # Analysis function
     analysis_function: framework_task.Analysis,
-    # Preprocess the arguments in the steering
     argument_preprocessing: PreprocessArguments | None = None,
-    # Customize the task metadata
-    analysis_metadata: framework_task.CustomizeAnalysisMetadata | None = None
+    analysis_output_identifier: OutputIdentifier | None = None,
+    analysis_metadata: framework_task.CustomizeAnalysisMetadata | None = None,
 ) -> SetupTasks:
+    """Setup the embedding of MC into a thermal model.
+
+    Args:
+        analysis_function: Analysis function to be run.
+        argument_preprocessing: Preprocess the arguments in the steering.
+        analysis_metadata: Customize the task metadata.
+        analysis_output_identifier: Customize the output identifier.
+
+    Returns:
+        Function that will setup the embedding of MC into data with the specified analysis function.
+    """
     # Validation
     # NOTE: We change the function name here to help out mypy. Something about the way that we're
     #       wrapping the function causes an issue otherwise.
@@ -555,6 +589,10 @@ def setup_embed_MC_into_thermal_model(
         defined_argument_preprocessing = no_op_preprocess_arguments
     else:
         defined_argument_preprocessing = argument_preprocessing
+    if analysis_output_identifier is None:
+        defined_analysis_output_identifier = no_op_analysis_output_identifier
+    else:
+        defined_analysis_output_identifier = analysis_output_identifier
     # Note: We'll handle analysis_metadata possibly being None in the python app
 
     def wrap_setup(
@@ -662,6 +700,9 @@ def setup_embed_MC_into_thermal_model(
                         "number_of_parent_directories_for_relative_output_filename", None
                     ),
                 )
+                # Finally, add the customization
+                output_identifier += defined_analysis_output_identifier(**analysis_arguments_with_pt_hat_scale_factor)
+
                 output_filename = output_dir / f"{output_identifier}.parquet"
                 # And create the tasks
                 results.append(
