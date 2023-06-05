@@ -376,6 +376,11 @@ def setup_embed_MC_into_data(
         logger.info(
             f"Configuring embed pythia with {'background' if _background_is_constrained_source else 'signal'} as the constrained source."
         )
+        # Sample fraction of input events (for quick analysis)
+        sample_dataset_fraction =_metadata_config.get("sample_dataset_fraction", 1.0)
+        rng_for_sample_dataset_fraction = np.random.default_rng()
+        if sample_dataset_fraction < 1.0:
+            logger.warning(f"Sampling only a fraction of the statistics! Using {sample_dataset_fraction}")
 
         # Analysis settings
         analysis_arguments = copy.deepcopy(_analysis_config)
@@ -435,7 +440,6 @@ def setup_embed_MC_into_data(
         _embedding_file_pairs = {}
         # Keep track of output identifiers. If there is already an existing identifier, then we can try again to avoid overwriting it.
         _output_identifiers = []
-        # TODO: Sample fraction if input events (for quick analysis)
         input_generator = _determine_embed_pythia_input_files(
             signal_input_files_per_pt_hat=signal_input_files_per_pt_hat,
             background_input_files=background_input_files,
@@ -450,6 +454,15 @@ def setup_embed_MC_into_data(
                 logger.info(
                     f"Adding {(background_input if _background_is_constrained_source else signal_input)} for analysis"
                 )
+
+            # Sample fraction
+            # NOTE: It's much easier to implement here than messing with all of the input file determination.
+            #       This trades off non-uniform sampling for small samples (ie. if the fraction is very small,
+            #       the input pt hat bins may not be sampled uniformly). However, the reduced complexity
+            #       is worth this trade off.
+            if sample_dataset_fraction < 1.0:
+                # This isn't very efficient, but good enough for this purpose since it's just in the steering.
+                rng_for_sample_dataset_fraction.random() < sample_dataset_fraction
 
             # For debugging
             if debug_mode and _file_counter > 1:
