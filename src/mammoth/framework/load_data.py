@@ -557,7 +557,7 @@ def setup_source_for_data_or_MC_task(
     signal_source: sources.SourceFromFilename | sources.DelayedSource,
     loading_data_rename_prefix: Mapping[str, str],
     # Outputs
-    output_options: task.OutputSettings,
+    output_settings: task.OutputSettings,
 ) -> Iterator[ak.Array]:
     """ Setup data source for a data analysis task.
 
@@ -575,7 +575,7 @@ def setup_source_for_data_or_MC_task(
         signal_input: Input signal file(s).
         signal_source: Source for the signal.
         rename_prefix: Rename existing data prefix to another prefix in the array. Eg. "detLevel" -> "det_level".
-        output_options: Output options.
+        output_settings: Output settings.
     Returns:
         iter_arrays: Iterator over the arrays to process.
     Raises:
@@ -590,7 +590,7 @@ def setup_source_for_data_or_MC_task(
     })
 
     res = task.check_for_task_output(
-        output_options=output_options,
+        output_settings=output_settings,
         chunk_size=task_settings.chunk_size
     )
     if res[0]:
@@ -608,7 +608,7 @@ def setup_source_for_data_or_MC_task(
     except sources.NoDataAvailableError as e:
         # Just create the empty filename and return. This will prevent trying to re-run with no jets in the future.
         # Remember that this depends heavily on the analysis cuts!
-        output_options.output_filename.with_suffix(".empty").touch()
+        output_settings.output_filename.with_suffix(".empty").touch()
         raise task.FailedToSetupSourceError(
             result_success=True,
             result_message=f"Done - no data available (reason: {e}), so not trying to skim",
@@ -634,7 +634,7 @@ def setup_source_for_embedding_task(
     background_source: sources.SourceFromFilename | sources.DelayedSource,
     background_is_constrained_source: bool,
     # Outputs
-    output_options: task.OutputSettings,
+    output_settings: task.OutputSettings,
     # Repeat categories as above, but with default arguments
     # Inputs
     signal_source_collision_system: str = "pythia",
@@ -655,7 +655,7 @@ def setup_source_for_embedding_task(
         background_input: Input background file(s).
         background_source: Source for the background.
         background_is_constrained_source: Whether the background is the constrained source.
-        output_options: Output options.
+        output_settings: Output settings.
     Returns:
         (source_index_identifiers, iter_arrays), where:
             source_index_identifiers: Mapping of source index to identifier.
@@ -674,7 +674,7 @@ def setup_source_for_embedding_task(
     })
 
     res = task.check_for_task_output(
-        output_options=output_options,
+        output_settings=output_settings,
         chunk_size=task_settings.chunk_size
     )
     if res[0]:
@@ -699,7 +699,7 @@ def setup_source_for_embedding_task(
     except sources.NoDataAvailableError as e:
         # Just create the empty filename and return. This will prevent trying to re-run with no jets in the future.
         # Remember that this depends heavily on the analysis cuts!
-        output_options.output_filename.with_suffix(".empty").touch()
+        output_settings.output_filename.with_suffix(".empty").touch()
         raise task.FailedToSetupSourceError(
             result_success=True,
             result_message=f"Done - no data available (reason: {e}), so not trying to skim",
@@ -726,7 +726,7 @@ def setup_source_for_embedding_thermal_model_task(
     signal_source: sources.SourceFromFilename | sources.DelayedSource,
     thermal_model_parameters: sources.ThermalModelParameters,
     # Outputs
-    output_options: task.OutputSettings,
+    output_settings: task.OutputSettings,
     # Repeat categories as above, but with default arguments
     # Inputs
     signal_source_collision_system: str = "pythia",
@@ -738,7 +738,7 @@ def setup_source_for_embedding_thermal_model_task(
         signal_input: Input signal file(s).
         signal_source: Source for the signal.
         thermal_model_parameters: Parameters for the thermal model.
-        output_options: Output options.
+        output_settings: Output settings.
     Returns:
         (source_index_identifiers, iter_arrays), where:
             source_index_identifiers: Mapping of source index to identifier.
@@ -755,7 +755,7 @@ def setup_source_for_embedding_thermal_model_task(
     })
 
     res = task.check_for_task_output(
-        output_options=output_options,
+        output_settings=output_settings,
         chunk_size=task_settings.chunk_size
     )
     if res[0]:
@@ -776,7 +776,7 @@ def setup_source_for_embedding_thermal_model_task(
     except sources.NoDataAvailableError as e:
         # Just create the empty filename and return. This will prevent trying to re-run with no jets in the future.
         # Remember that this depends heavily on the analysis cuts!
-        output_options.output_filename.with_suffix(".empty").touch()
+        output_settings.output_filename.with_suffix(".empty").touch()
         raise task.FailedToSetupSourceError(
             result_success=True,
             result_message=f"Done - no data available (reason: {e}), so not trying to skim",

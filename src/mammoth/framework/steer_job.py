@@ -338,7 +338,7 @@ def steer_data(
         # Setup for analysis and dataset settings
         _metadata_config = prod.config["metadata"]
         _analysis_config: dict[str, Any] = prod.config["settings"]
-        _output_options_config = _analysis_config.pop("output_options")
+        _output_settings_config = _analysis_config.pop("output_settings")
         _input_options = copy.deepcopy(_metadata_config)
         # Chunk size
         chunk_size = _analysis_config.get("chunk_size", sources.ChunkSizeSentinel.FULL_SOURCE)
@@ -434,7 +434,7 @@ def steer_data(
                         input_options=_metadata_config,
                         # And these are the input options specific to the dataset
                         source_config=_metadata_config["dataset"],
-                        output_options_config=_output_options_config,
+                        output_settings_config=_output_settings_config,
                         # Arguments
                         analysis_arguments=analysis_arguments_with_pt_hat_scale_factor,
                         # Framework options
@@ -569,7 +569,7 @@ def setup_embed_MC_into_data(
             "background_source_collision_system": _input_handling_config["background"]["collision_system"],
         }
         _analysis_config: dict[str, Any] = prod.config["settings"]
-        _output_options_config = _analysis_config.pop("output_options")
+        _output_settings_config = _analysis_config.pop("output_settings")
         # Chunk size
         chunk_size = _analysis_config.get("chunk_size", sources.ChunkSizeSentinel.FULL_SOURCE)
         logger.info(f"Processing chunk size for {chunk_size}")
@@ -729,7 +729,7 @@ def setup_embed_MC_into_data(
                     signal_input_source_config=_metadata_config["signal_dataset"],
                     n_signal_input_files=len(signal_input),
                     background_input_source_config=_metadata_config["dataset"],
-                    output_options_config=_output_options_config,
+                    output_settings_config=_output_settings_config,
                     # Arguments
                     analysis_arguments=analysis_arguments_with_pt_hat_scale_factor,
                     # Framework options
@@ -815,10 +815,10 @@ def setup_embed_MC_into_thermal_model(
                 Path("trains/pythia/2640/run_by_run/LHC20g4/296415/4/AnalysisResults.20g4.007.root"),
                 Path("trains/pythia/2640/run_by_run/LHC20g4/296415/4/AnalysisResults.20g4.010.root"),
             ]}
-        # Setup for dataset settings (and grab analysis config for output options)
+        # Setup for dataset settings (and grab analysis config for Output settings)
         _metadata_config = prod.config["metadata"]
         _analysis_config = prod.config["settings"]
-        _output_options_config = _analysis_config.pop("output_options")
+        _output_settings_config = _analysis_config.pop("output_settings")
         # Thermal model parameters
         thermal_model_parameters = sources.THERMAL_MODEL_SETTINGS[
             f"{_metadata_config['dataset']['sqrt_s']}_{_analysis_config['event_activity']}"
@@ -908,7 +908,7 @@ def setup_embed_MC_into_thermal_model(
                         # I/O
                         input_source_config=_metadata_config["dataset"],
                         thermal_model_parameters=thermal_model_parameters,
-                        output_options_config=_output_options_config,
+                        output_settings_config=_output_settings_config,
                         # Arguments
                         analysis_arguments=analysis_arguments_with_pt_hat_scale_factor,
                         job_framework=job_framework,

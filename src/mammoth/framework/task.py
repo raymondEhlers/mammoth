@@ -170,13 +170,13 @@ class Output:
 
 
 def check_for_task_output(
-    output_options: OutputSettings,
+    output_settings: OutputSettings,
     chunk_size: sources.T_ChunkSize | None = None,
 ) -> tuple[bool, str]:
     """ Check for outputs to skip processing early if possible.
 
     Args:
-        output_options: Output options.
+        output_settings: Output settings.
         chunk_size: Chunk size for processing.
 
     Returns:
@@ -195,22 +195,22 @@ def check_for_task_output(
     # NOTE: We have to exercise a bit of care here in the case that have chunk sizes smaller than an individual file.
     #       In that case, the first file could be empty, but later chunks may not be empty. To avoid that case, we only
     #       check when there is meaningful output, as defined by the two conditions above.
-    if chunk_size is None or (chunk_size == sources.ChunkSizeSentinel.SINGLE_FILE or chunk_size == sources.ChunkSizeSentinel.FULL_SOURCE) or output_options.write_merged_hists:
-        if output_options.primary_output.type == "skim":
-            if output_options.output_filename.suffix == ".root":
+    if chunk_size is None or (chunk_size == sources.ChunkSizeSentinel.SINGLE_FILE or chunk_size == sources.ChunkSizeSentinel.FULL_SOURCE) or output_settings.write_merged_hists:
+        if output_settings.primary_output.type == "skim":
+            if output_settings.output_filename.suffix == ".root":
                 res = output_utils.check_for_task_root_skim_output_file(
-                    output_filename=output_utils.task_output_path_skim(output_filename=output_options.output_filename, skim_name=output_options.primary_output.name),
-                    reference_tree_name=output_options.primary_output.reference_name,
+                    output_filename=output_utils.task_output_path_skim(output_filename=output_settings.output_filename, skim_name=output_settings.primary_output.name),
+                    reference_tree_name=output_settings.primary_output.reference_name,
                 )
             else:
                 res = output_utils.check_for_task_parquet_skim_output_file(
-                    output_filename=output_utils.task_output_path_skim(output_filename=output_options.output_filename, skim_name=output_options.primary_output.name),
-                    reference_array_name=output_options.primary_output.reference_name,
+                    output_filename=output_utils.task_output_path_skim(output_filename=output_settings.output_filename, skim_name=output_settings.primary_output.name),
+                    reference_array_name=output_settings.primary_output.reference_name,
                 )
-        if output_options.primary_output.type == "hists":
+        if output_settings.primary_output.type == "hists":
             res = output_utils.check_for_task_hist_output_file(
-                output_filename=output_utils.task_output_path_hist(output_filename=output_options.output_filename),
-                reference_hist_name=output_options.primary_output.reference_name,
+                output_filename=output_utils.task_output_path_hist(output_filename=output_settings.output_filename),
+                reference_hist_name=output_settings.primary_output.reference_name,
             )
 
     return res
@@ -242,7 +242,7 @@ class SetupSource(Protocol):
             *,
             task_settings: Settings,
             task_metadata: Metadata,
-            output_options: OutputSettings,
+            output_settings: OutputSettings,
             **kwargs: Any,
         ) -> Iterator[ak.Array]:
             ...
@@ -253,7 +253,7 @@ class SetupEmbeddingSource(Protocol):
             *,
             task_settings: Settings,
             task_metadata: Metadata,
-            output_options: OutputSettings,
+            output_settings: OutputSettings,
             **kwargs: Any,
         ) -> tuple[dict[str, int], Iterator[ak.Array]]:
         ...
@@ -434,7 +434,7 @@ def python_app_data(
         chunk_size: sources.T_ChunkSize,
         input_options: dict[str, Any],
         input_source_config: dict[str, Any],
-        output_options_config: dict[str, Any],
+        output_settings_config: dict[str, Any],
         analysis_arguments: dict[str, Any],
         job_framework: job_utils.JobFramework,  # noqa: ARG001
         inputs: list[File] = [],
@@ -474,9 +474,9 @@ def python_app_data(
                     signal_source=io.file_source(file_source_config=input_source_config),
                     **input_options,
                 ),
-                output_options=OutputSettings.from_config(
+                output_settings=OutputSettings.from_config(
                     output_filename=Path(outputs[0].filepath),
-                    config=output_options_config,
+                    config=output_settings_config,
                 ),
                 # Analysis
                 analysis_function=functools.partial(
@@ -547,7 +547,7 @@ def python_app_embed_MC_into_data(
         signal_input_source_config: dict[str, Any],
         n_signal_input_files: int,
         background_input_source_config: dict[str, Any],
-        output_options_config: dict[str, Any],
+        output_settings_config: dict[str, Any],
         analysis_arguments: dict[str, Any],
         job_framework: job_utils.JobFramework,  # noqa: ARG001
         inputs: list[File] = [],
@@ -589,9 +589,9 @@ def python_app_embed_MC_into_data(
                     background_source=io.file_source(file_source_config=background_input_source_config),
                     **source_input_options,
                 ),
-                output_options=OutputSettings.from_config(
+                output_settings=OutputSettings.from_config(
                     output_filename=Path(outputs[0].filepath),
-                    config=output_options_config,
+                    config=output_settings_config,
                 ),
                 # Analysis
                 analysis_function=functools.partial(
@@ -661,7 +661,7 @@ def python_app_embed_MC_into_thermal_model(
         chunk_size: sources.T_ChunkSize,
         input_source_config: dict[str, Any],
         thermal_model_parameters: sources.ThermalModelParameters,
-        output_options_config: dict[str, Any],
+        output_settings_config: dict[str, Any],
         analysis_arguments: dict[str, Any],
         job_framework: job_utils.JobFramework,  # noqa: ARG001
         inputs: list[File] = [],
@@ -701,9 +701,9 @@ def python_app_embed_MC_into_thermal_model(
                     signal_source=io.file_source(file_source_config=input_source_config),
                     thermal_model_parameters=thermal_model_parameters,
                 ),
-                output_options=OutputSettings.from_config(
+                output_settings=OutputSettings.from_config(
                     output_filename=Path(outputs[0].filepath),
-                    config=output_options_config,
+                    config=output_settings_config,
                 ),
                 # Analysis
                 analysis_function=functools.partial(

@@ -29,7 +29,7 @@ def steer_task_execution(
     # Inputs
     iter_arrays: Iterator[ak.Array],
     # Outputs
-    output_options: framework_task.OutputSettings,
+    output_settings: framework_task.OutputSettings,
     #####
     # Analysis arguments
     analysis_function: framework_task.AnalysisBound,
@@ -37,9 +37,9 @@ def steer_task_execution(
     validation_mode: bool,
 ) -> framework_task.Output:
     # Validation
-    if output_options.return_skim and not (task_settings.chunk_size == sources.ChunkSizeSentinel.SINGLE_FILE or task_settings.chunk_size == sources.ChunkSizeSentinel.FULL_SOURCE):
+    if output_settings.return_skim and not (task_settings.chunk_size == sources.ChunkSizeSentinel.SINGLE_FILE or task_settings.chunk_size == sources.ChunkSizeSentinel.FULL_SOURCE):
         # NOTE: Returning the skim is only supported for the case where we're processing a single file or the full source
-        msg = "Cannot return skim if processing in chunks. Update your output options."
+        msg = "Cannot return skim if processing in chunks. Update your Output settings."
         raise ValueError(msg)
 
     _nonstandard_processing_outcome = []
@@ -54,15 +54,15 @@ def steer_task_execution(
             #       if it's more than the first chunk
             if i_chunk > 0:
                 _output_filename = (
-                    output_options.output_filename.parent / f"{output_options.output_filename.stem}_chunk_{i_chunk:03}{output_options.output_filename.suffix}"
+                    output_settings.output_filename.parent / f"{output_settings.output_filename.stem}_chunk_{i_chunk:03}{output_settings.output_filename.suffix}"
                 )
             else:
-                _output_filename = output_options.output_filename
-            local_output_options = output_options.with_new_output_filename(_output_filename)
+                _output_filename = output_settings.output_filename
+            local_output_settings = output_settings.with_new_output_filename(_output_filename)
 
             # Try to bail out as early to avoid reprocessing if possible.
             res = framework_task.check_for_task_output(
-                output_options=local_output_options,
+                output_settings=local_output_settings,
             )
             if res[0]:
                 _nonstandard_processing_outcome.append(res)
@@ -79,7 +79,7 @@ def steer_task_execution(
                     # Although return_skim is an output option that we try to abstract away, it can be quite costly in terms of memory.
                     # Consequently, we break the abstraction and pass it, since many tasks are under memory pressure.
                     # NOTE: Need to specify a concrete value here, so we default to False if nothing is specified.
-                    return_skim=False if output_options.return_skim is None else output_options.return_skim,
+                    return_skim=False if output_settings.return_skim is None else output_settings.return_skim,
                 )
             except sources.NoDataAvailableError as e:
                 # Just create the empty filename and return. This will prevent trying to re-run with no jets in the future.
@@ -95,16 +95,16 @@ def steer_task_execution(
 
             analysis_output.merge_hists(task_hists=task_hists)
             analysis_output.write(
-                output_filename=local_output_options.output_filename,
-                write_hists=local_output_options.write_chunk_hists,
-                write_skim=local_output_options.write_chunk_skim,
+                output_filename=local_output_settings.output_filename,
+                write_hists=local_output_settings.write_chunk_hists,
+                write_skim=local_output_settings.write_chunk_skim,
             )
 
             # Cleanup (may not be necessary, but it doesn't hurt)
             del arrays
             # We can't delete the analysis output if we're going to return the skim
             # (again, we can only do this if we analyze in one chunk)
-            if not output_options.return_skim:
+            if not output_settings.return_skim:
                 del analysis_output
 
             # Setup for next loop
@@ -114,18 +114,18 @@ def steer_task_execution(
         ...
 
     # Write hists
-    if output_options.write_merged_hists:
+    if output_settings.write_merged_hists:
         # Cross check that we have something to write
         assert task_hists
 
         # And then actually write it
-        output_hist_filename = output_utils.task_output_path_hist(output_filename=output_options.output_filename)
+        output_hist_filename = output_utils.task_output_path_hist(output_filename=output_settings.output_filename)
         output_hist_filename.parent.mkdir(parents=True, exist_ok=True)
         with uproot.recreate(output_hist_filename) as f:
             output_utils.write_hists_to_file(hists=task_hists, f=f)
 
     # Cleanup
-    if not output_options.return_merged_hists:
+    if not output_settings.return_merged_hists:
         del task_hists
 
     description, output_metadata = framework_task.description_and_output_metadata(task_metadata=task_metadata)
@@ -135,8 +135,8 @@ def steer_task_execution(
         success=True,
         message=f"success for {description}"
         + (f". Additional non-standard processing outcomes: {_nonstandard_processing_outcome}" if _nonstandard_processing_outcome else ""),
-        hists=task_hists if output_options.return_merged_hists else {},
-        results=analysis_output.skim if output_options.return_skim else {},
+        hists=task_hists if output_settings.return_merged_hists else {},
+        results=analysis_output.skim if output_settings.return_skim else {},
         metadata=output_metadata,
     )
 
@@ -164,7 +164,7 @@ def steer_data_task(
     task_settings: framework_task.Settings,
     # I/O
     setup_input_source: framework_task.SetupSource,
-    output_options: framework_task.OutputSettings,
+    output_settings: framework_task.OutputSettings,
     # Analysis
     # NOTE: The analysis arguments are bound to both of these functions before passing here
     analysis_function: framework_task.AnalysisBound,
@@ -182,7 +182,7 @@ def steer_data_task(
     Args:
         task_settings: Task settings.
         setup_input_source: Function to setup the input source.
-        output_options: Output options.
+        output_settings: Output settings.
         analysis_function: Analysis function.
         analysis_metadata_function: Function to customize the analysis metadata.
         validation_mode: Whether or not to run in validation mode.
@@ -206,7 +206,7 @@ def steer_data_task(
     try:
         iter_arrays = setup_input_source(
             task_settings=task_settings,
-            output_options=output_options,
+            output_settings=output_settings,
             task_metadata=task_metadata,
         )
     except framework_task.FailedToSetupSourceError as e:
@@ -224,7 +224,7 @@ def steer_data_task(
         task_settings=task_settings,
         task_metadata=task_metadata,
         iter_arrays=iter_arrays,
-        output_options=output_options,
+        output_settings=output_settings,
         analysis_function=analysis_function,
         validation_mode=validation_mode,
     )
@@ -236,7 +236,7 @@ def steer_embed_task(
     task_settings: framework_task.Settings,
     # I/O
     setup_input_source: framework_task.SetupEmbeddingSource,
-    output_options: framework_task.OutputSettings,
+    output_settings: framework_task.OutputSettings,
     # Analysis
     # NOTE: The analysis arguments are bound to both of these functions before passing here
     analysis_function: framework_task.EmbeddingAnalysisBound,
@@ -254,7 +254,7 @@ def steer_embed_task(
     Args:
         task_settings: Task settings.
         setup_input_source: Function to setup the input source.
-        output_options: Output options.
+        output_settings: Output settings.
         analysis_function: Analysis function.
         analysis_metadata_function: Function to customize the analysis metadata.
         validation_mode: Whether or not to run in validation mode.
@@ -278,7 +278,7 @@ def steer_embed_task(
     try:
         source_index_identifiers, iter_arrays = setup_input_source(
             task_settings=task_settings,
-            output_options=output_options,
+            output_settings=output_settings,
             task_metadata=task_metadata,
         )
     except framework_task.FailedToSetupSourceError as e:
@@ -304,7 +304,7 @@ def steer_embed_task(
         task_settings=task_settings,
         task_metadata=task_metadata,
         iter_arrays=iter_arrays,
-        output_options=output_options,
+        output_settings=output_settings,
         analysis_function=standard_analysis_function,
         validation_mode=validation_mode,
     )
