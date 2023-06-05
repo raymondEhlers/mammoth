@@ -420,8 +420,8 @@ def steer_data(
                 # Finally, add the customization
                 output_identifier += defined_analysis_output_identifier(**analysis_arguments_with_pt_hat_scale_factor)
 
-                # TODO: Customize extension....
-                output_filename = output_dir / f"{output_identifier}.root"
+                # NOTE: The extension will be customized in the app....
+                output_filename = output_dir / f"{output_identifier}.dummy_ext"
                 # And create the tasks
                 results.append(
                     python_app_func(
@@ -431,7 +431,7 @@ def steer_data(
                         chunk_size=chunk_size,
                         # I/O
                         # These are the general input options
-                        input_options=_metadata_config,
+                        input_options=_input_options,
                         # And these are the input options specific to the dataset
                         source_config=_metadata_config["dataset"],
                         output_settings_config=_output_settings_config,
@@ -707,8 +707,8 @@ def setup_embed_MC_into_data(
                     _output_identifier_stored = True
 
             # logger.info(f"output_identifier: {output_identifier}")
-            # TODO: Customize extension....
-            output_filename = output_dir / f"{output_identifier}.root"
+            # NOTE: The extension will be customized in the app....
+            output_filename = output_dir / f"{output_identifier}.dummy_ext"
 
             # Store the file pairs for our records
             # The output identifier contains the first signal filename, as well as the background filename.
@@ -896,8 +896,8 @@ def setup_embed_MC_into_thermal_model(
                 # Finally, add the customization
                 output_identifier += defined_analysis_output_identifier(**analysis_arguments_with_pt_hat_scale_factor)
 
-                # TODO: Customize extension....
-                output_filename = output_dir / f"{output_identifier}.parquet"
+                # NOTE: The extension will be customized in the app....
+                output_filename = output_dir / f"{output_identifier}.dummy_ext"
                 # And create the tasks
                 results.append(
                     python_app_func(

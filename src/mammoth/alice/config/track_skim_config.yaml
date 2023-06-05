@@ -1074,6 +1074,7 @@ productions:
             name: ""
           return_skim: false
           write_chunk_skim: false
+          write_skim_extension: "parquet"
           return_merged_hists: false
           write_chunk_hists: false
           write_merged_hists: true

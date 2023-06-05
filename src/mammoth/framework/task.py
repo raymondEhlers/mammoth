@@ -102,20 +102,37 @@ class OutputSettings:
     return_merged_hists: bool | None = attrs.field(default=None)
     write_chunk_hists: bool | None = attrs.field(default=None)
     write_merged_hists: bool | None = attrs.field(default=None)
+    write_skim_extension: str = attrs.field(default="parquet")
 
     @classmethod
     def from_config(cls, output_filename: Path, config: dict[str, Any]) -> OutputSettings:
+        # Update extension based on provided config
+        extension = config.get("write_skim_extension", "parquet")
+
         return cls(
-            output_filename=output_filename,
+            output_filename=output_filename.with_suffix(f".{extension}"),
             primary_output=PrimaryOutput.from_config(config=config["primary_output"]),
             return_skim=config.get("return_skim", None),
             write_chunk_skim=config.get("write_chunk_skim", None),
             return_merged_hists=config.get("return_merged_hists", None),
             write_chunk_hists=config.get("write_chunk_hists", None),
             write_merged_hists=config.get("write_merged_hists", None),
+            write_skim_extension=extension,
         )
 
     def with_new_output_filename(self, new_output_filename: Path) -> OutputSettings:
+        """Create a new OutputSettings with a new output filename.
+
+        Note:
+            If you want to change the extension, you should use modify the `new_output_filename`
+            extension directly before passing it here.
+
+        Args:
+            new_output_filename: New output filename. The extension will be used as the new
+                extension for the skim.
+        Returns:
+            New OutputSettings with the new output filename.
+        """
         return type(self)(
             output_filename=new_output_filename,
             primary_output=self.primary_output,
@@ -124,6 +141,8 @@ class OutputSettings:
             return_merged_hists=self.return_merged_hists,
             write_chunk_hists=self.write_chunk_hists,
             write_merged_hists=self.write_merged_hists,
+            # 1: because we don't want to store the leading "."
+            write_skim_extension=new_output_filename.suffix[1:],
         )
 
 
