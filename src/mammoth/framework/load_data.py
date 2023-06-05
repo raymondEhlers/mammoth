@@ -547,7 +547,80 @@ def embedding_thermal_model(
 # Setup sources
 ###############
 
-# TODO: Data + MC!
+def setup_source_for_data_or_MC_task(
+    *,
+    # Task settings
+    task_settings: task.Settings,
+    task_metadata: task.Metadata,
+    # Inputs
+    signal_input: Path | Sequence[Path],
+    signal_source: sources.SourceFromFilename | sources.DelayedSource,
+    loading_data_rename_prefix: Mapping[str, str],
+    # Outputs
+    output_options: task.OutputSettings,
+) -> Iterator[ak.Array]:
+    """ Setup data source for a data analysis task.
+
+    Note:
+        This is a lot like `data(...)`, but it integrates better with our task input, and
+        it checks for existing inputs. We don't want such a check when we just define the =
+        inputs and normalize the source, so we keep this as a bit of a wrapper.
+
+    Note:
+        This is also works for MC.
+
+    Args:
+        task_settings: Task settings.
+        task_metadata: Task metadata.
+        signal_input: Input signal file(s).
+        signal_source: Source for the signal.
+        rename_prefix: Rename existing data prefix to another prefix in the array. Eg. "detLevel" -> "det_level".
+        output_options: Output options.
+    Returns:
+        iter_arrays: Iterator over the arrays to process.
+    Raises:
+        FailedToSetupSourceError: If the source could not be setup.
+    """
+    # Validation
+    input_filenames = _validate_potential_list_of_inputs(signal_input)
+
+    # Description parameters
+    task_metadata.update({
+        "input_filenames": str([str(_filename) for _filename in input_filenames]),
+    })
+
+    res = task.check_for_task_output(
+        output_options=output_options,
+        chunk_size=task_settings.chunk_size
+    )
+    if res[0]:
+        raise task.FailedToSetupSourceError(result_success=res[0], result_message=res[1])
+
+    # Setup iteration over the input files
+    try:
+        iter_arrays = data(
+            data_input=input_filenames,
+            data_source=partial(signal_source, collision_system=task_settings.collision_system),
+            collision_system=task_settings.collision_system,
+            rename_prefix=loading_data_rename_prefix,
+            chunk_size=task_settings.chunk_size,
+        )
+    except sources.NoDataAvailableError as e:
+        # Just create the empty filename and return. This will prevent trying to re-run with no jets in the future.
+        # Remember that this depends heavily on the analysis cuts!
+        output_options.output_filename.with_suffix(".empty").touch()
+        raise task.FailedToSetupSourceError(
+            result_success=True,
+            result_message=f"Done - no data available (reason: {e}), so not trying to skim",
+        ) from e
+
+    # Validate that the arrays are in an a format that we can iterate over
+    if isinstance(iter_arrays, ak.Array):
+        iter_arrays = iter([iter_arrays])
+    assert not isinstance(iter_arrays, ak.Array), "Check configuration. This should be an iterable, not an ak.Array!"
+
+    return iter_arrays
+
 
 def setup_source_for_embedding_task(
     *,
@@ -625,12 +698,12 @@ def setup_source_for_embedding_task(
         )
     except sources.NoDataAvailableError as e:
         # Just create the empty filename and return. This will prevent trying to re-run with no jets in the future.
-        # Remember that this depends heavily on the jet pt cuts!
+        # Remember that this depends heavily on the analysis cuts!
         output_options.output_filename.with_suffix(".empty").touch()
         raise task.FailedToSetupSourceError(
             result_success=True,
             result_message=f"Done - no data available (reason: {e}), so not trying to skim",
-        ) from None
+        ) from e
 
     # Since we have the source index identifier, might as well add it into the metadata
     task_metadata.update({"source_index_identifiers": source_index_identifiers})
@@ -702,12 +775,12 @@ def setup_source_for_embedding_thermal_model_task(
         )
     except sources.NoDataAvailableError as e:
         # Just create the empty filename and return. This will prevent trying to re-run with no jets in the future.
-        # Remember that this depends heavily on the jet pt cuts!
+        # Remember that this depends heavily on the analysis cuts!
         output_options.output_filename.with_suffix(".empty").touch()
         raise task.FailedToSetupSourceError(
             result_success=True,
             result_message=f"Done - no data available (reason: {e}), so not trying to skim",
-        )
+        ) from e
 
     # Since we have the source index identifier, might as well add it into the metadata
     task_metadata.update({"source_index_identifiers": source_index_identifiers})
