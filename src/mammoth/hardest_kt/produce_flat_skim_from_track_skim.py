@@ -35,6 +35,19 @@ class SplittingsSelection(enum.Enum):
     def __str__(self) -> str:
         return f"{self.name}_splittings"
 
+
+def preprocess_arguments(**analysis_arguments: Any) -> Mapping[str, Any]:
+    splittings_selection = SplittingsSelection(analysis_arguments["splittings_selection"])
+    return {
+        "iterative_splittings": splittings_selection == SplittingsSelection.iterative,
+    }
+
+
+def analysis_output_identifier(**analysis_arguments: Any) -> str:
+    splittings_selection = SplittingsSelection(analysis_arguments["splittings_selection"])
+    return f"{splittings_selection!s}"
+
+
 @attrs.frozen()
 class HardestKtProductionSpecialization:
     def customize_identifier(self, analysis_settings: MutableMapping[str, Any]) -> str:

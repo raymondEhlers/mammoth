@@ -39,7 +39,6 @@ skim_types_to_file_source: dict[str, sources.DelayedSource] = {
     "jetscape": jetscape.FileSource,
 }
 
-
 def _convert_analyzed_jets_to_all_jets_for_skim(
     jets: ak.Array,
     convert_data_format_prefixes: Mapping[str, str],

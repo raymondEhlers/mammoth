@@ -379,12 +379,6 @@ def setup_embed_MC_into_data(
 
         # Analysis settings
         analysis_arguments = copy.deepcopy(_analysis_config)
-        # Preprocess the arguments
-        analysis_arguments.update(
-            defined_argument_preprocessing(
-                **analysis_arguments,
-            )
-        )
         # Artificial tracking efficiency (including the option for pt dependent tracking eff)
         # NOTE: This depends on centrality and period, so it's better to do it here!
         det_level_artificial_tracking_efficiency = _analysis_config["det_level_artificial_tracking_efficiency"]
@@ -402,6 +396,14 @@ def setup_embed_MC_into_data(
                 baseline_tracking_efficiency_shift=det_level_artificial_tracking_efficiency,
             )
         analysis_arguments["det_level_artificial_tracking_efficiency"] = det_level_artificial_tracking_efficiency
+        # Preprocess the arguments
+        # NOTE: We do it last so we can access the other arguments if needed
+        analysis_arguments.update(
+            defined_argument_preprocessing(
+                **analysis_arguments,
+            )
+        )
+
         # Scale factors
         scale_factors = None
         if prod.has_scale_factors:
@@ -520,33 +522,6 @@ def setup_embed_MC_into_data(
                 )
             )
 
-            # And create the tasks
-            results.append(
-                _run_embedding_skim(
-                    # Task settings
-                    collision_system=prod.collision_system,
-                    chunk_size=chunk_size,
-                    # I/O
-                    background_is_constrained_source=_background_is_constrained_source,
-                    n_signal_input_files=len(signal_input),
-                    # Analysis arguments
-                    jet_R=_analysis_config["jet_R"],
-                    min_jet_pt=_analysis_config["min_jet_pt"],
-                    iterative_splittings=splittings_selection == SplittingsSelection.iterative,
-                    background_subtraction=_analysis_config["background_subtraction"],
-                    det_level_artificial_tracking_efficiency=det_level_artificial_tracking_efficiency,
-                    convert_data_format_prefixes=_metadata_config["convert_data_format_prefixes"],
-                    scale_factor=scale_factors[pt_hat_bin],
-                    # ...
-                    job_framework=job_framework,
-                    inputs=[
-                        *[File(str(_filename)) for _filename in signal_input],
-                        *[File(str(_filename)) for _filename in background_input],
-                    ],
-                    outputs=[File(str(output_filename))],
-                )
-            )
-
         # And write the file pairs, again for our records
         y = yaml.yaml()
         embedding_file_pairs_filename = prod.output_dir / "embedding_file_pairs.yaml"
@@ -650,6 +625,7 @@ def setup_embed_MC_into_thermal_model(
         # Analysis settings
         analysis_arguments = copy.deepcopy(_analysis_config)
         # Preprocess the arguments
+        # NOTE: We do it last so we can access the other arguments if needed
         analysis_arguments.update(
             defined_argument_preprocessing(
                 **analysis_arguments,
