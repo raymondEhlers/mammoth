@@ -244,7 +244,7 @@ class SetupSource(Protocol):
             task_metadata: Metadata,
             output_options: OutputSettings,
             **kwargs: Any,
-        ) -> tuple[Iterator[ak.Array]]:
+        ) -> Iterator[ak.Array]:
             ...
 
 class SetupEmbeddingSource(Protocol):
