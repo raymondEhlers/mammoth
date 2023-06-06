@@ -345,23 +345,23 @@ def run_some_standalone_tests() -> None:
     # PbPb:
     # collision_system = "PbPb"
     # for collision_system in ["pp", "pythia", "PbPb"]:
-    for collision_system in ["pp"]:
-        logger.info(f'Analyzing "{collision_system}"')
-        jets = analysis_data(  # noqa: F841
-            collision_system=collision_system,
-            arrays=load_data.data(
-                data_input=Path(
-                    f"/software/rehlers/dev/mammoth/projects/framework/{collision_system}/AnalysisResults_track_skim.parquet"
-                ),
-                data_source=partial(track_skim.FileSource, collision_system=collision_system),
-                collision_system=collision_system,
-                rename_prefix={"data": "data"} if collision_system != "pythia" else {"data": "det_level"},
-            ),
-            jet_R=0.4,
-            min_jet_pt={"data": 5.0 if collision_system == "pp" else 20.0},
-        )
-
-        # import IPython; IPython.embed()
+    #for collision_system in ["pp"]:
+    #    logger.info(f'Analyzing "{collision_system}"')
+    #    jets = analysis_data(  # noqa: F841
+    #        collision_system=collision_system,
+    #        arrays=load_data.data(
+    #            data_input=Path(
+    #                f"/software/rehlers/dev/mammoth/projects/framework/{collision_system}/AnalysisResults_track_skim.parquet"
+    #            ),
+    #            data_source=partial(track_skim.FileSource, collision_system=collision_system),
+    #            collision_system=collision_system,
+    #            rename_prefix={"data": "data"} if collision_system != "pythia" else {"data": "det_level"},
+    #        ),
+    #        jet_R=0.4,
+    #        min_jet_pt={"data": 5.0 if collision_system == "pp" else 20.0},
+    #    )
+    #
+    #    # import IPython; IPython.embed()
     ######
     # MC
     ######
@@ -403,6 +403,7 @@ def run_some_standalone_tests() -> None:
     #     },
     #     r_max=0.25,
     # )
+    ...
 
 
 if __name__ == "__main__":
