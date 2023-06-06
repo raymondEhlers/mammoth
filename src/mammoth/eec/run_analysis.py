@@ -117,7 +117,7 @@ def _run_embed_thermal_model_skim(
 
 
 
-def setup_calculate_embed_thermal_model_skim(
+def setup_calculate_embed_thermal_model_skim_old(
     prod: production.ProductionSettings,
     job_framework: job_utils.JobFramework,
     debug_mode: bool,
@@ -334,8 +334,15 @@ def setup_and_submit_tasks(
         #        )
         #    )
         if "calculate_embed_thermal_model_skim" in tasks_to_execute:
+            #system_results.extend(
+            #    setup_calculate_embed_thermal_model_skim_old(
+            #        prod=prod,
+            #        job_framework=job_framework,
+            #        debug_mode=debug_mode,
+            #    )
+            #)
             system_results.extend(
-                setup_calculate_embed_thermal_model_skim(
+                setup_embed_MC_into_thermal_model_skim(
                     prod=prod,
                     job_framework=job_framework,
                     debug_mode=debug_mode,
