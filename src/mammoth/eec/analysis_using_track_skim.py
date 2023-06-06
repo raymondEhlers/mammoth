@@ -18,7 +18,6 @@ import uproot
 from mammoth.eec import analysis_alice
 from mammoth.framework import load_data, sources
 from mammoth.framework import task as framework_task
-from mammoth.framework.analysis import conventions as analysis_conventions
 from mammoth.framework.io import output_utils, track_skim
 
 logger = logging.getLogger(__name__)
@@ -56,7 +55,7 @@ def eec_embed_thermal_model_analysis(  # noqa: C901
     }
     if chunk_size is not sources.ChunkSizeSentinel.FULL_SOURCE:
         _parameters["chunk_size"] = chunk_size
-    _description = analysis_conventions.description_from_parameters(parameters=_parameters)
+    _description = framework_task.description_from_metadata(metadata=_parameters)
     output_metadata = {
         # Useful to have the summary as a string
         "description": _description,
@@ -272,7 +271,7 @@ def steer_embed_thermal_model_analysis(  # noqa: C901
     }
     if chunk_size is not sources.ChunkSizeSentinel.FULL_SOURCE:
         _parameters["chunk_size"] = chunk_size
-    _description = analysis_conventions.description_from_parameters(parameters=_parameters)
+    _description = framework_task.description_from_metadata(metadata=_parameters)
     output_metadata = {
         # Useful to have the summary as a string
         "description": _description,

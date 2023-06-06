@@ -16,10 +16,11 @@ import numpy as np
 
 from mammoth import helpers
 from mammoth.framework import load_data, sources
-from mammoth.framework.analysis import conventions as analysis_conventions
+from mammoth.framework import task as framework_task
 from mammoth.framework.analysis import objects as analysis_objects
 from mammoth.framework.analysis import tracking as analysis_tracking
 from mammoth.framework.io import HF_tree, jetscape, track_skim
+from mammoth.framework.io import output_utils
 from mammoth.hardest_kt import analysis_alice, skim_to_flat_tree
 
 logger = logging.getLogger(__name__)
@@ -159,15 +160,15 @@ def hardest_kt_data_skim(
         loading_data_rename_prefix = {"data": "data"}
 
     # Setup
-    _description = analysis_conventions.description_from_parameters(
-        parameters={
+    _description = framework_task.description_from_metadata(
+        metadata={
             "collision_system": collision_system,
             "R": jet_R,
             "input_filename": str(input_filename),
         }
     )
     # Try to bail out as early to avoid reprocessing if possible.
-    res = analysis_conventions.check_for_root_skim_output_file(output_filename=output_filename, description=_description)
+    res = output_utils.check_for_task_root_skim_output_file(output_filename=output_filename)
     if res[0]:
         return res
 
@@ -317,7 +318,7 @@ def hardest_kt_embed_thermal_model_skim(  # noqa: C901
     }
     if chunk_size is not sources.ChunkSizeSentinel.FULL_SOURCE:
         _parameters["chunk_size"] = chunk_size
-    _description = analysis_conventions.description_from_parameters(parameters=_parameters)
+    _description = framework_task.description_from_metadata(metadata=_parameters)
 
     # Try to bail out early to avoid reprocessing if possible.
     # This would only work if is was previously processed with one chunk, but it doesn't hurt to try
@@ -325,7 +326,7 @@ def hardest_kt_embed_thermal_model_skim(  # noqa: C901
         # We need to exercise a bit of care here in the case that have chunk sizes smaller than an individual file.
         # In that case, the first file could be empty, but later chunks may not be so. To avoid that case, we only
         # perform this check if we are using a single file or the full source.
-        res = analysis_conventions.check_for_root_skim_output_file(output_filename=output_filename, description=_description)
+        res = output_utils.check_for_task_root_skim_output_file(output_filename=output_filename)
         if res[0]:
             return res
 
@@ -366,7 +367,7 @@ def hardest_kt_embed_thermal_model_skim(  # noqa: C901
             _output_filename = output_filename
 
         # Try to bail out as early to avoid reprocessing if possible.
-        res = analysis_conventions.check_for_root_skim_output_file(output_filename=_output_filename, description=_description)
+        res = output_utils.check_for_task_root_skim_output_file(output_filename=_output_filename)
         if res[0]:
             _nonstandard_results.append(res)
             logger.info(f"Skipping already processed chunk {i_chunk}: {res}")
@@ -478,7 +479,7 @@ def hardest_kt_embedding_skim(  # noqa: C901
     }
     if chunk_size is not sources.ChunkSizeSentinel.FULL_SOURCE:
         _parameters["chunk_size"] = chunk_size
-    _description = analysis_conventions.description_from_parameters(parameters=_parameters)
+    _description = framework_task.description_from_metadata(metadata=_parameters)
 
     # Try to bail out early to avoid reprocessing if possible.
     # This would only work if is was previously processed with one chunk, but it doesn't hurt to try
@@ -486,7 +487,7 @@ def hardest_kt_embedding_skim(  # noqa: C901
         # We need to exercise a bit of care here in the case that have chunk sizes smaller than an individual file.
         # In that case, the first file could be empty, but later chunks may not be so. To avoid that case, we only
         # perform this check if we are using a single file or the full source.
-        res = analysis_conventions.check_for_root_skim_output_file(output_filename=output_filename, description=_description)
+        res = output_utils.check_for_task_root_skim_output_file(output_filename=output_filename)
         if res[0]:
             return res
 
@@ -531,7 +532,7 @@ def hardest_kt_embedding_skim(  # noqa: C901
             _output_filename = output_filename
 
         # Try to bail out as early to avoid reprocessing if possible.
-        res = analysis_conventions.check_for_root_skim_output_file(output_filename=_output_filename, description=_description)
+        res = output_utils.check_for_task_root_skim_output_file(output_filename=_output_filename)
         if res[0]:
             _nonstandard_results.append(res)
             logger.info(f"Skipping already processed chunk {i_chunk}: {res}")
