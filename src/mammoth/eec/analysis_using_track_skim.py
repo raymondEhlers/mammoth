@@ -24,6 +24,8 @@ from mammoth.framework.io import output_utils, track_skim
 logger = logging.getLogger(__name__)
 
 
+# TODO: Delete this entire file after confirming that our new version works!
+
 def eec_embed_thermal_model_analysis(  # noqa: C901
     production_identifier: str,
     collision_system: str,
