@@ -514,6 +514,10 @@ def embedding(
     )
 
 
+def _accept_filename_no_op_for_thermal_model(*, filename: str, **kwargs: Any) -> sources.ThermalModelExponential:
+    return sources.ThermalModelExponential(**kwargs)
+
+
 def embedding_thermal_model(
     signal_input: Path | Sequence[Path],
     signal_source: sources.SourceFromFilename,
@@ -530,7 +534,10 @@ def embedding_thermal_model(
         #       However, since we don't actually care about the value, we just pass a dummy value.
         background_input=[Path("dummy")],
         background_source=partial(
-            sources.ThermalModelExponential,
+            # NOTE We don't actually need to do anything with the filename, so we just need to accept and ignore it.
+            #      We did that previously by just accepting arbitrary kwargs (implicitly), but that's not ideal.
+            #      This is admittedly a hack, but it's slightly more precise.
+            _accept_filename_no_op_for_thermal_model,
             thermal_model_parameters=thermal_model_parameters,
         ),
         chunk_size=chunk_size,
