@@ -395,7 +395,7 @@ def steer_data(
         _file_counter = 0
         for pt_hat_bin, input_filenames in input_files.items():
             if scale_factors is not None:
-                analysis_arguments_with_pt_hat_scale_factor["scale_factor"] = scale_factors[pt_hat_bin]
+                analysis_arguments_with_pt_hat_scale_factor["scale_factors"] = scale_factors
 
             for input_filename in input_filenames:
                 if _file_counter % 500 == 0:
