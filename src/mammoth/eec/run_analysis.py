@@ -5,7 +5,6 @@
 
 from __future__ import annotations
 
-import copy
 import logging
 import secrets
 from concurrent.futures import Future
@@ -22,8 +21,8 @@ from mammoth import helpers, job_utils
 from mammoth.alice import job_utils as alice_job_utils
 from mammoth.framework import production, sources
 from mammoth.framework import task as framework_task
-from mammoth.framework.analysis import tracking as analysis_tracking
 from mammoth.framework.analysis import objects as analysis_objects
+from mammoth.framework.analysis import tracking as analysis_tracking
 from mammoth.framework.io import output_utils
 from mammoth.job_utils import python_app
 
@@ -668,7 +667,7 @@ def setup_calculate_embed_pythia_skim(  # noqa: C901
             ),
         )
         # Finally, add the splittings selection
-        output_identifier += f"_{str(splittings_selection)}"
+        output_identifier += f"_{splittings_selection!s}"
 
         # Ensure that we don't use an output identifier twice.
         # If we've already used it, we add a counter to it

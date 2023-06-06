@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import collections.abc
 import logging
+from functools import partial
 from pathlib import Path
 from typing import Any, Sequence
 
@@ -18,8 +19,7 @@ from mammoth.eec import analysis_alice
 from mammoth.framework import load_data, sources
 from mammoth.framework import task as framework_task
 from mammoth.framework.analysis import conventions as analysis_conventions
-from mammoth.framework.io import output_utils
-from mammoth.framework.io import track_skim
+from mammoth.framework.io import output_utils, track_skim
 
 logger = logging.getLogger(__name__)
 
@@ -177,7 +177,6 @@ def eec_embed_thermal_model_analysis(  # noqa: C901
 
         # Merge the output hists
         if analysis_hists:
-            from mammoth import job_utils
 
             hists = output_utils.merge_results(hists, analysis_hists)
 
@@ -227,36 +226,6 @@ def eec_embed_thermal_model_analysis(  # noqa: C901
         hists=hists if return_hists else {},
         metadata=output_metadata,
     )
-
-
-# New code starting from here
-
-from functools import partial
-
-import uproot
-
-from mammoth.framework.io import output_utils
-
-
-
-
-########################
-# All good through here!
-########################
-
-
-
-#def run_embedding(
-#    #prod: production.ProductionSettings,
-#    #job_framework: job_utils.JobFramework,
-#    #debug_mode: bool,
-#) -> :
-#    ...
-#    return source = partial
-
-
-
-
 
 
 
@@ -424,7 +393,6 @@ def steer_embed_thermal_model_analysis(  # noqa: C901
 
         # Merge the output hists
         if analysis_hists:
-            from mammoth import job_utils
 
             hists = output_utils.merge_results(hists, analysis_hists)
 

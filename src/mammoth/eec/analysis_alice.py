@@ -23,8 +23,7 @@ from mammoth.framework import jet_finding, load_data
 from mammoth.framework import task as framework_task
 from mammoth.framework.analysis import array_helpers as analysis_array_helpers
 from mammoth.framework.analysis import tracking as analysis_tracking
-from mammoth.framework.io import output_utils
-from mammoth.framework.io import track_skim
+from mammoth.framework.io import output_utils, track_skim
 
 logger = logging.getLogger(__name__)
 vector.register_awkward()
@@ -738,8 +737,8 @@ def analysis_embedding(
     #return jets
 
 def customize_analysis_metadata(
-    task_settings: framework_task.Settings,
-    **analysis_arguments: Any,
+    task_settings: framework_task.Settings,  # noqa: ARG001
+    **analysis_arguments: Any,  # noqa: ARG001
 ) -> framework_task.Metadata:
     return {}
 
@@ -871,7 +870,6 @@ if __name__ == "__main__":
     )
 
     # NOTE: Just for quick testing
-    import mammoth.job_utils
     merged_hists: dict[str, hist.Hist] = {}
     # END NOTE
     for i_chunk, arrays in enumerate(iter_arrays):
