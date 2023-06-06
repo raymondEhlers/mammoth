@@ -279,7 +279,7 @@ def _validate_setup_functions(
     return defined_argument_preprocessing, defined_analysis_output_identifier
 
 
-def steer_data(  # noqa: C901
+def setup_data_calculation(  # noqa: C901
     analysis_function: framework_task.Analysis,
     argument_preprocessing: PreprocessArguments | None = None,
     analysis_output_identifier: OutputIdentifier | None = None,
@@ -469,7 +469,7 @@ def steer_data(  # noqa: C901
     return wrap_setup
 
 
-def setup_embed_MC_into_data(  # noqa: C901
+def setup_embed_MC_into_data_calculation(  # noqa: C901
     analysis_function: framework_task.Analysis,
     argument_preprocessing: PreprocessArguments | None = None,
     analysis_output_identifier: OutputIdentifier | None = None,
@@ -760,7 +760,7 @@ def setup_embed_MC_into_data(  # noqa: C901
     return wrap_setup
 
 
-def setup_embed_MC_into_thermal_model(
+def setup_embed_MC_into_thermal_model_calculation(
     analysis_function: framework_task.Analysis,
     argument_preprocessing: PreprocessArguments | None = None,
     analysis_output_identifier: OutputIdentifier | None = None,

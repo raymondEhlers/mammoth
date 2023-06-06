@@ -227,12 +227,19 @@ def setup_calculate_embed_thermal_model_skim(
 
     return results
 
-setup_embed_MC_into_thermal_model_skim = steer_job.setup_embed_MC_into_data(
+# Define the steering apps
+
+#setup_data_skim = steer_job.setup_data_calculation(
+#    analysis_function=analysis_alice.analysis_data,
+#    analysis_metadata=analysis_alice.customize_analysis_metadata,
+#)
+
+setup_embed_MC_into_thermal_model_skim = steer_job.setup_embed_MC_into_data_calculation(
     analysis_function=analysis_alice.analysis_embedding,
     analysis_metadata=analysis_alice.customize_analysis_metadata,
 )
 
-setup_embed_MC_into_thermal_model_skim = steer_job.setup_embed_MC_into_thermal_model(
+setup_embed_MC_into_thermal_model_skim = steer_job.setup_embed_MC_into_thermal_model_calculation(
     analysis_function=analysis_alice.analysis_embedding,
     analysis_metadata=analysis_alice.customize_analysis_metadata,
 )
