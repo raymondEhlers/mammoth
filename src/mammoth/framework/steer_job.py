@@ -924,3 +924,42 @@ def setup_embed_MC_into_thermal_model_calculation(
         return results
 
     return wrap_setup
+
+
+def setup_job_framework(
+    job_framework: job_utils.JobFramework,
+    productions: list[production.ProductionSettings],
+    task_config: job_utils.TaskConfig,
+    facility: job_utils.FACILITIES,
+    walltime: str,
+    target_n_tasks_to_run_simultaneously: int,
+    log_level: int,
+    conda_environment_name: str | None = None,
+    tasks_requiring_root: list[str] | None = None,
+    tasks_requiring_aliphysics: list[str] | None = None,
+) -> tuple[job_utils.parsl.DataFlowKernel, job_utils.parsl.Config] | tuple[job_utils.dask.distributed.Client, job_utils.dask.distributed.SpecCluster]:
+    # Validation
+    if tasks_requiring_root is None:
+        tasks_requiring_root = []
+    if tasks_requiring_aliphysics is None:
+        tasks_requiring_aliphysics = []
+
+    # Delayed import since it's a main framework module
+    from mammoth.alice import job_utils as alice_job_utils
+
+    # First, need to figure out if we need additional environments such as ROOT
+    _additional_worker_init_script = alice_job_utils.determine_additional_worker_init(
+        productions=productions,
+        conda_environment_name=conda_environment_name,
+        tasks_requiring_root=tasks_requiring_root,
+        tasks_requiring_aliphysics=tasks_requiring_aliphysics,
+    )
+    return job_utils.setup_job_framework(
+        job_framework=job_framework,
+        task_config=task_config,
+        facility=facility,
+        walltime=walltime,
+        target_n_tasks_to_run_simultaneously=target_n_tasks_to_run_simultaneously,
+        log_level=log_level,
+        additional_worker_init_script=_additional_worker_init_script,
+    )

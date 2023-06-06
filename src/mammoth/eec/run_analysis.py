@@ -17,12 +17,12 @@ import numpy as np
 from parsl.data_provider.files import File
 
 from mammoth import helpers, job_utils
-from mammoth.alice import job_utils as alice_job_utils
 from mammoth.alice import steer_scale_factors
 from mammoth.eec import analysis_alice
 from mammoth.framework import production, sources, steer_job
 from mammoth.framework import task as framework_task
 from mammoth.framework.io import output_utils
+from mammoth.framework.steer_job import setup_job_framework
 from mammoth.job_utils import python_app
 
 logger = logging.getLogger(__name__)
@@ -62,6 +62,8 @@ class EECProductionSpecialization:
         _tasks.append(_base_name.format(label=_label_map[collision_system]))
         return _tasks
 
+
+# TODO: Delete this when we've tested the new changes.
 
 @python_app
 def _run_embed_thermal_model_skim(
@@ -226,6 +228,8 @@ def setup_calculate_embed_thermal_model_skim(
 
     return results
 
+# END TODO
+
 # Define the steering apps
 
 #setup_data_skim = steer_job.setup_data_calculation(
@@ -242,33 +246,6 @@ setup_embed_MC_into_thermal_model_skim = steer_job.setup_embed_MC_into_thermal_m
     analysis_function=analysis_alice.analysis_embedding,
     analysis_metadata=analysis_alice.customize_analysis_metadata,
 )
-
-def setup_job_framework(
-    job_framework: job_utils.JobFramework,
-    productions: Sequence[production.ProductionSettings],
-    task_config: job_utils.TaskConfig,
-    facility: job_utils.FACILITIES,
-    walltime: str,
-    target_n_tasks_to_run_simultaneously: int,
-    log_level: int,
-    conda_environment_name: str | None = None,
-) -> tuple[job_utils.parsl.DataFlowKernel, job_utils.parsl.Config] | tuple[job_utils.dask.distributed.Client, job_utils.dask.distributed.SpecCluster]:
-    # First, need to figure out if we need additional environments such as ROOT
-    _additional_worker_init_script = alice_job_utils.determine_additional_worker_init(
-        productions=productions,
-        conda_environment_name=conda_environment_name,
-        tasks_requiring_root=[],
-        tasks_requiring_aliphysics=[],
-    )
-    return job_utils.setup_job_framework(
-        job_framework=job_framework,
-        task_config=task_config,
-        facility=facility,
-        walltime=walltime,
-        target_n_tasks_to_run_simultaneously=target_n_tasks_to_run_simultaneously,
-        log_level=log_level,
-        additional_worker_init_script=_additional_worker_init_script,
-    )
 
 
 def define_productions() -> list[production.ProductionSettings]:
@@ -392,6 +369,7 @@ def process_futures(
     productions: Sequence[production.ProductionSettings],
     all_results: Sequence[Future[framework_task.Output]],
     job_framework: job_utils.JobFramework,
+    #delete_outputs_in_futures: bool = True,
 ) -> None:
     # Process the futures, showing processing progress
     # Since it returns the results, we can actually use this to accumulate results.
