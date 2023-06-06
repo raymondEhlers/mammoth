@@ -42,7 +42,7 @@ class PreprocessArguments(Protocol):
 
 
 def no_op_preprocess_arguments(
-    **analysis_arguments: Any,
+    **analysis_arguments: Any,  # noqa: ARG001
 ) -> dict[str, Any]:
     return {}
 
@@ -56,7 +56,7 @@ class OutputIdentifier(Protocol):
 
 
 def no_op_analysis_output_identifier(
-    **analysis_arguments: Any,
+    **analysis_arguments: Any,  # noqa: ARG001
 ) -> str:
     return ""
 
@@ -659,10 +659,10 @@ def setup_embed_MC_into_data(
             #       This trades off non-uniform sampling for small samples (ie. if the fraction is very small,
             #       the input pt hat bins may not be sampled uniformly). However, the reduced complexity
             #       is worth this trade off.
-            if sample_dataset_fraction < 1.0:
-                # This isn't very efficient, but good enough for this purpose since it's just in the steering.
-                if rng_for_sample_dataset_fraction.random() > sample_dataset_fraction:
-                    continue
+            # NOTE: This isn't very efficient to call for each file, but it's good enough for this purpose
+            #       since it's just in the steering.
+            if sample_dataset_fraction < 1.0 and rng_for_sample_dataset_fraction.random() > sample_dataset_fraction:
+                continue
 
             # For debugging
             if debug_mode and _file_counter > 1:
