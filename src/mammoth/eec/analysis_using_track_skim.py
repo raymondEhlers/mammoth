@@ -168,44 +168,18 @@ def eec_embed_thermal_model_analysis(  # noqa: C901
             logger.info(_message)
             continue
 
-        trigger_skim: dict[str, ak.Array] | None = None
-        if output_trigger_skim:
-            assert not isinstance(analysis_output, dict)
-            analysis_hists, trigger_skim = analysis_output
-        else:
-            assert isinstance(analysis_output, dict)
-            analysis_hists = analysis_output
-
-        # Merge the output hists
-        if analysis_hists:
-
-            hists = output_utils.merge_results(hists, analysis_hists)
-
-        if trigger_skim:
-            for skim_name, skim_array in trigger_skim.items():
-                _skim_output_filename = output_utils.task_output_path_skim(output_filename=_output_filename, skim_name=skim_name)
-                _skim_output_filename.parent.mkdir(parents=True, exist_ok=True)
-                if ak.num(skim_array, axis=0) == 0:
-                    # Skip the skim if it's empty
-                    _skim_output_filename.with_suffix(".empty").touch()
-                else:
-                    # Write the skim
-                    ak.to_parquet(
-                        array=skim_array,
-                        destination=str(_skim_output_filename),
-                        compression="zstd",
-                        # Optimize for columns with anything other than floats
-                        parquet_dictionary_encoding=True,
-                        # Optimize for columns with floats
-                        parquet_byte_stream_split=True,
-                    )
+        # Merge and store the output hists
+        analysis_output.merge_hists(task_hists=hists)
+        analysis_output.write(
+            output_filename=_output_filename,
+            write_hists=False,
+            write_skim=output_trigger_skim,
+        )
 
         # Cleanup (may not be necessary, but it doesn't hurt)
         del arrays
-        del analysis_hists
-        del analysis_output
-        if trigger_skim:
-            del trigger_skim
+        if not output_trigger_skim:
+            del analysis_output
 
     # Write hists
     if hists:
@@ -384,44 +358,18 @@ def steer_embed_thermal_model_analysis(  # noqa: C901
             logger.info(_message)
             continue
 
-        trigger_skim: dict[str, ak.Array] | None = None
-        if output_skim:
-            assert not isinstance(analysis_output, dict)
-            analysis_hists, trigger_skim = analysis_output
-        else:
-            assert isinstance(analysis_output, dict)
-            analysis_hists = analysis_output
-
-        # Merge the output hists
-        if analysis_hists:
-
-            hists = output_utils.merge_results(hists, analysis_hists)
-
-        if trigger_skim:
-            for skim_name, skim_array in trigger_skim.items():
-                _skim_output_filename = output_utils.task_output_path_skim(output_filename=_output_filename, skim_name=skim_name)
-                _skim_output_filename.parent.mkdir(parents=True, exist_ok=True)
-                if ak.num(skim_array, axis=0) == 0:
-                    # Skip the skim if it's empty
-                    _skim_output_filename.with_suffix(".empty").touch()
-                else:
-                    # Write the skim
-                    ak.to_parquet(
-                        array=skim_array,
-                        destination=str(_skim_output_filename),
-                        compression="zstd",
-                        # Optimize for columns with anything other than floats
-                        parquet_dictionary_encoding=True,
-                        # Optimize for columns with floats
-                        parquet_byte_stream_split=True,
-                    )
+        # Merge and store the output hists
+        analysis_output.merge_hists(task_hists=hists)
+        analysis_output.write(
+            output_filename=_output_filename,
+            write_hists=False,
+            write_skim=output_skim,
+        )
 
         # Cleanup (may not be necessary, but it doesn't hurt)
         del arrays
-        del analysis_hists
-        del analysis_output
-        if trigger_skim:
-            del trigger_skim
+        if not output_skim:
+            del analysis_output
 
     # Write hists
     if hists:
