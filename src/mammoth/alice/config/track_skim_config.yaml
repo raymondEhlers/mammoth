@@ -1070,8 +1070,8 @@ productions:
         output_settings:
           primary_output:
             type: "hists"
-            reference_name: ""
-            name: ""
+            reference_name: "hybrid_reference_eec"
+            container_name: ""
           return_skim: false
           write_chunk_skim: false
           write_skim_extension: "parquet"

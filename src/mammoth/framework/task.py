@@ -67,14 +67,14 @@ class Settings:
 class PrimaryOutput:
     type: str = attrs.field(validator=[attrs.validators.in_(["hists", "skim"])])
     reference_name: str
-    name: str = attrs.field(default="")
+    container_name: str = attrs.field(default="")
 
     @classmethod
     def from_config(cls, config: dict[str, str]) -> PrimaryOutput:
         return cls(
             type=config["type"],
             reference_name=config["reference_name"],
-            name=config.get("name", ""),
+            container_name=config.get("container_name", ""),
         )
 
 
@@ -218,12 +218,12 @@ def check_for_task_output(
         if output_settings.primary_output.type == "skim":
             if output_settings.output_filename.suffix == ".root":
                 res = output_utils.check_for_task_root_skim_output_file(
-                    output_filename=output_utils.task_output_path_skim(output_filename=output_settings.output_filename, skim_name=output_settings.primary_output.name),
+                    output_filename=output_utils.task_output_path_skim(output_filename=output_settings.output_filename, skim_name=output_settings.primary_output.container_name),
                     reference_tree_name=output_settings.primary_output.reference_name,
                 )
             else:
                 res = output_utils.check_for_task_parquet_skim_output_file(
-                    output_filename=output_utils.task_output_path_skim(output_filename=output_settings.output_filename, skim_name=output_settings.primary_output.name),
+                    output_filename=output_utils.task_output_path_skim(output_filename=output_settings.output_filename, skim_name=output_settings.primary_output.container_name),
                     reference_array_name=output_settings.primary_output.reference_name,
                 )
         if output_settings.primary_output.type == "hists":
