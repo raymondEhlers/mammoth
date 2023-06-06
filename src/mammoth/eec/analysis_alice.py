@@ -591,17 +591,6 @@ def customize_analysis_metadata(
     return {}
 
 
-python_app_embed_MC_into_data = framework_task.python_app_embed_MC_into_data(
-    analysis=analysis_embedding,
-    analysis_metadata=customize_analysis_metadata,
-)
-
-python_app_embed_MC_into_thermal_model = framework_task.python_app_embed_MC_into_thermal_model(
-    analysis=analysis_embedding,
-    analysis_metadata=customize_analysis_metadata,
-)
-
-
 def run_some_standalone_tests() -> None:
     # Some tests:
     #######
