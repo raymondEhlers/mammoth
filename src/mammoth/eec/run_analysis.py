@@ -9,21 +9,20 @@ import logging
 import secrets
 from concurrent.futures import Future
 from pathlib import Path
-from typing import Any, Iterable, Mapping, MutableMapping, Sequence
+from typing import Any, Iterable, MutableMapping, Sequence
 
 import attrs
 import IPython
 import numpy as np
-from pachyderm import yaml
 from parsl.data_provider.files import File
 
 from mammoth import helpers, job_utils
 from mammoth.alice import job_utils as alice_job_utils
 from mammoth.alice import steer_scale_factors
-from mammoth.framework import production, sources, steer_job, steer_task
+from mammoth.eec import analysis_alice
+from mammoth.framework import production, sources, steer_job
 from mammoth.framework import task as framework_task
 from mammoth.framework.io import output_utils
-from mammoth.eec import analysis_alice
 from mammoth.job_utils import python_app
 
 logger = logging.getLogger(__name__)

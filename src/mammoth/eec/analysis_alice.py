@@ -10,7 +10,7 @@ from __future__ import annotations
 import logging
 from functools import partial
 from pathlib import Path
-from typing import Any, Mapping
+from typing import Any
 
 import awkward as ak
 import hist
@@ -347,7 +347,7 @@ def run_some_standalone_tests() -> None:
     # for collision_system in ["pp", "pythia", "PbPb"]:
     #for collision_system in ["pp"]:
     #    logger.info(f'Analyzing "{collision_system}"')
-    #    jets = analysis_data(  # noqa: F841
+    #    jets = analysis_data(
     #        collision_system=collision_system,
     #        arrays=load_data.data(
     #            data_input=Path(
