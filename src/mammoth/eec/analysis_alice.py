@@ -127,7 +127,7 @@ def analysis_embedding(
     return_skim: bool = False,
     # NOTE: kwargs are required because we pass the config as the analysis arguments,
     #       and it contains additional values.
-    **kwargs: Any,
+    **kwargs: Any,  # noqa: ARG001
 ) -> framework_task.AnalysisOutput:
     # Setup
     hists = _setup_embedding_hists(trigger_pt_ranges=trigger_pt_ranges)

@@ -514,7 +514,7 @@ def embedding(
     )
 
 
-def _accept_filename_no_op_for_thermal_model(*, filename: str, **kwargs: Any) -> sources.ThermalModelExponential:
+def _accept_filename_no_op_for_thermal_model(*, filename: str, **kwargs: Any) -> sources.ThermalModelExponential:  # noqa: ARG001
     return sources.ThermalModelExponential(**kwargs)
 
 

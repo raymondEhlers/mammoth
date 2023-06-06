@@ -359,7 +359,8 @@ class AnalysisBound(Protocol):
             *,
             arrays: ak.Array,
             validation_mode: bool = False,
-            return_skim: bool = False
+            return_skim: bool = False,
+            **kwargs: Any,
         ) -> AnalysisOutput:
         ...
 
@@ -371,6 +372,7 @@ class EmbeddingAnalysisBound(Protocol):
             arrays: ak.Array,
             validation_mode: bool = False,
             return_skim: bool = False,
+            **kwargs: Any,
         ) -> AnalysisOutput:
         ...
 
