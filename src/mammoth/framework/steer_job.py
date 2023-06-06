@@ -856,7 +856,6 @@ def setup_embed_MC_into_thermal_model_calculation(
         else:
             _msg = "Check the thermal model config - you need a signal dataset."
             raise ValueError(_msg)
-        analysis_arguments["scale_factors"] = scale_factors
 
         # NOTE: We need to customize the analysis arguments to pass the relevant scale factor,
         #       so we make a copy for clarity. We'll update it each loop.
