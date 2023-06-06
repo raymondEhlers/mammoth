@@ -342,10 +342,11 @@ class AnalysisOutput:
         if write_skim:
             self._write_skim(output_filename=output_filename, skim=skim)
 
-    def merge_hists(self, task_hists: dict[str, hist.Hist]) -> None:
+    def merge_hists(self, task_hists: dict[str, hist.Hist]) -> dict[str, hist.Hist]:
         # No point in trying to merge if there are no hists!
         if self.hists:
             task_hists = output_utils.merge_results(task_hists, self.hists)
+        return task_hists
 
 
 # NOTE: This needs to be extremely generic to pass typing...

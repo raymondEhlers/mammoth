@@ -169,7 +169,7 @@ def eec_embed_thermal_model_analysis(  # noqa: C901
             continue
 
         # Merge and store the output hists
-        analysis_output.merge_hists(task_hists=hists)
+        hists = analysis_output.merge_hists(task_hists=hists)
         analysis_output.write(
             output_filename=_output_filename,
             write_hists=False,
@@ -359,7 +359,7 @@ def steer_embed_thermal_model_analysis(  # noqa: C901
             continue
 
         # Merge and store the output hists
-        analysis_output.merge_hists(task_hists=hists)
+        hists = analysis_output.merge_hists(task_hists=hists)
         analysis_output.write(
             output_filename=_output_filename,
             write_hists=False,

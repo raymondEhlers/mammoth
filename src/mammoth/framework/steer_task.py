@@ -93,7 +93,7 @@ def steer_task_execution(
                 logger.info(_message)
                 continue
 
-            analysis_output.merge_hists(task_hists=task_hists)
+            task_hists = analysis_output.merge_hists(task_hists=task_hists)
             analysis_output.write(
                 output_filename=local_output_settings.output_filename,
                 write_hists=local_output_settings.write_chunk_hists,
@@ -116,7 +116,7 @@ def steer_task_execution(
     # Write hists
     if output_settings.write_merged_hists:
         # Cross check that we have something to write
-        assert task_hists
+        assert list(task_hists.keys()), "No hists to write!"
 
         # And then actually write it
         output_hist_filename = output_utils.task_output_path_hist(output_filename=output_settings.output_filename)
