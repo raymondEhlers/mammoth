@@ -306,16 +306,24 @@ class AnalysisOutput:
                 # Skip the skim if it's empty
                 _skim_output_filename.with_suffix(".empty").touch()
             else:
-                # Write the skim
-                ak.to_parquet(
-                    array=skim_array,
-                    destination=str(_skim_output_filename),
-                    compression="zstd",
-                    # Optimize for columns with anything other than floats
-                    parquet_dictionary_encoding=True,
-                    # Optimize for columns with floats
-                    parquet_byte_stream_split=True,
-                )
+                if _skim_output_filename.suffix == ".root":
+                    # Write the skim.
+                    # This may not yet be ideal (as of June 2023), but this is a reasonable start.
+                    # If we need more control later, we can factor this out (eg. a new _write_root_skim method to override)
+                    # or handle it directly in a task.
+                    with uproot.recreate(_skim_output_filename) as f:
+                        f["tree"] = skim_array
+                else:
+                    # Write the skim
+                    ak.to_parquet(
+                        array=skim_array,
+                        destination=str(_skim_output_filename),
+                        compression="zstd",
+                        # Optimize for columns with anything other than floats
+                        parquet_dictionary_encoding=True,
+                        # Optimize for columns with floats
+                        parquet_byte_stream_split=True,
+                    )
 
     def write(self, output_filename: Path, write_hists: bool | None, write_skim: bool | None) -> None:
         # If not specified, fall back to the default, which is to write the analysis outputs if they're provided
