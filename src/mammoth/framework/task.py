@@ -296,7 +296,7 @@ class AnalysisOutput:
     def _write_skim(self, output_filename: Path, skim: dict[str, ak.Array]) -> None:
         for skim_name, skim_array in skim.items():
             # Enables the possibility of writing a single standard file (just wrap in a dict with an empty string as key).
-            if skim_name != "":
+            if skim_name:
                 _skim_output_filename = output_utils.task_output_path_skim(output_filename=output_filename, skim_name=skim_name)
             else:
                 _skim_output_filename = output_filename
@@ -333,10 +333,7 @@ class AnalysisOutput:
             write_skim = bool(self.skim)
 
         # Validation
-        if isinstance(self.skim, ak.Array):
-            skim = {"": self.skim}
-        else:
-            skim = self.skim
+        skim = {"": self.skim} if isinstance(self.skim, ak.Array) else self.skim
 
         # Write if requested
         if write_hists:
@@ -403,8 +400,8 @@ class BoundCustomizeAnalysisMetadata(Protocol):
 
 
 def no_op_customize_analysis_metadata(
-    task_settings: Settings,
-    **analysis_arguments: Any,
+    task_settings: Settings,  # noqa: ARG001
+    **analysis_arguments: Any,  # noqa: ARG001
 ) -> Metadata:
     return {}
 
@@ -464,16 +461,17 @@ def python_app_data(
         output_settings_config: dict[str, Any],
         analysis_arguments: dict[str, Any],
         job_framework: job_utils.JobFramework,  # noqa: ARG001
-        inputs: list[File] = [],
-        outputs: list[File] = [],
+        inputs: list[File] = [],  # noqa: B006
+        outputs: list[File] = [],  # noqa: B006
     ) -> Output:
         # Standard imports in the app
         import traceback
         from pathlib import Path
 
-        # NOTE: Be aware - this would be an import loop if moved to the top of the module!
-        from mammoth.framework import task as framework_task
+        # NOTE: Be aware - we need to import here so the app is well defined, but it's awkward since
+        #       we import the module in itself. However, this is the intended action here.
         from mammoth.framework import io, load_data
+        from mammoth.framework import task as framework_task  # noqa: PLW0406
 
         # Get the analysis
         module_containing_analysis_function = importlib.import_module(analysis_function_module_import_path)
@@ -577,16 +575,17 @@ def python_app_embed_MC_into_data(
         output_settings_config: dict[str, Any],
         analysis_arguments: dict[str, Any],
         job_framework: job_utils.JobFramework,  # noqa: ARG001
-        inputs: list[File] = [],
-        outputs: list[File] = [],
+        inputs: list[File] = [],  # noqa: B006
+        outputs: list[File] = [],  # noqa: B006
     ) -> Output:
         # Standard imports in the app
         import traceback
         from pathlib import Path
 
-        # NOTE: Be aware - this would be an import loop if moved to the top of the module!
-        from mammoth.framework import task as framework_task
+        # NOTE: Be aware - we need to import here so the app is well defined, but it's awkward since
+        #       we import the module in itself. However, this is the intended action here.
         from mammoth.framework import io, load_data
+        from mammoth.framework import task as framework_task  # noqa: PLW0406
 
         # Get the analysis
         module_containing_analysis_function = importlib.import_module(analysis_function_module_import_path)
@@ -691,16 +690,17 @@ def python_app_embed_MC_into_thermal_model(
         output_settings_config: dict[str, Any],
         analysis_arguments: dict[str, Any],
         job_framework: job_utils.JobFramework,  # noqa: ARG001
-        inputs: list[File] = [],
-        outputs: list[File] = [],
+        inputs: list[File] = [],  # noqa: B006
+        outputs: list[File] = [],  # noqa: B006
     ) -> Output:
         # Standard imports in the app
         import traceback
         from pathlib import Path
 
-        # NOTE: Be aware - this would be an import loop if moved to the top of the module!
-        from mammoth.framework import task as framework_task
+        # NOTE: Be aware - we need to import here so the app is well defined, but it's awkward since
+        #       we import the module in itself. However, this is the intended action here.
         from mammoth.framework import io, load_data
+        from mammoth.framework import task as framework_task  # noqa: PLW0406
 
         # Get the analysis
         module_containing_analysis_function = importlib.import_module(analysis_function_module_import_path)
