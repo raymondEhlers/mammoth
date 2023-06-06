@@ -19,8 +19,7 @@ from mammoth.framework import load_data, sources
 from mammoth.framework import task as framework_task
 from mammoth.framework.analysis import objects as analysis_objects
 from mammoth.framework.analysis import tracking as analysis_tracking
-from mammoth.framework.io import HF_tree, jetscape, track_skim
-from mammoth.framework.io import output_utils
+from mammoth.framework.io import HF_tree, jetscape, output_utils, track_skim
 from mammoth.hardest_kt import analysis_alice, skim_to_flat_tree
 
 logger = logging.getLogger(__name__)
