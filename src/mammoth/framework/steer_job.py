@@ -247,8 +247,7 @@ def _determine_embed_pythia_input_files(
 
             yield pt_hat_bin, signal_input, background_input
 
-# def setup_embed() -> list[Future[framework_task.Output]]
-
+# TODO: Cleanup when fully tested...
 
 # Or possibly:
 #run_embedding = framework_task.run_embedding(analysis_function, analysis_steering_argument_preprocessing_function, task_description_metadata_function)
@@ -262,8 +261,6 @@ def _determine_embed_pythia_input_files(
 # - Output definition from config...
 # - Source definition. Can only be partial - need to construct based on the config.
 #   - I think this necessarily means that we have separate embedding, thermal model, etc functions. Fair enough.
-
-# TODO: embedding, MC, data, etc...
 
 def _validate_setup_functions(
     argument_preprocessing: PreprocessArguments | None = None,
