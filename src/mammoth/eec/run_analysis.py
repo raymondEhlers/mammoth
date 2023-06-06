@@ -22,9 +22,8 @@ from mammoth.alice import job_utils as alice_job_utils
 from mammoth.alice import steer_scale_factors
 from mammoth.framework import production, sources, steer_job, steer_task
 from mammoth.framework import task as framework_task
-from mammoth.framework.analysis import objects as analysis_objects
-from mammoth.framework.analysis import tracking as analysis_tracking
 from mammoth.framework.io import output_utils
+from mammoth.eec import analysis_alice
 from mammoth.job_utils import python_app
 
 logger = logging.getLogger(__name__)
@@ -228,6 +227,15 @@ def setup_calculate_embed_thermal_model_skim(
 
     return results
 
+setup_embed_MC_into_thermal_model_skim = steer_job.setup_embed_MC_into_data(
+    analysis_function=analysis_alice.analysis_embedding,
+    analysis_metadata=analysis_alice.customize_analysis_metadata,
+)
+
+setup_embed_MC_into_thermal_model_skim = steer_job.setup_embed_MC_into_thermal_model(
+    analysis_function=analysis_alice.analysis_embedding,
+    analysis_metadata=analysis_alice.customize_analysis_metadata,
+)
 
 def setup_job_framework(
     job_framework: job_utils.JobFramework,
