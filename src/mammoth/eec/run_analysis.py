@@ -36,13 +36,15 @@ class EECProductionSpecialization:
         name = "_trigger_pt_ranges_"
         trigger_pt_ranges: dict[str, tuple[float, float]] = analysis_settings.pop("trigger_pt_ranges")
         for trigger_name, trigger_pt_tuple in trigger_pt_ranges.items():
-            #name += f"_{trigger_name}_{'_'.join(map(str, trigger_pt_tuple))}"
             name += f"_{trigger_name}_{trigger_pt_tuple[0]:g}_{trigger_pt_tuple[1]:g}"
         name += "_"
         # Min track pt
         name += "_min_track_pt"
         for level, value in analysis_settings.pop("min_track_pt").items():
             name += f"_{level}_{value:g}"
+        # Don't include the output_settings. Since we don't want to display them at all,
+        # we just pop them and ignore the return value.
+        analysis_settings.pop("output_settings")
         return name
 
     def tasks_to_execute(self, collision_system: str) -> list[str]:
