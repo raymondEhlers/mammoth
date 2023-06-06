@@ -279,7 +279,7 @@ def _validate_setup_functions(
     return defined_argument_preprocessing, defined_analysis_output_identifier
 
 
-def steer_data(
+def steer_data(  # noqa: C901
     analysis_function: framework_task.Analysis,
     argument_preprocessing: PreprocessArguments | None = None,
     analysis_output_identifier: OutputIdentifier | None = None,
@@ -469,7 +469,7 @@ def steer_data(
     return wrap_setup
 
 
-def setup_embed_MC_into_data(
+def setup_embed_MC_into_data(  # noqa: C901
     analysis_function: framework_task.Analysis,
     argument_preprocessing: PreprocessArguments | None = None,
     analysis_output_identifier: OutputIdentifier | None = None,
@@ -495,7 +495,7 @@ def setup_embed_MC_into_data(
     )
     # Note: We'll handle analysis_metadata possibly being None in the python app
 
-    def wrap_setup(
+    def wrap_setup(  # noqa: C901
         prod: production.ProductionSettings,
         job_framework: job_utils.JobFramework,
         debug_mode: bool,
