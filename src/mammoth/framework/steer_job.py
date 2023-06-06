@@ -338,7 +338,7 @@ def setup_data_calculation(  # noqa: C901
         _output_settings_config = _analysis_config.pop("output_settings")
         _input_options = copy.deepcopy(_metadata_config)
         # Chunk size
-        chunk_size = _analysis_config.get("chunk_size", sources.ChunkSizeSentinel.FULL_SOURCE)
+        chunk_size = _analysis_config.pop("chunk_size", sources.ChunkSizeSentinel.FULL_SOURCE)
         logger.info(f"Processing chunk size for {chunk_size}")
         # Sample fraction of input events (for quick analysis)
         sample_dataset_fraction =_metadata_config.get("sample_dataset_fraction", 1.0)
@@ -571,7 +571,7 @@ def setup_embed_MC_into_data_calculation(  # noqa: C901
         _analysis_config: dict[str, Any] = prod.config["settings"]
         _output_settings_config = _analysis_config.pop("output_settings")
         # Chunk size
-        chunk_size = _analysis_config.get("chunk_size", sources.ChunkSizeSentinel.FULL_SOURCE)
+        chunk_size = _analysis_config.pop("chunk_size", sources.ChunkSizeSentinel.FULL_SOURCE)
         logger.info(f"Processing chunk size for {chunk_size}")
         logger.info(
             f"Configuring embed pythia with {'background' if _background_is_constrained_source else 'signal'} as the constrained source."
@@ -824,7 +824,7 @@ def setup_embed_MC_into_thermal_model_calculation(
             f"{_metadata_config['dataset']['sqrt_s']}_{_analysis_config['event_activity']}"
         ]
         # Chunk size
-        chunk_size = _analysis_config["chunk_size"]
+        chunk_size = _analysis_config.pop("chunk_size")
         logger.info(f"Processing chunk size for {chunk_size}")
         # Sample fraction of input events (for quick analysis)
         sample_dataset_fraction =_metadata_config.get("sample_dataset_fraction", 1.0)
