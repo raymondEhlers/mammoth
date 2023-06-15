@@ -21,16 +21,16 @@ dependencies = [
     "uproot >=4.2",
     "numpy >=1.21",
     "pyarrow >=4",
-    "pandas >=1.3",
+    # Can't move to v2 because it's limited by parsl...
+    "pandas >=1.4,<2.0",
     "attrs >=21.2.0",
     "particle >=0.15.1",
     "numba >=0.56.0",
     "hist[plot] >=2.5.0",
     "seaborn >=0.11.2",
     "vector >=0.8.5",
-    "parsl[monitoring] @ git+https://github.com/Parsl/parsl.git@6d1f9160d487b3265f6e9d65ebb357837a437c30",
-    # NOTE: Need the most recent version to avoid a python version cap. Once 13.0 is released, move to that.
-    "rich @ git+https://github.com/Textualize/rich.git@4001aa91790c5faf46d9fbca35d335d76de52376",
+    "parsl[monitoring] >=2023.06.12",
+    "rich >=v13.4.0",
     # My packages last:
     # - mammoth_cpp
     # For general:
