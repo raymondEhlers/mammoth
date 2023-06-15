@@ -16,4 +16,4 @@ dependencies = []
 
 [tool.scikit-build]
 sdist.include = ["src/mammoth_cpp/fastjet"]
-build-dir = "build/{cache_tag}"
+build-dir = "build/{wheel_tag}"
