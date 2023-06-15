@@ -53,7 +53,14 @@ def _setup_embedding_hists(trigger_pt_ranges: dict[str, tuple[float, float]]) ->
                 ],
                 storage=hist.storage.Weight()
             )
-            hists[f"{level}_{trigger_name}_eec_log"] = hist.Hist(
+            #hists[f"{level}_{trigger_name}_eec_log"] = hist.Hist(
+            #    *[
+            #        hist.axis.Regular(200, 1e-4, 1.5, label="ln(R_L)", transform=hist.axis.transform.log),
+            #        hist.axis.Regular(*trigger_pt_bin_args, label="trigger_pt"),
+            #    ],
+            #    storage=hist.storage.Weight()
+            #)
+            hists[f"{level}_{trigger_name}_eec_unweighted"] = hist.Hist(
                 *[
                     hist.axis.Regular(200, 1e-4, 1.5, label="ln(R_L)", transform=hist.axis.transform.log),
                     hist.axis.Regular(*trigger_pt_bin_args, label="trigger_pt"),
@@ -68,13 +75,20 @@ def _setup_embedding_hists(trigger_pt_ranges: dict[str, tuple[float, float]]) ->
                     ],
                     storage=hist.storage.Weight()
                 )
-                hists[f"{level}_{trigger_name}_eec_log_bg_only"] = hist.Hist(
+                hists[f"{level}_{trigger_name}_eec_unweighted_bg_only"] = hist.Hist(
                     *[
-                        hist.axis.Regular(200, 1e-4, 1.5, label="ln(R_L)", transform=hist.axis.transform.log),
+                        hist.axis.Regular(200, 1e-4, 1.5, label="R_L"),
                         hist.axis.Regular(*trigger_pt_bin_args, label="trigger_pt"),
                     ],
                     storage=hist.storage.Weight()
                 )
+                #hists[f"{level}_{trigger_name}_eec_log_bg_only"] = hist.Hist(
+                #    *[
+                #        hist.axis.Regular(200, 1e-4, 1.5, label="ln(R_L)", transform=hist.axis.transform.log),
+                #        hist.axis.Regular(*trigger_pt_bin_args, label="trigger_pt"),
+                #    ],
+                #    storage=hist.storage.Weight()
+                #)
 
     return hists
 
@@ -275,10 +289,10 @@ def analysis_embedding(
                 ak.flatten(trigger_pt),
                 weight=weight * scale_factor,
             )
-            hists[f"{level}_{trigger_name}_eec_log"].fill(
+            hists[f"{level}_{trigger_name}_eec_unweighted"].fill(
                 ak.flatten(distances),
                 ak.flatten(trigger_pt),
-                weight=weight * scale_factor,
+                weight=np.ones_like(weight) * scale_factor,
             )
             if level == "hybrid":
                 # We're about to recalculate the weights and trigger pt, so let's release them now
@@ -307,10 +321,10 @@ def analysis_embedding(
                     ak.flatten(trigger_pt),
                     weight=weight * scale_factor,
                 )
-                hists[f"{level}_{trigger_name}_eec_log_bg_only"].fill(
+                hists[f"{level}_{trigger_name}_eec_unweighted_bg_only"].fill(
                     ak.flatten(distances),
                     ak.flatten(trigger_pt),
-                    weight=weight * scale_factor,
+                    weight=np.ones_like(weight) * scale_factor,
                 )
 
             # Probably makes no difference...
