@@ -62,7 +62,7 @@ def _plot_tracking_comparison(input_specs: Sequence[run_ecce_analysis.DatasetSpe
             #    # NOTE: Have to explicitly convert to int because they have an explicit isinstance on int, and apparently np.int64 doesn't count...
             #    s = slice(int(indices_with_values[0]), int(indices_with_values[-1] + 1))
             #h_sliced = h[s]
-            logger.info(f"plotting eta_index: {eta_index}, {str(input_spec)}")
+            logger.info(f"plotting eta_index: {eta_index}, {input_spec!s}")
             #ax.errorbar(
             #    h_sliced.axes[0].centers, h_sliced.values(),
             #    yerr=np.sqrt(h_sliced.variances()),

@@ -212,7 +212,7 @@ class ProductionSettings:
             name += "_none"
         else:
             for k, v in _background_subtraction_settings.items():
-                name += f"_{k}_{str(v)}"
+                name += f"_{k}_{v!s}"
         # Allow for customization
         # NOTE: Remember to pop keys here - otherwise they will be repeated when trying to
         #       iterate and record the remaining settings.
@@ -223,7 +223,7 @@ class ProductionSettings:
         for k, v in _analysis_settings.items():
             if k in self._manual_analysis_parameter_keys or k in _settings_handled_in_customization:
                 continue
-            name += f"_{k}_{str(v)}"
+            name += f"_{k}_{v!s}"
         # And finally, the production details
         # First, we want to denote a new section with an extra "__"
         name += "__"
