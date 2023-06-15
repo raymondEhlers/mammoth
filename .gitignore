@@ -20,6 +20,7 @@ performance_studies/
 # Virtualenv
 env/
 .venv/
+.venv-*/
 
 # Misc
 bak/
