@@ -10,7 +10,7 @@ from __future__ import annotations
 import logging
 from functools import partial
 from pathlib import Path
-from typing import Any
+from typing import Any, Iterator
 
 import awkward as ak
 import hist
@@ -29,9 +29,54 @@ logger = logging.getLogger(__name__)
 vector.register_awkward()
 
 
+def customize_analysis_metadata(
+    task_settings: framework_task.Settings,  # noqa: ARG001
+    **analysis_arguments: Any,  # noqa: ARG001
+) -> framework_task.Metadata:
+    """Customize the analysis metadata for the analysis.
+
+    Nothing special required here as of June 2023.
+    """
+    return {}
+
+
+def _chunks_for_combinatorics(combinatorics_chunk_size: int, array_length: int) -> Iterator[tuple[int, int]]:
+    """ Yield the start and stop indices for calculating the combinatorics in chunks.
+
+    This is intended to keep memory usage lower when calculating and filling hists.
+    To be seen (June 2023) how well it actually works...
+
+    Args:
+        combinatorics_chunk_size: The size of the chunk to use for calculating the combinatorics.
+        array_length: The length of the array to be chunked.
+
+    Returns:
+        The start and stop indices for the chunks.
+    """
+    # Validation + short circuit
+    if combinatorics_chunk_size<= 0:
+        # IF we don't want to chunk, then just return the full range.
+        return None, None
+
+    start = 0
+    continue_iterating = True
+    while continue_iterating:
+        end = start + combinatorics_chunk_size
+        # Ensure that we never ask for more entries than are in the file.
+        if start + combinatorics_chunk_size > array_length:
+            end = array_length
+            continue_iterating = False
+        # Store the start and stop for convenience.
+        yield start, end
+        # Move up to the next iteration.
+        start = end
+
+
 def _setup_embedding_hists(trigger_pt_ranges: dict[str, tuple[float, float]]) -> dict[str, hist.Hist]:
+    """Setup the histograms for the embedding analysis."""
     hists = {}
 
+    # Spectra
     for level in ["part_level", "det_level", "hybrid"]:
         # Inclusive spectra
         hists[f"{level}_inclusive_trigger_spectra"] = hist.Hist(
@@ -53,13 +98,6 @@ def _setup_embedding_hists(trigger_pt_ranges: dict[str, tuple[float, float]]) ->
                 ],
                 storage=hist.storage.Weight()
             )
-            #hists[f"{level}_{trigger_name}_eec_log"] = hist.Hist(
-            #    *[
-            #        hist.axis.Regular(200, 1e-4, 1.5, label="ln(R_L)", transform=hist.axis.transform.log),
-            #        hist.axis.Regular(*trigger_pt_bin_args, label="trigger_pt"),
-            #    ],
-            #    storage=hist.storage.Weight()
-            #)
             hists[f"{level}_{trigger_name}_eec_unweighted"] = hist.Hist(
                 *[
                     hist.axis.Regular(200, 1e-4, 1.5, label="ln(R_L)", transform=hist.axis.transform.log),
@@ -67,6 +105,13 @@ def _setup_embedding_hists(trigger_pt_ranges: dict[str, tuple[float, float]]) ->
                 ],
                 storage=hist.storage.Weight()
             )
+            #hists[f"{level}_{trigger_name}_eec_log"] = hist.Hist(
+            #    *[
+            #        hist.axis.Regular(200, 1e-4, 1.5, label="ln(R_L)", transform=hist.axis.transform.log),
+            #        hist.axis.Regular(*trigger_pt_bin_args, label="trigger_pt"),
+            #    ],
+            #    storage=hist.storage.Weight()
+            #)
             if level == "hybrid":
                 hists[f"{level}_{trigger_name}_eec_bg_only"] = hist.Hist(
                     *[
@@ -134,8 +179,9 @@ def analysis_embedding(
     trigger_pt_ranges: dict[str, tuple[float, float]],
     min_track_pt: dict[str, float],
     momentum_weight_exponent: int | float,
+    combinatorics_chunk_size: int,
     scale_factor: float,
-    det_level_artificial_tracking_efficiency: float | analysis_tracking.PtDependentTrackingEfficiencyParameters = 1.0,
+    det_level_artificial_tracking_efficiency: float | analysis_tracking.PtDependentTrackingEfficiencyParameters,
     # Default analysis arguments
     validation_mode: bool = False,
     return_skim: bool = False,
@@ -143,6 +189,10 @@ def analysis_embedding(
     #       and it contains additional values.
     **kwargs: Any,  # noqa: ARG001
 ) -> framework_task.AnalysisOutput:
+    # Validation
+    if return_skim and combinatorics_chunk_size < 0:
+        logger.info(f"Requested to return the skim, but the combination chunk size is {combinatorics_chunk_size} (> 0), which won't work. So we disable it.")
+
     # Setup
     hists = _setup_embedding_hists(trigger_pt_ranges=trigger_pt_ranges)
     trigger_skim_output: dict[str, ak.Array] = {}
@@ -230,110 +280,118 @@ def analysis_embedding(
     for level in ["part_level", "det_level", "hybrid"]:
         recoil_direction[level] = {}
         for trigger_name, _ in trigger_pt_ranges.items():
-            # Next, go to away side in phi and define our recoil region
-            recoil_vector = -1 * triggers_dict[level][trigger_name]
-            # Mock up a four vector so we can use the calculation functionality from vector
-            recoil_direction[level][trigger_name] = vector.Array(
-                ak.zip({
-                    "pt": recoil_vector.eta * 0,
-                    "eta": recoil_vector.eta,
-                    "phi": recoil_vector.phi,
-                    "m": recoil_vector.eta * 0,
-                })
-            )
-
-            # For recoil region, look at delta_phi between them
-            event_selected_array = arrays[level][
-                event_selection_mask[level][trigger_name]
-            ]
-            # We perform the min pt selection first to reduce the number of calculations required.
-            particle_pt_mask = event_selected_array.pt > min_track_pt[level]
-            event_selected_array = event_selected_array[particle_pt_mask]
-            logger.info(f"{level}, {trigger_name}: About to find particles within recoil cone")
-            within_hemisphere = (recoil_direction[level][trigger_name].deltaphi(event_selected_array) < np.pi/4)
-            eec_particles = event_selected_array[within_hemisphere]
-
-            if return_skim:
-                trigger_skim_output[f"{level}_{trigger_name}"] = ak.zip(
-                    {
-                        "triggers": triggers_dict[level][trigger_name],
-                        "particles": eec_particles,
-                    },
-                    depth_limit=1
+            for _start, _end in _chunks_for_combinatorics(combinatorics_chunk_size=combinatorics_chunk_size, array_length=len(triggers_dict[level][trigger_name])):
+                # Next, go to away side in phi and define our recoil region
+                recoil_vector = -1 * triggers_dict[level][trigger_name][_start:_end]
+                trigger_pt_event_wise = triggers_dict[level][trigger_name][_start:_end].pt
+                # Mock up a four vector so we can use the calculation functionality from vector
+                recoil_direction[level][trigger_name] = vector.Array(
+                    ak.zip({
+                        "pt": recoil_vector.eta * 0,
+                        "eta": recoil_vector.eta,
+                        "phi": recoil_vector.phi,
+                        "m": recoil_vector.eta * 0,
+                    })
                 )
+                logger.warning(f"{level=}, {trigger_name=}: {_start=}, {_end=}, {len(recoil_vector)=} (Initial size: {len(triggers_dict[level][trigger_name])})")
 
-            # NOTE: These selections could have the potential edge effects in eta, but since we have those in both
-            #       the signal and reference, these should be accounted for automatically.
-            #       This correspondence will be even better when we use mixed events.
+                # For recoil region, look at delta_phi between them
+                event_selected_array = arrays[level][
+                    event_selection_mask[level][trigger_name]
+                ][_start:_end]
+                # We perform the min pt selection first to reduce the number of calculations required.
+                particle_pt_mask = event_selected_array.pt > min_track_pt[level]
+                event_selected_array = event_selected_array[particle_pt_mask]
+                logger.info(f"{level}, {trigger_name}: About to find particles within recoil cone")
+                within_hemisphere = (recoil_direction[level][trigger_name].deltaphi(event_selected_array) < np.pi/4)
+                eec_particles = event_selected_array[within_hemisphere]
 
-            # TODO: Profile memory (with dask?). I think this is the really expensive point...
-            #       Worst case, I have to move this into c++ (ie implement the combinatorics there), but to be seen.
-            logger.info(f"{level}, {trigger_name}: About to calculate combinations")
-            left, right = ak.unzip(ak.combinations(eec_particles, 2))
-            distances = left.deltaR(right)
+                if return_skim and combinatorics_chunk_size < 0:
+                    # NOTE: If we're using a combination chunk size, it's going to be really inefficient to return the skim
+                    #       since we would need to recombine the chunks. So we just skip it in this case.
+                    trigger_skim_output[f"{level}_{trigger_name}"] = ak.zip(
+                        {
+                            "triggers": triggers_dict[level][trigger_name],
+                            "particles": eec_particles,
+                        },
+                        depth_limit=1
+                    )
 
-            # One argument should be the power
-            # First, need to broadcast the trigger pt
-            logger.info(f"{level}, {trigger_name}: About to fill hists")
-            trigger_pt, _ = ak.broadcast_arrays(
-                triggers_dict[level][trigger_name].pt,
-                distances,
-            )
-            # Save an additional set of calls to exponent if can be avoided
-            weight = _calculate_weight_for_plotting(
-                left=left, right=right, trigger_pt_event_wise=triggers_dict[level][trigger_name].pt,
-                momentum_weight_exponent=momentum_weight_exponent,
-            )
-            hists[f"{level}_{trigger_name}_eec"].fill(
-                ak.flatten(distances),
-                ak.flatten(trigger_pt),
-                weight=weight * scale_factor,
-            )
-            hists[f"{level}_{trigger_name}_eec_unweighted"].fill(
-                ak.flatten(distances),
-                ak.flatten(trigger_pt),
-                weight=np.ones_like(weight) * scale_factor,
-            )
-            if level == "hybrid":
-                # We're about to recalculate the weights and trigger pt, so let's release them now
-                del weight
-                del trigger_pt
-                # Compare to background only particles
-                # Need to select distances of particles for left and right which only are background particles
-                left_mask = left["source_index"] >= source_index_identifiers["background"]
-                right_mask = right["source_index"] >= source_index_identifiers["background"]
-                background_mask = left_mask & right_mask
-                distances = distances[background_mask]
+                # NOTE: These selections could have the potential edge effects in eta, but since we have those in both
+                #       the signal and reference, these should be accounted for automatically.
+                #       This correspondence will be even better when we use mixed events.
 
+                # NOTE: Memory gets bad here. Steps to address:
+                #         1. Use the combinatorics chunk size to reduce the number of combinations in memory
+                #         2. Implement the calculation with numba
+                #         3. Implement the calculation in c++
+                #       As of 2023 June 20, we're only on step 1.
+                logger.info(f"{level}, {trigger_name}: About to calculate combinations")
+                left, right = ak.unzip(ak.combinations(eec_particles, 2))
+                distances = left.deltaR(right)
+
+                # One argument should be the power
+                # First, need to broadcast the trigger pt
+                logger.info(f"{level}, {trigger_name}: About to fill hists")
                 trigger_pt, _ = ak.broadcast_arrays(
-                    triggers_dict[level][trigger_name].pt,
+                    trigger_pt_event_wise,
                     distances,
                 )
-                # Recalculate weight
+                # Save an additional set of calls to exponent if can be avoided
                 weight = _calculate_weight_for_plotting(
-                    left=left, right=right, trigger_pt_event_wise=triggers_dict[level][trigger_name].pt,
+                    left=left, right=right, trigger_pt_event_wise=trigger_pt_event_wise,
                     momentum_weight_exponent=momentum_weight_exponent,
-                    left_right_mask=background_mask,
                 )
-
-                hists[f"{level}_{trigger_name}_eec_bg_only"].fill(
+                hists[f"{level}_{trigger_name}_eec"].fill(
                     ak.flatten(distances),
                     ak.flatten(trigger_pt),
                     weight=weight * scale_factor,
                 )
-                hists[f"{level}_{trigger_name}_eec_unweighted_bg_only"].fill(
+                hists[f"{level}_{trigger_name}_eec_unweighted"].fill(
                     ak.flatten(distances),
                     ak.flatten(trigger_pt),
                     weight=np.ones_like(weight) * scale_factor,
                 )
+                if level == "hybrid":
+                    # We're about to recalculate the weights and trigger pt, so let's release them now
+                    del weight
+                    del trigger_pt
+                    # Compare to background only particles
+                    # Need to select distances of particles for left and right which only are background particles
+                    left_mask = left["source_index"] >= source_index_identifiers["background"]
+                    right_mask = right["source_index"] >= source_index_identifiers["background"]
+                    background_mask = left_mask & right_mask
+                    distances = distances[background_mask]
 
-            # Probably makes no difference...
-            del eec_particles
-            del left
-            del right
-            del distances
-            del trigger_pt
-            del weight
+                    trigger_pt, _ = ak.broadcast_arrays(
+                        trigger_pt_event_wise,
+                        distances,
+                    )
+                    # Recalculate weight
+                    weight = _calculate_weight_for_plotting(
+                        left=left, right=right, trigger_pt_event_wise=trigger_pt_event_wise,
+                        momentum_weight_exponent=momentum_weight_exponent,
+                        left_right_mask=background_mask,
+                    )
+
+                    hists[f"{level}_{trigger_name}_eec_bg_only"].fill(
+                        ak.flatten(distances),
+                        ak.flatten(trigger_pt),
+                        weight=weight * scale_factor,
+                    )
+                    hists[f"{level}_{trigger_name}_eec_unweighted_bg_only"].fill(
+                        ak.flatten(distances),
+                        ak.flatten(trigger_pt),
+                        weight=np.ones_like(weight) * scale_factor,
+                    )
+
+                # Probably makes no difference...
+                del eec_particles
+                del left
+                del right
+                del distances
+                del trigger_pt
+                del weight
 
     #IPython.embed()  # type: ignore[no-untyped-call]
 
@@ -341,13 +399,6 @@ def analysis_embedding(
         hists=hists,
         skim=trigger_skim_output,
     )
-
-
-def customize_analysis_metadata(
-    task_settings: framework_task.Settings,  # noqa: ARG001
-    **analysis_arguments: Any,  # noqa: ARG001
-) -> framework_task.Metadata:
-    return {}
 
 
 def run_some_standalone_tests() -> None:
@@ -490,6 +541,7 @@ if __name__ == "__main__":
                 "hybrid": 1.,
             },
             momentum_weight_exponent=1,
+            combinatorics_chunk_size=500,
             scale_factor=1,
             det_level_artificial_tracking_efficiency=0.99,
             return_skim=False,

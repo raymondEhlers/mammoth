@@ -1063,6 +1063,7 @@ productions:
         <<: *analysis_settings_EEC_embed
         event_activity: "central"
         chunk_size: 1000
+        combinatorics_chunk_size: 250
         # Artificial tracking efficiency to convert tracking in PYTHIA to similar performance as PbPb
         # Applied only to embedded particles
         det_level_artificial_tracking_efficiency: 0.98
