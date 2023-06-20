@@ -313,11 +313,19 @@ def normalize_for_embedding(
     if "identifier" not in ak.fields(part_level):
         part_level["identifier"] = part_level["source_index"]
     if "m" not in ak.fields(part_level) and "E" not in ak.fields(part_level):
-        # Since we have truth level info, construct the part level mass based on the particle_ID
-        # rather than a fixed mass hypothesis.
-        # NOTE: At this point, the input data should have been normalized to use "particle_ID" for
-        #       the particle ID column name, so we shouldn't need to change the column name here.
-        part_level["m"] = particle_ID.particle_masses_from_particle_ID(arrays=part_level)
+        # The HFTreeCreator FastSim may not have the particle_ID information available, so we need to be
+        # to workaround this case. The simplest thing we can do is just use the a fixed mass hypothesis as
+        # we do at detector level.
+        if "particle_ID" not in ak.fields(part_level):
+            # NOTE: This value can be customized if desired!
+            logger.warning("No particle ID info is available, so using mass hypothesis for particle level!")
+            part_level["m"] = part_level["pt"] * 0 + mass_hypotheses["part_level"]
+        else:
+            # Since we have truth level info, construct the part level mass based on the particle_ID
+            # rather than a fixed mass hypothesis.
+            # NOTE: At this point, the input data should have been normalized to use "particle_ID" for
+            #       the particle ID column name, so we shouldn't need to change the column name here.
+            part_level["m"] = particle_ID.particle_masses_from_particle_ID(arrays=part_level)
     part_level = vector.Array(part_level)
     background = arrays["background"]["data"]
     if fixed_background_index_value is not None:

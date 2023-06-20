@@ -1,5 +1,10 @@
 """Steering for jobs
 
+Overall concept:
+    job: Group of tasks which are generated together.
+    task: Corresponds to one unit (eg. file), which will be handled by an app
+    analysis: Corresponds to analysis of one chunk (eg. one file, or one chunk of a file). Doesn't care about I/O, etc.
+
 .. codeauthor:: Raymond Ehlers <raymond.ehlers@cern.ch>, LBL/UCB
 """
 
@@ -24,6 +29,7 @@ logger = logging.getLogger(__name__)
 
 
 class SetupTasks(Protocol):
+    """Interface for setting up tasks. """
     def __call__(
         self,
         *,
@@ -34,6 +40,7 @@ class SetupTasks(Protocol):
         ...
 
 class PreprocessArguments(Protocol):
+    """"Interface for preprocessing arguments for a given task."""
     def __call__(
             self,
             **analysis_arguments: Any,
@@ -44,10 +51,12 @@ class PreprocessArguments(Protocol):
 def no_op_preprocess_arguments(
     **analysis_arguments: Any,  # noqa: ARG001
 ) -> dict[str, Any]:
+    """No-op for preprocessing arguments."""
     return {}
 
 
 class OutputIdentifier(Protocol):
+    """Interface for determining the output identifier for a given task."""
     def __call__(
             self,
             **analysis_arguments: Any,
@@ -58,7 +67,54 @@ class OutputIdentifier(Protocol):
 def no_op_analysis_output_identifier(
     **analysis_arguments: Any,  # noqa: ARG001
 ) -> str:
+    """No-op for determining the output identifier."""
     return ""
+
+
+def _validate_setup_functions(
+    argument_preprocessing: PreprocessArguments | None = None,
+    analysis_output_identifier: OutputIdentifier | None = None,
+) -> tuple[PreprocessArguments, OutputIdentifier]:
+    """Standard validation for setup functions.
+
+    Args:
+        argument_preprocessing: Preprocess the arguments in the steering.
+        analysis_output_identifier: Customize the output identifier.
+    Returns:
+        Tuple of the validated functions.
+    """
+    if argument_preprocessing is None:
+        defined_argument_preprocessing = no_op_preprocess_arguments
+    else:
+        defined_argument_preprocessing = argument_preprocessing
+    if analysis_output_identifier is None:
+        defined_analysis_output_identifier = no_op_analysis_output_identifier
+    else:
+        defined_analysis_output_identifier = analysis_output_identifier
+
+    return defined_argument_preprocessing, defined_analysis_output_identifier
+
+
+class SetupSteeringTask(Protocol):
+    """Setup processing calculation (ie. single input collection).
+
+    Args:
+        analysis_function: Analysis function to be run.
+        argument_preprocessing: Preprocess the arguments in the steering.
+        analysis_output_identifier: Customize the output identifier.
+        analysis_metadata: Customize the task metadata.
+
+    Returns:
+        Function that will setup the embedding of MC into data with the specified analysis function.
+    """
+    def __call__(
+        self,
+        analysis_function: framework_task.Analysis,
+        argument_preprocessing: PreprocessArguments | None = None,
+        analysis_output_identifier: OutputIdentifier | None = None,
+        analysis_metadata: framework_task.CustomizeAnalysisMetadata | None = None,
+    ) -> SetupTasks:
+        ...
 
 
 def safe_output_filename_from_relative_path(
@@ -71,6 +127,12 @@ def safe_output_filename_from_relative_path(
     Converts: "2111/run_by_run/LHC17p_CENT_woSDD/282341/AnalysisResults.17p.001.root"
            -> "2111__run_by_run__LHC17p_CENT_woSDD__282341__AnalysisResults_17p_001"
 
+    Args:
+        filename: Filename to be converted.
+        output_dir: Base output directory for the calculation.
+        number_of_parent_directories_for_relative_output_filename: Number of parent directories above
+            filename to use as the reference directory for the relative path. If None, the grandparent
+            is used. Default: None.
     Returns:
         Filename that is safe for using as the output filename.
     """
@@ -100,7 +162,8 @@ def _extract_info_from_signal_file_list(
     signal_input_files_per_pt_hat: dict[int, list[Path]]
 ) -> tuple[list[int], list[tuple[int, Path]]]:
     """Helper to extract the pt hat bins and flatten the input list."""
-    # And since we would sample the pt hat bins, it's better to keep track of them directly.
+
+    # Since we would sample the pt hat bins, it's better to keep track of them directly.
     pt_hat_bins = list(signal_input_files_per_pt_hat)
     # Or alternatively, we sample the pythia files directly. In this case, the PYTHIA files are sampled
     # evenly, while the pt hat bins are not (we will sample the higher pt hat bins more because there
@@ -247,37 +310,6 @@ def _determine_embed_pythia_input_files(
 
             yield pt_hat_bin, signal_input, background_input
 
-# TODO: Cleanup when fully tested...
-
-# Or possibly:
-#run_embedding = framework_task.run_embedding(analysis_function, analysis_steering_argument_preprocessing_function, task_description_metadata_function)
-# And then we can use run embedding here, with the expected signature (which we could call TaskSteering).
-
-# Needed here:
-# - Argument preprocessing: construct types, etc. Optional...
-# - description output metadata. Optional...
-# - Analysis function
-# Will define in function:
-# - Output definition from config...
-# - Source definition. Can only be partial - need to construct based on the config.
-#   - I think this necessarily means that we have separate embedding, thermal model, etc functions. Fair enough.
-
-def _validate_setup_functions(
-    argument_preprocessing: PreprocessArguments | None = None,
-    analysis_output_identifier: OutputIdentifier | None = None,
-) -> tuple[PreprocessArguments, OutputIdentifier]:
-    """Standard validation for setup functions"""
-    if argument_preprocessing is None:
-        defined_argument_preprocessing = no_op_preprocess_arguments
-    else:
-        defined_argument_preprocessing = argument_preprocessing
-    if analysis_output_identifier is None:
-        defined_analysis_output_identifier = no_op_analysis_output_identifier
-    else:
-        defined_analysis_output_identifier = analysis_output_identifier
-
-    return defined_argument_preprocessing, defined_analysis_output_identifier
-
 
 def setup_data_calculation(  # noqa: C901
     analysis_function: framework_task.Analysis,
@@ -290,8 +322,8 @@ def setup_data_calculation(  # noqa: C901
     Args:
         analysis_function: Analysis function to be run.
         argument_preprocessing: Preprocess the arguments in the steering.
-        analysis_metadata: Customize the task metadata.
         analysis_output_identifier: Customize the output identifier.
+        analysis_metadata: Customize the task metadata.
 
     Returns:
         Function that will setup the embedding of MC into data with the specified analysis function.
