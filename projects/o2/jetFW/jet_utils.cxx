@@ -19,14 +19,16 @@
   * @param jetsPhi Jets phi
   * @param jetsEta Jets eta
   * @param maxMatchingDistance Maximum matching distance. Only duplicate jets within this distance of the boundary.
+  * @param additionalMargin Additional margin to add to the maximum distance for duplicating the jet (eta, phi). Since they're
+  *     further than the matching distance, they by definition can't be matched, but it can be useful for debugging and being
+  *     certain that the duplication worked properly. Default: 0.
   */
 template<typename T>
 std::tuple<std::vector<std::size_t>, std::vector<T>, std::vector<T>> DuplicateJetsAroundPhiBoundary(
     std::vector<T> & jetsPhi,
     std::vector<T> & jetsEta,
     double maxMatchingDistance,
-    // TODO: Remove additional margin after additional testing.
-    double additionalMargin = 0.05
+    double additionalMargin = 0.
 )
 {
     const std::size_t nJets = jetsPhi.size();
@@ -105,7 +107,7 @@ std::tuple<std::vector<int>, std::vector<int>> MatchJetsGeometricallyImpl(
     // If no jets in either collection, then return immediately.
     const std::size_t nJetsBase = jetsBaseEta.size();
     const std::size_t nJetsTag = jetsTagEta.size();
-    if(!(nJetsBase && nJetsTag)) {
+    if (!(nJetsBase && nJetsTag)) {
         return std::make_tuple(std::vector<int>(nJetsBase, -1), std::vector<int>(nJetsTag, -1));
     }
     // Require that the comparison vectors are greater than or equal to the standard collections.
@@ -148,11 +150,11 @@ std::tuple<std::vector<int>, std::vector<int>> MatchJetsGeometricallyImpl(
         treeTag.FindNearestNeighbors(point, 1, &index, &distance);
         // test whether indices are matching:
         if (index >= 0 && distance < maxMatchingDistance) {
-            //LOG(DEBUG) << "Found closest tag jet for " << iBase << " with match index " << index << " and distance " << distance << "\n";
+            //LOG(debug) << "Found closest tag jet for " << iBase << " with match index " << index << " and distance " << distance << "\n";
             std::cout << "Found closest tag jet for " << iBase << " with match index " << index << " and distance " << distance << "\n";
             matchIndexTag[iBase] = index;
         } else {
-            //LOG(DEBUG) << "Closest tag jet not found for" << iBase << ", distance to closest " << distance << "\n";
+            //LOG(debug) << "Closest tag jet not found for" << iBase << ", distance to closest " << distance << "\n";
             std::cout << "Closest tag jet not found for " << iBase << ", distance to closest " << distance << "\n";
         }
 
@@ -160,7 +162,7 @@ std::tuple<std::vector<int>, std::vector<int>> MatchJetsGeometricallyImpl(
         if(index > -1){
             double distanceTest = std::sqrt(std::pow(jetsTagEta[index] - jetsBaseEta, 2) +  std::pow(jetsTagPhi[index] - jetsBasePhi, 2));
             if(std::abs(distanceTest - distance) > std::numeric_limits<double>::epsilon()){
-                //LOG(DEBUG) << "Mismatch in distance from tag jet with index from tree: " << distanceTest << ", distance from tree " << distance << "\n";
+                //LOG(debug) << "Mismatch in distance from tag jet with index from tree: " << distanceTest << ", distance from tree " << distance << "\n";
                 std::cout << "Mismatch in distance from tag jet with index from tree: " << distanceTest << ", distance from tree " << distance << "\n";
                 //fIndexErrorRateBase->Fill(1);
             }
@@ -174,11 +176,11 @@ std::tuple<std::vector<int>, std::vector<int>> MatchJetsGeometricallyImpl(
         Int_t index(-1); Double_t distance(-1);
         treeBase.FindNearestNeighbors(point, 1, &index, &distance);
         if(index >= 0 && distance < maxMatchingDistance) {
-            //LOG(DEBUG) << "Found closest base jet for " << iTag << " with match index " << index << " and distance " << distance << std::endl;
+            //LOG(debug) << "Found closest base jet for " << iTag << " with match index " << index << " and distance " << distance << std::endl;
             std::cout << "Found closest base jet for " << iTag << " with match index " << index << " and distance " << distance << std::endl;
             matchIndexBase[iTag] = index;
         } else {
-            //LOG(DEBUG) << "Closest tag jet not found for " << iTag << ", distance to closest " << distance << "\n";
+            //LOG(debug) << "Closest tag jet not found for " << iTag << ", distance to closest " << distance << "\n";
             std::cout << "Closest tag jet not found for " << iTag << ", distance to closest " << distance << "\n";
         }
 
@@ -186,7 +188,7 @@ std::tuple<std::vector<int>, std::vector<int>> MatchJetsGeometricallyImpl(
         if(index > -1){
             double distanceTest = std::sqrt(std::pow(jetsBaseEta[index] - jetsTagEta, 2) +  std::pow(jetsBasePhi[index] - jetsTagPhi, 2));
             if(std::abs(distanceTest - distance) > std::numeric_limits<double>::epsilon()){
-                //LOG(DEBUG) << "Mismatch in distance from base jet with index from tree: " << distanceTest << ", distance from tree " << distance << "\n";
+                //LOG(debug) << "Mismatch in distance from base jet with index from tree: " << distanceTest << ", distance from tree " << distance << "\n";
                 std::cout << "Mismatch in distance from base jet with index from tree: " << distanceTest << ", distance from tree " << distance << "\n";
                 //fIndexErrorRateTag->Fill(1);
             }
@@ -215,17 +217,17 @@ std::tuple<std::vector<int>, std::vector<int>> MatchJetsGeometricallyImpl(
     // As the lists are linear a loop over the outer base jet is sufficient.
     std::vector<int> baseToTagMap(nJetsBase, -1);
     std::vector<int> tagToBaseMap(nJetsTag, -1);
-    //LOG(DEBUG) << "Starting true jet loop: nbase(" << nJetsBase << "), ntag(" << nJetsTag << ")\n";
+    //LOG(debug) << "Starting true jet loop: nbase(" << nJetsBase << "), ntag(" << nJetsTag << ")\n";
     std::cout << "Starting true jet loop: nbase(" << nJetsBase << "), ntag(" << nJetsTag << ")\n";
     for (std::size_t iBase = 0; iBase < nJetsBase; iBase++) {
-        //LOG(DEBUG) << "base jet " << iBase << ": match index in tag jet container " << matchIndexTag[iBase] << "\n";
+        //LOG(debug) << "base jet " << iBase << ": match index in tag jet container " << matchIndexTag[iBase] << "\n";
         std::cout << "base jet " << iBase << ": match index in tag jet container " << matchIndexTag[iBase] << "\n";
         if (matchIndexTag[iBase] > -1){
-            //LOG(DEBUG) << "tag jet " << matchIndexTag[iBase] << ": matched base jet " << matchIndexBase[matchIndexTag[iBase]] << "\n";
+            //LOG(debug) << "tag jet " << matchIndexTag[iBase] << ": matched base jet " << matchIndexBase[matchIndexTag[iBase]] << "\n";
             std::cout << "tag jet " << matchIndexTag[iBase] << ": matched base jet " << matchIndexBase[matchIndexTag[iBase]] << "\n";
         }
-        if (matchIndexTag[iBase] > -1 && matchIndexBase[matchIndexTag[iBase]] == iBase) {
-            //LOG(DEBUG) << "True match! base index: " << iBase << ", tag index: " << matchIndexTag[iBase] << "\n";
+        if (matchIndexTag[iBase] > -1 && matchIndexBase[matchIndexTag[iBase]] == static_cast<int>(iBase)) {
+            //LOG(debug) << "True match! base index: " << iBase << ", tag index: " << matchIndexTag[iBase] << "\n";
             std::cout << "True match! base index: " << iBase << ", tag index: " << matchIndexTag[iBase] << ". Storing\n";
             baseToTagMap[iBase] = matchIndexTag[iBase];
             tagToBaseMap[matchIndexTag[iBase]] = iBase;
@@ -267,7 +269,7 @@ std::tuple<std::vector<int>, std::vector<int>> MatchJetsGeometrically(
     const std::size_t nJetsTag = jetsTagEta.size();
     if(!(nJetsBase && nJetsTag)) {
         // There are no jets, so nothing to be done.
-        return std::make_tuple(std::vector<int>(nJetsBase), std::vector<int>(nJetsTag));
+        return std::make_tuple(std::vector<int>(nJetsBase, -1), std::vector<int>(nJetsTag, -1));
     }
     // Input sizes must match
     if (jetsBasePhi.size() != jetsBaseEta.size()) {
