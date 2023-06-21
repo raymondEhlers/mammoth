@@ -49,6 +49,9 @@ dependencies = [
     "dask-jobqueue>=0.8.1",
 ]
 
+[project.scripts]
+shadd = "mammoth.framework.io.output_utils:shit_hadd"
+
 # NOTE: If moving to hatch, move this to "[project.optional-dependencies]"
 [tool.pdm.dev-dependencies]
 dev = [
@@ -78,9 +81,6 @@ version = { source = "file", path = "src/mammoth/__init__.py" }
 include = [
     "src/mammoth/py.typed",
 ]
-
-[tool.pdm.scripts]
-shadd = "mammoth.framework.io.output_utils:shit_hadd"
 
 [tool.mypy]
 files = "src"
