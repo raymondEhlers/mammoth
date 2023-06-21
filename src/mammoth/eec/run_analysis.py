@@ -6,24 +6,20 @@
 from __future__ import annotations
 
 import logging
-import secrets
 from concurrent.futures import Future
 from pathlib import Path
 from typing import Any, Iterable, MutableMapping, Sequence
 
 import attrs
 import IPython
-import numpy as np
-from parsl.data_provider.files import File
 
 from mammoth import helpers, job_utils
 from mammoth.alice import steer_scale_factors
 from mammoth.eec import analysis_alice
-from mammoth.framework import production, sources, steer_job
+from mammoth.framework import production, steer_job
 from mammoth.framework import task as framework_task
 from mammoth.framework.io import output_utils
 from mammoth.framework.steer_job import setup_job_framework
-from mammoth.job_utils import python_app
 
 logger = logging.getLogger(__name__)
 
@@ -64,173 +60,6 @@ class EECProductionSpecialization:
         _tasks.append(_base_name.format(label=_label_map[collision_system]))
         return _tasks
 
-
-# TODO: Delete this when we've tested the new changes.
-
-@python_app
-def _run_embed_thermal_model_skim(
-    collision_system: str,
-    trigger_pt_ranges: dict[str, tuple[float, float]],
-    min_track_pt: dict[str, float],
-    momentum_weight_exponent: int | float,
-    det_level_artificial_tracking_efficiency: float,
-    thermal_model_parameters: sources.ThermalModelParameters,
-    scale_factor: float,
-    chunk_size: int,
-    output_trigger_skim: bool,
-    return_hists: bool,
-    production_identifier: str,
-    job_framework: job_utils.JobFramework,  # noqa: ARG001
-    inputs: Sequence[File] = [],
-    outputs: Sequence[File] = [],
-) -> framework_task.Output:
-    import traceback
-    from pathlib import Path
-
-    from mammoth.eec import analysis_using_track_skim
-    from mammoth.framework import task as framework_task
-
-    try:
-        result = analysis_using_track_skim.eec_embed_thermal_model_analysis(
-            production_identifier=production_identifier,
-            collision_system=collision_system,
-            signal_input=[Path(_input_file.filepath) for _input_file in inputs],
-            trigger_pt_ranges=trigger_pt_ranges,
-            min_track_pt=min_track_pt,
-            momentum_weight_exponent=momentum_weight_exponent,
-            det_level_artificial_tracking_efficiency=det_level_artificial_tracking_efficiency,
-            thermal_model_parameters=thermal_model_parameters,
-            scale_factor=scale_factor,
-            chunk_size=chunk_size,
-            output_trigger_skim=output_trigger_skim,
-            return_hists=return_hists,
-            output_filename=Path(outputs[0].filepath),
-        )
-    except Exception:
-        result = framework_task.Output(
-            production_identifier,
-            collision_system,
-            False,
-            f"failure for {collision_system}, signal={[_f.filepath for _f in inputs]} with: \n{traceback.format_exc()}",
-        )
-    return result
-
-
-
-def setup_calculate_embed_thermal_model_skim_old(
-    prod: production.ProductionSettings,
-    job_framework: job_utils.JobFramework,
-    debug_mode: bool,
-) -> list[Future[framework_task.Output]]:
-    """Create futures to produce hardest kt embedded pythia skim"""
-    # Setup input and output
-    # Need to handle pt hat bin productions differently than standard productions
-    # since we need to keep track of the pt hat bin
-    if "n_pt_hat_bins" in prod.config["metadata"]["dataset"]:
-        input_files: dict[int, list[Path]] = prod.input_files_per_pt_hat()
-    else:
-        input_files = {-1: prod.input_files()}
-        _msg = "Need pt hat production for embedding into a thermal model..."
-        raise RuntimeError(_msg)
-    output_dir = prod.output_dir / "skim"
-    output_dir.mkdir(parents=True, exist_ok=True)
-
-    if debug_mode:
-        #input_files = {10: [Path("trains/pythia/2619/run_by_run/LHC18b8_cent_woSDD/282008/10/AnalysisResults.18b8_cent_woSDD.003.root")]}
-        input_files = {10: [
-            Path("trains/pythia/2640/run_by_run/LHC20g4/296415/4/AnalysisResults.20g4.007.root"),
-            Path("trains/pythia/2640/run_by_run/LHC20g4/296415/4/AnalysisResults.20g4.010.root"),
-        ]}
-
-    # Setup for analysis and dataset settings
-    _metadata_config = prod.config["metadata"]
-    _analysis_config = prod.config["settings"]
-    # Sample fraction of input events (for quick analysis)
-    sample_dataset_fraction =_metadata_config.get("sample_dataset_fraction", 1.0)
-    if sample_dataset_fraction < 1.0:
-        logger.warning(f"Sampling only a fraction of the statistics! Using {sample_dataset_fraction}")
-        # Sample the input files, but require at least one entry so we have something
-        # in each pt hat bin
-        input_files = {
-            _pt_hat_bin: [
-                secrets.choice(_input_files) for _ in range(int(np.ceil(sample_dataset_fraction * len(_input_files))))
-            ]
-            for _pt_hat_bin, _input_files in input_files.items()
-        }
-
-    # Thermal model parameters
-    thermal_model_parameters = sources.THERMAL_MODEL_SETTINGS[
-        f"{_metadata_config['dataset']['sqrt_s']}_{_analysis_config['event_activity']}"
-    ]
-    chunk_size = _analysis_config["chunk_size"]
-    logger.info(f"Processing chunk size for {chunk_size}")
-    # Scale factors
-    scale_factors = None
-    if prod.has_scale_factors:
-        scale_factors = prod.scale_factors()
-    else:
-        _msg = "Check the thermal model config - you need a signal dataset."
-        raise ValueError(_msg)
-
-    # Cross check
-    if set(scale_factors) != set(input_files) and not debug_mode:
-        # NOTE: We have to skip this on debug mode because we frequently only want to run a few files
-        _msg = f"Mismatch between the pt hat bins in the scale factors ({set(scale_factors)}) and the pt hat bins ({set(input_files)})"
-        raise ValueError(_msg)
-
-    results = []
-    _file_counter = 0
-    # Reversed because the higher pt hard bins are of more importance to get done sooner.
-    for pt_hat_bin, input_filenames in reversed(input_files.items()):
-        for input_filename in input_filenames:
-            if _file_counter % 500 == 0 or debug_mode:
-                logger.info(f"Adding {input_filename} for analysis")
-
-            # For debugging
-            if debug_mode and _file_counter > 1:
-                break
-
-            # Setup file I/O
-            # Converts: "2111/run_by_run/LHC17p_CENT_woSDD/282341/AnalysisResults.17p.001.root"
-            #        -> "2111__run_by_run__LHC17p_CENT_woSDD__282341__AnalysisResults_17p_001"
-            output_identifier = steer_job.safe_output_filename_from_relative_path(
-                filename=input_filename, output_dir=prod.output_dir,
-                number_of_parent_directories_for_relative_output_filename=_metadata_config["dataset"].get(
-                    "number_of_parent_directories_for_relative_output_filename", None
-                ),
-            )
-            output_filename = output_dir / f"{output_identifier}.parquet"
-            # And create the tasks
-            results.append(
-                _run_embed_thermal_model_skim(
-                    collision_system=prod.collision_system,
-                    trigger_pt_ranges=_analysis_config["trigger_pt_ranges"],
-                    min_track_pt=_analysis_config["min_track_pt"],
-                    momentum_weight_exponent=_analysis_config["momentum_weight_exponent"],
-                    det_level_artificial_tracking_efficiency=_analysis_config[
-                        "det_level_artificial_tracking_efficiency"
-                    ],
-                    thermal_model_parameters=thermal_model_parameters,
-                    scale_factor=scale_factors[pt_hat_bin],
-                    chunk_size=chunk_size,
-                    output_trigger_skim=_analysis_config["output_trigger_skim"],
-                    # This can become quite expensive in terms of memory since we have to keep copies in memory.
-                    # So by default, we will write them to file, but won't return them.
-                    return_hists=_analysis_config.get("return_hists_during_execution", False),
-                    production_identifier=prod.identifier,
-                    job_framework=job_framework,
-                    inputs=[
-                        File(str(input_filename)),
-                    ],
-                    outputs=[File(str(output_filename))],
-                )
-            )
-
-            _file_counter += 1
-
-    return results
-
-# END TODO
 
 # Define the steering apps
 
