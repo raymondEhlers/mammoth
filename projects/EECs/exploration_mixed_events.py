@@ -69,7 +69,7 @@ from pachyderm import binned_data
 # +
 import uproot
 
-f = uproot.open(base_dir / "test_eec_thermal_model.root")
+f = uproot.open(Path("trains") / "embed_thermal_model" / "0005" / "skim" / "shadd_pythia__2640__run_by_run__LHC20g4__AnalysisResults_20g4.root")
 #hists = {key.replace(";1", ""): binned_data.BinnedData.from_existing_data(f.get(key)) for key in f}
 hists = {key.replace(";1", ""): f.get(key).to_hist() for key in f}
 # -
@@ -82,20 +82,15 @@ import numpy as np
 
 def _plot_RL(
     hists: Mapping[str, hist.Hist],
-    names_and_labels: Mapping[str, tuple[str, str, str]],
+    names_and_labels: Mapping[str, str],
     plot_config: pb.PlotConfig,
     output_dir: Path,
+    trigger_name_to_range: dict[str, tuple[float, float]],
 ) -> None:
-    # TODO: Make this an argument
-    trigger_name_to_range = {
-        "reference": (5, 9),
-        "signal": (20, 50),
-    }
-    # TODO: Collect this in the task...
-    trigger_name_to_fraction = {
-        "reference": 0.2,
-        "signal": 0.8,
-    }
+    #trigger_name_to_fraction = {
+    #    "reference": 0.2,
+    #    "signal": 0.8,
+    #}
 
     _palette_6_mod = {
         "purple": "#7e459e",
@@ -132,34 +127,44 @@ def _plot_RL(
     with sns.color_palette("Set2"):
         # fig, ax = plt.subplots(figsize=(9, 10))
         # Size is specified to make it convenient to compare against Hard Probes plots.
-        fig, ax = plt.subplots(
-            1,
+        fig, (ax, ax_ratio) = plt.subplots(
+            2,
             1,
             figsize=(10, 8),
+            gridspec_kw={"height_ratios": [3, 1]},
+            sharex=True,
         )
 
         ax.set_prop_cycle(cycler.cycler(color=list(_method_to_color.values())))
 
+        hists_for_ratio = []
         for name, (level, label, legend_entry) in names_and_labels.items():
-            is_signal = label == "signal"
-            h_temp = hists[name]
+            is_signal = "signal" == label
+            h = hists[name]
             # Project by trigger range
             trigger_range = trigger_name_to_range[label]
             # Project to range
-            h_temp = h_temp[:, hist.loc(trigger_range[0]):hist.loc(trigger_range[1]):hist.sum]  # type: ignore[misc,union-attr]
+            h = h[:, hist.loc(trigger_range[0]):hist.loc(trigger_range[1]):hist.sum]
             # Convert
-            h = binned_data.BinnedData.from_existing_data(h_temp)
+            h = binned_data.BinnedData.from_existing_data(h)
+
+            # TEMP: Rebin
+            h = h[::4]
 
             # Normalize
             # TODO: Collect n_trig without being reliant on fraction...
-            n_trig = hists[f"{level}_inclusive_trigger_spectra"][  # type: ignore[union-attr]
-                hist.loc(trigger_range[0]): hist.loc(trigger_range[1]):hist.sum  # type: ignore[misc]
-            ].value * trigger_name_to_fraction[label]
+            n_trig = np.sum(hists[f"{level}_trigger_spectra"][
+                hist.loc(trigger_range[0]): hist.loc(trigger_range[1])
+            ].values())
+            #].value / trigger_name_to_fraction[label]
+            #].value / trigger_name_to_fraction[label] / (trigger_range[1] - trigger_range[0])
             h /= n_trig
             # Bin widths
-            h /= h.axes[0].bin_widths
+            #h /= h.axes[0].bin_widths
 
-            ax.errorbar(
+            hists_for_ratio.append(h)
+
+            p = ax.errorbar(
                 h.axes[0].bin_centers,
                 h.values,
                 yerr=h.errors,
@@ -170,9 +175,23 @@ def _plot_RL(
                 linewidth=3,
                 label=legend_entry,
             )
+        
+        for h in hists_for_ratio[1:]:
+            ratio = h / hists_for_ratio[0]
+            ax_ratio.errorbar(
+                ratio.axes[0].bin_centers,
+                ratio.values,
+                yerr=h.errors,
+                xerr=h.axes[0].bin_widths / 2,
+                marker="o",
+                markersize=11,
+                linestyle="",
+                linewidth=3,
+                label=legend_entry,
+            )
 
     # Labeling and presentation
-    plot_config.apply(fig=fig, ax=ax)
+    plot_config.apply(fig=fig, axes=[ax, ax_ratio])
     # A few additional tweaks.
     #ax.xaxis.set_major_locator(mpl.ticker.MultipleLocator(base=1.0))
 
@@ -185,6 +204,7 @@ def plot_RL(
     hists: dict[str, binned_data.BinnedData],
     names_and_labels: dict[str, str],
     output_dir: Path,
+    trigger_name_to_range: dict[str, tuple[float, float]],
     text_font_size: int = 31,
 ) -> bool:
     collision_system = "embed_thermal_model"
@@ -194,6 +214,7 @@ def plot_RL(
     _plot_RL(
         hists=hists,
         names_and_labels=names_and_labels,
+        trigger_name_to_range=trigger_name_to_range,
         plot_config=pb.PlotConfig(
             name=f"raw_EEC__{collision_system}__{'_'.join(names_and_labels)}",
             panels=[
@@ -205,21 +226,41 @@ def plot_RL(
                             label=r"$R_{\text{L}}$",
                             log=True,
                             font_size=text_font_size,
+                            range=(1e-3, None),
                         ),
                         pb.AxisConfig(
                             "y",
                             label=r"$1/N_{\text{trig}}\:\text{d}N/\text{d}R_{\text{L}}$",
                             font_size=text_font_size,
-                            #log=True,
+                            log=True,
                             #range=(1e2, 1e7),
-                            range=(0, 10),
+                            #range=(0, 10),
+                            #range=(0, 100),
+                            #range=(1e-2, 1000),
                         ),
                     ],
                     text=pb.TextConfig(x=0.02, y=0.98, text=text, font_size=text_font_size),
                     legend=pb.LegendConfig(location="upper right", font_size=round(text_font_size*0.8), anchor=(0.98, 0.98), marker_label_spacing=0.075),
                 ),
+                pb.Panel(
+                    axes=[
+                        pb.AxisConfig(
+                            "x",
+                            label=r"$R_{\text{L}}$",
+                            log=True,
+                            font_size=text_font_size,
+                            range=(1e-3, None),
+                        ),
+                        pb.AxisConfig(
+                            "y",
+                            label=r"Signal/Ref",
+                            font_size=text_font_size,
+                            range=(0, 2),
+                        ),
+                    ],
+                ),
             ],
-            figure=pb.Figure(edge_padding={"left": 0.15, "bottom": 0.095, "top": 0.975}),
+            figure=pb.Figure(edge_padding={"left": 0.15, "bottom": 0.11, "top": 0.975}),
         ),
         output_dir=output_dir,
     )
@@ -228,26 +269,41 @@ def plot_RL(
 
 # -
 
+trigger_name_to_range = {
+    "reference": (5, 7),
+    "signal": (20, 50),
+}
 for names_and_labels in [
     {
-        "det_level_signal_eec_log": ("det_level", "signal", "Det. level"),
-        "hybrid_signal_eec_log": ("hybrid", "signal", "Hybrid"),
+        "hybrid_signal_eec": ("hybrid", "signal", "Hybrid"),
+        "det_level_signal_eec": ("det_level", "signal", "Det. level"),
     },
     {
-        "det_level_reference_eec_log": ("det_level", "reference", "Det. level ref."),
-        "det_level_signal_eec_log": ("det_level", "signal", "Det. level signal"),
+        "det_level_reference_eec": ("det_level", "reference", "Det. level ref."),
+        "det_level_signal_eec": ("det_level", "signal", "Det. level signal"),
     },
     {
-        "hybrid_reference_eec_log": ("hybrid", "reference", "Hybrid ref."),
-        "hybrid_signal_eec_log": ("hybrid", "signal", "Hybrid signal"),
+        "det_level_reference_eec_unweighted": ("det_level", "reference", "Det. level ref."),
+        "det_level_signal_eec_unweighted": ("det_level", "signal", "Det. level signal"),
+    },
+    {
+        "hybrid_reference_eec": ("hybrid", "reference", "Hybrid ref."),
+        "hybrid_signal_eec": ("hybrid", "signal", "Hybrid signal"),
+    },
+    {
+        "hybrid_reference_eec_unweighted": ("hybrid", "reference", "Hybrid ref."),
+        "hybrid_signal_eec_unweighted": ("hybrid", "signal", "Hybrid signal"),
+    },
+    {
+        "hybrid_reference_eec_bg_only": ("hybrid", "reference", "Hybrid ref. BG only"),
+        "hybrid_signal_eec_bg_only": ("hybrid", "signal", "Hybrid signal BG only"),
     },
 ]:
     plot_RL(
         hists=hists,
         names_and_labels=names_and_labels,
+        trigger_name_to_range=trigger_name_to_range,
         output_dir=output_dir,
     )
 
 list(hists.keys())
-
-
