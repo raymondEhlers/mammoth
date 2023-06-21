@@ -148,7 +148,7 @@ def setup_logging_and_parsl(
     for message in stored_messages:
         message.log()
 
-    return dfk  # type: ignore[no-any-return]
+    return dfk
 
 
 def setup_logging(
