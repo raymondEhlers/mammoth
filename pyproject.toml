@@ -79,6 +79,9 @@ include = [
     "src/mammoth/py.typed",
 ]
 
+[tool.pdm.scripts]
+shadd = "mammoth.framework.io.output_utils:shit_hadd"
+
 [tool.mypy]
 files = "src"
 python_version = "3.9"

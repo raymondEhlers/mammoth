@@ -3,6 +3,8 @@
 .. codeauthor:: Raymond Ehlers <raymond.ehlers@cern.ch>, LBL/UCB
 """
 
+from __future__ import annotations
+
 import logging
 from pathlib import Path
 from typing import Any, BinaryIO, Mapping
@@ -225,3 +227,42 @@ def write_hists_to_file(hists: Mapping[Any, Any], f: BinaryIO, prefix: str = "")
             f[write_name] = v  # type: ignore[index]
 
     return True
+
+
+def shit_hadd() -> Path:
+    """Shit (eg. "simple") version of histogram add (`hadd`) to avoid needing root.
+
+    Args:
+        output_filename: Output filename to be written.
+        input_filenames: List of input filenames to be added together.
+
+    Returns:
+        Path to the output file.
+    """
+    # Delayed import since this is self contained
+    import argparse
+
+    import mammoth.helpers
+
+    # Setup
+    mammoth.helpers.setup_logging()
+    parser = argparse.ArgumentParser(description="shadd: Shi^H^H^HSimple hadd")
+
+    parser.add_argument("-i", "--input", required=True, nargs="+", type=Path, help="Input filenames")
+    parser.add_argument("-o", "--output", required=True, type=Path, help="Output filename")
+
+    args = parser.parse_args()
+    output_filename: Path = args.output
+
+    if output_filename.exists():
+        raise ValueError(f"Output already exists! {args.output}")
+
+    with uproot.recreate(output_filename) as f_out:
+        hists: dict[str, Any] = {}
+        for input_filename in args.input:
+            with uproot.open(input_filename) as f_in:
+                merge_results(hists, f_in)
+
+        write_hists_to_file(hists=hists, f=f_out)
+
+    return output_filename
