@@ -207,29 +207,90 @@ def merge_results(a: dict[Any, Any], b: dict[Any, Any]) -> dict[Any, Any]:
     return a
 
 
-def write_hists_to_file(hists: Mapping[Any, Any], f: BinaryIO, prefix: str = "") -> bool:
+def write_hists_to_file(hists: Mapping[Any, Any], f: BinaryIO, prefix: str = "", separator: str = "_") -> bool:
     """Recursively write histograms to a given file.
+
+    NOTE:
+        The default separator will flatten the histogram names. If you want to preserve the
+        dict structure, you should use "/", which will prompt uproot to maintain the structure.
 
     Args:
         hists: Hists to be written.
         f: File to be written to. Usually a file opened with uproot.
         prefix: Prefix to append to all keys. Default: "". This is rarely set by the user
             directly. Instead, it's used when recursing to keep track of the path.
+        separator: Separator to use between keys. Default: "_", which implicitly flattens the
+            dict structure. If you want to preserve the dict structure, use "/",
 
     Returns:
         True if writing was successful.
     """
     for k, v in hists.items():
         if isinstance(v, dict):
-            write_hists_to_file(hists=v, f=f, prefix=f"{prefix}_{k}")
+            write_hists_to_file(hists=v, f=f, prefix=f"{prefix}{separator}{k}", separator=separator)
         else:
-            write_name = str(k) if not prefix else f"{prefix}_{k}"
+            write_name = str(k) if not prefix else f"{prefix}{separator}{k}"
             f[write_name] = v  # type: ignore[index]
 
     return True
 
 
-def shit_hadd() -> Path:
+# Explicitly list what is supported. To support trees, we would need to handle
+# extending, etc, which is less trivial, so just do this for now.
+_shadd_supported_types = (
+    uproot.behaviors.TH1.Histogram,
+    # NOTE: The model only works here because there's apparently only one version of the TList streamer.
+    #       There's no equivalent of the TList behavior, so we take this as good enough.
+    # NOTE: We don't use Sequence (which TList also inherits from) because it is too loose - we need something with names.
+    uproot.models.TList.Model_TList,
+)
+
+# Apparently adding profile hists is not supported by hist, so we need to exclude them.
+_shadd_unsupported_types = (
+    uproot.behaviors.TProfile.Profile,
+)
+
+def _format_indent(level: int) -> str:
+    """Helper to figure out nice indentation for logging."""
+    if level == 0:
+        return ""
+    elif level == 1:
+        return "> "
+    return "-" * (level - 1) + "> "
+
+
+def _filter_root_file(contents: dict[str, Any], prefix: str = "", level: int = 0) -> dict[str, Any]:
+    output = {}
+    for k, v in contents.items():
+        # Validation
+        if (not isinstance(v, _shadd_supported_types)) or isinstance(v, _shadd_unsupported_types):
+            if hasattr(v, "bases") and len(v.bases) == 1 and (isinstance(v.bases[0], _shadd_supported_types) and not isinstance(v.bases[0], _shadd_unsupported_types)):
+                logger.warning(
+                    _format_indent(level) + f"Narrowing type of {k} from {v!r} to {v.bases[0]!r} since we don't have the relevant streamers available."
+                )
+                v = v.bases[0]
+            else:
+                logger.error(_format_indent(level) + f"Skipping {k}:{v!r} since it's not a supported type")
+                continue
+
+        # Recurse
+        #write_name = str(k) if not prefix else f"{prefix}_{k}"
+        # NOTE: We can treat the TList as a dict since we will only support TNamed, and we can treat as a mapping...
+        if isinstance(v, uproot.models.TList.Model_TList):
+            logger.info(_format_indent(level) + f"Recursing for {k}")
+            output[k] = _filter_root_file(contents={entry.name: entry for entry in v}, prefix="", level = level + 2)
+        else:
+            try:
+                output[k] = v.to_hist() if isinstance(v, uproot.behaviors.TH1.Histogram) else v
+                logger.info(f"Successfully wrote {k}")
+            except ValueError as e:
+                logger.warning(f"Skipping {k} since it can't be converted to a histogram: {e}")
+                continue
+
+    return output
+
+
+def shit_hadd() -> None:
     """Shit (eg. "simple") version of histogram add (`hadd`) to avoid needing root.
 
     Args:
@@ -242,13 +303,15 @@ def shit_hadd() -> Path:
     # Delayed import since this is self contained
     import argparse
 
+    from rich_argparse import RichHelpFormatter
+
     import mammoth.helpers
 
     # Setup
     mammoth.helpers.setup_logging()
-    parser = argparse.ArgumentParser(description="shadd: Shi^H^H^HSimple hadd")
+    parser = argparse.ArgumentParser(description="shadd: Shi^H^H^HSimple hadd replacement", formatter_class=RichHelpFormatter)
 
-    parser.add_argument("-i", "--input", required=True, nargs="+", type=Path, help="Input filenames")
+    parser.add_argument("-i", "--input", required=True, nargs="+", type=Path, help="Input filename(s)")
     parser.add_argument("-o", "--output", required=True, type=Path, help="Output filename")
 
     args = parser.parse_args()
@@ -259,10 +322,21 @@ def shit_hadd() -> Path:
 
     with uproot.recreate(output_filename) as f_out:
         hists: dict[str, Any] = {}
-        for input_filename in args.input:
-            with uproot.open(input_filename) as f_in:
-                merge_results(hists, f_in)
+        with mammoth.helpers.progress_bar() as progress:
+            track_results = progress.add_task(total=len(args.input), description="Processing inputs...")
+            for input_filename in args.input:
+                logger.info(f"Processing {input_filename}")
+                #with uproot.open(input_filename, custom_classes={"AliEmcalList": uproot.models.TList.Model_TList}) as f_in:
+                with uproot.open(input_filename) as f_in:
+                    contents = {k: f_in[k] for k in f_in.keys(cycle=False)}
+                    logger.warning(contents)
+                    hists = merge_results(hists, _filter_root_file(contents=contents))
+                progress.update(track_results, advance=1)
 
-        write_hists_to_file(hists=hists, f=f_out)
+        logger.info(hists)
 
-    return output_filename
+        # NOTE: This is a little perverse, but even if we have a nested dict, uproot won't write in a TDirectory unless there
+        #      is a "/" in the name. So we just add one here as the separator.
+        write_hists_to_file(hists=hists, f=f_out, separator="/")
+
+    logger.info(f'🎉 Finished merging "{output_filename}"')
