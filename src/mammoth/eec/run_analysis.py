@@ -299,10 +299,6 @@ def define_productions() -> list[production.ProductionSettings]:
     return productions
 
 
-def _hours_in_walltime(walltime: str) -> int:
-    return int(walltime.split(":")[0])
-
-
 def setup_and_submit_tasks(
     productions: Sequence[production.ProductionSettings],
     task_config: job_utils.TaskConfig,
@@ -454,7 +450,7 @@ def run(job_framework: job_utils.JobFramework) -> list[Future[Any]]:
         # Usually, we want to run in the short queue
         target_n_tasks_to_run_simultaneously = 2
         walltime = "1:59:00"
-    #facility: job_utils.FACILITIES = "ORNL_b587_long" if _hours_in_walltime(walltime) >= 2 else "ORNL_b587_short"
+    #facility: job_utils.FACILITIES = "ORNL_b587_long" if job_utils.hours_in_walltime(walltime) >= 2 else "ORNL_b587_short"
     facility: job_utils.FACILITIES = "rehlers_mbp_m1pro"
 
     # Keep the job executor just to keep it alive

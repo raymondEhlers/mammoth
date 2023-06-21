@@ -55,6 +55,22 @@ FACILITIES = Literal[
 ]
 
 
+def hours_in_walltime(walltime: str) -> int:
+    """Extract the hours from a walltime string.
+
+    Note:
+        This can be convenient if you need to change queues based on the walltime,
+        eg. a short vs long queue. This allows you to abstract some decisions by just
+        specifying the walltime.
+
+    Args:
+        walltime: Walltime string in the format "HH:MM:SS".
+    Returns:
+        Number of hours in the walltime.
+    """
+    return int(walltime.split(":")[0])
+
+
 def _expand_vars_in_work_dir(
     value: str | Path,
 ) -> Path:
