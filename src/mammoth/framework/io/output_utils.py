@@ -259,30 +259,46 @@ def _format_indent(level: int) -> str:
     return "-" * (level - 1) + "> "
 
 
-def _filter_root_file(contents: dict[str, Any], prefix: str = "", level: int = 0) -> dict[str, Any]:
+def _filter_for_supported_merging_types(contents: dict[str, Any], level: int = 0) -> dict[str, Any]:
+    """Filter out types which we can't merge
+
+    As of June 2023, this practically means that only hists are supported.
+
+    Args:
+        contents: Contents to be filtered.
+        level: Recursion level. Used for logging. Default: 0.
+            In practice, the user won't touch this.
+
+    Returns:
+        Filtered contents.
+    """
     output = {}
     for k, v in contents.items():
-        # Validation
+        logger.info(f"Processing {k}")
+        # We can only support some types.
+        # We also have an explicitly unsupported list.
         if (not isinstance(v, _shadd_supported_types)) or isinstance(v, _shadd_unsupported_types):
+            # If there's one base and it's a TList, we can handle it. This is still lossy, but we may not care.
+            # One prominent example: AliEmcalList, where the additional fields are irrelevant for our purposes.
             if hasattr(v, "bases") and len(v.bases) == 1 and (isinstance(v.bases[0], _shadd_supported_types) and not isinstance(v.bases[0], _shadd_unsupported_types)):
                 logger.warning(
                     _format_indent(level) + f"Narrowing type of {k} from {v!r} to {v.bases[0]!r} since we don't have the relevant streamers available."
                 )
                 v = v.bases[0]
             else:
-                logger.error(_format_indent(level) + f"Skipping {k}:{v!r} since it's not a supported type")
+                logger.error(_format_indent(level) + f"Skipping unsupported type in {k}: {v!r}")
                 continue
 
         # Recurse
-        #write_name = str(k) if not prefix else f"{prefix}_{k}"
-        # NOTE: We can treat the TList as a dict since we will only support TNamed, and we can treat as a mapping...
+        # NOTE: Since we only support TNamed, we can treat the TList as a mapping
         if isinstance(v, uproot.models.TList.Model_TList):
             logger.info(_format_indent(level) + f"Recursing for {k}")
-            output[k] = _filter_root_file(contents={entry.name: entry for entry in v}, prefix="", level = level + 2)
+            output[k] = _filter_for_supported_merging_types(contents={entry.name: entry for entry in v}, level = level + 2)
         else:
             try:
+                # We're ready to proceed, so we convert to a hist object which supports __add__
                 output[k] = v.to_hist() if isinstance(v, uproot.behaviors.TH1.Histogram) else v
-                logger.info(f"Successfully wrote {k}")
+                logger.debug(f"Successfully wrote {k}")
             except ValueError as e:
                 logger.warning(f"Skipping {k} since it can't be converted to a histogram: {e}")
                 continue
@@ -308,7 +324,7 @@ def shit_hadd() -> None:
     import mammoth.helpers
 
     # Setup
-    mammoth.helpers.setup_logging()
+    mammoth.helpers.setup_logging(level=logging.INFO)
     parser = argparse.ArgumentParser(description="shadd: Shi^H^H^HSimple hadd replacement", formatter_class=RichHelpFormatter)
 
     parser.add_argument("-i", "--input", required=True, nargs="+", type=Path, help="Input filename(s)")
@@ -328,12 +344,15 @@ def shit_hadd() -> None:
                 logger.info(f"Processing {input_filename}")
                 #with uproot.open(input_filename, custom_classes={"AliEmcalList": uproot.models.TList.Model_TList}) as f_in:
                 with uproot.open(input_filename) as f_in:
-                    contents = {k: f_in[k] for k in f_in.keys(cycle=False)}
-                    logger.warning(contents)
-                    hists = merge_results(hists, _filter_root_file(contents=contents))
+                    hists = merge_results(
+                        hists,
+                        _filter_for_supported_merging_types(
+                            # NOTE: We do these minor gymnastics so we can avoid having to remove the cycle (eg. ";1") by hand.
+                            #       It's not that hard, but no point in reinventing the wheel.
+                            contents={k: f_in[k] for k in f_in.keys(cycle=False)}
+                        )
+                    )
                 progress.update(track_results, advance=1)
-
-        logger.info(hists)
 
         # NOTE: This is a little perverse, but even if we have a nested dict, uproot won't write in a TDirectory unless there
         #      is a "/" in the name. So we just add one here as the separator.
