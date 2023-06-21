@@ -254,7 +254,7 @@ def _format_indent(level: int) -> str:
     """Helper to figure out nice indentation for logging."""
     if level == 0:
         return ""
-    elif level == 1:
+    if level == 1:
         return "> "
     return "-" * (level - 1) + "> "
 
@@ -284,7 +284,7 @@ def _filter_for_supported_merging_types(contents: dict[str, Any], level: int = 0
                 logger.warning(
                     _format_indent(level) + f"Narrowing type of {k} from {v!r} to {v.bases[0]!r} since we don't have the relevant streamers available."
                 )
-                v = v.bases[0]
+                v = v.bases[0]  # noqa: PLW2901
             else:
                 logger.error(_format_indent(level) + f"Skipping unsupported type in {k}: {v!r}")
                 continue
@@ -334,7 +334,8 @@ def shit_hadd() -> None:
     output_filename: Path = args.output
 
     if output_filename.exists():
-        raise ValueError(f"Output already exists! {args.output}")
+        msg = f"Output already exists! {args.output}"
+        raise ValueError(msg)
 
     with uproot.recreate(output_filename) as f_out:
         hists: dict[str, Any] = {}
