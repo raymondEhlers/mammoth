@@ -274,19 +274,28 @@ def _filter_for_supported_merging_types(contents: dict[str, Any], level: int = 0
     """
     output = {}
     for k, v in contents.items():
-        logger.info(f"Processing {k}")
+        logger.debug(f"Processing {k}")
         # We can only support some types.
         # We also have an explicitly unsupported list.
         if (not isinstance(v, _shadd_supported_types)) or isinstance(v, _shadd_unsupported_types):
             # If there's one base and it's a TList, we can handle it. This is still lossy, but we may not care.
             # One prominent example: AliEmcalList, where the additional fields are irrelevant for our purposes.
-            if hasattr(v, "bases") and len(v.bases) == 1 and (isinstance(v.bases[0], _shadd_supported_types) and not isinstance(v.bases[0], _shadd_unsupported_types)):
+            if (
+                hasattr(v, "bases")
+                and len(v.bases) == 1
+                and isinstance(v.bases[0], _shadd_supported_types)
+                # NOTE: If it's unsupported, don't try here even if everything else fits. We want to disable this
+                #       because it might give unexpected answers (eg. since profiles base are histograms, this would
+                #       retrieve it as a histogram even after we labeled it as explicitly unsupported. This isn't
+                #       great since it will be seen as a regular hist and give wrong answers...
+                and not isinstance(v, _shadd_unsupported_types)
+            ):
                 logger.warning(
                     _format_indent(level) + f"Narrowing type of {k} from {v!r} to {v.bases[0]!r} since we don't have the relevant streamers available."
                 )
                 v = v.bases[0]  # noqa: PLW2901
             else:
-                logger.error(_format_indent(level) + f"Skipping unsupported type in {k}: {v!r}")
+                logger.error(_format_indent(level) + f"{k}: Skipping unsupported type {v!r}")
                 continue
 
         # Recurse
