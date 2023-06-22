@@ -14,7 +14,7 @@ import logging
 import subprocess
 import xml.etree.ElementTree as ET
 from pathlib import Path
-from typing import Dict, Sequence
+from typing import Sequence
 
 import pachyderm.alice.download as alice_dl
 import pachyderm.alice.utils as alice_utils
@@ -72,7 +72,7 @@ def add_files_from_xml_file(
     # Download the XML file...
     logger.info(f"Downloading {alien_xml_file.name} file: {alien_xml_file} to file://{local_xml_file}")
     subprocess.run(
-        ["alien_cp", str(alien_xml_file), f"file://{str(local_xml_file)}"],
+        ["alien_cp", str(alien_xml_file), f"file://{local_xml_file!s}"],
         capture_output=True,
     )
 
@@ -262,7 +262,7 @@ def create_train_download_list(trains: Sequence[int]) -> None:  # noqa: C901
                     _pass_value = str(config.get("pass", ""))
                     # Add "pass" to the front of the name. Only if it's a general dataset pass
                     if _pass_value != "":  # noqa: PLC1901
-                        _pass_value = f"pass{str(_pass_value)}"
+                        _pass_value = f"pass{_pass_value!s}"
                 if _pass_value is None:
                     _pass_value = ""
                 pass_value = Path(_pass_value)
