@@ -374,7 +374,7 @@ def create_train_download_list(trains: Sequence[int]) -> None:  # noqa: C901
 
 
 def entry_point() -> None:
-    mammoth.helpers.setup_logging(level=logging.DEBUG)
+    mammoth.helpers.setup_logging(level=logging.INFO)
 
     parser = argparse.ArgumentParser(description="Download LEGO train outputs.")
     parser.add_argument(
