@@ -979,6 +979,7 @@ def _splittings_output() -> dict[str, list[Any]]:
         "kt": [],
         "delta_R": [],
         "z": [],
+        "tau": [],
         "parent_index": [],
     }
 
@@ -1056,6 +1057,7 @@ def recluster_jets(
             jets_splittings["kt"].append(_temp_splittings.kt)
             jets_splittings["delta_R"].append(_temp_splittings.delta_R)
             jets_splittings["z"].append(_temp_splittings.z)
+            jets_splittings["tau"].append(_temp_splittings.tau)
             jets_splittings["parent_index"].append(_temp_splittings.parent_index)
             jets_subjets["splitting_node_index"].append(_temp_subjets.splitting_node_index)
             jets_subjets["part_of_iterative_splitting"].append(_temp_subjets.part_of_iterative_splitting)

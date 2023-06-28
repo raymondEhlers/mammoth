@@ -101,6 +101,7 @@ class GroomingResultForTree:
     delta_R: npt.NDArray[np.float32] = attrs.field()
     z: npt.NDArray[np.float32] = attrs.field()
     kt: npt.NDArray[np.float32] = attrs.field()
+    tau: npt.NDArray[np.float32] | None = attrs.field()
     n_to_split: npt.NDArray[np.int16] = attrs.field()
     n_groomed_to_split: npt.NDArray[np.int16] = attrs.field()
     # For SoftDrop, this is equivalent to n_sd.
@@ -108,8 +109,9 @@ class GroomingResultForTree:
 
     def asdict(self, prefix: str) -> Iterable[tuple[str, npt.NDArray[np.generic]]]:
         for k, v in attrs.asdict(self, recurse=False).items():
-            # Skip the label
-            if isinstance(v, str):
+            # Skip the grooming_method label or anything that is not available
+            # (which is stored as None)
+            if isinstance(v, str) or v is None:
                 continue
             yield "_".join([self.grooming_method, prefix, k]), v
 
@@ -886,6 +888,14 @@ def calculate_embedding_skim_impl(  # noqa: C901
                             )
                         )
                     ),
+                    # Only include this if it's available.
+                    tau=to_float(
+                        ak.flatten(
+                            ak.fill_none(
+                                ak.pad_none(groomed_splittings.tau, 1), analysis_jet_substructure.UNFILLED_VALUE
+                            )
+                        )
+                    ) if "tau" in ak.fields(groomed_splittings) and groomed_splittings.tau is not None else None,
                     # All of the numbers are already flattened. 0 means untagged.
                     n_to_split=n_to_split,
                     n_groomed_to_split=n_groomed_to_split,
@@ -1184,6 +1194,14 @@ def calculate_data_skim_impl(
                             )
                         )
                     ),
+                    # Only include this if it's available.
+                    tau=to_float(
+                        ak.flatten(
+                            ak.fill_none(
+                                ak.pad_none(groomed_splittings.tau, 1), analysis_jet_substructure.UNFILLED_VALUE
+                            )
+                        )
+                    ) if "tau" in ak.fields(groomed_splittings) and groomed_splittings.tau is not None else None,
                     # All of the numbers are already flattened. 0 means untagged.
                     n_to_split=n_to_split,
                     n_groomed_to_split=n_groomed_to_split,

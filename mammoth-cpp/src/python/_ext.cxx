@@ -552,6 +552,7 @@ PYBIND11_MODULE(_ext, m) {
     .def_readonly("kt", &mammoth::JetSubstructure::ColumnarSplittings::kt)
     .def_readonly("delta_R", &mammoth::JetSubstructure::ColumnarSplittings::deltaR)
     .def_readonly("z", &mammoth::JetSubstructure::ColumnarSplittings::z)
+    .def_readonly("tau", &mammoth::JetSubstructure::ColumnarSplittings::tau)
     .def_readonly("parent_index", &mammoth::JetSubstructure::ColumnarSplittings::parentIndex)
   ;
   py::class_<mammoth::JetSubstructure::ColumnarSubjets>(m, "ColumnarSubjets", "Columnar splittings output")

@@ -264,6 +264,7 @@ class JetSplittingCommon:
     kt: ArrayOrScalar[float]
     delta_R: ArrayOrScalar[float]
     z: ArrayOrScalar[float]
+    tau: ArrayOrScalar[float] | None
     parent_index: ArrayOrScalar[int]
 
     @property
@@ -301,6 +302,7 @@ class JetSplitting(ak.Record, JetSplittingCommon):  # type: ignore[misc]
     kt: float
     delta_R: float
     z: float
+    tau: float | None
     parent_index: int
 
     @property
@@ -374,6 +376,7 @@ class JetSplittingArray(ak.Array, JetSplittingCommon):  # type: ignore[misc]
     kt: AwkwardArray[float]
     delta_R: AwkwardArray[float]
     z: AwkwardArray[float]
+    tau: AwkwardArray[float] | None
     parent_index: AwkwardArray[int]
 
     def iterative_splittings(self, subjets: SubjetArray) -> SubjetArray:

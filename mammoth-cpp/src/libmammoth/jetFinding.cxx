@@ -635,6 +635,7 @@ JetSplittings::JetSplittings():
   fKt{},
   fDeltaR{},
   fZ{},
+  fTau{},
   fParentIndex{}
 {
   // Nothing more to be done.
@@ -647,6 +648,7 @@ JetSplittings::JetSplittings(const JetSplittings& other)
  : fKt{other.fKt},
   fDeltaR{other.fDeltaR},
   fZ{other.fZ},
+  fTau{other.fTau},
   fParentIndex{other.fParentIndex}
 {
   // Nothing more to be done.
@@ -667,21 +669,23 @@ bool JetSplittings::Clear()
   fKt.clear();
   fDeltaR.clear();
   fZ.clear();
+  fTau.clear();
   fParentIndex.clear();
   return true;
 }
 
-void JetSplittings::AddSplitting(float kt, float deltaR, float z, short i)
+void JetSplittings::AddSplitting(float kt, float deltaR, float z, float tau, short i)
 {
   fKt.emplace_back(kt);
   fDeltaR.emplace_back(deltaR);
   fZ.emplace_back(z);
+  fTau.emplace_back(tau);
   fParentIndex.emplace_back(i);
 }
 
-std::tuple<float, float, float, short> JetSplittings::GetSplitting(int i) const
+std::tuple<float, float, float, float, short> JetSplittings::GetSplitting(int i) const
 {
-  return std::make_tuple(fKt.at(i), fDeltaR.at(i), fZ.at(i), fParentIndex.at(i));
+  return std::make_tuple(fKt.at(i), fDeltaR.at(i), fZ.at(i), fTau.at(i), fParentIndex.at(i));
 }
 
 /**
@@ -696,8 +700,11 @@ std::string JetSplittings::to_string() const
   tempSS << "Jet splittings:\n";
   for (std::size_t i = 0; i < fKt.size(); i++)
   {
-    tempSS << "#" << (i + 1) << ": kT = " << fKt.at(i)
-        << ", deltaR = " << fDeltaR.at(i) << ", z = " << fZ.at(i)
+    tempSS << "#" << (i + 1)
+        << ": kT = " << fKt.at(i)
+        << ", deltaR = " << fDeltaR.at(i)
+        << ", z = " << fZ.at(i)
+        << ", tau = " << fTau.at(i)
         << ", parent = " << fParentIndex.at(i) << "\n";
   }
   return tempSS.str();
@@ -763,10 +770,12 @@ bool JetSubstructureSplittings::Clear()
  * @param[in] kt Kt of the splitting.
  * @param[in] deltaR Delta R between the subjets.
  * @param[in] z Momentum sharing between the subjets.
+ * @param[in] tau Formation time between the subjets.
+ * @param[in] parentIndex Parent index of splitting.
  */
-void JetSubstructureSplittings::AddSplitting(float kt, float deltaR, float z, short parentIndex)
+void JetSubstructureSplittings::AddSplitting(float kt, float deltaR, float z, float tau, short parentIndex)
 {
-  fJetSplittings.AddSplitting(kt, deltaR, z, parentIndex);
+  fJetSplittings.AddSplitting(kt, deltaR, z, tau, parentIndex);
 }
 
 /**
@@ -780,7 +789,7 @@ void JetSubstructureSplittings::AddSubjet(const unsigned short splittingNodeInde
   return fSubjets.AddSubjet(splittingNodeIndex, partOfIterativeSplitting, constituentIndices);
 }
 
-std::tuple<float, float, float, short> JetSubstructureSplittings::GetSplitting(int i) const
+std::tuple<float, float, float, float, short> JetSubstructureSplittings::GetSplitting(int i) const
 {
   return fJetSplittings.GetSplitting(i);
 }
@@ -864,9 +873,10 @@ void ExtractJetSplittings(
     double z = j2.perp() / (j2.perp() + j1.perp());
     double delta_R = j1.delta_R(j2);
     double xkt = j2.perp() * std::sin(delta_R);
-    std::cout << "delta_R=" << delta_R << ", kt=" << xkt << ", z=" << z << "\n";
+    double tau = (j1.perp() + j2.perp()) / (j1.perp() * j2.perp() * delta_R * delta_R);
+    std::cout << "delta_R=" << delta_R << ", kt=" << xkt << ", z=" << z  << ", tau=" << tau << "\n";
     // Add the splitting node.
-    jetSplittings.AddSplitting(xkt, delta_R, z, splittingNodeIndex);
+    jetSplittings.AddSplitting(xkt, delta_R, z, tau, splittingNodeIndex);
     // Determine which splitting parent the subjets will point to (ie. the one that
     // we just stored). It's stored at the end of the splittings array. (which we offset
     // by -1 to stay within the array).
@@ -966,6 +976,7 @@ void swap(mammoth::JetSubstructure::JetSplittings& first,
   swap(first.fKt, second.fKt);
   swap(first.fDeltaR, second.fDeltaR);
   swap(first.fZ, second.fZ);
+  swap(first.fTau, second.fTau);
   swap(first.fParentIndex, second.fParentIndex);
 }
 void swap(mammoth::JetSubstructure::JetSubstructureSplittings& first,

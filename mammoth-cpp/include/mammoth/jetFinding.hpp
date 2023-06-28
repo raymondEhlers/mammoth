@@ -807,6 +807,7 @@ struct ColumnarSplittings {
   std::vector<float> kt;             ///<  kT between the subjets.
   std::vector<float> deltaR;         ///<  Delta R between the subjets.
   std::vector<float> z;              ///<  Momentum sharing of the splitting.
+  std::vector<float> tau;            ///<  Formation time between the subjets.
   std::vector<short> parentIndex;    ///<  Index of the parent splitting.
 };
 
@@ -833,11 +834,11 @@ class JetSplittings {
   bool Clear();
 
   // Getters and setters
-  void AddSplitting(float kt, float deltaR, float z, short parentIndex);
-  std::tuple<float, float, float, short> GetSplitting(int i) const;
+  void AddSplitting(float kt, float deltaR, float z, float tau, short parentIndex);
+  std::tuple<float, float, float, float, short> GetSplitting(int i) const;
   unsigned int GetNumberOfSplittings() const { return fKt.size(); }
-  ColumnarSplittings GetSplittings() { return ColumnarSplittings{fKt, fDeltaR, fZ, fParentIndex}; }
-  //std::tuple<std::vector<float> &, std::vector<float> &, std::vector<float> &, std::vector<short> &> GetSplittings() { return {fKt, fDeltaR, fZ, fParentIndex}; }
+  ColumnarSplittings GetSplittings() { return ColumnarSplittings{fKt, fDeltaR, fZ, fTau, fParentIndex}; }
+  //std::tuple<std::vector<float> &, std::vector<float> &, std::vector<float> &, std::vector<float> &, std::vector<short> &> GetSplittings() { return {fKt, fDeltaR, fZ, fTau, fParentIndex}; }
 
   // Printing
   std::string to_string() const;
@@ -847,6 +848,7 @@ class JetSplittings {
   std::vector<float> fKt;             ///<  kT between the subjets.
   std::vector<float> fDeltaR;         ///<  Delta R between the subjets.
   std::vector<float> fZ;              ///<  Momentum sharing of the splitting.
+  std::vector<float> fTau;            ///<  Formation time between the subjets.
   std::vector<short> fParentIndex;    ///<  Index of the parent splitting.
 };
 
@@ -873,11 +875,11 @@ class JetSubstructureSplittings {
   bool Clear();
 
   // Setters
-  void AddSplitting(float kt, float deltaR, float z, short parentIndex);
+  void AddSplitting(float kt, float deltaR, float z, float tau, short parentIndex);
   void AddSubjet(const unsigned short splittingNodeIndex, const bool partOfIterativeSplitting,
           const std::vector<unsigned short>& constituentIndices);
   // Getters
-  std::tuple<float, float, float, short> GetSplitting(int i) const;
+  std::tuple<float, float, float, float, short> GetSplitting(int i) const;
   std::tuple<unsigned short, bool, const std::vector<unsigned short>> GetSubjet(int i) const;
   unsigned int GetNumberOfSplittings() { return fJetSplittings.GetNumberOfSplittings(); }
   JetSubstructure::JetSplittings & GetSplittings() { return fJetSplittings; }
