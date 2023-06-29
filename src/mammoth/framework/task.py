@@ -282,6 +282,17 @@ class SetupEmbeddingSource(Protocol):
 # Chunk analysis functionality
 ##############################
 
+
+class NoUsefulAnalysisOutputError(Exception):
+    """No useful analysis output is available.
+
+    For example, it could be that there's no useable data to output because we
+    found no jets in the sample. Basically, it lets us bail out early from analyzing
+    a chunk in a clean way.
+    """
+    ...
+
+
 @attrs.frozen(kw_only=True)
 class AnalysisOutput:
     hists: dict[str, hist.Hist] = attrs.field(factory=dict)
@@ -347,7 +358,6 @@ class AnalysisOutput:
         if self.hists:
             task_hists = output_utils.merge_results(task_hists, self.hists)
         return task_hists
-
 
 # NOTE: This needs to be extremely generic to pass typing...
 #       Also, it _must_ come after AnalysisOutput definition...

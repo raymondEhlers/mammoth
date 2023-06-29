@@ -69,10 +69,11 @@ def steer_task_execution(
                 logger.info(f"Skipping already processed chunk {i_chunk}: {res}")
                 continue
 
-            # We know we need to process, so now it's time to actually grab the data!
-            arrays = next(iter_arrays)
-
             try:
+                # We know we need to process, so now it's time to actually grab the data!
+                arrays = next(iter_arrays)
+
+                # And then run the analysis of the chunk
                 analysis_output = analysis_function(
                     collision_system=task_settings.collision_system,
                     arrays=arrays,
@@ -83,12 +84,24 @@ def steer_task_execution(
                     return_skim=False if output_settings.return_skim is None else output_settings.return_skim,
                 )
             except sources.NoDataAvailableError as e:
-                # Just create the empty filename and return. This will prevent trying to re-run with no jets in the future.
-                # Remember that this depends heavily on the jet pt cuts!
+                # If this occurred, we won't know until we try the iterator, so we need to catch it here.
+                # Just create the empty filename and continue. This will prevent trying to re-run with no jets in the future.
                 local_output_settings.output_filename.with_suffix(".empty").touch()
                 _message = (
                     True,
                     f"Chunk {i_chunk}: Done - no data available (reason: {e}), so not trying to skim",
+                )
+                _nonstandard_processing_outcome.append(_message)
+                logger.info(_message)
+                continue
+            except framework_task.NoUsefulAnalysisOutputError as e:
+                # We have no usable analysis output.
+                # Just create the empty filename and continue. This will prevent trying to re-run with no jets in the future.
+                # Remember that this depends heavily on the jet pt cuts!
+                local_output_settings.output_filename.with_suffix(".empty").touch()
+                _message = (
+                    True,
+                    f"Chunk {i_chunk}: Done - no usable analysis output available (reason: {e}), so not trying to skim",
                 )
                 _nonstandard_processing_outcome.append(_message)
                 logger.info(_message)
