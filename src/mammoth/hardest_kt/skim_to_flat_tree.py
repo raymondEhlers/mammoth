@@ -119,6 +119,7 @@ class GroomingResultForTree:
 def _define_calculation_functions(
     jet_R: float,
     iterative_splittings: bool,
+    selected_grooming_methods: list[str] | None = None,
 ) -> dict[str, functools.partial[tuple[npt.NDArray[Scalar], AwkwardArray[int], AwkwardArray[AwkwardArray[int]]]]]:
     """Define the calculation functions of interest.
 
@@ -129,6 +130,9 @@ def _define_calculation_functions(
     Args:
         jet_R: Jet resolution parameter.
         iterative_splittings: Whether calculating iterative splittings or not.
+        selected_grooming_methods: Only return the calculations for the specified
+            grooming methods. Used if we need to keep the output size down (eg. tau
+            reclustering). Default: None. This indicates that all methods should be used.
     Returns:
         dynamical_core, dynamical_z, dynamical_kt, dynamical_time, leading_kt, leading_kt z>0.2, leading_kt z>0.4, SD z>0.2, SD z>0.4
     """
@@ -161,6 +165,11 @@ def _define_calculation_functions(
         functions["soft_drop_z_cut_04"] = functools.partial(
             analysis_jet_substructure.JetSplittingArray.soft_drop, z_cutoff=0.4
         )
+    if selected_grooming_methods is not None:
+        functions = {
+            k: v for k, v in functions.items() if k in selected_grooming_methods
+        }
+
     return functions
 
 
@@ -754,6 +763,7 @@ def calculate_embedding_skim_impl(  # noqa: C901
     draw_example_splittings: bool = False,
     write_feather: bool = False,
     write_parquet: bool = False,
+    selected_grooming_methods: list[str] | None = None,
 ) -> tuple[bool, Path, str]:
     """Determine the response and prong matching for jets substructure techniques.
 
@@ -831,7 +841,11 @@ def calculate_embedding_skim_impl(  # noqa: C901
         # Perform our calculations.
         functions: dict[
             str, functools.partial[tuple[npt.NDArray[np.float32], AwkwardArray[int], AwkwardArray[AwkwardArray[int]]]]
-        ] = _define_calculation_functions(jet_R=jet_R, iterative_splittings=iterative_splittings)
+        ] = _define_calculation_functions(
+            jet_R=jet_R,
+            iterative_splittings=iterative_splittings,
+            selected_grooming_methods=selected_grooming_methods
+        )
         for func_name, func in functions.items():
             logger.debug(f"func_name: {func_name}")
             calculations = {
@@ -1034,6 +1048,7 @@ def calculate_embedding_skim(
     draw_example_splittings: bool = False,
     write_feather: bool = False,
     write_parquet: bool = False,
+    selected_grooming_methods: list[str] | None = None,
 ) -> tuple[bool, Path, str]:
     # Validation
     # Bail out early if the file already exists.
@@ -1067,6 +1082,7 @@ def calculate_embedding_skim(
         draw_example_splittings=draw_example_splittings,
         write_feather=write_feather,
         write_parquet=write_parquet,
+        selected_grooming_methods=selected_grooming_methods,
     )
 
 
@@ -1083,6 +1099,7 @@ def calculate_data_skim_impl(
     scale_factors: Mapping[int, float] | None = None,
     write_feather: bool = False,
     write_parquet: bool = False,
+    selected_grooming_methods: list[str] | None = None,
 ) -> tuple[bool, Path, str]:
     # Setup
     # Output consistent types.
@@ -1143,7 +1160,11 @@ def calculate_data_skim_impl(
             functions: dict[
                 str,
                 functools.partial[tuple[npt.NDArray[np.float32], AwkwardArray[int], AwkwardArray[AwkwardArray[int]]]],
-            ] = _define_calculation_functions(jet_R=jet_R, iterative_splittings=iterative_splittings)
+            ] = _define_calculation_functions(
+                jet_R=jet_R,
+                iterative_splittings=iterative_splittings,
+                selected_grooming_methods=selected_grooming_methods
+            )
             for func_name, func in functions.items():
                 logger.debug(f"prefix: {prefix}, grooming function: {func_name}")
                 calculation = Calculation(
@@ -1272,6 +1293,7 @@ def calculate_data_skim(
     scale_factors: Mapping[int, float] | None = None,
     write_feather: bool = False,
     write_parquet: bool = False,
+    selected_grooming_methods: list[str] | None = None,
 ) -> tuple[bool, Path, str]:
     # Validation
     if scale_factors is None and (collision_system == "pythia" and collision_system == "pp_MC"):
@@ -1299,6 +1321,7 @@ def calculate_data_skim(
         scale_factors=scale_factors,
         write_feather=write_feather,
         write_parquet=write_parquet,
+        selected_grooming_methods=selected_grooming_methods,
     )
 
 
