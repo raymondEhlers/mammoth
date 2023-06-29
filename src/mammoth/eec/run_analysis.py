@@ -68,7 +68,7 @@ class EECProductionSpecialization:
 #    analysis_metadata=analysis_alice.customize_analysis_metadata,
 #)
 
-setup_embed_MC_into_thermal_model_skim = steer_job.setup_embed_MC_into_data_calculation(
+setup_embed_MC_into_data_skim = steer_job.setup_embed_MC_into_data_calculation(
     analysis_function=analysis_alice.analysis_embedding,
     analysis_metadata=analysis_alice.customize_analysis_metadata,
 )
@@ -159,13 +159,6 @@ def setup_and_submit_tasks(
         #        )
         #    )
         if "calculate_embed_thermal_model_skim" in tasks_to_execute:
-            #system_results.extend(
-            #    setup_calculate_embed_thermal_model_skim_old(
-            #        prod=prod,
-            #        job_framework=job_framework,
-            #        debug_mode=debug_mode,
-            #    )
-            #)
             system_results.extend(
                 setup_embed_MC_into_thermal_model_skim(
                     prod=prod,
@@ -173,14 +166,14 @@ def setup_and_submit_tasks(
                     debug_mode=debug_mode,
                 )
             )
-        #if "calculate_embed_pythia_skim" in tasks_to_execute:
-        #    system_results.extend(
-        #        setup_calculate_embed_pythia_skim(
-        #            prod=prod,
-        #            job_framework=job_framework,
-        #            debug_mode=debug_mode,
-        #        )
-        #    )
+        if "calculate_embed_pythia_skim" in tasks_to_execute:
+            system_results.extend(
+                setup_embed_MC_into_data_skim(
+                    prod=prod,
+                    job_framework=job_framework,
+                    debug_mode=debug_mode,
+                )
+            )
 
         all_results.extend(system_results)
         logger.info(f"Accumulated {len(system_results)} futures for {prod.collision_system}")
