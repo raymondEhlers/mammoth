@@ -36,7 +36,7 @@ class SplittingsSelection(enum.Enum):
         return f"{self.name}_splittings"
 
 
-def preprocess_arguments(**analysis_arguments: Any) -> Mapping[str, Any]:
+def argument_preprocessing(**analysis_arguments: Any) -> dict[str, Any]:
     splittings_selection = SplittingsSelection(analysis_arguments["splittings_selection"])
     return {
         "iterative_splittings": splittings_selection == SplittingsSelection.iterative,
