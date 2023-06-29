@@ -85,7 +85,7 @@ def steer_task_execution(
             except sources.NoDataAvailableError as e:
                 # Just create the empty filename and return. This will prevent trying to re-run with no jets in the future.
                 # Remember that this depends heavily on the jet pt cuts!
-                _output_filename.with_suffix(".empty").touch()
+                local_output_settings.output_filename.with_suffix(".empty").touch()
                 _message = (
                     True,
                     f"Chunk {i_chunk}: Done - no data available (reason: {e}), so not trying to skim",
