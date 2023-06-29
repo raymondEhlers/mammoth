@@ -170,6 +170,10 @@ def _define_calculation_functions(
             k: v for k, v in functions.items() if k in selected_grooming_methods
         }
 
+    if not functions:
+        msg = f"Provided selection of grooming methods ({selected_grooming_methods}), but none were selected! Check your input"
+        raise ValueError(msg)
+
     return functions
 
 
