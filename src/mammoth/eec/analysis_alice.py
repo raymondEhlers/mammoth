@@ -173,6 +173,7 @@ def _calculate_weight_for_plotting(
 
 def analysis_embedding(
     *,
+    collision_system: str,  # noqa: ARG001
     source_index_identifiers: dict[str, int],
     arrays: ak.Array,
     # Analysis arguments
@@ -529,6 +530,7 @@ if __name__ == "__main__":
     for i_chunk, arrays in enumerate(iter_arrays):
         logger.info(f"Processing chunk: {i_chunk}")
         analysis_output = analysis_embedding(
+            collision_system="embed_thermal_model",
             source_index_identifiers=source_index_identifiers,
             arrays=arrays,
             trigger_pt_ranges={

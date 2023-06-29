@@ -357,6 +357,7 @@ class AnalysisBound(Protocol):
     def __call__(
             self,
             *,
+            collision_system: str,
             arrays: ak.Array,
             validation_mode: bool = False,
             return_skim: bool = False,
@@ -368,6 +369,7 @@ class EmbeddingAnalysisBound(Protocol):
     def __call__(
             self,
             *,
+            collision_system: str,
             source_index_identifiers: dict[str, int],
             arrays: ak.Array,
             validation_mode: bool = False,
