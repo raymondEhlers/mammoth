@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-
 """Tracking comparison
 
 .. codeauthor:: Raymond Ehlers <raymond.ehlers@cern.ch>, ORNL

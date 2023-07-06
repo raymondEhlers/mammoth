@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """ Run the event extractor AliPhysics task.
 
 .. codeauthor:: Raymond Ehlers <raymond.ehlers@cern.ch>, ORNL

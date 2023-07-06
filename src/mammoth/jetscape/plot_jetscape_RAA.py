@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-
 """Plot jetscape jet RAA predictions
 
 .. codeauthor:: Raymond Ehlers <raymond.ehlers@cern.ch>, ORNL

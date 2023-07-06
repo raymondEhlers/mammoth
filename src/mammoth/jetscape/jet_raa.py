@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-
 """ Jet RAA for comparison with the ALICE jet background ML analysis
 
 .. codeauthor:: Raymond Ehlers <raymond.ehlers@cern.ch>, ORNL
