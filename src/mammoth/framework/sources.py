@@ -162,7 +162,7 @@ def generator_from_existing_data(
                 # If it becomes an issue in the future, we could convert it into a ValueError.
                 logger.warning(f"Requested new chunk of size {_result}, but we've already exhausted this source.")
             break
-        else:  # noqa: RET508
+        else:
             _result = yield data[:chunk_size]
 
         # We want to make sure that we don't reuse any of the data.
@@ -641,7 +641,7 @@ class MultiSource:
                         )
                         logger.debug("---> Not enough data left in this source - we need a new one!")
                         break
-                    else:  # noqa: RET508
+                    else:
                         # NOTE: This else statement could be removed (ie. we could just de-indent this
                         #       block) since we use a `break` in the if statement. I've left it here because
                         #       the additional indentation helps me separate concerns (ie. the code in this else

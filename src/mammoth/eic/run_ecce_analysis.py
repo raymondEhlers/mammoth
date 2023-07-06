@@ -205,7 +205,7 @@ def setup_ecce_afterburner(
                 tree_processing_code_directory=tree_processing_code_directory,
                 output_identifier=output_identifier,
                 output_dir=output_dir,
-                do_jet_finding=(jet_algorithm != ""),  # noqa: PLC1901
+                do_jet_finding=(jet_algorithm != ""),
                 do_calo_res=False,
                 is_single_particle_production=isinstance(dataset, DatasetSpecSingleParticle),
                 jet_algorithm=jet_algorithm,

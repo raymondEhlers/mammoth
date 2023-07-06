@@ -261,7 +261,7 @@ def create_train_download_list(trains: Sequence[int]) -> None:  # noqa: C901
                 if _pass_value is None:
                     _pass_value = str(config.get("pass", ""))
                     # Add "pass" to the front of the name. Only if it's a general dataset pass
-                    if _pass_value != "":  # noqa: PLC1901
+                    if _pass_value != "":
                         _pass_value = f"pass{_pass_value!s}"
                 if _pass_value is None:
                     _pass_value = ""
