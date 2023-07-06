@@ -145,8 +145,10 @@ select = [
     "ARG",         # flake8-unused-arguments
     "C4",          # flake8-comprehensions
     "EM",          # flake8-errmsg
+    "EXE",         # flake8-executable
     "ICN",         # flake8-import-conventions
     "ISC",         # flake8-implicit-str-concat
+    "NPY",         # NumPy specific rules
     "PGH",         # pygrep-hooks
     "PIE",         # flake8-pie
     "PL",          # pylint
@@ -156,10 +158,11 @@ select = [
     "RUF",         # Ruff-specific
     "SIM",         # flake8-simplify
     "T20",         # flake8-print
+    "TID251",      # flake8-tidy-imports
     "UP",          # pyupgrade
     "YTT",         # flake8-2020
 ]
-ignore = [
+extend-ignore = [
     "E501",
     "E722",
     "RUF001",  # Unicode chars
@@ -168,10 +171,9 @@ ignore = [
                # readability due to consistent spacing with plotting labels.
 ]
 unfixable = [
-    "T20",  # Removes print statements
-    "F841", # Removes unused variables
+    "T20",      # flake8-print
+    "F841",     # Removes unused variables
 ]
-target-version = 'py38'
 
 [tool.ruff.mccabe]
 max-complexity = 12
