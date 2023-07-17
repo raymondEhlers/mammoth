@@ -133,9 +133,15 @@ def _define_calculation_functions(
         selected_grooming_methods: Only return the calculations for the specified
             grooming methods. Used if we need to keep the output size down (eg. tau
             reclustering). Default: None. This indicates that all methods should be used.
+            We also interpret passing an empty list as making no selection.
     Returns:
         dynamical_core, dynamical_z, dynamical_kt, dynamical_time, leading_kt, leading_kt z>0.2, leading_kt z>0.4, SD z>0.2, SD z>0.4
     """
+    # Validation
+    # This handles if we pass an empty selection of grooming methods, which we interpret as no selection.
+    if not selected_grooming_methods:
+        selected_grooming_methods = None
+
     functions = {
         "dynamical_core": functools.partial(analysis_jet_substructure.JetSplittingArray.dynamical_core, R=jet_R),
         "dynamical_z": functools.partial(analysis_jet_substructure.JetSplittingArray.dynamical_z, R=jet_R),
@@ -165,6 +171,7 @@ def _define_calculation_functions(
         functions["soft_drop_z_cut_04"] = functools.partial(
             analysis_jet_substructure.JetSplittingArray.soft_drop, z_cutoff=0.4
         )
+    # Only apply the selected grooming methods if meaningful
     if selected_grooming_methods is not None:
         functions = {
             k: v for k, v in functions.items() if k in selected_grooming_methods
