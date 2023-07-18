@@ -202,7 +202,7 @@ def analyze_track_skim_and_recluster_MC(
     return jets
 
 
-def _structured_skim_to_flat_skim(
+def _structured_skim_to_flat_skim_for_one_and_two_track_collections(
     jets: ak.Array,
     collision_system: str,
     jet_R: float,
@@ -309,7 +309,7 @@ def analysis_MC(
         _msg = "Done - no jets left to analyze, so not trying to run flat skim"
         raise framework_task.NoUsefulAnalysisOutputError(_msg)
 
-    jets = _structured_skim_to_flat_skim(
+    jets = _structured_skim_to_flat_skim_for_one_and_two_track_collections(
         jets=jets,
         collision_system=collision_system,
         jet_R=jet_R,
@@ -495,7 +495,7 @@ def analysis_data(
         _msg = "Done - no jets left to analyze, so not trying to run flat skim"
         raise framework_task.NoUsefulAnalysisOutputError(_msg)
 
-    jets = _structured_skim_to_flat_skim(
+    jets = _structured_skim_to_flat_skim_for_one_and_two_track_collections(
         jets=jets,
         collision_system=collision_system,
         jet_R=jet_R,
@@ -509,8 +509,8 @@ def analysis_data(
     )
 
 
-
-def analysis_embedding(
+def analyze_track_skim_and_recluster_embedding(
+    *,
     source_index_identifiers: Mapping[str, int],
     arrays: ak.Array,
     jet_R: float,
@@ -692,6 +692,102 @@ def analysis_embedding(
     return jets
 
 
+def _structured_skim_to_flat_skim_for_three_track_collections(
+    jets: ak.Array,
+    jet_R: float,
+    iterative_splittings: bool,
+    convert_data_format_prefixes: Mapping[str, str],
+    scale_factor: float,
+    selected_grooming_methods: list[str] | None = None,
+) -> skim_to_flat_tree.T_GroomingResults:
+    """Convert the structured skim output to a flat skim using grooming methods.
+
+    Supports embedded pythia with three track collections. The data and jet finding needs to be
+    handled in a separate function.
+    """
+    # Now, adapt into the expected format.
+    all_jets = analysis_track_skim_to_flat_tree._convert_analyzed_jets_to_all_jets_for_skim(
+        jets=jets,
+        convert_data_format_prefixes=convert_data_format_prefixes,
+    )
+
+    # Define the prefixes for analysis. This should be fairly uniform for the track skim,
+    # so we hard code it for now.
+    # NOTE: If this becomes an issue, we can just make it an argument.
+    prefixes = {
+        "hybrid": "hybrid",
+        "true": "true",
+        "det_level": "det_level",
+    }
+
+    return skim_to_flat_tree.calculate_embedding_skim_impl(
+        all_jets=all_jets,
+        prefixes=prefixes,
+        iterative_splittings=iterative_splittings,
+        jet_R=jet_R,
+        scale_factor=scale_factor,
+        selected_grooming_methods=selected_grooming_methods,
+    )
+
+
+def analysis_embedding(
+    *,
+    source_index_identifiers: Mapping[str, int],
+    arrays: ak.Array,
+    # Analysis arguments
+    scale_factor: float,
+    convert_data_format_prefixes: Mapping[str, str],
+    jet_R: float,
+    min_jet_pt: dict[str, float],
+    iterative_splittings: bool,
+    det_level_artificial_tracking_efficiency: float | analysis_tracking.PtDependentTrackingEfficiencyParameters,
+    selected_grooming_methods: list[str] | None = None,
+    background_subtraction_settings: Mapping[str, Any] | None = None,
+    # Default analysis arguments
+    validation_mode: bool = False,
+    return_skim: bool = False,
+    # NOTE: kwargs are required because we pass the config as the analysis arguments,
+    #       and it contains additional values.
+    **kwargs: Any,  # noqa: ARG001
+) -> framework_task.AnalysisOutput:
+    """Analysis of embedding with three track collections (part, det, and hybrid level).
+
+    This implements the Analysis interface.
+    """
+    jets = analyze_track_skim_and_recluster_embedding(
+        source_index_identifiers=source_index_identifiers,
+        arrays=arrays,
+        jet_R=jet_R,
+        min_jet_pt=min_jet_pt,
+        background_subtraction_settings=background_subtraction_settings,
+        det_level_artificial_tracking_efficiency=det_level_artificial_tracking_efficiency,
+        validation_mode=validation_mode,
+    )
+
+    # NOTE: We need to know how many jets there are, so we arbitrarily take the first field. The jets are flattened,
+    #       so they're as good as any others.
+    _there_are_jets_left = (len(jets[ak.fields(jets)[0]]) > 0)
+    # There were no jets. Note that with a specially crafted output
+    if not _there_are_jets_left:
+        # Let the analyzer know. This will likely lead to an empty filename to prevent re-running with no jets in the future.
+        # Remember that this depends heavily on the jet pt cuts!
+        _msg = "Done - no jets left to analyze, so not trying to run flat skim"
+        raise framework_task.NoUsefulAnalysisOutputError(_msg)
+
+    jets = _structured_skim_to_flat_skim_for_three_track_collections(
+        jets=jets,
+        jet_R=jet_R,
+        iterative_splittings=iterative_splittings,
+        convert_data_format_prefixes=convert_data_format_prefixes,
+        scale_factor=scale_factor,
+        selected_grooming_methods=selected_grooming_methods,
+    )
+
+    return framework_task.AnalysisOutput(
+        skim=jets if return_skim else None,
+    )
+
+
 def run_some_standalone_tests() -> None:
     # Some tests:
     #######
@@ -805,7 +901,7 @@ if __name__ == "__main__":
 
     for i_chunk, arrays in enumerate(iter_arrays):
         logger.info(f"Processing chunk: {i_chunk}")
-        jets = analysis_embedding(
+        jets = analyze_track_skim_and_recluster_embedding(
             source_index_identifiers=source_index_identifiers,
             arrays=arrays,
             jet_R=0.2,
