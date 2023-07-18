@@ -772,6 +772,7 @@ def calculate_embedding_skim_impl(  # noqa: C901
     output_tree_name: str = "tree",
     create_friend_tree: bool = False,
     draw_example_splittings: bool = False,
+    write_root: bool = True,
     write_feather: bool = False,
     write_parquet: bool = False,
     selected_grooming_methods: list[str] | None = None,
@@ -1020,17 +1021,20 @@ def calculate_embedding_skim_impl(  # noqa: C901
 
             logger.debug(f"Completed {func_name}")
 
+    # Write output
     # For extra safety
-    output_filename.parent.mkdir(parents=True, exist_ok=True)
-    # First, convert to numpy since we want to write to an output tree.
-    grooming_results_np = {k: np.asarray(v) for k, v in grooming_results.items()}
-    # branches = {k: v.dtype for k, v in grooming_results_np.items()}
-    logger.info(f"Writing embedding skim to {output_filename}")
-    # Write with uproot
-    with uproot.recreate(output_filename) as output_file:
-        # Write all of the calculations
-        output_file[output_tree_name] = grooming_results_np
-
+    if write_root or write_parquet or write_feather:
+        output_filename.parent.mkdir(parents=True, exist_ok=True)
+    # Standard is to write out a flat root tree
+    if write_root:
+        # First, convert to numpy since we want to write to an output tree.
+        grooming_results_np = {k: np.asarray(v) for k, v in grooming_results.items()}
+        # branches = {k: v.dtype for k, v in grooming_results_np.items()}
+        logger.info(f"Writing embedding skim to {output_filename}")
+        # Write with uproot
+        with uproot.recreate(output_filename) as output_file:
+            # Write all of the calculations
+            output_file[output_tree_name] = grooming_results_np
     # Some alternative formats for other analysis techniques.
     if write_parquet:
         logger.info("Writing parquet...")
@@ -1108,6 +1112,7 @@ def calculate_data_skim_impl(
     output_tree_name: str = "tree",
     create_friend_tree: bool = False,
     scale_factors: Mapping[int, float] | None = None,
+    write_root: bool = True,
     write_feather: bool = False,
     write_parquet: bool = False,
     selected_grooming_methods: list[str] | None = None,
@@ -1267,16 +1272,19 @@ def calculate_data_skim_impl(
                 pythia_specific_columns["pt_hard"] = to_float(all_jets["pt_hard"][mask])
             grooming_results.update(pythia_specific_columns)
 
+    # Write output
     # For extra safety
-    output_filename.parent.mkdir(parents=True, exist_ok=True)
-    # First, convert to numpy since we want to write to an output tree.
-    grooming_results_np = {k: np.asarray(v) for k, v in grooming_results.items()}
-    logger.info(f"Writing data skim to {output_filename}")
-    # Write with uproot
-    with uproot.recreate(output_filename) as output_file:
-        # Write all of the calculations
-        output_file[output_tree_name] = grooming_results_np
-
+    if write_root or write_parquet or write_feather:
+        output_filename.parent.mkdir(parents=True, exist_ok=True)
+    # Standard is to write out a flat root tree
+    if write_root:
+        # First, convert to numpy since we want to write to an output tree.
+        grooming_results_np = {k: np.asarray(v) for k, v in grooming_results.items()}
+        logger.info(f"Writing data skim to {output_filename}")
+        # Write with uproot
+        with uproot.recreate(output_filename) as output_file:
+            # Write all of the calculations
+            output_file[output_tree_name] = grooming_results_np
     # Some alternative formats for other analysis techniques.
     if write_parquet:
         logger.info("Writing parquet...")
