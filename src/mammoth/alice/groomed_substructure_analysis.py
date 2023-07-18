@@ -17,11 +17,11 @@ import numpy as np
 import vector
 
 from mammoth import helpers
-from mammoth.alice import reclustered_substructure
+from mammoth.alice import groomed_substructure_skim_to_flat_tree, reclustered_substructure
 from mammoth.framework import task as framework_task
 from mammoth.framework.analysis import tracking as analysis_tracking
 from mammoth.framework.io import track_skim
-from mammoth.hardest_kt import analysis_track_skim_to_flat_tree, skim_to_flat_tree
+from mammoth.hardest_kt import analysis_track_skim_to_flat_tree
 
 logger = logging.getLogger(__name__)
 vector.register_awkward()
@@ -49,7 +49,7 @@ def _structured_skim_to_flat_skim_for_one_and_two_track_collections(
     scale_factors: Mapping[int, float] | None = None,
     pt_hat_bin: int | None = -1,
     selected_grooming_methods: list[str] | None = None,
-) -> skim_to_flat_tree.T_GroomingResults:
+) -> groomed_substructure_skim_to_flat_tree.T_GroomingResults:
     """Convert the structured skim output to a flat skim using grooming methods.
 
     Supports pp, pythia, PbPb, and embedded pythia. The data and jet finding needs to be
@@ -74,7 +74,7 @@ def _structured_skim_to_flat_skim_for_one_and_two_track_collections(
         # Add the second prefix for true jets
         prefixes["true"] = "true"
 
-    return skim_to_flat_tree.calculate_data_skim_impl(
+    return groomed_substructure_skim_to_flat_tree.calculate_data_skim_impl(
         all_jets=all_jets,
         collision_system=collision_system,
         prefixes=prefixes,
@@ -228,7 +228,7 @@ def _structured_skim_to_flat_skim_for_three_track_collections(
     convert_data_format_prefixes: Mapping[str, str],
     scale_factor: float,
     selected_grooming_methods: list[str] | None = None,
-) -> skim_to_flat_tree.T_GroomingResults:
+) -> groomed_substructure_skim_to_flat_tree.T_GroomingResults:
     """Convert the structured skim output to a flat skim using grooming methods.
 
     Supports embedded pythia with three track collections. The data and jet finding needs to be
@@ -249,7 +249,7 @@ def _structured_skim_to_flat_skim_for_three_track_collections(
         "det_level": "det_level",
     }
 
-    return skim_to_flat_tree.calculate_embedding_skim_impl(
+    return groomed_substructure_skim_to_flat_tree.calculate_embedding_skim_impl(
         all_jets=all_jets,
         prefixes=prefixes,
         iterative_splittings=iterative_splittings,

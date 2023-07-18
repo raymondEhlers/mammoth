@@ -1,8 +1,8 @@
-"""Skim full splitting tree to flat tree for further analysis
+"""Skim full structured splitting tree to flat tree of groomed splittings for further analysis
 
 Applies a variety of grooming algorithms, including SoftDrop + Dynamical Grooming
 
-.. codeauthor:: Raymond Ehlers <raymond.ehlers@cern.ch>, ORNL
+.. codeauthor:: Raymond Ehlers <raymond.ehlers@cern.ch>, LBL/UCB
 """
 
 from __future__ import annotations

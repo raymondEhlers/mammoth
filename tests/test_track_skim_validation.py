@@ -10,12 +10,12 @@ from typing import Any, Dict, List, Optional, Sequence
 import attrs
 import pytest
 
-from mammoth.alice import substructure_comparison_tools
+from mammoth.alice import groomed_substructure_skim_to_flat_tree, substructure_comparison_tools
 from mammoth.framework import sources
 from mammoth.framework.analysis import jet_substructure as analysis_jet_substructure
 from mammoth.framework.analysis import objects as analysis_objects
 from mammoth.framework.io import track_skim as io_track_skim
-from mammoth.hardest_kt import analysis_track_skim_to_flat_tree, run_macro, skim_to_flat_tree
+from mammoth.hardest_kt import analysis_track_skim_to_flat_tree, run_macro
 
 logger = logging.getLogger(__name__)
 
@@ -515,7 +515,7 @@ def test_track_skim_validation(  # noqa: C901
     if skim_aliphysics_parquet or convert_aliphysics_to_parquet or generate_aliphysics_results:
         scale_factors = _get_scale_factors_for_test()
         if collision_system != "embed_pythia":
-            res = skim_to_flat_tree.calculate_data_skim(
+            res = groomed_substructure_skim_to_flat_tree.calculate_data_skim(
                 input_filename=reference_filenames.parquet_output(),
                 collision_system=collision_system,
                 iterative_splittings=iterative_splittings,
@@ -525,7 +525,7 @@ def test_track_skim_validation(  # noqa: C901
                 scale_factors=scale_factors,
             )
         else:
-            res = skim_to_flat_tree.calculate_embedding_skim(
+            res = groomed_substructure_skim_to_flat_tree.calculate_embedding_skim(
                 input_filename=reference_filenames.parquet_output(),
                 iterative_splittings=iterative_splittings,
                 prefixes=_all_analysis_parameters[collision_system].reference_analysis_prefixes,
