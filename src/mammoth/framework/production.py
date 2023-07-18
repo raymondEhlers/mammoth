@@ -250,7 +250,7 @@ class ProductionSettings:
             )
             with _hf_tree_files_txt_filename.open() as f:
                 _all_files = [Path(line) for line in f]
-            return _all_files
+            return _all_files  # noqa: RET504
 
         # Handle the track skim as the default case.
         # Here, we just can blindly expand

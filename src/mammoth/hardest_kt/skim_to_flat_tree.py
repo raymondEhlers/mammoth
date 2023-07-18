@@ -762,7 +762,7 @@ def _calculate_jet_kinematics(
     return ak.values_astype(eta, float_type), ak.values_astype(phi, float_type)
 
 
-def calculate_embedding_skim_impl(  # noqa: C901
+def calculate_embedding_skim_impl(
     all_jets: ak.Array,
     prefixes: Mapping[str, str],
     iterative_splittings: bool,

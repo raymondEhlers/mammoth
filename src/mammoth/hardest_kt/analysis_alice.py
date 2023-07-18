@@ -166,7 +166,7 @@ def analysis_MC(
     )
 
     # Now, the final transformation into a form that can be used to skim into a flat tree.
-    return jets
+    return jets  # noqa: RET504
 
 
 def analysis_data(

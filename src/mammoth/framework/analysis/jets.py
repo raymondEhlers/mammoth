@@ -180,4 +180,4 @@ def jet_matching_embedding(
     )
     jets = jets[jets_present_mask]
 
-    return jets
+    return jets  # noqa: RET504

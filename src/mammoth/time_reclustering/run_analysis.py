@@ -8,9 +8,8 @@ from __future__ import annotations
 import logging
 from concurrent.futures import Future
 from pathlib import Path
-from typing import Any, Iterable, MutableMapping, Sequence
+from typing import Any, Iterable, Sequence
 
-import attrs
 import IPython
 
 from mammoth import helpers, job_utils
@@ -19,6 +18,7 @@ from mammoth.framework import production, steer_job
 from mammoth.framework import task as framework_task
 from mammoth.framework.io import output_utils
 from mammoth.framework.steer_job import setup_job_framework
+
 # This will be moved around at some point, but it's a start
 from mammoth.hardest_kt import produce_flat_skim_from_track_skim
 from mammoth.time_reclustering import analysis_alice

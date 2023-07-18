@@ -23,7 +23,6 @@ from mammoth.framework import task as framework_task
 from mammoth.framework.analysis import jets as analysis_jets
 from mammoth.framework.analysis import tracking as analysis_tracking
 from mammoth.framework.io import track_skim
-
 from mammoth.hardest_kt import analysis_track_skim_to_flat_tree, skim_to_flat_tree
 
 logger = logging.getLogger(__name__)
@@ -32,7 +31,7 @@ vector.register_awkward()
 
 def customize_analysis_metadata(
     task_settings: framework_task.Settings,  # noqa: ARG001
-    **analysis_arguments: Any,  # noqa: ARG001
+    **analysis_arguments: Any,
 ) -> framework_task.Metadata:
     """Customize the analysis metadata for the analysis.
 
@@ -199,7 +198,7 @@ def analyze_track_skim_and_recluster_MC(
     )
 
     # Now, the final transformation into a form that can be used to skim into a flat tree.
-    return jets
+    return jets  # noqa: RET504
 
 
 def _structured_skim_to_flat_skim_for_one_and_two_track_collections(
@@ -280,7 +279,8 @@ def analysis_MC(
         # Treat as a one track collection (will be either part or det level)
         # Validation
         # We almost certainly don't want an artificial tracking efficiency here
-        assert isinstance(det_level_artificial_tracking_efficiency, (float, np.number)) and np.isclose(det_level_artificial_tracking_efficiency, 1.0), f"Det level tracking efficiency should almost certainly be 1.0. Passed: {det_level_artificial_tracking_efficiency}"
+        assert isinstance(det_level_artificial_tracking_efficiency, (float, np.number)), f"Det level tracking efficiency should almost certainly be a float. Passed: {det_level_artificial_tracking_efficiency}"
+        assert np.isclose(det_level_artificial_tracking_efficiency, 1.0), f"Det level tracking efficiency should almost certainly be 1.0. Passed: {det_level_artificial_tracking_efficiency}"
 
         jets = analyze_track_skim_and_recluster_data(
             collision_system=collision_system,

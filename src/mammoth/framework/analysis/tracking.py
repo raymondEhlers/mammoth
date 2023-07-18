@@ -83,7 +83,7 @@ class PtDependentTrackingEfficiencyParameters:
             1.0 - self.baseline_tracking_efficiency_shift
         )
 
-        return _pt_dependent_tracking_efficiency
+        return _pt_dependent_tracking_efficiency  # noqa: RET504
 
 
 def hybrid_background_particles_only_mask(
