@@ -19,6 +19,7 @@ from parsl.data_provider.files import File
 
 from mammoth import helpers, job_utils
 from mammoth.alice import job_utils as alice_job_utils
+from mammoth.alice.groomed_substructure_steering import SplittingsSelection
 from mammoth.framework import production, sources
 from mammoth.framework.analysis import objects as analysis_objects
 from mammoth.framework.analysis import tracking as analysis_tracking
@@ -26,26 +27,6 @@ from mammoth.framework.io import output_utils
 from mammoth.job_utils import python_app
 
 logger = logging.getLogger(__name__)
-
-
-class SplittingsSelection(enum.Enum):
-    recursive = 0
-    iterative = 1
-
-    def __str__(self) -> str:
-        return f"{self.name}_splittings"
-
-
-def argument_preprocessing(**analysis_arguments: Any) -> dict[str, Any]:
-    splittings_selection = SplittingsSelection(analysis_arguments["splittings_selection"])
-    return {
-        "iterative_splittings": splittings_selection == SplittingsSelection.iterative,
-    }
-
-
-def analysis_output_identifier(**analysis_arguments: Any) -> str:
-    splittings_selection = SplittingsSelection(analysis_arguments["splittings_selection"])
-    return f"{splittings_selection!s}"
 
 
 @attrs.frozen()

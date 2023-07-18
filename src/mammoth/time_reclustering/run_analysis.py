@@ -13,46 +13,42 @@ from typing import Any, Iterable, Sequence
 import IPython
 
 from mammoth import helpers, job_utils
-from mammoth.alice import steer_scale_factors
+from mammoth.alice import groomed_substructure_analysis, groomed_substructure_steering, steer_scale_factors
 from mammoth.framework import production, steer_job
 from mammoth.framework import task as framework_task
 from mammoth.framework.io import output_utils
 from mammoth.framework.steer_job import setup_job_framework
-
-# This will be moved around at some point, but it's a start
-from mammoth.hardest_kt import produce_flat_skim_from_track_skim
-from mammoth.alice import groomed_substructure
 
 logger = logging.getLogger(__name__)
 
 
 # Define the steering apps
 setup_data_skim = steer_job.setup_data_calculation(
-    analysis_function=groomed_substructure.analysis_data,
-    argument_preprocessing=produce_flat_skim_from_track_skim.argument_preprocessing,
-    analysis_metadata=groomed_substructure.customize_analysis_metadata,
-    analysis_output_identifier=produce_flat_skim_from_track_skim.analysis_output_identifier,
+    analysis_function=groomed_substructure_analysis.analysis_data,
+    argument_preprocessing=groomed_substructure_steering.argument_preprocessing,
+    analysis_metadata=groomed_substructure_analysis.customize_analysis_metadata,
+    analysis_output_identifier=groomed_substructure_steering.analysis_output_identifier,
 )
 
 setup_MC_skim = steer_job.setup_data_calculation(
-    analysis_function=groomed_substructure.analysis_MC,
-    argument_preprocessing=produce_flat_skim_from_track_skim.argument_preprocessing,
-    analysis_metadata=groomed_substructure.customize_analysis_metadata,
-    analysis_output_identifier=produce_flat_skim_from_track_skim.analysis_output_identifier,
+    analysis_function=groomed_substructure_analysis.analysis_MC,
+    argument_preprocessing=groomed_substructure_steering.argument_preprocessing,
+    analysis_metadata=groomed_substructure_analysis.customize_analysis_metadata,
+    analysis_output_identifier=groomed_substructure_steering.analysis_output_identifier,
 )
 
 setup_embed_MC_into_data_skim = steer_job.setup_embed_MC_into_data_calculation(
-    analysis_function=groomed_substructure.analysis_embedding,
-    argument_preprocessing=produce_flat_skim_from_track_skim.argument_preprocessing,
-    analysis_metadata=groomed_substructure.customize_analysis_metadata,
-    analysis_output_identifier=produce_flat_skim_from_track_skim.analysis_output_identifier,
+    analysis_function=groomed_substructure_analysis.analysis_embedding,
+    argument_preprocessing=groomed_substructure_steering.argument_preprocessing,
+    analysis_metadata=groomed_substructure_analysis.customize_analysis_metadata,
+    analysis_output_identifier=groomed_substructure_steering.analysis_output_identifier,
 )
 
 setup_embed_MC_into_thermal_model_skim = steer_job.setup_embed_MC_into_thermal_model_calculation(
-    analysis_function=groomed_substructure.analysis_embedding,
-    argument_preprocessing=produce_flat_skim_from_track_skim.argument_preprocessing,
-    analysis_metadata=groomed_substructure.customize_analysis_metadata,
-    analysis_output_identifier=produce_flat_skim_from_track_skim.analysis_output_identifier,
+    analysis_function=groomed_substructure_analysis.analysis_embedding,
+    argument_preprocessing=groomed_substructure_steering.argument_preprocessing,
+    analysis_metadata=groomed_substructure_analysis.customize_analysis_metadata,
+    analysis_output_identifier=groomed_substructure_steering.analysis_output_identifier,
 )
 
 
@@ -86,13 +82,13 @@ def define_productions() -> list[production.ProductionSettings]:
             # Debug
             production.ProductionSettings.read_config(
                 collision_system="PbPb", number=4,
-                specialization=produce_flat_skim_from_track_skim.HardestKtProductionSpecialization(),
+                specialization=groomed_substructure_steering.ProductionSpecialization(),
                 track_skim_config_filename=config_filename,
             ),
             # Production
             #production.ProductionSettings.read_config(
             #    collision_system="embed_thermal_model", number=3,
-            #    specialization=produce_flat_skim_from_track_skim.HardestKtProductionSpecialization(),
+            #    specialization=groomed_substructure_steering.HardestKtProductionSpecialization(),
             #    track_skim_config_filename=config_filename,
             #),
         ]
@@ -175,6 +171,8 @@ def process_futures(
     job_framework: job_utils.JobFramework,
     #delete_outputs_in_futures: bool = True,
 ) -> None:
+    # TODO: Move to a steering utils function...
+
     # Process the futures, showing processing progress
     # Since it returns the results, we can actually use this to accumulate results.
     if job_framework == job_utils.JobFramework.dask_delayed:
