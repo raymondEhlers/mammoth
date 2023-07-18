@@ -15,14 +15,13 @@ import awkward as ak
 import numpy as np
 
 from mammoth import helpers
+from mammoth.alice import groomed_substructure_skim_to_flat_tree
 from mammoth.framework import load_data, sources
 from mammoth.framework import task as framework_task
 from mammoth.framework.analysis import objects as analysis_objects
 from mammoth.framework.analysis import tracking as analysis_tracking
 from mammoth.framework.io import HF_tree, jetscape, output_utils, track_skim
 from mammoth.hardest_kt import analysis_alice
-
-from mammoth.alice import groomed_substructure_skim_to_flat_tree
 
 logger = logging.getLogger(__name__)
 

@@ -9,6 +9,7 @@ from typing import Any
 
 import attrs
 
+
 class SplittingsSelection(enum.Enum):
     recursive = 0
     iterative = 1
