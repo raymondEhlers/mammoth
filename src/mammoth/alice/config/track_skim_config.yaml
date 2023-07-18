@@ -184,11 +184,11 @@ analysis_settings:
         # Map from value -> key of how prefixes should be renamed when loading data
         loading_data_rename_prefix:
           data: "data"
-        # Map from key -> value of how prefixes should be renamed when converting the skimmed output
-        # to the jet substructure format
+      settings: &_base_analysis_settings_pp
+        # Map from key -> value of how prefixes should be renamed when converting the track
+        # skim output to the structured jet substructure format
         convert_data_format_prefixes:
           data: "data"
-      settings: &_base_analysis_settings_pp
         splittings_selection: "iterative"
         # In GeV
         min_jet_pt: {"data": 5}
@@ -199,12 +199,12 @@ analysis_settings:
         # Map from value -> key of how prefixes should be renamed when loading data
         # For pythia, this isn't necessary since it has a dedicated function for loading MC data
         loading_data_rename_prefix: {}
-        # Map from key -> value of how prefixes should be renamed when converting the skimmed output
-        # to the jet substructure format
+      settings: &_base_analysis_settings_pythia
+        # Map from key -> value of how prefixes should be renamed when converting the track
+        # skim output to the structured jet substructure format
         convert_data_format_prefixes:
           det_level: "data"
           part_level: "true"
-      settings: &_base_analysis_settings_pythia
         splittings_selection: "iterative"
         # In GeV
         # We don't want to restrict the part_level
@@ -218,11 +218,11 @@ analysis_settings:
         # Map from value -> key of how prefixes should be renamed when loading data
         loading_data_rename_prefix:
           data: "data"
-        # Map from key -> value of how prefixes should be renamed when converting the skimmed output
-        # to the jet substructure format
+      settings: &_base_analysis_settings_PbPb
+        # Map from key -> value of how prefixes should be renamed when converting the track
+        # skim output to the structured jet substructure format
         convert_data_format_prefixes:
           data: "data"
-      settings: &_base_analysis_settings_PbPb
         splittings_selection: "iterative"
         # In GeV
         min_jet_pt: {"data": 20}
@@ -233,12 +233,6 @@ analysis_settings:
         # Map from value -> key of how prefixes should be renamed when loading data
         # For embedding, this isn't necessary since it has a dedicated function for loading embedding data
         loading_data_rename_prefix: {}
-        # Map from key -> value of how prefixes should be renamed when converting the skimmed output
-        # to the jet substructure format
-        convert_data_format_prefixes:
-          hybrid: "hybrid"
-          det_level: "det_level"
-          part_level: "true"
         input_constrained_source: "signal"
         input_handling:
           signal_parameters:
@@ -259,6 +253,12 @@ analysis_settings:
             unconstrained_source:
               n_files_to_use_per_task: 2
       settings: &_base_analysis_settings_embed
+        # Map from key -> value of how prefixes should be renamed when converting the track
+        # skim output to the structured jet substructure format
+        convert_data_format_prefixes:
+          hybrid: "hybrid"
+          det_level: "det_level"
+          part_level: "true"
         splittings_selection: "iterative"
         # In GeV
         # We don't want to restrict the "det_level" or "part_level" jet pt values
@@ -270,13 +270,6 @@ analysis_settings:
         # Map from value -> key of how prefixes should be renamed when loading data
         # For embedding, this isn't necessary since it has a dedicated function for loading embedding data
         loading_data_rename_prefix: {}
-        # Map from key -> value of how prefixes should be renamed when converting the skimmed output
-        # to the jet substructure format
-        convert_data_format_prefixes:
-          hybrid: "hybrid"
-          det_level: "det_level"
-          part_level: "true"
-
 
   pp_R02: &analysis_settings_pp_R02
     <<: *_base_analysis_settings_pp

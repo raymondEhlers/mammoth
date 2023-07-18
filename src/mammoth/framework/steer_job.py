@@ -484,7 +484,7 @@ def setup_data_calculation(  # noqa: C901
                 #        background_subtraction=_analysis_config.get("background_subtraction", {}),
                 #        skim_type=_metadata_config["dataset"]["skim_type"],
                 #        loading_data_rename_prefix=_metadata_config["loading_data_rename_prefix"],
-                #        convert_data_format_prefixes=_metadata_config["convert_data_format_prefixes"],
+                #        convert_data_format_prefixes=_analysis_config["convert_data_format_prefixes"],
                 #        pt_hat_bin=pt_hat_bin,
                 #        scale_factors=scale_factors,
                 #        det_level_artificial_tracking_efficiency=det_level_artificial_tracking_efficiency,
