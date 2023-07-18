@@ -15,13 +15,14 @@ import logging
 import secrets
 from concurrent.futures import Future
 from pathlib import Path
-from typing import Any, Iterable, Protocol
+from typing import Any, Iterable, Protocol, Sequence
 
+import IPython
 import numpy as np
 from pachyderm import yaml
 from parsl.data_provider.files import File
 
-from mammoth import job_utils
+from mammoth import helpers, job_utils
 from mammoth.framework import production, sources
 from mammoth.framework import task as framework_task
 
@@ -994,3 +995,65 @@ def setup_job_framework(
         log_level=log_level,
         additional_worker_init_script=_additional_worker_init_script,
     )
+
+
+def process_futures(
+    productions: Sequence[production.ProductionSettings],
+    all_results: Sequence[Future[framework_task.Output]],
+    job_framework: job_utils.JobFramework,
+    #delete_outputs_in_futures: bool = True,
+) -> None:
+    # Setup
+    # Delayed import to reduce dependence
+    from mammoth.framework.io import output_utils
+
+    # Process the futures, showing processing progress
+    # Since it returns the results, we can actually use this to accumulate results.
+    if job_framework == job_utils.JobFramework.dask_delayed:
+        gen_results: Iterable[Any] = job_utils.dask.distributed.as_completed(all_results)  # type: ignore[no-untyped-call]
+    elif job_framework == job_utils.JobFramework.immediate_execution_debug:
+        gen_results = all_results
+    else:
+        gen_results = job_utils.provide_results_as_completed(all_results, running_with_parsl=True)
+
+    # In order to support writing histograms from multiple systems, we need to index the output histograms
+    # by the collision system + centrality.
+    output_hists: dict[tuple[str, str], dict[Any, Any]] = {(_p.identifier, _p.collision_system): {} for _p in productions}
+    with helpers.progress_bar() as progress:
+        track_results = progress.add_task(total=len(all_results), description="Processing results...")
+        for result in gen_results:
+            logger.info(f"result: {result.production_identifier}")
+            if result.success and result.hists:
+                k = result.production_identifier
+                logger.info(f"Found result for key {k}")
+                output_hists[(k, result.collision_system)] = output_utils.merge_results(output_hists[k], result.hists)
+            logger.info(f"output_hists: {output_hists}")
+            progress.update(track_results, advance=1)
+
+    # Save hists to uproot (if needed)
+    for (production_identifier, collision_system), hists in output_hists.items():
+        if hists:
+            import uproot
+
+            file_label = production_identifier
+            if file_label:
+                file_label = f"_{file_label}"
+
+            output_hist_filename = Path("output") / collision_system / f"task_output_{file_label}.root"
+            output_hist_filename.parent.mkdir(parents=True, exist_ok=True)
+            logger.info(f"Writing output_hists to {output_hist_filename} for system {production_identifier=}, {collision_system=}")
+            with uproot.recreate(output_hist_filename) as f:
+                output_utils.write_hists_to_file(hists=hists, f=f)
+
+    # By embedded here, we can inspect results, etc in the meantime.
+    # NOTE: This may be commented out sometimes when I have long running processes and wil
+    #       probably forget to close it.
+    IPython.start_ipython(user_ns={**locals(), **globals()})  # type: ignore[no-untyped-call]
+
+    # In case we close IPython early, wait for all apps to complete
+    # Also allows for a summary at the end.
+    # By taking only the first two, it just tells use the status and a quick message.
+    # Otherwise, we can overwhelm with trying to print large objects
+    res = [r.result().success for r in all_results]
+    logger.info(res)
+
