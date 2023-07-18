@@ -50,6 +50,7 @@ def analyze_track_skim_and_recluster_MC(
     jet_R: float,
     min_jet_pt: Mapping[str, float],
     det_level_artificial_tracking_efficiency: float | analysis_tracking.PtDependentTrackingEfficiencyParameters,
+    reclustering_settings: Mapping[str, Any] | None = None,
     # Default analysis arguments
     validation_mode: bool = False,
 ) -> ak.Array:
@@ -60,6 +61,10 @@ def analyze_track_skim_and_recluster_MC(
         this function to do so, and thus we don't fully implement the Analysis interface.
         If this use case became important, we could easily adapt it.
     """
+    # Validation
+    if reclustering_settings is None:
+        reclustering_settings = {}
+
     logger.info("Start analyzing")
     # Event selection
     arrays = alice_helpers.standard_event_selection(arrays=arrays)
@@ -168,14 +173,12 @@ def analyze_track_skim_and_recluster_MC(
     for level in ["part_level", "det_level"]:
         logger.info(f"Reclustering {level}")
         # We only do the area calculation for data.
-        reclustering_kwargs = {}
+        reclustering_kwargs = {**reclustering_settings}
         if level != "part_level":
             reclustering_kwargs["area_settings"] = jet_finding.AreaSubstructure(**area_kwargs)
         jets[level, "reclustering"] = jet_finding.recluster_jets(
             jets=jets[level],
             jet_finding_settings=jet_finding.ReclusteringJetFindingSettings(
-                algorithm="generalized_kt",
-                additional_algorithm_parameter=0.5,
                 **reclustering_kwargs,
             ),
             store_recursive_splittings=True,
@@ -330,6 +333,7 @@ def analyze_track_skim_and_recluster_data(
     jet_R: float,
     min_jet_pt: Mapping[str, float],
     background_subtraction_settings: Mapping[str, Any] | None = None,
+    reclustering_settings: Mapping[str, Any] | None = None,
     particle_column_name: str = "data",
     # Default analysis arguments
     validation_mode: bool = False,
@@ -344,6 +348,8 @@ def analyze_track_skim_and_recluster_data(
     # Validation
     if background_subtraction_settings is None:
         background_subtraction_settings = {}
+    if reclustering_settings is None:
+        reclustering_settings = {}
 
     logger.info("Start analyzing")
     # Event selection
@@ -423,10 +429,10 @@ def analyze_track_skim_and_recluster_data(
         jets[particle_column_name, "reclustering"] = jet_finding.recluster_jets(
             jets=jets[particle_column_name],
             jet_finding_settings=jet_finding.ReclusteringJetFindingSettings(
-                algorithm="generalized_kt",
-                additional_algorithm_parameter=0.5,
                 # We perform the area calculation here since we're dealing with data, as is done in the AliPhysics DyG task
-                area_settings=jet_finding.AreaSubstructure(**area_kwargs)
+                area_settings=jet_finding.AreaSubstructure(**area_kwargs),
+                # Rest of analysis settable parameters, including algorithms, etc
+                **reclustering_settings,
             ),
             store_recursive_splittings=True,
         )
@@ -513,10 +519,13 @@ def analysis_embedding(
     validation_mode: bool = False,
     shared_momentum_fraction_min: float = 0.5,
     det_level_artificial_tracking_efficiency: float | analysis_tracking.PtDependentTrackingEfficiencyParameters = 1.0,
+    reclustering_settings: Mapping[str, Any] | None = None,
 ) -> ak.Array:
     # Validation
     if background_subtraction_settings is None:
         background_subtraction_settings = {}
+    if reclustering_settings is None:
+        reclustering_settings = {}
 
     # Event selection
     # This would apply to the signal events, because this is what we propagate from the embedding transform
@@ -637,14 +646,12 @@ def analysis_embedding(
         for level in ["hybrid", "det_level", "part_level"]:
             logger.info(f"Reclustering {level}")
             # We only do the area calculation for data.
-            reclustering_kwargs = {}
+            reclustering_kwargs = {**reclustering_settings}
             if level != "part_level":
                 reclustering_kwargs["area_settings"] = jet_finding.AreaSubstructure(**area_kwargs)
             jets[level, "reclustering"] = jet_finding.recluster_jets(
                 jets=jets[level],
                 jet_finding_settings=jet_finding.ReclusteringJetFindingSettings(
-                    algorithm="generalized_kt",
-                    additional_algorithm_parameter=0.5,
                     **reclustering_kwargs,
                 ),
                 store_recursive_splittings=True,

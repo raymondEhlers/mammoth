@@ -293,6 +293,35 @@ analysis_settings:
     <<: *_base_analysis_settings_embed
     jet_R: 0.2
 
+  _time_reclustering_settings:
+    reclustering_settings: &_time_reclustering_reclustering_settings
+      algorithm: "generalized_kt"
+      additional_algorithm_parameter: 0.5
+
+    pp_R04: &analysis_settings_time_reclustering_pp_R04
+      <<: *_base_analysis_settings_pp
+      jet_R: 0.4
+      reclustering_settings:
+        <<: *_time_reclustering_reclustering_settings
+
+    pp_MC_R04: &analysis_settings_time_reclustering_pp_MC_R04
+      <<: *_base_analysis_settings_pythia
+      jet_R: 0.4
+      reclustering_settings:
+        <<: *_time_reclustering_reclustering_settings
+
+    PbPb_R04: &analysis_settings_time_reclustering_PbPb_R04
+      <<: *_base_analysis_settings_PbPb
+      jet_R: 0.4
+      reclustering_settings:
+        <<: *_time_reclustering_reclustering_settings
+
+    embed_R04: &analysis_settings_time_reclustering_embed_R04
+      <<: *_base_analysis_settings_embed
+      jet_R: 0.4
+      reclustering_settings:
+        <<: *_time_reclustering_reclustering_settings
+
   _EEC_analysis_settings:
     base_analysis_settings:
       base: &_base_analysis_settings_EEC
@@ -498,6 +527,21 @@ productions:
         event_activity: "semi_central"
         background_subtraction:
           r_max: 0.05
+    # Time reclustering PbPb
+    4:
+      metadata:
+        <<: *base_metadata_PbPb
+        dataset: *LHC18qr_PbPb_semi_central
+        # Equivalent to train number, but a more general term makes more sense here.
+        production_number: 4
+        label: "semi_central"
+      settings:
+        <<: *analysis_settings_time_reclustering_PbPb_R04
+        selected_grooming_methods:
+          - "soft_drop_z_cut_02"
+        event_activity: "semi_central"
+        background_subtraction:
+          r_max: 0.25
     60:
       metadata:
         <<: *base_metadata_PbPb
