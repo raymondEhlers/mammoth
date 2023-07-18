@@ -18,19 +18,17 @@ logger = logging.getLogger(__name__)
 @nb.njit  # type: ignore[misc]
 def _random_choice_jagged(local_index: ak.Array, n_counts: int, random_seed: int | None) -> npt.NDArray[np.bool_]:
     # Validation
-    kwargs = {}
     if random_seed is not None:
-        kwargs = {
-            "seed": random_seed,
-        }
+        # NOTE: This needs to be kept using the old interface because it needs to compile with numba,
+        #       and numba doesn't yet support the new np rng interface
+        np.random.seed(random_seed)  # noqa: NPY002
     # Setup
-    rng = np.random.default_rng(**kwargs)
     mask = np.zeros(n_counts, dtype=np.bool_)
 
     i = 0
     for indices in local_index:
         if len(indices):
-            selected = rng.choice(np.asarray(indices))
+            selected = np.random.choice(np.asarray(indices))  # noqa: NPY002
             mask[i + selected] = True
             i += len(indices)
 
