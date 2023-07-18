@@ -21,37 +21,37 @@ from mammoth.framework.steer_job import setup_job_framework
 
 # This will be moved around at some point, but it's a start
 from mammoth.hardest_kt import produce_flat_skim_from_track_skim
-from mammoth.time_reclustering import analysis_alice
+from mammoth.alice import groomed_substructure
 
 logger = logging.getLogger(__name__)
 
 
 # Define the steering apps
 setup_data_skim = steer_job.setup_data_calculation(
-    analysis_function=analysis_alice.analysis_data,
+    analysis_function=groomed_substructure.analysis_data,
     argument_preprocessing=produce_flat_skim_from_track_skim.argument_preprocessing,
-    analysis_metadata=analysis_alice.customize_analysis_metadata,
+    analysis_metadata=groomed_substructure.customize_analysis_metadata,
     analysis_output_identifier=produce_flat_skim_from_track_skim.analysis_output_identifier,
 )
 
 setup_MC_skim = steer_job.setup_data_calculation(
-    analysis_function=analysis_alice.analysis_MC,
+    analysis_function=groomed_substructure.analysis_MC,
     argument_preprocessing=produce_flat_skim_from_track_skim.argument_preprocessing,
-    analysis_metadata=analysis_alice.customize_analysis_metadata,
+    analysis_metadata=groomed_substructure.customize_analysis_metadata,
     analysis_output_identifier=produce_flat_skim_from_track_skim.analysis_output_identifier,
 )
 
 setup_embed_MC_into_data_skim = steer_job.setup_embed_MC_into_data_calculation(
-    analysis_function=analysis_alice.analysis_embedding,
+    analysis_function=groomed_substructure.analysis_embedding,
     argument_preprocessing=produce_flat_skim_from_track_skim.argument_preprocessing,
-    analysis_metadata=analysis_alice.customize_analysis_metadata,
+    analysis_metadata=groomed_substructure.customize_analysis_metadata,
     analysis_output_identifier=produce_flat_skim_from_track_skim.analysis_output_identifier,
 )
 
 setup_embed_MC_into_thermal_model_skim = steer_job.setup_embed_MC_into_thermal_model_calculation(
-    analysis_function=analysis_alice.analysis_embedding,
+    analysis_function=groomed_substructure.analysis_embedding,
     argument_preprocessing=produce_flat_skim_from_track_skim.argument_preprocessing,
-    analysis_metadata=analysis_alice.customize_analysis_metadata,
+    analysis_metadata=groomed_substructure.customize_analysis_metadata,
     analysis_output_identifier=produce_flat_skim_from_track_skim.analysis_output_identifier,
 )
 
