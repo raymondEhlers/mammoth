@@ -19,21 +19,47 @@ import vector
 from mammoth import helpers
 from mammoth.alice import helpers as alice_helpers
 from mammoth.framework import jet_finding, load_data
+from mammoth.framework import task as framework_task
 from mammoth.framework.analysis import jets as analysis_jets
 from mammoth.framework.analysis import tracking as analysis_tracking
 from mammoth.framework.io import track_skim
+
+from mammoth.hardest_kt import analysis_track_skim_to_flat_tree, skim_to_flat_tree
 
 logger = logging.getLogger(__name__)
 vector.register_awkward()
 
 
-def analysis_MC(
+def customize_analysis_metadata(
+    task_settings: framework_task.Settings,  # noqa: ARG001
+    **analysis_arguments: Any,  # noqa: ARG001
+) -> framework_task.Metadata:
+    """Customize the analysis metadata for the analysis.
+
+    Nothing special required here as of June 2023.
+    """
+    return {
+        "R": analysis_arguments["jet_R"]
+    }
+
+
+def analyze_track_skim_and_recluster_MC(
+    *,
     arrays: ak.Array,
+    # Analysis arguments
     jet_R: float,
     min_jet_pt: Mapping[str, float],
-    det_level_artificial_tracking_efficiency: float | analysis_tracking.PtDependentTrackingEfficiencyParameters = 1.0,
-    validation_mode: bool = False
+    det_level_artificial_tracking_efficiency: float | analysis_tracking.PtDependentTrackingEfficiencyParameters,
+    # Default analysis arguments
+    validation_mode: bool = False,
 ) -> ak.Array:
+    """Analyze the track skim through reclustering for MC
+
+    NOTE:
+        Since we nearly always need to convert this further to a flat skim, we need to wrap
+        this function to do so, and thus we don't fully implement the Analysis interface.
+        If this use case became important, we could easily adapt it.
+    """
     logger.info("Start analyzing")
     # Event selection
     arrays = alice_helpers.standard_event_selection(arrays=arrays)
@@ -173,15 +199,148 @@ def analysis_MC(
     return jets
 
 
-def analysis_data(
+def _structured_skim_to_flat_skim(
+    jets: ak.Array,
+    collision_system: str,
+    jet_R: float,
+    iterative_splittings: bool,
+    convert_data_format_prefixes: Mapping[str, str],
+    scale_factors: Mapping[int, float] | None = None,
+    pt_hat_bin: int | None = -1,
+    selected_grooming_methods: list[str] | None = None,
+) -> skim_to_flat_tree.T_GroomingResults:
+    """Convert the structured skim output to a flat skim using grooming methods.
+
+    Supports pp, pythia, PbPb, and embedded pythia. The data and jet finding needs to be
+    handled in a separate function.
+    """
+    # Now, adapt into the expected format.
+    all_jets = analysis_track_skim_to_flat_tree._convert_analyzed_jets_to_all_jets_for_skim(
+        jets=jets,
+        convert_data_format_prefixes=convert_data_format_prefixes,
+    )
+
+    # If I want to write out an the intermediate step, I can uncomment this here.
+    # NOTE: It's not really systematically organized (ie. each run will overwrite),
+    #       so it's only good for debugging, but it # can still be useful.
+    # ak.to_parquet(all_jets, input_filename.parent / Path("intermediate.parquet"))
+
+    prefixes = {"data": "data"}
+    if (collision_system == "pythia" or collision_system == "pp_MC"):
+        assert pt_hat_bin is not None
+        # Store externally provided pt hard bin
+        all_jets["pt_hard_bin"] = np.ones(len(all_jets["data"]["jet_pt"])) * pt_hat_bin
+        # Add the second prefix for true jets
+        prefixes["true"] = "true"
+
+    return skim_to_flat_tree.calculate_data_skim_impl(
+        all_jets=all_jets,
+        collision_system=collision_system,
+        prefixes=prefixes,
+        iterative_splittings=iterative_splittings,
+        jet_R=jet_R,
+        scale_factors=scale_factors,
+        selected_grooming_methods=selected_grooming_methods,
+    )
+
+
+def analysis_MC(
+    *,
     collision_system: str,
     arrays: ak.Array,
+    # Analysis arguments
+    pt_hat_bin: int,
+    scale_factors: dict[int, float],
+    convert_data_format_prefixes: Mapping[str, str],
+    jet_R: float,
+    min_jet_pt: dict[str, float],
+    iterative_splittings: bool,
+    det_level_artificial_tracking_efficiency: float | analysis_tracking.PtDependentTrackingEfficiencyParameters,
+    selected_grooming_methods: list[str] | None = None,
+    # Default analysis arguments
+    validation_mode: bool = False,
+    return_skim: bool = False,
+    # NOTE: kwargs are required because we pass the config as the analysis arguments,
+    #       and it contains additional values.
+    **kwargs: Any,  # noqa: ARG001
+) -> framework_task.AnalysisOutput:
+    """Analysis of MC with one or two track collections (part and det level).
+
+    This implements the Analysis interface.
+    """
+    # Cross check. This shouldn't be allowed by the type arguments, but it will help catch older
+    # configurations where this isn't specified.
+    assert det_level_artificial_tracking_efficiency is not None
+
+    # Perform jet finding and reclustering
+    if len(convert_data_format_prefixes) == 1:
+        # Treat as a one track collection (will be either part or det level)
+        # Validation
+        # We almost certainly don't want an artificial tracking efficiency here
+        assert isinstance(det_level_artificial_tracking_efficiency, (float, np.number)) and np.isclose(det_level_artificial_tracking_efficiency, 1.0), f"Det level tracking efficiency should almost certainly be 1.0. Passed: {det_level_artificial_tracking_efficiency}"
+
+        jets = analyze_track_skim_and_recluster_data(
+            collision_system=collision_system,
+            arrays=arrays,
+            jet_R=jet_R,
+            min_jet_pt=min_jet_pt,
+            validation_mode=validation_mode,
+        )
+    else:
+        # Two track collections (part and det level)
+        jets = analyze_track_skim_and_recluster_MC(
+            arrays=arrays,
+            jet_R=jet_R,
+            min_jet_pt=min_jet_pt,
+            det_level_artificial_tracking_efficiency=det_level_artificial_tracking_efficiency,
+            validation_mode=validation_mode,
+        )
+
+    # NOTE: We need to know how many jets there are, so we arbitrarily take the first field. The jets are flattened,
+    #       so they're as good as any others.
+    _there_are_jets_left = (len(jets[ak.fields(jets)[0]]) > 0)
+    # There were no jets. Note that with a specially crafted output
+    if not _there_are_jets_left:
+        # Let the analyzer know. This will likely lead to an empty filename to prevent re-running with no jets in the future.
+        # Remember that this depends heavily on the jet pt cuts!
+        _msg = "Done - no jets left to analyze, so not trying to run flat skim"
+        raise framework_task.NoUsefulAnalysisOutputError(_msg)
+
+    jets = _structured_skim_to_flat_skim(
+        jets=jets,
+        collision_system=collision_system,
+        jet_R=jet_R,
+        iterative_splittings=iterative_splittings,
+        convert_data_format_prefixes=convert_data_format_prefixes,
+        scale_factors=scale_factors,
+        pt_hat_bin=pt_hat_bin,
+        selected_grooming_methods=selected_grooming_methods,
+    )
+
+    return framework_task.AnalysisOutput(
+        skim=jets if return_skim else None,
+    )
+
+
+def analyze_track_skim_and_recluster_data(
+    *,
+    collision_system: str,
+    arrays: ak.Array,
+    # Analysis arguments
     jet_R: float,
     min_jet_pt: Mapping[str, float],
-    particle_column_name: str = "data",
-    validation_mode: bool = False,
     background_subtraction_settings: Mapping[str, Any] | None = None,
+    particle_column_name: str = "data",
+    # Default analysis arguments
+    validation_mode: bool = False,
 ) -> ak.Array:
+    """Analyze the track skim through reclustering for data
+
+    NOTE:
+        Since we nearly always need to convert this further to a flat skim, we need to wrap
+        this function to do so, and thus we don't fully implement the Analysis interface.
+        If this use case became important, we could easily adapt it.
+    """
     # Validation
     if background_subtraction_settings is None:
         background_subtraction_settings = {}
@@ -289,6 +448,60 @@ def analysis_data(
 
     # Now, the final transformation into a form that can be used to skim into a flat tree.
     return jets
+
+
+def analysis_data(
+    *,
+    collision_system: str,
+    arrays: ak.Array,
+    # Analysis arguments
+    convert_data_format_prefixes: Mapping[str, str],
+    jet_R: float,
+    min_jet_pt: dict[str, float],
+    iterative_splittings: bool,
+    selected_grooming_methods: list[str] | None = None,
+    background_subtraction_settings: Mapping[str, Any] | None = None,
+    particle_column_name: str = "data",
+    # Default analysis arguments
+    validation_mode: bool = False,
+    return_skim: bool = False,
+    # NOTE: kwargs are required because we pass the config as the analysis arguments,
+    #       and it contains additional values.
+    **kwargs: Any,  # noqa: ARG001
+) -> framework_task.AnalysisOutput:
+    jets = analyze_track_skim_and_recluster_data(
+        collision_system=collision_system,
+        arrays=arrays,
+        jet_R=jet_R,
+        min_jet_pt=min_jet_pt,
+        background_subtraction_settings=background_subtraction_settings,
+        particle_column_name=particle_column_name,
+        validation_mode=validation_mode,
+    )
+
+    # NOTE: We need to know how many jets there are, so we arbitrarily take the first field. The jets are flattened,
+    #       so they're as good as any others.
+    _there_are_jets_left = (len(jets[ak.fields(jets)[0]]) > 0)
+    # There were no jets. Note that with a specially crafted output
+    if not _there_are_jets_left:
+        # Let the analyzer know. This will likely lead to an empty filename to prevent re-running with no jets in the future.
+        # Remember that this depends heavily on the jet pt cuts!
+        _msg = "Done - no jets left to analyze, so not trying to run flat skim"
+        raise framework_task.NoUsefulAnalysisOutputError(_msg)
+
+    jets = _structured_skim_to_flat_skim(
+        jets=jets,
+        collision_system=collision_system,
+        jet_R=jet_R,
+        iterative_splittings=iterative_splittings,
+        convert_data_format_prefixes=convert_data_format_prefixes,
+        selected_grooming_methods=selected_grooming_methods,
+    )
+
+    return framework_task.AnalysisOutput(
+        skim=jets if return_skim else None,
+    )
+
 
 
 def analysis_embedding(
@@ -497,6 +710,8 @@ def run_some_standalone_tests() -> None:
                 rename_prefix={"data": "data"} if collision_system != "pp_MC" else {"data": "det_level"},
             ),
             jet_R=0.4,
+            iterative_splittings=True,
+            convert_data_format_prefixes={"data": "data"},
             min_jet_pt={"data": 5.0 if collision_system == "pp" else 20.0},
         )
 

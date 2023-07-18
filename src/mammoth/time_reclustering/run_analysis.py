@@ -27,7 +27,6 @@ logger = logging.getLogger(__name__)
 
 
 # Define the steering apps
-
 setup_data_skim = steer_job.setup_data_calculation(
     analysis_function=analysis_alice.analysis_data,
     argument_preprocessing=produce_flat_skim_from_track_skim.argument_preprocessing,
