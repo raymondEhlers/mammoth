@@ -475,6 +475,10 @@ def analysis_data(
     #       and it contains additional values.
     **kwargs: Any,  # noqa: ARG001
 ) -> framework_task.AnalysisOutput:
+    """Analysis of data with one track collections.
+
+    This implements the Analysis interface.
+    """
     jets = analyze_track_skim_and_recluster_data(
         collision_system=collision_system,
         arrays=arrays,
