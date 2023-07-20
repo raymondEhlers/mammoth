@@ -320,12 +320,12 @@ analysis_settings:
 
     output_settings: &time_reclustering_output_settings
       primary_output:
-        type: "root"
+        type: "skim"
         reference_name: "tree"
         container_name: ""
       return_skim: false
       write_chunk_skim: true
-      write_skim_extension: "parquet"
+      write_skim_extension: "root"
       return_merged_hists: false
       write_chunk_hists: false
       write_merged_hists: false
