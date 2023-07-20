@@ -41,6 +41,26 @@ skimmed_datasets:
     files:
       - "trains/pythia/2619/run_by_run/LHC18b8_cent_woSDD/*/{pt_hat_bin}/AnalysisResults.18b8_cent_woSDD.*.root"
       - "trains/pythia/2619/run_by_run/LHC18b8_fast/*/{pt_hat_bin}/AnalysisResults.18b8_fast.*.root"
+  # Anchored to LHC17pq pass2
+  LHC23a3_AOD_2907: &LHC23a3_pythia
+    name: "LHC23a3_AOD_2907"
+    collision_system: "pythia"
+    sqrt_s: 5020
+    period: "LHC23a3"
+    anchor_period: ["LHC17p", "LHC17q"]
+    # Keep track of the skim type for documentation
+    skim_type: "track_skim"
+    # Parameters of the output
+    list_name: "AliAnalysisTaskTrackSkim_pythia"
+    tree_name: "AliAnalysisTaskTrackSkim_pythia_tree"
+    prefixes_in_output_file:
+      - "data"
+      - "gen"
+    n_pt_hat_bins: 20
+    files:
+      - "trains/pythia/2907/run_by_run/LHC23a3_cent_woSDD/*/{pt_hat_bin}/AnalysisResults.23a3_cent_woSDD.*.root"
+      - "trains/pythia/2907/run_by_run/LHC23a3_fast/*/{pt_hat_bin}/AnalysisResults.23a3_fast.*.root"
+
   # Anchored to LHC18qr pass3
   LHC20g4_AOD_2640: &LHC20g4_pythia
     name: "LHC20g4_AOD_2640"
@@ -500,6 +520,29 @@ productions:
         label: ""
       settings:
         <<: *analysis_settings_pythia_R02
+    # Time reclustering pythia test
+    # NOTE: This is the wrong dataset for pythia, but its useful for testing
+    4:
+      metadata:
+        <<: *base_metadata_pythia
+        dataset: *LHC20g4_pythia
+        production_number: 4
+        label: ""
+      settings:
+        <<: *analysis_settings_time_reclustering_pp_MC_R04
+        selected_grooming_methods:
+          - "soft_drop_z_cut_02"
+    # Time reclustering pythia fastsim
+    5:
+      metadata:
+        <<: *base_metadata_pythia
+        dataset: *LBL20_Pythia_FastSim_1_17pq
+        production_number: 5
+        label: "pythia_fastsim"
+      settings:
+        <<: *analysis_settings_time_reclustering_pp_MC_R04
+        selected_grooming_methods:
+          - "soft_drop_z_cut_02"
 
 
   PbPb:
