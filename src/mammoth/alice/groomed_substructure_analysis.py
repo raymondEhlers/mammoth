@@ -159,8 +159,10 @@ def analysis_MC(
         selected_grooming_methods=selected_grooming_methods,
     )
 
+    # NOTE: We don't look at return_skim here because the skim is the only possible output for this analysis.
+    #       If we didn't return it, then all of the processing is useless.
     return framework_task.AnalysisOutput(
-        skim=jets if return_skim else None,
+        skim=jets,
     )
 
 
@@ -216,8 +218,10 @@ def analysis_data(
         selected_grooming_methods=selected_grooming_methods,
     )
 
+    # NOTE: We don't look at return_skim here because the skim is the only possible output for this analysis.
+    #       If we didn't return it, then all of the processing is useless.
     return framework_task.AnalysisOutput(
-        skim=jets if return_skim else None,
+        skim=jets,
     )
 
 
@@ -312,8 +316,10 @@ def analysis_embedding(
         selected_grooming_methods=selected_grooming_methods,
     )
 
+    # NOTE: We don't look at return_skim here because the skim is the only possible output for this analysis.
+    #       If we didn't return it, then all of the processing is useless.
     return framework_task.AnalysisOutput(
-        skim=jets if return_skim else None,
+        skim=jets,
     )
 
 
