@@ -368,9 +368,13 @@ def setup_data_calculation(  # noqa: C901
         # Setup for analysis and dataset settings
         _metadata_config = prod.config["metadata"]
         _analysis_config: dict[str, Any] = prod.config["settings"]
-        print(_analysis_config)
         _output_settings_config = _analysis_config.pop("output_settings")
-        _input_options = copy.deepcopy(_metadata_config)
+        # NOTE: These are arguments which will be passed onto `load_data.setup_source_for_data_or_MC_task`.
+        #       If you want to pass all of the metadata, we will need to add a kwargs, since this can vary from dataset to dataset.
+        #       As of July 2023, explicitly specifying th arguments seems good enough.
+        _input_options = {
+            "loading_data_rename_prefix": _metadata_config.get("loading_data_rename_prefix", {})
+        }
         # Chunk size
         chunk_size = _analysis_config.pop("chunk_size", sources.ChunkSizeSentinel.FULL_SOURCE)
         logger.info(f"Processing chunk size for {chunk_size}")
@@ -467,7 +471,7 @@ def setup_data_calculation(  # noqa: C901
                         # These are the general input options
                         input_options=_input_options,
                         # And these are the input options specific to the dataset
-                        source_config=_metadata_config["dataset"],
+                        input_source_config=_metadata_config["dataset"],
                         output_settings_config=_output_settings_config,
                         # Arguments
                         analysis_arguments=analysis_arguments_with_pt_hat_scale_factor,
