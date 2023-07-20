@@ -318,6 +318,18 @@ analysis_settings:
       algorithm: "generalized_kt"
       additional_algorithm_parameter: 0.5
 
+    output_settings: &time_reclustering_output_settings
+      primary_output:
+        type: "root"
+        reference_name: "tree"
+        container_name: ""
+      return_skim: false
+      write_chunk_skim: true
+      write_skim_extension: "parquet"
+      return_merged_hists: false
+      write_chunk_hists: false
+      write_merged_hists: false
+
     pp_R04: &analysis_settings_time_reclustering_pp_R04
       <<: *_base_analysis_settings_pp
       jet_R: 0.4
@@ -530,6 +542,8 @@ productions:
         label: ""
       settings:
         <<: *analysis_settings_time_reclustering_pp_MC_R04
+        output_settings:
+          <<: *time_reclustering_output_settings
         selected_grooming_methods:
           - "soft_drop_z_cut_02"
     # Time reclustering pythia fastsim
