@@ -58,7 +58,7 @@ def normalize_for_data(
     if not particle_columns:
         particle_columns = _default_particle_columns
     # Validation
-    if rename_prefix is None:
+    if rename_prefix is None or not rename_prefix:
         rename_prefix = {"data": "data"}
     _prefixes = list(rename_prefix.keys())
     if isinstance(mass_hypothesis, (int, float)):
@@ -589,7 +589,7 @@ def setup_source_for_data_or_MC_task(
         task_metadata: Task metadata.
         signal_input: Input signal file(s).
         signal_source: Source for the signal.
-        rename_prefix: Rename existing data prefix to another prefix in the array. Eg. "detLevel" -> "det_level".
+        loading_data_rename_prefix: Rename existing data prefix to another prefix in the array. Eg. "detLevel" -> "det_level".
         output_settings: Output settings.
     Returns:
         iter_arrays: Iterator over the arrays to process.
