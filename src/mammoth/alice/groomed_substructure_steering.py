@@ -19,14 +19,14 @@ class SplittingsSelection(enum.Enum):
 
 
 def argument_preprocessing(**analysis_arguments: Any) -> dict[str, Any]:
-    splittings_selection = SplittingsSelection(analysis_arguments["splittings_selection"])
+    splittings_selection = SplittingsSelection[analysis_arguments["splittings_selection"]]
     return {
         "iterative_splittings": splittings_selection == SplittingsSelection.iterative,
     }
 
 
 def analysis_output_identifier(**analysis_arguments: Any) -> str:
-    splittings_selection = SplittingsSelection(analysis_arguments["splittings_selection"])
+    splittings_selection = SplittingsSelection[analysis_arguments["splittings_selection"]]
     return f"{splittings_selection!s}"
 
 
@@ -46,7 +46,8 @@ class ProductionSpecialization:
         _base_name = "calculate_{label}_skim"
         _label_map = {
             "pp": "data",
-            "pythia": "data",
+            "pythia": "pp_MC",
+            "pp_MC": "pp_MC",
             "PbPb": "data",
             "embedPythia": "embed_pythia",
             "embed_pythia": "embed_pythia",

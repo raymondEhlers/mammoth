@@ -128,6 +128,14 @@ def setup_and_submit_tasks(
                     debug_mode=debug_mode,
                 )
             )
+        if "calculate_pp_MC_skim" in tasks_to_execute:
+            system_results.extend(
+                setup_MC_skim(
+                    prod=prod,
+                    job_framework=job_framework,
+                    debug_mode=debug_mode,
+                )
+            )
         if "calculate_embed_pythia_skim" in tasks_to_execute:
             system_results.extend(
                 setup_embed_MC_into_data_skim(

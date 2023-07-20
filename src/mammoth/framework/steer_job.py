@@ -368,6 +368,7 @@ def setup_data_calculation(  # noqa: C901
         # Setup for analysis and dataset settings
         _metadata_config = prod.config["metadata"]
         _analysis_config: dict[str, Any] = prod.config["settings"]
+        print(_analysis_config)
         _output_settings_config = _analysis_config.pop("output_settings")
         _input_options = copy.deepcopy(_metadata_config)
         # Chunk size
