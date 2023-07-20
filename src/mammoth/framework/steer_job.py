@@ -361,9 +361,10 @@ def setup_data_calculation(  # noqa: C901
 
         # If we want to debug some particular files, we can directly set them here
         if debug_mode:
-            input_files = {10: [Path("trains/pythia/2619/run_by_run/LHC18b8_cent_woSDD/282008/10/AnalysisResults.18b8_cent_woSDD.003.root")]}
+            #input_files = {10: [Path("trains/pythia/2619/run_by_run/LHC18b8_cent_woSDD/282008/10/AnalysisResults.18b8_cent_woSDD.003.root")]}
             #input_files = {-1: [Path("trains/pp/2111/run_by_run/LHC17p_CENT_woSDD/282341/AnalysisResults.17p.586.root")]}
             #input_files = {-1: [Path("trains/PbPb/645/run_by_run/LHC18r/297595/AnalysisResults.18r.551.root")]}
+            ...
 
         # Setup for analysis and dataset settings
         _metadata_config = prod.config["metadata"]
@@ -558,7 +559,7 @@ def setup_embed_MC_into_data_calculation(  # noqa: C901
 
         # If we want to debug some particular files, we can directly set them here
         if debug_mode:
-            background_input_files = [Path("trains/PbPb/645/run_by_run/LHC18q/296270/AnalysisResults.18q.179.root")]
+            #background_input_files = [Path("trains/PbPb/645/run_by_run/LHC18q/296270/AnalysisResults.18q.179.root")]
             # signal_input_files_per_pt_hat = {1: [Path("trains/pythia/2640/run_by_run/LHC20g4/297132/1/AnalysisResults.20g4.013.root")]}
             # signal_input_files_per_pt_hat = {12: [Path("trains/pythia/2640/run_by_run/LHC20g4/297132/12/AnalysisResults.20g4.013.root")]}
             # signal_input_files_per_pt_hat = {3: [
@@ -566,11 +567,11 @@ def setup_embed_MC_into_data_calculation(  # noqa: C901
             #    Path("trains/pythia/2640/run_by_run/LHC20g4/297317/3/AnalysisResults.20g4.013.root"),
             #    #Path("trains/pythia/2640/run_by_run/LHC20g4/296935/3/AnalysisResults.20g4.009.root"),
             # ]}
-            signal_input_files_per_pt_hat = {7: [
-                Path('trains/pythia/2640/run_by_run/LHC20g4/296550/7/AnalysisResults.20g4.014.root'),
-                Path('trains/pythia/2640/run_by_run/LHC20g4/296244/7/AnalysisResults.20g4.001.root'),
-                Path('trains/pythia/2640/run_by_run/LHC20g4/297379/7/AnalysisResults.20g4.002.root'),
-            ]}
+            #signal_input_files_per_pt_hat = {7: [
+            #    Path('trains/pythia/2640/run_by_run/LHC20g4/296550/7/AnalysisResults.20g4.014.root'),
+            #    Path('trains/pythia/2640/run_by_run/LHC20g4/296244/7/AnalysisResults.20g4.001.root'),
+            #    Path('trains/pythia/2640/run_by_run/LHC20g4/297379/7/AnalysisResults.20g4.002.root'),
+            #]}
             # signal_input_files_per_pt_hat = {11: [
             #     Path('trains/pythia/2640/run_by_run/LHC20g4/296191/11/AnalysisResults.20g4.007.root'),
             #     Path('trains/pythia/2640/run_by_run/LHC20g4/297132/11/AnalysisResults.20g4.008.root'),
@@ -590,12 +591,13 @@ def setup_embed_MC_into_data_calculation(  # noqa: C901
             #         Path("trains/pythia/2640/run_by_run/LHC20g4/297479/12/AnalysisResults.20g4.009.root"),
             #     ]
             # }
-            background_input_files = [Path("trains/PbPb/645/run_by_run/LHC18q/296304/AnalysisResults.18q.333.root")]
-            signal_input_files_per_pt_hat = {
-                1: [
-                    Path("trains/pythia/2640/run_by_run/LHC20g4/295612/1/AnalysisResults.20g4.006.root"),
-                ]
-            }
+            #background_input_files = [Path("trains/PbPb/645/run_by_run/LHC18q/296304/AnalysisResults.18q.333.root")]
+            #signal_input_files_per_pt_hat = {
+            #    1: [
+            #        Path("trains/pythia/2640/run_by_run/LHC20g4/295612/1/AnalysisResults.20g4.006.root"),
+            #    ]
+            #}
+            ...
 
         # Setup for dataset and input
         _metadata_config: dict[str, Any] = prod.config["metadata"]
@@ -849,10 +851,12 @@ def setup_embed_MC_into_thermal_model_calculation(
 
         if debug_mode:
             #input_files = {10: [Path("trains/pythia/2619/run_by_run/LHC18b8_cent_woSDD/282008/10/AnalysisResults.18b8_cent_woSDD.003.root")]}
-            input_files = {10: [
-                Path("trains/pythia/2640/run_by_run/LHC20g4/296415/4/AnalysisResults.20g4.007.root"),
-                Path("trains/pythia/2640/run_by_run/LHC20g4/296415/4/AnalysisResults.20g4.010.root"),
-            ]}
+            #input_files = {10: [
+            #    Path("trains/pythia/2640/run_by_run/LHC20g4/296415/4/AnalysisResults.20g4.007.root"),
+            #    Path("trains/pythia/2640/run_by_run/LHC20g4/296415/4/AnalysisResults.20g4.010.root"),
+            #]}
+            ...
+
         # Setup for dataset settings (and grab analysis config for Output settings)
         _metadata_config = prod.config["metadata"]
         _analysis_config = prod.config["settings"]
