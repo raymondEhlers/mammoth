@@ -182,7 +182,7 @@ known-first-party = ["mammoth", "mammoth_cpp"]
 
 [tool.pylint]
 master.py-version = "3.9"
-master.ignore-paths= ["src/pachyderm/_version.py"]
+master.ignore-paths= ["src/mammoth/_version.py"]
 reports.output-format = "colorized"
 similarities.ignore-imports = "yes"
 messages_control.disable = [
