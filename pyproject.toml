@@ -45,7 +45,7 @@ dependencies = [
     "pachyderm >= 3.0",
     # For hatch: we can install it locally (but not editable) with:
     #"pachyderm @ file://{root:uri}/external/pachyderm",
-    "dask[distributed]>=2022.12.0",
+    "dask[distributed,diagnostics]>=2022.12.0",
     "dask-jobqueue>=0.8.1",
 ]
 
