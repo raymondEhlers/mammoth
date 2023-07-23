@@ -1,5 +1,6 @@
 skimmed_datasets:
   # pp
+  # LHC17pq pass 1
   LHC17pq_pass1_AOD234_2111_2112: &LHC17pq_pp
     name: "LHC17pq_pass1_AOD234_2111_2112"
     collision_system: "pp"
@@ -19,6 +20,26 @@ skimmed_datasets:
       # LHC17q
       - "trains/pp/2112/run_by_run/LHC17q_CENT_woSDD/*/AnalysisResults.17q.*.root"
       - "trains/pp/2112/run_by_run/LHC17q_FAST/*/AnalysisResults.17q.*.root"
+  # LHC17pq pass 2
+  LHC17pq_pass2_AOD_2351_2352: &LHC17pq_pp_pass2
+    name: "LHC17pq_pass2_AOD_2351_2352"
+    collision_system: "pp"
+    sqrt_s: 5020
+    period: "LHC17pq"
+    # Keep track of the skim type for documentation
+    skim_type: "track_skim"
+    # Parameters of the output
+    list_name: "AliAnalysisTaskTrackSkim_pp"
+    tree_name: "AliAnalysisTaskTrackSkim_pp_tree"
+    prefixes_in_output_file:
+      - "data"
+    files:
+      # LHC17p
+      - "trains/pp/2351/run_by_run/LHC17p_CENT_woSDD/*/AnalysisResults.17p.*.root"
+      - "trains/pp/2351/run_by_run/LHC17p_FAST/*/AnalysisResults.17p.*.root"
+      # LHC17q
+      - "trains/pp/2352/run_by_run/LHC17q_CENT_woSDD/*/AnalysisResults.17q.*.root"
+      - "trains/pp/2352/run_by_run/LHC17q_FAST/*/AnalysisResults.17q.*.root"
 
   # pp_MC
   # pythia
