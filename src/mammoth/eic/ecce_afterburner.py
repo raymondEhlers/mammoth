@@ -9,7 +9,8 @@ import numpy.typing as npt
 def _setup_afterburner(code_dir: Path) -> None:
     """ Setup afterburner code to be run via ROOT """
     # Delayed import to avoid direct dependence.
-    import ROOT
+    from mammoth.framework import root_utils
+    ROOT = root_utils.import_ROOT()
 
     # Validation
     code_dir = Path(code_dir)
@@ -41,7 +42,8 @@ def _array_to_ROOT(arr: Union[List[str], npt.NDArray[Any]], type_name: str = "do
     Returns:
         std::vector containing the numpy array values.
     """
-    import ROOT
+    from mammoth.framework import root_utils
+    ROOT = root_utils.import_ROOT()
 
     vector = ROOT.std.vector(type_name)()
     for a in arr:
@@ -71,7 +73,8 @@ def run_afterburner(
     # Setup
     _setup_afterburner(code_dir=tree_processing_code_directory)
 
-    import ROOT
+    from mammoth.framework import root_utils
+    ROOT = root_utils.import_ROOT()
 
     ROOT.treeProcessing(
         str(input_file),

@@ -414,7 +414,8 @@ def plot_qt_pt_as_function_of_p(hist: binned_data.BinnedData,
 
                 # RMS from ROOT
                 try:
-                    import ROOT  # pyright: ignore [reportMissingImports] # noqa: F401
+                    from mammoth.framework import root_utils
+                    ROOT = root_utils.import_ROOT()  # noqa: F401
                     h_ROOT = h.to_ROOT()
                     #fu = ROOT.TF1("fu", "[2] * TMath::Gaus(x,[0],[1])")
                     #fu.SetParameters(0, 0.1, 0.1)

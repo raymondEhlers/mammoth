@@ -19,7 +19,8 @@ TH1D = Any
 
 def root_example() -> tuple[TH1D, TH1D]:
     # Delay import to avoid explicit dependenceT
-    import ROOT  # pyright: ignore [reportMissingImports]
+    from mammoth.framework import root_utils
+    ROOT = root_utils.import_ROOT()
 
     binning = np.array([0.25, 0.5, 1, 1.5, 2, 3, 4, 6], dtype=np.float64)
     h_ROOT = ROOT.TH1D("test", "test", len(binning) - 1, binning)

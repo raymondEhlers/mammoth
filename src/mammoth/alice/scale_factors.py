@@ -41,7 +41,8 @@ def scale_factor_ROOT(filenames: Sequence[Path], list_name: str = "") -> tuple[i
     if not list_name:
         list_name = "*DynamicalGrooming*"
     # Delay import to avoid direct dependence
-    import ROOT  # pyright: ignore [reportMissingImports]
+    from mammoth.framework import root_utils
+    ROOT = root_utils.import_ROOT()
 
     cross_section_hists = []
     n_trials_hists = []
