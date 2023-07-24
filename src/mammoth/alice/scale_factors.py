@@ -129,7 +129,7 @@ def _find_list_with_hists_via_uproot(f: Any, list_name: str) -> list[Any]:
         # We're good - let's keep going
         hists = f.get(_possible_task_hists_names[0], None)
 
-    # This list is usually an AliEmcalList, but we care about any of the AliEmcalList functionality
+    # This list is usually an AliEmcalList, but we don't care about any of the AliEmcalList functionality
     # (and uproot doesn't know about it anyway), so we extract the TList via the base class.
     # NOTE: We assume the TList is the first (and only) base class. As of Feb 2023, this seems to be
     #       a reasonable assumption.
