@@ -840,7 +840,11 @@ def calculate_embedding_skim_impl(
                     grooming_results[leading_track_name] = to_float(input_jets.jets["leading_track_pt"])
                 # Then update the name for the subtracted constituents in data.
                 leading_track_name = f"{prefix}_leading_track_pt_sub"
-            grooming_results[leading_track_name] = to_float(ak.max(input_jets.jets.jet_constituents.pt, axis=1))
+            grooming_results[leading_track_name] = to_float(ak.max(input_jets.jets.jet_constituents.pt, axis=1, mask_identity=False))
+            # Cross check that we haven't somehow found a case where we have jets, but no leading track.
+            # Obviously this shouldn't be possible, but ak.max forces us to lose this safety (otherwise,
+            # it returns an option type which is a pain).
+            assert len(grooming_results[leading_track_name]) == len(grooming_results[f"{prefix}_jet_pt"])
 
         # Perform our calculations.
         functions: dict[
@@ -1175,7 +1179,11 @@ def calculate_data_skim_impl(
                     grooming_results[leading_track_name] = to_float(input_jets.jets["leading_track_pt"])
                 # Then update the name for the subtracted constituents in data.
                 leading_track_name = f"{prefix}_leading_track_pt_sub"
-            grooming_results[leading_track_name] = to_float(ak.max(input_jets.jets.jet_constituents.pt, axis=1))
+            grooming_results[leading_track_name] = to_float(ak.max(input_jets.jets.jet_constituents.pt, axis=1, mask_identity=False))
+            # Cross check that we haven't somehow found a case where we have jets, but no leading track.
+            # Obviously this shouldn't be possible, but ak.max forces us to lose this safety (otherwise,
+            # it returns an option type which is a pain).
+            assert len(grooming_results[leading_track_name]) == len(grooming_results[f"{prefix}_jet_pt"])
 
             # Perform our calculations.
             functions: dict[
