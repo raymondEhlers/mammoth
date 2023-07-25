@@ -97,6 +97,7 @@ def analysis_MC(
     min_jet_pt: dict[str, float],
     iterative_splittings: bool,
     det_level_artificial_tracking_efficiency: float | analysis_tracking.PtDependentTrackingEfficiencyParameters,
+    reclustering_settings: Mapping[str, Any] | None = None,
     selected_grooming_methods: list[str] | None = None,
     # Default analysis arguments
     validation_mode: bool = False,
@@ -126,6 +127,7 @@ def analysis_MC(
             arrays=arrays,
             jet_R=jet_R,
             min_jet_pt=min_jet_pt,
+            reclustering_settings=reclustering_settings,
             validation_mode=validation_mode,
         )
     else:
@@ -134,6 +136,7 @@ def analysis_MC(
             arrays=arrays,
             jet_R=jet_R,
             min_jet_pt=min_jet_pt,
+            reclustering_settings=reclustering_settings,
             det_level_artificial_tracking_efficiency=det_level_artificial_tracking_efficiency,
             validation_mode=validation_mode,
         )
@@ -175,9 +178,10 @@ def analysis_data(
     jet_R: float,
     min_jet_pt: dict[str, float],
     iterative_splittings: bool,
-    selected_grooming_methods: list[str] | None = None,
-    background_subtraction_settings: Mapping[str, Any] | None = None,
     particle_column_name: str = "data",
+    background_subtraction_settings: Mapping[str, Any] | None = None,
+    reclustering_settings: Mapping[str, Any] | None = None,
+    selected_grooming_methods: list[str] | None = None,
     # Default analysis arguments
     validation_mode: bool = False,
     return_skim: bool = False,
@@ -195,6 +199,7 @@ def analysis_data(
         jet_R=jet_R,
         min_jet_pt=min_jet_pt,
         background_subtraction_settings=background_subtraction_settings,
+        reclustering_settings=reclustering_settings,
         particle_column_name=particle_column_name,
         validation_mode=validation_mode,
     )
@@ -274,8 +279,9 @@ def analysis_embedding(
     min_jet_pt: dict[str, float],
     iterative_splittings: bool,
     det_level_artificial_tracking_efficiency: float | analysis_tracking.PtDependentTrackingEfficiencyParameters,
-    selected_grooming_methods: list[str] | None = None,
     background_subtraction_settings: Mapping[str, Any] | None = None,
+    reclustering_settings: Mapping[str, Any] | None = None,
+    selected_grooming_methods: list[str] | None = None,
     # Default analysis arguments
     validation_mode: bool = False,
     return_skim: bool = False,
@@ -294,6 +300,7 @@ def analysis_embedding(
         min_jet_pt=min_jet_pt,
         background_subtraction_settings=background_subtraction_settings,
         det_level_artificial_tracking_efficiency=det_level_artificial_tracking_efficiency,
+        reclustering_settings=reclustering_settings,
         validation_mode=validation_mode,
     )
 
