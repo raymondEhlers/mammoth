@@ -546,6 +546,7 @@ productions:
         label: "pythia_fastsim"
       settings:
         <<: *analysis_settings_pythia_R04
+
   pp_MC:
     3:
       metadata:
@@ -577,6 +578,61 @@ productions:
         label: "pythia_fastsim"
       settings:
         <<: *analysis_settings_time_reclustering_pp_MC_R04
+        selected_grooming_methods:
+          - "soft_drop_z_cut_02"
+    # NOTE: Starts at 69 to be consistent with the "pythia", which this generalizes from.
+    # Pythia fastsim w/ time reclustering
+    69:
+      metadata:
+        <<: *base_metadata_pythia
+        dataset: *LBL20_Pythia_FastSim_1_17pq
+        production_number: 69
+        label: "pythia_fastsim"
+      settings:
+        <<: *analysis_settings_time_reclustering_pp_MC_R04
+        output_settings:
+          <<: *time_reclustering_output_settings
+        selected_grooming_methods:
+          - "soft_drop_z_cut_02"
+    # Herwig fastsim w/ time reclustering
+    70:
+      metadata:
+        <<: *base_metadata_pythia
+        dataset: *LBL20_Herwig_FastSim_1_17pq
+        production_number: 70
+        label: "herwig_fastsim"
+      settings:
+        <<: *analysis_settings_time_reclustering_pp_MC_R04
+        output_settings:
+          <<: *time_reclustering_output_settings
+        selected_grooming_methods:
+          - "soft_drop_z_cut_02"
+    # Pythia fastsim w/ CA reclustering
+    71:
+      metadata:
+        <<: *base_metadata_pythia
+        dataset: *LBL20_Pythia_FastSim_1_17pq
+        production_number: 71
+        label: "pythia_fastsim"
+      settings:
+        <<: *analysis_settings_time_reclustering_pp_MC_R04
+        reclustering_settings: null
+        output_settings:
+          <<: *time_reclustering_output_settings
+        selected_grooming_methods:
+          - "soft_drop_z_cut_02"
+    # Herwig fastsim w/ CA reclustering
+    72:
+      metadata:
+        <<: *base_metadata_pythia
+        dataset: *LBL20_Herwig_FastSim_1_17pq
+        production_number: 72
+        label: "herwig_fastsim"
+      settings:
+        <<: *analysis_settings_time_reclustering_pp_MC_R04
+        reclustering_settings: null
+        output_settings:
+          <<: *time_reclustering_output_settings
         selected_grooming_methods:
           - "soft_drop_z_cut_02"
 
