@@ -20,7 +20,6 @@ from mammoth import helpers
 from mammoth.alice import groomed_substructure_skim_to_flat_tree, reclustered_substructure
 from mammoth.framework import task as framework_task
 from mammoth.framework.analysis import tracking as analysis_tracking
-from mammoth.framework.io import track_skim
 from mammoth.hardest_kt import analysis_track_skim_to_flat_tree
 
 logger = logging.getLogger(__name__)
@@ -337,6 +336,7 @@ def run_some_standalone_tests() -> None:
 
     # Delayed import since we only need these for the experiments
     from mammoth.framework import load_data
+    from mammoth.framework.io import track_skim
 
     # Some tests:
     #######
@@ -349,35 +349,55 @@ def run_some_standalone_tests() -> None:
     # PbPb:
     # collision_system = "PbPb"
     # for collision_system in ["pp", "pp_MC", "PbPb"]:
-    for collision_system in ["pp"]:
-        logger.info(f'Analyzing "{collision_system}"')
-        jets = analysis_data(  # noqa: F841
-            collision_system=collision_system,
-            arrays=load_data.data(
-                data_input=Path(
-                    f"/software/rehlers/dev/mammoth/projects/framework/{collision_system}/AnalysisResults_track_skim.parquet"
-                ),
-                data_source=partial(track_skim.FileSource, collision_system=collision_system),
-                collision_system=collision_system,
-                rename_prefix={"data": "data"} if collision_system != "pp_MC" else {"data": "det_level"},
-            ),
-            jet_R=0.4,
-            iterative_splittings=True,
-            convert_data_format_prefixes={"data": "data"},
-            min_jet_pt={"data": 5.0 if collision_system == "pp" else 20.0},
-        )
+    #for collision_system in ["pp"]:
+    #    logger.info(f'Analyzing "{collision_system}"')
+    #    jets = analysis_data(  # noqa: F841
+    #        collision_system=collision_system,
+    #        arrays=load_data.data(
+    #            data_input=Path(
+    #                f"/software/rehlers/dev/mammoth/projects/framework/{collision_system}/AnalysisResults_track_skim.parquet"
+    #            ),
+    #            data_source=partial(track_skim.FileSource, collision_system=collision_system),
+    #            collision_system=collision_system,
+    #            rename_prefix={"data": "data"} if collision_system != "pp_MC" else {"data": "det_level"},
+    #        ),
+    #        jet_R=0.4,
+    #        iterative_splittings=True,
+    #        convert_data_format_prefixes={"data": "data"},
+    #        min_jet_pt={"data": 5.0 if collision_system == "pp" else 20.0},
+    #    )
 
         # import IPython; IPython.embed()
     ######
     # MC
     ######
-    # jets = analysis_MC(
-    #     arrays=load_MC(filename=Path("/software/rehlers/dev/mammoth/projects/framework/pythia/AnalysisResults.parquet")),
-    #     jet_R=0.4,
-    #     min_jet_pt={
-    #         "det_level": 20,
-    #     },
-    # )
+    collision_system = "pp_MC"
+    jets = analysis_MC(
+        arrays=load_data.data(
+            #data_input=[Path("trains/")],
+            data_input=[Path("trains/pythia/2640/run_by_run/LHC20g4/296191/1/AnalysisResults.20g4.008.root")],
+            data_source=partial(track_skim.FileSource, collision_system=collision_system),
+            collision_system=collision_system,
+            rename_prefix={},
+        ),
+        collision_system=collision_system,
+        # Analysis arguments
+        pt_hat_bin=1,
+        scale_factors={i: 1 for i in range(1, 21)},
+        convert_data_format_prefixes={
+          "det_level": "data",
+          "part_level": "true",
+        },
+        jet_R=0.2,
+        min_jet_pt={
+            "det_level": 5,
+        },
+        iterative_splittings=True,
+        det_level_artificial_tracking_efficiency=1.0,
+        selected_grooming_methods=["soft_drop_z_cut_02"],
+    )
+    import IPython; IPython.embed()  #type: ignore[no-untyped-call]
+
     ###########
     # Embedding
     ###########
@@ -414,4 +434,4 @@ def run_some_standalone_tests() -> None:
 if __name__ == "__main__":
     helpers.setup_logging(level=logging.INFO)
 
-    # run_some_standalone_tests()
+    run_some_standalone_tests()
