@@ -76,7 +76,7 @@ def define_productions() -> List[run_analysis.production.ProductionSettings]:
             #     track_skim_config_filename=config_filename,
             # ),
             run_analysis.production.ProductionSettings.read_config(
-                collision_system="pythia",
+                collision_system="pp_MC",
                 number=4,
                 specialization=groomed_substructure_steering.ProductionSpecialization(),
                 track_skim_config_filename=config_filename,
@@ -146,11 +146,11 @@ futures = run_analysis.setup_and_submit_tasks(
 )
 #futures
 
-futures
+futures[0].print()
 
 futures
 
-all((f.print() for f in futures[1:]))
+all((f.success for f in futures[1:]))
 
 import numpy as np
 #np.count_nonzero([r.result().success == False for r in futures if r.done()]) / len(futures)
