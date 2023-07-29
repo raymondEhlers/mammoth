@@ -25,7 +25,7 @@ from mammoth.framework.typing import AwkwardArray, Scalar
 
 logger = logging.getLogger(__name__)
 
-T_GroomingResults = dict[str, Union[ak.Array, npt.NDArray[np.float32], npt.NDArray[np.int16]]]
+T_GroomingResults = dict[str, Union[npt.NDArray[np.float32], npt.NDArray[np.int16]]]
 
 @attrs.define
 class Calculation:
@@ -1017,7 +1017,12 @@ def calculate_embedding_skim_impl(
 
             logger.debug(f"Completed {func_name}")
 
-    return grooming_results
+    # Since we're just returning a dict of np arrays, it's better to ensure that
+    # they're consistently cast as np arrays (ie. a "regular" array could still
+    # be wrapped in an ak.Array)
+    return {
+        k: np.asarray(v) for k, v in grooming_results.items()
+    }
 
 
 def calculate_embedding_skim_mammoth_framework_v1(
@@ -1285,7 +1290,12 @@ def calculate_data_skim_impl(
                 pythia_specific_columns["pt_hard"] = to_float(all_jets["pt_hard"][mask])
             grooming_results.update(pythia_specific_columns)
 
-    return grooming_results
+    # Since we're just returning a dict of np arrays, it's better to ensure that
+    # they're consistently cast as np arrays (ie. a "regular" array could still
+    # be wrapped in an ak.Array)
+    return {
+        k: np.asarray(v) for k, v in grooming_results.items()
+    }
 
 
 def _write_skim_output(
@@ -1326,12 +1336,11 @@ def _write_skim_output(
     # Standard is to write out a flat root tree
     if write_root:
         # First, convert to numpy since we want to write to an output tree.
-        grooming_results_np = {k: np.asarray(v) for k, v in grooming_results.items()}
         logger.info(f"Writing data skim to {output_filename}")
         # Write with uproot
         with uproot.recreate(output_filename) as output_file:
             # Write all of the calculations
-            output_file[output_tree_name] = grooming_results_np
+            output_file[output_tree_name] = grooming_results
     # Some alternative formats for other analysis techniques.
     if write_parquet:
         logger.info("Writing parquet...")
