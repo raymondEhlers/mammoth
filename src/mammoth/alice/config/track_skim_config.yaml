@@ -347,6 +347,7 @@ analysis_settings:
       return_skim: false
       write_chunk_skim: true
       write_skim_extension: "root"
+      explode_skim_fields_to_separate_directories: false
       return_merged_hists: false
       write_chunk_hists: false
       write_merged_hists: false
