@@ -100,7 +100,7 @@ def analysis_MC(
     selected_grooming_methods: list[str] | None = None,
     # Default analysis arguments
     validation_mode: bool = False,
-    return_skim: bool = False,
+    return_skim: bool = False,  # noqa: ARG001
     # NOTE: kwargs are required because we pass the config as the analysis arguments,
     #       and it contains additional values.
     **kwargs: Any,  # noqa: ARG001
@@ -183,7 +183,7 @@ def analysis_data(
     selected_grooming_methods: list[str] | None = None,
     # Default analysis arguments
     validation_mode: bool = False,
-    return_skim: bool = False,
+    return_skim: bool = False,  # noqa: ARG001
     # NOTE: kwargs are required because we pass the config as the analysis arguments,
     #       and it contains additional values.
     **kwargs: Any,  # noqa: ARG001
@@ -283,7 +283,7 @@ def analysis_embedding(
     selected_grooming_methods: list[str] | None = None,
     # Default analysis arguments
     validation_mode: bool = False,
-    return_skim: bool = False,
+    return_skim: bool = False,  # noqa: ARG001
     # NOTE: kwargs are required because we pass the config as the analysis arguments,
     #       and it contains additional values.
     **kwargs: Any,  # noqa: ARG001
@@ -351,7 +351,7 @@ def run_some_standalone_tests() -> None:
     # for collision_system in ["pp", "pp_MC", "PbPb"]:
     #for collision_system in ["pp"]:
     #    logger.info(f'Analyzing "{collision_system}"')
-    #    jets = analysis_data(  # noqa: F841
+    #    jets = analysis_data(
     #        collision_system=collision_system,
     #        arrays=load_data.data(
     #            data_input=Path(
@@ -372,7 +372,7 @@ def run_some_standalone_tests() -> None:
     # MC
     ######
     collision_system = "pp_MC"
-    jets = analysis_MC(
+    jets = analysis_MC(  # noqa: F841
         arrays=load_data.data(
             #data_input=[Path("trains/")],
             data_input=[Path("trains/pythia/2640/run_by_run/LHC20g4/296191/1/AnalysisResults.20g4.008.root")],
@@ -396,7 +396,7 @@ def run_some_standalone_tests() -> None:
         det_level_artificial_tracking_efficiency=1.0,
         selected_grooming_methods=["soft_drop_z_cut_02"],
     )
-    import IPython; IPython.embed()  #type: ignore[no-untyped-call]
+    import IPython; IPython.embed()  #type: ignore[no-untyped-call] # noqa: I001,E702
 
     ###########
     # Embedding
