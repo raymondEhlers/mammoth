@@ -319,7 +319,6 @@ class AnalysisOutput:
     def _write_skim(self, output_filename: Path, skim: dict[str, T_SkimTypes]) -> None:
         # Validation
         logger.info("Writing skim...")
-        logger.warning(f"{skim=}")
         for skim_name, skim_array in skim.items():
             # Enables the possibility of writing a single standard file (just wrap in a dict with an empty string as key).
             if skim_name:
@@ -328,7 +327,9 @@ class AnalysisOutput:
                 _skim_output_filename = output_filename
 
             _skim_output_filename.parent.mkdir(parents=True, exist_ok=True)
-            if ak.num(skim_array, axis=0) == 0:
+            # The skim_array could either be a dict or an array
+            # We need to handle the check for empty outputs separately for each case
+            if (isinstance(skim_array, dict) and not skim_array) or (not isinstance(skim_array, dict) and ak.num(skim_array, axis=0) == 0):
                 # Skip the skim if it's empty
                 _skim_output_filename.with_suffix(".empty").touch()
             else:
