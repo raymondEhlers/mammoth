@@ -119,7 +119,7 @@ def analyze_track_skim_and_recluster_data(
     if not _there_are_jets_left:
         logger.warning("No jets left for reclustering. Skipping reclustering...")
     else:
-        logger.info(f"Reclustering {particle_column_name} jets...")
+        logger.info(f"Reclustering {particle_column_name} jets with {reclustering_settings}...")
         jets[particle_column_name, "reclustering"] = jet_finding.recluster_jets(
             jets=jets[particle_column_name],
             jet_finding_settings=jet_finding.ReclusteringJetFindingSettings(
@@ -277,11 +277,11 @@ def analyze_track_skim_and_recluster_MC(
     # Reclustering
     logger.info("Reclustering jets...")
     for level in ["part_level", "det_level"]:
-        logger.info(f"Reclustering {level}")
         # We only do the area calculation for data.
         reclustering_kwargs = {**reclustering_settings}
         if level != "part_level":
             reclustering_kwargs["area_settings"] = jet_finding.AreaSubstructure(**area_kwargs)
+        logger.info(f"Reclustering {level} jets with {reclustering_kwargs}...")
         jets[level, "reclustering"] = jet_finding.recluster_jets(
             jets=jets[level],
             jet_finding_settings=jet_finding.ReclusteringJetFindingSettings(
@@ -443,11 +443,11 @@ def analyze_track_skim_and_recluster_embedding(
     else:
         logger.info("Reclustering jets...")
         for level in ["hybrid", "det_level", "part_level"]:
-            logger.info(f"Reclustering {level}")
             # We only do the area calculation for data.
             reclustering_kwargs = {**reclustering_settings}
             if level != "part_level":
                 reclustering_kwargs["area_settings"] = jet_finding.AreaSubstructure(**area_kwargs)
+            logger.info(f"Reclustering {level} jets with {reclustering_kwargs}...")
             jets[level, "reclustering"] = jet_finding.recluster_jets(
                 jets=jets[level],
                 jet_finding_settings=jet_finding.ReclusteringJetFindingSettings(
