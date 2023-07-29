@@ -14,11 +14,13 @@ import functools
 import importlib
 import logging
 from pathlib import Path
-from typing import Any, Callable, Iterator, Protocol
+from typing import Any, Callable, Iterator, Protocol, Union
 
 import attrs
 import awkward as ak
 import hist
+import numpy as np
+import numpy.typing as npt
 import uproot
 
 from mammoth.framework import sources, steer_task
@@ -88,17 +90,24 @@ class OutputSettings:
 
     Attributes:
         output_filename: Output filename.
-        primary_output: Primary output, which should be used as a proxy for whether there are existing outputs.
-        return_skim: Whether to return the skim. Default: None.
+        primary_output: Which type of output should be considered primary. This determines
+            which output be used as a proxy for whether there are existing outputs.
+        return_skim: Whether to return the skim for the analysis task. Note that this can
+            still be ignored by the analysis task. Default: None.
         write_chunk_skim: Whether to write the skim for each chunk. Default: None.
-        return_merged_hists: Whether to return the merged histograms. Default: None.
+        explode_skim_fields_to_separate_directories: Whether to explode the skim fields into
+            separate directories. This is useful for when we have dict values which cannot be zipped
+            together. Default: False.
+        return_merged_hists: Whether to return the merged histograms as a task output. Default: None.
         write_chunk_hists: Whether to write the histograms for each chunk. Default: None.
-        write_merged_hists: Whether to write the merged histograms. Default: None.
+        write_merged_hists: Whether to write the merged histograms (merging at the analysis
+            iterations return). Default: None.
     """
     output_filename: Path
     primary_output: PrimaryOutput
     return_skim: bool | None = attrs.field(default=None)
     write_chunk_skim: bool | None = attrs.field(default=None)
+    explode_skim_fields_to_separate_directories: bool = attrs.field(default=False)
     return_merged_hists: bool | None = attrs.field(default=None)
     write_chunk_hists: bool | None = attrs.field(default=None)
     write_merged_hists: bool | None = attrs.field(default=None)
@@ -114,6 +123,7 @@ class OutputSettings:
             primary_output=PrimaryOutput.from_config(config=config["primary_output"]),
             return_skim=config.get("return_skim", None),
             write_chunk_skim=config.get("write_chunk_skim", None),
+            explode_skim_fields_to_separate_directories=config.get("explode_skim_fields_to_separate_directories", False),
             return_merged_hists=config.get("return_merged_hists", None),
             write_chunk_hists=config.get("write_chunk_hists", None),
             write_merged_hists=config.get("write_merged_hists", None),
@@ -166,7 +176,7 @@ class Output:
     success: bool
     message: str
     hists: dict[str, hist.Hist] = attrs.field(factory=dict, kw_only=True, repr=lambda value: str(list(value.keys())))
-    results: dict[str, Any] = attrs.field(factory=dict, kw_only=True)
+    results: dict[str, T_SkimTypes] = attrs.field(factory=dict, kw_only=True)
     metadata: dict[str, Any] = attrs.field(factory=dict, kw_only=True)
 
     def print(self) -> None:
@@ -293,10 +303,12 @@ class NoUsefulAnalysisOutputError(Exception):
     ...
 
 
+T_SkimTypes = Union[ak.Array, npt.NDArray[np.float32], npt.NDArray[np.float64], npt.NDArray[np.int16], npt.NDArray[np.int32], npt.NDArray[np.int64]]
+
 @attrs.frozen(kw_only=True)
 class AnalysisOutput:
     hists: dict[str, hist.Hist] = attrs.field(factory=dict)
-    skim: ak.Array | dict[str, ak.Array] = attrs.field(factory=dict)
+    skim: ak.Array | dict[str, T_SkimTypes] = attrs.field(factory=dict)
 
     def _write_hists(self, output_filename: Path) -> None:
         output_hist_filename = output_utils.task_output_path_hist(output_filename=output_filename)
@@ -304,7 +316,10 @@ class AnalysisOutput:
         with uproot.recreate(output_hist_filename) as f:
             output_utils.write_hists_to_file(hists=self.hists, f=f)
 
-    def _write_skim(self, output_filename: Path, skim: dict[str, ak.Array]) -> None:
+    def _write_skim(self, output_filename: Path, skim: dict[str, T_SkimTypes]) -> None:
+        # Validation
+        logger.info("Writing skim...")
+        logger.warning(f"{skim=}")
         for skim_name, skim_array in skim.items():
             # Enables the possibility of writing a single standard file (just wrap in a dict with an empty string as key).
             if skim_name:
@@ -336,15 +351,23 @@ class AnalysisOutput:
                         parquet_byte_stream_split=True,
                     )
 
-    def write(self, output_filename: Path, write_hists: bool | None, write_skim: bool | None) -> None:
+    def write(
+            self,
+            output_filename: Path,
+            write_hists: bool | None,
+            write_skim: bool | None,
+            explode_skim_fields_to_separate_directories: bool
+        ) -> None:
         # If not specified, fall back to the default, which is to write the analysis outputs if they're provided
         if write_hists is None:
             write_hists = bool(self.hists)
         if write_skim is None:
             write_skim = bool(self.skim)
 
-        # Validation
-        skim = {"": self.skim} if isinstance(self.skim, ak.Array) else self.skim
+        # We avoid exploding the skim fields by wrapping in an additional dict with an empty string as the key..
+        # Since the key is empty, we will not consider it when writing, and everything will be put in the same file..
+        if not explode_skim_fields_to_separate_directories:
+            skim = {"": self.skim}
 
         # Write if requested
         if write_hists:

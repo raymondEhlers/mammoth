@@ -112,6 +112,7 @@ def steer_task_execution(
                 output_filename=local_output_settings.output_filename,
                 write_hists=local_output_settings.write_chunk_hists,
                 write_skim=local_output_settings.write_chunk_skim,
+                explode_skim_fields_to_separate_directories=local_output_settings.explode_skim_fields_to_separate_directories,
             )
 
             # Cleanup (may not be necessary, but it doesn't hurt)
