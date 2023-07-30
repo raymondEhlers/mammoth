@@ -22,7 +22,7 @@ import attrs
 import dask
 import dask.distributed
 import parsl
-from parsl.addresses import address_by_hostname
+from parsl.addresses import address_by_hostname, address_by_route
 from parsl.app.app import python_app as parsl_python_app
 from parsl.config import Config
 from parsl.executors import HighThroughputExecutor
@@ -583,7 +583,7 @@ def _define_dask_distributed_cluster(
     return cluster, []
 
 
-def _default_parsl_config_kwargs(workflow_name: str, enable_monitoring: bool = True) -> dict[str, Any]:
+def _default_parsl_config_kwargs(facility: Facility, workflow_name: str, enable_monitoring: bool = True) -> dict[str, Any]:
     """Default parsl config keyword arguments.
 
     These are shared regardless of the facility.
@@ -607,7 +607,9 @@ def _default_parsl_config_kwargs(workflow_name: str, enable_monitoring: bool = T
     # Monitoring Information
     if enable_monitoring:
         config_kwargs["monitoring"] = MonitoringHub(
-            hub_address=address_by_hostname(),
+            # For some reason, parsl doesn't seem to like address_by_hostname on hiccup. Maybe it's hiccup or maybe it's parsl.
+            # In any case, this is a workaround
+            hub_address=address_by_hostname() if "hiccup" not in facility.name else address_by_route(),
             monitoring_debug=False,
             resource_monitoring_interval=10,
             workflow_name=workflow_name,
@@ -629,7 +631,7 @@ def _define_parsl_config(
 ) -> tuple[Config, list[helpers.LogMessage]]:
     # Setup
     log_messages: list[helpers.LogMessage] = []
-    config_kwargs = _default_parsl_config_kwargs(workflow_name=task_config.name, enable_monitoring=enable_monitoring)
+    config_kwargs = _default_parsl_config_kwargs(facility=facility, workflow_name=task_config.name, enable_monitoring=enable_monitoring)
 
     # We need to treat the case of the local facility differently because
     # the provider is different (ie. it's not slurm).
@@ -691,7 +693,9 @@ def _define_parsl_config(
         executors=[
             HighThroughputExecutor(
                 label=f"{facility.name}_HTEX",
-                address=address_by_hostname(),
+                # For some reason, parsl doesn't seem to like address_by_hostname on hiccup. Maybe it's hiccup or maybe it's parsl.
+                # In any case, this is a workaround
+                address=address_by_hostname() if "hiccup" not in facility.name else address_by_route(),
                 cores_per_worker=task_config.n_cores_per_task,
                 # cores_per_worker=round(n_cores_per_node / n_workers_per_node),
                 # NOTE: We don't want to set the `max_workers` because we want the number of workers to
