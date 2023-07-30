@@ -503,6 +503,7 @@ def setup_data_calculation(  # noqa: C901
 
                 _file_counter += 1
 
+        logger.info("Done with creating apps!")
         return results
 
     return wrap_setup
@@ -796,7 +797,9 @@ def setup_embed_MC_into_data_calculation(  # noqa: C901
         with embedding_file_pairs_filename.open("w") as f:
             y.dump(_embedding_file_pairs, f)
 
+        logger.info("Done with creating apps!")
         return results
+
     return wrap_setup
 
 
@@ -962,6 +965,7 @@ def setup_embed_MC_into_thermal_model_calculation(
 
                 _file_counter += 1
 
+        logger.info("Done with creating apps!")
         return results
 
     return wrap_setup
