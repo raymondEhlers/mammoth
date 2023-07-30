@@ -1035,7 +1035,7 @@ def process_futures(
     with helpers.progress_bar() as progress:
         track_results = progress.add_task(total=len(all_results), description="Processing results...")
         for result in gen_results:
-            logger.info(f"result: {result.production_identifier}")
+            logger.info(f"result: {result.summary_str()}")
             if result.success and result.hists:
                 k = result.production_identifier
                 logger.info(f"Found result for key {k}")
