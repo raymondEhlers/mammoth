@@ -76,16 +76,25 @@ def define_productions() -> list[production.ProductionSettings]:
             #     specialization=HardestKtProductionSpecialization(),
             #     track_skim_config_filename=config_filename,
             # ),
-            # Debug
+            # Production
             production.ProductionSettings.read_config(
-                collision_system="PbPb", number=4,
+                collision_system="pp_MC", number=69,
                 specialization=groomed_substructure_steering.ProductionSpecialization(),
                 track_skim_config_filename=config_filename,
             ),
-            # Production
             #production.ProductionSettings.read_config(
-            #    collision_system="embed_thermal_model", number=3,
-            #    specialization=groomed_substructure_steering.HardestKtProductionSpecialization(),
+            #    collision_system="pp_MC", number=70,
+            #    specialization=groomed_substructure_steering.ProductionSpecialization(),
+            #    track_skim_config_filename=config_filename,
+            #),
+            #production.ProductionSettings.read_config(
+            #    collision_system="pp_MC", number=71,
+            #    specialization=groomed_substructure_steering.ProductionSpecialization(),
+            #    track_skim_config_filename=config_filename,
+            #),
+            #production.ProductionSettings.read_config(
+            #    collision_system="pp_MC", number=72,
+            #    specialization=groomed_substructure_steering.ProductionSpecialization(),
             #    track_skim_config_filename=config_filename,
             #),
         ]
@@ -173,14 +182,14 @@ def setup_and_submit_tasks(
 def run(job_framework: job_utils.JobFramework) -> list[Future[Any]]:
     # Job execution parameters
     productions = define_productions()
-    task_name = "EEC_mammoth"
+    task_name = "time_reclustering_mammoth"
 
     # Job execution configuration
     conda_environment_name = ""
     task_config = job_utils.TaskConfig(name=task_name, n_cores_per_task=1)
-    # target_n_tasks_to_run_simultaneously = 120
+    target_n_tasks_to_run_simultaneously = 120
     # target_n_tasks_to_run_simultaneously = 110
-    target_n_tasks_to_run_simultaneously = 60
+    # target_n_tasks_to_run_simultaneously = 60
     log_level = logging.INFO
     walltime = "24:00:00"
     debug_mode = True
@@ -189,7 +198,8 @@ def run(job_framework: job_utils.JobFramework) -> list[Future[Any]]:
         target_n_tasks_to_run_simultaneously = 2
         walltime = "1:59:00"
     #facility: job_utils.FACILITIES = "ORNL_b587_long" if job_utils.hours_in_walltime(walltime) >= 2 else "ORNL_b587_short"
-    facility: job_utils.FACILITIES = "rehlers_mbp_m1pro"
+    facility: job_utils.FACILITIES = "hiccup_std" if job_utils.hours_in_walltime(walltime) >= 2 else "hiccup_quick"
+    #facility: job_utils.FACILITIES = "rehlers_mbp_m1pro"
 
     # Keep the job executor just to keep it alive
     job_executor, _job_framework_config = setup_job_framework(
@@ -216,4 +226,5 @@ def run(job_framework: job_utils.JobFramework) -> list[Future[Any]]:
 
 
 if __name__ == "__main__":
-    run(job_framework=job_utils.JobFramework.immediate_execution_debug)
+    #run(job_framework=job_utils.JobFramework.immediate_execution_debug)
+    run(job_framework=job_utils.JobFramework.parsl)
