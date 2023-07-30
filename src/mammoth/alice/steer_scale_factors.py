@@ -25,8 +25,6 @@ def _extract_scale_factors_from_hists(
     job_framework: job_utils.JobFramework,  # noqa: ARG001
     inputs: Sequence[File] = [],
     outputs: Sequence[File] = [],  # noqa: ARG001
-    stdout: str | None = None,  # noqa: ARG001
-    stderr: str | None = None,  # noqa: ARG001
 ) -> analysis_objects.ScaleFactor:
     """
     Copied from jet_substructure.analysis.parsl. The interface is slightly modified,
@@ -144,8 +142,6 @@ def _extract_pt_hat_spectra(
     job_framework: job_utils.JobFramework,  # noqa: ARG001
     inputs: Sequence[File] = [],
     outputs: Sequence[File] = [],
-    stdout: str | None = None,  # noqa: ARG001
-    stderr: str | None = None,  # noqa: ARG001
 ) -> bool:
     """
     Copied from jet_substructure.analysis.parsl. The interface is slightly modified,
