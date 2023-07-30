@@ -52,6 +52,7 @@ FACILITIES = Literal[
     "hiccup_quick",
     "hiccup_std",
     "hiccup_long",
+    "hiccup_test",
 ]
 
 
@@ -216,7 +217,7 @@ _facilities_configs.update(
             #storage_work_dir=Path("/alf/data/rehlers/jetscape/work_dir"),
             # Exclude login node
             nodes_to_exclude=[],
-        ) for queue in ["quick", "std", "long"]
+        ) for queue in ["quick", "std", "long", "test"]
     }
 )
 
