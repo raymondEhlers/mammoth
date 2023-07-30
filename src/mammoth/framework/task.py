@@ -178,6 +178,22 @@ class Output:
     results: dict[str, T_SkimTypes] = attrs.field(factory=dict, kw_only=True)
     metadata: dict[str, Any] = attrs.field(factory=dict, kw_only=True)
 
+    def summary_str(self) -> str:
+        """Summary of the the output
+
+        NOTE:
+            I didn't overload __str__ because I think that view is also useful - this is just an alternative.
+
+        Args:
+            None
+        Returns:
+            Summary of the output
+        """
+        s = f"collision_system={self.collision_system}, success={self.success}, identifier={self.production_identifier}"
+        # NOTE: Evaluate the message separately to ensure that newlines are evaluated.
+        s += f"\nmessage=\"{self.message}\""
+        return s
+
     def print(self) -> bool:
         """Print the message to the logger.
 
@@ -187,9 +203,7 @@ class Output:
             or __repr__ since those require an additional function call (ie. explicit print).
             This is all just for convenience.
         """
-        logger.info(f"collision_system={self.collision_system}, success={self.success}, identifier={self.production_identifier}")
-        # NOTE: Evaluate the message separately to ensure that newlines are evaluated.
-        logger.info(self.message)
+        logger.info(self.summary_str())
         # Since we often call this in a list comprehension, we may as well gather the overall state for convenience
         return self.success
 
