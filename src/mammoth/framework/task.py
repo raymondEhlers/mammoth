@@ -508,7 +508,7 @@ def python_app_data(
     @functools.wraps(analysis)
     @job_utils.python_app
     def app_wrapper(
-        #*,
+        *,
         production_identifier: str,
         collision_system: str,
         chunk_size: sources.T_ChunkSize,
