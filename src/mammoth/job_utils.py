@@ -27,6 +27,7 @@ from parsl.app.app import python_app as parsl_python_app
 from parsl.config import Config
 from parsl.executors import HighThroughputExecutor
 from parsl.executors.high_throughput.errors import WorkerLost
+from parsl.executors.high_throughput.interchange import ManagerLost
 from parsl.launchers import SingleNodeLauncher, SrunLauncher
 from parsl.launchers.launchers import Launcher
 from parsl.monitoring.monitoring import MonitoringHub
@@ -850,6 +851,9 @@ def provide_results_as_completed(input_futures: Sequence[concurrent.futures.Futu
                         pass
                     except WorkerLost as e:
                         logger.warning(f"Lost worker: {e}")
+                        pass
+                    except ManagerLost as e:
+                        logger.warning(f"Manager lost: {e}")
                         pass
             except KeyboardInterrupt as e:
                 for job in futures:
