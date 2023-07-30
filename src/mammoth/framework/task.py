@@ -11,7 +11,6 @@ from __future__ import annotations
 
 import concurrent.futures
 import functools
-import importlib
 import logging
 from pathlib import Path
 from typing import Any, Callable, Iterator, Protocol, Union
@@ -23,7 +22,7 @@ import numpy as np
 import numpy.typing as npt
 import uproot
 
-from mammoth.framework import sources, steer_task
+from mammoth.framework import sources
 from mammoth.framework.io import output_utils
 
 logger = logging.getLogger(__name__)
@@ -179,7 +178,7 @@ class Output:
     results: dict[str, T_SkimTypes] = attrs.field(factory=dict, kw_only=True)
     metadata: dict[str, Any] = attrs.field(factory=dict, kw_only=True)
 
-    def print(self) -> None:
+    def print(self) -> bool:
         """Print the message to the logger.
 
         Note:
@@ -191,6 +190,8 @@ class Output:
         logger.info(f"collision_system={self.collision_system}, success={self.success}, identifier={self.production_identifier}")
         # NOTE: Evaluate the message separately to ensure that newlines are evaluated.
         logger.info(self.message)
+        # Since we often call this in a list comprehension, we may as well gather the overall state for convenience
+        return self.success
 
 
 #############
@@ -488,10 +489,11 @@ def python_app_data(
     if analysis_metadata is not None:
         analysis_metadata_module_import_path, analysis_metadata_function_name = _module_and_name_from_func(func=analysis_metadata)
 
-    @job_utils.python_app
+    # NOTE: The order of the wrapping is important here! Otherwise, parsl breaks.
     @functools.wraps(analysis)
+    @job_utils.python_app
     def app_wrapper(
-        *,
+        #*,
         production_identifier: str,
         collision_system: str,
         chunk_size: sources.T_ChunkSize,
@@ -502,14 +504,21 @@ def python_app_data(
         job_framework: job_utils.JobFramework,  # noqa: ARG001
         inputs: list[File] = [],  # noqa: B006
         outputs: list[File] = [],  # noqa: B006
+        # NOTE: These aren't meaningful for python apps! However, they silence some parsl warnings (which are actually incorrect and due to bugs, but w/e),
+        #       and they don't hurt anything, so better to just put them in.
+        # NOTE: The int typing is only because the AUTO_LOGNAME is apparently defined using a literal int.
+        stdout: int | str = job_utils.parsl.AUTO_LOGNAME,
+        stderr: int | str = job_utils.parsl.AUTO_LOGNAME,
     ) -> Output:
         # Standard imports in the app
+        import importlib
         import traceback
+        import functools
         from pathlib import Path
 
         # NOTE: Be aware - we need to import here so the app is well defined, but it's awkward since
         #       we import the module in itself. However, this is the intended action here.
-        from mammoth.framework import io, load_data
+        from mammoth.framework import io, load_data, steer_task
         from mammoth.framework import task as framework_task  # noqa: PLW0406
 
         # Get the analysis
@@ -600,8 +609,9 @@ def python_app_embed_MC_into_data(
     if analysis_metadata is not None:
         analysis_metadata_module_import_path, analysis_metadata_function_name = _module_and_name_from_func(func=analysis_metadata)
 
-    @job_utils.python_app
+    # NOTE: The order of the wrapping is important here! Otherwise, parsl breaks.
     @functools.wraps(analysis)
+    @job_utils.python_app
     def app_wrapper(
         *,
         production_identifier: str,
@@ -616,14 +626,19 @@ def python_app_embed_MC_into_data(
         job_framework: job_utils.JobFramework,  # noqa: ARG001
         inputs: list[File] = [],  # noqa: B006
         outputs: list[File] = [],  # noqa: B006
+        # See note in data version
+        stdout: int | str = job_utils.parsl.AUTO_LOGNAME,
+        stderr: int | str = job_utils.parsl.AUTO_LOGNAME,
     ) -> Output:
         # Standard imports in the app
+        import importlib
         import traceback
+        import functools
         from pathlib import Path
 
         # NOTE: Be aware - we need to import here so the app is well defined, but it's awkward since
         #       we import the module in itself. However, this is the intended action here.
-        from mammoth.framework import io, load_data
+        from mammoth.framework import io, load_data, steer_task
         from mammoth.framework import task as framework_task  # noqa: PLW0406
 
         # Get the analysis
@@ -717,8 +732,9 @@ def python_app_embed_MC_into_thermal_model(
     if analysis_metadata is not None:
         analysis_metadata_module_import_path, analysis_metadata_function_name = _module_and_name_from_func(func=analysis_metadata)
 
-    @job_utils.python_app
+    # NOTE: The order of the wrapping is important here! Otherwise, parsl breaks.
     @functools.wraps(analysis)
+    @job_utils.python_app
     def app_wrapper(
         *,
         production_identifier: str,
@@ -731,14 +747,19 @@ def python_app_embed_MC_into_thermal_model(
         job_framework: job_utils.JobFramework,  # noqa: ARG001
         inputs: list[File] = [],  # noqa: B006
         outputs: list[File] = [],  # noqa: B006
+        # See note in data version
+        stdout: int | str = job_utils.parsl.AUTO_LOGNAME,
+        stderr: int | str = job_utils.parsl.AUTO_LOGNAME,
     ) -> Output:
         # Standard imports in the app
+        import importlib
         import traceback
+        import functools
         from pathlib import Path
 
         # NOTE: Be aware - we need to import here so the app is well defined, but it's awkward since
         #       we import the module in itself. However, this is the intended action here.
-        from mammoth.framework import io, load_data
+        from mammoth.framework import io, load_data, steer_task
         from mammoth.framework import task as framework_task  # noqa: PLW0406
 
         # Get the analysis
