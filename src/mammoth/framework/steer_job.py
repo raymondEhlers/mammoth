@@ -435,7 +435,7 @@ def setup_data_calculation(  # noqa: C901
         _file_counter = 0
         for pt_hat_bin, input_filenames in input_files.items():
             # Setup the analysis arguments
-            # (The pt hat value may not always, but we always include it).
+            # (The pt hat value may not always be meaningful, but we always include it).
             analysis_arguments_with_pt_hat_scale_factor["pt_hat_bin"] = pt_hat_bin
             if scale_factors is not None:
                 analysis_arguments_with_pt_hat_scale_factor["scale_factors"] = scale_factors
