@@ -28,6 +28,8 @@ logger = logging.getLogger(__name__)
 
 SKIM_TYPES = [
     "track_skim",
+    "HF_tree_at_LBL",
+    # Deprecated HF tree names...
     "HF_tree_creator",
     "HF_tree_creator_at_LBL",
     "jetscape",

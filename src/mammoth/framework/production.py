@@ -243,7 +243,7 @@ class ProductionSettings:
                 _files.extend(_files_in_single_pt_hat)
             return _files
 
-        if self.skim_type == "HF_tree_creator_at_LBL":
+        if self.skim_type == "HF_tree_at_LBL":
             # First, grab the files listed in `files.txt`
             _hf_tree_files_txt_filename = _extract_hf_tree_files_txt_filename(
                 files=self.config["metadata"]["dataset"]["files"]
@@ -270,7 +270,7 @@ class ProductionSettings:
         # Will be signal_dataset if embedded, but otherwise will be the standard "dataset" key
         dataset_key = "signal_dataset" if "signal_dataset" in self.config["metadata"] else "dataset"
 
-        if self.skim_type == "HF_tree_creator_at_LBL":
+        if self.skim_type == "HF_tree_at_LBL":
             # First, grab the files listed in `files.txt`
             _hf_tree_files_txt_filename = _extract_hf_tree_files_txt_filename(
                 files=self.config["metadata"][dataset_key]["files"]
