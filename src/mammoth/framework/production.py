@@ -250,7 +250,8 @@ class ProductionSettings:
                 files=self.config["metadata"]["dataset"]["files"]
             )
             with _hf_tree_files_txt_filename.open() as f:
-                _all_files = [Path(line) for line in f]
+                # The strip ensures that extra "\n" don't make it into the file list (which apparently had happened up to this point)
+                _all_files = [Path(line.strip("\n")) for line in f]
             return _all_files  # noqa: RET504
 
         # Handle the track skim as the default case.
@@ -278,6 +279,8 @@ class ProductionSettings:
             )
             with _hf_tree_files_txt_filename.open() as f:
                 _all_files = list(f)
+            # The strip ensures that extra "\n" don't make it into the file list (which apparently had happened up to this point)
+            _all_files = [_name.strip("\n") for _name in _all_files]
             # Now, extract the pt hat bin and group by pt hat bin according to the convention
             _files: dict[int, list[Path]] = {}
             _number_of_parents_to_pt_hat_bin = self.config["metadata"][dataset_key][
