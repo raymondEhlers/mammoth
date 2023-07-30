@@ -13,10 +13,10 @@ import numpy.typing as npt
 
 # Typing helpers
 # Generic for passing types through
-_T = TypeVar("_T", covariant=True)
+_T = TypeVar("_T", covariant=True)  # noqa: PLC0105
 # Generic numpy scalar
 # See: https://stackoverflow.com/a/71126857/12907985
-Scalar = TypeVar("Scalar", bound=np.generic, covariant=True)
+Scalar = TypeVar("Scalar", bound=np.generic, covariant=True)  # noqa: PLC0105
 # Generic number
 # See: https://stackoverflow.com/a/60617044/12907985
 Number = Union[float, int, np.number]

@@ -143,9 +143,9 @@ class Facility:
     _target_allocate_n_cores: int | None = attrs.field(default=None)
     allocation_account: str = attrs.field(default="")
     task_configs: dict[str, TaskConfig] = attrs.Factory(dict)
-    node_work_dir: Path = attrs.field(default=Path("."))
+    node_work_dir: Path = attrs.field(default=Path("."))  # noqa: PTH201
     storage_work_dir: Path = attrs.field(
-        converter=_expand_vars_in_work_dir, default=Path(".")
+        converter=_expand_vars_in_work_dir, default=Path(".")  # noqa: PTH201
     )
     directories_to_mount_in_singularity: list[Path] = attrs.Factory(list)
     worker_init_script: str = attrs.field(default="")

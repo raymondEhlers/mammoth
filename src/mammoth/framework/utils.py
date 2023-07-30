@@ -28,7 +28,7 @@ def expand_wildcards_in_filenames(paths: Sequence[Path]) -> list[Path]:
             # Glob all associated filenames.
             # NOTE: This assumes that the paths are relative to the execution directory. But that's
             #       almost always the case.
-            return_paths.extend(list(Path(".").glob(p)))
+            return_paths.extend(list(Path(".").glob(p)))  # noqa: PTH201
         else:
             return_paths.append(path)
 

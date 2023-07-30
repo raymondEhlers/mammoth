@@ -507,13 +507,13 @@ def python_app_data(
         # NOTE: These aren't meaningful for python apps! However, they silence some parsl warnings (which are actually incorrect and due to bugs, but w/e),
         #       and they don't hurt anything, so better to just put them in.
         # NOTE: The int typing is only because the AUTO_LOGNAME is apparently defined using a literal int.
-        stdout: int | str = job_utils.parsl.AUTO_LOGNAME,
-        stderr: int | str = job_utils.parsl.AUTO_LOGNAME,
+        stdout: int | str = job_utils.parsl.AUTO_LOGNAME,  # noqa: ARG001
+        stderr: int | str = job_utils.parsl.AUTO_LOGNAME,  # noqa: ARG001
     ) -> Output:
         # Standard imports in the app
+        import functools
         import importlib
         import traceback
-        import functools
         from pathlib import Path
 
         # NOTE: Be aware - we need to import here so the app is well defined, but it's awkward since
@@ -627,13 +627,13 @@ def python_app_embed_MC_into_data(
         inputs: list[File] = [],  # noqa: B006
         outputs: list[File] = [],  # noqa: B006
         # See note in data version
-        stdout: int | str = job_utils.parsl.AUTO_LOGNAME,
-        stderr: int | str = job_utils.parsl.AUTO_LOGNAME,
+        stdout: int | str = job_utils.parsl.AUTO_LOGNAME,  # noqa: ARG001
+        stderr: int | str = job_utils.parsl.AUTO_LOGNAME,  # noqa: ARG001
     ) -> Output:
         # Standard imports in the app
+        import functools
         import importlib
         import traceback
-        import functools
         from pathlib import Path
 
         # NOTE: Be aware - we need to import here so the app is well defined, but it's awkward since
@@ -748,13 +748,13 @@ def python_app_embed_MC_into_thermal_model(
         inputs: list[File] = [],  # noqa: B006
         outputs: list[File] = [],  # noqa: B006
         # See note in data version
-        stdout: int | str = job_utils.parsl.AUTO_LOGNAME,
-        stderr: int | str = job_utils.parsl.AUTO_LOGNAME,
+        stdout: int | str = job_utils.parsl.AUTO_LOGNAME,  # noqa: ARG001
+        stderr: int | str = job_utils.parsl.AUTO_LOGNAME,  # noqa: ARG001
     ) -> Output:
         # Standard imports in the app
+        import functools
         import importlib
         import traceback
-        import functools
         from pathlib import Path
 
         # NOTE: Be aware - we need to import here so the app is well defined, but it's awkward since

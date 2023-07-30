@@ -156,7 +156,7 @@ def scale_factor_uproot(filenames: Sequence[Path], list_name: str = "") -> tuple
 
             # Now, onto the information that we're actually interested in!
             # We'll use the `hist` package for simplicity.
-            cross_section_hist = [
+            cross_section_hist = [  # noqa: RUF015
                 h.to_hist() for h in hists if h.name == "fHistXsection"
             ][0]
             # Number of entries in the cross section
@@ -164,13 +164,13 @@ def scale_factor_uproot(filenames: Sequence[Path], list_name: str = "") -> tuple
             # And store the cross section and n_trials hists
             cross_section_hists.append(cross_section_hist)
             n_trials_hists.append(
-                [h.to_hist() for h in hists if h.name == "fHistTrials"][0]
+                [h.to_hist() for h in hists if h.name == "fHistTrials"][0]  # noqa: RUF015
             )
 
             # Don't forget to keep track of accepted events for potentially relatively
             # normalizing the scale factors later.
             n_events_hist = binned_data.BinnedData.from_existing_data(
-                [h for h in hists if h.name == "fHistEventCount"][0]
+                [h for h in hists if h.name == "fHistEventCount"][0]  # noqa: RUF015
             )
             n_accepted_events.append(n_events_hist.values[0])
 
@@ -211,7 +211,7 @@ def create_scale_factor_tree_for_cross_check_task_output(
         # This should usually get us the tree name, regardless of what task actually generated it.
         # NOTE: Adding a suffix will yield "Raw{grooming_method}Tree", so instead we search for "tree"
         #       and one of the task names.
-        tree_name = [k for k in f if "RawTree" in k and ("HardestKt" in k or "DynamicalGrooming" in k)][0]
+        tree_name = [k for k in f if "RawTree" in k and ("HardestKt" in k or "DynamicalGrooming" in k)][0]  # noqa: RUF015
         n_entries = f[tree_name].num_entries
         logger.debug(f"n entries: {n_entries}")
 
@@ -262,7 +262,7 @@ def pt_hat_spectra_from_hists(
                 hists = _find_list_with_hists_via_uproot(f=f, list_name=list_name)
                 single_bin_pt_hard_spectra.append(
                     binned_data.BinnedData.from_existing_data(
-                        [h for h in hists if h.has_member("fName") and h.member("fName") == "fHistPtHard"][0]
+                        [h for h in hists if h.has_member("fName") and h.member("fName") == "fHistPtHard"][0]  # noqa: RUF015
                     )
                 )
         h_temp = sum(single_bin_pt_hard_spectra)

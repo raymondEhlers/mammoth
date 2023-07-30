@@ -1136,7 +1136,7 @@ def calculate_data_skim_impl(
 
     # Dataset wide masks
     # Select everything by default. We know that there must be at least one set of jets, so we're safe to select on 0.
-    mask = all_jets[list(prefixes.keys())[0]].jet_pt > 0
+    mask = all_jets[next(iter(prefixes.keys()))].jet_pt > 0
     # Special selections for pythia.
     # Apparently I can get pt hard < 5. Which is bizarre, at least according to the binning...
     # Filter these out when applicable.
