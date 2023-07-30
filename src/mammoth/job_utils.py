@@ -556,11 +556,13 @@ def _define_dask_distributed_cluster(
     else:
         import dask_jobqueue
         cluster = dask_jobqueue.SLURMCluster(
-            account=facility.allocation_account,
+            # Need to pass None - otherwise it will pass an invalid job script (worse, it doesn't breaks on this line, but the next one)
+            account=facility.allocation_account if facility.allocation_account else None,
             queue=facility.partition_name,
             cores=n_cores_to_allocate_per_block,
             processes=round(n_cores_to_allocate_per_block / task_config.n_cores_per_task),
-            memory=str(memory_to_allocate_per_block),
+            # NOTE: Dask appears to require a unit, unlike parsl, so we add it here in GB, since we expect to pass GB.
+            memory=f"{memory_to_allocate_per_block!s}GB",
             # string to prepend to #SBATCH blocks in the submit
             # Can add additional options directly to scheduler.
             job_extra_directives=[f"#SBATCH --exclude={','.join(facility.nodes_to_exclude)}" if facility.nodes_to_exclude else ""],
@@ -568,7 +570,8 @@ def _define_dask_distributed_cluster(
             # 'module load Anaconda; source activate parsl_env'.
             job_script_prologue=[f"{facility.worker_init_script}; {additional_worker_init_script}"] if facility.worker_init_script else [additional_worker_init_script],
             walltime=walltime,
-            resources=resources,
+            # Apparently they dropped direct resources support (I can't fully trace it now), so we have to work around it by passing worker_extra_args
+            worker_extra_args=["--resources " + ",".join([f"{k}={v}" for k, v in resources.items()])],
         )
         # Actually request the jobs. Doing this or not can be made configurable later if needed, but the default
         # from parsl is to immediately allocate, so if nothing else, it's provides the same functionality.
