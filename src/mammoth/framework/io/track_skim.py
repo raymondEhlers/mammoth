@@ -1,4 +1,4 @@
-"""Convert track skim to parquet, making it easier to use.
+"""ALICE track skim
 
 .. codeauthor:: Raymond Ehlers <raymond.ehlers@cern.ch>, LBL/UCB
 """
