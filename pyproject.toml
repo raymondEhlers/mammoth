@@ -21,6 +21,7 @@ dependencies = [
     "uproot >=4.2",
     "numpy >=1.21",
     "pyarrow >=4",
+    "pyhepmc>=2.12.0",
     # Can't move to v2 because it's limited by parsl...
     "pandas >=1.4,<2.0",
     "attrs >=21.2.0",
