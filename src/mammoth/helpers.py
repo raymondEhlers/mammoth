@@ -91,7 +91,7 @@ def progress_bar() -> rich.progress.Progress:
         # `*Progress.get_default_columns()`
         # However, I wanted a wider BarColumn, so I coped the definitions and modified the width
         rich.progress.TextColumn("[progress.description]{task.description}"),
-        rich.progress.BarColumn(bar_width=60),
+        rich.progress.BarColumn(bar_width=None),
         rich.progress.TaskProgressColumn(),
         rich.progress.TimeRemainingColumn(),
         rich.progress.MofNCompleteColumn(),
