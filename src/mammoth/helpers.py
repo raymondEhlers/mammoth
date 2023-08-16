@@ -184,6 +184,9 @@ def setup_logging(
         handlers=[RichModuleNameHandler(level=level, console=rich_console, rich_tracebacks=True)],
     )
 
+    # Capture warnings into logging
+    logging.captureWarnings(True)
+
     # Quiet down some loggers for sanity
     # Generally, parsl's logger configuration doesn't work for a number of modules because
     # they're not in the parsl namespace, but it's still worth trying to make it quieter.
