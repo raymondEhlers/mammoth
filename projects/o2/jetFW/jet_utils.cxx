@@ -145,8 +145,9 @@ std::tuple<std::vector<int>, std::vector<int>> MatchJetsGeometricallyImpl(
 
     // Find the tag jet closest to each base jet.
     for (std::size_t iBase = 0; iBase < nJetsBase; iBase++) {
-        Double_t point[2] = {jetsBaseEta[iBase], jetsBasePhi[iBase]};
-        Int_t index(-1); Double_t distance(-1);
+        T point[2] = {jetsBaseEta[iBase], jetsBasePhi[iBase]};
+        int index(-1);
+        T distance(-1);
         treeTag.FindNearestNeighbors(point, 1, &index, &distance);
         // test whether indices are matching:
         if (index >= 0 && distance < maxMatchingDistance) {
@@ -172,8 +173,9 @@ std::tuple<std::vector<int>, std::vector<int>> MatchJetsGeometricallyImpl(
 
     // Find the base jet closest to each tag jet
     for (std::size_t iTag = 0; iTag < nJetsTag; iTag++) {
-        Double_t point[2] = {jetsTagEta[iTag], jetsTagPhi[iTag]};
-        Int_t index(-1); Double_t distance(-1);
+        T point[2] = {jetsTagEta[iTag], jetsTagPhi[iTag]};
+        int index(-1);
+        T distance(-1);
         treeBase.FindNearestNeighbors(point, 1, &index, &distance);
         if(index >= 0 && distance < maxMatchingDistance) {
             //LOG(debug) << "Found closest base jet for " << iTag << " with match index " << index << " and distance " << distance << std::endl;
@@ -198,17 +200,17 @@ std::tuple<std::vector<int>, std::vector<int>> MatchJetsGeometricallyImpl(
 
     // Convert indices in the duplicated jet vectors into the original jet indices.
     // First for the base -> tag map.
-    for (auto & v : matchIndexTag) {
+    for (const auto & v : matchIndexTag) {
         // If it's -1, it means that it didn't find a matching jet.
         // We have to explicitly check for it here because it would be an invalid index.
         if (v != -1) {
-            v = jetMapTagToJetIndex[v];
+            v = jetMapTagToJetIndex.at(v);
         }
     }
     // Then for the index -> base map.
-    for (auto & v : matchIndexBase) {
+    for (const auto & v : matchIndexBase) {
         if (v != -1) {
-            v = jetMapBaseToJetIndex[v];
+            v = jetMapBaseToJetIndex.at(v);
         }
     }
 
