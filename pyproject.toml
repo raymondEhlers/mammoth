@@ -1,7 +1,7 @@
 [build-system]
 # pdm
-requires = ["pdm-pep517"]
-build-backend = "pdm.pep517.api"
+requires = ["pdm-backend"]
+build-backend = "pdm.backend"
 # hatch
 #requires = ["hatchling"]
 #build-backend = "hatchling.build"
@@ -15,7 +15,7 @@ authors = [
   { name = "Raymond Ehlers", email = "raymond.ehlers@cern.ch" },
 ]
 # For hatch, need to remove the dependencies references here
-dynamic = ["dependencies", "optional-dependencies", "version"]
+dynamic = ["optional-dependencies", "version"]
 dependencies = [
     "awkward >=2.0.8",
     "uproot >=4.2",
@@ -77,10 +77,13 @@ build.include = [
     "src/mammoth/py.typed",
 ]
 
-[tool.pdm]
-version = { source = "file", path = "src/mammoth/__init__.py" }
-include = [
-    "src/mammoth/py.typed",
+[tool.pdm.version]
+source = "file"
+path = "src/mammoth/__init__.py"
+
+[tool.pdm.build]
+excludes = [
+    "tests/track_skim_validation/input/alice",
 ]
 
 [tool.mypy]
