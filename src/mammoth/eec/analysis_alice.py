@@ -183,6 +183,7 @@ def analysis_embedding(
     combinatorics_chunk_size: int,
     scale_factor: float,
     det_level_artificial_tracking_efficiency: float | analysis_tracking.PtDependentTrackingEfficiencyParameters,
+    use_jet_trigger: bool,
     # Default analysis arguments
     validation_mode: bool = False,
     return_skim: bool = False,
@@ -222,60 +223,62 @@ def analysis_embedding(
     arrays["hybrid"] = arrays["hybrid"][hybrid_level_mask]
 
     # Find trigger(s)
-    # NOTE: Use the signal fraction because we don't want any overlap between signal and reference events!
-    signal_event_fraction = 0.8
-    _rng = np.random.default_rng()
-    is_signal_event = _rng.random(ak.num(arrays, axis=0)) < signal_event_fraction
-
-    # Trigger QA
-    for level in ["part_level", "det_level", "hybrid"]:
-        hists[f"{level}_inclusive_trigger_spectra"].fill(ak.flatten(arrays[level].pt), weight=scale_factor)
-
     logger.info("Finding trigger(s)")
     triggers_dict: dict[str, dict[str, ak.Array]] = {}
     event_selection_mask: dict[str, dict[str, ak.Array]] = {}
+    if use_jet_trigger:
+        ...
+    else:
+        # NOTE: Use the signal fraction because we don't want any overlap between signal and reference events!
+        signal_event_fraction = 0.8
+        _rng = np.random.default_rng()
+        is_signal_event = _rng.random(ak.num(arrays, axis=0)) < signal_event_fraction
 
-    # Random choice args
-    random_choice_kwargs: dict[str, Any] = {}
-    if validation_mode:
-        random_choice_kwargs["random_seed"] = jet_finding.VALIDATION_MODE_RANDOM_SEED[0]
-    for level in ["part_level", "det_level", "hybrid"]:
-        triggers_dict[level] = {}
-        event_selection_mask[level] = {}
-        for trigger_name, trigger_range_tuple in trigger_pt_ranges.items():
-            trigger_mask = (
-                (arrays[level].pt >= trigger_range_tuple[0])
-                & (arrays[level].pt < trigger_range_tuple[1])
-            )
-            # Add signal mask
-            event_trigger_mask = ~is_signal_event
-            if trigger_name == "signal":
-                event_trigger_mask = is_signal_event
+        # Trigger QA
+        for level in ["part_level", "det_level", "hybrid"]:
+            hists[f"{level}_inclusive_trigger_spectra"].fill(ak.flatten(arrays[level].pt), weight=scale_factor)
 
-            # Apply the masks separately since one is particle-wise and one is event-wise
-            triggers = arrays[level][trigger_mask]
-            event_trigger_mask = event_trigger_mask & (ak.num(triggers, axis=-1) > 0)
-            triggers = triggers[event_trigger_mask]
+        # Random choice args
+        random_choice_kwargs: dict[str, Any] = {}
+        if validation_mode:
+            random_choice_kwargs["random_seed"] = jet_finding.VALIDATION_MODE_RANDOM_SEED[0]
+        for level in ["part_level", "det_level", "hybrid"]:
+            triggers_dict[level] = {}
+            event_selection_mask[level] = {}
+            for trigger_name, trigger_range_tuple in trigger_pt_ranges.items():
+                trigger_mask = (
+                    (arrays[level].pt >= trigger_range_tuple[0])
+                    & (arrays[level].pt < trigger_range_tuple[1])
+                )
+                # Add signal mask
+                event_trigger_mask = ~is_signal_event
+                if trigger_name == "signal":
+                    event_trigger_mask = is_signal_event
 
-            # NOTE: As of April 2023, I don't record the overall number of events because I think
-            #       we're looking for a per-trigger yield (or we will normalize the different trigger
-            #       classes relative to each other, in which case, I don't think we'll care about the
-            #       precise event count).
+                # Apply the masks separately since one is particle-wise and one is event-wise
+                triggers = arrays[level][trigger_mask]
+                event_trigger_mask = event_trigger_mask & (ak.num(triggers, axis=-1) > 0)
+                triggers = triggers[event_trigger_mask]
 
-            # Randomly select if there is more than one trigger
-            # NOTE: This must operator on a concrete field, so we use px as a proxy.
-            select_trigger_mask = analysis_array_helpers.random_choice_jagged(arrays=triggers.px, **random_choice_kwargs)
-            # NOTE: Since we've now selected down to at most one trigger per event, and no empty events,
-            #       our triggers can now be represented with regular numpy arrays.
-            #       By simplifying now, it can make later operations easier.
-            triggers_dict[level][trigger_name] = ak.to_regular(triggers[select_trigger_mask])
-            event_selection_mask[level][trigger_name] = event_trigger_mask
+                # NOTE: As of April 2023, I don't record the overall number of events because I think
+                #       we're looking for a per-trigger yield (or we will normalize the different trigger
+                #       classes relative to each other, in which case, I don't think we'll care about the
+                #       precise event count).
 
-            # Fill in spectra
-            hists[f"{level}_trigger_spectra"].fill(
-                ak.flatten(triggers_dict[level][trigger_name].pt),
-                weight=scale_factor,
-            )
+                # Randomly select if there is more than one trigger
+                # NOTE: This must operator on a concrete field, so we use px as a proxy.
+                select_trigger_mask = analysis_array_helpers.random_choice_jagged(arrays=triggers.px, **random_choice_kwargs)
+                # NOTE: Since we've now selected down to at most one trigger per event, and no empty events,
+                #       our triggers can now be represented with regular numpy arrays.
+                #       By simplifying now, it can make later operations easier.
+                triggers_dict[level][trigger_name] = ak.to_regular(triggers[select_trigger_mask])
+                event_selection_mask[level][trigger_name] = event_trigger_mask
+
+                # Fill in spectra
+                hists[f"{level}_trigger_spectra"].fill(
+                    ak.flatten(triggers_dict[level][trigger_name].pt),
+                    weight=scale_factor,
+                )
 
     recoil_direction: dict[str, dict[str, ak.Array]] = {}
     for level in ["part_level", "det_level", "hybrid"]:
@@ -328,6 +331,8 @@ def analysis_embedding(
                 #         3. Implement the calculation in c++
                 #       As of 2023 June 20, we're only on step 1.
                 logger.info(f"{level}, {trigger_name}: About to calculate combinations")
+                # TODO: Mateusz claims that we should double count here, per the theorists (ie. Kyle).
+                #       This seems odd...
                 left, right = ak.unzip(ak.combinations(eec_particles, 2))
                 distances = left.deltaR(right)
 
@@ -546,6 +551,7 @@ if __name__ == "__main__":
             combinatorics_chunk_size=500,
             scale_factor=1,
             det_level_artificial_tracking_efficiency=0.99,
+            use_jet_trigger=False,
             return_skim=False,
         )
         merged_hists = output_utils.merge_results(merged_hists, analysis_output.hists)
