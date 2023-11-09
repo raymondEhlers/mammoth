@@ -57,7 +57,6 @@ shadd = "mammoth.framework.io.output_utils:shit_hadd"
 [tool.pdm.dev-dependencies]
 dev = [
     "ruff>=0.0.209",
-    "black >=22.1.0",
     "mypy >=0.931",
     "ipython >=8.0",
     "ipykernel >=6.15.1",
@@ -127,6 +126,7 @@ ignore_missing_imports = true
 line-length = 120
 
 [tool.ruff]
+src = ["src"]
 exclude = [
     '.git',
     '.env',
@@ -140,6 +140,8 @@ exclude = [
     'dist',
 ]
 line-length = 120
+
+[tool.ruff.lint]
 select = [
     "E", "F", "W", # flake8
     "C901",        # mccabe
@@ -178,10 +180,10 @@ unfixable = [
     "F841",     # Removes unused variables
 ]
 
-[tool.ruff.mccabe]
+[tool.ruff.lint.mccabe]
 max-complexity = 12
 
-[tool.ruff.isort]
+[tool.ruff.lint.isort]
 known-first-party = ["mammoth", "mammoth_cpp"]
 
 [tool.pylint]
