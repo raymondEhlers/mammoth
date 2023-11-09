@@ -9,17 +9,13 @@ import collections.abc
 import enum
 import itertools
 import logging
+from collections.abc import Generator, Iterator, Mapping, MutableMapping, Sequence
 from pathlib import Path
 from typing import (
     Any,
     Final,
-    Generator,
-    Iterator,
-    Mapping,
-    MutableMapping,
     Optional,
     Protocol,
-    Sequence,
     Union,
     runtime_checkable,
 )

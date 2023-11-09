@@ -6,8 +6,8 @@
 from __future__ import annotations
 
 import collections.abc
+from collections.abc import Sequence
 from pathlib import Path
-from typing import Sequence
 
 import attrs
 import awkward as ak

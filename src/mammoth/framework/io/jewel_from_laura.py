@@ -7,8 +7,9 @@ is stored in: `/alf/data/laura/pc069/alice/thermal_ML/jewel_stuff`
 """
 
 import logging
+from collections.abc import Generator, MutableMapping
 from pathlib import Path
-from typing import Any, Dict, Generator, MutableMapping, Optional
+from typing import Any, Optional
 
 import attrs
 import awkward as ak
@@ -20,8 +21,8 @@ logger = logging.getLogger(__name__)
 
 @attrs.frozen
 class Columns:
-    event_level: Dict[str, str]
-    particle_level: Dict[str, str]
+    event_level: dict[str, str]
+    particle_level: dict[str, str]
 
     @classmethod
     def create(cls) -> "Columns":

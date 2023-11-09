@@ -13,9 +13,10 @@ from __future__ import annotations
 import copy
 import logging
 import secrets
+from collections.abc import Iterable, Sequence
 from concurrent.futures import Future
 from pathlib import Path
-from typing import Any, Iterable, Protocol, Sequence
+from typing import Any, Protocol
 
 import IPython
 import numpy as np

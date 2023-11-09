@@ -7,9 +7,10 @@ from __future__ import annotations
 
 import collections.abc
 import logging
+from collections.abc import Iterator, Mapping, Sequence
 from functools import partial
 from pathlib import Path
-from typing import Any, Iterator, Mapping, Sequence
+from typing import Any
 
 import awkward as ak
 import numpy as np

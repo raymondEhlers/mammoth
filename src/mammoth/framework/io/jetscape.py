@@ -6,8 +6,9 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Generator, MutableMapping
 from pathlib import Path
-from typing import Any, Generator, MutableMapping
+from typing import Any
 
 import attrs
 import awkward as ak

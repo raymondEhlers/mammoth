@@ -6,7 +6,8 @@
 from __future__ import annotations
 
 import typing
-from typing import Collection, TypeVar, Union
+from collections.abc import Collection
+from typing import TypeVar, Union
 
 import numpy as np
 import numpy.typing as npt

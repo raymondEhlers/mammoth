@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import functools
 import logging
-from typing import Iterator
+from collections.abc import Iterator
 
 import awkward as ak
 import hist

@@ -8,8 +8,9 @@ from __future__ import annotations
 import functools
 import logging
 import typing
+from collections.abc import Mapping, Sequence
 from pathlib import Path
-from typing import Any, Final, Mapping, Sequence, TypeVar, cast
+from typing import Any, Final, TypeVar, cast
 
 import attrs
 import awkward as ak

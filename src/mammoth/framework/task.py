@@ -12,8 +12,9 @@ from __future__ import annotations
 import concurrent.futures
 import functools
 import logging
+from collections.abc import Iterator
 from pathlib import Path
-from typing import Any, Callable, Iterator, Protocol, Union
+from typing import Any, Callable, Protocol, Union
 
 import attrs
 import awkward as ak

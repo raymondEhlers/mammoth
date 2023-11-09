@@ -8,7 +8,7 @@ functionality itself.
 
 import logging
 from pathlib import Path
-from typing import Any, Dict, Type
+from typing import Any
 
 import attrs
 import numpy as np
@@ -68,7 +68,7 @@ class ScaleFactor:
 
     @classmethod
     def from_hists(
-        cls: Type["ScaleFactor"], n_accepted_events: int, n_entries: int, cross_section: Any, n_trials: Any
+        cls: type["ScaleFactor"], n_accepted_events: int, n_entries: int, cross_section: Any, n_trials: Any
     ) -> "ScaleFactor":
         # Validation (ensure that hists are valid)
         # NOTE: Since we're using BinnedData here just to grab the values, it's not overly critical
@@ -92,7 +92,7 @@ class ScaleFactor:
 
 def read_extracted_scale_factors(
     path: Path,
-) -> Dict[int, float]:
+) -> dict[int, float]:
     """Read extracted scale factors.
 
     Args:

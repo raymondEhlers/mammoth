@@ -10,8 +10,9 @@ import datetime
 import functools
 import logging
 import subprocess
+from collections.abc import Mapping, MutableMapping, Sequence
 from pathlib import Path
-from typing import Any, Mapping, MutableMapping, Protocol, Sequence
+from typing import Any, Protocol
 
 import attrs
 import pachyderm.yaml

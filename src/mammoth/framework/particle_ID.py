@@ -5,7 +5,8 @@
 
 import functools
 import operator
-from typing import Mapping, Optional, Sequence
+from collections.abc import Mapping, Sequence
+from typing import Optional
 
 import awkward as ak
 import numba as nb

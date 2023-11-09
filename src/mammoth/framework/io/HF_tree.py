@@ -7,8 +7,9 @@ from __future__ import annotations
 
 import functools
 import operator
+from collections.abc import Generator, Mapping, MutableMapping
 from pathlib import Path
-from typing import Any, Generator, Mapping, MutableMapping
+from typing import Any
 
 import attrs
 import awkward as ak

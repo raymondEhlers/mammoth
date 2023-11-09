@@ -9,8 +9,9 @@ import itertools
 import logging
 import os
 import typing
+from collections.abc import Generator, Iterator
 from pathlib import Path
-from typing import Any, Callable, Generator, Iterator
+from typing import Any, Callable
 
 import attrs
 import awkward as ak
