@@ -84,7 +84,7 @@ def test_parsing(caplog: Any, header_version: int, events_per_chunk: int) -> Non
 
     input_filename = here / "jetscape_parser" / f"final_state_hadrons_header_v{header_version}.dat"
     if not input_filename.exists():
-        raise ValueError("Missing input files - please download the files with the script")
+        pytest.skip(reason="Missing input files - please download the files with the script")
 
     for i, arrays in enumerate(_jetscape_parser.read(filename=input_filename, events_per_chunk=events_per_chunk, parser="pandas")):
         # Get the reference array
@@ -118,7 +118,7 @@ def test_parsing_with_parquet(caplog: Any, header_version: int, events_per_chunk
 
     input_filename = here / "jetscape_parser" / f"final_state_hadrons_header_v{header_version}.dat"
     if not input_filename.exists():
-        raise ValueError("Missing input files - please download the files with the script")
+        pytest.skip(reason="Missing input files - please download the files with the script")
 
     # Convert to chunks in a temp directory.
     base_output_filename = tmp_path / "test.parquet"
@@ -162,7 +162,7 @@ def test_parsing_with_changing_chunk_size(caplog: Any, events_per_chunk: list[in
     N_EVENTS_IN_FILE = 50
     input_filename = here / "jetscape_parser" / f"final_state_hadrons_header_v{header_version}.dat"
     if not input_filename.exists():
-        raise ValueError("Missing input files - please download the files with the script")
+        pytest.skip(reason="Missing input files - please download the files with the script")
 
     event_generator = _jetscape_parser.read(filename=input_filename, events_per_chunk=events_per_chunk[0], parser="pandas")
     expected_length_iter = iter(events_per_chunk)
@@ -210,7 +210,8 @@ def test_jetscape_file_source_parquet(caplog: Any, legacy_skim: bool, tmp_path: 
     N_EVENTS_IN_FILE = 50
     input_filename = here / "jetscape_parser" / f"final_state_hadrons_header_v{header_version}.dat"
     if not input_filename.exists():
-        raise ValueError("Missing input files - please download the files with the script")
+        pytest.skip(reason="Missing input files - please download the files with the script")
+
     events_per_chunk = [N_EVENTS_IN_FILE]
 
     # Need to recreate a legacy skim...
