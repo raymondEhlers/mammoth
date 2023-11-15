@@ -100,6 +100,8 @@ install(TARGETS mammoth LIBRARY DESTINATION ${SKBUILD_PROJECT_NAME})
 ##############################
 
 # First, grab python, as recommended here: https://scikit-build-core.readthedocs.io/en/latest/getting_started.html
+# NOTE: On hiccup, this sometimes caused an issue (maybe something about pyenv? Unclear). If that happens, then just comment out this line.
+#       It's not ideal from a correct configuration perspective, but the build works and all the tests pass, so it all seems to be fine...
 find_package(Python COMPONENTS Interpreter Development.Module REQUIRED)
 # pybind11 from PyPI, which we require in the build dependencies.
 # NOTE: pybind11 seems to be the package that defines PYTHON_SITE_PACKAGES
