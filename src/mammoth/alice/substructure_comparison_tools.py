@@ -108,47 +108,52 @@ def plot_attribute_compare(
         gridspec_kw={"height_ratios": [3, 1]},
         sharex=True,
     )
-    other_hist = arrays_to_hist(arrays=other.arrays, attribute=other.attribute, axis=axis)
-    mine_hist = arrays_to_hist(arrays=mine.arrays, attribute=mine.attribute, axis=axis)
-    # Normalize
-    if normalize:
-        other_hist /= np.sum(other_hist.values)
-        mine_hist /= np.sum(mine_hist.values)
+    try:
+        other_hist = arrays_to_hist(arrays=other.arrays, attribute=other.attribute, axis=axis)
+        mine_hist = arrays_to_hist(arrays=mine.arrays, attribute=mine.attribute, axis=axis)
+        # Normalize
+        if normalize:
+            other_hist /= np.sum(other_hist.values)
+            mine_hist /= np.sum(mine_hist.values)
 
-    ax.errorbar(
-        other_hist.axes[0].bin_centers,
-        other_hist.values,
-        xerr=other_hist.axes[0].bin_widths / 2,
-        yerr=other_hist.errors,
-        label=other.name,
-        linestyle="",
-        alpha=0.8,
-    )
-    ax.errorbar(
-        mine_hist.axes[0].bin_centers,
-        mine_hist.values,
-        xerr=mine_hist.axes[0].bin_widths / 2,
-        yerr=mine_hist.errors,
-        label=mine.name,
-        linestyle="",
-        alpha=0.8,
-    )
+        ax.errorbar(
+            other_hist.axes[0].bin_centers,
+            other_hist.values,
+            xerr=other_hist.axes[0].bin_widths / 2,
+            yerr=other_hist.errors,
+            label=other.name,
+            linestyle="",
+            alpha=0.8,
+        )
+        ax.errorbar(
+            mine_hist.axes[0].bin_centers,
+            mine_hist.values,
+            xerr=mine_hist.axes[0].bin_widths / 2,
+            yerr=mine_hist.errors,
+            label=mine.name,
+            linestyle="",
+            alpha=0.8,
+        )
 
-    ratio = mine_hist / other_hist
-    ax_ratio.errorbar(
-        ratio.axes[0].bin_centers, ratio.values, xerr=ratio.axes[0].bin_widths / 2, yerr=ratio.errors, linestyle=""
-    )
-    logger.info(f"ratio sum: {np.sum(ratio.values)}")
-    logger.info(f"other: {np.sum(other_hist.values)}")
-    logger.info(f"mine: {np.sum(mine_hist.values)}")
+        ratio = mine_hist / other_hist
+        ax_ratio.errorbar(
+            ratio.axes[0].bin_centers, ratio.values, xerr=ratio.axes[0].bin_widths / 2, yerr=ratio.errors, linestyle=""
+        )
+        logger.info(f"ratio sum: {np.sum(ratio.values)}")
+        logger.info(f"other: {np.sum(other_hist.values)}")
+        logger.info(f"mine: {np.sum(mine_hist.values)}")
 
-    # Apply the PlotConfig
-    plot_config.apply(fig=fig, axes=[ax, ax_ratio])
+        # Apply the PlotConfig
+        plot_config.apply(fig=fig, axes=[ax, ax_ratio])
 
-    # filename = f"{plot_config.name}_{jet_pt_bin}{grooming_methods_filename_label}_{identifiers}_iterative_splittings"
-    filename = f"{plot_config.name}"
-    fig.savefig(output_dir / f"{filename}.pdf")
-    plt.close(fig)
+        # filename = f"{plot_config.name}_{jet_pt_bin}{grooming_methods_filename_label}_{identifiers}_iterative_splittings"
+        filename = f"{plot_config.name}"
+        fig.savefig(output_dir / f"{filename}.pdf")
+        plt.close(fig)
+    except Exception as e:
+        # Make sure that the figure gets closed in case anything goes wrong...
+        plt.close(fig)
+        raise e
 
 
 def _pretty_print_flat_type(s: str) -> str:
