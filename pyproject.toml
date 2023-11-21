@@ -10,7 +10,7 @@ build-backend = "pdm.backend"
 name = "mammoth"
 description = "Mostly columnar based physics analyses"
 license = {text = "BSD-3-Clause"}
-requires-python = ">=3.9,<3.13"
+requires-python = ">=3.9"
 authors = [
   { name = "Raymond Ehlers", email = "raymond.ehlers@cern.ch" },
 ]
