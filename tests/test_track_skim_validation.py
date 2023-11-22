@@ -9,6 +9,7 @@ from typing import Any, Dict, List, Optional, Sequence
 
 import attrs
 import pytest
+import pachyderm.plot
 
 from mammoth.alice import groomed_substructure_skim_to_flat_tree, substructure_comparison_tools
 from mammoth.framework import sources
@@ -18,6 +19,8 @@ from mammoth.framework.io import track_skim as io_track_skim
 from mammoth.hardest_kt import analysis_track_skim_to_flat_tree, run_macro
 
 logger = logging.getLogger(__name__)
+
+pachyderm.plot.configure(disable_interactive_backend=True)
 
 _here = Path(__file__).parent
 _track_skim_base_path = _here / "track_skim_validation"
