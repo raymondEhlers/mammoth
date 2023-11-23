@@ -48,7 +48,7 @@ std::tuple<std::shared_ptr<fastjet::ClusterSequenceArea>, std::vector<fastjet::P
     std::vector<std::string> implementedAlgorithms = {"anti-kt", "centauro"};
     if (std::find(implementedAlgorithms.begin(), implementedAlgorithms.end(), jetAlgorithm) == implementedAlgorithms.end())
     {
-        throw std::out_of_range(std::string("Alogrithm ") + jetAlgorithm + " is not implemented");
+        throw std::out_of_range(std::string("Algorithm ") + jetAlgorithm + " is not implemented");
     }
     // Determine jet definition
     // NOTE: Implicitly uses the E scheme
@@ -113,7 +113,7 @@ std::tuple<std::shared_ptr<fastjet::ClusterSequenceArea>, std::vector<fastjet::P
 }
 
 /**
-  * Trivial helper to print jets and consittuents.
+  * Trivial helper to print jets and constituents.
   *
   * Based on fastjet example.
   *
