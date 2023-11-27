@@ -7,6 +7,7 @@
 #include "mammoth/jetFinding.hpp"
 #include "mammoth/jetFindingTools.hpp"
 #include "mammoth/aliceFastSim.hpp"
+#include "mammoth/analysisUtils.hpp"
 
 namespace py = pybind11;
 // Shorthand for literals
@@ -607,4 +608,22 @@ PYBIND11_MODULE(_ext, m) {
   m.def("fast_sim_tracking_efficiency", py::vectorize(alice::fastsim::trackingEfficiencyByPeriod),
         "track_pt"_a, "track_eta"_a, "event_activity"_a, "period"_a,
         "Fast sim via tracking efficiency parametrization", py::call_guard<mammoth::python::JetFindingLoggingStdout, mammoth::python::JetFindingLoggingStderr>());
+
+  // Analysis utilities
+  //m.def("smooth_array", [](const py::array_t<double, py::array::c_style | py::array::forcecast> & array, int nTimes){
+  //m.def("smooth_array", [](const py::buffer & buffer, int nTimes){
+  //  py::buffer_info info = buffer.request();
+  //  std::vector<double> arrayVector(info.shape[0]);
+  //  std::copy(info.ptr, info.ptr + info.shape[0], arrayVector.begin());
+  //  auto res = mammoth::analysis::smoothArray<double>(arrayVector, nTimes);
+  //  return py::array_t<double>(res.data());
+  //} ,
+  m.def("smooth_array", [](std::vector<double> array, int nTimes){
+    auto res = mammoth::analysis::smoothArray<double>(array, nTimes);
+    //return py::array_t<double>(static_cast<long>(res.size()), res.data());
+    return py::array_t<double>(res.size(), res.data());
+    },
+    "array"_a,
+    "n_times"_a = 1,
+    "Smooth an array according to the ROOT TH1::Smooth formulation.");
 }
