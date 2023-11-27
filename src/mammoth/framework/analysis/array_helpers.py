@@ -12,7 +12,7 @@ import numba as nb
 import numpy as np
 import numpy.typing as npt
 
-from mammoth_cpp._ext import smooth_array  # noqa: F401
+from mammoth_cpp._ext import smooth_array, smooth_array_f  # noqa: F401
 
 logger = logging.getLogger(__name__)
 

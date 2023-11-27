@@ -610,20 +610,20 @@ PYBIND11_MODULE(_ext, m) {
         "Fast sim via tracking efficiency parametrization", py::call_guard<mammoth::python::JetFindingLoggingStdout, mammoth::python::JetFindingLoggingStderr>());
 
   // Analysis utilities
-  //m.def("smooth_array", [](const py::array_t<double, py::array::c_style | py::array::forcecast> & array, int nTimes){
-  //m.def("smooth_array", [](const py::buffer & buffer, int nTimes){
-  //  py::buffer_info info = buffer.request();
-  //  std::vector<double> arrayVector(info.shape[0]);
-  //  std::copy(info.ptr, info.ptr + info.shape[0], arrayVector.begin());
-  //  auto res = mammoth::analysis::smoothArray<double>(arrayVector, nTimes);
-  //  return py::array_t<double>(res.data());
-  //} ,
   m.def("smooth_array", [](std::vector<double> array, int nTimes){
     auto res = mammoth::analysis::smoothArray<double>(array, nTimes);
-    //return py::array_t<double>(static_cast<long>(res.size()), res.data());
+    // NOTE: RJE: I believe this copies the output. It's a bit inefficient, but it's not performance critical, so good enough.
     return py::array_t<double>(res.size(), res.data());
     },
     "array"_a,
     "n_times"_a = 1,
     "Smooth an array according to the ROOT TH1::Smooth formulation.");
+  m.def("smooth_array_f", [](std::vector<float> array, int nTimes){
+    auto res = mammoth::analysis::smoothArray<float>(array, nTimes);
+    // NOTE: RJE: I believe this copies the output. It's a bit inefficient, but it's not performance critical, so good enough.
+    return py::array_t<float>(res.size(), res.data());
+    },
+    "array"_a,
+    "n_times"_a = 1,
+    "Smooth an array according to the ROOT TH1::Smooth formulation (float version).");
 }
