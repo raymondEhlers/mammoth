@@ -337,9 +337,19 @@ std::vector<T> mammoth::analysis::smoothArray(const std::vector<T> &array,
     throw std::out_of_range("Need at least 3 points for smoothing: n = " +
                             std::to_string(array.size()));
   }
-  // RJE: Allocate output array rather than changing the array in place.
+  // RJE: NOTE: Originally, `xx` is a double * containing the array that is passed into
+  //            this function. Since I didn't want to deal with a raw pointer, I changed
+  //            how the data is passed, although I changed the algorithm as little as possible
+  //            beyond that. To make this workable, we'll copy the input array into `xx`,
+  //            which is now a `std::vector<double>`. It's changed in place, so we need to
+  //            return it explicitly.
   int nn = array.size();
   std::vector<T> xx(nn);
+  // RJE: NOTE: For this implement, It's important to copy the array values into
+  //            xx before running the algorithm. Otherwise, we get the wrong answer.
+  //            In this case, we're copying the array twice, but this code isn't
+  //            performance critical, so it's not a big deal. (and definitely not worth
+  //            changing the underlying ROOT algorithm to avoid copying!)
   std::copy(array.begin(), array.end(), xx.begin());
 
   int ii;
@@ -351,7 +361,7 @@ std::vector<T> mammoth::analysis::smoothArray(const std::vector<T> &array,
 
   for (int pass = 0; pass < nTimes; pass++) {
     // first copy original data into temp array
-    // RJE: Changed from `xx` -> `array` so we don't have to copy twice
+    // RJE: Minor changed from copying xx via offsets to using iterators. It's safer.
     std::copy(xx.begin(), xx.end(), zz.begin());
 
     for (int noent = 0; noent < 2; ++noent) { // run algorithm two times
