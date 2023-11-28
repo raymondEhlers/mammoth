@@ -13,10 +13,10 @@ import math
 import os.path
 import sys
 import typing
-from collections.abc import Callable
+from collections.abc import Callable, Iterable, Sequence
 from functools import wraps
 from pathlib import Path
-from typing import Any, Iterable, Literal, Sequence, TypeVar
+from typing import Any, Literal, TypeVar
 
 import attrs
 import dask
@@ -851,10 +851,8 @@ def provide_results_as_completed(input_futures: Sequence[concurrent.futures.Futu
                         pass
                     except WorkerLost as e:
                         logger.warning(f"Lost worker: {e}")
-                        pass
                     except ManagerLost as e:
                         logger.warning(f"Manager lost: {e}")
-                        pass
             except KeyboardInterrupt as e:
                 for job in futures:
                     _cancel_future(job)

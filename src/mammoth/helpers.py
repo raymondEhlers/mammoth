@@ -2,10 +2,11 @@
 
 .. codeauthor:: Raymond Ehlers <raymond.ehlers@cern.ch>, ORNL
 """
+from __future__ import annotations
 
 import logging
+from collections.abc import Sequence
 from datetime import datetime
-from typing import Optional, Sequence
 
 import attrs
 import parsl
@@ -52,9 +53,9 @@ class RichModuleNameHandler(RichHandler):
         self,
         *,
         record: logging.LogRecord,
-        traceback: Optional[rich.traceback.Traceback],
-        message_renderable: "rich.console.ConsoleRenderable",
-    ) -> "rich.console.ConsoleRenderable":
+        traceback: rich.traceback.Traceback | None,
+        message_renderable: rich.console.ConsoleRenderable,
+    ) -> rich.console.ConsoleRenderable:
         """Render log for display.
 
         Args:
@@ -108,7 +109,7 @@ def progress_bar() -> rich.progress.Progress:
 def setup_logging_and_parsl(
     parsl_config: parsl.Config,
     level: int = logging.INFO,
-    stored_messages: Optional[Sequence[LogMessage]] = None,
+    stored_messages: Sequence[LogMessage] | None = None,
 ) -> parsl.DataFlowKernel:
     """Configure logging and setup the parsl config.
 
@@ -153,7 +154,7 @@ def setup_logging_and_parsl(
 
 def setup_logging(
     level: int = logging.INFO,
-    stored_messages: Optional[Sequence[LogMessage]] = None,
+    stored_messages: Sequence[LogMessage] | None = None,
 ) -> bool:
     """Configure logging.
 
