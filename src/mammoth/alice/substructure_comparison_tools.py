@@ -9,8 +9,8 @@ import logging
 import pprint
 import re
 import warnings
+from collections.abc import Sequence
 from pathlib import Path
-from typing import Sequence
 
 import attrs
 import awkward as ak

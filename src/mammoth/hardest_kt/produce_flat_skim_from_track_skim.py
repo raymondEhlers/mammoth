@@ -7,9 +7,10 @@ from __future__ import annotations
 
 import logging
 import secrets
+from collections.abc import Iterable, Mapping, MutableMapping, Sequence
 from concurrent.futures import Future
 from pathlib import Path
-from typing import Any, Iterable, Mapping, MutableMapping, Sequence
+from typing import Any
 
 import attrs
 import IPython

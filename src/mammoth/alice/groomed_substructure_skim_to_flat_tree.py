@@ -9,8 +9,9 @@ from __future__ import annotations
 
 import functools
 import logging
+from collections.abc import Iterable, Mapping
 from pathlib import Path
-from typing import Iterable, Mapping, Union
+from typing import Union
 
 import attrs
 import awkward as ak

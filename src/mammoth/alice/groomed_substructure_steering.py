@@ -2,6 +2,7 @@
 
 .. codeauthor:: Raymond Ehlers <raymond.ehlers@cern.ch>, LBL/UCB
 """
+from __future__ import annotations
 
 import enum
 from collections.abc import MutableMapping

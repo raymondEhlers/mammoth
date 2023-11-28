@@ -6,7 +6,8 @@
 from __future__ import annotations
 
 import logging
-from typing import Any, Mapping
+from collections.abc import Mapping
+from typing import Any
 
 import awkward as ak
 import numpy as np

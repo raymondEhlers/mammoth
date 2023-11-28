@@ -6,8 +6,9 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Mapping, Sequence
 from concurrent.futures import Future
-from typing import Any, Mapping, Sequence
+from typing import Any
 
 from parsl.data_provider.files import File
 

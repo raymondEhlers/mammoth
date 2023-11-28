@@ -2,12 +2,14 @@
 
 .. codeauthor:: Raymond Ehlers <raymond.ehlers@cern.ch>, ORNL
 """
+from __future__ import annotations
 
 import logging
 import secrets
 from collections import defaultdict
+from collections.abc import Mapping, Sequence
 from pathlib import Path
-from typing import Any, Dict, List, Mapping, Sequence, Tuple
+from typing import Any
 
 import IPython
 from parsl.app.app import python_app
@@ -31,7 +33,7 @@ def run_jet_background_ML_embedding_analysis(
     use_constituent_subtraction: bool = False,
     inputs: Sequence[File] = [],
     outputs: Sequence[File] = [],
-) -> Tuple[bool, str]:
+) -> tuple[bool, str]:
     import traceback
     from pathlib import Path
 
@@ -73,7 +75,7 @@ def setup_jet_background_ML_embedding_analysis(
     signal_input_dir: Path,
     background_input_dir: Path,
     base_output_dir: Path,
-) -> List[AppFuture]:
+) -> list[AppFuture]:
     """Setup jet ML embedding analysis.
 
     Args:
@@ -101,7 +103,7 @@ def setup_jet_background_ML_embedding_analysis(
     # are more statistics at high pt hat). So, we should sample the pt hat bin, and then
     # randomly select one of the files for that pt hat bin
     # NOTE: These are only used when sampling each pt hat bin equally
-    signal_input_files_by_pt_hat_bin_label: Dict[str, List[Path]] = defaultdict(list)
+    signal_input_files_by_pt_hat_bin_label: dict[str, list[Path]] = defaultdict(list)
     for signal_input in signal_input_files:
         pt_hat_bin_label = extract_pt_hat_bin_label_from_JEWEL_filename(signal_input)
         signal_input_files_by_pt_hat_bin_label[pt_hat_bin_label].append(signal_input)
@@ -245,7 +247,7 @@ def run() -> None:
 
     # In order to support writing histograms from multiple systems, we need to index the output histograms
     # by the collision system + centrality.
-    output_hists: Dict[str, Dict[Any, Any]] = {
+    output_hists: dict[str, dict[Any, Any]] = {
         k: {} for k in systems_to_process
     }
     with Progress(console=helpers.rich_console, refresh_per_second=1) as progress:

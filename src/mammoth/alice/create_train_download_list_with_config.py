@@ -13,8 +13,8 @@ import argparse
 import logging
 import subprocess
 import xml.etree.ElementTree as ET
+from collections.abc import Sequence
 from pathlib import Path
-from typing import Sequence
 
 import pachyderm.alice.download as alice_dl
 import pachyderm.alice.utils as alice_utils
@@ -74,6 +74,7 @@ def add_files_from_xml_file(
     subprocess.run(
         ["alien_cp", str(alien_xml_file), f"file://{local_xml_file!s}"],
         capture_output=True,
+        check=True,
     )
 
     # Open local XML file
@@ -287,7 +288,7 @@ def create_train_download_list(trains: Sequence[int]) -> None:  # noqa: C901
                 base_dataset_path = Path(f"/alice/{data_or_sim_str}/{year_from_dataset(dataset_name)}/") / specific_dataset_name
                 # Add pt hard bins if requested
                 n_pt_hard_bins = config.get("n_pt_hard_bins", None)
-                pt_hard_bin_generator = range(1, n_pt_hard_bins + 1) if n_pt_hard_bins else range(0, 1)
+                pt_hard_bin_generator = range(1, n_pt_hard_bins + 1) if n_pt_hard_bins else range(0, 1)  # noqa: PIE808
 
                 for possible_pt_hard_bin in pt_hard_bin_generator:
                     dataset_path = base_dataset_path

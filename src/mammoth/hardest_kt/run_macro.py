@@ -11,8 +11,9 @@ import logging
 import pprint
 import tempfile
 import uuid
+from collections.abc import Sequence
 from pathlib import Path
-from typing import Any, Sequence, TypeVar
+from typing import Any, TypeVar
 
 import attrs
 import numpy as np

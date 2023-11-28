@@ -8,7 +8,8 @@ from __future__ import annotations
 import functools
 import logging
 import operator
-from typing import Final, Mapping, Sequence
+from collections.abc import Mapping, Sequence
+from typing import Final
 
 import awkward as ak
 import numpy as np
