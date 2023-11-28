@@ -37,7 +37,7 @@ def _git_hash_from_module(module: Any) -> str:
         The git hash associated with the module.
     """
     return (
-        subprocess.run(["git", "rev-parse", "HEAD"], cwd=Path(module.__file__).parent.parent, capture_output=True)
+        subprocess.run(["git", "rev-parse", "HEAD"], cwd=Path(module.__file__).parent.parent, capture_output=True, check=True)
         .stdout.decode("ascii")
         .strip()
     )
@@ -61,7 +61,7 @@ def _installed_python_software() -> list[str]:
     import sys
 
     return (
-        subprocess.run([sys.executable, "-m", "pip", "freeze"], capture_output=True)
+        subprocess.run([sys.executable, "-m", "pip", "freeze"], capture_output=True, check=True)
         .stdout.decode("ascii")
         .strip("\n")
         .split("\n")
@@ -360,7 +360,6 @@ class ProductionSettings:
             # If we have the scale factors stored and available, no need to extract them again
             if self.scale_factors_filename.exists() and self.scale_factors():
                 logger.info("Scale factors already exist. Skipping extracting them again by not assigning the task!")
-                pass
             else:
                 _tasks.append("extract_scale_factors")
 
@@ -394,7 +393,7 @@ class ProductionSettings:
         # except for the production date).
         # In order to avoid overwriting, we try adding an additional index to the filename.
         # 100 is arbitrarily selected, but I see it as highly unlikely that we would have 100 productions...
-        for _additional_production_number in range(0, 100):
+        for _additional_production_number in range(100):
             _production_filename = self.output_dir / "production.yaml"
             # No need for an index for the first file.
             if _additional_production_number > 0:

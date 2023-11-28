@@ -180,10 +180,12 @@ unfixable = [
     "F841",     # Removes unused variables
 ]
 
+
 [tool.ruff.lint.mccabe]
 max-complexity = 12
 
 [tool.ruff.lint.isort]
+required-imports = ["from __future__ import annotations"]
 known-first-party = ["mammoth", "mammoth_cpp"]
 
 [tool.pylint]

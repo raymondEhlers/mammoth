@@ -2,6 +2,7 @@
 
 .. codeauthor:: Raymond Ehlers <raymond.ehlers@cern.ch>, ORNL
 """
+from __future__ import annotations
 
 import logging
 from collections.abc import Generator, MutableMapping
@@ -22,7 +23,7 @@ class Columns:
     particle_level: dict[str, str]
 
     @classmethod
-    def create(cls) -> "Columns":
+    def create(cls) -> Columns:
         # For JEWEL, these were the only meaningful columns
         event_level_columns = {
             "Event_Weight": "event_weight",

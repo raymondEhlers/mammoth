@@ -328,7 +328,7 @@ def _jet_matching(
     for event_offset_base, event_offset_tag, count_base in zip(starts_base[:-1], starts_tag[:-1], counts_base):
         # print(f"{i=}")
         # We don't care about this counter, we just need to iterate this many times.
-        for _ in range(0, count_base):
+        for _ in range(0, count_base):  # noqa: PIE808
             # print(f"{local_counter=}")
             # print(f"{event_base_matching_indices[i]=}")
             if (

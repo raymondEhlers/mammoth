@@ -60,7 +60,7 @@ class Columns:
 @attrs.define
 class FileSource:
     _filename: Path = attrs.field(converter=Path)
-    _default_chunk_size: sources.T_ChunkSize = attrs.field(default=int(50_000))
+    _default_chunk_size: sources.T_ChunkSize = attrs.field(default=50_000)
     metadata: MutableMapping[str, Any] = attrs.Factory(dict)
 
     def gen_data(
