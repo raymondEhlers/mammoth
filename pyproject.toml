@@ -83,6 +83,7 @@ path = "src/mammoth/__init__.py"
 [tool.pdm.build]
 excludes = [
     "tests/track_skim_validation/input/alice",
+    "**/.mypy_cache/",
 ]
 
 [tool.mypy]
