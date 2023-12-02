@@ -481,8 +481,8 @@ def setup_data_calculation(  # noqa: C901
                         analysis_arguments=analysis_arguments_with_pt_hat_scale_factor,
                         # Framework options
                         job_framework=job_framework,
-                        inputs=[File(input_filename) if job_framework == job_utils.JobFramework.parsl else input_filename],
-                        outputs=[File(output_filename) if job_framework == job_utils.JobFramework.parsl else output_filename],
+                        inputs=[File(input_filename)],
+                        outputs=[File(output_filename)],
                     )
                 )
                 #results.append(
