@@ -195,16 +195,17 @@ def _transform_data(
             _msg = "There's no data available in the source!"
             raise sources.NoDataAvailableError(_msg)
 
-        # If we are renaming one of the prefixes to "data", that means that we want to treat it
-        # as if it were standard data rather than pythia.
+        # Handle MC vs data.
+        # We treat MC separately unless we rename one of the prefixes to "data". In that case,
+        # it means that we want to treat the MC as if it were standard data.
         if collision_system in ["pythia", "pp_MC"] and "data" not in list(rename_prefix.keys()):
             logger.info("Transforming as MC")
             yield normalize_for_MC(arrays=arrays, rename_prefix=rename_prefix)
-
-        # If not pythia, we don't need to handle it separately - it's all just data
-        # All the rest of the collision systems would be embedded together separately by other functions
-        logger.info("Transforming as data")
-        yield normalize_for_data(arrays=arrays, rename_prefix=rename_prefix)
+        else:
+            # If not pythia, we don't need any special handling - it's all just data
+            # All the rest of the collision systems would be embedded together separately by other functions
+            logger.info(f"Transforming as data")
+            yield normalize_for_data(arrays=arrays, rename_prefix=rename_prefix)
 
 
 def data(
