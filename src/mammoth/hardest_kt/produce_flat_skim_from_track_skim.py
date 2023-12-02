@@ -418,7 +418,8 @@ def setup_calculate_data_skim(
 
     # If we want to debug some particular files, we can directly set them here
     if debug_mode:
-        input_files = {10: [Path("trains/pythia/2619/run_by_run/LHC18b8_cent_woSDD/282008/10/AnalysisResults.18b8_cent_woSDD.003.root")]}
+        pass
+        #input_files = {10: [Path("trains/pythia/2619/run_by_run/LHC18b8_cent_woSDD/282008/10/AnalysisResults.18b8_cent_woSDD.003.root")]}
         #input_files = {-1: [Path("trains/pp/2111/run_by_run/LHC17p_CENT_woSDD/282341/AnalysisResults.17p.586.root")]}
         #input_files = {-1: [Path("trains/PbPb/645/run_by_run/LHC18r/297595/AnalysisResults.18r.551.root")]}
 
@@ -1107,11 +1108,11 @@ def define_productions() -> list[production.ProductionSettings]:
             #     track_skim_config_filename=config_filename,
             # ),
             # Production
-            production.ProductionSettings.read_config(
-                collision_system="embed_thermal_model", number=61,
-                specialization=HardestKtProductionSpecialization(),
-                track_skim_config_filename=config_filename,
-            ),
+            # production.ProductionSettings.read_config(
+            #     collision_system="embed_thermal_model", number=61,
+            #     specialization=HardestKtProductionSpecialization(),
+            #     track_skim_config_filename=config_filename,
+            # ),
             # production.ProductionSettings.read_config(
             #     collision_system="embed_thermal_model", number=62,
             #     specialization=HardestKtProductionSpecialization(),
@@ -1165,6 +1166,36 @@ def define_productions() -> list[production.ProductionSettings]:
             #     specialization=HardestKtProductionSpecialization(),
             #     track_skim_config_filename=config_filename,
             # ),
+            # production.ProductionSettings.read_config(
+            #     collision_system="pythia", number=63,
+            #     specialization=HardestKtProductionSpecialization(),
+            #     track_skim_config_filename=config_filename,
+            # ),
+            # production.ProductionSettings.read_config(
+            #     collision_system="pythia", number=65,
+            #     specialization=HardestKtProductionSpecialization(),
+            #     track_skim_config_filename=config_filename,
+            # ),
+            # production.ProductionSettings.read_config(
+            #     collision_system="pp", number=61,
+            #     specialization=HardestKtProductionSpecialization(),
+            #     track_skim_config_filename=config_filename,
+            # ),
+            # production.ProductionSettings.read_config(
+            #     collision_system="pythia", number=66,
+            #     specialization=HardestKtProductionSpecialization(),
+            #     track_skim_config_filename=config_filename,
+            # ),
+            #production.ProductionSettings.read_config(
+            #    collision_system="pythia", number=67,
+            #    specialization=HardestKtProductionSpecialization(),
+            #    track_skim_config_filename=config_filename,
+            #),
+            production.ProductionSettings.read_config(
+                collision_system="pythia", number=68,
+                specialization=HardestKtProductionSpecialization(),
+                track_skim_config_filename=config_filename,
+            ),
         ]
     )
 
@@ -1308,9 +1339,9 @@ def run(job_framework: job_utils.JobFramework) -> list[Future[Any]]:
     # Job execution configuration
     conda_environment_name = ""
     task_config = job_utils.TaskConfig(name=task_name, n_cores_per_task=1)
-    # target_n_tasks_to_run_simultaneously = 120
+    target_n_tasks_to_run_simultaneously = 120
     # target_n_tasks_to_run_simultaneously = 110
-    target_n_tasks_to_run_simultaneously = 60
+    # target_n_tasks_to_run_simultaneously = 60
     log_level = logging.INFO
     walltime = "24:00:00"
     debug_mode = False
@@ -1318,7 +1349,7 @@ def run(job_framework: job_utils.JobFramework) -> list[Future[Any]]:
         # Usually, we want to run in the short queue
         target_n_tasks_to_run_simultaneously = 2
         walltime = "1:59:00"
-    facility: job_utils.FACILITIES = "ORNL_b587_long" if job_utils.hours_in_walltime(walltime) >= 2 else "ORNL_b587_short"
+    facility: job_utils.FACILITIES = "hiccup_std" if job_utils.hours_in_walltime(walltime) >= 2 else "hiccup_quick"
 
     # Keep the job executor just to keep it alive
     job_executor, _job_framework_config = setup_job_framework(

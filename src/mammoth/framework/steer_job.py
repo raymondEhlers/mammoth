@@ -397,7 +397,7 @@ def setup_data_calculation(  # noqa: C901
         analysis_arguments = copy.deepcopy(_analysis_config)
         # Det level artificial tracking efficiency (pythia / pp_MC only)
         det_level_artificial_tracking_efficiency = None
-        if (prod.collision_system == "pythia" or prod.collision_system == "pp_MC"):
+        if prod.collision_system in ["pythia", "pp_MC"]:
             # NOTE: Delayed import since we don't want to depend on this in the main framework directly
             from mammoth.framework.analysis import tracking as analysis_tracking
 
@@ -462,6 +462,8 @@ def setup_data_calculation(  # noqa: C901
 
                 # NOTE: The extension will be customized in the app....
                 output_filename = output_dir / f"{output_identifier}.dummy_ext"
+                #if _file_counter % 100 == 0:
+                #    import IPython; IPython.embed()
                 # And create the tasks
                 results.append(
                     python_app_func(
@@ -479,8 +481,8 @@ def setup_data_calculation(  # noqa: C901
                         analysis_arguments=analysis_arguments_with_pt_hat_scale_factor,
                         # Framework options
                         job_framework=job_framework,
-                        inputs=[File(str(input_filename))],
-                        outputs=[File(str(output_filename))],
+                        inputs=[File(input_filename) if job_framework == job_utils.JobFramework.parsl else input_filename],
+                        outputs=[File(output_filename) if job_framework == job_utils.JobFramework.parsl else output_filename],
                     )
                 )
                 #results.append(
