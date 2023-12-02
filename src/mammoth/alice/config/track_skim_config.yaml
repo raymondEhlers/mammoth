@@ -580,6 +580,22 @@ productions:
         <<: *analysis_settings_time_reclustering_pp_MC_R04
         selected_grooming_methods:
           - "soft_drop_z_cut_02"
+    # Time reclustering pythia fastsim - hiccup stability test
+    6:
+      metadata:
+        <<: *base_metadata_pythia
+        dataset: *LBL20_Pythia_FastSim_1_17pq
+        production_number: 6
+        label: "pythia_fastsim"
+      settings:
+        <<: *analysis_settings_time_reclustering_pp_MC_R04
+        # Setting this to null uses the default CA reclustering settings
+        reclustering_settings: null
+        chunk_size: 5000
+        output_settings:
+          <<: *time_reclustering_output_settings
+        selected_grooming_methods:
+          - "soft_drop_z_cut_02"
     # NOTE: Starts at 69 to be consistent with the "pythia", which this generalizes from.
     # Pythia fastsim w/ time reclustering
     69:

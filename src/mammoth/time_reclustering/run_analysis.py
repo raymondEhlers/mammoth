@@ -77,11 +77,11 @@ def define_productions() -> list[production.ProductionSettings]:
             #     track_skim_config_filename=config_filename,
             # ),
             # Production
-            production.ProductionSettings.read_config(
-                collision_system="pp_MC", number=69,
-                specialization=groomed_substructure_steering.ProductionSpecialization(),
-                track_skim_config_filename=config_filename,
-            ),
+            #production.ProductionSettings.read_config(
+            #    collision_system="pp_MC", number=69,
+            #    specialization=groomed_substructure_steering.ProductionSpecialization(),
+            #    track_skim_config_filename=config_filename,
+            #),
             #production.ProductionSettings.read_config(
             #    collision_system="pp_MC", number=70,
             #    specialization=groomed_substructure_steering.ProductionSpecialization(),
@@ -97,6 +97,11 @@ def define_productions() -> list[production.ProductionSettings]:
             #    specialization=groomed_substructure_steering.ProductionSpecialization(),
             #    track_skim_config_filename=config_filename,
             #),
+            production.ProductionSettings.read_config(
+                collision_system="pp_MC", number=6,
+                specialization=groomed_substructure_steering.ProductionSpecialization(),
+                track_skim_config_filename=config_filename,
+            ),
         ]
     )
 
@@ -186,7 +191,7 @@ def run(job_framework: job_utils.JobFramework) -> list[Future[Any]]:
 
     # Job execution configuration
     conda_environment_name = ""
-    task_config = job_utils.TaskConfig(name=task_name, n_cores_per_task=1)
+    task_config = job_utils.TaskConfig(name=task_name, n_cores_per_task=1, memory_per_task=4)
     target_n_tasks_to_run_simultaneously = 120
     # target_n_tasks_to_run_simultaneously = 110
     # target_n_tasks_to_run_simultaneously = 60
