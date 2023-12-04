@@ -7,7 +7,6 @@ from __future__ import annotations
 import functools
 import operator
 from collections.abc import Mapping, Sequence
-from typing import Optional
 
 import awkward as ak
 import numba as nb
@@ -94,8 +93,8 @@ def particle_masses_from_particle_ID(arrays: ak.Array, particle_ID_column_name: 
 
 def build_PID_selection_mask(
     arrays: ak.Array,
-    absolute_pids: Optional[Sequence[int]] = None,
-    single_pids: Optional[Sequence[int]] = None,
+    absolute_pids: Sequence[int] | None = None,
+    single_pids: Sequence[int] | None = None,
     particle_ID_column_name: str = "particle_ID",
 ) -> ak.Array:
     """Build selection for particles based on particle ID.

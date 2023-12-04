@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import functools
-from typing import Any, Callable, Union
+from typing import Any, Callable
 
 import attrs
 import numpy as np
@@ -18,8 +18,8 @@ __all__ = ["alice_fast_sim_tracking_efficiency"]
 
 
 def inverse_sample_decorator(
-    distribution: Callable[..., Union[npt.NDArray[Union[np.float32, np.float64]], float]]
-) -> Callable[..., Union[float, npt.NDArray[Union[np.float32, np.float64]]]]:
+    distribution: Callable[..., npt.NDArray[np.float32 | np.float64] | float]
+) -> Callable[..., float | npt.NDArray[np.float32 | np.float64]]:
     """Decorator to perform inverse transform sampling.
 
     Based on: https://stackoverflow.com/a/64288861/12907985
@@ -32,7 +32,7 @@ def inverse_sample_decorator(
         x_max: float,
         n_distribution_samples: int = 100_000,
         **kwargs: Any,
-    ) -> Union[npt.NDArray[Union[np.float32, np.float64]], float]:
+    ) -> npt.NDArray[np.float32 | np.float64] | float:
         # Validation
         x = np.linspace(x_min, x_max, int(n_distribution_samples))
         cumulative = np.cumsum(distribution(x, **kwargs))
@@ -47,8 +47,8 @@ def inverse_sample_decorator(
 
 
 def x_exp(
-    x: Union[float, npt.NDArray[Union[np.float32, np.float64]]], scale: float
-) -> npt.NDArray[Union[np.float32, np.float64]]:
+    x: float | npt.NDArray[np.float32 | np.float64], scale: float
+) -> npt.NDArray[np.float32 | np.float64]:
     return x * np.exp(-x / scale)
 
 

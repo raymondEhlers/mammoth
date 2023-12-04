@@ -7,7 +7,7 @@ from __future__ import annotations
 import logging
 from collections.abc import Generator, MutableMapping
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 import attrs
 import awkward as ak
@@ -58,7 +58,7 @@ class JEWELFileSource:
 
     def gen_data(
         self, chunk_size: sources.T_ChunkSize = sources.ChunkSizeSentinel.SOURCE_DEFAULT
-    ) -> Generator[ak.Array, Optional[sources.T_ChunkSize], None]:
+    ) -> Generator[ak.Array, sources.T_ChunkSize | None, None]:
         """A iterator over a fixed size of data from the source.
 
         Returns:
@@ -77,8 +77,8 @@ class JEWELFileSource:
 
 
 def _transform_output(
-    gen_data: Generator[ak.Array, Optional[sources.T_ChunkSize], None],
-) -> Generator[ak.Array, Optional[sources.T_ChunkSize], None]:
+    gen_data: Generator[ak.Array, sources.T_ChunkSize | None, None],
+) -> Generator[ak.Array, sources.T_ChunkSize | None, None]:
     _columns = Columns.create()
 
     try:

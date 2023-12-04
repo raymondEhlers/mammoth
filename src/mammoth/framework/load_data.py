@@ -204,7 +204,7 @@ def _transform_data(
         else:
             # If not pythia, we don't need any special handling - it's all just data
             # All the rest of the collision systems would be embedded together separately by other functions
-            logger.info(f"Transforming as data")
+            logger.info("Transforming as data")
             yield normalize_for_data(arrays=arrays, rename_prefix=rename_prefix)
 
 
