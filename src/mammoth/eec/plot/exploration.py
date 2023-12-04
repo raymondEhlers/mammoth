@@ -2,6 +2,7 @@
 
 .. codeauthor:: Raymond Ehlers <raymond.ehlers@cern.ch>
 """
+from __future__ import annotations
 
 import pachyderm.plot as pb
 

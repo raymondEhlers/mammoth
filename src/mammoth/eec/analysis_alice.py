@@ -8,9 +8,10 @@ Note that the embedding analysis supports analyzing embedding data as well as in
 from __future__ import annotations
 
 import logging
+from collections.abc import Iterator
 from functools import partial
 from pathlib import Path
-from typing import Any, Iterator
+from typing import Any
 
 import awkward as ak
 import hist

@@ -6,9 +6,10 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Sequence
 from concurrent.futures import Future
 from pathlib import Path
-from typing import Any, Sequence
+from typing import Any
 
 from mammoth import job_utils
 from mammoth.alice import groomed_substructure_analysis, groomed_substructure_steering, steer_scale_factors

@@ -6,9 +6,10 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Iterable, MutableMapping, Sequence
 from concurrent.futures import Future
 from pathlib import Path
-from typing import Any, Iterable, MutableMapping, Sequence
+from typing import Any
 
 import attrs
 import IPython
