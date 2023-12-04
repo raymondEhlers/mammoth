@@ -2,9 +2,11 @@
 
 .. codeauthor:: Raymond Ehlers <raymond.ehlers@cern.ch>, ORNL
 """
+from __future__ import annotations
 
+from collections.abc import Mapping, Sequence
 from pathlib import Path
-from typing import Any, Dict, Mapping, Sequence, Tuple
+from typing import Any
 
 import awkward as ak
 import boost_histogram as bh
@@ -23,9 +25,9 @@ def jet_R_to_str(jet_R: float) -> str:
 def run(event_properties: ak.Array,
         particles: ak.Array,
         jet_R_values: Sequence[float],
-        jet_eta_limits: Tuple[float, float],
+        jet_eta_limits: tuple[float, float],
         min_Q2: float,  # noqa: ARG001
-        x_limits: Tuple[float, float],  # noqa: ARG001
+        x_limits: tuple[float, float],  # noqa: ARG001
         hists: Mapping[str, Mapping[str, bh.Histogram]]) -> None:
     # The outgoing parton always seems to be in index 7 (pythia index #8)
     # Need to be retrieved immediately because it will be cut in the "status" cut.
@@ -139,7 +141,7 @@ def run(event_properties: ak.Array,
             IPython.embed()  # type: ignore[no-untyped-call]
 
 
-def setup_hists() -> Dict[str, bh.Histogram]:
+def setup_hists() -> dict[str, bh.Histogram]:
     hists = {}
     hists["jet_p"] = bh.Histogram(bh.axis.Regular(600, 0, 300), storage=bh.storage.Weight())
     hists["jet_pt"] = bh.Histogram(bh.axis.Regular(30, 0, 300), bh.axis.Regular(200, 0, 50), storage=bh.storage.Weight())
@@ -195,7 +197,7 @@ if __name__ == "__main__":
 
     # Do some projections here to ensure that we get them right. We won't get them right later
     # because we convert the boost histogram type implicitly when converting to binned_data.
-    means: Dict[str, Dict[Tuple[int, int], Dict[str, float]]] = {}
+    means: dict[str, dict[tuple[int, int], dict[str, float]]] = {}
     p_ranges = [(100, 150), (150, 200), (200, 250), (100, 250), (0, 300)]
     for jet_R in jet_R_values:
         jet_R_str = jet_R_to_str(jet_R)
@@ -211,7 +213,7 @@ if __name__ == "__main__":
     y = yaml.yaml(modules_to_register=[binned_data])
     #h = binned_data.BinnedData.from_existing_data(hists["qt"])
     with (output_dir / "qt.yaml").open("w") as f:
-        output: Dict[str, Any] = {}
+        output: dict[str, Any] = {}
         for jet_R_str, output_hists in hists.items():
             output[jet_R_str] = {k: binned_data.BinnedData.from_existing_data(v) for k, v in output_hists.items()}
         output["means"] = means

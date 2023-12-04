@@ -2,10 +2,11 @@
 
 .. codeauthor:: Raymond Ehlers <raymond.ehlers@cern.ch>, ORNL
 """
+from __future__ import annotations
 
 import logging
+from collections.abc import Sequence
 from pathlib import Path
-from typing import Sequence, Tuple
 
 import awkward as ak
 import numba as nb
@@ -19,7 +20,7 @@ logger = logging.getLogger(__name__)
 
 
 @nb.njit  # type: ignore[misc]
-def _delta_phi(phi_a: float, phi_b: float, output_range: Tuple[float, float] = (-np.pi, np.pi)) -> float:
+def _delta_phi(phi_a: float, phi_b: float, output_range: tuple[float, float] = (-np.pi, np.pi)) -> float:
     # Ensure that they're in the same range.
     phi_a = phi_a % (2 * np.pi)
     phi_b = phi_b % (2 * np.pi)

@@ -2,10 +2,11 @@
 
 .. codeauthor:: Raymond Ehlers <raymond.ehlers@cern.ch>, ORNL
 """
+from __future__ import annotations
 
 import logging
+from collections.abc import Mapping, Sequence
 from pathlib import Path
-from typing import Dict, List, Mapping, Optional, Sequence
 
 import attrs
 import awkward as ak
@@ -40,7 +41,7 @@ def load_data(filename: Path) -> ak.Array:
     return _load_data.normalize_for_data(arrays=arrays, rename_prefix={"data": "particles"})
 
 
-def find_jets_for_analysis(arrays: ak.Array, jet_R_values: Sequence[float], particle_column_name: str = "data", min_jet_pt: float = 30) -> Dict[JetLabel, ak.Array]:
+def find_jets_for_analysis(arrays: ak.Array, jet_R_values: Sequence[float], particle_column_name: str = "data", min_jet_pt: float = 30) -> dict[JetLabel, ak.Array]:
     logger.info("Start analyzing")
     # Event selection
     # None for jetscape
@@ -167,7 +168,7 @@ def write_tree(jets: ak.Array, filename: Path) -> bool:
         if filename.suffix == ".parquet":
             logger.info(f"Writing to parquet file: {jet_collection_filename}")
             # Everything is floats at the moment, so there are no dictionary encoded fields
-            dict_fields: List[str] = []
+            dict_fields: list[str] = []
             ak.to_parquet(
                 arrays,
                 jet_collection_filename,
@@ -198,7 +199,7 @@ def write_tree(jets: ak.Array, filename: Path) -> bool:
     return True
 
 
-def read_jet_skims(filename: Path, jet_R_values: Sequence[float]) -> Dict[JetLabel, ak.Array]:
+def read_jet_skims(filename: Path, jet_R_values: Sequence[float]) -> dict[JetLabel, ak.Array]:
     jet_inputs = {}
     for jet_R in jet_R_values:
         for label in ["charged", "full"]:
@@ -214,7 +215,7 @@ def read_jet_skims(filename: Path, jet_R_values: Sequence[float]) -> Dict[JetLab
     return jet_inputs
 
 
-def analyze_jets(arrays: ak.Array, jets: Mapping[JetLabel, ak.Array]) -> Dict[str, hist.Hist]:
+def analyze_jets(arrays: ak.Array, jets: Mapping[JetLabel, ak.Array]) -> dict[str, hist.Hist]:
     # Define hists
     hists = {}
     hists["n_events"] = hist.Hist(hist.axis.Regular(1, -0.5, 0.5))
@@ -252,7 +253,7 @@ def analyze_jets(arrays: ak.Array, jets: Mapping[JetLabel, ak.Array]) -> Dict[st
     return hists
 
 
-def write_hists(hists: Dict[str, hist.Hist], filename: Path) -> bool:
+def write_hists(hists: dict[str, hist.Hist], filename: Path) -> bool:
     filename.parent.mkdir(parents=True, exist_ok=True)
 
     logger.info(f"Writing hists to {filename}")
@@ -266,9 +267,9 @@ def write_hists(hists: Dict[str, hist.Hist], filename: Path) -> bool:
 def run(arrays: ak.Array,
         read_jet_skim_from_file: bool,
         min_jet_pt: float = 5,
-        jet_R_values: Optional[Sequence[float]] = None,
-        jets_skim_filename: Optional[Path] = None,
-        write_hists_filename: Optional[Path] = None) -> Dict[str, hist.Hist]:
+        jet_R_values: Sequence[float] | None = None,
+        jets_skim_filename: Path | None = None,
+        write_hists_filename: Path | None = None) -> dict[str, hist.Hist]:
     # Validation
     if jet_R_values is None:
         jet_R_values = [0.2, 0.4, 0.6]

@@ -1,6 +1,8 @@
+from __future__ import annotations
+
 import logging
+from collections.abc import Iterable, Mapping, Sequence
 from pathlib import Path
-from typing import Dict, Iterable, Mapping, Optional, Sequence
 
 import attrs
 import cycler
@@ -29,7 +31,7 @@ class InputSpec:
 
     @property
     def variations(self) -> Iterable[int]:
-        return range(0, self.n_variations)
+        return range(self.n_variations)
 
     @property
     def filename(self) -> Path:
@@ -62,7 +64,7 @@ class SimulationConfig:
         return self._output_dir / f"{self.dataset_spec.electron_beam_energy}x{self.dataset_spec.proton_beam_energy}_{self.jet_algorithm}"
 
 
-def _load_results(config: SimulationConfig, input_specs: Sequence[InputSpec]) -> Dict[str, Dict[str, hist.Hist]]:
+def _load_results(config: SimulationConfig, input_specs: Sequence[InputSpec]) -> dict[str, dict[str, hist.Hist]]:
     output_hists = {}
     for spec in input_specs:
         logger.info(f"Loading hists from {config.input_dir / spec.filename}")
@@ -77,7 +79,7 @@ def _load_results(config: SimulationConfig, input_specs: Sequence[InputSpec]) ->
     return output_hists
 
 
-def _calculate_ReA(ep_hists: Dict[str, hist.Hist], eA_hists: Dict[str, hist.Hist], parameters: JetParameters,
+def _calculate_ReA(ep_hists: dict[str, hist.Hist], eA_hists: dict[str, hist.Hist], parameters: JetParameters,
                    narrow_rebin_factor: int = 2, wide_rebin_factor: int = 5, transition_for_binning: int = 10) -> hist.Hist:
     ep_hist = binned_data.BinnedData.from_existing_data(ep_hists[parameters.name_ep])
     eA_hist = binned_data.BinnedData.from_existing_data(eA_hists[parameters.name_eA])
@@ -99,13 +101,13 @@ def _calculate_ReA(ep_hists: Dict[str, hist.Hist], eA_hists: Dict[str, hist.Hist
     return combined  # noqa: RET504
 
 
-def calculate_ReA(input_hists: Dict[str, Dict[str, hist.Hist]],
+def calculate_ReA(input_hists: dict[str, dict[str, hist.Hist]],
                   sim_config: SimulationConfig,
                   analysis_config: ecce_ReA_implementation.AnalysisConfig,
                   narrow_rebin_factor: int = 2,
                   wide_rebin_factor: int = 5,
-                  ) -> Dict[str, Dict[JetParameters, hist.Hist]]:
-    ReA_hists: Dict[str, Dict[JetParameters, hist.Hist]] = {}
+                  ) -> dict[str, dict[JetParameters, hist.Hist]]:
+    ReA_hists: dict[str, dict[JetParameters, hist.Hist]] = {}
 
     for input_spec in sim_config.input_specs:
         if input_spec.n_PDF_name == "ep":
@@ -134,12 +136,12 @@ def calculate_ReA(input_hists: Dict[str, Dict[str, hist.Hist]],
     return ReA_hists
 
 
-def calculate_double_ratio(ReA_hists: Dict[str, Dict[JetParameters, hist.Hist]],
+def calculate_double_ratio(ReA_hists: dict[str, dict[JetParameters, hist.Hist]],
                            sim_config: SimulationConfig,
                            analysis_config: ecce_ReA_implementation.AnalysisConfig,
                            rebin_factor: int = 1,
-                           ) -> Dict[str, Dict[JetParameters, hist.Hist]]:
-    double_ratio_hists: Dict[str, Dict[JetParameters, hist.Hist]] = {}
+                           ) -> dict[str, dict[JetParameters, hist.Hist]]:
+    double_ratio_hists: dict[str, dict[JetParameters, hist.Hist]] = {}
 
     for input_spec in sim_config.input_specs:
         if input_spec.n_PDF_name == "ep":
@@ -161,7 +163,7 @@ def calculate_double_ratio(ReA_hists: Dict[str, Dict[JetParameters, hist.Hist]],
                         }
 
                         # Then, find the ratio reference
-                        reference: Optional[binned_data.BinnedData] = None
+                        reference: binned_data.BinnedData | None = None
                         for k, v in fixed_region_ReA_hists.items():
                             #logger.info(f"eta ranges: {_jet_rapidity_range(region=region, jet_R=k.jet_R_value)}")
                             if k.jet_R_value == 1.0:
@@ -189,7 +191,7 @@ def calculate_double_ratio(ReA_hists: Dict[str, Dict[JetParameters, hist.Hist]],
     return double_ratio_hists
 
 
-def _calculate_nominal_variations(variation_hists: Dict[str, Dict[str, hist.Hist]], nominal_hist: hist.Hist) -> bool:
+def _calculate_nominal_variations(variation_hists: dict[str, dict[str, hist.Hist]], nominal_hist: hist.Hist) -> bool:
     # Collect all of the differences from all of the variations
     differences_list = []
     for _k, v in variation_hists.items():
@@ -429,8 +431,8 @@ _jet_type_display_label = {
 }
 
 
-def plot_ReA(sim_config: SimulationConfig, analysis_config: ecce_ReA_implementation.AnalysisConfig, input_hists: Dict[str, Dict[str, hist.Hist]],  # noqa: C901
-             cross_section: float, scale_jets_by_expected_luminosity: bool = False, expected_luminosities: Optional[Mapping[str, float]] = None, skip_slow_2D_plots: bool = False) -> None:
+def plot_ReA(sim_config: SimulationConfig, analysis_config: ecce_ReA_implementation.AnalysisConfig, input_hists: dict[str, dict[str, hist.Hist]],  # noqa: C901
+             cross_section: float, scale_jets_by_expected_luminosity: bool = False, expected_luminosities: Mapping[str, float] | None = None, skip_slow_2D_plots: bool = False) -> None:
     input_spectra_hists = input_hists
     if scale_jets_by_expected_luminosity:
         # Help out mypy

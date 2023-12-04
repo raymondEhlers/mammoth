@@ -2,10 +2,11 @@
 
 .. codeauthor:: Raymond Ehlers <raymond.ehlers@cern.ch>, ORNL
 """
+from __future__ import annotations
 
 import logging
+from collections.abc import Mapping
 from pathlib import Path
-from typing import Dict, Mapping
 
 import attrs
 import awkward as ak
@@ -45,7 +46,7 @@ class ReferenceData:
         return self._sys_errors.errors
 
 
-def load_reference_data() -> Dict[str, binned_data.BinnedData]:
+def load_reference_data() -> dict[str, binned_data.BinnedData]:
     # Setup
     reference_data = {}
     return_data = {}

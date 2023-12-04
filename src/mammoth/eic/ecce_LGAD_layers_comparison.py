@@ -2,10 +2,11 @@
 
 .. codeauthor:: Raymond Ehlers <raymond.ehlers@cern.ch>, ORNL
 """
+from __future__ import annotations
 
 import logging
+from collections.abc import Sequence
 from pathlib import Path
-from typing import Dict, Sequence
 
 import hist
 import pachyderm.plot as pb
@@ -19,7 +20,7 @@ pb.configure()
 logger = logging.getLogger(__name__)
 
 
-def _load_results(input_specs: Sequence[run_ecce_analysis.DatasetSpec], input_dir: Path, filename: str, filter: str = "hist") -> Dict[str, Dict[str, hist.Hist]]:
+def _load_results(input_specs: Sequence[run_ecce_analysis.DatasetSpec], input_dir: Path, filename: str, filter: str = "hist") -> dict[str, dict[str, hist.Hist]]:
     output_hists = {}
     for spec in input_specs:
         logger.info(f"Loading hists from {input_dir / str(spec) / filename}")
@@ -185,7 +186,7 @@ def run() -> None:  # noqa: C901
 
     # NOTE: 15 == - 4.0 - 4.0
     eta_bins = [-4.0, -3.5, -3.0, -2.5, -2.0, -1.5, -1.2, -0.4, 0.4, 1.2, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0]
-    eta_ranges = [(a, b) for a, b in zip(eta_bins[:-1], eta_bins[1:])]
+    eta_ranges = list(zip(eta_bins[:-1], eta_bins[1:]))
     eta_ranges.append((-4.0, 4.0))
 
     #backward_regions = eta_ranges[0:5]

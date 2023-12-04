@@ -2,6 +2,7 @@
 """ Compression tests.
 
 """
+from __future__ import annotations
 
 import tarfile
 import timeit

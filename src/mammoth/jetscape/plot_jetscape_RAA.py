@@ -2,9 +2,11 @@
 
 .. codeauthor:: Raymond Ehlers <raymond.ehlers@cern.ch>, ORNL
 """
+from __future__ import annotations
 
+from collections.abc import Mapping, Sequence
 from pathlib import Path
-from typing import Any, Dict, Mapping, Optional, Sequence
+from typing import Any
 
 import boost_histogram as bh
 import hist
@@ -37,7 +39,7 @@ def format_R(R: float) -> str:
     return f"{round(R * 100):03}"
 
 
-def get_hists(filename: Path) -> Dict[str, hist.Hist]:
+def get_hists(filename: Path) -> dict[str, hist.Hist]:
     hists = {}
     with uproot.open(Path(filename)) as f:
         for k in f.keys(cycle=False):
@@ -87,8 +89,8 @@ def _ML_jet_binning(system: str, jet_R: float) -> npt.NDArray[np.float64]:
 
 
 def plot(output_dir: Path,  # noqa: C901
-         jet_R_values: Optional[Sequence[float]] = None,
-         jet_types: Optional[Sequence[str]] = None,
+         jet_R_values: Sequence[float] | None = None,
+         jet_types: Sequence[str] | None = None,
          write_hists: bool = False,
          ) -> None:
     # Validation
@@ -117,7 +119,7 @@ def plot(output_dir: Path,  # noqa: C901
         "PbPb_30_50": r"30-50\% Pb-Pb",
     }
 
-    RAA_hists: Dict[str, Dict[str, binned_data.BinnedData]] = {
+    RAA_hists: dict[str, dict[str, binned_data.BinnedData]] = {
         "PbPb_00_10": {},
         "PbPb_30_50": {},
     }
@@ -320,7 +322,7 @@ def plot(output_dir: Path,  # noqa: C901
                 text += "\n" + r"anti-$k_{\text{T}}$ jets, $|\eta_{\text{jet}}| < " + str(jet_eta_range) + " - R$"
 
                 for jet_R_label, jet_R_values_to_iterate in [("", jet_R_values), ("_alice_comparison", [0.2, 0.4]), ("_requested", [0.2, 0.4, 0.6])]:
-                    x_axis_kwargs: Dict[str, Any] = {}
+                    x_axis_kwargs: dict[str, Any] = {}
                     if restricted_range:
                         x_axis_kwargs = {"range": (15, 145)}
                         if jet_R_label == "_alice_comparison":

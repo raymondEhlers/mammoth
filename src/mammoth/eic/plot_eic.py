@@ -2,10 +2,11 @@
 
 .. codeauthor:: Raymond Ehlers <raymond.ehlers@cern.ch> ORNL
 """
+from __future__ import annotations
 
 import logging
+from collections.abc import Mapping, Sequence
 from pathlib import Path
-from typing import Mapping, Optional, Sequence, Tuple, Union
 
 import boost_histogram as bh
 import matplotlib as mpl
@@ -32,7 +33,7 @@ mpl.rcParams["ytick.right"] = True
 mpl.rcParams["ytick.minor.right"] = True
 
 
-def _gaussian(x: Union[npt.NDArray[np.float64], float], mean: float, sigma: float, amplitude: float) -> Union[npt.NDArray[np.float64], float]:
+def _gaussian(x: npt.NDArray[np.float64] | float, mean: float, sigma: float, amplitude: float) -> npt.NDArray[np.float64] | float:
     r"""Extended gaussian.
 
     .. math::
@@ -50,7 +51,7 @@ def _gaussian(x: Union[npt.NDArray[np.float64], float], mean: float, sigma: floa
     return amplitude / np.sqrt(2 * np.pi * np.square(sigma)) * np.exp(-1.0 / 2.0 * np.square((x - mean) / sigma))  # type: ignore[no-any-return]
 
 
-def _base_plot_label(eta_limits: Tuple[float, float], jet_R: Optional[float] = None,
+def _base_plot_label(eta_limits: tuple[float, float], jet_R: float | None = None,
                      #min_q2: float, x_limits: Tuple[float, float]
                      ) -> str:
     eta_min, eta_max = eta_limits
@@ -73,7 +74,7 @@ def plot_jet_p(
     hists: Mapping[str, Mapping[str, binned_data.BinnedData]],
     base_plot_label: str,
     jet_R_values: Sequence[float],
-    means: Mapping[str, Mapping[Tuple[float, float], Mapping[str, float]]],
+    means: Mapping[str, Mapping[tuple[float, float], Mapping[str, float]]],
     output_dir: Path,
 ) -> bool:
     # Setup
@@ -134,7 +135,7 @@ def plot_jet_pt(
     hist: binned_data.BinnedData,
     base_plot_label: str,
     jet_R: float,
-    means: Mapping[Tuple[float, float], Mapping[str, float]],
+    means: Mapping[tuple[float, float], Mapping[str, float]],
     output_dir: Path,
 ) -> bool:
     # Setup
@@ -197,7 +198,7 @@ def plot_jet_constituent_multiplicity(
     hist: binned_data.BinnedData,
     base_plot_label: str,
     jet_R: float,
-    means: Mapping[Tuple[float, float], Mapping[str, float]],
+    means: Mapping[tuple[float, float], Mapping[str, float]],
     output_dir: Path,
 ) -> bool:
     # Setup
@@ -258,7 +259,7 @@ def plot_jet_constituent_multiplicity(
 def plot_qt(hist: binned_data.BinnedData,
             base_plot_label: str,
             jet_R: float,
-            means: Mapping[Tuple[float, float], Mapping[str, float]],
+            means: Mapping[tuple[float, float], Mapping[str, float]],
             output_dir: Path,
             ) -> bool:
     # Setup
@@ -337,7 +338,7 @@ def plot_qt_pt_as_function_of_p(hist: binned_data.BinnedData,
                                 label: str,
                                 base_plot_label: str,
                                 jet_R: float,
-                                means: Mapping[Tuple[float, float], Mapping[str, float]],
+                                means: Mapping[tuple[float, float], Mapping[str, float]],
                                 output_dir: Path,
                                 debug_fit: bool = False,
                                 ) -> bool:
@@ -503,7 +504,7 @@ def plot_qt_pt_comparison(
     hists: Mapping[str, binned_data.BinnedData],
     base_plot_label: str,
     jet_R: float,
-    means: Mapping[Tuple[float, float], Mapping[str, float]],
+    means: Mapping[tuple[float, float], Mapping[str, float]],
     output_dir: Path,
 ) -> bool:
     p_ranges = [(100, 150), (150, 200), (200, 250)]

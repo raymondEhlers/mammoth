@@ -7,9 +7,9 @@ a bit of useful functionality inside of all the other stuff (normalizing phi ran
 
 .. codeauthor:: Raymond Ehlers <raymond.ehlers@cern.ch>, ORNL
 """
+from __future__ import annotations
 
 from pathlib import Path
-from typing import Tuple
 
 import awkward as ak
 import boost_histogram as bh
@@ -59,7 +59,7 @@ def find_jets_arr(array: ak.Array) -> ak.Array:
     return jets  # noqa: RET504
 
 
-def particle_pt_by_status(arrays: ak.Array, pt_hat_bin: Tuple[int, int], base_output_dir: Path) -> None:
+def particle_pt_by_status(arrays: ak.Array, pt_hat_bin: tuple[int, int], base_output_dir: Path) -> None:
     """ Plot particle pt by status code.
 
     """
@@ -140,7 +140,7 @@ def convert_local_phi(phi: float) -> float:
     return phi
 
 
-def angular_distribution_around_jet(jets: ak.Array, arrays: ak.Array, pt_hat_bin: Tuple[int, int], base_output_dir: Path) -> None:
+def angular_distribution_around_jet(jets: ak.Array, arrays: ak.Array, pt_hat_bin: tuple[int, int], base_output_dir: Path) -> None:
     # Setup
     output_dir = base_output_dir
     output_dir.mkdir(parents=True, exist_ok=True)

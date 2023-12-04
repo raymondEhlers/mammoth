@@ -3,12 +3,13 @@
 
 .. codeauthor:: Raymond Ehlers <raymond.ehlers@cern.ch>, ORNL
 """
+from __future__ import annotations
 
 import os.path
 import pprint
+from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, List, Sequence
 
 
 @dataclass
@@ -37,7 +38,7 @@ def read_log_for_runtime(filename: Path) -> float:
     return real_time  # noqa: RET504
 
 
-def read_logs(base_path: Path, model: str, tag: str, config: Config) -> List[float]:
+def read_logs(base_path: Path, model: str, tag: str, config: Config) -> list[float]:
     p = base_path / model / tag
 
     times = []
@@ -49,8 +50,8 @@ def read_logs(base_path: Path, model: str, tag: str, config: Config) -> List[flo
     return times
 
 
-def run(base_path: Path, models: Sequence[str], tags: Sequence[str], config: Config) -> Dict[str, Dict[str, List[float]]]:
-    output: Dict[str, Dict[str, List[float]]] = {}
+def run(base_path: Path, models: Sequence[str], tags: Sequence[str], config: Config) -> dict[str, dict[str, list[float]]]:
+    output: dict[str, dict[str, list[float]]] = {}
     for tag in tags:
         output[tag] = {}
         for model in models:

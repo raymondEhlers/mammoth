@@ -2,10 +2,12 @@
 
 .. codeauthor:: Raymond Ehlers <raymond.ehlers@cern.ch>, ORNL
 """
+from __future__ import annotations
 
 import logging
+from collections.abc import Sequence
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Sequence, Tuple
+from typing import Any
 
 import hist
 import IPython
@@ -27,7 +29,7 @@ def convert_jetscape_files(
     store_only_necessary_columns: bool,
     inputs: Sequence[File] = [],
     outputs: Sequence[File] = [],  # noqa: ARG001
-) -> Tuple[bool, str]:
+) -> tuple[bool, str]:
     from pathlib import Path
 
     from mammoth.framework.io import jetscape
@@ -52,7 +54,7 @@ def setup_convert_jetscape_files(
     store_only_necessary_columns: bool = True,
     input_filename_template: str = "JetscapeHadronListBin{pt_hat_bin}",
     output_filename_template: str = "",
-) -> List[AppFuture]:
+) -> list[AppFuture]:
     from mammoth.framework.io import jetscape
 
     # Strictly speaking, I don't think it's necessary to control this in so much detail
@@ -103,11 +105,11 @@ def run_RAA_analysis(
     jet_R_values: Sequence[float],
     min_jet_pt: float,
     read_jet_skim_from_file: bool,
-    jets_skim_filename: Optional[Path] = None,
-    write_hists_filename: Optional[Path] = None,
+    jets_skim_filename: Path | None = None,
+    write_hists_filename: Path | None = None,
     inputs: Sequence[File] = [],
     outputs: Sequence[File] = [],  # noqa: ARG001
-) -> Tuple[bool, str, str, Dict[str, hist.Hist]]:
+) -> tuple[bool, str, str, dict[str, hist.Hist]]:
     import traceback
     from pathlib import Path
 
@@ -134,11 +136,11 @@ def setup_RAA_analysis(
     system: str,
     parquet_input_dir: Path,
     read_jet_skim_from_file: bool,
-    jet_R_values: Optional[Sequence[float]] = None,
+    jet_R_values: Sequence[float] | None = None,
     min_jet_pt: float = 5,
     write_jets_to_tree: bool = False,
     write_hists_to_file: bool = False,
-) -> List[AppFuture]:
+) -> list[AppFuture]:
     """Setup jet RAA analysis using the converted jetscape outputs.
 
     Args:
@@ -163,7 +165,7 @@ def setup_RAA_analysis(
 
     results = []
     for input_file in input_files:
-        jets_skim_filename: Optional[Path] = None
+        jets_skim_filename: Path | None = None
         output_files = []
         if write_jets_to_tree:
             jets_skim_filename = input_file.parent.parent / "jetRAA" / "jetsSkim" / input_file.name.replace("JetscapeHadronList", "Jets").replace("parquet", "root")
@@ -172,7 +174,7 @@ def setup_RAA_analysis(
                 for jet_type in ["charged", "full"]
                 for jet_R in jet_R_values
             ])
-        write_hists_filename: Optional[Path] = None
+        write_hists_filename: Path | None = None
         if write_hists_to_file:
             write_hists_filename = input_file.parent.parent / "jetRAA" / "hists" / input_file.name.replace("JetscapeHadronList", "hists_").replace("parquet", "root")
             output_files.append(File(str(write_hists_filename)))
@@ -278,7 +280,7 @@ def run() -> None:
 
     # In order to support writing histograms from multiple systems, we need to index the output histograms
     # by the collision system + centrality.
-    output_hists: Dict[str, Dict[Any, Any]] = {
+    output_hists: dict[str, dict[Any, Any]] = {
         k: {} for k in systems_to_process
     }
     with Progress(console=helpers.rich_console, refresh_per_second=1) as progress:

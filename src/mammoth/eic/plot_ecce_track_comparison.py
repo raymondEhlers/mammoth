@@ -1,7 +1,8 @@
+from __future__ import annotations
 
 import logging
+from collections.abc import Mapping, Sequence
 from pathlib import Path
-from typing import Dict, Mapping, Sequence, Tuple
 
 import cycler
 import hist
@@ -28,12 +29,12 @@ _okabe_ito_colors = [
 ]
 
 
-def get_eta_label(eta_range: Tuple[float, float]) -> str:
+def get_eta_label(eta_range: tuple[float, float]) -> str:
     return fr"${eta_range[0]} < \eta < {eta_range[1]}$"
 
 
 def _plot_tracking_comparison(input_specs: Sequence[run_ecce_analysis.DatasetSpec], input_spec_labels: Mapping[str, str], hists: Mapping[str, Mapping[int, hist.Hist]],
-                              all_regions: Sequence[Tuple[float, float]], regions_index: Sequence[int],  # noqa: ARG001
+                              all_regions: Sequence[tuple[float, float]], regions_index: Sequence[int],  # noqa: ARG001
                               plot_config: pb.PlotConfig, output_dir: Path) -> None:
     fig, ax = plt.subplots(figsize=(10, 7.5))
     ax.set_prop_cycle(cycler.cycler(
@@ -95,20 +96,20 @@ def _plot_tracking_comparison(input_specs: Sequence[run_ecce_analysis.DatasetSpe
     plt.close(fig)
 
 
-def plot_tracking_comparison(input_specs: Sequence[run_ecce_analysis.DatasetSpec], input_spec_labels: Mapping[str, str], output_hists: Dict[str, Dict[str, hist.Hist]],
+def plot_tracking_comparison(input_specs: Sequence[run_ecce_analysis.DatasetSpec], input_spec_labels: Mapping[str, str], output_hists: dict[str, dict[str, hist.Hist]],
                              hist_name_template: str, plot_name: str,
-                             all_regions: Sequence[Tuple[float, float]],
-                             regions_index: Sequence[int], regions_label: str, y_range: Tuple[float, float], y_label: str,
+                             all_regions: Sequence[tuple[float, float]],
+                             regions_index: Sequence[int], regions_label: str, y_range: tuple[float, float], y_label: str,
                              selected_particle: str,
                              text: str,
                              output_dir: Path,
                              plot_jets: bool = False,
                              x_label: str = r"$p^{\text{MC}}\:(\text{GeV}/c)$",
-                             x_range: Tuple[float, float] = (0.1, 30)) -> None:
+                             x_range: tuple[float, float] = (0.1, 30)) -> None:
     logger.info(f"hist_name_template: {hist_name_template}")
     logger.info(f"input_specs: {input_specs[0]!s}")
 
-    hists: Dict[str, Dict[int, hist.Hist]] = {}
+    hists: dict[str, dict[int, hist.Hist]] = {}
     for input_spec in input_specs:
         hists[str(input_spec)] = {}
         for index in regions_index:

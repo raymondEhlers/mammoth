@@ -2,11 +2,13 @@
 
 .. codeauthor:: Raymond Ehlers <raymond.ehlers@cern.ch>, ORNL
 """
+from __future__ import annotations
 
 import itertools
 import logging
+from collections.abc import Iterable, Sequence
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, Sequence, Tuple, Union
+from typing import Any
 
 import attrs
 import IPython
@@ -63,8 +65,8 @@ def run_ecce_afterburner_bash(
     max_track_pt_in_jet: float = 30.0,  # noqa: ARG001
     inputs: Sequence[File] = [],
     outputs: Sequence[File] = [],  # noqa: ARG001
-    stdout: Union[int, str] = parsl.AUTO_LOGNAME,  # noqa: ARG001
-    stderr: Union[int, str] = parsl.AUTO_LOGNAME,  # noqa: ARG001
+    stdout: int | str = parsl.AUTO_LOGNAME,  # noqa: ARG001
+    stderr: int | str = parsl.AUTO_LOGNAME,  # noqa: ARG001
 ) -> str:
     import uuid
     from pathlib import Path
@@ -115,9 +117,9 @@ def run_ecce_afterburner(
     max_track_pt_in_jet: float = 30.0,
     inputs: Sequence[File] = [],
     outputs: Sequence[File] = [],  # noqa: ARG001
-    stdout: Union[int, str] = parsl.AUTO_LOGNAME,  # noqa: ARG001
-    stderr: Union[int, str] = parsl.AUTO_LOGNAME,  # noqa: ARG001
-) -> Tuple[bool, str]:
+    stdout: int | str = parsl.AUTO_LOGNAME,  # noqa: ARG001
+    stderr: int | str = parsl.AUTO_LOGNAME,  # noqa: ARG001
+) -> tuple[bool, str]:
     import tempfile
     import traceback
     from pathlib import Path
@@ -498,7 +500,7 @@ def run() -> None:
     all_results = []
     for dataset_spec in datasets_to_process:
         # Setup tasks
-        dataset_results: List[AppFuture] = []
+        dataset_results: list[AppFuture] = []
         if "ecce_afterburner" in tasks_to_execute or "ecce_afterburner_bash" in tasks_to_execute:
             dataset_results.extend(
                 setup_ecce_afterburner(
@@ -531,7 +533,7 @@ def run() -> None:
 
     # In order to support writing histograms from multiple systems, we need to index the output histograms
     # by the collision system + centrality.
-    output_hists: Dict[str, Dict[Any, Any]] = {str(k): {} for k in datasets_to_process}
+    output_hists: dict[str, dict[Any, Any]] = {str(k): {} for k in datasets_to_process}
     with Progress(console=helpers.rich_console, refresh_per_second=1, speed_estimate_period=300) as progress:
         track_results = progress.add_task(total=len(all_results), description="Processing results...")
         # for a in all_results:

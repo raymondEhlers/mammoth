@@ -1,6 +1,8 @@
+from __future__ import annotations
 
+from collections.abc import Sequence
 from pathlib import Path
-from typing import Any, List, Sequence, Tuple, Union
+from typing import Any
 
 import numpy as np
 import numpy.typing as npt
@@ -28,7 +30,7 @@ def _setup_afterburner(code_dir: Path) -> None:
         ROOT.gInterpreter.ProcessLine(f""".L {tree_processing_cxx!s} """)
 
 
-def _array_to_ROOT(arr: Union[List[str], npt.NDArray[Any]], type_name: str = "double") -> Any:
+def _array_to_ROOT(arr: list[str] | npt.NDArray[Any], type_name: str = "double") -> Any:
     """Convert numpy array to std::vector via ROOT.
 
     Because it apparently can't handle conversions directly. Which is really dumb...
@@ -69,7 +71,7 @@ def run_afterburner(
     jet_algorithm: str = "anti-kt",
     jet_R_parameters: Sequence[float] = [0.3, 0.5, 0.8, 1.0],
     max_track_pt_in_jet: float = 30.0,
-) -> Tuple[bool, str]:
+) -> tuple[bool, str]:
     # Setup
     _setup_afterburner(code_dir=tree_processing_code_directory)
 

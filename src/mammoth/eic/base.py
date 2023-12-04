@@ -3,10 +3,11 @@
 
 .. codeauthor:: Raymond Ehlers <raymond.ehlers@cern.ch>, ORNL
 """
+from __future__ import annotations
 
 import logging
+from collections.abc import Sequence
 from pathlib import Path
-from typing import Dict, List, Optional, Sequence
 
 import attrs
 import hist
@@ -15,7 +16,7 @@ import uproot
 logger = logging.getLogger(__name__)
 
 
-def load_hists(filename: Path, filter: Optional[str] = "", filters: Optional[Sequence[str]] = None, require_ends_with_in_filter: bool = False) -> Dict[str, hist.Hist]:
+def load_hists(filename: Path, filter: str | None = "", filters: Sequence[str] | None = None, require_ends_with_in_filter: bool = False) -> dict[str, hist.Hist]:
     """Load histograms from a flat root file
 
     Note:
@@ -84,7 +85,7 @@ class DatasetSpec:
 @attrs.frozen
 class DatasetSpecSingleParticle(DatasetSpec):
     particle: str
-    momentum_selection: List[float]
+    momentum_selection: list[float]
 
     @property
     def identifier(self) -> str:
@@ -96,7 +97,7 @@ class DatasetSpecPythia(DatasetSpec):
     generator: str
     electron_beam_energy: int
     proton_beam_energy: int
-    _q2_selection: List[int]
+    _q2_selection: list[int]
 
     @property
     def q2(self) -> str:

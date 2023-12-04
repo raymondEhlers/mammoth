@@ -1,6 +1,8 @@
+from __future__ import annotations
 
 import logging
-from typing import Any, Dict, List, Mapping
+from collections.abc import Mapping
+from typing import Any
 
 import attrs
 import hist
@@ -10,10 +12,10 @@ logger = logging.getLogger(__name__)
 
 @attrs.define
 class AnalysisConfig:
-    jet_R_values: List[float]
-    jet_types: List[str]
-    regions: List[str]
-    variables: List[str]
+    jet_R_values: list[float]
+    jet_types: list[str]
+    regions: list[str]
+    variables: list[str]
 
 
 @attrs.frozen
@@ -50,12 +52,12 @@ class JetParameters:
         return self.name_eA
 
 
-def scale_jets(input_hists: Dict[str, Dict[str, hist.Hist]],
+def scale_jets(input_hists: dict[str, dict[str, hist.Hist]],
                sim_config: Any,
                analysis_config: AnalysisConfig,
                cross_section: float,
-               expected_luminosities: Mapping[str, float]) -> Dict[str, Dict[str, hist.Hist]]:
-    scaled_hists: Dict[str, Dict[str, hist.Hist]] = {}
+               expected_luminosities: Mapping[str, float]) -> dict[str, dict[str, hist.Hist]]:
+    scaled_hists: dict[str, dict[str, hist.Hist]] = {}
 
     # Supports both ep and eA
     for input_spec in sim_config.input_specs:

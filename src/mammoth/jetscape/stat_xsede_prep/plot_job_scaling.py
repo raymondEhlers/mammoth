@@ -3,8 +3,9 @@
 
 .. codeauthor:: Raymond Ehlers <raymond.ehlers@cern.ch> ORNL
 """
+from __future__ import annotations
 
-from typing import Dict, Mapping, Sequence, Tuple
+from collections.abc import Mapping, Sequence
 
 import matplotlib as mpl
 import matplotlib.patches as mpatches
@@ -21,19 +22,19 @@ mpl.rcParams["xtick.minor.top"] = True
 mpl.rcParams["ytick.right"] = True
 mpl.rcParams["ytick.minor.right"] = True
 
-def error_prop_divide(num_value: np.float64, num_delta: np.float64, denom_value: np.float64, denom_delta: np.float64) -> Tuple[np.float64, np.float64]:
+def error_prop_divide(num_value: np.float64, num_delta: np.float64, denom_value: np.float64, denom_delta: np.float64) -> tuple[np.float64, np.float64]:
     val = num_value / denom_value
     delta = val * np.sqrt((num_delta / num_value) ** 2 + (denom_delta / denom_value) ** 2)
     return (val, delta)
 
 
-def determine_scaling_values(scaling_info: Mapping[str, Mapping[str, Sequence[float]]]) -> Tuple[
-    Dict[int, Tuple[np.float64, np.float64]],
-    Dict[int, Tuple[np.float64, np.float64, np.float64, np.float64]]
+def determine_scaling_values(scaling_info: Mapping[str, Mapping[str, Sequence[float]]]) -> tuple[
+    dict[int, tuple[np.float64, np.float64]],
+    dict[int, tuple[np.float64, np.float64, np.float64, np.float64]]
 ]:
     model = "matter_lbt"
 
-    values: Dict[int, Tuple[np.float64, np.float64]] = {}
+    values: dict[int, tuple[np.float64, np.float64]] = {}
     # Extract the values
     for n_cores in [1, 6, 20, 36, 42, 48]:
         # This is the runtime in seconds.
@@ -55,7 +56,7 @@ def determine_scaling_values(scaling_info: Mapping[str, Mapping[str, Sequence[fl
     return values, normalized_values
 
 
-def plot(scaling: Mapping[int, Tuple[np.float64, np.float64, np.float64, np.float64]]) -> None:
+def plot(scaling: Mapping[int, tuple[np.float64, np.float64, np.float64, np.float64]]) -> None:
     # Extract values
     x_values = list(scaling.keys())
     y_values = [v[0] for v in scaling.values()]
