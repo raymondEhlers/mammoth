@@ -254,7 +254,8 @@ skimmed_datasets:
     # NOTE: Only needed if the inputs are not in the trains directory, as is the cause on hiccup
     number_of_parent_directories_for_relative_output_filename: 3
     files:
-      - "trains/PbPb_MC/798301/files.txt"
+      #- "trains/PbPb_MC/798301/files.txt"
+      - "trains/PbPb_MC/798301/files_test.txt"
   LBL21_JEWEL_Recoils_FastSim_1_996432: &LBL21_JEWEL_Recoils_FastSim_1
     name: "LBL21_JEWEL_Recoils_FastSim_1_996432"
     collision_system: "PbPb_MC"
@@ -324,6 +325,7 @@ analysis_settings:
         # In GeV
         min_jet_pt: {"data": 20}
 
+
     _embed:
       metadata: &base_metadata_embed
         # Parameters relevant for loading the dataset
@@ -367,6 +369,13 @@ analysis_settings:
         # Map from value -> key of how prefixes should be renamed when loading data
         # For embedding, this isn't necessary since it has a dedicated function for loading embedding data
         loading_data_rename_prefix: {}
+
+    _PbPb_MC:
+      metadata: &base_metadata_PbPb_MC
+        # Parameters relevant for loading the dataset
+        # Map from value -> key of how prefixes should be renamed when loading data
+        loading_data_rename_prefix:
+          data: "part_level"
 
   pp_R02: &analysis_settings_pp_R02
     <<: *_base_analysis_settings_pp
@@ -918,16 +927,20 @@ productions:
     # Testing with JEWEL no recoils
     2:
       metadata:
-        <<: *base_metadata_PbPb
+        <<: *base_metadata_PbPb_MC
         dataset: *LBL21_JEWEL_NoRecoils_FastSim_1
         # Equivalent to train number, but a more general term makes more sense here.
         production_number: 2
         label: "central"
       settings:
         <<: *analysis_settings_PbPb_R02
+        output_settings:
+          # Utilize the time reclustering output settings for convenience in testing
+          <<: *time_reclustering_output_settings
         event_activity: "central"
         # No background subtraction
-
+        # And disable artificial tracking efficiency
+        det_level_artificial_tracking_efficiency: 1.0
 
   embed_pythia:
     2:

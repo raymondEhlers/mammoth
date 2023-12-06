@@ -103,7 +103,7 @@ class FileSource:
         #       are not known otherwise. Unfortunately, it's hacky, but it seems like the best
         #       bet for now as of Feb 2023.
         columns = Columns.create(collision_system=self._collision_system, missing_particle_PID=fastsim_output)
-        _is_pp_MC = self._collision_system in ["pythia", "pp_MC"]
+        _both_part_and_det_level_available = self._collision_system in ["pythia", "pp_MC"] or fastsim_output
 
         # There is a prefix for the original HF tree creator, but not one for the FastSim
         tree_prefix = "" if fastsim_output else "PWGHF_TreeCreator/"
@@ -123,9 +123,9 @@ class FileSource:
         # NOTE: This is where we're defining the "det_level", "part_level", or "data" fields
         data_sources = {
             "event_level": event_properties_source,
-            "det_level" if _is_pp_MC else "data": data_source,
+            "det_level" if _both_part_and_det_level_available else "data": data_source,
         }
-        if _is_pp_MC:
+        if _both_part_and_det_level_available:
             data_sources["part_level"] = sources.UprootSource(
                 filename=self._filename,
                 tree_name=f"{tree_prefix}tree_Particle_gen",
@@ -142,6 +142,7 @@ class FileSource:
             gen_data={k: s.gen_data(chunk_size=sources.ChunkSizeSentinel.FULL_SOURCE) for k, s in data_sources.items()},
             collision_system=self._collision_system,
             columns=columns,
+            _both_part_and_det_level_available=_both_part_and_det_level_available,
         )
         return sources.generator_from_existing_data(
             data=next(_transformed_data),
@@ -154,10 +155,10 @@ def _transform_output(
     gen_data: Mapping[str, Generator[ak.Array, sources.T_ChunkSize | None, None]],
     collision_system: str,
     columns: Columns,
+    _both_part_and_det_level_available: bool,
 ) -> Generator[ak.Array, sources.T_ChunkSize | None, None]:
     # Setup
     _standardized_particle_names = columns.standardized_particle_names()
-    _is_pp_MC = collision_system in ["pythia", "pp_MC"]
 
     try:
         data = {k: next(v) for k, v in gen_data.items()}
@@ -250,7 +251,7 @@ def _transform_output(
                 k: v[masks_for_combining_levels[k]] for k, v in event_data_in_jagged_format.items()
             }
 
-            if _is_pp_MC:
+            if _both_part_and_det_level_available:
                 # Now, some rearranging the field names for uniformity.
                 # Apparently, the array will simplify to associate the three fields together. I assumed that a zip
                 # would be required, but apparently not.

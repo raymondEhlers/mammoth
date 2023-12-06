@@ -95,7 +95,9 @@ class ProductionSpecialization:
             "pythia": "pp_MC",
             "pp_MC": "pp_MC",
             "PbPb": "data",
-            "PbPb_MC": "PbPb_MC",
+            # We set PbPb_MC to pp_MC because it's frequently a two particle column collection analysis
+            # (and we can knock it down to one in the pp_MC function when needed by renaming the columns).
+            "PbPb_MC": "pp_MC",
             "embedPythia": "embed_pythia",
             "embed_pythia": "embed_pythia",
             "embed_thermal_model": "embed_thermal_model",

@@ -397,7 +397,7 @@ def setup_data_calculation(  # noqa: C901
         analysis_arguments = copy.deepcopy(_analysis_config)
         # Det level artificial tracking efficiency (pythia / pp_MC only)
         det_level_artificial_tracking_efficiency = None
-        if prod.collision_system in ["pythia", "pp_MC"]:
+        if prod.collision_system in ["pythia", "pp_MC", "PbPb_MC"]:
             # NOTE: Delayed import since we don't want to depend on this in the main framework directly
             from mammoth.framework.analysis import tracking as analysis_tracking
 
