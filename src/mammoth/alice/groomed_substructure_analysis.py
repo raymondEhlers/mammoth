@@ -72,7 +72,10 @@ def _structured_skim_to_flat_skim_for_one_and_two_track_collections(
         # Store externally provided pt hard bin
         all_jets["pt_hard_bin"] = np.ones(len(all_jets["data"]["jet_pt"])) * pt_hat_bin
         # Add the second prefix for true jets
-        prefixes["true"] = "true"
+        # NOTE: We only want to do this if we're already stated that we want to
+        #       want to analyze both the part and det level jets.
+        if len(convert_data_format_prefixes) > 1:
+            prefixes["true"] = "true"
 
     return groomed_substructure_skim_to_flat_tree.calculate_data_skim_impl(
         all_jets=all_jets,
