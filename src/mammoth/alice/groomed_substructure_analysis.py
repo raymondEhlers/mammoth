@@ -67,7 +67,7 @@ def _structured_skim_to_flat_skim_for_one_and_two_track_collections(
     # ak.to_parquet(all_jets, input_filename.parent / Path("intermediate.parquet"))
 
     prefixes = {"data": "data"}
-    if (collision_system == "pythia" or collision_system == "pp_MC"):
+    if collision_system in ["pythia", "pp_MC", "PbPb_MC"]:
         assert pt_hat_bin is not None
         # Store externally provided pt hard bin
         all_jets["pt_hard_bin"] = np.ones(len(all_jets["data"]["jet_pt"])) * pt_hat_bin

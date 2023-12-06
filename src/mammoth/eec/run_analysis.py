@@ -54,6 +54,7 @@ class EECProductionSpecialization:
             "pythia": "data",
             "pp_MC": "data",
             "PbPb": "data",
+            "PbPb_MC": "data",
             "embedPythia": "embed_pythia",
             "embed_pythia": "embed_pythia",
             "embed_thermal_model": "embed_thermal_model",

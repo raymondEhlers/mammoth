@@ -95,6 +95,7 @@ class ProductionSpecialization:
             "pythia": "pp_MC",
             "pp_MC": "pp_MC",
             "PbPb": "data",
+            "PbPb_MC": "PbPb_MC",
             "embedPythia": "embed_pythia",
             "embed_pythia": "embed_pythia",
             "embed_thermal_model": "embed_thermal_model",

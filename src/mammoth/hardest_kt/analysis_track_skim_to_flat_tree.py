@@ -120,7 +120,7 @@ def _hardest_kt_data_skim(
     # ak.to_parquet(all_jets, input_filename.parent / Path("intermediate.parquet"))
 
     prefixes = {"data": "data"}
-    if (collision_system == "pythia" or collision_system == "pp_MC"):
+    if collision_system in ["pythia", "pp_MC", "PbPb_MC"]:
         assert pt_hat_bin is not None
         # Store externally provided pt hard bin
         all_jets["pt_hard_bin"] = np.ones(len(all_jets["data"]["jet_pt"])) * pt_hat_bin
@@ -185,7 +185,7 @@ def hardest_kt_data_skim(
         #       implemented it, we leave it in place - perhaps it can be fixed later (or maybe just needs the right
         #       combination of options passed).
         if collision_system in ["pp", "PbPb"] or (
-            collision_system in ["pythia", "pp_MC"] and "data" in loading_data_rename_prefix
+            collision_system in ["pythia", "pp_MC", "PbPb_MC"] and "data" in loading_data_rename_prefix
         ):
             jets = analysis_alice.analysis_data(
                 collision_system=collision_system,

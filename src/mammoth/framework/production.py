@@ -148,11 +148,12 @@ _possible_collision_systems = [
     "pp_MC",
     "pythia",
     "PbPb",
+    "PbPb_MC",
     "embedPythia",
     "embed_pythia",
     "embed_thermal_model",
 ]
-_collision_systems_with_scale_factors = ["pp_MC", "pythia", "embedPythia", "embed_pythia", "embed_thermal_model"]
+_collision_systems_with_scale_factors = ["pp_MC", "pythia", "PbPb_MC", "embedPythia", "embed_pythia", "embed_thermal_model"]
 
 
 def _validate_collision_system(

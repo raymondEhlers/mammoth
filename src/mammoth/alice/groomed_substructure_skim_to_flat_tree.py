@@ -1141,7 +1141,7 @@ def calculate_data_skim_impl(
     # Special selections for pythia.
     # Apparently I can get pt hard < 5. Which is bizarre, at least according to the binning...
     # Filter these out when applicable.
-    if (collision_system == "pythia" or collision_system == "pp_MC") and "pt_hard" in all_jets:
+    if collision_system in ["pythia", "pp_MC", "PbPb_MC"] and "pt_hard" in all_jets:
         # The jets object will contain the pt hard bin if it's available.
         mask = mask & (all_jets["pt_hard"] >= 5.0)
 
@@ -1269,7 +1269,7 @@ def calculate_data_skim_impl(
                 grooming_results.update(grooming_result.asdict(prefix=prefix))
 
         # Add scale factors when appropriate (ie for pythia)
-        if (collision_system == "pythia" or collision_system == "pp_MC"):
+        if collision_system in ["pythia", "pp_MC", "PbPb_MC"]:
             # Help out mypy...
             assert scale_factors is not None
             # Validation. We make a copy to ensure that we don't modify the input.
@@ -1414,7 +1414,7 @@ def calculate_data_skim(
     selected_grooming_methods: list[str] | None = None,
 ) -> tuple[bool, Path, str]:
     # Validation
-    if scale_factors is None and (collision_system == "pythia" and collision_system == "pp_MC"):
+    if scale_factors is None and collision_system in ["pythia", "pp_MC", "PbPb_MC"]:
         _msg = f"Need scale factors for {collision_system} to be provided externally."
         raise ValueError(_msg)
     # Bail out early if the file already exists.
