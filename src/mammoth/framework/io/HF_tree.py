@@ -153,7 +153,7 @@ class FileSource:
 
 def _transform_output(
     gen_data: Mapping[str, Generator[ak.Array, sources.T_ChunkSize | None, None]],
-    collision_system: str,
+    collision_system: str,  # noqa: ARG001
     columns: Columns,
     _both_part_and_det_level_available: bool,
 ) -> Generator[ak.Array, sources.T_ChunkSize | None, None]:
