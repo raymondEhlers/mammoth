@@ -172,7 +172,7 @@ def _calculate_weight_for_plotting(
     )
 
 
-def analysis_embedding(
+def analysis_embedding(  # noqa: C901
     *,
     collision_system: str,  # noqa: ARG001
     source_index_identifiers: dict[str, int],
