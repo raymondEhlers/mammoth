@@ -99,7 +99,6 @@ no_implicit_reexport = false
 
 [[tool.mypy.overrides]]
 module = [
-    "awkward",
     "boost_histogram",
     "coloredlogs",
     "cycler",
