@@ -15,6 +15,7 @@ import awkward as ak
 
 from mammoth.framework import sources
 from mammoth.framework.io import _jetscape_parser
+from mammoth.framework.io._jetscape_parser import parse_to_parquet as parse_to_parquet, find_production_pt_hat_bins_in_filenames as find_production_pt_hat_bins_in_filenames
 
 logger = logging.getLogger(__name__)
 

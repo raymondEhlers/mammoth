@@ -11,7 +11,7 @@ import functools
 import logging
 from collections.abc import Iterable, Mapping
 from pathlib import Path
-from typing import Union
+from typing import Callable, Union
 
 import attrs
 import awkward as ak
@@ -144,7 +144,7 @@ def _define_calculation_functions(
     if not selected_grooming_methods:
         selected_grooming_methods = None
 
-    functions = {
+    functions: dict[str, functools.partial[tuple[npt.NDArray[Scalar], AwkwardArray[int], AwkwardArray[AwkwardArray[int]]]]] = {
         "dynamical_core": functools.partial(analysis_jet_substructure.JetSplittingArray.dynamical_core, R=jet_R),
         "dynamical_z": functools.partial(analysis_jet_substructure.JetSplittingArray.dynamical_z, R=jet_R),
         "dynamical_kt": functools.partial(analysis_jet_substructure.JetSplittingArray.dynamical_kt, R=jet_R),

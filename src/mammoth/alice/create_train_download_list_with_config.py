@@ -304,7 +304,7 @@ def create_train_download_list(trains: Sequence[int]) -> None:  # noqa: C901
                         # Example dir: `/alice/data/2018/LHC18q/000296934/pass3/AOD252/PWGJE/Jets_EMC_PbPb/6989_...`
                         # MC example: `/alice/sim/2020/LHC20g4/1/295612/PWGHF/HF_TreeCreator/568_20210122-0859/`
                         _possible_train_output_dir_for_run = dataset_path / run_number
-                        if pass_value != "Path":
+                        if str(pass_value) != "Path":
                             _possible_train_output_dir_for_run /= pass_value
                         _possible_train_output_dir_for_run /= Path(PWG) / train_name
                         if likely_child_directory:
