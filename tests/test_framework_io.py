@@ -2,26 +2,26 @@
 
 .. codeauthor:: Raymond Ehlers <raymond.ehlers@cern.ch>, LBL/UCB
 """
+from __future__ import annotations
 
 import logging
-import pytest
 from pathlib import Path
-from typing import Any
 
-from mammoth.framework import io
-from mammoth.framework import production
+import pytest
+
+from mammoth.framework import io, production
 
 logger = logging.getLogger(__name__)
 
 
 @pytest.mark.parametrize(
-    "module, production_name", [
+    ("module", "production_name"), [
         ("jetscape", "JETSCAPE_PP19_1"),
         ("HF_tree", "LBL20_Pythia_FastSim_1_258314"),
         ("track_skim", "LHC18qr_pass3_AOD252_central_642"),
     ], ids=["jetscape", "HF_tree", "track_skim"]
 )
-def test_file_source(caplog: Any, module: str, production_name: str) -> None:
+def test_file_source(module: str, production_name: str) -> None:
     # Setup
     # This is quite hacky, but it's convenient, so good enough
     mammoth_src = Path(production.__file__).parent.parent
