@@ -94,6 +94,7 @@ def _transform_output(
                             zip(
                                 list(_columns.particle_level.values()),
                                 ak.unzip(data[_columns.particle_level]),
+                                strict=True,
                             )
                         )
                     ),
@@ -101,6 +102,7 @@ def _transform_output(
                         zip(
                             list(_columns.event_level.values()),
                             ak.unzip(data[_columns.event_level]),
+                            strict=True,
                         )
                     ),
                 }

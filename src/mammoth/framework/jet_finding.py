@@ -137,7 +137,7 @@ def _shared_momentum_fraction_for_flat_array_implementation(
         measured_like_constituents,
         measured_like_constituent_identifiers,
     ) in enumerate(
-        zip(
+        zip(  # noqa: B905
             generator_like_jet_pts,
             generator_like_jet_constituents,
             generator_like_jet_constituent_identifiers,
@@ -146,11 +146,11 @@ def _shared_momentum_fraction_for_flat_array_implementation(
         )
     ):
         sum_pt = 0
-        for generator_like_constituent, generator_like_constituent_identifier in zip(
+        for generator_like_constituent, generator_like_constituent_identifier in zip(  # noqa: B905
             generator_like_constituents, generator_like_constituent_identifiers
         ):
             # print(f"generator: identifier: {generator_like_constituent.identifier}, pt: {generator_like_constituent.pt}")
-            for measured_like_constituent, measured_like_constituent_identifier in zip(
+            for measured_like_constituent, measured_like_constituent_identifier in zip(  # noqa: B905
                 measured_like_constituents, measured_like_constituent_identifiers
             ):
                 # print(f"measured: identifier: {measured_like_constituent.identifier}, pt: {measured_like_constituent.pt}")
@@ -243,7 +243,7 @@ def _jet_matching_geometrical_impl(
     jet_index_base = 0
     jet_index_tag = 0
     # Implement simple geometrical matching.
-    for event_base, event_tag in zip(jets_first, jets_second):
+    for event_base, event_tag in zip(jets_first, jets_second):  # noqa: B905
         for jet_base in event_base:
             j = jet_index_tag
             closest_tag_jet_distance = 9999
@@ -325,7 +325,7 @@ def _jet_matching(
     # We don't care about the last offset (it's just the total number of jets), so we skip it
     # here in order to match with the length of the base counts.
     # NOTE: I guess this kind of re-implements broadcast_arrays. But okay, it seems to be fine.
-    for event_offset_base, event_offset_tag, count_base in zip(starts_base[:-1], starts_tag[:-1], counts_base):
+    for event_offset_base, event_offset_tag, count_base in zip(starts_base[:-1], starts_tag[:-1], counts_base):  # noqa: B905
         # print(f"{i=}")
         # We don't care about this counter, we just need to iterate this many times.
         for _ in range(0, count_base):  # noqa: PIE808
@@ -401,14 +401,14 @@ def _calculate_unsubtracted_constituent_max_pt(
     Returns:
         ArrayBuilder containing the unsubtracted max pt for each jet.
     """
-    for particles_in_event, particles_source_indices_in_event, jets_constituents_source_indices_in_event in zip(
+    for particles_in_event, particles_source_indices_in_event, jets_constituents_source_indices_in_event in zip(  # noqa: B905
         input_arrays, input_arrays_source_indices, input_constituents_source_indices
     ):
         builder.begin_list()
         for constituents_source_indices in jets_constituents_source_indices_in_event:
             unsubtracted_constituent_pt = []
             for constituent_identifier in constituents_source_indices:
-                for particle, particle_identifier in zip(particles_in_event, particles_source_indices_in_event):
+                for particle, particle_identifier in zip(particles_in_event, particles_source_indices_in_event):  # noqa: B905
                     if constituent_identifier == particle_identifier:
                         unsubtracted_constituent_pt.append(particle.pt)
             builder.append(max(unsubtracted_constituent_pt))
@@ -507,7 +507,7 @@ def _find_constituent_indices_via_user_index(
 ) -> ak.Array:
     output = np.ones(number_of_constituents, dtype=np.int64) * -1
     output_counter = 0
-    for event_user_index, event_constituents_user_index in zip(user_indices, constituents_user_index):
+    for event_user_index, event_constituents_user_index in zip(user_indices, constituents_user_index):  # noqa: B905
         for jet_constituents_user_index in event_constituents_user_index:
             for jet_constituent_index in jet_constituents_user_index:
                 #for constituent_index in jet_constituents_user_index:
@@ -557,7 +557,7 @@ def _find_unsubtracted_constituent_index_from_subtracted_index_via_user_index(
     output = np.ones(number_of_subtracted_constituents, dtype=np.int64) * -1
     output_counter = 0
 
-    for event_user_index, event_subtracted_index_to_unsubtracted_user_index in zip(user_indices, subtracted_index_to_unsubtracted_user_index):
+    for event_user_index, event_subtracted_index_to_unsubtracted_user_index in zip(user_indices, subtracted_index_to_unsubtracted_user_index):  # noqa: B905
         for unsubtracted_user_index in event_subtracted_index_to_unsubtracted_user_index:
             for i_original_constituent, user_index in enumerate(event_user_index):
                 if unsubtracted_user_index == user_index:
@@ -683,13 +683,15 @@ def _handle_subtracted_constituents(
             **dict(
                 zip(
                     ak.fields(_particles_for_constituents),
-                    ak.unzip(_particles_for_constituents)
+                    ak.unzip(_particles_for_constituents),
+                    strict=True
                 )
             ),
             **dict(
                 zip(
                     ak.fields(_additional_fields_for_subtracted_constituents),
                     ak.unzip(_additional_fields_for_subtracted_constituents),
+                    strict=True,
                 )
             ),
         },
@@ -837,7 +839,7 @@ def find_jets(
     # from the values here (ie. the unsubtracted user_index) to the index of the unsubtracted particle.
     subtracted_index_to_unsubtracted_user_index = []
     for lower, upper, background_lower, background_upper in zip(
-        sum_counts[:-1], sum_counts[1:], background_sum_counts[:-1], background_sum_counts[1:]
+        sum_counts[:-1], sum_counts[1:], background_sum_counts[:-1], background_sum_counts[1:], strict=True
     ):
         # Run the actual jet finding.
         res = mammoth_cpp._ext.find_jets(
@@ -1039,10 +1041,10 @@ def recluster_jets(
 
     event_splittings = _splittings_output()
     event_subjets = _subjets_output()
-    for starts, stops in zip(starts_constituents, stops_constituents):
+    for starts, stops in zip(starts_constituents, stops_constituents, strict=True):
         jets_splittings = _splittings_output()
         jets_subjets = _subjets_output()
-        for lower, upper in zip(starts, stops):
+        for lower, upper in zip(starts, stops, strict=True):
             res = mammoth_cpp._ext.recluster_jet(
                 px=px[lower:upper],
                 py=py[lower:upper],

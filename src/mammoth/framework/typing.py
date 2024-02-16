@@ -21,7 +21,7 @@ _T_NP = TypeVar("_T_NP", bound=npt.NBitBase)
 Scalar = TypeVar("Scalar", bound=np.generic, covariant=True)  # noqa: PLC0105
 # Generic number
 # See: https://stackoverflow.com/a/60617044/12907985
-Number = Union[float, int, np.number[_T_NP]]
+Number = Union[float, int, np.number[_T_NP]]  # noqa: UP007
 
 # Using `class AwkwardArray(Protocol[_T]):` caused mypy to hang as of August 2022, but
 # for some reason, Collection is fine. Presumably there's a bug somewhere, but not worth worrying about,
@@ -100,4 +100,4 @@ class AwkwardArray(Collection[_T]):
 
 
 # Sometimes, it could be either
-ArrayOrScalar = Union[AwkwardArray[_T], _T]
+ArrayOrScalar = Union[AwkwardArray[_T], _T]  # noqa: UP007

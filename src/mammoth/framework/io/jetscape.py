@@ -15,7 +15,10 @@ import awkward as ak
 
 from mammoth.framework import sources
 from mammoth.framework.io import _jetscape_parser
-from mammoth.framework.io._jetscape_parser import parse_to_parquet as parse_to_parquet, find_production_pt_hat_bins_in_filenames as find_production_pt_hat_bins_in_filenames
+from mammoth.framework.io._jetscape_parser import (
+    find_production_pt_hat_bins_in_filenames as find_production_pt_hat_bins_in_filenames,
+)
+from mammoth.framework.io._jetscape_parser import parse_to_parquet as parse_to_parquet
 
 logger = logging.getLogger(__name__)
 
@@ -121,6 +124,7 @@ def _transform_output(
                         zip(
                             list(_columns.particle_level.values()),
                             ak.unzip(data["particles"][list(_columns.particle_level)]),
+                            strict=True,
                         )
                     )
                 ),
@@ -128,6 +132,7 @@ def _transform_output(
                     zip(
                         list(event_columns.values()),
                         ak.unzip(data[list(event_columns)]),
+                        strict=True,
                     )
                 ),
             })

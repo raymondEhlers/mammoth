@@ -62,7 +62,7 @@ def normalize_for_data(
     if rename_prefix is None or not rename_prefix:
         rename_prefix = {"data": "data"}
     _prefixes = list(rename_prefix.keys())
-    if isinstance(mass_hypothesis, (int, float)):
+    if isinstance(mass_hypothesis, int | float):
         mass_hypotheses = {p: float(mass_hypothesis) for p in _prefixes}
     else:
         mass_hypotheses = dict(mass_hypothesis)
@@ -91,7 +91,7 @@ def normalize_for_data(
             #       prefix to avoid copying both the original and the renamed into the same array.
             **{
                 k: v
-                for k, v in zip(ak.fields(arrays), ak.unzip(arrays))
+                for k, v in zip(ak.fields(arrays), ak.unzip(arrays), strict=True)
                 if k not in [*_prefixes, rename_prefix["data"]]
             },
         }
@@ -129,7 +129,7 @@ def normalize_for_MC(
             "det_level": "det_level",
         }
     _prefixes = list(rename_prefix.keys())
-    if isinstance(mass_hypothesis, (int, float)):
+    if isinstance(mass_hypothesis, int | float):
         mass_hypotheses = {p: float(mass_hypothesis) for p in _prefixes}
     else:
         mass_hypotheses = dict(mass_hypothesis)
@@ -174,7 +174,7 @@ def normalize_for_MC(
             "part_level": part_level,
             "det_level": det_level,
             # Include the rest of the non particle related fields (ie. event level info)
-            **{k: v for k, v in zip(ak.fields(arrays), ak.unzip(arrays)) if k not in _prefixes},
+            **{k: v for k, v in zip(ak.fields(arrays), ak.unzip(arrays), strict=True) if k not in _prefixes},
         }
     )
 
@@ -286,7 +286,7 @@ def normalize_for_embedding(
         particle_columns = _default_particle_columns
     # Validation
     _mass_hypothesis_prefixes = ["part_level", "det_level", "background"]
-    if isinstance(mass_hypothesis, (int, float)):
+    if isinstance(mass_hypothesis, int | float):
         mass_hypotheses = {p: float(mass_hypothesis) for p in _mass_hypothesis_prefixes}
     else:
         mass_hypotheses = dict(mass_hypothesis)
@@ -363,14 +363,14 @@ def normalize_for_embedding(
                                 ],
                                 axis=1,
                             )
-                        ),
+                        ), strict=True,
                     )
                 )
             ),
             # Include the rest of the non particle related fields (ie. event level info)
             **{
                 k: v
-                for k, v in zip(ak.fields(arrays["signal"]), ak.unzip(arrays["signal"]))
+                for k, v in zip(ak.fields(arrays["signal"]), ak.unzip(arrays["signal"]), strict=True)
                 if k not in ["det_level", "part_level"]
             },
         }

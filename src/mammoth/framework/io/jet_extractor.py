@@ -93,6 +93,7 @@ def _transform_output(
                                 # [c.replace("Jet_T", "t").lower() for c in list(particle_columns)],
                                 list(_columns.particle_level.values()),
                                 ak.unzip(data[_columns.particle_level]),
+                                strict=True,
                             )
                         )
                     ),
@@ -100,6 +101,7 @@ def _transform_output(
                         zip(
                             list(_columns.event_level.values()),
                             ak.unzip(data[_columns.event_level]),
+                            strict=True,
                         )
                     ),
                 }

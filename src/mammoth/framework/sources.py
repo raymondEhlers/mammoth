@@ -14,9 +14,7 @@ from pathlib import Path
 from typing import (
     Any,
     Final,
-    Optional,
     Protocol,
-    Union,
     runtime_checkable,
 )
 
@@ -40,8 +38,8 @@ class ChunkSizeSentinel(enum.Enum):
     SINGLE_FILE = object()  # noqa: PIE796
 
 
-T_ChunkSize = Union[int, ChunkSizeSentinel]
-T_GenData = Generator[ak.Array, Optional[T_ChunkSize], None]
+T_ChunkSize = int | ChunkSizeSentinel
+T_GenData = Generator[ak.Array, T_ChunkSize | None, None]
 
 
 class DelayedSource(Protocol):
@@ -96,8 +94,6 @@ class NoDataAvailableError(Exception):
     Most likely, one of the trees was empty, or the tree was missing from the file entirely.
     """
 
-    ...
-
 
 def convert_sequence_to_range(entry_range: utils.Range | Sequence[float]) -> utils.Range:
     """Convert sequences to Range.
@@ -127,7 +123,7 @@ def validate_chunk_size(chunk_size: T_ChunkSize, source_default_chunk_size: T_Ch
     if chunk_size is ChunkSizeSentinel.FIXED_SIZE:
         _msg = "User must provide a chunk size! There is no natural choice for this source."
         raise ValueError(_msg)
-    if not isinstance(chunk_size, (int, np.integer)):
+    if not isinstance(chunk_size, int | np.integer):
         _msg = f"Unrecognized chunk size: {chunk_size}, {type(chunk_size)=}"  # type: ignore[unreachable]
         raise ValueError(_msg)
 
@@ -360,7 +356,7 @@ class ALICEFastSimTrackingEfficiency:
                 # Include the rest of the non-particle related fields (ie. event level info)
                 **{
                     k: v
-                    for k, v in zip(ak.fields(particle_level_data), ak.unzip(particle_level_data))
+                    for k, v in zip(ak.fields(particle_level_data), ak.unzip(particle_level_data), strict=True)
                     if k not in ["det_level", "part_level"]
                 },
             }

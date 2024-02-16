@@ -132,6 +132,7 @@ def _transform_output(
                                 zip(
                                     list(particle_data_columns.values()),
                                     ak.unzip(data[list(particle_data_columns)]),
+                                    strict=True,
                                 )
                             )
                         ),
@@ -140,6 +141,7 @@ def _transform_output(
                                 zip(
                                     list(particle_gen_columns.values()),
                                     ak.unzip(data[list(particle_gen_columns)]),
+                                    strict=True,
                                 )
                             )
                         ),
@@ -147,6 +149,7 @@ def _transform_output(
                             zip(
                                 list(_columns.event_level.values()),
                                 ak.unzip(data[list(_columns.event_level)]),
+                                strict=True,
                             )
                         ),
                     },
@@ -160,6 +163,7 @@ def _transform_output(
                                 zip(
                                     list(particle_data_columns.values()),
                                     ak.unzip(data[list(particle_data_columns)]),
+                                    strict=True,
                                 )
                             )
                         ),
@@ -167,6 +171,7 @@ def _transform_output(
                             zip(
                                 list(_columns.event_level.values()),
                                 ak.unzip(data[list(_columns.event_level)]),
+                                strict=True,
                             )
                         ),
                     },

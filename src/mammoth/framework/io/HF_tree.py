@@ -272,6 +272,7 @@ def _transform_output(
                             zip(
                                 ak.fields(event_data_in_jagged_format["event_level"]),
                                 ak.unzip(event_data_in_jagged_format["event_level"]),
+                                strict=True,
                             )
                         ),
                     },
@@ -290,6 +291,7 @@ def _transform_output(
                             zip(
                                 ak.fields(event_data_in_jagged_format["event_level"]),
                                 ak.unzip(event_data_in_jagged_format["event_level"]),
+                                strict=True,
                             )
                         ),
                     },

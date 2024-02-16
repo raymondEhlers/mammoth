@@ -12,9 +12,9 @@ from __future__ import annotations
 import concurrent.futures
 import functools
 import logging
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from pathlib import Path
-from typing import Any, Callable, Protocol, Union
+from typing import Any, Protocol, Union
 
 import attrs
 import awkward as ak
@@ -121,12 +121,12 @@ class OutputSettings:
         return cls(
             output_filename=output_filename.with_suffix(f".{extension}"),
             primary_output=PrimaryOutput.from_config(config=config["primary_output"]),
-            return_skim=config.get("return_skim", None),
-            write_chunk_skim=config.get("write_chunk_skim", None),
+            return_skim=config.get("return_skim", None),  # noqa: SIM910
+            write_chunk_skim=config.get("write_chunk_skim", None),  # noqa: SIM910
             explode_skim_fields_to_separate_directories=config.get("explode_skim_fields_to_separate_directories", False),
-            return_merged_hists=config.get("return_merged_hists", None),
-            write_chunk_hists=config.get("write_chunk_hists", None),
-            write_merged_hists=config.get("write_merged_hists", None),
+            return_merged_hists=config.get("return_merged_hists", None),  # noqa: SIM910
+            write_chunk_hists=config.get("write_chunk_hists", None),  # noqa: SIM910
+            write_merged_hists=config.get("write_merged_hists", None),  # noqa: SIM910
             write_skim_extension=extension,
         )
 
@@ -316,10 +316,9 @@ class NoUsefulAnalysisOutputError(Exception):
     found no jets in the sample. Basically, it lets us bail out early from analyzing
     a chunk in a clean way.
     """
-    ...
 
 
-T_SkimTypes = Union[ak.Array, npt.NDArray[np.float32], npt.NDArray[np.float64], npt.NDArray[np.int16], npt.NDArray[np.int32], npt.NDArray[np.int64]]
+T_SkimTypes = Union[ak.Array, npt.NDArray[np.float32], npt.NDArray[np.float64], npt.NDArray[np.int16], npt.NDArray[np.int32], npt.NDArray[np.int64]]  # noqa: UP007
 
 @attrs.frozen(kw_only=True)
 class AnalysisOutput:

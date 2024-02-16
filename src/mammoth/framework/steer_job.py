@@ -403,7 +403,7 @@ def setup_data_calculation(  # noqa: C901
 
             # Artificial tracking efficiency (including the option for pt dependent tracking eff)
             # NOTE: This depends on period, so it's better to do it here!
-            det_level_artificial_tracking_efficiency = _analysis_config.get("det_level_artificial_tracking_efficiency", None)
+            det_level_artificial_tracking_efficiency = _analysis_config.get("det_level_artificial_tracking_efficiency", None)  # noqa: SIM910
             # Pt dependent for tracking efficiency uncertainty
             if _analysis_config.get("apply_pt_dependent_tracking_efficiency_uncertainty", False):
                 # NOTE: Careful - this needs to be added as 1-value. (ie. 1-.97=0.03 -> for .98 flat, we get .95)

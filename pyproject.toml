@@ -170,10 +170,11 @@ select = [
 extend-ignore = [
     "E501",
     "E722",
-    "RUF001",  # Unicode chars
+    "RUF001",      # Unicode chars
     "PLR",
-    "ISC003",  # Force string to be implicitly concatenated. However, I find this structure to be useful for better
-               # readability due to consistent spacing with plotting labels.
+    "ISC003",      # Force string to be implicitly concatenated. However, I find this structure to be useful for better
+                   # readability due to consistent spacing with plotting labels.
+    "PLC0414",     # Messes with the re-export of imports needed from mypy
 ]
 unfixable = [
     "T20",      # flake8-print

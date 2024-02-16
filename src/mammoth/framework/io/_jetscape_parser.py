@@ -9,9 +9,9 @@ import itertools
 import logging
 import os
 import typing
-from collections.abc import Generator, Iterator
+from collections.abc import Callable, Generator, Iterator
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any
 
 import attrs
 import awkward as ak
@@ -28,13 +28,11 @@ class ReachedEndOfFileException(Exception):
     about the context if desired.
     """
 
-    ...
 
 
 class ReachedXSecAtEndOfFileException(ReachedEndOfFileException):
     """Indicates that we've hit the cross section in the last line of the file."""
 
-    ...
 
 
 @attrs.frozen
@@ -370,7 +368,6 @@ def _parse_event(f: Iterator[str], parse_header_line: Callable[[str], HeaderInfo
 class ChunkNotReadyException(Exception):
     """Indicate that the chunk hasn't been parsed yet, and therefore is not ready."""
 
-    ...
 
 
 @attrs.define
@@ -778,7 +775,7 @@ def full_events_to_only_necessary_columns_E_px_py_pz(arrays: ak.Array) -> ak.Arr
     columns_to_drop = ["eta", "phi"]
     return ak.zip(
         {
-            **{k: v for k, v in zip(ak.fields(arrays), ak.unzip(arrays)) if k != "particles"},
+            **{k: v for k, v in zip(ak.fields(arrays), ak.unzip(arrays), strict=True) if k != "particles"},
             "particles": ak.zip(
                 {
                     name: arrays["particles", name]
@@ -830,7 +827,7 @@ def parse_to_parquet(
             # As of April 2021, I'm not certainly this is truly required anymore, but it may be needed for
             # parquet writing to be successful (apparently parquet couldn't handle lists of structs sometime
             # in 2020. The status in April 2021 is unclear, but not worth digging into now).
-            arrays = ak.zip(dict(zip(ak.fields(arrays), ak.unzip(arrays))), depth_limit=1)  # noqa: PLW2901
+            arrays = ak.zip(dict(zip(ak.fields(arrays), ak.unzip(arrays), strict=True)), depth_limit=1)  # noqa: PLW2901
 
         # If converting in chunks, add an index to the output file so the chunks don't overwrite each other.
         if events_per_chunk > 0:
