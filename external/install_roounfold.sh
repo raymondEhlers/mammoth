@@ -6,7 +6,6 @@ set +e
 
 # Setup
 INSTALL_PREFIX=${PWD}/install/roounfold
-ADDITIONAL_ARGS="${CMAKE_ARGS}"
 CMAKE_BUILD_TYPE="RELWITHDEBINFO"
 CXXSTD=17
 
@@ -16,16 +15,17 @@ if [ ! -d RooUnfold ]; then
 fi
 
 # Build and install
-cd RooUnfold
+cd RooUnfold || exit 1
 ROOUNFOLD_SOURCE_DIR=${PWD}
-cmake -S ${ROOUNFOLD_SOURCE_DIR}                    \
-      -B ${ROOUNFOLD_SOURCE_DIR}/build              \
-      -DCMAKE_INSTALL_PREFIX=${INSTALL_PREFIX}      \
+# shellcheck disable=SC2086
+cmake -S "${ROOUNFOLD_SOURCE_DIR}"                    \
+      -B "${ROOUNFOLD_SOURCE_DIR}/build"              \
+      -DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}"      \
       ${CXXSTD:+-DCMAKE_CXX_STANDARD=$CXXSTD}       \
       ${CMAKE_BUILD_TYPE:+-DCMAKE_BUILD_TYPE="$CMAKE_BUILD_TYPE"}  \
       ${CMAKE_ARGS}
 cmake --build build -j 4 --target install
 
 # Need to copy the headers manually, because RooUnfold...
-mkdir -p ${INSTALL_PREFIX}/include/
-rsync -av ${ROOUNFOLD_SOURCE_DIR}/include/ ${INSTALL_PREFIX}/include/
+mkdir -p "${INSTALL_PREFIX}/include/"
+rsync -av "${ROOUNFOLD_SOURCE_DIR}/include/ ${INSTALL_PREFIX}/include/"

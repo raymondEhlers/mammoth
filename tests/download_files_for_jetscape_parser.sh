@@ -2,6 +2,7 @@
 
 inputFilesDate="2023-05-19"
 
+# shellcheck disable=SC2046
 currentDir=$(realpath $(dirname "$0"))
 # input
 inputDir="${currentDir}/jetscape_parser"

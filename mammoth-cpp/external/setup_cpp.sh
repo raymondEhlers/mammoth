@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 
+# shellcheck disable=SC2046
 currentDir=$(realpath $(dirname "$0"))
 
 export FASTJET_ROOT="$currentDir/install/fastjet"

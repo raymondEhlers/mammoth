@@ -59,9 +59,10 @@ startingIndex=1
 if [[ "${cleanPreviousSimulations}" == true ]];
 then
     echo "Removing previous simulations results for \"${uniqueID}\""
-    rm -rf $outDir/* $logDir/*
+    rm -rf "${outDir:?}/*" "${logDir:?}/*"
 else
-    startingIndex=$(ls ${outDir}/ | sort | tail -n 1 | cut -d '_' -f2)
+    # shellcheck disable=SC2012
+    startingIndex=$(ls "${outDir}/" | sort | tail -n 1 | cut -d '_' -f2)
     # Force bash to treat this as an integer (it could be treated as octal if it has a leading 0)
     startingIndex=$((10#$startingIndex))
     # We want to take the next index, so we increment one further
@@ -80,12 +81,13 @@ echo "outDir=\"$outDir\""
 
 # We want a ceiling function so we always have enough nodes.
 # Based on https://stackoverflow.com/a/12536521/12907985
-nNodes=$(((${njobs} + 32 - 1) / 32))
-tasksPerNode=$(((${njobs} + ${nNodes} - 1) / ${nNodes}))
+nNodes=$((($njobs + 32 - 1) / 32))
+# shellcheck disable=SC2034
+tasksPerNode=$((($njobs + $nNodes - 1) / $nNodes))
 
 # Now, implement steering script for slurm
 #SBATCH --tasks-per-node=1
-cat > ${slurmJobConfig} <<- _EOF_
+cat > "${slurmJobConfig}" <<- _EOF_
 #!/usr/bin/env bash
 #SBATCH -A birthright
 #SBATCH -p burst
@@ -133,4 +135,4 @@ _EOF_
 
 #sbatch -a 1-$njobs $slurmJobConfig
 # -1 for the upper edge because it's inclusive
-sbatch -a ${startingIndex}-$((${startingIndex} + ${njobs} - 1)) $slurmJobConfig
+sbatch -a ${startingIndex}-$(($startingIndex + $njobs - 1)) "${slurmJobConfig}"
