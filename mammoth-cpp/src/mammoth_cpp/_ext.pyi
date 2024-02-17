@@ -155,7 +155,13 @@ class OutputWrapperDouble:
     @property
     def subtracted_info(
         self,
-    ) -> tuple[tuple[npt.NDArray[np.float64], npt.NDArray[np.float64], npt.NDArray[np.float64], npt.NDArray[np.float64]], npt.NDArray[np.int64]] | None: ...
+    ) -> (
+        tuple[
+            tuple[npt.NDArray[np.float64], npt.NDArray[np.float64], npt.NDArray[np.float64], npt.NDArray[np.float64]],
+            npt.NDArray[np.int64],
+        ]
+        | None
+    ): ...
 
 class OutputWrapperFloat:
     def __init__(self, *args, **kwargs) -> None: ...  # type: ignore[no-untyped-def]
@@ -172,10 +178,16 @@ class OutputWrapperFloat:
     @property
     def subtracted_info(
         self,
-    ) -> tuple[tuple[npt.NDArray[np.float32], npt.NDArray[np.float32], npt.NDArray[np.float32], npt.NDArray[np.float32]], npt.NDArray[np.int64]] | None: ...
+    ) -> (
+        tuple[
+            tuple[npt.NDArray[np.float32], npt.NDArray[np.float32], npt.NDArray[np.float32], npt.NDArray[np.float32]],
+            npt.NDArray[np.int64],
+        ]
+        | None
+    ): ...
 
 @overload
-def find_jets(   # type: ignore[misc]
+def find_jets(  # type: ignore[misc]
     px: npt.NDArray[np.float32],
     py: npt.NDArray[np.float32],
     pz: npt.NDArray[np.float32],
@@ -283,6 +295,5 @@ def fast_sim_tracking_efficiency(
     period: TrackingEfficiencyPeriod,
 ) -> object: ...
 def find_event_activity(value: float) -> TrackingEfficiencyEventActivity: ...
-
 def smooth_array(arr: npt.NDArray[np.float64], n_times: int = ...) -> npt.NDArray[np.float64]: ...
 def smooth_array_f(arr: npt.NDArray[np.float32], n_times: int = ...) -> npt.NDArray[np.float32]: ...

@@ -142,4 +142,3 @@ add_custom_command(TARGET _ext POST_BUILD
 
 # And finally install the bindings
 install(TARGETS _ext LIBRARY DESTINATION ${SKBUILD_PROJECT_NAME})
-

@@ -13,4 +13,3 @@ namespace analysis
 } // namespace analysis
 
 } // namespace mammoth
-
