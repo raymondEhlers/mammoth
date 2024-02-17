@@ -622,7 +622,7 @@ struct FindJetsImplementationOutputWrapper {
    * @param _jets Jets found by cluster sequence
    * @param _particles Particles used for jet finding. May be just the input particles, or
    *                   those subtracted by event-wise constituent subtraction. Depends on the settings.
-   * @param _subtractedToUnsubtractedIndices Map from subtracted to unsubtracted indicies. Only populated
+   * @param _subtractedToUnsubtractedIndices Map from subtracted to unsubtracted indices. Only populated
    *                    if using event-wise constituent subtraction.
    */
   FindJetsImplementationOutputWrapper(std::shared_ptr<fastjet::ClusterSequence> _cs,

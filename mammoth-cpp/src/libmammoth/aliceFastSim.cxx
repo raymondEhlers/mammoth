@@ -12,7 +12,7 @@ namespace {
  *
  * Basically a part of `TMath::Gaus`.
  *
- * @param x Position to evaluate the Guassian.
+ * @param x Position to evaluate the Gaussian.
  * @param mean Gaussian mean
  * @param sigma Gaussian width
  * @param normalized Whether to normalize the gaussian to a probability. Default: False.

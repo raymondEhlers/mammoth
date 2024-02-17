@@ -1084,7 +1084,7 @@ def process_futures(
                 output_utils.write_hists_to_file(hists=hists, f=f)
 
     # By embedded here, we can inspect results, etc in the meantime.
-    # NOTE: This may be commented out sometimes when I have long running processes and wil
+    # NOTE: This may be commented out sometimes when I have long running processes and will
     #       probably forget to close it.
     IPython.start_ipython(user_ns={**locals(), **globals()})  # type: ignore[no-untyped-call]
 

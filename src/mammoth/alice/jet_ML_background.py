@@ -427,7 +427,7 @@ def run_embedding_analysis(
     use_standard_rho_subtraction: bool = True,
     use_constituent_subtraction: bool = False,
 ) -> bool:
-    # Keep the calls separate to help out when debugging. It should't cost anything in terms of resources
+    # Keep the calls separate to help out when debugging. It shouldn't cost anything in terms of resources
     source_index_identifiers, arrays = load_embedding(
         signal_filename=signal_filename,
         background_filename=background_filename,
@@ -504,7 +504,7 @@ def mask_for_flat_distribution(
 
     Note:
         This is not especially fast. We're basically finding the mapping for a histogram.
-        But it get's the job done, which should be enough here since it's not called repeatedly.
+        But it gets the job done, which should be enough here since it's not called repeatedly.
         Could accelerate it with numba if ever needed.
 
     Note:

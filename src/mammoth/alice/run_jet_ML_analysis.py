@@ -293,7 +293,7 @@ def run() -> None:
 
     # As far as I can tell, jobs will start executing as soon as they can, regardless of
     # asking for the result. By embedded here, we can inspect results, etc in the meantime.
-    # NOTE: This may be commented out sometimes when I have long running processes and wil
+    # NOTE: This may be commented out sometimes when I have long running processes and will
     #       probably forget to close it.
     IPython.start_ipython(user_ns=locals())  # type: ignore[no-untyped-call]
 

@@ -2,7 +2,7 @@
 
 Update March 2022: This is code left over from very early mammoth development. There
 are basically better ways to handle nearly everything here. However, I keep it around
-because it serves as documentation of this early test w/ jetscape outputs. Plus, theres
+because it serves as documentation of this early test w/ jetscape outputs. Plus, there's
 a bit of useful functionality inside of all the other stuff (normalizing phi ranges, etc).
 
 .. codeauthor:: Raymond Ehlers <raymond.ehlers@cern.ch>, ORNL

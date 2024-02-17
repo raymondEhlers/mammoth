@@ -84,7 +84,7 @@ def particle_masses_from_particle_ID(arrays: ak.Array, particle_ID_column_name: 
         key_type=nb.core.types.int64,
         value_type=nb.core.types.float64,
     )
-    # As far as I can tell, we can't fill the dict directly on initialization, so we have to loop over entires.
+    # As far as I can tell, we can't fill the dict directly on initialization, so we have to loop over entries.
     for pdg_id in all_particle_IDs:
         pdg_id_to_mass[pdg_id] = _pdg_id_to_mass(pdg_id)
     # It's important that we snapshot it!

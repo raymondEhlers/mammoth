@@ -276,7 +276,7 @@ messages_control.disable = [
 
 
 [tool.codespell]
-ignore-words-list = "subjet"
+ignore-words-list = "subjet, gaus, fpt, slac"
 
 
 [tool.check-manifest]

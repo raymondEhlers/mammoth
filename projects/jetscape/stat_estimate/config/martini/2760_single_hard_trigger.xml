@@ -16,7 +16,7 @@
     <seed>0</seed>
   </Random>
 
-  <!-- Inital State Module  -->
+  <!-- Initial State Module  -->
   <IS>
     <grid_max_x> 10 </grid_max_x>
     <grid_max_y> 10 </grid_max_y>

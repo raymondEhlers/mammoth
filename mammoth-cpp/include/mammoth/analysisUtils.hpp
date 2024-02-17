@@ -25,8 +25,7 @@ namespace analysis {
  * 353QH by J. Friedman, and is described in [Proc. of the 1974 CERN School of
  * Computing, Norway, 11-24 August, 1974](https://cds.cern.ch/record/186223).
  * See also Section 4.2 in [J. Friedman, Data Analysis Techniques for High
- * Energy
- * Physics](https://www.slac.stanford.edu/pubs/slacreports/reports16/slac-r-176.pdf).
+ * Energy Physics](https://www.slac.stanford.edu/pubs/slacreports/reports16/slac-r-176.pdf).
  *
  * @param[in] array Array to smooth.
  * @param[in] nTimes Number of times to smooth the array. Defaults to 1.

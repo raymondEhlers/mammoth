@@ -416,7 +416,7 @@ std::string RhoSubtractor::to_string() const {
 const std::map<std::string, fastjet::contrib::ConstituentSubtractor::Distance> ConstituentSubtractor::distanceTypes = {
   {"deltaR", fastjet::contrib::ConstituentSubtractor::Distance::deltaR},
   {"angle", fastjet::contrib::ConstituentSubtractor::Distance::angle},
-  // Alias is for convience
+  // Alias is for convenience
   {"delta_R", fastjet::contrib::ConstituentSubtractor::Distance::deltaR},
 };
 

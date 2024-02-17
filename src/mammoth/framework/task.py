@@ -330,7 +330,7 @@ class SetupEmbeddingSource(Protocol):
 class NoUsefulAnalysisOutputError(Exception):
     """No useful analysis output is available.
 
-    For example, it could be that there's no useable data to output because we
+    For example, it could be that there's no usable data to output because we
     found no jets in the sample. Basically, it lets us bail out early from analyzing
     a chunk in a clean way.
     """
