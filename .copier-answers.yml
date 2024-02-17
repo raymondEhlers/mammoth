@@ -1,0 +1,12 @@
+# Changes here will be overwritten by Copier; NEVER EDIT MANUALLY
+_commit: 2024.01.24
+_src_path: gh:scientific-python/cookie
+backend: pdm
+email: raymond.ehlers@cern.ch
+full_name: Raymond Ehlers
+license: BSD
+org: raymondEhlers
+project_name: mammoth
+project_short_description: Mostly columnar based physics analyses
+url: https://github.com/raymondEhlers/mammoth
+vcs: true

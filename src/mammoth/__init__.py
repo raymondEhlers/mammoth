@@ -1,3 +1,14 @@
+"""
+Copyright (c) 2024 Raymond Ehlers. All rights reserved.
+
+mammoth: Mostly columnar based physics analyses
+"""
+
+
 from __future__ import annotations
 
-__version__ = "0.3.0"
+import importlib.metadata
+
+__version__ = importlib.metadata.version("mammoth")
+
+__all__ = ["__version__"]
