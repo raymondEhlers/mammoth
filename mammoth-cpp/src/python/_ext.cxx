@@ -88,10 +88,10 @@ class JetFindingLoggingStderr : public py::scoped_ostream_redirect {
   *       For example, pandas caused a problem in some cases without that argument.
   *
   * @tparam T Input data type (usually float or double).
-  * @param[in] pxIn Numpy px array.
-  * @param[in] pyIn Numpy py array.
-  * @param[in] pzIn Numpy pz array.
-  * @param[in] EIn Numpy E array.
+  * @param[in] pxIn numpy px array.
+  * @param[in] pyIn numpy py array.
+  * @param[in] pzIn numpy pz array.
+  * @param[in] EIn numpy E array.
   * @returns Column four vectors.
   */
 template<typename T>
@@ -138,7 +138,7 @@ mammoth::FourVectorTuple<T> numpyToColumnFourVector(
   * NOTE: With some regularity, this array is empty.
   *
   * @tparam T Input data type (usually int).
-  * @param[in] pxIn Numpy user index array.
+  * @param[in] pxIn numpy user index array.
   * @returns User index vector.
   */
 template<typename T>

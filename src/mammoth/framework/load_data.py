@@ -363,7 +363,8 @@ def normalize_for_embedding(
                                 ],
                                 axis=1,
                             )
-                        ), strict=True,
+                        ),
+                        strict=True,
                     )
                 )
             ),
@@ -441,8 +442,8 @@ def embedding(
         For the simplest examples, it could be something like:
 
         ```python
-        signal_source=functools.partial(track_skim.FileSource, collision_system="pythia")
-        background_source=functools.partial(track_skim.FileSource, collision_system="PbPb")
+        signal_source = functools.partial(track_skim.FileSource, collision_system="pythia")
+        background_source = functools.partial(track_skim.FileSource, collision_system="PbPb")
         ```
 
     Args:
@@ -560,9 +561,11 @@ def embedding_thermal_model(
         use_alice_standard_event_selection_on_background=False,
     )
 
+
 ###############
 # Setup sources
 ###############
+
 
 def setup_source_for_data_or_MC_task(
     *,
@@ -576,7 +579,7 @@ def setup_source_for_data_or_MC_task(
     # Outputs
     output_settings: task.OutputSettings,
 ) -> Iterator[ak.Array]:
-    """ Setup data source for a data analysis task.
+    """Setup data source for a data analysis task.
 
     Note:
         This is a lot like `data(...)`, but it integrates better with our task input, and
@@ -602,14 +605,13 @@ def setup_source_for_data_or_MC_task(
     input_filenames = _validate_potential_list_of_inputs(signal_input)
 
     # Description parameters
-    task_metadata.update({
-        "input_filenames": str([str(_filename) for _filename in input_filenames]),
-    })
-
-    res = task.check_for_task_output(
-        output_settings=output_settings,
-        chunk_size=task_settings.chunk_size
+    task_metadata.update(
+        {
+            "input_filenames": str([str(_filename) for _filename in input_filenames]),
+        }
     )
+
+    res = task.check_for_task_output(output_settings=output_settings, chunk_size=task_settings.chunk_size)
     if res[0]:
         raise task.FailedToSetupSourceError(result_success=res[0], result_message=res[1])
 
@@ -657,7 +659,7 @@ def setup_source_for_embedding_task(
     signal_source_collision_system: str = "pythia",
     background_source_collision_system: str = "PbPb",
 ) -> tuple[dict[str, int], Iterator[ak.Array]]:
-    """ Setup embed MC source for a analysis task.
+    """Setup embed MC source for a analysis task.
 
     Note:
         This is a lot like `embedding(...)`, but it integrates better with our task input, and
@@ -685,15 +687,14 @@ def setup_source_for_embedding_task(
     background_input_filenames = _validate_potential_list_of_inputs(background_input)
 
     # Description parameters
-    task_metadata.update({
-        "signal_input_filenames": str([str(_filename) for _filename in signal_input_filenames]),
-        "background_input_filename": str([str(_filename) for _filename in background_input_filenames]),
-    })
-
-    res = task.check_for_task_output(
-        output_settings=output_settings,
-        chunk_size=task_settings.chunk_size
+    task_metadata.update(
+        {
+            "signal_input_filenames": str([str(_filename) for _filename in signal_input_filenames]),
+            "background_input_filename": str([str(_filename) for _filename in background_input_filenames]),
+        }
     )
+
+    res = task.check_for_task_output(output_settings=output_settings, chunk_size=task_settings.chunk_size)
     if res[0]:
         raise task.FailedToSetupSourceError(result_success=res[0], result_message=res[1])
 
@@ -748,7 +749,7 @@ def setup_source_for_embedding_thermal_model_task(
     # Inputs
     signal_source_collision_system: str = "pythia",
 ) -> tuple[dict[str, int], Iterator[ak.Array]]:
-    """ Setup embed MC into thermal model source for a analysis task.
+    """Setup embed MC into thermal model source for a analysis task.
 
     Args:
         task_settings: Task settings.
@@ -767,14 +768,13 @@ def setup_source_for_embedding_thermal_model_task(
     signal_input_filenames = _validate_potential_list_of_inputs(signal_input)
 
     # Description parameters
-    task_metadata.update({
-        "signal_input_filenames": str([str(_filename) for _filename in signal_input_filenames]),
-    })
-
-    res = task.check_for_task_output(
-        output_settings=output_settings,
-        chunk_size=task_settings.chunk_size
+    task_metadata.update(
+        {
+            "signal_input_filenames": str([str(_filename) for _filename in signal_input_filenames]),
+        }
     )
+
+    res = task.check_for_task_output(output_settings=output_settings, chunk_size=task_settings.chunk_size)
     if res[0]:
         raise task.FailedToSetupSourceError(result_success=res[0], result_message=res[1])
 

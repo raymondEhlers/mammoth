@@ -26,13 +26,11 @@
 
 <!-- prettier-ignore-end -->
 
-
 ## Installation
 
 Easiest is to use `pdm`, which will handle dependencies correctly. Just install with `pdm install -d` to include the dev dependencies.
 
 <!-- insert detail collapsible block -->
-
 
 <details>
  <summary>Old `pip` method: Install for other projects</summary>

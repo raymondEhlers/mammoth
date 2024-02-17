@@ -17,13 +17,16 @@ repos:
       - id: check-merge-conflict
       - id: check-symlinks
       - id: check-yaml
+        exclude: "scale_factors.yaml"
       - id: debug-statements
       - id: end-of-file-fixer
+        exclude: ".patch"
       - id: mixed-line-ending
       - id: name-tests-test
         args: ["--pytest-test-first"]
       - id: requirements-txt-fixer
       - id: trailing-whitespace
+        exclude: ".patch"
 
   - repo: https://github.com/pre-commit/pygrep-hooks
     rev: "v1.10.0"
@@ -69,9 +72,9 @@ repos:
           - "vector >=0.8.5"
           - "parsl >=2023.10.23"
           - "rich >=v13.4.0"
-          - "pachyderm >= 3.0"
           - "dask[distributed]>=2022.12.0"
           - "dask-jobqueue>=0.8.1"
+          #- "pachyderm >= 3.0"
 
   - repo: https://github.com/codespell-project/codespell
     rev: "v2.2.6"

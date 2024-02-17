@@ -183,7 +183,10 @@ module = [
     "scipy.interpolate",
     "scipy",
     "uproot",
+    "pyhepmc",
     "awkward",
+    "ruamel.*",
+    "dask_jobqueue",
 ]
 ignore_missing_imports = true
 
