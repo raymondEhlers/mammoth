@@ -33,7 +33,7 @@ def analysis_MC(
     jet_R: float,
     min_jet_pt: Mapping[str, float],
     det_level_artificial_tracking_efficiency: float | analysis_tracking.PtDependentTrackingEfficiencyParameters = 1.0,
-    validation_mode: bool = False
+    validation_mode: bool = False,
 ) -> ak.Array:
     logger.info("Start analyzing")
     # Event selection
@@ -64,9 +64,8 @@ def analysis_MC(
     # anything meaningful by doing this because we can't analyze such a case anyway
     # (and it might only be useful for an efficiency of losing events due to tracking,
     # which should be exceptionally rare).
-    _events_with_at_least_one_particle = (
-        (ak.num(arrays["part_level"]) > 0) &
-        (ak.num(arrays["det_level"][det_level_mask]) > 0)
+    _events_with_at_least_one_particle = (ak.num(arrays["part_level"]) > 0) & (
+        ak.num(arrays["det_level"][det_level_mask]) > 0
     )
     arrays = arrays[_events_with_at_least_one_particle]
     # NOTE: We need to apply it to the det level mask as well because we
@@ -110,9 +109,7 @@ def analysis_MC(
         },
         depth_limit=1,
     )
-    logger.info(
-        f"Found det_level n jets: {np.count_nonzero(np.asarray(ak.flatten(jets['det_level'].px, axis=None)))}"
-    )
+    logger.info(f"Found det_level n jets: {np.count_nonzero(np.asarray(ak.flatten(jets['det_level'].px, axis=None)))}")
 
     # Apply jet level cuts.
     jets = alice_helpers.standard_jet_selection(
@@ -121,9 +118,7 @@ def analysis_MC(
         collision_system="pp_MC",
         substructure_constituent_requirements=True,
     )
-    logger.info(
-        f"all jet cuts n accepted: {np.count_nonzero(np.asarray(ak.flatten(jets['det_level'].px, axis=None)))}"
-    )
+    logger.info(f"all jet cuts n accepted: {np.count_nonzero(np.asarray(ak.flatten(jets['det_level'].px, axis=None)))}")
 
     # Jet matching
     # NOTE: There is small departure from the AliPhysics approach here because we apply the jet cuts
@@ -252,7 +247,7 @@ def analysis_data(
     # NOTE: We need to flatten since we could just have empty events.
     # NOTE: Further, we need to access some variable to avoid flattening into a record, so we select px arbitrarily.
     # NOTE: We have to use pt because of awkward #2207 (https://github.com/scikit-hep/awkward/issues/2207)
-    _there_are_jets_left = (len(ak.flatten(jets[particle_column_name].pt, axis=None)) > 0)
+    _there_are_jets_left = len(ak.flatten(jets[particle_column_name].pt, axis=None)) > 0
     # Now, we actually run the reclustering if possible
     if not _there_are_jets_left:
         logger.warning("No jets left for reclustering. Skipping reclustering...")
@@ -410,7 +405,7 @@ def analysis_embedding(
     # NOTE: We need to flatten since we could just have empty events.
     # NOTE: Further, we need to access some variable to avoid flattening into a record, so we select px arbitrarily.
     # NOTE: We have to use pt because of awkward #2207 (https://github.com/scikit-hep/awkward/issues/2207)
-    _there_are_jets_left = (len(ak.flatten(jets["hybrid"].pt, axis=None)) > 0)
+    _there_are_jets_left = len(ak.flatten(jets["hybrid"].pt, axis=None)) > 0
     # Now, we actually run the reclustering if possible
     if not _there_are_jets_left:
         logger.warning("No jets left for reclustering. Skipping reclustering...")
@@ -452,7 +447,7 @@ def analysis_embedding(
         )
 
         # Require a shared momentum fraction (default >= 0.5)
-        shared_momentum_fraction_mask = (jets["det_level", "shared_momentum_fraction"] >= shared_momentum_fraction_min)
+        shared_momentum_fraction_mask = jets["det_level", "shared_momentum_fraction"] >= shared_momentum_fraction_min
         n_jets_removed = len(jets) - np.count_nonzero(shared_momentum_fraction_mask)
         logger.info(
             f"Removing {n_jets_removed} events out of {len(jets)} total jets ({round(n_jets_removed / len(jets) * 100, 2)}%) due to shared momentum fraction"
@@ -543,9 +538,9 @@ if __name__ == "__main__":
     ###########################
     # Explicitly for testing...
     ###########################
-    #collision_system = "PbPb"
-    #logger.info(f'Analyzing "{collision_system}"')
-    #jets = analysis_data(
+    # collision_system = "PbPb"
+    # logger.info(f'Analyzing "{collision_system}"')
+    # jets = analysis_data(
     #    collision_system=collision_system,
     #    arrays=load_data.data(
     #        data_input=Path(
@@ -558,7 +553,7 @@ if __name__ == "__main__":
     #    jet_R=0.2,
     #    min_jet_pt={"data": 20.0 if collision_system == "pp" else 20.0},
     #    background_subtraction_settings={"r_max": 0.1},
-    #)
+    # )
 
     source_index_identifiers, iter_arrays = load_data.embedding(
         signal_input=[Path("trains/pythia/2640/run_by_run/LHC20g4/296191/1/AnalysisResults.20g4.008.root")],

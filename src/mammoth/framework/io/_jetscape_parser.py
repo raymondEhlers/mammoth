@@ -29,10 +29,8 @@ class ReachedEndOfFileException(Exception):
     """
 
 
-
 class ReachedXSecAtEndOfFileException(ReachedEndOfFileException):
     """Indicates that we've hit the cross section in the last line of the file."""
-
 
 
 @attrs.frozen
@@ -251,7 +249,7 @@ def _parse_header_line_format_v2(line: str) -> HeaderInfo:
         #  0 1     2 3      4        5       6         7         8
         # NOTE: pt_hat is optional
         #
-        pt_hat = -1.
+        pt_hat = -1.0
         if values[-2] == "pt_hat":
             pt_hat = float(values[-1])
         info = HeaderInfo(
@@ -272,6 +270,7 @@ def _parse_header_line_format_v2(line: str) -> HeaderInfo:
         raise ValueError(_msg)
 
     return info
+
 
 def _parse_header_line_format_v3(line: str) -> HeaderInfo:
     """Parse line that is expected to be a header according to the v3 file format.
@@ -304,18 +303,18 @@ def _parse_header_line_format_v3(line: str) -> HeaderInfo:
         #
         # NOTE: pt_hat is optional
         #
-        pt_hat = -1.
+        pt_hat = -1.0
         if values[-2] == "pt_hat":
             pt_hat = float(values[-1])
         info = HeaderInfo(
-            event_number=int(values[2]),            # Event number
-            event_plane_angle=float(values[6]),     # EP angle
-            n_particles=int(values[8]),             # Number of particles
-            event_weight=float(values[4]),          # Event weight
-            vertex_x=float(values[10]),             # x vertex
-            vertex_y=float(values[12]),             # y vertex
-            vertex_z=float(values[14]),             # z vertex
-            pt_hat=pt_hat                           # pt hat
+            event_number=int(values[2]),  # Event number
+            event_plane_angle=float(values[6]),  # EP angle
+            n_particles=int(values[8]),  # Number of particles
+            event_weight=float(values[4]),  # Event weight
+            vertex_x=float(values[10]),  # x vertex
+            vertex_y=float(values[12]),  # y vertex
+            vertex_z=float(values[14]),  # z vertex
+            pt_hat=pt_hat,  # pt hat
         )
     elif len(values) == 5 and values[1] == "sigmaGen":
         # If we've hit the cross section, and we're not doing the initial extraction of the cross
@@ -367,7 +366,6 @@ def _parse_event(f: Iterator[str], parse_header_line: Callable[[str], HeaderInfo
 
 class ChunkNotReadyException(Exception):
     """Indicate that the chunk hasn't been parsed yet, and therefore is not ready."""
-
 
 
 @attrs.define
@@ -704,19 +702,31 @@ def read(filename: Path | str, events_per_chunk: int, parser: str = "pandas") ->
 
             # Header info
             header_level_info = {
-                "event_plane_angle": np.array([header.event_plane_angle for header in chunk_generator.headers], np.float32),
+                "event_plane_angle": np.array(
+                    [header.event_plane_angle for header in chunk_generator.headers], np.float32
+                ),
                 "event_ID": np.array([header.event_number for header in chunk_generator.headers], np.uint16),
             }
             if chunk_generator.headers[0].event_weight > -1:
-                header_level_info["event_weight"] = np.array([header.event_weight for header in chunk_generator.headers], np.float32)
+                header_level_info["event_weight"] = np.array(
+                    [header.event_weight for header in chunk_generator.headers], np.float32
+                )
             if chunk_generator.headers[0].pt_hat > -1:
-                header_level_info["pt_hat"] = np.array([header.pt_hat for header in chunk_generator.headers], np.float32)
+                header_level_info["pt_hat"] = np.array(
+                    [header.pt_hat for header in chunk_generator.headers], np.float32
+                )
             if chunk_generator.headers[0].vertex_x > -999:
-                header_level_info["vertex_x"] = np.array([header.vertex_x for header in chunk_generator.headers], np.float32)
+                header_level_info["vertex_x"] = np.array(
+                    [header.vertex_x for header in chunk_generator.headers], np.float32
+                )
             if chunk_generator.headers[0].vertex_y > -999:
-                header_level_info["vertex_y"] = np.array([header.vertex_y for header in chunk_generator.headers], np.float32)
+                header_level_info["vertex_y"] = np.array(
+                    [header.vertex_y for header in chunk_generator.headers], np.float32
+                )
             if chunk_generator.headers[0].vertex_z > -999:
-                header_level_info["vertex_z"] = np.array([header.vertex_z for header in chunk_generator.headers], np.float32)
+                header_level_info["vertex_z"] = np.array(
+                    [header.vertex_z for header in chunk_generator.headers], np.float32
+                )
 
             # Cross section info
             if chunk_generator.cross_section:

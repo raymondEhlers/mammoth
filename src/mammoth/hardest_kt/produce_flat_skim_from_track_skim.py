@@ -196,7 +196,9 @@ def setup_write_scale_factors(
         #       seem to be able to do so...)
         scale_factors={  # type: ignore[arg-type]
             k: v.result() for k, v in scale_factors.items()
-        } if job_framework == job_utils.JobFramework.parsl else scale_factors,
+        }
+        if job_framework == job_utils.JobFramework.parsl
+        else scale_factors,
         job_framework=job_framework,
         outputs=[parsl_output_file],
     )
@@ -229,9 +231,7 @@ def _extract_pt_hat_spectra(
     # Convert back from parsl inputs
     offsets_values = list(offsets.values())
     filenames = {
-        pt_hat_bin: [
-            Path(f.filepath) for f in inputs[sum(offsets_values[:i]) : sum(offsets_values[: i + 1])]
-        ]
+        pt_hat_bin: [Path(f.filepath) for f in inputs[sum(offsets_values[:i]) : sum(offsets_values[: i + 1])]]
         for i, pt_hat_bin in enumerate(offsets)
     }
 
@@ -314,13 +314,7 @@ def steer_extract_scale_factors(
     all_results.extend(list(scale_factors.values()))
 
     # Then, we need to write them
-    all_results.append(
-        setup_write_scale_factors(
-            prod=prod,
-            scale_factors=scale_factors,
-            job_framework=job_framework
-        )
-    )
+    all_results.append(setup_write_scale_factors(prod=prod, scale_factors=scale_factors, job_framework=job_framework))
     # Store the result in a way that we can query later.
     if job_framework == job_utils.JobFramework.parsl:
         writing_yaml_success: bool = all_results[-1].result()
@@ -351,7 +345,7 @@ def steer_extract_scale_factors(
     #       We'll just return the futures associated with writing to the file and the pt hat spectra cross check.
     # NOTE: If the case of dask, we only want to return the pt hat spectra cross check. Otherwise, it will run
     #       the writing to file task again
-    return all_results[-1 if job_framework == job_utils.JobFramework.dask_delayed else -2:]
+    return all_results[-1 if job_framework == job_utils.JobFramework.dask_delayed else -2 :]
 
 
 @python_app
@@ -419,9 +413,9 @@ def setup_calculate_data_skim(
     # If we want to debug some particular files, we can directly set them here
     if debug_mode:
         pass
-        #input_files = {10: [Path("trains/pythia/2619/run_by_run/LHC18b8_cent_woSDD/282008/10/AnalysisResults.18b8_cent_woSDD.003.root")]}
-        #input_files = {-1: [Path("trains/pp/2111/run_by_run/LHC17p_CENT_woSDD/282341/AnalysisResults.17p.586.root")]}
-        #input_files = {-1: [Path("trains/PbPb/645/run_by_run/LHC18r/297595/AnalysisResults.18r.551.root")]}
+        # input_files = {10: [Path("trains/pythia/2619/run_by_run/LHC18b8_cent_woSDD/282008/10/AnalysisResults.18b8_cent_woSDD.003.root")]}
+        # input_files = {-1: [Path("trains/pp/2111/run_by_run/LHC17p_CENT_woSDD/282341/AnalysisResults.17p.586.root")]}
+        # input_files = {-1: [Path("trains/PbPb/645/run_by_run/LHC18r/297595/AnalysisResults.18r.551.root")]}
 
     # Setup for analysis and dataset settings
     _metadata_config = prod.config["metadata"]
@@ -437,16 +431,20 @@ def setup_calculate_data_skim(
     if prod.collision_system in ["pythia", "pp_MC"]:
         # Artificial tracking efficiency (including the option for pt dependent tracking eff)
         # NOTE: This depends on period, so it's better to do it here!
-        det_level_artificial_tracking_efficiency = _analysis_config.get("det_level_artificial_tracking_efficiency", None)
+        det_level_artificial_tracking_efficiency = _analysis_config.get(
+            "det_level_artificial_tracking_efficiency", None
+        )
         # Pt dependent for tracking efficiency uncertainty
         if _analysis_config.get("apply_pt_dependent_tracking_efficiency_uncertainty", False):
             # NOTE: Careful - this needs to be added as 1-value. (ie. 1-.97=0.03 -> for .98 flat, we get .95)
-            det_level_artificial_tracking_efficiency = analysis_tracking.PtDependentTrackingEfficiencyParameters.from_file(
-                # NOTE: We select "anchor_period" and "0_100" here because we know we're analyzing pythia
-                period=_metadata_config["dataset"]["anchor_period"],
-                event_activity="0_100",
-                # NOTE: There should be the possibility to apply this on top of the .98, for example.
-                baseline_tracking_efficiency_shift=det_level_artificial_tracking_efficiency,
+            det_level_artificial_tracking_efficiency = (
+                analysis_tracking.PtDependentTrackingEfficiencyParameters.from_file(
+                    # NOTE: We select "anchor_period" and "0_100" here because we know we're analyzing pythia
+                    period=_metadata_config["dataset"]["anchor_period"],
+                    event_activity="0_100",
+                    # NOTE: There should be the possibility to apply this on top of the .98, for example.
+                    baseline_tracking_efficiency_shift=det_level_artificial_tracking_efficiency,
+                )
             )
 
     results = []
@@ -464,7 +462,8 @@ def setup_calculate_data_skim(
             # Converts: "2111/run_by_run/LHC17p_CENT_woSDD/282341/AnalysisResults.17p.001.root"
             #        -> "2111__run_by_run__LHC17p_CENT_woSDD__282341__AnalysisResults_17p_001"
             output_identifier = safe_output_filename_from_relative_path(
-                filename=input_filename, output_dir=prod.output_dir,
+                filename=input_filename,
+                output_dir=prod.output_dir,
                 number_of_parent_directories_for_relative_output_filename=_metadata_config["dataset"].get(
                     "number_of_parent_directories_for_relative_output_filename", None
                 ),
@@ -542,7 +541,7 @@ def _run_embedding_skim(
 
 
 def _extract_info_from_signal_file_list(
-    signal_input_files_per_pt_hat: Mapping[int, Sequence[Path]]
+    signal_input_files_per_pt_hat: Mapping[int, Sequence[Path]],
 ) -> tuple[list[int], list[tuple[int, Path]]]:
     """Helper to extract the pt hat bins and flatten the input list."""
     # And since we would sample the pt hat bins, it's better to keep track of them directly.
@@ -616,11 +615,11 @@ def _select_files_for_source(
 
     _possible_additional_files = {
         secrets.choice(input_files)
-            # -1 since we already have a filename
-            # +5 since we'll remove any filenames if they're repeated
-            # NOTE: +5 is arbitrary, but should be sufficient. We could do more, but it would be a waste of cycles.
-            #       In any case, We'll double check below.
-            for _ in range(n_files_to_use - 1 + 5)
+        # -1 since we already have a filename
+        # +5 since we'll remove any filenames if they're repeated
+        # NOTE: +5 is arbitrary, but should be sufficient. We could do more, but it would be a waste of cycles.
+        #       In any case, We'll double check below.
+        for _ in range(n_files_to_use - 1 + 5)
     }
     # Remove the existing file, and then add to the list
     _possible_additional_files.discard(selected_input_file)
@@ -720,11 +719,13 @@ def setup_calculate_embed_pythia_skim(  # noqa: C901
         #    Path("trains/pythia/2640/run_by_run/LHC20g4/297317/3/AnalysisResults.20g4.013.root"),
         #    #Path("trains/pythia/2640/run_by_run/LHC20g4/296935/3/AnalysisResults.20g4.009.root"),
         # ]}
-        signal_input_files_per_pt_hat = {7: [
-            Path('trains/pythia/2640/run_by_run/LHC20g4/296550/7/AnalysisResults.20g4.014.root'),
-            Path('trains/pythia/2640/run_by_run/LHC20g4/296244/7/AnalysisResults.20g4.001.root'),
-            Path('trains/pythia/2640/run_by_run/LHC20g4/297379/7/AnalysisResults.20g4.002.root'),
-        ]}
+        signal_input_files_per_pt_hat = {
+            7: [
+                Path("trains/pythia/2640/run_by_run/LHC20g4/296550/7/AnalysisResults.20g4.014.root"),
+                Path("trains/pythia/2640/run_by_run/LHC20g4/296244/7/AnalysisResults.20g4.001.root"),
+                Path("trains/pythia/2640/run_by_run/LHC20g4/297379/7/AnalysisResults.20g4.002.root"),
+            ]
+        }
         # signal_input_files_per_pt_hat = {11: [
         #     Path('trains/pythia/2640/run_by_run/LHC20g4/296191/11/AnalysisResults.20g4.007.root'),
         #     Path('trains/pythia/2640/run_by_run/LHC20g4/297132/11/AnalysisResults.20g4.008.root'),
@@ -828,14 +829,16 @@ def setup_calculate_embed_pythia_skim(  # noqa: C901
         # Take the first signal and first background filenames as the main identifier to the path.
         # Otherwise, the filename could become indefinitely long... (apparently there are file length limits in unix...)
         output_identifier = safe_output_filename_from_relative_path(
-            filename=signal_input[0], output_dir=prod.output_dir,
+            filename=signal_input[0],
+            output_dir=prod.output_dir,
             number_of_parent_directories_for_relative_output_filename=_metadata_config["signal_dataset"].get(
                 "number_of_parent_directories_for_relative_output_filename", None
             ),
         )
         output_identifier += "__embedded_into__"
         output_identifier += safe_output_filename_from_relative_path(
-            filename=background_input[0], output_dir=prod.output_dir,
+            filename=background_input[0],
+            output_dir=prod.output_dir,
             number_of_parent_directories_for_relative_output_filename=_metadata_config["dataset"].get(
                 "number_of_parent_directories_for_relative_output_filename", None
             ),
@@ -1010,7 +1013,8 @@ def setup_calculate_embed_thermal_model_skim(
             # Converts: "2111/run_by_run/LHC17p_CENT_woSDD/282341/AnalysisResults.17p.001.root"
             #        -> "2111__run_by_run__LHC17p_CENT_woSDD__282341__AnalysisResults_17p_001"
             output_identifier = safe_output_filename_from_relative_path(
-                filename=input_filename, output_dir=prod.output_dir,
+                filename=input_filename,
+                output_dir=prod.output_dir,
                 # NOTE: We use "dataset" here because we the dataset is the signal dataset by definition
                 #       for the embedded thermal model.
                 number_of_parent_directories_for_relative_output_filename=_metadata_config["dataset"].get(
@@ -1055,7 +1059,10 @@ def setup_job_framework(
     target_n_tasks_to_run_simultaneously: int,
     log_level: int,
     conda_environment_name: str | None = None,
-) -> tuple[job_utils.parsl.DataFlowKernel, job_utils.parsl.Config] | tuple[job_utils.dask.distributed.Client, job_utils.dask.distributed.SpecCluster]:
+) -> (
+    tuple[job_utils.parsl.DataFlowKernel, job_utils.parsl.Config]
+    | tuple[job_utils.dask.distributed.Client, job_utils.dask.distributed.SpecCluster]
+):
     # First, need to figure out if we need additional environments such as ROOT
     _additional_worker_init_script = alice_job_utils.determine_additional_worker_init(
         productions=productions,
@@ -1186,13 +1193,14 @@ def define_productions() -> list[production.ProductionSettings]:
             #     specialization=HardestKtProductionSpecialization(),
             #     track_skim_config_filename=config_filename,
             # ),
-            #production.ProductionSettings.read_config(
+            # production.ProductionSettings.read_config(
             #    collision_system="pythia", number=67,
             #    specialization=HardestKtProductionSpecialization(),
             #    track_skim_config_filename=config_filename,
-            #),
+            # ),
             production.ProductionSettings.read_config(
-                collision_system="pythia", number=68,
+                collision_system="pythia",
+                number=68,
                 specialization=HardestKtProductionSpecialization(),
                 track_skim_config_filename=config_filename,
             ),
@@ -1216,7 +1224,9 @@ def setup_and_submit_tasks(
     all_results: list[Future[Any]] = []
     for prod in productions:
         tasks_to_execute = prod.tasks_to_execute
-        logger.info(f"Tasks to execute: {tasks_to_execute} for production \"{prod.collision_system}\" #{prod.formatted_number}")
+        logger.info(
+            f'Tasks to execute: {tasks_to_execute} for production "{prod.collision_system}" #{prod.formatted_number}'
+        )
 
         # Setup tasks
         system_results = []
@@ -1264,7 +1274,7 @@ def setup_and_submit_tasks(
             all_results,
             # Distributed assumes functions are pure, but usually mine are not (ie. they create files)
             pure=False,
-            resources={"n_cores": task_config.n_cores_per_task}
+            resources={"n_cores": task_config.n_cores_per_task},
         )
 
     return all_results
@@ -1367,7 +1377,7 @@ def run(job_framework: job_utils.JobFramework) -> list[Future[Any]]:
         task_config=task_config,
         job_framework=job_framework,
         debug_mode=debug_mode,
-        job_executor=job_executor
+        job_executor=job_executor,
     )
 
     process_futures(productions=productions, all_results=all_results, job_framework=job_framework)

@@ -17,47 +17,36 @@ from mammoth.framework import jet_finding
 logger = logging.getLogger(__name__)
 
 
-
 def test_find_constituent_indices_via_user_index(caplog: Any) -> None:
     # Setup
     caplog.set_level(logging.DEBUG)
 
-    _user_index = ak.Array(
-        [[4, -5, 6], [7, -8, 9]]
-    )
-    _constituents_user_index_awkward = ak.Array(
-        [[[4, -5], [6]], [[-8, 7], [9]]]
-    )
+    _user_index = ak.Array([[4, -5, 6], [7, -8, 9]])
+    _constituents_user_index_awkward = ak.Array([[[4, -5], [6]], [[-8, 7], [9]]])
     _constituent_indices_awkward = jet_finding.find_constituent_indices_via_user_index(
         user_indices=_user_index,
         constituents_user_index=_constituents_user_index_awkward,
     )
 
-    assert _constituent_indices_awkward.to_list() == [
-        [[0, 1], [2]], [[1, 0], [2]]
-    ]
+    assert _constituent_indices_awkward.to_list() == [[[0, 1], [2]], [[1, 0], [2]]]
+
 
 def test_find_unsubtracted_constituent_index_from_subtracted_index_via_user_index(caplog: Any) -> None:
-    """Test relating the unsubtracted constituent index to the """
+    """Test relating the unsubtracted constituent index to the"""
     # Setup
     caplog.set_level(logging.DEBUG)
 
     # NOTE: This user_index permutations are probably more general than we'll see in data, but better to test fully
-    _user_index = ak.Array(
-        [[1, -2, 3, 4], [6, -5, 4], [9, 7, -8]]
-    )
-    _subtracted_index_to_unsubtracted_user_index_awkward = ak.Array(
-        [[1, -2, 3, 4], [4, -5, 6], [7, -8, 9]]
-    )
+    _user_index = ak.Array([[1, -2, 3, 4], [6, -5, 4], [9, 7, -8]])
+    _subtracted_index_to_unsubtracted_user_index_awkward = ak.Array([[1, -2, 3, 4], [4, -5, 6], [7, -8, 9]])
 
     result = jet_finding.find_unsubtracted_constituent_index_from_subtracted_index_via_user_index(
         user_indices=_user_index,
         subtracted_index_to_unsubtracted_user_index=_subtracted_index_to_unsubtracted_user_index_awkward,
     )
 
-    assert result.to_list() == [
-        [0, 1, 2, 3], [2, 1, 0], [1, 2, 0]
-    ]
+    assert result.to_list() == [[0, 1, 2, 3], [2, 1, 0], [1, 2, 0]]
+
 
 def test_calculate_user_index_with_encoded_sign_info(caplog: Any) -> None:
     """Test calculating a custom user_index where we encode sign info."""
@@ -92,21 +81,15 @@ def test_calculate_user_index_with_encoded_sign_info(caplog: Any) -> None:
         },
         with_name="Momentum4D",
     )
-    values_to_encode = ak.Array(
-        [
-            [1, 1, 0], [1, 0, 1]
-        ]
-    )
-    mask_to_encode_with_negative = (values_to_encode == 0)
+    values_to_encode = ak.Array([[1, 1, 0], [1, 0, 1]])
+    mask_to_encode_with_negative = values_to_encode == 0
 
     res = jet_finding.calculate_user_index_with_encoded_sign_info(
         particles=input_particles,
         mask_to_encode_with_negative=mask_to_encode_with_negative,
     )
 
-    assert res.to_list() == [
-        [0, 1, -2], [0, -1, 2]
-    ]
+    assert res.to_list() == [[0, 1, -2], [0, -1, 2]]
 
 
 def test_calculate_user_index_with_encoded_sign_info_detect_error(caplog: Any) -> None:
@@ -142,12 +125,8 @@ def test_calculate_user_index_with_encoded_sign_info_detect_error(caplog: Any) -
         },
         with_name="Momentum4D",
     )
-    values_to_encode = ak.Array(
-        [
-            [1, 1, 0], [0, 1, 1]
-        ]
-    )
-    mask_to_encode_with_negative = (values_to_encode == 0)
+    values_to_encode = ak.Array([[1, 1, 0], [0, 1, 1]])
+    mask_to_encode_with_negative = values_to_encode == 0
 
     with pytest.raises(ValueError, match="contain index of 0"):
         jet_finding.calculate_user_index_with_encoded_sign_info(
@@ -157,7 +136,7 @@ def test_calculate_user_index_with_encoded_sign_info_detect_error(caplog: Any) -
 
 
 def test_jet_finding_basic_single_event(caplog: Any) -> None:
-    """ Basic jet finding test with a single event. """
+    """Basic jet finding test with a single event."""
     # Setup
     caplog.set_level(logging.DEBUG)
     vector.register_awkward()
@@ -176,11 +155,12 @@ def test_jet_finding_basic_single_event(caplog: Any) -> None:
     jets = jet_finding.find_jets(
         particles=input_particles,
         jet_finding_settings=jet_finding.JetFindingSettings(
-            R=0.7, algorithm="anti-kt",
+            R=0.7,
+            algorithm="anti-kt",
             area_settings=jet_finding.AreaAA(),
             pt_range=jet_finding.pt_range(),
-            eta_range=jet_finding.eta_range(jet_R=0.7, fiducial_acceptance=False, eta_min=-5., eta_max=5.),
-        )
+            eta_range=jet_finding.eta_range(jet_R=0.7, fiducial_acceptance=False, eta_min=-5.0, eta_max=5.0),
+        ),
     )
 
     expected_jets = ak.zip(
@@ -198,20 +178,23 @@ def test_jet_finding_basic_single_event(caplog: Any) -> None:
     logger.info(f"expected_jets: {expected_jets.to_list()}")
 
     # Check four momenta
-    assert all(np.allclose(np.asarray(measured.px), np.asarray(expected.px))
-                and np.allclose(np.asarray(measured.py), np.asarray(expected.py))
-                and np.allclose(np.asarray(measured.pz), np.asarray(expected.pz))
-                and np.allclose(np.asarray(measured.E), np.asarray(expected.E))
-                for event, event_expected in zip(jets, expected_jets, strict=True) for measured, expected in zip(event, event_expected, strict=True))
+    assert all(
+        np.allclose(np.asarray(measured.px), np.asarray(expected.px))
+        and np.allclose(np.asarray(measured.py), np.asarray(expected.py))
+        and np.allclose(np.asarray(measured.pz), np.asarray(expected.pz))
+        and np.allclose(np.asarray(measured.E), np.asarray(expected.E))
+        for event, event_expected in zip(jets, expected_jets, strict=True)
+        for measured, expected in zip(event, event_expected, strict=True)
+    )
 
     # only for testing - we want to see any fastjet warnings
-    #assert False
+    # assert False
 
 
 @pytest.mark.parametrize("calculate_area", [True, False])
 @pytest.mark.parametrize("algorithm", ["anti_kt", "generalized_kt"])
 def test_jet_finding_basic_multiple_events(caplog: Any, calculate_area: bool, algorithm: str) -> None:
-    """ Basic jet finding test with for multiple events. """
+    """Basic jet finding test with for multiple events."""
     # Setup
     caplog.set_level(logging.DEBUG)
     vector.register_awkward()
@@ -254,12 +237,13 @@ def test_jet_finding_basic_multiple_events(caplog: Any, calculate_area: bool, al
     jets = jet_finding.find_jets(
         particles=input_particles,
         jet_finding_settings=jet_finding.JetFindingSettings(
-            R=0.7, algorithm=algorithm,
+            R=0.7,
+            algorithm=algorithm,
             area_settings=jet_finding.AreaAA() if calculate_area else None,
             pt_range=jet_finding.pt_range(),
-            eta_range=jet_finding.eta_range(jet_R=0.7, fiducial_acceptance=False, eta_min=-5., eta_max=5.),
+            eta_range=jet_finding.eta_range(jet_R=0.7, fiducial_acceptance=False, eta_min=-5.0, eta_max=5.0),
             **extra_jet_finding_settings,
-        )
+        ),
     )
 
     expected_jets = ak.zip(
@@ -289,11 +273,14 @@ def test_jet_finding_basic_multiple_events(caplog: Any, calculate_area: bool, al
     logger.info(f"expected_jets: {expected_jets.to_list()}")
 
     # Check four momenta
-    assert all(np.allclose(np.asarray(measured.px), np.asarray(expected.px))
-                and np.allclose(np.asarray(measured.py), np.asarray(expected.py))
-                and np.allclose(np.asarray(measured.pz), np.asarray(expected.pz))
-                and np.allclose(np.asarray(measured.E), np.asarray(expected.E))
-                for event, event_expected in zip(jets, expected_jets, strict=True) for measured, expected in zip(event, event_expected, strict=True))
+    assert all(
+        np.allclose(np.asarray(measured.px), np.asarray(expected.px))
+        and np.allclose(np.asarray(measured.py), np.asarray(expected.py))
+        and np.allclose(np.asarray(measured.pz), np.asarray(expected.pz))
+        and np.allclose(np.asarray(measured.E), np.asarray(expected.E))
+        for event, event_expected in zip(jets, expected_jets, strict=True)
+        for measured, expected in zip(event, event_expected, strict=True)
+    )
 
     # Check that we've handled the area properly
     if calculate_area:
@@ -302,13 +289,17 @@ def test_jet_finding_basic_multiple_events(caplog: Any, calculate_area: bool, al
         assert "area" not in ak.fields(jets)
 
     # only for testing - we want to see any fastjet warnings
-    #assert False
+    # assert False
 
 
-@pytest.mark.parametrize("separate_background_particles_arg", [True, False], ids=["Standard", "Separate background particles argument"])
+@pytest.mark.parametrize(
+    "separate_background_particles_arg", [True, False], ids=["Standard", "Separate background particles argument"]
+)
 @pytest.mark.parametrize("use_custom_user_index", [True, False])
-def test_jet_finding_with_subtraction_multiple_events(caplog: Any, separate_background_particles_arg: bool, use_custom_user_index: bool) -> None:
-    """ Jet finding with subtraction for multiple events. """
+def test_jet_finding_with_subtraction_multiple_events(
+    caplog: Any, separate_background_particles_arg: bool, use_custom_user_index: bool
+) -> None:
+    """Jet finding with subtraction for multiple events."""
     # Setup
     caplog.set_level(logging.DEBUG)
     vector.register_awkward()
@@ -357,10 +348,11 @@ def test_jet_finding_with_subtraction_multiple_events(caplog: Any, separate_back
     jets = jet_finding.find_jets(
         particles=input_particles,
         jet_finding_settings=jet_finding.JetFindingSettings(
-            R=0.7, algorithm="anti-kt",
+            R=0.7,
+            algorithm="anti-kt",
             area_settings=jet_finding.AreaAA(),
             pt_range=jet_finding.pt_range(),
-            eta_range=jet_finding.eta_range(jet_R=0.7, fiducial_acceptance=False, eta_min=-5., eta_max=5.),
+            eta_range=jet_finding.eta_range(jet_R=0.7, fiducial_acceptance=False, eta_min=-5.0, eta_max=5.0),
         ),
         background_subtraction=jet_finding.BackgroundSubtraction(
             type=jet_finding.BackgroundSubtractionType.rho,
@@ -399,19 +391,24 @@ def test_jet_finding_with_subtraction_multiple_events(caplog: Any, separate_back
     logger.info(f"expected_jets: {expected_jets.to_list()}")
 
     # Check four momenta
-    assert all(np.allclose(np.asarray(measured.px), np.asarray(expected.px))
-                and np.allclose(np.asarray(measured.py), np.asarray(expected.py))
-                and np.allclose(np.asarray(measured.pz), np.asarray(expected.pz))
-                and np.allclose(np.asarray(measured.E), np.asarray(expected.E))
-                for event, event_expected in zip(jets, expected_jets, strict=True) for measured, expected in zip(event, event_expected, strict=True))
+    assert all(
+        np.allclose(np.asarray(measured.px), np.asarray(expected.px))
+        and np.allclose(np.asarray(measured.py), np.asarray(expected.py))
+        and np.allclose(np.asarray(measured.pz), np.asarray(expected.pz))
+        and np.allclose(np.asarray(measured.E), np.asarray(expected.E))
+        for event, event_expected in zip(jets, expected_jets, strict=True)
+        for measured, expected in zip(event, event_expected, strict=True)
+    )
 
     # only for testing - we want to see any fastjet warnings
-    #assert False
+    # assert False
 
 
 @pytest.mark.parametrize("use_custom_user_index", [True, False])
-def test_jet_finding_with_constituent_subtraction_does_something_multiple_events(caplog: Any, use_custom_user_index: bool) -> None:
-    """ Jet finding with constituent subtraction modifies the jets somehow for multiple events.
+def test_jet_finding_with_constituent_subtraction_does_something_multiple_events(
+    caplog: Any, use_custom_user_index: bool
+) -> None:
+    """Jet finding with constituent subtraction modifies the jets somehow for multiple events.
 
     NOTE:
         This doesn't test that CS gives a particular expected result - just that it modifies the jets.
@@ -462,19 +459,18 @@ def test_jet_finding_with_constituent_subtraction_does_something_multiple_events
     jets = jet_finding.find_jets(
         particles=input_particles,
         jet_finding_settings=jet_finding.JetFindingSettings(
-            R=0.7, algorithm="anti-kt",
+            R=0.7,
+            algorithm="anti-kt",
             area_settings=jet_finding.AreaAA(),
             pt_range=jet_finding.pt_range(),
-            eta_range=jet_finding.eta_range(jet_R=0.7, fiducial_acceptance=False, eta_min=-5., eta_max=5.),
+            eta_range=jet_finding.eta_range(jet_R=0.7, fiducial_acceptance=False, eta_min=-5.0, eta_max=5.0),
         ),
         background_subtraction=jet_finding.BackgroundSubtraction(
             type=jet_finding.BackgroundSubtractionType.event_wise_constituent_subtraction,
             estimator=jet_finding.JetMedianBackgroundEstimator(
                 jet_finding_settings=jet_finding.JetMedianJetFindingSettings()
             ),
-            subtractor=jet_finding.ConstituentSubtractor(
-                r_max=0.25, alpha=1.0
-            ),
+            subtractor=jet_finding.ConstituentSubtractor(r_max=0.25, alpha=1.0),
         ),
     )
 
@@ -509,18 +505,21 @@ def test_jet_finding_with_constituent_subtraction_does_something_multiple_events
     # constituent subtraction has modified the four vectors. We don't have a simple
     # and convenient reference, so we effectively require that it is changed _somehow_
     # by the constituent subtraction. It will have to be validated elsewhere.
-    assert not all(np.allclose(np.asarray(measured.px), np.asarray(expected.px))
-                    and np.allclose(np.asarray(measured.py), np.asarray(expected.py))
-                    and np.allclose(np.asarray(measured.pz), np.asarray(expected.pz))
-                    and np.allclose(np.asarray(measured.E), np.asarray(expected.E))
-                    for event, event_expected in zip(jets, expected_jets, strict=True) for measured, expected in zip(event, event_expected, strict=True))
+    assert not all(
+        np.allclose(np.asarray(measured.px), np.asarray(expected.px))
+        and np.allclose(np.asarray(measured.py), np.asarray(expected.py))
+        and np.allclose(np.asarray(measured.pz), np.asarray(expected.pz))
+        and np.allclose(np.asarray(measured.E), np.asarray(expected.E))
+        for event, event_expected in zip(jets, expected_jets, strict=True)
+        for measured, expected in zip(event, event_expected, strict=True)
+    )
 
     # only for testing - we want to see any fastjet warnings
-    #assert False
+    # assert False
 
 
 def test_negative_energy_recombiner(caplog: Any) -> None:
-    """ Jet finding with negative energy recombiner for multiple events. """
+    """Jet finding with negative energy recombiner for multiple events."""
     # Setup
     caplog.set_level(logging.DEBUG)
     vector.register_awkward()
@@ -555,20 +554,19 @@ def test_negative_energy_recombiner(caplog: Any) -> None:
         with_name="Momentum4D",
     )
     logger.info(f"input particles array type: {ak.type(input_particles)}")
-    #extra_kwargs = {}
+    # extra_kwargs = {}
 
     jets = jet_finding.find_jets(
         particles=input_particles,
         jet_finding_settings=jet_finding.JetFindingSettings(
-            R=0.7, algorithm="anti-kt",
+            R=0.7,
+            algorithm="anti-kt",
             # Use pp settings to speed it up. I don't think I need much detail (and as of April 2023,
             # AA equally works the same)
             area_settings=jet_finding.AreaPP(),
             pt_range=jet_finding.pt_range(),
-            eta_range=jet_finding.eta_range(jet_R=0.7, fiducial_acceptance=False, eta_min=-5., eta_max=5.),
-            recombiner=jet_finding.NegativeEnergyRecombiner(
-                identifier_index=-123456
-            ),
+            eta_range=jet_finding.eta_range(jet_R=0.7, fiducial_acceptance=False, eta_min=-5.0, eta_max=5.0),
+            recombiner=jet_finding.NegativeEnergyRecombiner(identifier_index=-123456),
         ),
     )
 
@@ -599,17 +597,21 @@ def test_negative_energy_recombiner(caplog: Any) -> None:
     logger.info(f"input_particles: {input_particles.to_list()}")
     logger.info("jets:")
     import io
+
     _s = io.StringIO()
     jets[["px", "py", "pz", "E"]].show(stream=_s)
     logger.info(f"{_s}")
     logger.info(f"expected_jets: {expected_jets.to_list()}")
 
     # Check four momenta
-    assert all(np.allclose(np.asarray(measured.px), np.asarray(expected.px))
-                and np.allclose(np.asarray(measured.py), np.asarray(expected.py))
-                and np.allclose(np.asarray(measured.pz), np.asarray(expected.pz))
-                and np.allclose(np.asarray(measured.E), np.asarray(expected.E))
-                for event, event_expected in zip(jets, expected_jets, strict=True) for measured, expected in zip(event, event_expected, strict=True))
+    assert all(
+        np.allclose(np.asarray(measured.px), np.asarray(expected.px))
+        and np.allclose(np.asarray(measured.py), np.asarray(expected.py))
+        and np.allclose(np.asarray(measured.pz), np.asarray(expected.pz))
+        and np.allclose(np.asarray(measured.E), np.asarray(expected.E))
+        for event, event_expected in zip(jets, expected_jets, strict=True)
+        for measured, expected in zip(event, event_expected, strict=True)
+    )
 
     # only for testing - we want to see any fastjet warnings
-    #assert False
+    # assert False

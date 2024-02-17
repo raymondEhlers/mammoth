@@ -78,10 +78,10 @@ def setup_convert_jetscape_files(
         if output_filename_template:
             template_to_use_for_output = output_filename_template
 
-        output_filename_template_for_skim = ascii_output_dir / "skim" / template_to_use_for_output.format(pt_hat_bin=pt_hat_bin)
-        output_file = File(
-            str(Path(f"{output_filename_template_for_skim}_00").with_suffix(".parquet"))
+        output_filename_template_for_skim = (
+            ascii_output_dir / "skim" / template_to_use_for_output.format(pt_hat_bin=pt_hat_bin)
         )
+        output_file = File(str(Path(f"{output_filename_template_for_skim}_00").with_suffix(".parquet")))
         results.append(
             convert_jetscape_files(
                 output_filename_template=output_filename_template_for_skim.with_suffix(".parquet"),
@@ -117,9 +117,7 @@ def run_RAA_analysis(
 
     try:
         hists = jet_raa.run(
-            arrays=jet_raa.load_data(
-                Path(inputs[0].filepath)
-            ),
+            arrays=jet_raa.load_data(Path(inputs[0].filepath)),
             read_jet_skim_from_file=read_jet_skim_from_file,
             jet_R_values=jet_R_values,
             min_jet_pt=min_jet_pt,
@@ -157,10 +155,13 @@ def setup_RAA_analysis(
     if jet_R_values is None:
         jet_R_values = [0.2, 0.4, 0.6]
     # NOTE: Sort by lower bin edge of the pt hat bin
-    input_files = sorted(parquet_input_dir.glob("*.parquet"), key=lambda p: int(str(p.name).split("_")[0].replace("JetscapeHadronListBin", "")))
+    input_files = sorted(
+        parquet_input_dir.glob("*.parquet"),
+        key=lambda p: int(str(p.name).split("_")[0].replace("JetscapeHadronListBin", "")),
+    )
 
     # TEMP for testing
-    #input_files = input_files[100:102]
+    # input_files = input_files[100:102]
     # ENDTEMP
 
     results = []
@@ -168,19 +169,37 @@ def setup_RAA_analysis(
         jets_skim_filename: Path | None = None
         output_files = []
         if write_jets_to_tree:
-            jets_skim_filename = input_file.parent.parent / "jetRAA" / "jetsSkim" / input_file.name.replace("JetscapeHadronList", "Jets").replace("parquet", "root")
-            output_files.extend([
-                File(str(jets_skim_filename.parent / f"{jet_type}_jetR{round(jet_R * 100):03}" / jets_skim_filename.name))
-                for jet_type in ["charged", "full"]
-                for jet_R in jet_R_values
-            ])
+            jets_skim_filename = (
+                input_file.parent.parent
+                / "jetRAA"
+                / "jetsSkim"
+                / input_file.name.replace("JetscapeHadronList", "Jets").replace("parquet", "root")
+            )
+            output_files.extend(
+                [
+                    File(
+                        str(
+                            jets_skim_filename.parent
+                            / f"{jet_type}_jetR{round(jet_R * 100):03}"
+                            / jets_skim_filename.name
+                        )
+                    )
+                    for jet_type in ["charged", "full"]
+                    for jet_R in jet_R_values
+                ]
+            )
         write_hists_filename: Path | None = None
         if write_hists_to_file:
-            write_hists_filename = input_file.parent.parent / "jetRAA" / "hists" / input_file.name.replace("JetscapeHadronList", "hists_").replace("parquet", "root")
+            write_hists_filename = (
+                input_file.parent.parent
+                / "jetRAA"
+                / "hists"
+                / input_file.name.replace("JetscapeHadronList", "hists_").replace("parquet", "root")
+            )
             output_files.append(File(str(write_hists_filename)))
 
-        #logger.info(f"Adding {input_file} for analysis")
-        #logger.info(f"Output files: {output_files}")
+        # logger.info(f"Adding {input_file} for analysis")
+        # logger.info(f"Output files: {output_files}")
         results.append(
             run_RAA_analysis(
                 system=system,
@@ -189,9 +208,7 @@ def setup_RAA_analysis(
                 min_jet_pt=min_jet_pt,
                 jets_skim_filename=jets_skim_filename,
                 write_hists_filename=write_hists_filename,
-                inputs=[
-                    File(str(input_file))
-                ],
+                inputs=[File(str(input_file))],
                 outputs=output_files,
             )
         )
@@ -204,27 +221,35 @@ def run() -> None:
     _possible_systems = ["pp", "PbPb_00_05", "PbPb_05_10", "PbPb_30_40", "PbPb_40_50"]
     _system_to_base_path = {
         "pp": Path("/alf/data/rehlers/jetscape/osiris/AAPaperData/5020_PP_Colorless/"),
-        "PbPb_00_05": Path("/alf/data/rehlers/jetscape/osiris/AAPaperData/MATTER_LBT_RunningAlphaS_Q2qhat/5020_PbPb_0-5_0.30_2.0_1"),
-        "PbPb_05_10": Path("/alf/data/rehlers/jetscape/osiris/AAPaperData/MATTER_LBT_RunningAlphaS_Q2qhat/5020_PbPb_5-10_0.30_2.0_1"),
-        "PbPb_30_40": Path("/alf/data/rehlers/jetscape/osiris/AAPaperData/MATTER_LBT_RunningAlphaS_Q2qhat/5020_PbPb_30-40_0.30_2.0_1"),
-        "PbPb_40_50": Path("/alf/data/rehlers/jetscape/osiris/AAPaperData/MATTER_LBT_RunningAlphaS_Q2qhat/5020_PbPb_40-50_0.30_2.0_1"),
+        "PbPb_00_05": Path(
+            "/alf/data/rehlers/jetscape/osiris/AAPaperData/MATTER_LBT_RunningAlphaS_Q2qhat/5020_PbPb_0-5_0.30_2.0_1"
+        ),
+        "PbPb_05_10": Path(
+            "/alf/data/rehlers/jetscape/osiris/AAPaperData/MATTER_LBT_RunningAlphaS_Q2qhat/5020_PbPb_5-10_0.30_2.0_1"
+        ),
+        "PbPb_30_40": Path(
+            "/alf/data/rehlers/jetscape/osiris/AAPaperData/MATTER_LBT_RunningAlphaS_Q2qhat/5020_PbPb_30-40_0.30_2.0_1"
+        ),
+        "PbPb_40_50": Path(
+            "/alf/data/rehlers/jetscape/osiris/AAPaperData/MATTER_LBT_RunningAlphaS_Q2qhat/5020_PbPb_40-50_0.30_2.0_1"
+        ),
     }
 
     # Job execution parameters
     task_name = "Jetscape_RAA"
     tasks_to_execute = [
-        #"convert",
+        # "convert",
         "analyze_RAA",
     ]
     jet_R_values = [0.2, 0.4, 0.5, 0.6, 0.8, 1.0]
-    #jet_R_values = [0.8, 1.0]
-    #systems_to_process = _possible_systems[1:]
+    # jet_R_values = [0.8, 1.0]
+    # systems_to_process = _possible_systems[1:]
     systems_to_process = _possible_systems
     # Job execution configuration
     task_config = job_utils.TaskConfig(name=task_name, n_cores_per_task=1)
     n_cores_to_allocate = 110
-    #n_cores_to_allocate = 21
-    #n_cores_to_allocate = 2
+    # n_cores_to_allocate = 21
+    # n_cores_to_allocate = 2
     walltime = "24:00:00"
 
     # Basic setup: logging and parsl.
@@ -280,26 +305,25 @@ def run() -> None:
 
     # In order to support writing histograms from multiple systems, we need to index the output histograms
     # by the collision system + centrality.
-    output_hists: dict[str, dict[Any, Any]] = {
-        k: {} for k in systems_to_process
-    }
+    output_hists: dict[str, dict[Any, Any]] = {k: {} for k in systems_to_process}
     with Progress(console=helpers.rich_console, refresh_per_second=1) as progress:
         track_results = progress.add_task(total=len(all_results), description="Processing results...")
-        #for a in all_results:
+        # for a in all_results:
         for result in gen_results:
-            #r = a.result()
-            #logger.info(f"result: {result[:2]}")
+            # r = a.result()
+            # logger.info(f"result: {result[:2]}")
             if result[0] and len(result) == 4 and isinstance(result[3], dict):
                 k = result[2]
                 logger.info(f"Found result for key {k}. Merging...")
                 output_hists[k] = output_utils.merge_results(output_hists[k], result[3])
-            #logger.info(f"output_hists: {output_hists}")
+            # logger.info(f"output_hists: {output_hists}")
             progress.update(track_results, advance=1)
 
     # Save hists to uproot
     for system, hists in output_hists.items():
         if hists:
             import uproot
+
             split_system_name = system.split("_")
             # Either "pp" or "PbPb"
             collision_system = split_system_name[0]

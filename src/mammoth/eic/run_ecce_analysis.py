@@ -77,10 +77,10 @@ def run_ecce_afterburner_bash(
         f.write("\n".join([input_file.filepath for input_file in inputs[:-1]]))
 
     args = [
-        f"\"{str(Path(inputs[0])) if len(inputs) == 2 else str(Path(f.name))}\"",
-        f"\"{Path(inputs[-1])!s}\"",
-        f"\"{output_identifier!s}\"",
-        f"\"{output_dir!s}\"",
+        f'"{str(Path(inputs[0])) if len(inputs) == 2 else str(Path(f.name))}"',
+        f'"{Path(inputs[-1])!s}"',
+        f'"{output_identifier!s}"',
+        f'"{output_dir!s}"',
         str(max_n_events),
         str(do_reclustering).lower(),
         str(do_jet_finding).lower(),
@@ -90,7 +90,7 @@ def run_ecce_afterburner_bash(
         str(primary_track_source),
         str(remove_tracklets).lower(),
         str(track_projections_are_broken).lower(),
-        f"\"{jet_algorithm!s}\"",
+        f'"{jet_algorithm!s}"',
     ]
 
     # NOTE: Includes the cleanup of the temporary file
@@ -188,12 +188,12 @@ def setup_ecce_afterburner(
     input_files = sorted(dataset.data.glob("*.root"))
 
     # TEMP for testing
-    #input_files = input_files[1:2]
+    # input_files = input_files[1:2]
     # ENDTEMP
 
     # Limit stats to keep things moving...
     # This was sufficient to get all files for Q2 > 100, pythia8
-    #input_files = input_files[:1000]
+    # input_files = input_files[:1000]
 
     futures = []
     func = run_ecce_afterburner_bash if use_bash_app else run_ecce_afterburner
@@ -217,14 +217,14 @@ def setup_ecce_afterburner(
                 # Track projections are broken in prop.4, but work for future productions.
                 track_projections_are_broken="prop.4" in str(dataset.data),
                 max_n_events=-1,
-                #verbosity=2,
+                # verbosity=2,
                 inputs=[
                     *[File(str(input_file)) for input_file in input_files_list],
                     File(str(dataset.geometry)),
                 ],
-                #outputs=[
+                # outputs=[
                 #    File(str(Path(output_dir / f"treeProcessing/{output_identifier}/output_JetObservables.root"))),
-                #]
+                # ]
             )
         )
 
@@ -235,113 +235,114 @@ def run() -> None:
     # Basic setup
     afterburner_dir = Path("/software/rehlers/dev/eic/analysis_software_EIC")
     output_dir = Path("/alf/data/rehlers/eic/afterburner/ReA/2022-01-12/min_p_cut_EPPS")
-    #output_dir = Path("/alf/data/rehlers/eic/afterburner/ReA/test")
+    # output_dir = Path("/alf/data/rehlers/eic/afterburner/ReA/test")
     jet_R_parameters = [0.3, 0.5, 0.8, 1.0]
     jet_algorithm = "anti-kt"
-    #jet_algorithm = ""
+    # jet_algorithm = ""
     # Dataset selection
     datasets_to_process = [
-        #DatasetSpecPythia(
+        # DatasetSpecPythia(
         #    site="production",
         #    generator="pythia6",
         #    electron_beam_energy=18, proton_beam_energy=275,
         #    q2_selection=[1, 100],
         #    label="",
-        #),
-        #DatasetSpecPythia(
+        # ),
+        # DatasetSpecPythia(
         #    site="production",
         #    generator="pythia8",
         #    electron_beam_energy=10, proton_beam_energy=100,
         #    q2_selection=[1, 100],
         #    label="",
-        #),
-        #DatasetSpecPythia(
+        # ),
+        # DatasetSpecPythia(
         #    site="production",
         #    generator="pythia8",
         #    electron_beam_energy=10, proton_beam_energy=100,
         #    q2_selection=[100],
         #    label="",
-        #),
+        # ),
         # Single particle
         # Production
-        #DatasetSpecSingleParticle(
+        # DatasetSpecSingleParticle(
         #    site="production",
         #    particle="electron",
         #    momentum_selection=[0.0, 20],
         #    label="",
-        #),
-        #DatasetSpecSingleParticle(
+        # ),
+        # DatasetSpecSingleParticle(
         #    site="production",
         #    particle="pion",
         #    momentum_selection=[0.0, 20],
         #    label="",
-        #),
+        # ),
         # CADES
-        #DatasetSpecSingleParticle(
+        # DatasetSpecSingleParticle(
         #    site="cades",
         #    particle="electron",
         #    momentum_selection=[0.3, 20],
         #    label="geoOption5",
-        #),
-        #DatasetSpecSingleParticle(
+        # ),
+        # DatasetSpecSingleParticle(
         #    site="cades",
         #    particle="pion",
         #    momentum_selection=[0.3, 20],
         #    label="geoOption5",
-        #),
-        #DatasetSpecSingleParticle(
+        # ),
+        # DatasetSpecSingleParticle(
         #    site="cades",
         #    particle="electron",
         #    momentum_selection=[0.3, 20],
         #    label="geoOption6",
-        #),
-        #DatasetSpecSingleParticle(
+        # ),
+        # DatasetSpecSingleParticle(
         #    site="cades",
         #    particle="pion",
         #    momentum_selection=[0.3, 20],
         #    label="geoOption6",
-        #),
-        #DatasetSpecPythia(
+        # ),
+        # DatasetSpecPythia(
         #    site="cades",
         #    generator="pythia8",
         #    electron_beam_energy=10, proton_beam_energy=100,
         #    q2_selection=[1, 100],
         #    label="geoOption5",
-        #),
-        #DatasetSpecPythia(
+        # ),
+        # DatasetSpecPythia(
         #    site="cades",
         #    generator="pythia8",
         #    electron_beam_energy=10, proton_beam_energy=100,
         #    q2_selection=[100],
         #    label="geoOption5",
-        #),
-        #DatasetSpecPythia(
+        # ),
+        # DatasetSpecPythia(
         #    site="cades",
         #    generator="pythia8",
         #    electron_beam_energy=10, proton_beam_energy=100,
         #    q2_selection=[1, 100],
         #    label="geoOption6",
-        #),
-        #DatasetSpecPythia(
+        # ),
+        # DatasetSpecPythia(
         #    site="cades",
         #    generator="pythia8",
         #    electron_beam_energy=10, proton_beam_energy=100,
         #    q2_selection=[100],
         #    label="geoOption6",
-        #),
+        # ),
         # Productions from Nico at CADES in December 2021.
         # These should be _the_ canonical productions
-        #DatasetSpecPythia(
+        # DatasetSpecPythia(
         #    site="cades",
         #    generator="pythia6",
         #    electron_beam_energy=10, proton_beam_energy=100,
         #    q2_selection=[100],
         #    label="",
-        #),
+        # ),
         DatasetSpecPythia(
             site="cades",
             generator="pythia8",
-            electron_beam_energy=10, proton_beam_energy=100,
+            electron_beam_energy=10,
+            proton_beam_energy=100,
             q2_selection=[100],
             label="",
         ),
@@ -350,61 +351,73 @@ def run() -> None:
     # Job execution parameters
     task_name = "ecce_mammoth"
     tasks_to_execute = [
-        #"ecce_afterburner",
+        # "ecce_afterburner",
         "ecce_afterburner_bash",
     ]
 
     # Job execution configuration
     task_config = job_utils.TaskConfig(name=task_name, n_cores_per_task=1)
-    #n_cores_to_allocate = 120
-    #walltime = "1:59:00"
+    # n_cores_to_allocate = 120
+    # walltime = "1:59:00"
     n_cores_to_allocate = 90
-    #walltime = "20:00:00"
+    # walltime = "20:00:00"
     walltime = "06:00:00"
-    #walltime = "02:00:00"
+    # walltime = "02:00:00"
     # For testing
-    #walltime = "1:59:00"
-    #n_cores_to_allocate = 1
+    # walltime = "1:59:00"
+    # n_cores_to_allocate = 1
 
     # Validation
     # Possible datasets
     _datasets = {
         # Central productions
         "production-pythia8-18x275-q2-1-to-100": Dataset(
-            data=Path("/alf/data/rehlers/eic/official_prod/prop.4/prop.4.0/HFandJets/pythia8/ep-18x275-q2-1-to-100/eval_00002"),
-            geometry=Path("/alf/data/rehlers/eic/official_prod/prop.4/geometry.root")
+            data=Path(
+                "/alf/data/rehlers/eic/official_prod/prop.4/prop.4.0/HFandJets/pythia8/ep-18x275-q2-1-to-100/eval_00002"
+            ),
+            geometry=Path("/alf/data/rehlers/eic/official_prod/prop.4/geometry.root"),
         ),
         "production-pythia8-18x275-q2-100": Dataset(
-            data=Path("/alf/data/rehlers/eic/official_prod/prop.4/prop.4.0/HFandJets/pythia8/ep-18x275-q2-100/eval_00002"),
-            geometry=Path("/alf/data/rehlers/eic/official_prod/prop.4/geometry.root")
+            data=Path(
+                "/alf/data/rehlers/eic/official_prod/prop.4/prop.4.0/HFandJets/pythia8/ep-18x275-q2-100/eval_00002"
+            ),
+            geometry=Path("/alf/data/rehlers/eic/official_prod/prop.4/geometry.root"),
         ),
         "production-pythia8-10x100-q2-1-to-100": Dataset(
-            data=Path("/alf/data/rehlers/eic/official_prod/prop.4/prop.4.0/HFandJets/pythia8/ep-10x100-q2-1-to-100/eval_00002"),
-            geometry=Path("/alf/data/rehlers/eic/official_prod/prop.4/geometry.root")
+            data=Path(
+                "/alf/data/rehlers/eic/official_prod/prop.4/prop.4.0/HFandJets/pythia8/ep-10x100-q2-1-to-100/eval_00002"
+            ),
+            geometry=Path("/alf/data/rehlers/eic/official_prod/prop.4/geometry.root"),
         ),
         "production-pythia8-10x100-q2-100": Dataset(
-            data=Path("/alf/data/rehlers/eic/official_prod/prop.4/prop.4.0/HFandJets/pythia8/ep-10x100-q2-100/eval_00002"),
-            geometry=Path("/alf/data/rehlers/eic/official_prod/prop.4/geometry.root")
+            data=Path(
+                "/alf/data/rehlers/eic/official_prod/prop.4/prop.4.0/HFandJets/pythia8/ep-10x100-q2-100/eval_00002"
+            ),
+            geometry=Path("/alf/data/rehlers/eic/official_prod/prop.4/geometry.root"),
         ),
         "production-pythia6-18x275-q2-1-to-100": Dataset(
-            data=Path("/alf/data/rehlers/eic/official_prod/prop.4/prop.4.0/SIDIS/pythia6/ep-18x275-q2-1-to-100/eval_00001/"),
-            geometry=Path("/alf/data/rehlers/eic/official_prod/prop.4/geometry.root")
+            data=Path(
+                "/alf/data/rehlers/eic/official_prod/prop.4/prop.4.0/SIDIS/pythia6/ep-18x275-q2-1-to-100/eval_00001/"
+            ),
+            geometry=Path("/alf/data/rehlers/eic/official_prod/prop.4/geometry.root"),
         ),
         # Not available yet
         "production-pythia6-18x275-q2-100": Dataset(
             data=Path("/alf/data/rehlers/eic/official_prod/prop.4/prop.4.0/SIDIS/pythia6/ep-18x275-q2-100/eval_00001/"),
-            geometry=Path("/alf/data/rehlers/eic/official_prod/prop.4/geometry.root")
+            geometry=Path("/alf/data/rehlers/eic/official_prod/prop.4/geometry.root"),
         ),
-        #"pythia6-10x100-q2-100"
-        #"pythia6-10x100-q2-1-to-100": Path("/alf/data/rehlers/"),
+        # "pythia6-10x100-q2-100"
+        # "pythia6-10x100-q2-1-to-100": Path("/alf/data/rehlers/"),
         # Single particle
         "production-singleElectron-p-0-to-20": Dataset(
-            data=Path("/alf/data/rehlers/eic/official_prod/prop.4/prop.4.0/General/particleGun/singleElectron/eval_00001"),
-            geometry=Path("/alf/data/rehlers/eic/official_prod/prop.4/geometry.root")
+            data=Path(
+                "/alf/data/rehlers/eic/official_prod/prop.4/prop.4.0/General/particleGun/singleElectron/eval_00001"
+            ),
+            geometry=Path("/alf/data/rehlers/eic/official_prod/prop.4/geometry.root"),
         ),
         "production-singlePion-p-0-to-20": Dataset(
             data=Path("/alf/data/rehlers/eic/official_prod/prop.4/prop.4.0/General/particleGun/singlePion/eval_00001"),
-            geometry=Path("/alf/data/rehlers/eic/official_prod/prop.4/geometry.root")
+            geometry=Path("/alf/data/rehlers/eic/official_prod/prop.4/geometry.root"),
         ),
         # CADES productions
         # Option geo 5
@@ -420,11 +433,15 @@ def run() -> None:
         ),
         # Pythia8
         "cades-pythia8-10x100-q2-1-to-100-geoOption5": Dataset(
-            data=Path("/alf/data/rehlers/eic/cades/LYSO_1fwd_1bkd_option5/output_TTLGEO_5_Jets_pythia8_ep-10x100-q2-1-to-100/"),
+            data=Path(
+                "/alf/data/rehlers/eic/cades/LYSO_1fwd_1bkd_option5/output_TTLGEO_5_Jets_pythia8_ep-10x100-q2-1-to-100/"
+            ),
             geometry=Path("/alf/data/rehlers/eic/cades/LYSO_1fwd_1bkd_option5/geometry.root"),
         ),
         "cades-pythia8-10x100-q2-100-geoOption5": Dataset(
-            data=Path("/alf/data/rehlers/eic/cades/LYSO_1fwd_1bkd_option5/output_TTLGEO_5_Jets_pythia8_ep-10x100-q2-100/"),
+            data=Path(
+                "/alf/data/rehlers/eic/cades/LYSO_1fwd_1bkd_option5/output_TTLGEO_5_Jets_pythia8_ep-10x100-q2-100/"
+            ),
             geometry=Path("/alf/data/rehlers/eic/cades/LYSO_1fwd_1bkd_option5/geometry.root"),
         ),
         # Option geo 6
@@ -439,11 +456,15 @@ def run() -> None:
             geometry=Path("/alf/data/rehlers/eic/cades/LYSO_1fwd_1bkd_option5/geometry.root"),
         ),
         "cades-pythia8-10x100-q2-1-to-100-geoOption6": Dataset(
-            data=Path("/alf/data/rehlers/eic/cades/LYSO_1fwd_1bkd_option6/output_TTLGEO_6_Jets_pythia8_ep-10x100-q2-1-to-100/"),
+            data=Path(
+                "/alf/data/rehlers/eic/cades/LYSO_1fwd_1bkd_option6/output_TTLGEO_6_Jets_pythia8_ep-10x100-q2-1-to-100/"
+            ),
             geometry=Path("/alf/data/rehlers/eic/cades/LYSO_1fwd_1bkd_option6/geometry.root"),
         ),
         "cades-pythia8-10x100-q2-100-geoOption6": Dataset(
-            data=Path("/alf/data/rehlers/eic/cades/LYSO_1fwd_1bkd_option6/output_TTLGEO_6_Jets_pythia8_ep-10x100-q2-100/"),
+            data=Path(
+                "/alf/data/rehlers/eic/cades/LYSO_1fwd_1bkd_option6/output_TTLGEO_6_Jets_pythia8_ep-10x100-q2-100/"
+            ),
             geometry=Path("/alf/data/rehlers/eic/cades/LYSO_1fwd_1bkd_option6/geometry.root"),
         ),
         # Productions from Nico at CADES in December 2021.
@@ -453,12 +474,16 @@ def run() -> None:
         #       However, we're not statistics starved, so we don't bother with merging them (since it would require re-indexing
         #       the files, which is often a pain)
         "cades-pythia6-10x100-q2-100": Dataset(
-            data=Path("/alf/data/rehlers/eic/cades/nico_december_2021/output_TTLGEO_8_P6_HITS_Q2_FSTFIX_1_phpythia6_ep18x275_q2_100"),
+            data=Path(
+                "/alf/data/rehlers/eic/cades/nico_december_2021/output_TTLGEO_8_P6_HITS_Q2_FSTFIX_1_phpythia6_ep18x275_q2_100"
+            ),
             geometry=Path("/alf/data/rehlers/eic/cades/nico_december_2021/geometry.root"),
         ),
         # Pythia8
         "cades-pythia8-10x100-q2-100": Dataset(
-            data=Path("/alf/data/rehlers/eic/cades/nico_december_2021/output_TTLGEO_7_HITS_EEMAPUPDATE_P8_10x100_Q2_JETS_1_Jets_pythia8_ep-10x100-q2-100"),
+            data=Path(
+                "/alf/data/rehlers/eic/cades/nico_december_2021/output_TTLGEO_7_HITS_EEMAPUPDATE_P8_10x100_Q2_JETS_1_Jets_pythia8_ep-10x100-q2-100"
+            ),
             geometry=Path("/alf/data/rehlers/eic/cades/nico_december_2021/geometry.root"),
         ),
     }
@@ -480,8 +505,8 @@ def run() -> None:
     config, facility_config, stored_messages = job_utils.config(
         job_framework=job_utils.JobFramework.parsl,
         facility="ORNL_b587_long",
-        #facility="ORNL_b587_short",
-        #facility="ORNL_b587_vip",
+        # facility="ORNL_b587_short",
+        # facility="ORNL_b587_vip",
         task_config=task_config,
         target_n_tasks_to_run_simultaneously=n_cores_to_allocate,
         walltime=walltime,
@@ -514,11 +539,11 @@ def run() -> None:
                     output_dir=output_dir,
                     use_bash_app=("ecce_afterburner_bash" in tasks_to_execute),
                     # Seems to work better for jets
-                    #n_files_per_job=2,
-                    #n_files_per_job=5,
+                    # n_files_per_job=2,
+                    # n_files_per_job=5,
                     n_files_per_job=12,
                     # Seems to work for single particle
-                    #n_files_per_job=10,
+                    # n_files_per_job=10,
                 )
             )
 

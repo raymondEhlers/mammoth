@@ -37,7 +37,10 @@ def steer_task_execution(
     validation_mode: bool,
 ) -> framework_task.Output:
     # Validation
-    if output_settings.return_skim and task_settings.chunk_size not in [sources.ChunkSizeSentinel.SINGLE_FILE, sources.ChunkSizeSentinel.FULL_SOURCE]:
+    if output_settings.return_skim and task_settings.chunk_size not in [
+        sources.ChunkSizeSentinel.SINGLE_FILE,
+        sources.ChunkSizeSentinel.FULL_SOURCE,
+    ]:
         # NOTE: Returning the skim is only supported for the case where we're processing a single file or the full source
         msg = "Cannot return skim if processing in chunks. Update your Output settings."
         raise ValueError(msg)
@@ -54,7 +57,8 @@ def steer_task_execution(
             #       if it's more than the first chunk
             if i_chunk > 0:
                 _output_filename = (
-                    output_settings.output_filename.parent / f"{output_settings.output_filename.stem}_chunk_{i_chunk:03}{output_settings.output_filename.suffix}"
+                    output_settings.output_filename.parent
+                    / f"{output_settings.output_filename.stem}_chunk_{i_chunk:03}{output_settings.output_filename.suffix}"
                 )
             else:
                 _output_filename = output_settings.output_filename
@@ -149,7 +153,11 @@ def steer_task_execution(
         collision_system=task_settings.collision_system,
         success=True,
         message=f"success for {description}"
-        + (f". Additional non-standard processing outcomes: {_nonstandard_processing_outcome}" if _nonstandard_processing_outcome else ""),
+        + (
+            f". Additional non-standard processing outcomes: {_nonstandard_processing_outcome}"
+            if _nonstandard_processing_outcome
+            else ""
+        ),
         hists=task_hists if output_settings.return_merged_hists else {},
         results=analysis_output.skim if output_settings.return_skim else {},
         metadata=output_metadata,
@@ -187,7 +195,7 @@ def steer_data_task(
     # We split these argument out to ensure that they're explicitly supported
     validation_mode: bool,
 ) -> framework_task.Output:
-    """ Steering for a data task.
+    """Steering for a data task.
 
     Note:
         This doesn't vary significantly from the embedding case. Mostly, we just pass through the
@@ -259,7 +267,7 @@ def steer_embed_task(
     # We split these argument out to ensure that they're explicitly supported
     validation_mode: bool,
 ) -> framework_task.Output:
-    """ Steering for an embedding task.
+    """Steering for an embedding task.
 
     Note:
         This doesn't vary significantly from the data case. Mostly, we just pass through the
@@ -311,8 +319,7 @@ def steer_embed_task(
     # This way, we can abstract away what type of function is being called,
     # and use a uniform interface for task execution.
     standard_analysis_function: framework_task.AnalysisBound = functools.partial(
-        analysis_function,
-        source_index_identifiers=source_index_identifiers
+        analysis_function, source_index_identifiers=source_index_identifiers
     )
 
     return steer_task_execution(

@@ -176,7 +176,6 @@ skimmed_datasets:
     files:
       - "trains/pp_MC/823890/files.txt"
 
-
   # PbPb
   LHC18qr_pass3_AOD252_central_642: &LHC18qr_PbPb_central
     name: "LHC18qr_pass3_AOD252_central_642"
@@ -289,7 +288,7 @@ analysis_settings:
           data: "data"
         splittings_selection: "iterative"
         # In GeV
-        min_jet_pt: {"data": 5}
+        min_jet_pt: { "data": 5 }
 
     _pythia:
       metadata: &base_metadata_pythia
@@ -306,7 +305,7 @@ analysis_settings:
         splittings_selection: "iterative"
         # In GeV
         # We don't want to restrict the part_level
-        min_jet_pt: {"det_level": 5}
+        min_jet_pt: { "det_level": 5 }
         # By default, don't apply any additional reduction
         det_level_artificial_tracking_efficiency: 1.0
 
@@ -323,8 +322,7 @@ analysis_settings:
           data: "data"
         splittings_selection: "iterative"
         # In GeV
-        min_jet_pt: {"data": 20}
-
+        min_jet_pt: { "data": 20 }
 
     _embed:
       metadata: &base_metadata_embed
@@ -336,7 +334,7 @@ analysis_settings:
         input_handling:
           signal_parameters:
             collision_system: "pythia"
-            constrained_source:  # ie. signal is the constraint
+            constrained_source: # ie. signal is the constraint
               n_files_to_use_per_task: 1
             unconstrained_source:
               # Sample pt hat bin distribution equally
@@ -347,7 +345,7 @@ analysis_settings:
               n_files_to_use_per_task: 3
           background_parameters:
             collision_system: "PbPb"
-            constrained_source:  # ie. background is the constraint
+            constrained_source: # ie. background is the constraint
               n_files_to_use_per_task: 1
             unconstrained_source:
               n_files_to_use_per_task: 2
@@ -361,7 +359,7 @@ analysis_settings:
         splittings_selection: "iterative"
         # In GeV
         # We don't want to restrict the "det_level" or "part_level" jet pt values
-        min_jet_pt: {"hybrid": 20}
+        min_jet_pt: { "hybrid": 20 }
 
     _embed_thermal_model:
       metadata: &base_metadata_embed_thermal_model
@@ -479,7 +477,6 @@ analysis_settings:
 
   # NOTE: We don't need an explicit one for embedding into a thermal model - we can
   #       just take the standard embedding analysis settings
-
 
 productions:
   pp:
@@ -716,7 +713,6 @@ productions:
           <<: *time_reclustering_output_settings
         selected_grooming_methods:
           - "soft_drop_z_cut_02"
-
 
   PbPb:
     2:

@@ -60,25 +60,23 @@ def load_reference_data() -> dict[str, binned_data.BinnedData]:
         data = binned_data.BinnedData.from_existing_data(f["Table 2"]["Hist1D_y1"])
         stat_errors = binned_data.BinnedData.from_existing_data(f["Table 2"]["Hist1D_y1_e1"])
         sys_errors = binned_data.BinnedData.from_existing_data(f["Table 2"]["Hist1D_y1_e2"])
-        reference_data["star_pi_plus"] = ReferenceData(
-            data = data, stat_errors = stat_errors, sys_errors = sys_errors
-        )
+        reference_data["star_pi_plus"] = ReferenceData(data=data, stat_errors=stat_errors, sys_errors=sys_errors)
 
     with uproot.open(input_data_path / "STAR" / "HEPData-ins709170-v1-Table_7.root") as f:
         data = binned_data.BinnedData.from_existing_data(f["Table 7"]["Hist1D_y1"])
         stat_errors = binned_data.BinnedData.from_existing_data(f["Table 7"]["Hist1D_y1_e1"])
         sys_errors = binned_data.BinnedData.from_existing_data(f["Table 7"]["Hist1D_y1_e2"])
-        reference_data["star_pi_minus"] = ReferenceData(
-            data = data, stat_errors = stat_errors, sys_errors = sys_errors
-        )
+        reference_data["star_pi_minus"] = ReferenceData(data=data, stat_errors=stat_errors, sys_errors=sys_errors)
 
     return_data[r"STAR $\pi^{\pm}$"] = binned_data.BinnedData(
         axes=reference_data["star_pi_plus"].data.axes[0].bin_edges,
         values=(reference_data["star_pi_plus"].values + reference_data["star_pi_minus"].values) / 2,
         # Add statistical and systematics errors in quadrature.
         variances=(
-            reference_data["star_pi_plus"].stat_errors ** 2 + reference_data["star_pi_minus"].stat_errors ** 2
-            + reference_data["star_pi_plus"].sys_errors ** 2 + reference_data["star_pi_minus"].sys_errors ** 2
+            reference_data["star_pi_plus"].stat_errors ** 2
+            + reference_data["star_pi_minus"].stat_errors ** 2
+            + reference_data["star_pi_plus"].sys_errors ** 2
+            + reference_data["star_pi_minus"].sys_errors ** 2
         ),
     )
 
@@ -91,7 +89,7 @@ def setup() -> None:
         store_only_necessary_columns=True,
         input_filename="final_state_hadrons.out",
         events_per_chunk=10000,
-        #max_chunks=1,
+        # max_chunks=1,
     )
 
 
@@ -101,7 +99,7 @@ def analyze(output_dir: Path, reference_data: Mapping[str, binned_data.BinnedDat
     # Load array
     n_events = 0
     for filename in output_dir.glob("*.parquet"):
-        #arrays = ak.with_name(ak.from_parquet(filename), "LorentzVector")
+        # arrays = ak.with_name(ak.from_parquet(filename), "LorentzVector")
         arrays = ak.from_parquet(filename)
         n_events += len(arrays)
         arrays["m"] = particle_ID.particle_masses_from_particle_ID(arrays=arrays)
@@ -109,16 +107,16 @@ def analyze(output_dir: Path, reference_data: Mapping[str, binned_data.BinnedDat
 
         # Particle selections
         # Drop neutrinos.
-        #arrays = arrays[(np.abs(arrays["particle_ID"]) != 12) & (np.abs(arrays["particle_ID"]) != 14) & (np.abs(arrays["particle_ID"]) != 16)]
+        # arrays = arrays[(np.abs(arrays["particle_ID"]) != 12) & (np.abs(arrays["particle_ID"]) != 14) & (np.abs(arrays["particle_ID"]) != 16)]
         # And then we'll select by status codes.
-        #all_status_codes = np.unique(ak.to_numpy(ak.flatten(arrays["status"])))
-        #print(all_status_codes)
+        # all_status_codes = np.unique(ak.to_numpy(ak.flatten(arrays["status"])))
+        # print(all_status_codes)
 
         # Select pions
         charged_pions_mask = particle_ID.build_PID_selection_mask(arrays, absolute_pids=[211])
         # Selection from STAR analysis.
         # NOTE: For now, we use eta since we don't want to construct the full object. Can do more later.
-        #rapidity_mask = np.abs(arrays["eta"]) < 0.5
+        # rapidity_mask = np.abs(arrays["eta"]) < 0.5
         rapidity_mask = np.abs(arrays.rapidity) < 0.5
         charged_pions = arrays[charged_pions_mask & rapidity_mask]
 
@@ -170,7 +168,6 @@ def analyze(output_dir: Path, reference_data: Mapping[str, binned_data.BinnedDat
 if __name__ == "__main__":
     mammoth.helpers.setup_logging(level=logging.INFO)
     # Setup doesn't autodetect if it needs to run. Instead, it's up to the user.
-    #setup()
+    # setup()
     reference_data = load_reference_data()
     analyze(output_dir=Path("skim") / "events_per_chunk_10000", reference_data=reference_data)
-

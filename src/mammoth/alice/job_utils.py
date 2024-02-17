@@ -29,12 +29,7 @@ def _validate_productions_and_tasks_to_run(
         raise ValueError(_msg)
     _tasks_to_run = [list(tasks) for tasks in tasks_to_run] if tasks_to_run is not None else []
     if productions is not None:
-        _tasks_to_run.extend(
-            [
-                list(prod.tasks_to_execute)
-                for prod in productions
-            ]
-        )
+        _tasks_to_run.extend([list(prod.tasks_to_execute) for prod in productions])
     return _tasks_to_run
 
 

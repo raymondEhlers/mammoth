@@ -18,6 +18,7 @@ from pachyderm import binned_data
 
 logger = logging.getLogger(__name__)
 
+
 @attrs.frozen
 class ScaleFactor:
     """Store scale factors for a particular pt hard bin.

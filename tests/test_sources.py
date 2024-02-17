@@ -16,6 +16,7 @@ logger = logging.getLogger(__name__)
 _here = Path(__file__).parent
 _track_skim_base_path = _here / "track_skim_validation"
 
+
 def test_uproot_source() -> None:
     uproot_source = sources.UprootSource(
         # Take as an arbitrary example file
@@ -58,7 +59,9 @@ def test_manual_thermal_model_embedding() -> None:
 
 @pytest.mark.parametrize("chunk_size", [500, sources.ChunkSizeSentinel.FULL_SOURCE])
 @pytest.mark.parametrize("background_is_constrained_source", [False, True])
-def test_manual_data_embedding(caplog: Any, chunk_size: sources.T_ChunkSize, background_is_constrained_source: bool) -> None:
+def test_manual_data_embedding(
+    caplog: Any, chunk_size: sources.T_ChunkSize, background_is_constrained_source: bool
+) -> None:
     # Setup
     caplog.set_level(logging.DEBUG, logger="mammoth.framework.sources")
 
@@ -122,9 +125,7 @@ def test_manual_data_embedding(caplog: Any, chunk_size: sources.T_ChunkSize, bac
 
 
 @pytest.mark.parametrize("chunk_size", [2000, 1000])
-def test_chunk_generation_from_existing_data_with_fixed_chunk_size(
-    caplog: Any, chunk_size: int
-) -> None:
+def test_chunk_generation_from_existing_data_with_fixed_chunk_size(caplog: Any, chunk_size: int) -> None:
     """Test chunk size generation when using an existing data input
 
     Usually, this would be via an uproot source. Here, I'm using the track skim for some extra convenience,
@@ -135,11 +136,12 @@ def test_chunk_generation_from_existing_data_with_fixed_chunk_size(
     caplog.set_level(logging.DEBUG, logger="mammoth.framework.sources")
     # Input source
     from mammoth.framework.io import track_skim
+
     # NOTE: It's important that we use the root file here, as this will implicitly use an UprootSource with
     #       chunk generation from existing data.
     pythia_source = track_skim.FileSource(
         filename=_track_skim_base_path / "reference" / "AnalysisResults__pythia__jet_R020.root",
-        collision_system="pythia"
+        collision_system="pythia",
     )
     # We need the full size to figure out the expect values.
     # NOTE: This is inefficient, but it's not the end of the world. We could always set it manually if becomes a problem
@@ -163,15 +165,15 @@ def test_chunk_generation_from_existing_data_with_fixed_chunk_size(
         assert len(data) < chunk_size
 
 
-@pytest.mark.parametrize("chunk_size",
-                         [
-                             [2000] * 10,
-                             [2000, 1000, 2500, 303, 10000],
-                             [11000, 358, 200],
-                         ])
-def test_chunk_generation_from_existing_data_with_variable_chunk_size(
-    caplog: Any, chunk_size: Sequence[int]
-) -> None:
+@pytest.mark.parametrize(
+    "chunk_size",
+    [
+        [2000] * 10,
+        [2000, 1000, 2500, 303, 10000],
+        [11000, 358, 200],
+    ],
+)
+def test_chunk_generation_from_existing_data_with_variable_chunk_size(caplog: Any, chunk_size: Sequence[int]) -> None:
     """Test chunk size generation when using an existing data input for variable chunk sizes.
 
     Usually, this would be via an uproot source. Here, I'm using the track skim for some extra convenience,
@@ -182,11 +184,12 @@ def test_chunk_generation_from_existing_data_with_variable_chunk_size(
     caplog.set_level(logging.DEBUG, logger="mammoth.framework.sources")
     # Input source
     from mammoth.framework.io import track_skim
+
     # NOTE: It's important that we use the root file here, as this will implicitly use an UprootSource with
     #       chunk generation from existing data.
     pythia_source = track_skim.FileSource(
         filename=_track_skim_base_path / "reference" / "AnalysisResults__pythia__jet_R020.root",
-        collision_system="pythia"
+        collision_system="pythia",
     )
     # We need the full size to figure out the expect values.
     # NOTE: This is inefficient, but it's not the end of the world. We could always set it manually if becomes a problem
@@ -238,6 +241,7 @@ def test_multi_source_source_fixed_size_chunks(caplog: Any, chunk_size: int, num
     caplog.set_level(logging.DEBUG, logger="mammoth.framework.sources")
     # Input source
     from mammoth.framework.io import track_skim
+
     pythia_source = sources.MultiSource(
         sources=[
             track_skim.FileSource(
@@ -251,7 +255,7 @@ def test_multi_source_source_fixed_size_chunks(caplog: Any, chunk_size: int, num
     # We need to know the full size to figure out the expected values.
     pythia_source_ref = track_skim.FileSource(
         filename=_track_skim_base_path / "reference" / "AnalysisResults__pythia__jet_R020.root",
-        collision_system="pythia"
+        collision_system="pythia",
     )
     # NOTE: This is inefficient, but it's not the end of the world. We could always set it manually if becomes a problem
     # NOTE: For reference, it's 11358
@@ -277,12 +281,14 @@ def test_multi_source_source_fixed_size_chunks(caplog: Any, chunk_size: int, num
 
 
 @pytest.mark.parametrize("number_of_repeated_files", [1, 3])
-@pytest.mark.parametrize("chunk_size",
-                         [
-                             [10000] * 10,
-                             [2000, 1000, 2500, 303, 10000],
-                             [11000, 358, 200],
-                         ])
+@pytest.mark.parametrize(
+    "chunk_size",
+    [
+        [10000] * 10,
+        [2000, 1000, 2500, 303, 10000],
+        [11000, 358, 200],
+    ],
+)
 def test_multi_source_source_variable_size_chunks(
     caplog: Any, chunk_size: Sequence[int], number_of_repeated_files: int
 ) -> None:
@@ -296,6 +302,7 @@ def test_multi_source_source_variable_size_chunks(
     caplog.set_level(logging.DEBUG, logger="mammoth.framework.sources")
     # Input source
     from mammoth.framework.io import track_skim
+
     pythia_source = sources.MultiSource(
         sources=[
             track_skim.FileSource(
@@ -314,7 +321,7 @@ def test_multi_source_source_variable_size_chunks(
     # NOTE: For reference, it's 11358
     pythia_source_ref = track_skim.FileSource(
         filename=_track_skim_base_path / "reference" / "AnalysisResults__pythia__jet_R020.root",
-        collision_system="pythia"
+        collision_system="pythia",
     )
     full_file_size = len(next(pythia_source_ref.gen_data())) * number_of_repeated_files
 

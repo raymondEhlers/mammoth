@@ -9,9 +9,10 @@ import numpy.typing as npt
 
 
 def _setup_afterburner(code_dir: Path) -> None:
-    """ Setup afterburner code to be run via ROOT """
+    """Setup afterburner code to be run via ROOT"""
     # Delayed import to avoid direct dependence.
     from mammoth.framework import root_utils
+
     ROOT = root_utils.import_ROOT()
 
     # Validation
@@ -21,7 +22,7 @@ def _setup_afterburner(code_dir: Path) -> None:
     # NOTE: We do need to specify 1 to ensure that we don't use extra cores.
     ROOT.ROOT.EnableImplicitMT(1)
     # Load external libraries
-    #ROOT.gSystem.Load("libRooUnfold")
+    # ROOT.gSystem.Load("libRooUnfold")
     # Load the tree processing code utilities. This requires passing the path
     tree_processing_cxx = code_dir / "treeProcessing.C"
     # We only want to load it if it hasn't been already, so we use the `treeProcessing` function
@@ -39,12 +40,13 @@ def _array_to_ROOT(arr: list[str] | npt.NDArray[Any], type_name: str = "double")
     to be done for a function that (hopefully) isn't used so often. So we let the user decide.
 
     Args:
-        arr: Numpy array to be converted.
+        arr: numpy array to be converted.
         type_name: c++ type name to be used for the vector. Default: "double".
     Returns:
         std::vector containing the numpy array values.
     """
     from mammoth.framework import root_utils
+
     ROOT = root_utils.import_ROOT()
 
     vector = ROOT.std.vector(type_name)()
@@ -76,6 +78,7 @@ def run_afterburner(
     _setup_afterburner(code_dir=tree_processing_code_directory)
 
     from mammoth.framework import root_utils
+
     ROOT = root_utils.import_ROOT()
 
     ROOT.treeProcessing(

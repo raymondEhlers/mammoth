@@ -21,9 +21,8 @@ file_source_registry: dict[str, sources.DelayedSource] = {
     "track_skim": track_skim.FileSource,
 }
 
-def file_source(
-    file_source_config: dict[str, Any]
-) -> sources.SourceFromFilename:
+
+def file_source(file_source_config: dict[str, Any]) -> sources.SourceFromFilename:
     """Factory to create a file source from a configuration.
 
     Args:

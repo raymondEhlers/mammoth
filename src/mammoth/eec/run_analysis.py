@@ -65,10 +65,10 @@ class EECProductionSpecialization:
 
 # Define the steering apps
 
-#setup_data_skim = steer_job.setup_data_calculation(
+# setup_data_skim = steer_job.setup_data_calculation(
 #    analysis_function=analysis_alice.analysis_data,
 #    analysis_metadata=analysis_alice.customize_analysis_metadata,
-#)
+# )
 
 setup_embed_MC_into_data_skim = steer_job.setup_embed_MC_into_data_calculation(
     analysis_function=analysis_alice.analysis_embedding,
@@ -116,7 +116,8 @@ def define_productions() -> list[production.ProductionSettings]:
             # ),
             # Production
             production.ProductionSettings.read_config(
-                collision_system="embed_thermal_model", number=3,
+                collision_system="embed_thermal_model",
+                number=3,
                 specialization=EECProductionSpecialization(),
                 track_skim_config_filename=config_filename,
             ),
@@ -140,7 +141,9 @@ def setup_and_submit_tasks(
     all_results: list[Future[framework_task.Output]] = []
     for prod in productions:
         tasks_to_execute = prod.tasks_to_execute
-        logger.info(f"Tasks to execute: {tasks_to_execute} for production \"{prod.collision_system}\" #{prod.formatted_number}")
+        logger.info(
+            f'Tasks to execute: {tasks_to_execute} for production "{prod.collision_system}" #{prod.formatted_number}'
+        )
 
         # Setup tasks
         system_results = []
@@ -152,7 +155,7 @@ def setup_and_submit_tasks(
                     job_framework=job_framework,
                 )
             )
-        #if "calculate_data_skim" in tasks_to_execute:
+        # if "calculate_data_skim" in tasks_to_execute:
         #    system_results.extend(
         #        setup_calculate_data_skim(
         #            prod=prod,
@@ -188,7 +191,7 @@ def setup_and_submit_tasks(
             all_results,
             # Distributed assumes functions are pure, but usually mine are not (ie. they create files)
             pure=False,
-            resources={"n_cores": task_config.n_cores_per_task}
+            resources={"n_cores": task_config.n_cores_per_task},
         )
 
     return all_results
@@ -198,7 +201,7 @@ def process_futures(
     productions: Sequence[production.ProductionSettings],
     all_results: Sequence[Future[framework_task.Output]],
     job_framework: job_utils.JobFramework,
-    #delete_outputs_in_futures: bool = True,
+    # delete_outputs_in_futures: bool = True,
 ) -> None:
     # Process the futures, showing processing progress
     # Since it returns the results, we can actually use this to accumulate results.
@@ -274,7 +277,7 @@ def run(job_framework: job_utils.JobFramework) -> list[Future[Any]]:
         # Usually, we want to run in the short queue
         target_n_tasks_to_run_simultaneously = 2
         walltime = "1:59:00"
-    #facility: job_utils.FACILITIES = "ORNL_b587_long" if job_utils.hours_in_walltime(walltime) >= 2 else "ORNL_b587_short"
+    # facility: job_utils.FACILITIES = "ORNL_b587_long" if job_utils.hours_in_walltime(walltime) >= 2 else "ORNL_b587_short"
     facility: job_utils.FACILITIES = "rehlers_mbp_m1pro"
 
     # Keep the job executor just to keep it alive
@@ -293,7 +296,7 @@ def run(job_framework: job_utils.JobFramework) -> list[Future[Any]]:
         task_config=task_config,
         job_framework=job_framework,
         debug_mode=debug_mode,
-        job_executor=job_executor
+        job_executor=job_executor,
     )
 
     process_futures(productions=productions, all_results=all_results, job_framework=job_framework)

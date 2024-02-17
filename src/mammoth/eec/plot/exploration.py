@@ -7,4 +7,3 @@ from __future__ import annotations
 import pachyderm.plot as pb
 
 pb.configure()
-

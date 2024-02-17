@@ -91,11 +91,13 @@ def setup_jet_background_ML_embedding_analysis(
         Futures containing the status of the embedding analysis.
     """
     # NOTE: Sort by lower bin edge of the pt hat bin
-    signal_input_files = sorted(signal_input_dir.glob("*.parquet"), key=lambda p: int(str(p.name).split("_")[4].replace("PtHard", "")))
+    signal_input_files = sorted(
+        signal_input_dir.glob("*.parquet"), key=lambda p: int(str(p.name).split("_")[4].replace("PtHard", ""))
+    )
     background_input_files = sorted(background_input_dir.glob("*/*.root"))
 
     # TEMP for testing
-    #background_input_files = background_input_files[:2]
+    # background_input_files = background_input_files[:2]
     # ENDTEMP
 
     # We want to even sample all of the pt hat bins (or at least approximately)
@@ -136,11 +138,16 @@ def setup_jet_background_ML_embedding_analysis(
                 signal_input_file = secrets.choice(signal_input_files)
                 pt_hat_bin_label = extract_pt_hat_bin_label_from_JEWEL_filename(signal_input_file)
 
-            output_filename = base_output_dir / f"jetR{round(jet_R * 100):03}" / pt_hat_bin_label / f"jetR{round(jet_R * 100):03}_{signal_input_file.stem}_{background_input_file.parent.stem}_{background_input_file.stem}.root"
+            output_filename = (
+                base_output_dir
+                / f"jetR{round(jet_R * 100):03}"
+                / pt_hat_bin_label
+                / f"jetR{round(jet_R * 100):03}_{signal_input_file.stem}_{background_input_file.parent.stem}_{background_input_file.stem}.root"
+            )
             output_filename.parent.mkdir(exist_ok=True, parents=True)
 
-            #logger.info(f"Adding {signal_input_file}, {background_input_file} for analysis")
-            #logger.info(f"Output file: {output_filename}")
+            # logger.info(f"Adding {signal_input_file}, {background_input_file} for analysis")
+            # logger.info(f"Output file: {output_filename}")
             results.append(
                 run_jet_background_ML_embedding_analysis(
                     system_label=system_label,
@@ -188,15 +195,15 @@ def run() -> None:
     jet_R_values = [0.2, 0.4, 0.6]
     min_jet_pt = {"hybrid": 10}
     sample_each_pt_hat_bin_equally = True
-    #systems_to_process = _possible_systems
+    # systems_to_process = _possible_systems
     systems_to_process = _possible_systems[1:]
 
     # Job execution configuration
     task_config = job_utils.TaskConfig(name=task_name, n_cores_per_task=1)
     n_cores_to_allocate = 80
     walltime = "24:00:00"
-    #n_cores_to_allocate = 6
-    #walltime = "02:00:00"
+    # n_cores_to_allocate = 6
+    # walltime = "02:00:00"
 
     # Basic setup: logging and parsl.
     # NOTE: Parsl's logger setup is broken, so we have to set it up before starting logging. Otherwise,
@@ -247,26 +254,25 @@ def run() -> None:
 
     # In order to support writing histograms from multiple systems, we need to index the output histograms
     # by the collision system + centrality.
-    output_hists: dict[str, dict[Any, Any]] = {
-        k: {} for k in systems_to_process
-    }
+    output_hists: dict[str, dict[Any, Any]] = {k: {} for k in systems_to_process}
     with Progress(console=helpers.rich_console, refresh_per_second=1) as progress:
         track_results = progress.add_task(total=len(all_results), description="Processing results...")
-        #for a in all_results:
+        # for a in all_results:
         for result in gen_results:
-            #r = a.result()
-            #logger.info(f"result: {result[:2]}")
+            # r = a.result()
+            # logger.info(f"result: {result[:2]}")
             if result[0] and len(result) == 4 and isinstance(result[3], dict):
                 k = result[2]
                 logger.info(f"Found result for key {k}. Merging...")
                 output_hists[k] = output_utils.merge_results(output_hists[k], result[3])
-            #logger.info(f"output_hists: {output_hists}")
+            # logger.info(f"output_hists: {output_hists}")
             progress.update(track_results, advance=1)
 
     # Save hists to uproot
     for system, hists in output_hists.items():
         if hists:
             import uproot
+
             split_system_name = system.split("_")
             # Either "pp" or "PbPb"
             collision_system = split_system_name[0]

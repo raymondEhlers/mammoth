@@ -37,7 +37,9 @@ def _git_hash_from_module(module: Any) -> str:
         The git hash associated with the module.
     """
     return (
-        subprocess.run(["git", "rev-parse", "HEAD"], cwd=Path(module.__file__).parent.parent, capture_output=True, check=True)
+        subprocess.run(
+            ["git", "rev-parse", "HEAD"], cwd=Path(module.__file__).parent.parent, capture_output=True, check=True
+        )
         .stdout.decode("ascii")
         .strip()
     )
@@ -69,7 +71,8 @@ def _installed_python_software() -> list[str]:
 
 
 def _describe_production_software(
-    production_config: Mapping[str, Any], modules_to_record: Sequence[str] | None = None  # noqa: ARG001
+    production_config: Mapping[str, Any],  # noqa: ARG001
+    modules_to_record: Sequence[str] | None = None,
 ) -> dict[str, Any]:
     # Validation
     if modules_to_record is None:
@@ -153,11 +156,20 @@ _possible_collision_systems = [
     "embed_pythia",
     "embed_thermal_model",
 ]
-_collision_systems_with_scale_factors = ["pp_MC", "pythia", "PbPb_MC", "embedPythia", "embed_pythia", "embed_thermal_model"]
+_collision_systems_with_scale_factors = [
+    "pp_MC",
+    "pythia",
+    "PbPb_MC",
+    "embedPythia",
+    "embed_pythia",
+    "embed_thermal_model",
+]
 
 
 def _validate_collision_system(
-    instance: ProductionSettings, attribute: attrs.Attribute[str], value: str  # noqa: ARG001
+    instance: ProductionSettings,  # noqa: ARG001
+    attribute: attrs.Attribute[str],  # noqa: ARG001
+    value: str,
 ) -> None:
     if value not in _possible_collision_systems:
         _msg = f"Invalid collisions system. Provided: {value}"

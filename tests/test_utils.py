@@ -14,7 +14,9 @@ from mammoth.framework import utils
     "columns",
     [
         [0, 1],
-    ], ids = ["first and second"])
+    ],
+    ids=["first and second"],
+)
 def test_group_by(columns: list[int]) -> None:
     # fmt: off
     array = ak.Array([
@@ -106,7 +108,4 @@ def test_group_by(columns: list[int]) -> None:
     if len(columns) == 2:
         comparison = desired_result_group_by_first_and_second
 
-    assert ak.all(
-        ak.flatten(group_by == comparison, axis=None)
-    )
-
+    assert ak.all(ak.flatten(group_by == comparison, axis=None))

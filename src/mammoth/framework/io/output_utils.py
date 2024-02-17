@@ -247,9 +247,8 @@ _shadd_supported_types = (
 )
 
 # Apparently adding profile hists is not supported by hist, so we need to exclude them.
-_shadd_unsupported_types = (
-    uproot.behaviors.TProfile.Profile,
-)
+_shadd_unsupported_types = (uproot.behaviors.TProfile.Profile,)
+
 
 def _format_indent(level: int) -> str:
     """Helper to figure out nice indentation for logging."""
@@ -291,7 +290,10 @@ def _filter_for_supported_merging_types(contents: dict[str, Any], level: int = 0
                 #       great since it will be seen as a regular hist and give wrong answers...
                 and not isinstance(v, _shadd_unsupported_types)
             ):
-                msg = _format_indent(level) + f"Narrowing type of {k} from {v!r} to {v.bases[0]!r} since we don't have the relevant streamers available."
+                msg = (
+                    _format_indent(level)
+                    + f"Narrowing type of {k} from {v!r} to {v.bases[0]!r} since we don't have the relevant streamers available."
+                )
                 logger.warning(msg)
                 v = v.bases[0]  # noqa: PLW2901
             else:
@@ -304,7 +306,9 @@ def _filter_for_supported_merging_types(contents: dict[str, Any], level: int = 0
         if isinstance(v, uproot.models.TList.Model_TList):
             msg = _format_indent(level) + f"Recursing for {k}"
             logger.info(msg)
-            output[k] = _filter_for_supported_merging_types(contents={entry.name: entry for entry in v}, level = level + 2)
+            output[k] = _filter_for_supported_merging_types(
+                contents={entry.name: entry for entry in v}, level=level + 2
+            )
         else:
             try:
                 # We're ready to proceed, so we convert to a hist object which supports __add__
@@ -336,7 +340,9 @@ def shit_hadd() -> None:
 
     # Setup
     mammoth.helpers.setup_logging(level=logging.INFO)
-    parser = argparse.ArgumentParser(description="shadd: Shi^H^H^HSimple hadd replacement", formatter_class=RichHelpFormatter)
+    parser = argparse.ArgumentParser(
+        description="shadd: Shi^H^H^HSimple hadd replacement", formatter_class=RichHelpFormatter
+    )
 
     parser.add_argument("-i", "--input", required=True, nargs="+", type=Path, help="Input filename(s)")
     parser.add_argument("-o", "--output", required=True, type=Path, help="Output filename")
@@ -354,7 +360,7 @@ def shit_hadd() -> None:
             track_results = progress.add_task(total=len(args.input), description="Processing inputs...")
             for input_filename in args.input:
                 logger.info(f"Processing {input_filename}")
-                #with uproot.open(input_filename, custom_classes={"AliEmcalList": uproot.models.TList.Model_TList}) as f_in:
+                # with uproot.open(input_filename, custom_classes={"AliEmcalList": uproot.models.TList.Model_TList}) as f_in:
                 with uproot.open(input_filename) as f_in:
                     hists = merge_results(
                         hists,
@@ -362,7 +368,7 @@ def shit_hadd() -> None:
                             # NOTE: We do these minor gymnastics so we can avoid having to remove the cycle (eg. ";1") by hand.
                             #       It's not that hard, but no point in reinventing the wheel.
                             contents={k: f_in[k] for k in f_in.keys(cycle=False)}
-                        )
+                        ),
                     )
                 progress.update(track_results, advance=1)
 

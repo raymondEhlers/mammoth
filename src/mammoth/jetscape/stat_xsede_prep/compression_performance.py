@@ -1,4 +1,3 @@
-
 """ Compression tests.
 
 """
@@ -24,10 +23,12 @@ def setup(filename: str, events_per_chunk: int, base_output_dir: Path) -> None:
 
     directory_name = "5020_PbPb_0-10_0R25_1R0_1"
     full_filename = f"../phys_paper/AAPaperData/{directory_name}/{filename}.out"
-    #max_chunks = 1
+    # max_chunks = 1
 
     print("First iteration - saving with awkward")  # noqa: T201
-    for _i, chunk_generator in enumerate(parse_ascii.read_events_in_chunks(filename=Path(full_filename), events_per_chunk=events_per_chunk)):
+    for _i, chunk_generator in enumerate(
+        parse_ascii.read_events_in_chunks(filename=Path(full_filename), events_per_chunk=events_per_chunk)
+    ):
         print("Loading chunk")  # noqa: T201
         event_split_index = chunk_generator.event_split_index()
         start_time = timeit.default_timer()
@@ -49,7 +50,9 @@ def setup(filename: str, events_per_chunk: int, base_output_dir: Path) -> None:
     #       Plus, I'd like to get a reasonable estimate for the np.loadtxt performance alone.
     print("Second iteration - saving text file")  # noqa: T201
     lines = []
-    for _i, chunk_generator in enumerate(parse_ascii.read_events_in_chunks(filename=Path(full_filename), events_per_chunk=events_per_chunk)):
+    for _i, chunk_generator in enumerate(
+        parse_ascii.read_events_in_chunks(filename=Path(full_filename), events_per_chunk=events_per_chunk)
+    ):
         print("Loading chunk")  # noqa: T201
         start_time = timeit.default_timer()
         lines.extend(list(chunk_generator))
@@ -101,19 +104,32 @@ def write_trees_with_root(arrays: ak.Array, base_output_dir: Path, tag: str = ""
     #
     # If you're interested in LZ4, try kLZ4 as the algorithm and 4 as the level.
 
-    #for level in [2, 3, 4, 5, 7]:
+    # for level in [2, 3, 4, 5, 7]:
     #    for name, compression in [(f"zlib_{level}", ROOT.ROOT.RCompressionSetting.EAlgorithm.kZLIB),
     #                              (f"lzma_{level}", ROOT.ROOT.RCompressionSetting.EAlgorithm.kLZMA),
     #                              (f"lz4_{level}", ROOT.ROOT.RCompressionSetting.EAlgorithm.kLZ4),
     #                              (f"zstd_{level}", ROOT.ROOT.RCompressionSetting.EAlgorithm.kZSTD)]:
     # Better, use the ROOT default levels...
     # If the case of uncompressed, the algorithm shouldn't matter.
-    for _name, compression, level in [("zlib_{level}", ROOT.ROOT.RCompressionSetting.EAlgorithm.kZLIB, ROOT.ROOT.RCompressionSetting.ELevel.kDefaultZLIB),
-                                      ("lzma_{level}", ROOT.ROOT.RCompressionSetting.EAlgorithm.kLZMA, ROOT.ROOT.RCompressionSetting.ELevel.kDefaultLZMA),
-                                      ("lz4_{level}", ROOT.ROOT.RCompressionSetting.EAlgorithm.kLZ4, ROOT.ROOT.RCompressionSetting.ELevel.kDefaultLZ4),
-                                      #("none_{level}", ROOT.ROOT.RCompressionSetting.EAlgorithm.kZLIB, ROOT.ROOT.RCompressionSetting.ELevel.kUncompressed),
-                                      #("zstd_{level}", ROOT.ROOT.RCompressionSetting.EAlgorithm.kZSTD, ROOT.ROOT.RCompressionSetting.ELevel.kDefaultZSTD),
-                                      ]:
+    for _name, compression, level in [
+        (
+            "zlib_{level}",
+            ROOT.ROOT.RCompressionSetting.EAlgorithm.kZLIB,
+            ROOT.ROOT.RCompressionSetting.ELevel.kDefaultZLIB,
+        ),
+        (
+            "lzma_{level}",
+            ROOT.ROOT.RCompressionSetting.EAlgorithm.kLZMA,
+            ROOT.ROOT.RCompressionSetting.ELevel.kDefaultLZMA,
+        ),
+        (
+            "lz4_{level}",
+            ROOT.ROOT.RCompressionSetting.EAlgorithm.kLZ4,
+            ROOT.ROOT.RCompressionSetting.ELevel.kDefaultLZ4,
+        ),
+        # ("none_{level}", ROOT.ROOT.RCompressionSetting.EAlgorithm.kZLIB, ROOT.ROOT.RCompressionSetting.ELevel.kUncompressed),
+        # ("zstd_{level}", ROOT.ROOT.RCompressionSetting.EAlgorithm.kZSTD, ROOT.ROOT.RCompressionSetting.ELevel.kDefaultZSTD),
+    ]:
         # Setup
         name = _name.format(level=level)
         compress = ROOT.ROOT.CompressionSettings(compression, level)
@@ -162,14 +178,18 @@ def write_trees_with_parquet(arrays: ak.Array, base_output_dir: Path, tag: str =
     output_dir = base_output_dir / "parquet"
     output_dir.mkdir(parents=True, exist_ok=True)
     # Valid values: {'NONE', 'SNAPPY', 'GZIP', 'LZO', 'BROTLI', 'LZ4', 'ZSTD'}.
-    for compression in ["snappy",
-                        "gzip",
-                        # Skip lz4 due to some bug, apparently. The package reports the issue.
-                        #"lz4",
-                        "zstd"]:
+    for compression in [
+        "snappy",
+        "gzip",
+        # Skip lz4 due to some bug, apparently. The package reports the issue.
+        # "lz4",
+        "zstd",
+    ]:
         start_time = timeit.default_timer()
         ak.to_parquet(
-            arrays, output_dir / f"{compression}{tag}.parquet", compression=compression,
+            arrays,
+            output_dir / f"{compression}{tag}.parquet",
+            compression=compression,
             # In principle, we could select a particular level. But for now, we leave it to arrow to decide.
             compression_level=None,
             # We run into a recursion limit or crash if there's a cut and we don't explode records. Probably a bug...
@@ -177,13 +197,13 @@ def write_trees_with_parquet(arrays: ak.Array, base_output_dir: Path, tag: str =
             explode_records=True,
         )
         elapsed = timeit.default_timer() - start_time
-        print(f"Parquet: {compression}, tag: \"{tag[1:]}\": {elapsed}")  # noqa: T201
+        print(f'Parquet: {compression}, tag: "{tag[1:]}": {elapsed}')  # noqa: T201
 
 
-def data_distribution(arrays: ak.Array, events_per_chunk: int, pt_hat_range: str, base_output_dir: Path, tag: str = "") -> None:
-    """ Look at the storage taken by data in pt ranges.
-
-    """
+def data_distribution(
+    arrays: ak.Array, events_per_chunk: int, pt_hat_range: str, base_output_dir: Path, tag: str = ""
+) -> None:
+    """Look at the storage taken by data in pt ranges."""
     intervals = [0, 0.05, 0.1, 0.2, 0.3, 0.5, 1.0, 1.5, 2.0, 4000]
 
     if tag:
@@ -193,11 +213,13 @@ def data_distribution(arrays: ak.Array, events_per_chunk: int, pt_hat_range: str
     output_dir.mkdir(parents=True, exist_ok=True)
     # Valid values: {'NONE', 'SNAPPY', 'GZIP', 'LZO', 'BROTLI', 'LZ4', 'ZSTD'}.
     fig, ax = plt.subplots(figsize=(8, 6))
-    for compression in ["snappy",
-                        "gzip",
-                        # Skip lz4 due to some bug, apparently. The package reports the issue.
-                        #"lz4",
-                        "zstd"]:
+    for compression in [
+        "snappy",
+        "gzip",
+        # Skip lz4 due to some bug, apparently. The package reports the issue.
+        # "lz4",
+        "zstd",
+    ]:
         x = []
         x_err = []
         y = []
@@ -206,7 +228,9 @@ def data_distribution(arrays: ak.Array, events_per_chunk: int, pt_hat_range: str
             selection = (arrays["pt"] >= low) & (arrays["pt"] < high)
             filename = output_dir / f"{compression}{tag}_{int(low * 100)}_{int(high * 100)}.parquet"
             ak.to_parquet(
-                arrays[selection], filename, compression=compression,
+                arrays[selection],
+                filename,
+                compression=compression,
                 # In principle, we could select a particular level. But for now, we leave it to arrow to decide.
                 compression_level=None,
                 # We run into a recursion limit or crash if there's a cut and we don't explode records. Probably a bug...
@@ -214,7 +238,7 @@ def data_distribution(arrays: ak.Array, events_per_chunk: int, pt_hat_range: str
                 explode_records=True,
             )
             elapsed = timeit.default_timer() - start_time
-            print(f"Parquet data distribution: {compression}, tag: \"{tag[1:]}\": {elapsed}")  # noqa: T201
+            print(f'Parquet data distribution: {compression}, tag: "{tag[1:]}": {elapsed}')  # noqa: T201
 
             x.append(high - (high - low) / 2)
             x_err.append((high - low) / 2)
@@ -222,7 +246,7 @@ def data_distribution(arrays: ak.Array, events_per_chunk: int, pt_hat_range: str
             y.append(filename.stat().st_size / 1000 / events_per_chunk)
 
         # Just use plot. It's lazy, but it works
-        #ax.plot(x, y, label=compression)
+        # ax.plot(x, y, label=compression)
         ax.errorbar(x, y, xerr=x_err, marker="o", linestyle="", label=compression)
 
     # Label
@@ -232,11 +256,13 @@ def data_distribution(arrays: ak.Array, events_per_chunk: int, pt_hat_range: str
         0.97,
         r"$\hat{p_{\text{T}}} =$ " + f"{pt_hat_bin[0]}-{pt_hat_bin[1]}",
         transform=ax.transAxes,
-        horizontalalignment="left", verticalalignment="top", multialignment="left",
+        horizontalalignment="left",
+        verticalalignment="top",
+        multialignment="left",
     )
     ax.set_ylim([0, None])
     ax.set_xlim([0, 6])
-    #ax.set_xscale("log")
+    # ax.set_xscale("log")
     ax.set_ylabel("kb / event")
     ax.set_xlabel(r"$p_{\text{T}}$ (GeV/c)")
     ax.legend(loc="upper right", frameon=False)
@@ -246,7 +272,7 @@ def data_distribution(arrays: ak.Array, events_per_chunk: int, pt_hat_range: str
 
 
 def formatted(f: float) -> str:
-    return format(f, '.6f').rstrip('0').rstrip('.')
+    return format(f, ".6f").rstrip("0").rstrip(".")
 
 
 def write_ascii_ish(arrays: ak.Array, base_output_dir: Path, tag: str = "") -> None:
@@ -257,15 +283,17 @@ def write_ascii_ish(arrays: ak.Array, base_output_dir: Path, tag: str = "") -> N
     output_dir.mkdir(parents=True, exist_ok=True)
     filename = output_dir / f"ascii{tag}.out"
 
-    print(f"Writing to ascii (six digit truncation) for \"{tag[1:]}\"")  # noqa: T201
+    print(f'Writing to ascii (six digit truncation) for "{tag[1:]}"')  # noqa: T201
     start_time = timeit.default_timer()
     with filename.open("w") as f:
         for event in arrays:
             f.write("# Some random header...\n")
-            #np.savetxt(ak.to_numpy(event[["particle_ID", "status", "pt", "eta", "phi"]]), fmt=)
+            # np.savetxt(ak.to_numpy(event[["particle_ID", "status", "pt", "eta", "phi"]]), fmt=)
             for particle in event:
-                #print(f"{int(particle['particle_ID']):d} {int(particle['status']):d} {formatted(particle['pt'])} {formatted(particle['eta'])} {formatted(particle['phi'])}")
-                f.write(f"{int(particle['particle_ID']):d} {int(particle['status']):d} {formatted(particle['pt'])} {formatted(particle['eta'])} {formatted(particle['phi'])}\n")
+                # print(f"{int(particle['particle_ID']):d} {int(particle['status']):d} {formatted(particle['pt'])} {formatted(particle['eta'])} {formatted(particle['phi'])}")
+                f.write(
+                    f"{int(particle['particle_ID']):d} {int(particle['status']):d} {formatted(particle['pt'])} {formatted(particle['eta'])} {formatted(particle['phi'])}\n"
+                )
     elapsed = timeit.default_timer() - start_time
     print(f"Finished writing in {elapsed}")  # noqa: T201
 
@@ -303,23 +331,27 @@ if __name__ == "__main__":
                 "eta": input_arrays[:, :, 7],
                 "phi": input_arrays[:, :, 8],
             },
-            depth_limit = None,
+            depth_limit=None,
         )
-        arrays = ak.zip({
-            "pt": np.sqrt(full_arrays["px"] ** 2 + full_arrays["py"] ** 2),
-            "eta": full_arrays["eta"],
-            "phi": full_arrays["phi"],
-            "particle_ID": full_arrays["particle_ID"],
-            "status": full_arrays["status"],
-        })
+        arrays = ak.zip(
+            {
+                "pt": np.sqrt(full_arrays["px"] ** 2 + full_arrays["py"] ** 2),
+                "eta": full_arrays["eta"],
+                "phi": full_arrays["phi"],
+                "particle_ID": full_arrays["particle_ID"],
+                "status": full_arrays["status"],
+            }
+        )
         # Convert to small types.
-        arrays_type_conversion = ak.zip({
-            "pt": ak.values_astype(np.sqrt(full_arrays["px"] ** 2 + full_arrays["py"] ** 2), np.float32),
-            "eta": ak.values_astype(full_arrays["eta"], np.float32),
-            "phi": ak.values_astype(full_arrays["phi"], np.float32),
-            "particle_ID": ak.values_astype(full_arrays["particle_ID"], np.int32),
-            "status": ak.values_astype(full_arrays["status"], np.int8),
-        })
+        arrays_type_conversion = ak.zip(
+            {
+                "pt": ak.values_astype(np.sqrt(full_arrays["px"] ** 2 + full_arrays["py"] ** 2), np.float32),
+                "eta": ak.values_astype(full_arrays["eta"], np.float32),
+                "phi": ak.values_astype(full_arrays["phi"], np.float32),
+                "particle_ID": ak.values_astype(full_arrays["particle_ID"], np.int32),
+                "status": ak.values_astype(full_arrays["status"], np.int8),
+            }
+        )
 
         # Parquet data distributions test.
         data_distribution(arrays, events_per_chunk, pt_hat_range, base_output_dir)
@@ -327,11 +359,15 @@ if __name__ == "__main__":
         # Parquet compression tests.
         write_trees_with_parquet(arrays, base_output_dir)
         write_trees_with_parquet(arrays_type_conversion, base_output_dir, "optimized_types")
-        write_trees_with_parquet(arrays_type_conversion[arrays_type_conversion["pt"] > 0.15], base_output_dir, "optimized_types_pt_cut")
+        write_trees_with_parquet(
+            arrays_type_conversion[arrays_type_conversion["pt"] > 0.15], base_output_dir, "optimized_types_pt_cut"
+        )
         # Ascii
         write_ascii_ish(arrays, base_output_dir)
         write_ascii_ish(arrays_type_conversion, base_output_dir, "optimized_types")
-        write_ascii_ish(arrays_type_conversion[arrays_type_conversion["pt"] > 0.15], base_output_dir, "optimized_types_pt_cut")
+        write_ascii_ish(
+            arrays_type_conversion[arrays_type_conversion["pt"] > 0.15], base_output_dir, "optimized_types_pt_cut"
+        )
         # ROOT
         write_trees_with_root(arrays, base_output_dir)
         # Intentionally let root do the type conversion...

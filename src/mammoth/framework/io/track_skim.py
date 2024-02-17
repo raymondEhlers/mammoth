@@ -24,6 +24,7 @@ class Columns:
     NOTE:
         dict maps from name in the root file to the desired field name.
     """
+
     event_level: dict[str, str]
     particle_level: dict[str, str]
 
@@ -35,12 +36,14 @@ class Columns:
             "trigger_bit_INT7": "trigger_bit_INT7",
         }
         if collision_system == "PbPb":
-            event_level_columns.update({
-                "centrality": "centrality",
-                "event_plane_V0M": "event_plane_V0M",
-                "trigger_bit_central": "trigger_bit_central",
-                "trigger_bit_semi_central": "trigger_bit_semi_central",
-            })
+            event_level_columns.update(
+                {
+                    "centrality": "centrality",
+                    "event_plane_V0M": "event_plane_V0M",
+                    "trigger_bit_central": "trigger_bit_central",
+                    "trigger_bit_semi_central": "trigger_bit_semi_central",
+                }
+            )
         # Next, particle level columns
         _base_particle_columns = {
             "{prefix}_pt": "pt",
@@ -56,18 +59,21 @@ class Columns:
         }
         # Pick up the extra columns in the case of pythia
         if collision_system in ["pythia", "pp_MC"]:
-            particle_columns.update({
-                column.format(prefix="particle_data"): field_name for column, field_name in _MC_particle_columns.items()
-            })
+            particle_columns.update(
+                {
+                    column.format(prefix="particle_data"): field_name
+                    for column, field_name in _MC_particle_columns.items()
+                }
+            )
             # NOTE: We skip particle_ID for the detector level, since it's not likely to be available
             del particle_columns["particle_data_particle_ID"]
             # And then do the same for particle_gen
-            particle_columns.update({
-                column.format(prefix="particle_gen"): field_name for column, field_name in {
-                    **_base_particle_columns,
-                    **_MC_particle_columns
-                }.items()
-            })
+            particle_columns.update(
+                {
+                    column.format(prefix="particle_gen"): field_name
+                    for column, field_name in {**_base_particle_columns, **_MC_particle_columns}.items()
+                }
+            )
 
         return cls(
             event_level=event_level_columns,

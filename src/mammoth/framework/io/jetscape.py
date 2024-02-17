@@ -22,12 +22,14 @@ from mammoth.framework.io._jetscape_parser import parse_to_parquet as parse_to_p
 
 logger = logging.getLogger(__name__)
 
+
 @attrs.frozen
 class Columns:
     """
     NOTE:
         dict maps from name in the root file to the desired field name.
     """
+
     event_level: dict[str, str]
     event_level_optional: dict[str, str]
     particle_level: dict[str, str]
@@ -76,17 +78,16 @@ class FileSource:
             Iterable containing chunk size data in an awkward array.
         """
         if "parquet" not in self._filename.suffix:
-            chunk_size = sources.validate_chunk_size(chunk_size=chunk_size, source_default_chunk_size=self._default_chunk_size)
+            chunk_size = sources.validate_chunk_size(
+                chunk_size=chunk_size, source_default_chunk_size=self._default_chunk_size
+            )
             assert isinstance(chunk_size, int)
             parser_source = _jetscape_parser.read(
                 filename=self._filename,
                 events_per_chunk=chunk_size,
                 parser=self.metadata.get("parser", "pandas"),
             )
-            return _transform_output(
-                gen_data=parser_source,
-                source_default_chunk_size=self._default_chunk_size
-            )
+            return _transform_output(gen_data=parser_source, source_default_chunk_size=self._default_chunk_size)
         else:  # noqa: RET505
             source = sources.ParquetSource(
                 filename=self._filename,
@@ -97,8 +98,7 @@ class FileSource:
                 #       via the `rename_prefix` argument in load_data, but it's easier to do it here since
                 #       we may also need to rename particle level fields.
                 return _transform_output(
-                    gen_data=source.gen_data(chunk_size=chunk_size),
-                    source_default_chunk_size=self._default_chunk_size
+                    gen_data=source.gen_data(chunk_size=chunk_size), source_default_chunk_size=self._default_chunk_size
                 )
             return source.gen_data(chunk_size=chunk_size)
 
@@ -112,36 +112,37 @@ def _transform_output(
 
     try:
         data = next(gen_data)
-        event_columns.update({
-            k: v for k, v in _columns.event_level_optional.items() if k in ak.fields(data)
-        })
+        event_columns.update({k: v for k, v in _columns.event_level_optional.items() if k in ak.fields(data)})
         while True:
             # Reduce to the minimum required data.
             data = _jetscape_parser.full_events_to_only_necessary_columns_E_px_py_pz(arrays=data)
-            _result = yield ak.Array({
-                "part_level": ak.zip(
-                    dict(
+            _result = yield ak.Array(
+                {
+                    "part_level": ak.zip(
+                        dict(
+                            zip(
+                                list(_columns.particle_level.values()),
+                                ak.unzip(data["particles"][list(_columns.particle_level)]),
+                                strict=True,
+                            )
+                        )
+                    ),
+                    **dict(
                         zip(
-                            list(_columns.particle_level.values()),
-                            ak.unzip(data["particles"][list(_columns.particle_level)]),
+                            list(event_columns.values()),
+                            ak.unzip(data[list(event_columns)]),
                             strict=True,
                         )
-                    )
-                ),
-                **dict(
-                    zip(
-                        list(event_columns.values()),
-                        ak.unzip(data[list(event_columns)]),
-                        strict=True,
-                    )
-                ),
-            })
+                    ),
+                }
+            )
 
             # Update for next step
             # Update the chunk size as needed.
             if _result is not None:
                 _result = sources.validate_chunk_size(
-                    chunk_size=_result, source_default_chunk_size=source_default_chunk_size,
+                    chunk_size=_result,
+                    source_default_chunk_size=source_default_chunk_size,
                 )
             # And then grab the next set of data
             data = gen_data.send(_result)

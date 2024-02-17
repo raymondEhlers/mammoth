@@ -43,6 +43,7 @@ def scale_factor_ROOT(filenames: Sequence[Path], list_name: str = "") -> tuple[i
         list_name = "*DynamicalGrooming*"
     # Delay import to avoid direct dependence
     from mammoth.framework import root_utils
+
     ROOT = root_utils.import_ROOT()
 
     cross_section_hists = []
@@ -61,16 +62,16 @@ def scale_factor_ROOT(filenames: Sequence[Path], list_name: str = "") -> tuple[i
             # We will search through the keys using a glob.
             task_hists_name = fnmatch.filter([k.GetName() for k in f.GetListOfKeys()], list_name)
             # And then require that "Tree" is not in the name (otherwise we're likely to put up the TTree)
-            task_hists_name = [
-                name for name in task_hists_name if "Tree" not in name and "tree" not in name
-            ]
+            task_hists_name = [name for name in task_hists_name if "Tree" not in name and "tree" not in name]
             if len(task_hists_name) != 1:
                 _msg = f"Cannot find unique task name. Names: {task_hists_name}. Skipping!"
                 raise RuntimeError(_msg)
             else:  # noqa: RET506
                 hists = f.Get(task_hists_name[0])
                 if not hists:
-                    _msg = f"Cannot find a task output list. Tried: {task_hists_name[0]}. Keys: {list(f.GetListOfKeys())}"
+                    _msg = (
+                        f"Cannot find a task output list. Tried: {task_hists_name[0]}. Keys: {list(f.GetListOfKeys())}"
+                    )
                     raise RuntimeError(_msg)
 
         # This list is usually an AliEmcalList. Although we don't care about any of the AliEmcalList functionality
@@ -103,9 +104,7 @@ def scale_factor_ROOT(filenames: Sequence[Path], list_name: str = "") -> tuple[i
     return n_accepted_events, n_entries, cross_section, n_trials
 
 
-def scale_factor_uproot_wrapper(
-    base_path: Path, train_number: int
-) -> tuple[int, int, Any, Any]:
+def scale_factor_uproot_wrapper(base_path: Path, train_number: int) -> tuple[int, int, Any, Any]:
     # Setup
     filenames = utils.ensure_and_expand_paths([Path(str(base_path).format(train_number=train_number))])
 
@@ -125,7 +124,9 @@ def _find_list_with_hists_via_uproot(f: Any, list_name: str) -> list[Any]:
             cycle=False, filter_name=list_name, filter_classname=["AliEmcalList", "TList"]
         )
         if len(_possible_task_hists_names) != 1:
-            _msg = f"Ambiguous list name '{list_name}'. Please revise it as needed. Options: {_possible_task_hists_names}"
+            _msg = (
+                f"Ambiguous list name '{list_name}'. Please revise it as needed. Options: {_possible_task_hists_names}"
+            )
             raise ValueError(_msg)
         # We're good - let's keep going
         hists = f.get(_possible_task_hists_names[0], None)
@@ -232,7 +233,9 @@ def create_scale_factor_tree_for_cross_check_task_output(
 
 
 def pt_hat_spectra_from_hists(
-    filenames: Mapping[int, Sequence[Path]], scale_factors: Mapping[int, float], output_filename: Path,
+    filenames: Mapping[int, Sequence[Path]],
+    scale_factors: Mapping[int, float],
+    output_filename: Path,
     list_name: str = "",
 ) -> bool:
     """Extract and save pt hard spectra from embedding or pythia.
@@ -297,7 +300,10 @@ def scale_factor_from_hists(
     return scale_factor  # noqa: RET504
 
 
-def are_scale_factors_close(scale_factors_one: Mapping[int, analysis_objects.ScaleFactor], scale_factors_two: Mapping[int, analysis_objects.ScaleFactor]) -> bool:
+def are_scale_factors_close(
+    scale_factors_one: Mapping[int, analysis_objects.ScaleFactor],
+    scale_factors_two: Mapping[int, analysis_objects.ScaleFactor],
+) -> bool:
     """Convenience function for comparing scale factors.
 
     Useful for comparing eg. values calculated separately with ROOT and uproot. There's almost certainly
@@ -344,26 +350,26 @@ def test() -> None:
 
     base_path = Path("trains/pythia/2619")
 
-    #for pt_hat_bin in [12, 13]:
+    # for pt_hat_bin in [12, 13]:
     # NOTE: Going past bin 15 or so for ROOT will cause it to be force closed for using too much memory on macOS
     #       as of Feb 2023. It's unclear why this is possibility happening, but seems to be a ROOT bug with 6.24.06 .
     for pt_hat_bin in range(10, 21):
         logger.info(f"Processing {pt_hat_bin=}")
         input_files = list(base_path.glob(f"run_by_run/LHC18b8_*/*/{pt_hat_bin}/AnalysisResults.*.root"))
         # To save time and memory
-        #input_files = input_files[:20]
-        #print(f"{input_files=}")
+        # input_files = input_files[:20]
+        # print(f"{input_files=}")
         scale_factors_ROOT[pt_hat_bin] = scale_factor_from_hists(
             *scale_factor_ROOT(filenames=input_files, list_name="*TrackSkim*")
         )
         scale_factors_uproot[pt_hat_bin] = scale_factor_from_hists(
-           *scale_factor_uproot(filenames=input_files, list_name="*TrackSkim*")
+            *scale_factor_uproot(filenames=input_files, list_name="*TrackSkim*")
         )
         # res_ROOT = scale_factor_ROOT(base_path=base_path, train_number=train_number)
         # res_uproot = scale_factor_uproot(base_path=base_path, train_number=train_number)
 
-    #y = yaml.yaml(classes_to_register=[analysis_objects.ScaleFactor])
-    #with open("test.yaml", "w") as f:
+    # y = yaml.yaml(classes_to_register=[analysis_objects.ScaleFactor])
+    # with open("test.yaml", "w") as f:
     #    y.dump(scale_factors_ROOT, f)
 
     logger.info(f"scale_factors_ROOT: {scale_factors_ROOT}")
@@ -383,7 +389,7 @@ def run() -> None:
     for pt_hat_bin in range(1, 21):
         input_files = list(base_path.glob(f"run_by_run/LHC18b8_*/*/{pt_hat_bin}/AnalysisResults.*.root"))
         # To save time and memory
-        #input_files = input_files[:20]
+        # input_files = input_files[:20]
         logger.info(f"{input_files=}")
         scale_factors_ROOT[pt_hat_bin] = scale_factor_from_hists(
             *scale_factor_ROOT(filenames=input_files, list_name="*TrackSkim*")
@@ -403,4 +409,4 @@ def run() -> None:
 if __name__ == "__main__":
     helpers.setup_logging()
     test()
-    #run()
+    # run()

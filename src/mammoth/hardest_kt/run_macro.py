@@ -167,6 +167,7 @@ def _run_add_task_macro(task_path: str | Path, task_class_name: str, *args: Any)
     """
     # Delay import to avoid explicit dependence
     from mammoth.framework import root_utils
+
     ROOT = root_utils.import_ROOT()
 
     # Validation
@@ -198,6 +199,7 @@ def _run_add_task_macro(task_path: str | Path, task_class_name: str, *args: Any)
 def _add_physics_selection(is_MC: bool, beam_type: BeamType) -> AnalysisTask:
     # Delay import to avoid explicit dependence
     from mammoth.framework import root_utils
+
     ROOT = root_utils.import_ROOT()
 
     # Enable pileup rejection (second argument) for pp
@@ -212,6 +214,7 @@ def _add_physics_selection(is_MC: bool, beam_type: BeamType) -> AnalysisTask:
 def _add_mult_selection(is_run2_data: bool, physics_selection: int) -> AnalysisTask | None:
     # Delay import to avoid explicit dependence
     from mammoth.framework import root_utils
+
     ROOT = root_utils.import_ROOT()
 
     # Works for both pp and PbPb for the periods that it is calibrated
@@ -271,6 +274,7 @@ def run_dynamical_grooming(  # noqa: C901
     """
     # Delay import to avoid explicit dependence
     from mammoth.framework import root_utils
+
     ROOT = root_utils.import_ROOT()
 
     # Validation
@@ -1006,6 +1010,7 @@ def run_dynamical_grooming_embedding(  # noqa: C901
     """
     # Delay import to avoid explicit dependence
     from mammoth.framework import root_utils
+
     ROOT = root_utils.import_ROOT()
 
     # Validation
@@ -1577,6 +1582,7 @@ def start_analysis_manager(
     """
     # Delay import to avoid explicit dependence
     from mammoth.framework import root_utils
+
     ROOT = root_utils.import_ROOT()
 
     if mode == "local":
@@ -1622,6 +1628,7 @@ class AnalysisModeParameters:
     @property
     def physics_selection(self) -> Any:
         from mammoth.framework import root_utils
+
         ROOT = root_utils.import_ROOT()
 
         return getattr(ROOT.AliVEvent, self._physics_selection)
@@ -1752,6 +1759,7 @@ def run(
     # Let the user know that ROOT is required if it's not available
     try:
         from mammoth.framework import root_utils
+
         ROOT = root_utils.import_ROOT()
     except ImportError as e:
         _msg = "AliPhysics + ROOT is required to use the run macro. Please check that ROOT is available!"

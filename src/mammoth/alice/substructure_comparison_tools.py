@@ -37,9 +37,7 @@ class Input:
     attribute: str = attrs.field()
 
 
-def arrays_to_hist(
-    arrays: ak.Array, attribute: str, axis: hist.axis.Regular | None = None
-) -> binned_data.BinnedData:
+def arrays_to_hist(arrays: ak.Array, attribute: str, axis: hist.axis.Regular | None = None) -> binned_data.BinnedData:
     # Validation
     if axis is None:
         axis = hist.axis.Regular(30, 0, 150)
@@ -169,9 +167,7 @@ def _find_possible_grooming_methods(arrays: ak.Array, prefixes: Sequence[str]) -
     #       are additional fields which end in `_prefix_kt`.
     # NOTE: We can't compile at the module level because the prefix may vary
     match = re.compile(f"([a-zA-Z0-9_]+)_{prefixes[0]}_kt$")
-    possible_keys = [
-        match.findall(k) for k in ak.fields(arrays)
-    ]
+    possible_keys = [match.findall(k) for k in ak.fields(arrays)]
     logger.info(f"{possible_keys=}")
     grooming_methods = []
     for k in possible_keys:
@@ -233,7 +229,9 @@ def compare_flat_substructure(  # noqa: C901
         non_overlapping_grooming_methods = set(track_skim_grooming_methods) - overlapping_grooming_methods
         # Just give the user a heads up
         if non_overlapping_grooming_methods:
-            logger.info(f"Note: These grooming methods are only present in the track skim and can't be compared: {non_overlapping_grooming_methods}")
+            logger.info(
+                f"Note: These grooming methods are only present in the track skim and can't be compared: {non_overlapping_grooming_methods}"
+            )
         # And then use the determined methods
         grooming_methods = list(overlapping_grooming_methods)
         # Validation
@@ -496,7 +494,9 @@ def compare_flat_substructure(  # noqa: C901
                 try:
                     plot_attribute_compare(
                         other=Input(arrays=standard, attribute=f"{grooming_method}_{prefix}_delta_R", name="Standard"),
-                        mine=Input(arrays=track_skim, attribute=f"{grooming_method}_{prefix}_delta_R", name="Track skim"),
+                        mine=Input(
+                            arrays=track_skim, attribute=f"{grooming_method}_{prefix}_delta_R", name="Track skim"
+                        ),
                         plot_config=pb.PlotConfig(
                             name=f"{grooming_method}_{prefix}_delta_R",
                             panels=[

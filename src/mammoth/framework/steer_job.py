@@ -31,7 +31,8 @@ logger = logging.getLogger(__name__)
 
 
 class SetupTasks(Protocol):
-    """Interface for setting up tasks. """
+    """Interface for setting up tasks."""
+
     def __call__(
         self,
         *,
@@ -41,12 +42,14 @@ class SetupTasks(Protocol):
     ) -> list[Future[framework_task.Output]]:
         ...
 
+
 class PreprocessArguments(Protocol):
-    """"Interface for preprocessing arguments for a given task."""
+    """Interface for preprocessing arguments for a given task."""
+
     def __call__(
-            self,
-            **analysis_arguments: Any,
-        ) -> dict[str, Any]:
+        self,
+        **analysis_arguments: Any,
+    ) -> dict[str, Any]:
         ...
 
 
@@ -59,10 +62,11 @@ def no_op_preprocess_arguments(
 
 class OutputIdentifier(Protocol):
     """Interface for determining the output identifier for a given task."""
+
     def __call__(
-            self,
-            **analysis_arguments: Any,
-        ) -> str:
+        self,
+        **analysis_arguments: Any,
+    ) -> str:
         ...
 
 
@@ -109,6 +113,7 @@ class SetupSteeringTask(Protocol):
     Returns:
         Function that will setup the embedding of MC into data with the specified analysis function.
     """
+
     def __call__(
         self,
         analysis_function: framework_task.Analysis,
@@ -161,7 +166,7 @@ def safe_output_filename_from_relative_path(
 
 
 def _extract_info_from_signal_file_list(
-    signal_input_files_per_pt_hat: dict[int, list[Path]]
+    signal_input_files_per_pt_hat: dict[int, list[Path]],
 ) -> tuple[list[int], list[tuple[int, Path]]]:
     """Helper to extract the pt hat bins and flatten the input list."""
 
@@ -236,11 +241,11 @@ def _select_files_for_source(
 
     _possible_additional_files = {
         secrets.choice(input_files)
-            # -1 since we already have a filename
-            # +5 since we'll remove any filenames if they're repeated
-            # NOTE: +5 is arbitrary, but should be sufficient. We could do more, but it would be a waste of cycles.
-            #       In any case, We'll double check below.
-            for _ in range(n_files_to_use - 1 + 5)
+        # -1 since we already have a filename
+        # +5 since we'll remove any filenames if they're repeated
+        # NOTE: +5 is arbitrary, but should be sufficient. We could do more, but it would be a waste of cycles.
+        #       In any case, We'll double check below.
+        for _ in range(n_files_to_use - 1 + 5)
     }
     # Remove the existing file, and then add to the list
     _possible_additional_files.discard(selected_input_file)
@@ -362,9 +367,9 @@ def setup_data_calculation(  # noqa: C901
 
         # If we want to debug some particular files, we can directly set them here
         if debug_mode:
-            #input_files = {10: [Path("trains/pythia/2619/run_by_run/LHC18b8_cent_woSDD/282008/10/AnalysisResults.18b8_cent_woSDD.003.root")]}
-            #input_files = {-1: [Path("trains/pp/2111/run_by_run/LHC17p_CENT_woSDD/282341/AnalysisResults.17p.586.root")]}
-            #input_files = {-1: [Path("trains/PbPb/645/run_by_run/LHC18r/297595/AnalysisResults.18r.551.root")]}
+            # input_files = {10: [Path("trains/pythia/2619/run_by_run/LHC18b8_cent_woSDD/282008/10/AnalysisResults.18b8_cent_woSDD.003.root")]}
+            # input_files = {-1: [Path("trains/pp/2111/run_by_run/LHC17p_CENT_woSDD/282341/AnalysisResults.17p.586.root")]}
+            # input_files = {-1: [Path("trains/PbPb/645/run_by_run/LHC18r/297595/AnalysisResults.18r.551.root")]}
             ...
 
         # Setup for analysis and dataset settings
@@ -374,21 +379,20 @@ def setup_data_calculation(  # noqa: C901
         # NOTE: These are arguments which will be passed onto `load_data.setup_source_for_data_or_MC_task`.
         #       If you want to pass all of the metadata, we will need to add a kwargs, since this can vary from dataset to dataset.
         #       As of July 2023, explicitly specifying th arguments seems good enough.
-        _input_options = {
-            "loading_data_rename_prefix": _metadata_config.get("loading_data_rename_prefix", {})
-        }
+        _input_options = {"loading_data_rename_prefix": _metadata_config.get("loading_data_rename_prefix", {})}
         # Chunk size
         chunk_size = _analysis_config.pop("chunk_size", sources.ChunkSizeSentinel.FULL_SOURCE)
         logger.info(f"Processing chunk size for {chunk_size}")
         # Sample fraction of input events (for quick analysis)
-        sample_dataset_fraction =_metadata_config.get("sample_dataset_fraction", 1.0)
+        sample_dataset_fraction = _metadata_config.get("sample_dataset_fraction", 1.0)
         if sample_dataset_fraction < 1.0:
             logger.warning(f"Sampling only a fraction of the statistics! Using {sample_dataset_fraction}")
             # Sample the input files, but require at least one entry so we have something
             # in each pt hat bin
             input_files = {
                 _pt_hat_bin: [
-                    secrets.choice(_input_files) for _ in range(int(np.ceil(sample_dataset_fraction * len(_input_files))))
+                    secrets.choice(_input_files)
+                    for _ in range(int(np.ceil(sample_dataset_fraction * len(_input_files))))
                 ]
                 for _pt_hat_bin, _input_files in input_files.items()
             }
@@ -403,16 +407,20 @@ def setup_data_calculation(  # noqa: C901
 
             # Artificial tracking efficiency (including the option for pt dependent tracking eff)
             # NOTE: This depends on period, so it's better to do it here!
-            det_level_artificial_tracking_efficiency = _analysis_config.get("det_level_artificial_tracking_efficiency", None)  # noqa: SIM910
+            det_level_artificial_tracking_efficiency = _analysis_config.get(  # noqa: SIM910
+                "det_level_artificial_tracking_efficiency", None
+            )
             # Pt dependent for tracking efficiency uncertainty
             if _analysis_config.get("apply_pt_dependent_tracking_efficiency_uncertainty", False):
                 # NOTE: Careful - this needs to be added as 1-value. (ie. 1-.97=0.03 -> for .98 flat, we get .95)
-                det_level_artificial_tracking_efficiency = analysis_tracking.PtDependentTrackingEfficiencyParameters.from_file(
-                    # NOTE: We select "anchor_period" and "0_100" here because we know we're analyzing pythia
-                    period=_metadata_config["dataset"]["anchor_period"],
-                    event_activity="0_100",
-                    # NOTE: There should be the possibility to apply this on top of the .98, for example.
-                    baseline_tracking_efficiency_shift=det_level_artificial_tracking_efficiency,
+                det_level_artificial_tracking_efficiency = (
+                    analysis_tracking.PtDependentTrackingEfficiencyParameters.from_file(
+                        # NOTE: We select "anchor_period" and "0_100" here because we know we're analyzing pythia
+                        period=_metadata_config["dataset"]["anchor_period"],
+                        event_activity="0_100",
+                        # NOTE: There should be the possibility to apply this on top of the .98, for example.
+                        baseline_tracking_efficiency_shift=det_level_artificial_tracking_efficiency,
+                    )
                 )
         analysis_arguments["det_level_artificial_tracking_efficiency"] = det_level_artificial_tracking_efficiency
         # Preprocess the arguments
@@ -452,7 +460,8 @@ def setup_data_calculation(  # noqa: C901
                 # Converts: "2111/run_by_run/LHC17p_CENT_woSDD/282341/AnalysisResults.17p.001.root"
                 #        -> "2111__run_by_run__LHC17p_CENT_woSDD__282341__AnalysisResults_17p_001"
                 output_identifier = safe_output_filename_from_relative_path(
-                    filename=input_filename, output_dir=prod.output_dir,
+                    filename=input_filename,
+                    output_dir=prod.output_dir,
                     number_of_parent_directories_for_relative_output_filename=_metadata_config["dataset"].get(
                         "number_of_parent_directories_for_relative_output_filename", None
                     ),
@@ -462,7 +471,7 @@ def setup_data_calculation(  # noqa: C901
 
                 # NOTE: The extension will be customized in the app....
                 output_filename = output_dir / f"{output_identifier}.dummy_ext"
-                #if _file_counter % 100 == 0:
+                # if _file_counter % 100 == 0:
                 #    import IPython; IPython.embed()
                 # And create the tasks
                 results.append(
@@ -485,7 +494,7 @@ def setup_data_calculation(  # noqa: C901
                         outputs=[File(output_filename)],
                     )
                 )
-                #results.append(
+                # results.append(
                 #    _run_data_skim(
                 #        collision_system=prod.collision_system,
                 #        jet_R=_analysis_config["jet_R"],
@@ -502,7 +511,7 @@ def setup_data_calculation(  # noqa: C901
                 #        inputs=[File(str(input_filename))],
                 #        outputs=[File(str(output_filename))],
                 #    )
-                #)
+                # )
 
                 _file_counter += 1
 
@@ -563,7 +572,7 @@ def setup_embed_MC_into_data_calculation(  # noqa: C901
 
         # If we want to debug some particular files, we can directly set them here
         if debug_mode:
-            #background_input_files = [Path("trains/PbPb/645/run_by_run/LHC18q/296270/AnalysisResults.18q.179.root")]
+            # background_input_files = [Path("trains/PbPb/645/run_by_run/LHC18q/296270/AnalysisResults.18q.179.root")]
             # signal_input_files_per_pt_hat = {1: [Path("trains/pythia/2640/run_by_run/LHC20g4/297132/1/AnalysisResults.20g4.013.root")]}
             # signal_input_files_per_pt_hat = {12: [Path("trains/pythia/2640/run_by_run/LHC20g4/297132/12/AnalysisResults.20g4.013.root")]}
             # signal_input_files_per_pt_hat = {3: [
@@ -571,11 +580,11 @@ def setup_embed_MC_into_data_calculation(  # noqa: C901
             #    Path("trains/pythia/2640/run_by_run/LHC20g4/297317/3/AnalysisResults.20g4.013.root"),
             #    #Path("trains/pythia/2640/run_by_run/LHC20g4/296935/3/AnalysisResults.20g4.009.root"),
             # ]}
-            #signal_input_files_per_pt_hat = {7: [
+            # signal_input_files_per_pt_hat = {7: [
             #    Path('trains/pythia/2640/run_by_run/LHC20g4/296550/7/AnalysisResults.20g4.014.root'),
             #    Path('trains/pythia/2640/run_by_run/LHC20g4/296244/7/AnalysisResults.20g4.001.root'),
             #    Path('trains/pythia/2640/run_by_run/LHC20g4/297379/7/AnalysisResults.20g4.002.root'),
-            #]}
+            # ]}
             # signal_input_files_per_pt_hat = {11: [
             #     Path('trains/pythia/2640/run_by_run/LHC20g4/296191/11/AnalysisResults.20g4.007.root'),
             #     Path('trains/pythia/2640/run_by_run/LHC20g4/297132/11/AnalysisResults.20g4.008.root'),
@@ -595,12 +604,12 @@ def setup_embed_MC_into_data_calculation(  # noqa: C901
             #         Path("trains/pythia/2640/run_by_run/LHC20g4/297479/12/AnalysisResults.20g4.009.root"),
             #     ]
             # }
-            #background_input_files = [Path("trains/PbPb/645/run_by_run/LHC18q/296304/AnalysisResults.18q.333.root")]
-            #signal_input_files_per_pt_hat = {
+            # background_input_files = [Path("trains/PbPb/645/run_by_run/LHC18q/296304/AnalysisResults.18q.333.root")]
+            # signal_input_files_per_pt_hat = {
             #    1: [
             #        Path("trains/pythia/2640/run_by_run/LHC20g4/295612/1/AnalysisResults.20g4.006.root"),
             #    ]
-            #}
+            # }
             ...
 
         # Setup for dataset and input
@@ -643,11 +652,13 @@ def setup_embed_MC_into_data_calculation(  # noqa: C901
                 "semi_central": "30_50",
             }
             # NOTE: Careful - this needs to be added as 1-value. (ie. 1-.97=0.03 -> for .98 flat, we get .95)
-            det_level_artificial_tracking_efficiency = analysis_tracking.PtDependentTrackingEfficiencyParameters.from_file(
-                period=_metadata_config["dataset"]["period"],
-                event_activity=_event_activity_name_to_centrality_values[_analysis_config["event_activity"]],
-                # NOTE: There should be the possibility to apply this on top of the .98, for example.
-                baseline_tracking_efficiency_shift=det_level_artificial_tracking_efficiency,
+            det_level_artificial_tracking_efficiency = (
+                analysis_tracking.PtDependentTrackingEfficiencyParameters.from_file(
+                    period=_metadata_config["dataset"]["period"],
+                    event_activity=_event_activity_name_to_centrality_values[_analysis_config["event_activity"]],
+                    # NOTE: There should be the possibility to apply this on top of the .98, for example.
+                    baseline_tracking_efficiency_shift=det_level_artificial_tracking_efficiency,
+                )
             )
         analysis_arguments["det_level_artificial_tracking_efficiency"] = det_level_artificial_tracking_efficiency
         # Preprocess the arguments
@@ -720,14 +731,16 @@ def setup_embed_MC_into_data_calculation(  # noqa: C901
             # Take the first signal and first background filenames as the main identifier to the path.
             # Otherwise, the filename could become indefinitely long... (apparently there are file length limits in unix...)
             output_identifier = safe_output_filename_from_relative_path(
-                filename=signal_input[0], output_dir=prod.output_dir,
+                filename=signal_input[0],
+                output_dir=prod.output_dir,
                 number_of_parent_directories_for_relative_output_filename=_metadata_config["signal_dataset"].get(
                     "number_of_parent_directories_for_relative_output_filename", None
                 ),
             )
             output_identifier += "__embedded_into__"
             output_identifier += safe_output_filename_from_relative_path(
-                filename=background_input[0], output_dir=prod.output_dir,
+                filename=background_input[0],
+                output_dir=prod.output_dir,
                 number_of_parent_directories_for_relative_output_filename=_metadata_config["dataset"].get(
                     "number_of_parent_directories_for_relative_output_filename", None
                 ),
@@ -856,11 +869,11 @@ def setup_embed_MC_into_thermal_model_calculation(
         output_dir.mkdir(parents=True, exist_ok=True)
 
         if debug_mode:
-            #input_files = {10: [Path("trains/pythia/2619/run_by_run/LHC18b8_cent_woSDD/282008/10/AnalysisResults.18b8_cent_woSDD.003.root")]}
-            #input_files = {10: [
+            # input_files = {10: [Path("trains/pythia/2619/run_by_run/LHC18b8_cent_woSDD/282008/10/AnalysisResults.18b8_cent_woSDD.003.root")]}
+            # input_files = {10: [
             #    Path("trains/pythia/2640/run_by_run/LHC20g4/296415/4/AnalysisResults.20g4.007.root"),
             #    Path("trains/pythia/2640/run_by_run/LHC20g4/296415/4/AnalysisResults.20g4.010.root"),
-            #]}
+            # ]}
             ...
 
         # Setup for dataset settings (and grab analysis config for Output settings)
@@ -875,14 +888,15 @@ def setup_embed_MC_into_thermal_model_calculation(
         chunk_size = _analysis_config.pop("chunk_size")
         logger.info(f"Processing chunk size for {chunk_size}")
         # Sample fraction of input events (for quick analysis)
-        sample_dataset_fraction =_metadata_config.get("sample_dataset_fraction", 1.0)
+        sample_dataset_fraction = _metadata_config.get("sample_dataset_fraction", 1.0)
         if sample_dataset_fraction < 1.0:
             logger.warning(f"Sampling only a fraction of the statistics! Using {sample_dataset_fraction}")
             # Sample the input files, but require at least one entry so we have something
             # in each pt hat bin
             input_files = {
                 _pt_hat_bin: [
-                    secrets.choice(_input_files) for _ in range(int(np.ceil(sample_dataset_fraction * len(_input_files))))
+                    secrets.choice(_input_files)
+                    for _ in range(int(np.ceil(sample_dataset_fraction * len(_input_files))))
                 ]
                 for _pt_hat_bin, _input_files in input_files.items()
             }
@@ -935,7 +949,8 @@ def setup_embed_MC_into_thermal_model_calculation(
                 # Converts: "2111/run_by_run/LHC17p_CENT_woSDD/282341/AnalysisResults.17p.001.root"
                 #        -> "2111__run_by_run__LHC17p_CENT_woSDD__282341__AnalysisResults_17p_001"
                 output_identifier = safe_output_filename_from_relative_path(
-                    filename=input_filename, output_dir=prod.output_dir,
+                    filename=input_filename,
+                    output_dir=prod.output_dir,
                     number_of_parent_directories_for_relative_output_filename=_metadata_config["dataset"].get(
                         "number_of_parent_directories_for_relative_output_filename", None
                     ),
@@ -985,7 +1000,10 @@ def setup_job_framework(
     conda_environment_name: str | None = None,
     tasks_requiring_root: list[str] | None = None,
     tasks_requiring_aliphysics: list[str] | None = None,
-) -> tuple[job_utils.parsl.DataFlowKernel, job_utils.parsl.Config] | tuple[job_utils.dask.distributed.Client, job_utils.dask.distributed.SpecCluster]:
+) -> (
+    tuple[job_utils.parsl.DataFlowKernel, job_utils.parsl.Config]
+    | tuple[job_utils.dask.distributed.Client, job_utils.dask.distributed.SpecCluster]
+):
     # Validation
     if tasks_requiring_root is None:
         tasks_requiring_root = []
@@ -1017,7 +1035,7 @@ def process_futures(
     productions: Sequence[production.ProductionSettings],
     all_results: Sequence[Future[framework_task.Output]],
     job_framework: job_utils.JobFramework,
-    #delete_outputs_in_futures: bool = True,
+    # delete_outputs_in_futures: bool = True,
 ) -> None:
     # Setup
     # Delayed import to reduce dependence
@@ -1034,7 +1052,9 @@ def process_futures(
 
     # In order to support writing histograms from multiple systems, we need to index the output histograms
     # by the collision system + centrality.
-    output_hists: dict[tuple[str, str], dict[Any, Any]] = {(_p.identifier, _p.collision_system): {} for _p in productions}
+    output_hists: dict[tuple[str, str], dict[Any, Any]] = {
+        (_p.identifier, _p.collision_system): {} for _p in productions
+    }
     with helpers.progress_bar() as progress:
         track_results = progress.add_task(total=len(all_results), description="Processing results...")
         for result in gen_results:
@@ -1057,7 +1077,9 @@ def process_futures(
 
             output_hist_filename = Path("output") / collision_system / f"task_output_{file_label}.root"
             output_hist_filename.parent.mkdir(parents=True, exist_ok=True)
-            logger.info(f"Writing output_hists to {output_hist_filename} for system {production_identifier=}, {collision_system=}")
+            logger.info(
+                f"Writing output_hists to {output_hist_filename} for system {production_identifier=}, {collision_system=}"
+            )
             with uproot.recreate(output_hist_filename) as f:
                 output_utils.write_hists_to_file(hists=hists, f=f)
 
@@ -1072,4 +1094,3 @@ def process_futures(
     # Otherwise, we can overwhelm with trying to print large objects
     res = [r.result().success for r in all_results]
     logger.info(res)
-

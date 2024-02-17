@@ -26,10 +26,11 @@ def _delta_phi(phi_a: float, phi_b: float, output_range: tuple[float, float] = (
     phi_b = phi_b % (2 * np.pi)
     delta_phi = phi_a - phi_b
     if delta_phi < output_range[0]:
-        delta_phi += (2 * np.pi)
+        delta_phi += 2 * np.pi
     elif delta_phi > output_range[1]:
-        delta_phi -= (2 * np.pi)
+        delta_phi -= 2 * np.pi
     return delta_phi
+
 
 @nb.njit  # type: ignore[misc]
 def _delta_R(eta_one: float, phi_one: float, eta_two: float, phi_two: float) -> float:
@@ -37,11 +38,24 @@ def _delta_R(eta_one: float, phi_one: float, eta_two: float, phi_two: float) -> 
 
 
 @nb.njit  # type: ignore[misc]
-def _subtract_holes_from_jets_pt(jets_pt: ak.Array, jets_eta: ak.Array, jets_phi: ak.Array,
-                                 particles_holes_pt: ak.Array, particles_holes_eta: ak.Array, particles_holes_phi: ak.Array,
-                                 jet_R: float, builder: ak.ArrayBuilder) -> ak.Array:
-    for jets_pt_in_event, jets_eta_in_event, jets_phi_in_event, holes_pt_in_event, holes_eta_in_event, holes_phi_in_event in \
-            zip(jets_pt, jets_eta, jets_phi, particles_holes_pt, particles_holes_eta, particles_holes_phi):  # noqa: B905
+def _subtract_holes_from_jets_pt(
+    jets_pt: ak.Array,
+    jets_eta: ak.Array,
+    jets_phi: ak.Array,
+    particles_holes_pt: ak.Array,
+    particles_holes_eta: ak.Array,
+    particles_holes_phi: ak.Array,
+    jet_R: float,
+    builder: ak.ArrayBuilder,
+) -> ak.Array:
+    for (
+        jets_pt_in_event,
+        jets_eta_in_event,
+        jets_phi_in_event,
+        holes_pt_in_event,
+        holes_eta_in_event,
+        holes_phi_in_event,
+    ) in zip(jets_pt, jets_eta, jets_phi, particles_holes_pt, particles_holes_eta, particles_holes_phi):  # noqa: B905
         builder.begin_list()
         for jet_pt, jet_eta, jet_phi in zip(jets_pt_in_event, jets_eta_in_event, jets_phi_in_event):  # noqa: B905
             for p_pt, p_eta, p_phi in zip(holes_pt_in_event, holes_eta_in_event, holes_phi_in_event):  # noqa: B905
@@ -52,9 +66,12 @@ def _subtract_holes_from_jets_pt(jets_pt: ak.Array, jets_eta: ak.Array, jets_phi
 
     return builder
 
+
 @nb.njit  # type: ignore[misc]
-def _calculate_leading_track_cut_mask(constituents: ak.Array, leading_track_cut: float, charged_particle_PIDs: Sequence[int], builder: ak.ArrayBuilder) -> ak.Array:
-    """ Calculate the leading track cut mask
+def _calculate_leading_track_cut_mask(
+    constituents: ak.Array, leading_track_cut: float, charged_particle_PIDs: Sequence[int], builder: ak.ArrayBuilder
+) -> ak.Array:
+    """Calculate the leading track cut mask
 
     NOTE:
         I think I can do this just with awkward now, but it wasn't possible in the past, and as of March 2022, I'm just
@@ -83,10 +100,13 @@ def _calculate_leading_track_cut_mask(constituents: ak.Array, leading_track_cut:
 
 
 def run(particles: ak.Array) -> None:
-
     # Particle setup and selection
     # Remove neutrinos.
-    particles = particles[(np.abs(particles["particle_ID"]) != 12) & (np.abs(particles["particle_ID"]) != 14) & (np.abs(particles["particle_ID"]) != 16)]
+    particles = particles[
+        (np.abs(particles["particle_ID"]) != 12)
+        & (np.abs(particles["particle_ID"]) != 14)
+        & (np.abs(particles["particle_ID"]) != 16)
+    ]
     # Add the masses based on the PDG code.
     particles["m"] = particle_ID.particle_masses_from_particle_ID(arrays=particles)
     # Add in four vector functionality
@@ -107,18 +127,24 @@ def run(particles: ak.Array) -> None:
     #       Since the main observables in this analysis are the charged hadron spectra, leptons arising from the decays of heavy vector bosons
     #       are excluded from the measured spectra.  Tracks forming part of reconstructed muons  are identified  and the contribution  from
     #       stable  leptons  is  subtracted  twice  from  the  measured spectra, assuming that electrons contribute the same as muons.
-    atlas_charged_hadrons = particles_signal[particle_ID.build_PID_selection_mask(particles_signal, absolute_pids=_default_charged_hadron_PID[2:])]
+    atlas_charged_hadrons = particles_signal[
+        particle_ID.build_PID_selection_mask(particles_signal, absolute_pids=_default_charged_hadron_PID[2:])
+    ]
     # Eta selection
     atlas_charged_hadrons = atlas_charged_hadrons[np.abs(atlas_charged_hadrons.eta) < 2.5]
     # ALICE:
     # Charged hadrons: Primary charged particles (w/ mean proper lifetime τ larger than 1 cm/c )
     # Practically, that means: (e-, mu-, pi+, K+, p+, Sigma+, Sigma-, Xi-, Omega-)
-    alice_charged_hadrons = particles_signal[particle_ID.build_PID_selection_mask(particles_signal, absolute_pids=_default_charged_hadron_PID)]
+    alice_charged_hadrons = particles_signal[
+        particle_ID.build_PID_selection_mask(particles_signal, absolute_pids=_default_charged_hadron_PID)
+    ]
     # Eta selection
     alice_charged_hadrons = alice_charged_hadrons[np.abs(alice_charged_hadrons.eta) < 0.8]
     # CMS:
     # Charged hadrons: (e-, mu-, pi+, K+, p+, Sigma+, Sigma-, Xi-, Omega-)
-    cms_charged_hadrons = particles_signal[particle_ID.build_PID_selection_mask(particles_signal, absolute_pids=_default_charged_hadron_PID)]
+    cms_charged_hadrons = particles_signal[
+        particle_ID.build_PID_selection_mask(particles_signal, absolute_pids=_default_charged_hadron_PID)
+    ]
     # Eta selection
     cms_charged_hadrons = cms_charged_hadrons[np.abs(cms_charged_hadrons.eta) < 1.0]
 
@@ -126,7 +152,7 @@ def run(particles: ak.Array) -> None:
     # Setup
     jet_R = 0.4
     # Jet finding is only performed on signal particles.
-    #import IPython; IPython.embed()
+    # import IPython; IPython.embed()
     jets = jet_finding.find_jets(
         particles=particles_signal,
         jet_finding_settings=jet_finding.JetFindingSettings(
@@ -140,21 +166,26 @@ def run(particles: ak.Array) -> None:
 
     # Subtract holes from jet pt.
     jets["pt_subtracted"] = _subtract_holes_from_jets_pt(
-        jets_pt=jets.pt, jets_eta=jets.eta, jets_phi=jets.phi,
-        particles_holes_pt=particles_holes.pt, particles_holes_eta=particles_holes.eta, particles_holes_phi=particles_holes.phi,
-        jet_R=jet_R, builder=ak.ArrayBuilder()
+        jets_pt=jets.pt,
+        jets_eta=jets.eta,
+        jets_phi=jets.phi,
+        particles_holes_pt=particles_holes.pt,
+        particles_holes_eta=particles_holes.eta,
+        particles_holes_phi=particles_holes.phi,
+        jet_R=jet_R,
+        builder=ak.ArrayBuilder(),
     ).snapshot()
 
     # Select jets
     # ATLAS
-    #atlas_jets = jets[np.abs(jets.rapidity) < 2.8]
+    # atlas_jets = jets[np.abs(jets.rapidity) < 2.8]
     # ALICE
     # Full jets, so max eta is 0.7
     alice_jets_eta_mask = np.abs(jets.eta) < 0.7 - jet_R
     alice_jets = jets[alice_jets_eta_mask]
     # Apply leading track cut (ie. charged hadron).
     # Assuming R = 0.4
-    #jets.constituents.pt
+    # jets.constituents.pt
     leading_track_cut_mask = _calculate_leading_track_cut_mask(
         constituents=jets.constituents,
         leading_track_cut=7,
@@ -163,9 +194,10 @@ def run(particles: ak.Array) -> None:
     ).snapshot()
     alice_jets = alice_jets[leading_track_cut_mask]
     # CMS
-    #cms_jets = jets[np.abs(jets.eta) < 2.0]
+    # cms_jets = jets[np.abs(jets.eta) < 2.0]
 
     import IPython
+
     IPython.embed()  # type: ignore[no-untyped-call]
 
 
@@ -188,5 +220,4 @@ if __name__ == "__main__":
         # Fully zip the arrays together.
         arrays = ak.zip(dict(zip(ak.fields(input_arrays), ak.unzip(input_arrays), strict=True)), depth_limit=None)
 
-        run(particles = arrays)
-
+        run(particles=arrays)

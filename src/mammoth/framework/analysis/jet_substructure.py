@@ -880,7 +880,6 @@ double_counting_cuts = {
 
 
 if __name__ == "__main__":
-
     # import time
 
     # start = time.perf_counter()

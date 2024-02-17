@@ -103,7 +103,6 @@ def add_files_from_xml_file(
 
 
 def create_train_download_list(trains: Sequence[int]) -> None:  # noqa: C901
-
     y = yaml.yaml()
 
     output = {}
@@ -247,7 +246,9 @@ def create_train_download_list(trains: Sequence[int]) -> None:  # noqa: C901
                             logger.debug(f"Adding alien://{alien_file} : {local_file}")
                             output[str(alien_file)] = str(local_file)
                     else:
-                        _msg = f"Invalid manual stage to download {manual_stage_to_download} for run number {run_number}"
+                        _msg = (
+                            f"Invalid manual stage to download {manual_stage_to_download} for run number {run_number}"
+                        )
                         raise ValueError(_msg)
 
             elif stage_to_download == "run_by_run":
@@ -285,7 +286,9 @@ def create_train_download_list(trains: Sequence[int]) -> None:  # noqa: C901
                 #       into 23a3a, 23a3b, 23a3c, ... In that case, we specify a particular specific
                 #       dataset for each child
                 specific_dataset_name = child_info.get("specific_dataset_name", dataset_name)
-                base_dataset_path = Path(f"/alice/{data_or_sim_str}/{year_from_dataset(dataset_name)}/") / specific_dataset_name
+                base_dataset_path = (
+                    Path(f"/alice/{data_or_sim_str}/{year_from_dataset(dataset_name)}/") / specific_dataset_name
+                )
                 # Add pt hard bins if requested
                 n_pt_hard_bins = config.get("n_pt_hard_bins", None)
                 pt_hard_bin_generator = range(1, n_pt_hard_bins + 1) if n_pt_hard_bins else range(0, 1)  # noqa: PIE808

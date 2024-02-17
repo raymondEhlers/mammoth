@@ -1,4 +1,3 @@
-
 """Base functionality for ECCE analyses
 
 .. codeauthor:: Raymond Ehlers <raymond.ehlers@cern.ch>, ORNL
@@ -16,7 +15,12 @@ import uproot
 logger = logging.getLogger(__name__)
 
 
-def load_hists(filename: Path, filter: str | None = "", filters: Sequence[str] | None = None, require_ends_with_in_filter: bool = False) -> dict[str, hist.Hist]:
+def load_hists(
+    filename: Path,
+    filter: str | None = "",
+    filters: Sequence[str] | None = None,
+    require_ends_with_in_filter: bool = False,
+) -> dict[str, hist.Hist]:
     """Load histograms from a flat root file
 
     Note:
@@ -40,7 +44,9 @@ def load_hists(filename: Path, filter: str | None = "", filters: Sequence[str] |
     """
     # Raise error if both are passed
     if filter and filters:
-        _msg = f"Please provide only a single filter, or a list of filters. Not both. filter: {filter}, filters: {filters}"
+        _msg = (
+            f"Please provide only a single filter, or a list of filters. Not both. filter: {filter}, filters: {filters}"
+        )
         raise ValueError(_msg)
     # Ensure the filters list is always iterable
     if filters is None:
@@ -110,12 +116,11 @@ class DatasetSpecPythia(DatasetSpec):
     @property
     def q2_display(self) -> str:
         if len(self._q2_selection) == 2:
-            return fr"{self._q2_selection[0]} < Q^{{2}} < {self._q2_selection[1]}"
+            return rf"{self._q2_selection[0]} < Q^{{2}} < {self._q2_selection[1]}"
         elif len(self._q2_selection) == 1:  # noqa: RET505
-            return fr"Q^{{2}} > {self._q2_selection[0]}"
+            return rf"Q^{{2}} > {self._q2_selection[0]}"
         return ""
 
     @property
     def identifier(self) -> str:
         return f"{self.generator}-{self.electron_beam_energy}x{self.proton_beam_energy}-{self.q2}"
-

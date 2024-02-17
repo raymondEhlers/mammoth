@@ -28,6 +28,7 @@ logger = logging.getLogger(__name__)
 
 T_GroomingResults = dict[str, Union[npt.NDArray[np.float32], npt.NDArray[np.int16]]]  # noqa: UP007
 
+
 @attrs.define
 class Calculation:
     """Similar to `FillHistogramInput`, but adds the splittings indices.
@@ -144,19 +145,27 @@ def _define_calculation_functions(
     if not selected_grooming_methods:
         selected_grooming_methods = None
 
-    functions: dict[str, functools.partial[tuple[npt.NDArray[Scalar], AwkwardArray[int], AwkwardArray[AwkwardArray[int]]]]] = {
+    functions: dict[
+        str, functools.partial[tuple[npt.NDArray[Scalar], AwkwardArray[int], AwkwardArray[AwkwardArray[int]]]]
+    ] = {
         "dynamical_core": functools.partial(analysis_jet_substructure.JetSplittingArray.dynamical_core, R=jet_R),
         "dynamical_z": functools.partial(analysis_jet_substructure.JetSplittingArray.dynamical_z, R=jet_R),
         "dynamical_kt": functools.partial(analysis_jet_substructure.JetSplittingArray.dynamical_kt, R=jet_R),
         "dynamical_time": functools.partial(analysis_jet_substructure.JetSplittingArray.dynamical_time, R=jet_R),
         "dynamical_core_z_cut_02": functools.partial(
-            analysis_jet_substructure.JetSplittingArray.dynamical_core, z_cutoff=0.2, R=jet_R,
+            analysis_jet_substructure.JetSplittingArray.dynamical_core,
+            z_cutoff=0.2,
+            R=jet_R,
         ),
         "dynamical_kt_z_cut_02": functools.partial(
-            analysis_jet_substructure.JetSplittingArray.dynamical_kt, z_cutoff=0.2, R=jet_R,
+            analysis_jet_substructure.JetSplittingArray.dynamical_kt,
+            z_cutoff=0.2,
+            R=jet_R,
         ),
         "dynamical_time_z_cut_02": functools.partial(
-            analysis_jet_substructure.JetSplittingArray.dynamical_time, z_cutoff=0.2, R=jet_R,
+            analysis_jet_substructure.JetSplittingArray.dynamical_time,
+            z_cutoff=0.2,
+            R=jet_R,
         ),
         "leading_kt": functools.partial(
             analysis_jet_substructure.JetSplittingArray.leading_kt,
@@ -175,9 +184,7 @@ def _define_calculation_functions(
         )
     # Only apply the selected grooming methods if meaningful
     if selected_grooming_methods is not None:
-        functions = {
-            k: v for k, v in functions.items() if k in selected_grooming_methods
-        }
+        functions = {k: v for k, v in functions.items() if k in selected_grooming_methods}
 
     if not functions:
         msg = f"Provided selection of grooming methods ({selected_grooming_methods}), but none were selected! Check your input"
@@ -841,7 +848,9 @@ def calculate_embedding_skim_impl(
                     grooming_results[leading_track_name] = to_float(input_jets.jets["leading_track_pt"])
                 # Then update the name for the subtracted constituents in data.
                 leading_track_name = f"{prefix}_leading_track_pt_sub"
-            grooming_results[leading_track_name] = to_float(ak.max(input_jets.jets.jet_constituents.pt, axis=1, mask_identity=False))
+            grooming_results[leading_track_name] = to_float(
+                ak.max(input_jets.jets.jet_constituents.pt, axis=1, mask_identity=False)
+            )
             # Cross check that we haven't somehow found a case where we have jets, but no leading track.
             # Obviously this shouldn't be possible, but ak.max forces us to lose this safety (otherwise,
             # it returns an option type which is a pain).
@@ -851,9 +860,7 @@ def calculate_embedding_skim_impl(
         functions: dict[
             str, functools.partial[tuple[npt.NDArray[np.float32], AwkwardArray[int], AwkwardArray[AwkwardArray[int]]]]
         ] = _define_calculation_functions(
-            jet_R=jet_R,
-            iterative_splittings=iterative_splittings,
-            selected_grooming_methods=selected_grooming_methods
+            jet_R=jet_R, iterative_splittings=iterative_splittings, selected_grooming_methods=selected_grooming_methods
         )
         for func_name, func in functions.items():
             logger.debug(f"func_name: {func_name}")
@@ -918,7 +925,9 @@ def calculate_embedding_skim_impl(
                                 ak.pad_none(groomed_splittings.tau, 1), analysis_jet_substructure.UNFILLED_VALUE
                             )
                         )
-                    ) if "tau" in ak.fields(groomed_splittings) and groomed_splittings.tau is not None else None,
+                    )
+                    if "tau" in ak.fields(groomed_splittings) and groomed_splittings.tau is not None
+                    else None,
                     # All of the numbers are already flattened. 0 means untagged.
                     n_to_split=n_to_split,
                     n_groomed_to_split=n_groomed_to_split,
@@ -1021,9 +1030,7 @@ def calculate_embedding_skim_impl(
     # Since we're just returning a dict of np arrays, it's better to ensure that
     # they're consistently cast as np arrays (ie. a "regular" array could still
     # be wrapped in an ak.Array)
-    return {
-        k: np.asarray(v) for k, v in grooming_results.items()
-    }
+    return {k: np.asarray(v) for k, v in grooming_results.items()}
 
 
 def calculate_embedding_skim_mammoth_framework_v1(
@@ -1185,7 +1192,9 @@ def calculate_data_skim_impl(
                     grooming_results[leading_track_name] = to_float(input_jets.jets["leading_track_pt"])
                 # Then update the name for the subtracted constituents in data.
                 leading_track_name = f"{prefix}_leading_track_pt_sub"
-            grooming_results[leading_track_name] = to_float(ak.max(input_jets.jets.jet_constituents.pt, axis=1, mask_identity=False))
+            grooming_results[leading_track_name] = to_float(
+                ak.max(input_jets.jets.jet_constituents.pt, axis=1, mask_identity=False)
+            )
             # Cross check that we haven't somehow found a case where we have jets, but no leading track.
             # Obviously this shouldn't be possible, but ak.max forces us to lose this safety (otherwise,
             # it returns an option type which is a pain).
@@ -1198,7 +1207,7 @@ def calculate_data_skim_impl(
             ] = _define_calculation_functions(
                 jet_R=jet_R,
                 iterative_splittings=iterative_splittings,
-                selected_grooming_methods=selected_grooming_methods
+                selected_grooming_methods=selected_grooming_methods,
             )
             for func_name, func in functions.items():
                 logger.debug(f"prefix: {prefix}, grooming function: {func_name}")
@@ -1257,7 +1266,9 @@ def calculate_data_skim_impl(
                                 ak.pad_none(groomed_splittings.tau, 1), analysis_jet_substructure.UNFILLED_VALUE
                             )
                         )
-                    ) if "tau" in ak.fields(groomed_splittings) and groomed_splittings.tau is not None else None,
+                    )
+                    if "tau" in ak.fields(groomed_splittings) and groomed_splittings.tau is not None
+                    else None,
                     # All of the numbers are already flattened. 0 means untagged.
                     n_to_split=n_to_split,
                     n_groomed_to_split=n_groomed_to_split,
@@ -1294,9 +1305,7 @@ def calculate_data_skim_impl(
     # Since we're just returning a dict of np arrays, it's better to ensure that
     # they're consistently cast as np arrays (ie. a "regular" array could still
     # be wrapped in an ak.Array)
-    return {
-        k: np.asarray(v) for k, v in grooming_results.items()
-    }
+    return {k: np.asarray(v) for k, v in grooming_results.items()}
 
 
 def _write_skim_output(

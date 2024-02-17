@@ -32,22 +32,19 @@ _rename_columns = {
     "hydro_event_id": "event_ID",
 }
 
+
 def array_looks_good(reference_arrays: ak.Array, arrays: ak.Array, header_version: int) -> bool:
     # There are more fields in v2 than in the reference arrays (v1), so only take those
     # that are present in reference for comparison.
     # NOTE: We have to compare the fields one-by-one because the shapes of the fields
     #       are different, and apparently don't broadcast nicely with `__eq__`
-    event_level_fields = [
-        p for p in ak.fields(reference_arrays) if p not in _v1_particle_property_columns
-    ]
+    event_level_fields = [p for p in ak.fields(reference_arrays) if p not in _v1_particle_property_columns]
     # Event level properties
     for field in event_level_fields:
         new_field = _rename_columns.get(field, field)
         assert ak.all(reference_arrays[field] == arrays[new_field])
     # Particle level properties
-    particle_level_fields = [
-        p for p in ak.fields(reference_arrays) if p in _v1_particle_property_columns
-    ]
+    particle_level_fields = [p for p in ak.fields(reference_arrays) if p in _v1_particle_property_columns]
     for field in particle_level_fields:
         new_field = _rename_columns.get(field, field)
         assert ak.all(reference_arrays[field] == arrays["particles"][new_field])
@@ -66,16 +63,16 @@ def array_looks_good(reference_arrays: ak.Array, arrays: ak.Array, header_versio
     return True
 
 
-@pytest.mark.parametrize(
-    "header_version",
-    [1, 2],
-    ids=["Header v1", "Header v2"]
-)
+@pytest.mark.parametrize("header_version", [1, 2], ids=["Header v1", "Header v2"])
 @pytest.mark.parametrize(
     "events_per_chunk",
     [
-        5, 16, 50, 5000,
-    ], ids=["Multiple, divisible: 5", "Multiple, indivisible: 16", "Equal: 50", "Larger: 5000"]
+        5,
+        16,
+        50,
+        5000,
+    ],
+    ids=["Multiple, divisible: 5", "Multiple, indivisible: 16", "Equal: 50", "Larger: 5000"],
 )
 def test_parsing(caplog: Any, header_version: int, events_per_chunk: int) -> None:
     # Setup
@@ -85,7 +82,9 @@ def test_parsing(caplog: Any, header_version: int, events_per_chunk: int) -> Non
     if not input_filename.exists():
         pytest.skip(reason="Missing input files - please download the files with the script")
 
-    for i, arrays in enumerate(_jetscape_parser.read(filename=input_filename, events_per_chunk=events_per_chunk, parser="pandas")):
+    for i, arrays in enumerate(
+        _jetscape_parser.read(filename=input_filename, events_per_chunk=events_per_chunk, parser="pandas")
+    ):
         # Get the reference array
         # Create the reference arrays by checking out the parser v1 (e477e0277fa560f9aba82310c02da8177e61c9e4), setting
         # the chunk size in skim_ascii, and then calling:
@@ -96,19 +95,23 @@ def test_parsing(caplog: Any, header_version: int, events_per_chunk: int) -> Non
             Path(f"{here}/jetscape_parser/events_per_chunk_{events_per_chunk}/parser_v1_header_v1/test_{i:02}.parquet")
         )
 
-        assert array_looks_good(reference_arrays=reference_arrays, arrays=arrays, header_version=header_version,)
+        assert array_looks_good(
+            reference_arrays=reference_arrays,
+            arrays=arrays,
+            header_version=header_version,
+        )
 
 
-@pytest.mark.parametrize(
-    "header_version",
-    [1, 2],
-    ids=["Header v1", "Header v2"]
-)
+@pytest.mark.parametrize("header_version", [1, 2], ids=["Header v1", "Header v2"])
 @pytest.mark.parametrize(
     "events_per_chunk",
     [
-        5, 16, 50, 5000,
-    ], ids=["Multiple, divisible: 5", "Multiple, indivisible: 16", "Equal: 50", "Larger: 5000"]
+        5,
+        16,
+        50,
+        5000,
+    ],
+    ids=["Multiple, divisible: 5", "Multiple, indivisible: 16", "Equal: 50", "Larger: 5000"],
 )
 def test_parsing_with_parquet(caplog: Any, header_version: int, events_per_chunk: int, tmp_path: Path) -> None:
     """Parse to parquet, read back, and compare."""
@@ -125,7 +128,7 @@ def test_parsing_with_parquet(caplog: Any, header_version: int, events_per_chunk
         base_output_filename=base_output_filename,
         store_only_necessary_columns=True,
         input_filename=input_filename,
-        events_per_chunk=events_per_chunk
+        events_per_chunk=events_per_chunk,
     )
 
     output_filenames = tmp_path.glob("*.parquet")
@@ -142,7 +145,12 @@ def test_parsing_with_parquet(caplog: Any, header_version: int, events_per_chunk
             Path(f"{here}/jetscape_parser/events_per_chunk_{events_per_chunk}/parser_v1_header_v1/test_{i:02}.parquet")
         )
 
-        assert array_looks_good(reference_arrays=reference_arrays, arrays=arrays, header_version=header_version,)
+        assert array_looks_good(
+            reference_arrays=reference_arrays,
+            arrays=arrays,
+            header_version=header_version,
+        )
+
 
 @pytest.mark.parametrize(
     "events_per_chunk",
@@ -150,7 +158,8 @@ def test_parsing_with_parquet(caplog: Any, header_version: int, events_per_chunk
         [5, 5, 5, 5, 10, 10, 10],
         [5, 5, 5, 5, 10, 10, 10, 5],
         [5, 5, 5, 5, 10, 10, 9, 5],
-    ], ids=["Fits into input data", "Fits into input data, but asks for extra", "Doesn't fit into input data"]
+    ],
+    ids=["Fits into input data", "Fits into input data, but asks for extra", "Doesn't fit into input data"],
 )
 def test_parsing_with_changing_chunk_size(caplog: Any, events_per_chunk: list[int]) -> None:
     # Setup
@@ -163,7 +172,9 @@ def test_parsing_with_changing_chunk_size(caplog: Any, events_per_chunk: list[in
     if not input_filename.exists():
         pytest.skip(reason="Missing input files - please download the files with the script")
 
-    event_generator = _jetscape_parser.read(filename=input_filename, events_per_chunk=events_per_chunk[0], parser="pandas")
+    event_generator = _jetscape_parser.read(
+        filename=input_filename, events_per_chunk=events_per_chunk[0], parser="pandas"
+    )
     expected_length_iter = iter(events_per_chunk)
     # NOTE: The length of the file is 50 events, so if the length ever matches 50, we would expect it to be done.
     cumulative_sum = np.cumsum(events_per_chunk)
@@ -191,16 +202,14 @@ def test_parsing_with_changing_chunk_size(caplog: Any, events_per_chunk: list[in
     except StopIteration:
         ...
 
-    expect_exhaustion_of_lengths = (cumulative_sum[-1] == N_EVENTS_IN_FILE)
+    expect_exhaustion_of_lengths = cumulative_sum[-1] == N_EVENTS_IN_FILE
     if expect_exhaustion_of_lengths:
         assert i == (len(events_per_chunk) - 1)
 
 
-@pytest.mark.parametrize(
-    "legacy_skim", [False, True]
-)
+@pytest.mark.parametrize("legacy_skim", [False, True])
 def test_jetscape_file_source_parquet(caplog: Any, legacy_skim: bool, tmp_path: Path) -> None:
-    """ Parse handling parquet inputs, including legacy skims. """
+    """Parse handling parquet inputs, including legacy skims."""
     # Setup
     caplog.set_level(logging.INFO)
     header_version = 2
@@ -276,6 +285,6 @@ def test_jetscape_file_source_parquet(caplog: Any, legacy_skim: bool, tmp_path: 
     except StopIteration:
         ...
 
-    expect_exhaustion_of_lengths = (cumulative_sum[-1] == N_EVENTS_IN_FILE)
+    expect_exhaustion_of_lengths = cumulative_sum[-1] == N_EVENTS_IN_FILE
     if expect_exhaustion_of_lengths:
         assert i == (len(events_per_chunk) - 1)

@@ -23,6 +23,7 @@ Scalar = TypeVar("Scalar", bound=np.generic, covariant=True)  # noqa: PLC0105
 # See: https://stackoverflow.com/a/60617044/12907985
 Number = Union[float, int, np.number[_T_NP]]  # noqa: UP007
 
+
 # Using `class AwkwardArray(Protocol[_T]):` caused mypy to hang as of August 2022, but
 # for some reason, Collection is fine. Presumably there's a bug somewhere, but not worth worrying about,
 # especially given that Collection seems to work okay too

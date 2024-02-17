@@ -33,7 +33,9 @@ mpl.rcParams["ytick.right"] = True
 mpl.rcParams["ytick.minor.right"] = True
 
 
-def _gaussian(x: npt.NDArray[np.float64] | float, mean: float, sigma: float, amplitude: float) -> npt.NDArray[np.float64] | float:
+def _gaussian(
+    x: npt.NDArray[np.float64] | float, mean: float, sigma: float, amplitude: float
+) -> npt.NDArray[np.float64] | float:
     r"""Extended gaussian.
 
     .. math::
@@ -51,23 +53,25 @@ def _gaussian(x: npt.NDArray[np.float64] | float, mean: float, sigma: float, amp
     return amplitude / np.sqrt(2 * np.pi * np.square(sigma)) * np.exp(-1.0 / 2.0 * np.square((x - mean) / sigma))  # type: ignore[no-any-return]
 
 
-def _base_plot_label(eta_limits: tuple[float, float], jet_R: float | None = None,
-                     #min_q2: float, x_limits: Tuple[float, float]
-                     ) -> str:
+def _base_plot_label(
+    eta_limits: tuple[float, float],
+    jet_R: float | None = None,
+    # min_q2: float, x_limits: Tuple[float, float]
+) -> str:
     eta_min, eta_max = eta_limits
     text = r"PYTHIA 6, e+p 10+275 $\text{GeV}^2$"
     if jet_R is not None:
-        #text += "\n" + fr"$Q^{{2}} > {min_q2} \text{{GeV}}^{{2}}$, ${x_limits[0]} < x < {x_limits[1]}$"
-        text += "\n" + fr"R = {jet_R} anti-$k_{{\text{{T}}}}$ jets"
-        text += "\n" + fr"${eta_min + jet_R:g} < \eta_{{\text{{jet}}}} < {eta_max - jet_R:g}$"
+        # text += "\n" + fr"$Q^{{2}} > {min_q2} \text{{GeV}}^{{2}}$, ${x_limits[0]} < x < {x_limits[1]}$"
+        text += "\n" + rf"R = {jet_R} anti-$k_{{\text{{T}}}}$ jets"
+        text += "\n" + rf"${eta_min + jet_R:g} < \eta_{{\text{{jet}}}} < {eta_max - jet_R:g}$"
     else:
         text += "\n" + r"anti-$k_{\text{T}}$ jets"
-        text += "\n" + fr"${eta_min} + R < \eta_{{\text{{jet}}}} < {eta_max} - R$"
+        text += "\n" + rf"${eta_min} + R < \eta_{{\text{{jet}}}} < {eta_max} - R$"
     return text
 
 
 def _mean_values_label(mean_x: float, mean_Q2: float) -> str:
-    return fr"$\langle Q^{{2}} \rangle = {round(mean_Q2)}\:\text{{GeV}}^{{2}}$, $\langle x \rangle = {mean_x:.03g}$"
+    return rf"$\langle Q^{{2}} \rangle = {round(mean_Q2)}\:\text{{GeV}}^{{2}}$, $\langle x \rangle = {mean_x:.03g}$"
 
 
 def plot_jet_p(
@@ -93,14 +97,17 @@ def plot_jet_p(
             H=h.values,
             bins=h.axes[0].bin_edges,
             yerr=h.errors,
-            label=fr"$R = {jet_R}$",
+            label=rf"$R = {jet_R}$",
             linewidth=2,
             ax=ax,
         )
 
     text = base_plot_label
     # Assuming R = 0.7 jets here. Perhaps not entirely reasonable, but close enough for effectively a QA plot.
-    text += "\n" + _mean_values_label(mean_x = means[eic_qt.jet_R_to_str(0.7)][p_range_for_mean_label]["x"], mean_Q2 = means[eic_qt.jet_R_to_str(0.7)][p_range_for_mean_label]["Q2"])
+    text += "\n" + _mean_values_label(
+        mean_x=means[eic_qt.jet_R_to_str(0.7)][p_range_for_mean_label]["x"],
+        mean_Q2=means[eic_qt.jet_R_to_str(0.7)][p_range_for_mean_label]["Q2"],
+    )
     ax.set_xlabel(r"$p_{\text{jet}}\:(\text{GeV}/c)$", fontsize=20)
     ax.set_yscale("log")
     ax.set_ylabel(r"$1/N_{\text{jets}}\:\text{d}N/\text{d}p_{\text{jet}}\:(\text{GeV}/c)^{-1}$", fontsize=20)
@@ -115,7 +122,8 @@ def plot_jet_p(
         fontsize=20,
     )
     ax.text(
-        0.97, 0.97,
+        0.97,
+        0.97,
         text,
         horizontalalignment="right",
         verticalalignment="top",
@@ -146,7 +154,7 @@ def plot_jet_pt(
     fig, ax = plt.subplots(figsize=(12, 9))
     for p_range in p_ranges:
         h = binned_data.BinnedData.from_existing_data(
-            bh_hist[bh.loc(p_range[0]):bh.loc(p_range[1]):bh.sum, :]  # type: ignore[misc]
+            bh_hist[bh.loc(p_range[0]) : bh.loc(p_range[1]) : bh.sum, :]  # type: ignore[misc]
         )
 
         # Normalize
@@ -157,13 +165,15 @@ def plot_jet_pt(
             H=h.values,
             bins=h.axes[0].bin_edges,
             yerr=h.errors,
-            label=fr"${p_range[0]} < |\vec{{p}}| < {p_range[1]}\:\text{{GeV}}/c$",
+            label=rf"${p_range[0]} < |\vec{{p}}| < {p_range[1]}\:\text{{GeV}}/c$",
             linewidth=2,
             ax=ax,
         )
 
     text = base_plot_label
-    text += "\n" + _mean_values_label(mean_x = means[p_range_for_mean_label]["x"], mean_Q2 = means[p_range_for_mean_label]["Q2"])
+    text += "\n" + _mean_values_label(
+        mean_x=means[p_range_for_mean_label]["x"], mean_Q2=means[p_range_for_mean_label]["Q2"]
+    )
     ax.set_xlabel(r"$p_{\text{T}}^{\text{jet}}\:(\text{GeV}/c)$", fontsize=20)
     ax.set_yscale("log")
     ax.set_ylabel(r"$1/N_{\text{jets}}\:\text{d}N/\text{d}p_{\text{T}}^{\text{jet}}\:(\text{GeV}/c)^{-1}$", fontsize=20)
@@ -178,7 +188,8 @@ def plot_jet_pt(
         fontsize=20,
     )
     ax.text(
-        0.97, 0.97,
+        0.97,
+        0.97,
         text,
         horizontalalignment="right",
         verticalalignment="top",
@@ -209,7 +220,7 @@ def plot_jet_constituent_multiplicity(
     fig, ax = plt.subplots(figsize=(12, 9))
     for p_range in p_ranges:
         h = binned_data.BinnedData.from_existing_data(
-            bh_hist[bh.loc(p_range[0]):bh.loc(p_range[1]):bh.sum, :]  # type: ignore[misc]
+            bh_hist[bh.loc(p_range[0]) : bh.loc(p_range[1]) : bh.sum, :]  # type: ignore[misc]
         )
 
         # Normalize
@@ -220,13 +231,15 @@ def plot_jet_constituent_multiplicity(
             H=h.values,
             bins=h.axes[0].bin_edges,
             yerr=h.errors,
-            label=fr"${p_range[0]} < |\vec{{p}}| < {p_range[1]}\:\text{{GeV}}/c$",
+            label=rf"${p_range[0]} < |\vec{{p}}| < {p_range[1]}\:\text{{GeV}}/c$",
             linewidth=2,
             ax=ax,
         )
 
     text = base_plot_label
-    text += "\n" + _mean_values_label(mean_x = means[p_range_for_mean_label]["x"], mean_Q2 = means[p_range_for_mean_label]["Q2"])
+    text += "\n" + _mean_values_label(
+        mean_x=means[p_range_for_mean_label]["x"], mean_Q2=means[p_range_for_mean_label]["Q2"]
+    )
     ax.set_xlabel(r"$N_{\text{const.}}^{\text{jet}}$", fontsize=20)
     ax.set_ylabel(r"$1/N_{\text{jets}}\:\text{d}N/\text{d}N_{\text{const.}}^{\text{jet}}$", fontsize=20)
     ax.legend(
@@ -240,7 +253,8 @@ def plot_jet_constituent_multiplicity(
         fontsize=20,
     )
     ax.text(
-        0.97, 0.97,
+        0.97,
+        0.97,
         text,
         horizontalalignment="right",
         verticalalignment="top",
@@ -256,12 +270,13 @@ def plot_jet_constituent_multiplicity(
     return True
 
 
-def plot_qt(hist: binned_data.BinnedData,
-            base_plot_label: str,
-            jet_R: float,
-            means: Mapping[tuple[float, float], Mapping[str, float]],
-            output_dir: Path,
-            ) -> bool:
+def plot_qt(
+    hist: binned_data.BinnedData,
+    base_plot_label: str,
+    jet_R: float,
+    means: Mapping[tuple[float, float], Mapping[str, float]],
+    output_dir: Path,
+) -> bool:
     # Setup
     # Set max for plotting purposes.
     p_range_for_mean_label = (0, 300)
@@ -273,7 +288,7 @@ def plot_qt(hist: binned_data.BinnedData,
     pt_ranges = [(10, 15), (20, 25), (30, 40)]
     for pt_range in pt_ranges:
         hists[pt_range] = binned_data.BinnedData.from_existing_data(
-            bh_hist[bh.loc(pt_range[0]):bh.loc(pt_range[1]):bh.sum, :: bh.rebin(2)]  # type: ignore[misc]
+            bh_hist[bh.loc(pt_range[0]) : bh.loc(pt_range[1]) : bh.sum, :: bh.rebin(2)]  # type: ignore[misc]
         )
 
         # Normalize
@@ -297,13 +312,15 @@ def plot_qt(hist: binned_data.BinnedData,
             H=h.values,
             bins=h.axes[0].bin_edges,
             yerr=h.errors,
-            label=fr"${pt_range[0]} < p_{{\text{{T}}}} < {pt_range[1]}\:\text{{GeV}}/c$",
+            label=rf"${pt_range[0]} < p_{{\text{{T}}}} < {pt_range[1]}\:\text{{GeV}}/c$",
             linewidth=2,
             ax=ax,
         )
 
     text = base_plot_label
-    text += "\n" + _mean_values_label(mean_x = means[p_range_for_mean_label]["x"], mean_Q2 = means[p_range_for_mean_label]["Q2"])
+    text += "\n" + _mean_values_label(
+        mean_x=means[p_range_for_mean_label]["x"], mean_Q2=means[p_range_for_mean_label]["Q2"]
+    )
     ax.set_xlabel(r"$q_{\text{T}}\:(\text{GeV}/c)$", fontsize=20)
     ax.set_xlim([-0.25, max_qt * 1.05])
     ax.set_ylabel(r"$1/N_{\text{jets}}\:\text{d}N/\text{d}q_{\text{T}}\:(\text{GeV}/c)^{-1}$", fontsize=20)
@@ -318,7 +335,8 @@ def plot_qt(hist: binned_data.BinnedData,
         fontsize=20,
     )
     ax.text(
-        0.97, 0.97,
+        0.97,
+        0.97,
         text,
         horizontalalignment="right",
         verticalalignment="top",
@@ -334,14 +352,15 @@ def plot_qt(hist: binned_data.BinnedData,
     return True
 
 
-def plot_qt_pt_as_function_of_p(hist: binned_data.BinnedData,
-                                label: str,
-                                base_plot_label: str,
-                                jet_R: float,
-                                means: Mapping[tuple[float, float], Mapping[str, float]],
-                                output_dir: Path,
-                                debug_fit: bool = False,
-                                ) -> bool:
+def plot_qt_pt_as_function_of_p(
+    hist: binned_data.BinnedData,
+    label: str,
+    base_plot_label: str,
+    jet_R: float,
+    means: Mapping[tuple[float, float], Mapping[str, float]],
+    output_dir: Path,
+    debug_fit: bool = False,
+) -> bool:
     # Setup
     bh_hist = hist.to_boost_histogram()
 
@@ -352,13 +371,13 @@ def plot_qt_pt_as_function_of_p(hist: binned_data.BinnedData,
 
     for p_range in p_ranges:
         hists[p_range] = binned_data.BinnedData.from_existing_data(
-            bh_hist[bh.loc(p_range[0]):bh.loc(p_range[1]):bh.sum, :]  # type: ignore[misc]
+            bh_hist[bh.loc(p_range[0]) : bh.loc(p_range[1]) : bh.sum, :]  # type: ignore[misc]
         )
 
         # Normalize
         logger.info(f"p_range: {p_range}, normalization: {np.sum(hists[p_range].values)}")
         hists[p_range] /= np.sum(hists[p_range].values)
-        #hists[p_range] /= hists[p_range].axes[0].bin_widths
+        # hists[p_range] /= hists[p_range].axes[0].bin_widths
 
     for do_fit in [False, True]:
         fig, ax = plt.subplots(figsize=(12, 9))
@@ -371,14 +390,16 @@ def plot_qt_pt_as_function_of_p(hist: binned_data.BinnedData,
                 if False:
                     fixed_gaussian_mean = 0.0  # type: ignore[unreachable]
                     popt, _ = optimize.curve_fit(
-                        lambda x, w, a, fixed_gaussian_mean: _gaussian(x, fixed_gaussian_mean, w, a), h.axes[0].bin_centers, h.values,
-                        p0 = [0.1, 1],
-                        maxfev = 2000,
+                        lambda x, w, a, fixed_gaussian_mean: _gaussian(x, fixed_gaussian_mean, w, a),
+                        h.axes[0].bin_centers,
+                        h.values,
+                        p0=[0.1, 1],
+                        maxfev=2000,
                     )
                     logger.info(f"Mean: {fixed_gaussian_mean}, Width: {popt[0]:.03g}, amplitude: {popt[1]:.03g}")
                     p = ax.plot(
-                        #h.axes[0].bin_centers,
-                        #_gaussian(h.axes[0].bin_centers, 0.025, *popt),
+                        # h.axes[0].bin_centers,
+                        # _gaussian(h.axes[0].bin_centers, 0.025, *popt),
                         np.linspace(x_linspace_min_for_plotting, 0.5, 100),
                         _gaussian(np.linspace(x_linspace_min_for_plotting, 0.5, 100), fixed_gaussian_mean, *popt),
                         linestyle="--",
@@ -392,16 +413,18 @@ def plot_qt_pt_as_function_of_p(hist: binned_data.BinnedData,
                 else:
                     initial_mean = [0.05, 0.025, 0.01]
                     popt, _ = optimize.curve_fit(
-                        _gaussian, h.axes[0].bin_centers, h.values,
-                        p0 = [initial_mean[i], 0.05, 0.1],
-                        #p0 = [0.0, 0.1],
-                        maxfev = 50000,
+                        _gaussian,
+                        h.axes[0].bin_centers,
+                        h.values,
+                        p0=[initial_mean[i], 0.05, 0.1],
+                        # p0 = [0.0, 0.1],
+                        maxfev=50000,
                     )
-                    #logger.info(f"Mean: {popt[0]}, Width: {popt[1]}, amplitude: {popt[2]}")
+                    # logger.info(f"Mean: {popt[0]}, Width: {popt[1]}, amplitude: {popt[2]}")
                     logger.info(f"Mean: {popt[0]:.03g}, Width: {popt[1]:.03g}")
                     p = ax.plot(
-                        #h.axes[0].bin_centers,
-                        #_gaussian(h.axes[0].bin_centers, *popt),
+                        # h.axes[0].bin_centers,
+                        # _gaussian(h.axes[0].bin_centers, *popt),
                         np.linspace(x_linspace_min_for_plotting, 0.5, 100),
                         _gaussian(np.linspace(x_linspace_min_for_plotting, 0.5, 100), *popt),
                         linestyle="--",
@@ -416,23 +439,22 @@ def plot_qt_pt_as_function_of_p(hist: binned_data.BinnedData,
                 # RMS from ROOT
                 try:
                     from mammoth.framework import root_utils
+
                     ROOT = root_utils.import_ROOT()  # noqa: F841
                     h_ROOT = h.to_ROOT()
-                    #fu = ROOT.TF1("fu", "[2] * TMath::Gaus(x,[0],[1])")
-                    #fu.SetParameters(0, 0.1, 0.1)
-                    #res = h_ROOT.Fit("fu")
-                    #import IPython; IPython.embed()
+                    # fu = ROOT.TF1("fu", "[2] * TMath::Gaus(x,[0],[1])")
+                    # fu.SetParameters(0, 0.1, 0.1)
+                    # res = h_ROOT.Fit("fu")
+                    # import IPython; IPython.embed()
                     logger.info(f"RMS from ROOT: {h_ROOT.GetRMS():.03g}, Std Dev: {h_ROOT.GetStdDev():.03g}")
                 except ImportError:
                     pass
 
             kwargs = {}
-            plot_label = fr"${p_range[0]} < |\vec{{p}}| < {p_range[1]}\:\text{{GeV}}/c$"
+            plot_label = rf"${p_range[0]} < |\vec{{p}}| < {p_range[1]}\:\text{{GeV}}/c$"
             if do_fit:
-                plot_label += fr", $\sigma = {width:.02g}$"
-                kwargs = {
-                    "color": p[0].get_color()
-                }
+                plot_label += rf", $\sigma = {width:.02g}$"
+                kwargs = {"color": p[0].get_color()}
 
             ax.errorbar(
                 h.axes[0].bin_centers,
@@ -450,7 +472,7 @@ def plot_qt_pt_as_function_of_p(hist: binned_data.BinnedData,
             # when it increases in the plot. I think it's because it uses the errorbar as the marker, but
             # that linewidth isn't increased. One could do this manually perhaps, but for now, it's easier
             # to just plot it with errorbar.
-            #mplhep.histplot(
+            # mplhep.histplot(
             #    H=h.values,
             #    bins=h.axes[0].bin_edges,
             #    yerr=h.errors,
@@ -458,14 +480,17 @@ def plot_qt_pt_as_function_of_p(hist: binned_data.BinnedData,
             #    linewidth=5,
             #    ax=ax,
             #    **kwargs,
-            #)
+            # )
 
         text = base_plot_label
-        text += "\n" + _mean_values_label(mean_x = means[full_p_range]["x"], mean_Q2 = means[full_p_range]["Q2"])
+        text += "\n" + _mean_values_label(mean_x=means[full_p_range]["x"], mean_Q2=means[full_p_range]["Q2"])
         if do_fit:
             text += "\n" + r"Gaussian fit"
         ax.set_xlabel(r"$q_{\text{T}} / p_{\text{T}}^{\text{" + label + r"}}$", fontsize=28)
-        ax.set_ylabel(r"$1/N_{\text{" + label + r"}}\:\text{d}N/\text{d}(q_{\text{T}}/p_{\text{T}}^{\text{" + label + r"}})$", fontsize=28)
+        ax.set_ylabel(
+            r"$1/N_{\text{" + label + r"}}\:\text{d}N/\text{d}(q_{\text{T}}/p_{\text{T}}^{\text{" + label + r"}})$",
+            fontsize=28,
+        )
         # Focus on range of interest.
         min_x = -0.025
         if debug_fit:
@@ -484,7 +509,8 @@ def plot_qt_pt_as_function_of_p(hist: binned_data.BinnedData,
             fontsize=28,
         )
         ax.text(
-            0.97, 0.97,
+            0.97,
+            0.97,
             text,
             horizontalalignment="right",
             verticalalignment="top",
@@ -515,7 +541,7 @@ def plot_qt_pt_comparison(
         for label, hist in hists.items():
             bh_hist = hist.to_boost_histogram()
             h = binned_data.BinnedData.from_existing_data(
-                bh_hist[bh.loc(p_range[0]):bh.loc(p_range[1]):bh.sum, :]  # type: ignore[misc]
+                bh_hist[bh.loc(p_range[0]) : bh.loc(p_range[1]) : bh.sum, :]  # type: ignore[misc]
             )
             logger.info(f"label: {label}, p_range: {p_range}, normalization: {np.sum(h.values)}")
             h /= np.sum(h.values)
@@ -530,8 +556,8 @@ def plot_qt_pt_comparison(
             )
 
         text = base_plot_label
-        text += "\n" + _mean_values_label(mean_x = means[p_range]["x"], mean_Q2 = means[p_range]["Q2"])
-        text += "\n" + fr"${p_range[0]} < |\vec{{p}}| < {p_range[1]}\:\text{{GeV}}/c$"
+        text += "\n" + _mean_values_label(mean_x=means[p_range]["x"], mean_Q2=means[p_range]["Q2"])
+        text += "\n" + rf"${p_range[0]} < |\vec{{p}}| < {p_range[1]}\:\text{{GeV}}/c$"
         ax.set_xlabel(r"$q_{\text{T}} / p_{\text{T}}^{\text{X}}$", fontsize=20)
         ax.set_ylabel(r"$1/N_{\text{X}}\:\text{d}N/\text{d}(q_{\text{T}}/p_{\text{T}}^{\text{X}})$", fontsize=20)
         # Focus on range of interest.
@@ -547,7 +573,8 @@ def plot_qt_pt_comparison(
             fontsize=20,
         )
         ax.text(
-            0.97, 0.97,
+            0.97,
+            0.97,
             text,
             horizontalalignment="right",
             verticalalignment="top",
@@ -570,8 +597,8 @@ if __name__ == "__main__":
     jet_R_values = [0.5, 0.7, 1.0]
     eta_limits = (1.1, 3.5)
     p_ranges = [(100, 150), (150, 200), (200, 250)]
-    #min_q2 = 300
-    #x_limits = (0.05, 0.8)
+    # min_q2 = 300
+    # x_limits = (0.05, 0.8)
     output_dir = Path("output") / "eic_qt_all_q2_cuts_narrow_bins_jet_R_dependence"
     output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -662,4 +689,3 @@ if __name__ == "__main__":
                 means=means[jet_R_str],
                 output_dir=output_dir,
             )
-

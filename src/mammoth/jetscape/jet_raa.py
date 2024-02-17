@@ -41,7 +41,9 @@ def load_data(filename: Path) -> ak.Array:
     return _load_data.normalize_for_data(arrays=arrays, rename_prefix={"data": "particles"})
 
 
-def find_jets_for_analysis(arrays: ak.Array, jet_R_values: Sequence[float], particle_column_name: str = "data", min_jet_pt: float = 30) -> dict[JetLabel, ak.Array]:
+def find_jets_for_analysis(
+    arrays: ak.Array, jet_R_values: Sequence[float], particle_column_name: str = "data", min_jet_pt: float = 30
+) -> dict[JetLabel, ak.Array]:
     logger.info("Start analyzing")
     # Event selection
     # None for jetscape
@@ -83,7 +85,7 @@ def find_jets_for_analysis(arrays: ak.Array, jet_R_values: Sequence[float], part
     # NOTE: The dict comprehension that was here previously was cute, but it made it harder to
     #       debug issues, so we use a standard set of for loops here instead
     for jet_R in jet_R_values:
-        #for particles, label in zip([particles_signal, particles_signal_charged], ["full", "charged"]):
+        # for particles, label in zip([particles_signal, particles_signal_charged], ["full", "charged"]):
         for particles, label in zip([particles_signal_charged, particles_signal], ["charged", "full"], strict=True):
             tag = JetLabel(jet_R=jet_R, label=label)
             logger.info(f"label: {tag}")
@@ -93,12 +95,15 @@ def find_jets_for_analysis(arrays: ak.Array, jet_R_values: Sequence[float], part
                     R=jet_R,
                     algorithm="anti-kt",
                     pt_range=jet_finding.pt_range(pt_min=min_jet_pt),
-                    eta_range=jet_finding.eta_range(jet_R=jet_R, fiducial_acceptance=True,
-                                                    eta_min=-0.7 if label == "full" else -0.9,
-                                                    eta_max=0.7 if label == "full" else 0.9),
+                    eta_range=jet_finding.eta_range(
+                        jet_R=jet_R,
+                        fiducial_acceptance=True,
+                        eta_min=-0.7 if label == "full" else -0.9,
+                        eta_max=0.7 if label == "full" else 0.9,
+                    ),
                     # Always use the pp jet area because we aren't going to do subtraction via fastjet
                     area_settings=jet_finding.AreaPP(),
-                )
+                ),
             )
 
     # Calculated the subtracted pt due to the holes.
@@ -140,14 +145,16 @@ def write_tree(jets: ak.Array, filename: Path) -> bool:
 
     for jet_label in jets:
         # First, reduce the precision to save some space (and only save the required branches)
-        any_jets = (len(ak.flatten(jets[jet_label])) != 0)
-        arrays = ak.zip({
-            # If there are jets, then take the usual field. If not, take the cross_section
-            # because the type seems to be in tact. This is for sure a hack, but it should get
-            # the job done.
-            k: ak.values_astype(v if any_jets else jets[jet_label]["cross_section"], dtype)
-            for (k, dtype), v in zip(fields.items(), ak.unzip(jets[jet_label][list(fields)]), strict=True)
-        })
+        any_jets = len(ak.flatten(jets[jet_label])) != 0
+        arrays = ak.zip(
+            {
+                # If there are jets, then take the usual field. If not, take the cross_section
+                # because the type seems to be in tact. This is for sure a hack, but it should get
+                # the job done.
+                k: ak.values_astype(v if any_jets else jets[jet_label]["cross_section"], dtype)
+                for (k, dtype), v in zip(fields.items(), ak.unzip(jets[jet_label][list(fields)]), strict=True)
+            }
+        )
         # NOTE: We don't want to flatten here because otherwise we lose the overall number of events.
         #       Plus, this ensures compatibility with the standard analysis.
 
@@ -185,7 +192,7 @@ def write_tree(jets: ak.Array, filename: Path) -> bool:
             # Write with uproot
             try:
                 with uproot.recreate(jet_collection_filename) as f:
-                    #f["tree"] = arrays if len(ak.flatten(arrays)) > 0 else ak.Array({k: [] * len(arrays) for k in ak.fields(arrays)})
+                    # f["tree"] = arrays if len(ak.flatten(arrays)) > 0 else ak.Array({k: [] * len(arrays) for k in ak.fields(arrays)})
                     f["tree"] = arrays
             except Exception as e:
                 logger.exception(e)
@@ -221,9 +228,13 @@ def analyze_jets(arrays: ak.Array, jets: Mapping[JetLabel, ak.Array]) -> dict[st
     hists["n_events"] = hist.Hist(hist.axis.Regular(1, -0.5, 0.5))
     hists["n_events_weighted"] = hist.Hist(hist.axis.Regular(1, -0.5, 0.5))
     for jet_label in jets:
-        hists[f"{jet_label}_jet_pt"] = hist.Hist(hist.axis.Regular(1000, 0, 1000, label="jet_pt"), storage=hist.storage.Weight())
+        hists[f"{jet_label}_jet_pt"] = hist.Hist(
+            hist.axis.Regular(1000, 0, 1000, label="jet_pt"), storage=hist.storage.Weight()
+        )
         # Try a coarser binning to reduce outliers
-        hists[f"{jet_label}_jet_pt_coarse_binned"] = hist.Hist(hist.axis.Regular(200, 0, 1000, label="jet_pt"), storage=hist.storage.Weight())
+        hists[f"{jet_label}_jet_pt_coarse_binned"] = hist.Hist(
+            hist.axis.Regular(200, 0, 1000, label="jet_pt"), storage=hist.storage.Weight()
+        )
         # This is assuredly overkill, but it hopefully means that I won't need to mess with it anymore
         hists[f"{jet_label}_n_events"] = hist.Hist(hist.axis.Regular(1, -0.5, 0.5))
         hists[f"{jet_label}_n_events_weighted"] = hist.Hist(hist.axis.Regular(1, -0.5, 0.5))
@@ -248,7 +259,9 @@ def analyze_jets(arrays: ak.Array, jets: Mapping[JetLabel, ak.Array]) -> dict[st
         hists[f"{jet_label}_n_events"].fill(0, weight=len(jet_collection))
         hists[f"{jet_label}_n_events_weighted"].fill(0, weight=len(jet_collection) * _cross_section_weight_factor)
         hists[f"{jet_label}_n_jets"].fill(0, weight=len(ak.flatten(jet_collection.pt_subtracted)))
-        hists[f"{jet_label}_n_jets_weighted"].fill(0, weight=len(ak.flatten(jet_collection.pt_subtracted)) * _cross_section_weight_factor)
+        hists[f"{jet_label}_n_jets_weighted"].fill(
+            0, weight=len(ak.flatten(jet_collection.pt_subtracted)) * _cross_section_weight_factor
+        )
 
     return hists
 
@@ -264,12 +277,14 @@ def write_hists(hists: dict[str, hist.Hist], filename: Path) -> bool:
     return True
 
 
-def run(arrays: ak.Array,
-        read_jet_skim_from_file: bool,
-        min_jet_pt: float = 5,
-        jet_R_values: Sequence[float] | None = None,
-        jets_skim_filename: Path | None = None,
-        write_hists_filename: Path | None = None) -> dict[str, hist.Hist]:
+def run(
+    arrays: ak.Array,
+    read_jet_skim_from_file: bool,
+    min_jet_pt: float = 5,
+    jet_R_values: Sequence[float] | None = None,
+    jets_skim_filename: Path | None = None,
+    write_hists_filename: Path | None = None,
+) -> dict[str, hist.Hist]:
     # Validation
     if jet_R_values is None:
         jet_R_values = [0.2, 0.4, 0.6]
@@ -310,24 +325,30 @@ if __name__ == "__main__":
 
     hists = run(
         arrays=load_data(
-            #Path(f"/alf/data/rehlers/jetscape/osiris/AAPaperData/5020_PP_Colorless/skim/test/JetscapeHadronListBin7_9_00.parquet")
-            #Path("/alf/data/rehlers/jetscape/osiris/AAPaperData/5020_PP_Colorless/skim/JetscapeHadronListBin270_280_01.parquet")
-            #Path("/alf/data/rehlers/jetscape/osiris/AAPaperData/MATTER_LBT_RunningAlphaS_Q2qhat/5020_PbPb_40-50_0.30_2.0_1/skim/JetscapeHadronListBin7_9_01.parquet"),
-            #Path("/alf/data/rehlers/jetscape/osiris/AAPaperData/MATTER_LBT_RunningAlphaS_Q2qhat/5020_PbPb_40-50_0.30_2.0_1/skim/JetscapeHadronListBin270_280_01.parquet"),
-            Path("/alf/data/rehlers/jetscape/osiris/AAPaperData/MATTER_LBT_RunningAlphaS_Q2qhat/5020_PbPb_40-50_0.30_2.0_1/skim/JetscapeHadronListBin1_2_07.parquet"),
+            # Path(f"/alf/data/rehlers/jetscape/osiris/AAPaperData/5020_PP_Colorless/skim/test/JetscapeHadronListBin7_9_00.parquet")
+            # Path("/alf/data/rehlers/jetscape/osiris/AAPaperData/5020_PP_Colorless/skim/JetscapeHadronListBin270_280_01.parquet")
+            # Path("/alf/data/rehlers/jetscape/osiris/AAPaperData/MATTER_LBT_RunningAlphaS_Q2qhat/5020_PbPb_40-50_0.30_2.0_1/skim/JetscapeHadronListBin7_9_01.parquet"),
+            # Path("/alf/data/rehlers/jetscape/osiris/AAPaperData/MATTER_LBT_RunningAlphaS_Q2qhat/5020_PbPb_40-50_0.30_2.0_1/skim/JetscapeHadronListBin270_280_01.parquet"),
+            Path(
+                "/alf/data/rehlers/jetscape/osiris/AAPaperData/MATTER_LBT_RunningAlphaS_Q2qhat/5020_PbPb_40-50_0.30_2.0_1/skim/JetscapeHadronListBin1_2_07.parquet"
+            ),
         ),
         read_jet_skim_from_file=False,
         # Low for testing
         min_jet_pt=5,
         # Jet one R for faster testing
         jet_R_values=[0.2],
-        #write_jets_filename=Path("/alf/data/rehlers/jetscape/osiris/AAPaperData/5020_PP_Colorless/jetRAA/test/jetsSkim/JetsBin270_280_01.parquet"),
-        #write_hists_filename=Path("/alf/data/rehlers/jetscape/osiris/AAPaperData/5020_PP_Colorless/jetRAA/test/hists/hists_Bin270_280_01.root"),
-        #write_jets_filename=Path("/alf/data/rehlers/jetscape/osiris/AAPaperData/MATTER_LBT_RunningAlphaS_Q2qhat/5020_PbPb_40-50_0.30_2.0_1/jetsSkim/JetsBin7_9_01.parquet"),
-        #write_jets_filename=Path("/alf/data/rehlers/jetscape/osiris/AAPaperData/MATTER_LBT_RunningAlphaS_Q2qhat/5020_PbPb_40-50_0.30_2.0_1/jetRAA/test/jetsSkim/JetsBin270_280_01.root"),
-        #write_hists_filename=Path("/alf/data/rehlers/jetscape/osiris/AAPaperData/MATTER_LBT_RunningAlphaS_Q2qhat/5020_PbPb_40-50_0.30_2.0_1/jetRAA/test/hists/hists_Bin270_280_01.root"),
-        jets_skim_filename=Path("/alf/data/rehlers/jetscape/osiris/AAPaperData/MATTER_LBT_RunningAlphaS_Q2qhat/5020_PbPb_40-50_0.30_2.0_1/jetRAA/test/jetsSkim/JetsBin1_2_07.root"),
-        write_hists_filename=Path("/alf/data/rehlers/jetscape/osiris/AAPaperData/MATTER_LBT_RunningAlphaS_Q2qhat/5020_PbPb_40-50_0.30_2.0_1/jetRAA/test/hists/hists_Bin1_2_07.root"),
+        # write_jets_filename=Path("/alf/data/rehlers/jetscape/osiris/AAPaperData/5020_PP_Colorless/jetRAA/test/jetsSkim/JetsBin270_280_01.parquet"),
+        # write_hists_filename=Path("/alf/data/rehlers/jetscape/osiris/AAPaperData/5020_PP_Colorless/jetRAA/test/hists/hists_Bin270_280_01.root"),
+        # write_jets_filename=Path("/alf/data/rehlers/jetscape/osiris/AAPaperData/MATTER_LBT_RunningAlphaS_Q2qhat/5020_PbPb_40-50_0.30_2.0_1/jetsSkim/JetsBin7_9_01.parquet"),
+        # write_jets_filename=Path("/alf/data/rehlers/jetscape/osiris/AAPaperData/MATTER_LBT_RunningAlphaS_Q2qhat/5020_PbPb_40-50_0.30_2.0_1/jetRAA/test/jetsSkim/JetsBin270_280_01.root"),
+        # write_hists_filename=Path("/alf/data/rehlers/jetscape/osiris/AAPaperData/MATTER_LBT_RunningAlphaS_Q2qhat/5020_PbPb_40-50_0.30_2.0_1/jetRAA/test/hists/hists_Bin270_280_01.root"),
+        jets_skim_filename=Path(
+            "/alf/data/rehlers/jetscape/osiris/AAPaperData/MATTER_LBT_RunningAlphaS_Q2qhat/5020_PbPb_40-50_0.30_2.0_1/jetRAA/test/jetsSkim/JetsBin1_2_07.root"
+        ),
+        write_hists_filename=Path(
+            "/alf/data/rehlers/jetscape/osiris/AAPaperData/MATTER_LBT_RunningAlphaS_Q2qhat/5020_PbPb_40-50_0.30_2.0_1/jetRAA/test/hists/hists_Bin1_2_07.root"
+        ),
     )
 
     import IPython

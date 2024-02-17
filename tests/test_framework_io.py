@@ -15,17 +15,21 @@ logger = logging.getLogger(__name__)
 
 
 @pytest.mark.parametrize(
-    ("module", "production_name"), [
+    ("module", "production_name"),
+    [
         ("jetscape", "JETSCAPE_PP19_1"),
         ("HF_tree", "LBL20_Pythia_FastSim_1_258314"),
         ("track_skim", "LHC18qr_pass3_AOD252_central_642"),
-    ], ids=["jetscape", "HF_tree", "track_skim"]
+    ],
+    ids=["jetscape", "HF_tree", "track_skim"],
 )
 def test_file_source(module: str, production_name: str) -> None:
     # Setup
     # This is quite hacky, but it's convenient, so good enough
     mammoth_src = Path(production.__file__).parent.parent
-    track_skim_config = production._read_full_config(config_path=mammoth_src / "alice" / "config" / "track_skim_config.yaml")
+    track_skim_config = production._read_full_config(
+        config_path=mammoth_src / "alice" / "config" / "track_skim_config.yaml"
+    )
 
     file_source = io.file_source(file_source_config=track_skim_config["skimmed_datasets"][production_name])
 
@@ -38,4 +42,3 @@ def test_file_source(module: str, production_name: str) -> None:
     #       If we find this gets brittle in the future, we can add them in, but that requires additional
     #       coordination to be able to download the files, etc. Easier just to leave as is for now (May 2023).
     assert isinstance(file_source(filename=Path("test.root")), io.sources.Source)
-

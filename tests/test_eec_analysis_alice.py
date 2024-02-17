@@ -72,7 +72,8 @@ def test_calculate_weight_for_plotting(caplog: Any) -> None:
 
     left, right = ak.unzip(ak.combinations(particles, 2))
     res = analysis_alice._calculate_weight_for_plotting(
-        left=left, right=right,
+        left=left,
+        right=right,
         trigger_pt_event_wise=particles.pt[:, 0],
         momentum_weight_exponent=1,
     )

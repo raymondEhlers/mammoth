@@ -105,7 +105,8 @@ def progress_bar() -> rich.progress.Progress:
         console=rich_console,
         # Refresh relatively slowly and estimate speed over a long period since our tasks
         # are usually rather long running
-        refresh_per_second=1, speed_estimate_period=600,
+        refresh_per_second=1,
+        speed_estimate_period=600,
         expand=True,
     )
 

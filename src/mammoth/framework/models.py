@@ -19,7 +19,7 @@ __all__ = ["alice_fast_sim_tracking_efficiency"]
 
 
 def inverse_sample_decorator(
-    distribution: Callable[..., npt.NDArray[np.float32 | np.float64] | float]
+    distribution: Callable[..., npt.NDArray[np.float32 | np.float64] | float],
 ) -> Callable[..., float | npt.NDArray[np.float32 | np.float64]]:
     """Decorator to perform inverse transform sampling.
 
@@ -47,9 +47,7 @@ def inverse_sample_decorator(
     return wrapper
 
 
-def x_exp(
-    x: float | npt.NDArray[np.float32 | np.float64], scale: float
-) -> npt.NDArray[np.float32 | np.float64]:
+def x_exp(x: float | npt.NDArray[np.float32 | np.float64], scale: float) -> npt.NDArray[np.float32 | np.float64]:
     return x * np.exp(-x / scale)
 
 

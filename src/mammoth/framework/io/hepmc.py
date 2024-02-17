@@ -38,9 +38,7 @@ class FileSource:
         """
         with pyhepmc.open(self._filename) as f:
             return _transform_output(
-                hepmc_file=f,
-                chunk_size=chunk_size,
-                source_default_chunk_size=self._default_chunk_size
+                hepmc_file=f, chunk_size=chunk_size, source_default_chunk_size=self._default_chunk_size
             )
 
 
@@ -73,14 +71,16 @@ class IntermediateFields:
         """Format the data to send and clear for the next iteration."""
         return_value = ak.Array(
             {
-                "data": ak.zip({
-                    "px": ak.concatenate(self.px, axis=0),
-                    "py": ak.concatenate(self.py, axis=0),
-                    "pz": ak.concatenate(self.pz, axis=0),
-                    "E": ak.concatenate(self.E, axis=0),
-                    "status": ak.concatenate(self.status, axis=0),
-                    "particle_ID": ak.concatenate(self.particle_ID, axis=0),
-                }),
+                "data": ak.zip(
+                    {
+                        "px": ak.concatenate(self.px, axis=0),
+                        "py": ak.concatenate(self.py, axis=0),
+                        "pz": ak.concatenate(self.pz, axis=0),
+                        "E": ak.concatenate(self.E, axis=0),
+                        "status": ak.concatenate(self.status, axis=0),
+                        "particle_ID": ak.concatenate(self.particle_ID, axis=0),
+                    }
+                ),
                 # Any event level quantities would go here
             }
         )
@@ -94,7 +94,7 @@ def _transform_output(
     source_default_chunk_size: sources.T_ChunkSize,
 ) -> Generator[ak.Array, sources.T_ChunkSize | None, None]:
     reader_gen = iter(hepmc_file)
-    #raise NotImplementedError("Need to implement this! Helpful for rivet, etc")
+    # raise NotImplementedError("Need to implement this! Helpful for rivet, etc")
     intermediate_data = IntermediateFields()
     i_event = 0
     # NOTE: If we used a reader, we could check reader.failed(). However, when just iterating,
@@ -118,7 +118,8 @@ def _transform_output(
             # Update the chunk size as needed.
             if _result is not None:
                 _result = sources.validate_chunk_size(
-                    chunk_size=_result, source_default_chunk_size=source_default_chunk_size,
+                    chunk_size=_result,
+                    source_default_chunk_size=source_default_chunk_size,
                 )
     except StopIteration:
         # Return whatever is available.

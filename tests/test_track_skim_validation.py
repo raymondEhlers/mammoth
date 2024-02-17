@@ -36,7 +36,8 @@ _track_skim_base_path = _here / "track_skim_validation"
 _collision_system_to_aod_files = {
     "pp": [
         # 17p
-        _track_skim_base_path / "input/alice/data/2017/LHC17p/000282343/pass1_FAST/AOD234/0001/root_archive.zip#AliAOD.root",
+        _track_skim_base_path
+        / "input/alice/data/2017/LHC17p/000282343/pass1_FAST/AOD234/0001/root_archive.zip#AliAOD.root",
         # Default to using less statistics to keep the runtime down, but can run more if it's warranted
         # _track_skim_base_path / "input/alice/data/2017/LHC17p/000282343/pass1_FAST/AOD234/0002/root_archive.zip#AliAOD.root",
     ],
@@ -48,11 +49,13 @@ _collision_system_to_aod_files = {
     ],
     "PbPb": [
         # LHC18q
-        _track_skim_base_path / "input/alice/data/2018/LHC18q/000296550/pass3/AOD252/AOD/001/aod_archive.zip#AliAOD.root",
+        _track_skim_base_path
+        / "input/alice/data/2018/LHC18q/000296550/pass3/AOD252/AOD/001/aod_archive.zip#AliAOD.root",
     ],
     "embed_pythia": [
         # LHC18q
-        _track_skim_base_path / "input/alice/data/2018/LHC18q/000296550/pass3/AOD252/AOD/001/aod_archive.zip#AliAOD.root",
+        _track_skim_base_path
+        / "input/alice/data/2018/LHC18q/000296550/pass3/AOD252/AOD/001/aod_archive.zip#AliAOD.root",
     ],
     "embed_pythia-pythia": [
         # LHC20g4
@@ -62,15 +65,18 @@ _collision_system_to_aod_files = {
 # For convenience
 _collision_system_to_aod_files["embed_pythia-PbPb"] = _collision_system_to_aod_files["embed_pythia"]
 
+
 @attrs.define
 class AnalysisParameters:
     """Centralize some general track skim validation parameters"""
+
     reference_analysis_prefixes: dict[str, str]
     track_skim_loading_data_rename_prefix: dict[str, str]
     track_skim_convert_data_format_prefixes: dict[str, str]
     comparison_prefixes: list[str]
     min_jet_pt_by_R_and_prefix: dict[float, dict[str, float]]
     pt_hat_bin: int | None = None
+
 
 # Stores the parameters together. Organizing them this way somehow seems to make sense.
 # Hard coding them is generally less than ideal, but they're supposed to be fixed
@@ -86,7 +92,7 @@ _all_analysis_parameters = {
         min_jet_pt_by_R_and_prefix={
             0.2: {"data": 5.0},
             0.4: {"data": 5.0},
-        }
+        },
     ),
     "pythia": AnalysisParameters(
         reference_analysis_prefixes={"data": "data", "true": "matched"},
@@ -129,6 +135,7 @@ _all_analysis_parameters = {
 @attrs.define
 class TrackSkimValidationFilenames:
     """Helper to generate relevant filenames"""
+
     base_path: Path
     filename_type: str
     collision_system: str
@@ -172,14 +179,18 @@ def _check_for_alice_input_files(input_files: Sequence[Path]) -> list[bool]:
         file_to_check = input_file
         input_file_str = str(input_file)
         if "#" in input_file_str:
-            file_to_check = Path(input_file_str[:input_file_str.find("#")])
+            file_to_check = Path(input_file_str[: input_file_str.find("#")])
         missing_files.append(not file_to_check.exists())
 
     return missing_files
 
 
 def _aliphysics_to_analysis_results(
-    collision_system: str, jet_R: float, input_files: Sequence[Path], validation_mode: bool = True, filename_to_rename_output_to: Path | None = None,
+    collision_system: str,
+    jet_R: float,
+    input_files: Sequence[Path],
+    validation_mode: bool = True,
+    filename_to_rename_output_to: Path | None = None,
     allow_multiple_executions_of_run_macro: bool = True,
     write_logs_to_file: bool = False,
 ) -> Path:
@@ -217,9 +228,7 @@ def _aliphysics_to_analysis_results(
     missing_files = _check_for_alice_input_files(input_files=input_files)
     if any(missing_files):
         msg = f"Cannot generate AliPhysics reference due to missing inputs files. Missing: {[f for f, missing in zip(input_files, missing_files, strict=True) if missing]}"
-        raise RuntimeError(
-            msg
-        )
+        raise RuntimeError(msg)
 
     # Need this to be available to use the run macro
     # Strictly speaking, we need AliPHysics, so we then try to grab a value from AliPhysics
@@ -241,15 +250,15 @@ def _aliphysics_to_analysis_results(
         missing_files = _check_for_alice_input_files(input_files=_collision_system_to_aod_files["embed_pythia-pythia"])
         if any(missing_files):
             msg = f"Cannot generate AliPhysics reference due to missing embedding inputs files. Missing: {[f for f, missing in zip(input_files, missing_files, strict=True) if missing]}"
-            raise RuntimeError(
-                msg
-            )
+            raise RuntimeError(msg)
         optional_kwargs.update(
             {
                 "embed_input_files": _collision_system_to_aod_files["embed_pythia-pythia"],
                 # NOTE: This implicitly encodes the period. In practice, it only matters for the event selection,
                 #       but it shouldn't be forgot if later changes are made.
-                "embedding_helper_config_filename": _track_skim_base_path / "input" / "embeddingHelper_LHC18_LHC20g4_kSemiCentral.yaml",
+                "embedding_helper_config_filename": _track_skim_base_path
+                / "input"
+                / "embeddingHelper_LHC18_LHC20g4_kSemiCentral.yaml",
                 "embedding_pt_hat_bin": _analysis_parameters.pt_hat_bin,
             }
         )
@@ -258,27 +267,31 @@ def _aliphysics_to_analysis_results(
         # See the note in the docstring for why we bother with this.
         # It lets us work around ROOT issues
         import subprocess
+
         args = [
             "python3",
-            "-m", "mammoth.hardest_kt.run_macro",
-            "-c", f"{collision_system}",
-            "-R", f"{jet_R}",
+            "-m",
+            "mammoth.hardest_kt.run_macro",
+            "-c",
+            f"{collision_system}",
+            "-R",
+            f"{jet_R}",
             "--validation-mode",
-            "--input-files", f"{' '.join([str(_f) for _f in input_files])}",
-            "--n-events", f"{n_events}",
+            "--input-files",
+            f"{' '.join([str(_f) for _f in input_files])}",
+            "--n-events",
+            f"{n_events}",
         ]
         if "embed_input_files" in optional_kwargs:
-            args.extend([
-                "--embed-input-files", f"{' '.join([str(_f) for _f in optional_kwargs['embed_input_files']])}"
-            ])
+            args.extend(
+                ["--embed-input-files", f"{' '.join([str(_f) for _f in optional_kwargs['embed_input_files']])}"]
+            )
         if "embedding_helper_config_filename" in optional_kwargs:
-            args.extend([
-                "--embedding-helper-config-filename", str(optional_kwargs["embedding_helper_config_filename"])
-            ])
+            args.extend(
+                ["--embedding-helper-config-filename", str(optional_kwargs["embedding_helper_config_filename"])]
+            )
         if "embedding_pt_hat_bin" in optional_kwargs:
-            args.extend([
-                "--embedding-pt-hat-bin", str(optional_kwargs["embedding_pt_hat_bin"])
-            ])
+            args.extend(["--embedding-pt-hat-bin", str(optional_kwargs["embedding_pt_hat_bin"])])
         try:
             subprocess_result = subprocess.run(args, check=True, capture_output=True)
         except subprocess.CalledProcessError as e:
@@ -302,14 +315,12 @@ def _aliphysics_to_analysis_results(
             validation_mode=validation_mode,
             input_files=input_files,
             n_events=n_events,
-            **optional_kwargs
+            **optional_kwargs,
         )
     # Next, we need to rename the output
     output_file = Path("AnalysisResults.root")
     if filename_to_rename_output_to:
-        output_file.rename(
-            filename_to_rename_output_to
-        )
+        output_file.rename(filename_to_rename_output_to)
 
     return output_file
 
@@ -404,11 +415,12 @@ def _dyg_analysis_results_to_parquet(filename: Path, collision_system: str, jet_
     )
     return output_filename
 
+
 def _generate_track_skim_task_parquet_outputs_for_embedding(
     jet_R: float,
     reference_filenames: TrackSkimValidationFilenames,
     track_skim_filenames: TrackSkimValidationFilenames,
-    collision_system_to_generate: str
+    collision_system_to_generate: str,
 ) -> None:
     if not reference_filenames.analysis_output(extra_collision_system_label=collision_system_to_generate).exists():
         # Here, we're running pythia, and it should be treated as such.
@@ -419,13 +431,19 @@ def _generate_track_skim_task_parquet_outputs_for_embedding(
             collision_system=collision_system_to_generate,
             jet_R=jet_R,
             input_files=_collision_system_to_aod_files[f"embed_pythia-{collision_system_to_generate}"],
-            filename_to_rename_output_to=reference_filenames.analysis_output(extra_collision_system_label=collision_system_to_generate),
+            filename_to_rename_output_to=reference_filenames.analysis_output(
+                extra_collision_system_label=collision_system_to_generate
+            ),
         )
         # And then extract the corresponding parquet
     if not track_skim_filenames.parquet_output(extra_collision_system_label=collision_system_to_generate).exists():
         _track_skim_to_parquet(
-            input_filename=reference_filenames.analysis_output(extra_collision_system_label=collision_system_to_generate),
-            output_filename=track_skim_filenames.parquet_output(extra_collision_system_label=collision_system_to_generate),
+            input_filename=reference_filenames.analysis_output(
+                extra_collision_system_label=collision_system_to_generate
+            ),
+            output_filename=track_skim_filenames.parquet_output(
+                extra_collision_system_label=collision_system_to_generate
+            ),
             collision_system=collision_system_to_generate,
         )
 
@@ -446,7 +464,10 @@ def _track_skim_to_parquet(input_filename: Path, output_filename: Path, collisio
 @pytest.mark.parametrize("jet_R", [0.2, 0.4])
 @pytest.mark.parametrize("collision_system", ["pp", "pythia", "PbPb", "embed_pythia"])
 def test_track_skim_validation(  # noqa: C901
-    caplog: Any, jet_R: float, collision_system: str, iterative_splittings: bool = True,
+    caplog: Any,
+    jet_R: float,
+    collision_system: str,
+    iterative_splittings: bool = True,
     write_aliphysics_reference_logs_to_file: bool = False,
 ) -> None:
     # NOTE: There's some inefficiency since we store the same track skim info with the
@@ -604,14 +625,14 @@ def test_track_skim_validation(  # noqa: C901
                 jet_R=jet_R,
                 reference_filenames=reference_filenames,
                 track_skim_filenames=track_skim_filenames,
-                collision_system_to_generate="pythia"
+                collision_system_to_generate="pythia",
             )
             # And then for PbPb
             _generate_track_skim_task_parquet_outputs_for_embedding(
                 jet_R=jet_R,
                 reference_filenames=reference_filenames,
                 track_skim_filenames=track_skim_filenames,
-                collision_system_to_generate="PbPb"
+                collision_system_to_generate="PbPb",
             )
 
     # Now we can finally analyze the track_skim
@@ -621,12 +642,12 @@ def test_track_skim_validation(  # noqa: C901
     _analysis_parameters = _all_analysis_parameters[collision_system]
     # Validate min jet pt
     _min_jet_pt_from_run_macro = _run_macro_default_analysis_parameters.grooming_jet_pt_threshold[jet_R]
-    _values_align = [_min_jet_pt_from_run_macro == v for v in _analysis_parameters.min_jet_pt_by_R_and_prefix[jet_R].values()]
+    _values_align = [
+        _min_jet_pt_from_run_macro == v for v in _analysis_parameters.min_jet_pt_by_R_and_prefix[jet_R].values()
+    ]
     if not all(_values_align):
         msg = f"Misalignment between min pt cuts! min jet pt from run macro: {_min_jet_pt_from_run_macro}, min jet pt dict: {_analysis_parameters.min_jet_pt_by_R_and_prefix[jet_R]}"
-        raise RuntimeError(
-            msg
-        )
+        raise RuntimeError(msg)
 
     scale_factors = _get_scale_factors_for_test()
     # The skim task will skip the calculation if the output file already exists.
@@ -684,4 +705,3 @@ def test_track_skim_validation(  # noqa: C901
         assert_false_on_failed_comparison_for_debugging_during_testing=True,
     )
     assert comparison_result, f"Validation failed during comparison for {_failed_variables}"
-

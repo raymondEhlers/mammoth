@@ -510,11 +510,11 @@ def _find_constituent_indices_via_user_index(
     for event_user_index, event_constituents_user_index in zip(user_indices, constituents_user_index):  # noqa: B905
         for jet_constituents_user_index in event_constituents_user_index:
             for jet_constituent_index in jet_constituents_user_index:
-                #for constituent_index in jet_constituents_user_index:
-                #print(f"{jet_constituent_index=}, {event_user_index=}")
+                # for constituent_index in jet_constituents_user_index:
+                # print(f"{jet_constituent_index=}, {event_user_index=}")
                 for i_original_constituent, user_index in enumerate(event_user_index):
                     if jet_constituent_index == user_index:
-                        #print(f"Found match for {jet_constituent_index} at original index {i_original_constituent}")
+                        # print(f"Found match for {jet_constituent_index} at original index {i_original_constituent}")
                         output[output_counter] = i_original_constituent
                         output_counter += 1
                         break
@@ -527,14 +527,11 @@ def _find_constituent_indices_via_user_index(
                     raise ValueError
 
     # Make sure we've found a match everywhere.
-    #assert np.all(output_counter != -1)
+    # assert np.all(output_counter != -1)
     return output
 
 
-def find_constituent_indices_via_user_index(
-    user_indices: ak.Array,
-    constituents_user_index: ak.Array
-) -> ak.Array:
+def find_constituent_indices_via_user_index(user_indices: ak.Array, constituents_user_index: ak.Array) -> ak.Array:
     res = _find_constituent_indices_via_user_index(
         user_indices=user_indices,
         constituents_user_index=constituents_user_index,
@@ -542,11 +539,8 @@ def find_constituent_indices_via_user_index(
     )
 
     first_step = ak.unflatten(res, ak.count(user_indices, axis=1))
-    return ak.unflatten(
-        first_step,
-        ak.flatten(ak.count(constituents_user_index, axis=1)),
-        axis=1
-    )
+    return ak.unflatten(first_step, ak.flatten(ak.count(constituents_user_index, axis=1)), axis=1)
+
 
 @nb.njit  # type: ignore[misc]
 def _find_unsubtracted_constituent_index_from_subtracted_index_via_user_index(
@@ -557,11 +551,13 @@ def _find_unsubtracted_constituent_index_from_subtracted_index_via_user_index(
     output = np.ones(number_of_subtracted_constituents, dtype=np.int64) * -1
     output_counter = 0
 
-    for event_user_index, event_subtracted_index_to_unsubtracted_user_index in zip(user_indices, subtracted_index_to_unsubtracted_user_index):  # noqa: B905
+    for event_user_index, event_subtracted_index_to_unsubtracted_user_index in zip(  # noqa: B905
+        user_indices, subtracted_index_to_unsubtracted_user_index
+    ):
         for unsubtracted_user_index in event_subtracted_index_to_unsubtracted_user_index:
             for i_original_constituent, user_index in enumerate(event_user_index):
                 if unsubtracted_user_index == user_index:
-                    #print(f"Found match for {jet_constituent_index} at original index {i_original_constituent}")
+                    # print(f"Found match for {jet_constituent_index} at original index {i_original_constituent}")
                     output[output_counter] = i_original_constituent
                     output_counter += 1
                     break
@@ -597,9 +593,7 @@ def calculate_user_index_with_encoded_sign_info(
     # Validation
     # If the 0th particle was to be encoded negative, we could miss this since it won't store the sign.
     # In practice, I don't think this is terribly likely, but we can warn the user if this would happen.
-    if ak.any(
-        ak.local_index(particles.px, axis=-1)[mask_to_encode_with_negative] == 0
-    ):
+    if ak.any(ak.local_index(particles.px, axis=-1)[mask_to_encode_with_negative] == 0):
         _msg = "Particles requested to be encoded contain index of 0. We will miss this encoded info for this index. This is probably wrong, but you need to think through how to fix this!"
         raise ValueError(_msg)
 
@@ -610,7 +604,9 @@ def calculate_user_index_with_encoded_sign_info(
     user_index_flattened = ak.to_numpy(ak.flatten(user_index))
     mask_to_encode_with_negative_flattened = ak.flatten(mask_to_encode_with_negative)
     # Finally, we can the sign
-    user_index_flattened[mask_to_encode_with_negative_flattened] = -1 * user_index_flattened[mask_to_encode_with_negative_flattened]
+    user_index_flattened[mask_to_encode_with_negative_flattened] = (
+        -1 * user_index_flattened[mask_to_encode_with_negative_flattened]
+    )
     return ak.unflatten(user_index_flattened, ak.num(user_index, axis=1))
 
 
@@ -639,9 +635,11 @@ def _handle_subtracted_constituents(
         # First, deal with the subtracted index -> unsubtracted user_index mapping.
         # We need to convert it into subtracted index -> unsubtracted index by finding the index where
         # the user_index matches
-        _subtracted_index_to_unsubtracted_index_awkward = find_unsubtracted_constituent_index_from_subtracted_index_via_user_index(
-            user_indices=particles.user_index,
-            subtracted_index_to_unsubtracted_user_index=_subtracted_index_to_unsubtracted_user_index_awkward,
+        _subtracted_index_to_unsubtracted_index_awkward = (
+            find_unsubtracted_constituent_index_from_subtracted_index_via_user_index(
+                user_indices=particles.user_index,
+                subtracted_index_to_unsubtracted_user_index=_subtracted_index_to_unsubtracted_user_index_awkward,
+            )
         )
 
         # Next, we need to deal with the subtracted index -> user_index map.
@@ -666,11 +664,22 @@ def _handle_subtracted_constituents(
     # However, we need to filter out all kinematic variables (for which we already have the subtracted values).
     # This is kind of a dumb way to do it, but it works, so good enough.
     _kinematic_fields_to_skip_for_applying_subtracted_indices_mask = [
-        "px", "py", "pz", "E",
-        "pt", "eta", "phi", "m",
-        "x", "y", "z", "t",
+        "px",
+        "py",
+        "pz",
+        "E",
+        "pt",
+        "eta",
+        "phi",
+        "m",
+        "x",
+        "y",
+        "z",
+        "t",
     ]
-    _additional_fields_for_subtracted_constituents_names = list(set(ak.fields(particles)) - set(_kinematic_fields_to_skip_for_applying_subtracted_indices_mask))
+    _additional_fields_for_subtracted_constituents_names = list(
+        set(ak.fields(particles)) - set(_kinematic_fields_to_skip_for_applying_subtracted_indices_mask)
+    )
     # Now, we can finally grab the additional fields
     _additional_fields_for_subtracted_constituents = particles[_additional_fields_for_subtracted_constituents_names][
         _subtracted_index_to_unsubtracted_index_awkward
@@ -680,13 +689,7 @@ def _handle_subtracted_constituents(
     # along when the constituents are associated with the jets.
     _particles_for_constituents = ak.zip(
         {
-            **dict(
-                zip(
-                    ak.fields(_particles_for_constituents),
-                    ak.unzip(_particles_for_constituents),
-                    strict=True
-                )
-            ),
+            **dict(zip(ak.fields(_particles_for_constituents), ak.unzip(_particles_for_constituents), strict=True)),
             **dict(
                 zip(
                     ak.fields(_additional_fields_for_subtracted_constituents),
@@ -730,8 +733,11 @@ def find_jets(
     # Validation
     if background_subtraction is None:
         background_subtraction = BackgroundSubtraction(type=BackgroundSubtractionType.disabled)
-    if jet_finding_settings.recombiner is not None and \
-        isinstance(jet_finding_settings.recombiner, NegativeEnergyRecombiner) and "user_index" not in ak.fields(particles):  # type: ignore[redundant-expr]
+    if (
+        jet_finding_settings.recombiner is not None
+        and isinstance(jet_finding_settings.recombiner, NegativeEnergyRecombiner)  # type: ignore[redundant-expr]
+        and "user_index" not in ak.fields(particles)
+    ):
         _msg = "The Negative Energy Recombiner requires you to encode the relevant info into the user index and pass them to the jet finder."
         raise ValueError(_msg)
 
@@ -763,8 +769,11 @@ def find_jets(
     pz: npt.NDArray[np.float64] = np.asarray(flattened_particles.pz, dtype=np.float64)
     E: npt.NDArray[np.float64] = np.asarray(flattened_particles.E, dtype=np.float64)
     # Provide this value only if it's available in the array
-    user_index = np.asarray(flattened_particles.user_index, dtype=np.int64) \
-        if "user_index" in ak.fields(flattened_particles) else None
+    user_index = (
+        np.asarray(flattened_particles.user_index, dtype=np.int64)
+        if "user_index" in ak.fields(flattened_particles)
+        else None
+    )
 
     # Now, onto the background particles. If background particles were passed, we want to do the
     # same thing as the input particles

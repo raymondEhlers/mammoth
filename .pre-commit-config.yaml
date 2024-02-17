@@ -17,7 +17,7 @@ repos:
       - id: check-merge-conflict
       - id: check-symlinks
       - id: check-yaml
-        exclude: "scale_factors.yaml"
+        exclude: "scale_factors.yaml|track_efficiency_pt_dependence.yaml"
       - id: debug-statements
       - id: end-of-file-fixer
         exclude: ".patch"
@@ -39,7 +39,7 @@ repos:
     rev: "v3.1.0"
     hooks:
       - id: prettier
-        exclude: tests/track_skim_validation
+        exclude: "tests/track_skim_validation|track_efficiency_pt_dependence.yaml"
         types_or: [yaml, markdown, html, css, scss, javascript, json]
         args: ["--prose-wrap=preserve", "--print-width=120"]
 

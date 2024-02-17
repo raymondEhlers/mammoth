@@ -35,9 +35,7 @@ def customize_analysis_metadata(
 
     Nothing special required here as of June 2023.
     """
-    return {
-        "R": analysis_arguments["jet_R"]
-    }
+    return {"R": analysis_arguments["jet_R"]}
 
 
 def _structured_skim_to_flat_skim_for_one_and_two_track_collections(
@@ -122,8 +120,12 @@ def analysis_MC(
         # Treat as a one track collection (will be either part or det level)
         # Validation
         # We almost certainly don't want an artificial tracking efficiency here
-        assert isinstance(det_level_artificial_tracking_efficiency, float | np.number), f"Det level tracking efficiency should almost certainly be a float. Passed: {det_level_artificial_tracking_efficiency}"
-        assert np.isclose(det_level_artificial_tracking_efficiency, 1.0), f"Det level tracking efficiency should almost certainly be 1.0. Passed: {det_level_artificial_tracking_efficiency}"
+        assert isinstance(
+            det_level_artificial_tracking_efficiency, float | np.number
+        ), f"Det level tracking efficiency should almost certainly be a float. Passed: {det_level_artificial_tracking_efficiency}"
+        assert np.isclose(
+            det_level_artificial_tracking_efficiency, 1.0
+        ), f"Det level tracking efficiency should almost certainly be 1.0. Passed: {det_level_artificial_tracking_efficiency}"
 
         jets = reclustered_substructure.analyze_track_skim_and_recluster_data(
             collision_system=collision_system,
@@ -146,7 +148,7 @@ def analysis_MC(
 
     # NOTE: We need to know how many jets there are, so we arbitrarily take the first field. The jets are flattened,
     #       so they're as good as any others.
-    _there_are_jets_left = (len(jets[ak.fields(jets)[0]]) > 0)
+    _there_are_jets_left = len(jets[ak.fields(jets)[0]]) > 0
     # There were no jets. Note that with a specially crafted output
     if not _there_are_jets_left:
         # Let the analyzer know. This will likely lead to an empty filename to prevent re-running with no jets in the future.
@@ -209,7 +211,7 @@ def analysis_data(
 
     # NOTE: We need to know how many jets there are, so we arbitrarily take the first field. The jets are flattened,
     #       so they're as good as any others.
-    _there_are_jets_left = (len(jets[ak.fields(jets)[0]]) > 0)
+    _there_are_jets_left = len(jets[ak.fields(jets)[0]]) > 0
     # There were no jets. Note that with a specially crafted output
     if not _there_are_jets_left:
         # Let the analyzer know. This will likely lead to an empty filename to prevent re-running with no jets in the future.
@@ -309,7 +311,7 @@ def analysis_embedding(
 
     # NOTE: We need to know how many jets there are, so we arbitrarily take the first field. The jets are flattened,
     #       so they're as good as any others.
-    _there_are_jets_left = (len(jets[ak.fields(jets)[0]]) > 0)
+    _there_are_jets_left = len(jets[ak.fields(jets)[0]]) > 0
     # There were no jets. Note that with a specially crafted output
     if not _there_are_jets_left:
         # Let the analyzer know. This will likely lead to an empty filename to prevent re-running with no jets in the future.
@@ -353,7 +355,7 @@ def run_some_standalone_tests() -> None:
     # PbPb:
     # collision_system = "PbPb"
     # for collision_system in ["pp", "pp_MC", "PbPb"]:
-    #for collision_system in ["pp"]:
+    # for collision_system in ["pp"]:
     #    logger.info(f'Analyzing "{collision_system}"')
     #    jets = analysis_data(
     #        collision_system=collision_system,
@@ -371,14 +373,14 @@ def run_some_standalone_tests() -> None:
     #        min_jet_pt={"data": 5.0 if collision_system == "pp" else 20.0},
     #    )
 
-        # import IPython; IPython.embed()
+    # import IPython; IPython.embed()
     ######
     # MC
     ######
     collision_system = "pp_MC"
     jets = analysis_MC(  # noqa: F841
         arrays=load_data.data(
-            #data_input=[Path("trains/")],
+            # data_input=[Path("trains/")],
             data_input=[Path("trains/pythia/2640/run_by_run/LHC20g4/296191/1/AnalysisResults.20g4.008.root")],
             data_source=partial(track_skim.FileSource, collision_system=collision_system),
             collision_system=collision_system,
@@ -389,8 +391,8 @@ def run_some_standalone_tests() -> None:
         pt_hat_bin=1,
         scale_factors={i: 1 for i in range(1, 21)},
         convert_data_format_prefixes={
-          "det_level": "data",
-          "part_level": "true",
+            "det_level": "data",
+            "part_level": "true",
         },
         jet_R=0.2,
         min_jet_pt={
@@ -400,7 +402,9 @@ def run_some_standalone_tests() -> None:
         det_level_artificial_tracking_efficiency=1.0,
         selected_grooming_methods=["soft_drop_z_cut_02"],
     )
-    import IPython; IPython.embed()  #type: ignore[no-untyped-call] # noqa: I001,E702
+    import IPython
+
+    IPython.embed()  # type: ignore[no-untyped-call]
 
     ###########
     # Embedding

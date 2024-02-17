@@ -126,7 +126,9 @@ def setup_write_scale_factors(
         #       seem to be able to do so...)
         scale_factors={  # type: ignore[arg-type]
             k: v.result() for k, v in scale_factors.items()
-        } if job_framework == job_utils.JobFramework.parsl else scale_factors,
+        }
+        if job_framework == job_utils.JobFramework.parsl
+        else scale_factors,
         job_framework=job_framework,
         outputs=[parsl_output_file],
     )
@@ -159,9 +161,7 @@ def _extract_pt_hat_spectra(
     # Convert back from parsl inputs
     offsets_values = list(offsets.values())
     filenames = {
-        pt_hat_bin: [
-            Path(f.filepath) for f in inputs[sum(offsets_values[:i]) : sum(offsets_values[: i + 1])]
-        ]
+        pt_hat_bin: [Path(f.filepath) for f in inputs[sum(offsets_values[:i]) : sum(offsets_values[: i + 1])]]
         for i, pt_hat_bin in enumerate(offsets)
     }
 
@@ -244,13 +244,7 @@ def steer_extract_scale_factors(
     all_results.extend(list(scale_factors.values()))
 
     # Then, we need to write them
-    all_results.append(
-        setup_write_scale_factors(
-            prod=prod,
-            scale_factors=scale_factors,
-            job_framework=job_framework
-        )
-    )
+    all_results.append(setup_write_scale_factors(prod=prod, scale_factors=scale_factors, job_framework=job_framework))
     # Store the result in a way that we can query later.
     if job_framework == job_utils.JobFramework.parsl:
         writing_yaml_success: bool = all_results[-1].result()
@@ -283,4 +277,4 @@ def steer_extract_scale_factors(
     #       We'll just return the futures associated with writing to the file and the pt hat spectra cross check.
     # NOTE: If the case of dask, we only want to return the pt hat spectra cross check. Otherwise, it will run
     #       the writing to file task again
-    return all_results[-1 if job_framework == job_utils.JobFramework.dask_delayed else -2:]
+    return all_results[-1 if job_framework == job_utils.JobFramework.dask_delayed else -2 :]

@@ -78,28 +78,29 @@ def define_productions() -> list[production.ProductionSettings]:
             #     track_skim_config_filename=config_filename,
             # ),
             # Production
-            #production.ProductionSettings.read_config(
+            # production.ProductionSettings.read_config(
             #    collision_system="pp_MC", number=69,
             #    specialization=groomed_substructure_steering.ProductionSpecialization(),
             #    track_skim_config_filename=config_filename,
-            #),
-            #production.ProductionSettings.read_config(
+            # ),
+            # production.ProductionSettings.read_config(
             #    collision_system="pp_MC", number=70,
             #    specialization=groomed_substructure_steering.ProductionSpecialization(),
             #    track_skim_config_filename=config_filename,
-            #),
-            #production.ProductionSettings.read_config(
+            # ),
+            # production.ProductionSettings.read_config(
             #    collision_system="pp_MC", number=71,
             #    specialization=groomed_substructure_steering.ProductionSpecialization(),
             #    track_skim_config_filename=config_filename,
-            #),
-            #production.ProductionSettings.read_config(
+            # ),
+            # production.ProductionSettings.read_config(
             #    collision_system="pp_MC", number=72,
             #    specialization=groomed_substructure_steering.ProductionSpecialization(),
             #    track_skim_config_filename=config_filename,
-            #),
+            # ),
             production.ProductionSettings.read_config(
-                collision_system="pp_MC", number=6,
+                collision_system="pp_MC",
+                number=6,
                 specialization=groomed_substructure_steering.ProductionSpecialization(),
                 track_skim_config_filename=config_filename,
             ),
@@ -123,7 +124,9 @@ def setup_and_submit_tasks(
     all_results: list[Future[framework_task.Output]] = []
     for prod in productions:
         tasks_to_execute = prod.tasks_to_execute
-        logger.info(f"Tasks to execute: {tasks_to_execute} for production \"{prod.collision_system}\" #{prod.formatted_number}")
+        logger.info(
+            f'Tasks to execute: {tasks_to_execute} for production "{prod.collision_system}" #{prod.formatted_number}'
+        )
 
         # Setup tasks
         system_results = []
@@ -179,7 +182,7 @@ def setup_and_submit_tasks(
             all_results,
             # Distributed assumes functions are pure, but usually mine are not (ie. they create files)
             pure=False,
-            resources={"n_cores": task_config.n_cores_per_task}
+            resources={"n_cores": task_config.n_cores_per_task},
         )
 
     return all_results
@@ -203,9 +206,9 @@ def run(job_framework: job_utils.JobFramework) -> list[Future[Any]]:
         # Usually, we want to run in the short queue
         target_n_tasks_to_run_simultaneously = 2
         walltime = "1:59:00"
-    #facility: job_utils.FACILITIES = "ORNL_b587_long" if job_utils.hours_in_walltime(walltime) >= 2 else "ORNL_b587_short"
+    # facility: job_utils.FACILITIES = "ORNL_b587_long" if job_utils.hours_in_walltime(walltime) >= 2 else "ORNL_b587_short"
     facility: job_utils.FACILITIES = "hiccup_std" if job_utils.hours_in_walltime(walltime) >= 2 else "hiccup_quick"
-    #facility: job_utils.FACILITIES = "rehlers_mbp_m1pro"
+    # facility: job_utils.FACILITIES = "rehlers_mbp_m1pro"
 
     # Keep the job executor just to keep it alive
     job_executor, _job_framework_config = setup_job_framework(
@@ -223,7 +226,7 @@ def run(job_framework: job_utils.JobFramework) -> list[Future[Any]]:
         task_config=task_config,
         job_framework=job_framework,
         debug_mode=debug_mode,
-        job_executor=job_executor
+        job_executor=job_executor,
     )
 
     process_futures(productions=productions, all_results=all_results, job_framework=job_framework)
@@ -232,5 +235,5 @@ def run(job_framework: job_utils.JobFramework) -> list[Future[Any]]:
 
 
 if __name__ == "__main__":
-    #run(job_framework=job_utils.JobFramework.immediate_execution_debug)
+    # run(job_framework=job_utils.JobFramework.immediate_execution_debug)
     run(job_framework=job_utils.JobFramework.parsl)

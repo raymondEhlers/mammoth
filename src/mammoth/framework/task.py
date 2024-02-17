@@ -60,6 +60,7 @@ class Settings:
         collision_system: Collision system
         chunk_size: Chunk size for the task.
     """
+
     production_identifier: str
     collision_system: str
     chunk_size: sources.T_ChunkSize
@@ -103,6 +104,7 @@ class OutputSettings:
         write_merged_hists: Whether to write the merged histograms (merging at the analysis
             iterations return). Default: None.
     """
+
     output_filename: Path
     primary_output: PrimaryOutput
     return_skim: bool | None = attrs.field(default=None)
@@ -123,7 +125,9 @@ class OutputSettings:
             primary_output=PrimaryOutput.from_config(config=config["primary_output"]),
             return_skim=config.get("return_skim", None),  # noqa: SIM910
             write_chunk_skim=config.get("write_chunk_skim", None),  # noqa: SIM910
-            explode_skim_fields_to_separate_directories=config.get("explode_skim_fields_to_separate_directories", False),
+            explode_skim_fields_to_separate_directories=config.get(
+                "explode_skim_fields_to_separate_directories", False
+            ),
             return_merged_hists=config.get("return_merged_hists", None),  # noqa: SIM910
             write_chunk_hists=config.get("write_chunk_hists", None),  # noqa: SIM910
             write_merged_hists=config.get("write_merged_hists", None),  # noqa: SIM910
@@ -171,6 +175,7 @@ class Output:
             into this metadata, but it's fairly useful for identification, etc, so we call
             it out explicitly. Default: {}.
     """
+
     production_identifier: str
     collision_system: str
     success: bool
@@ -192,7 +197,7 @@ class Output:
         """
         s = f"collision_system={self.collision_system}, success={self.success}, identifier={self.production_identifier}"
         # NOTE: Evaluate the message separately to ensure that newlines are evaluated.
-        s += f"\nmessage=\"{self.message}\""
+        s += f'\nmessage="{self.message}"'
         return s
 
     def print(self) -> bool:
@@ -218,7 +223,7 @@ def check_for_task_output(
     output_settings: OutputSettings,
     chunk_size: sources.T_ChunkSize | None = None,
 ) -> tuple[bool, str]:
-    """ Check for outputs to skip processing early if possible.
+    """Check for outputs to skip processing early if possible.
 
     Args:
         output_settings: Output settings.
@@ -240,16 +245,26 @@ def check_for_task_output(
     # NOTE: We have to exercise a bit of care here in the case that have chunk sizes smaller than an individual file.
     #       In that case, the first file could be empty, but later chunks may not be empty. To avoid that case, we only
     #       check when there is meaningful output, as defined by the two conditions above.
-    if chunk_size is None or chunk_size in [sources.ChunkSizeSentinel.SINGLE_FILE, sources.ChunkSizeSentinel.FULL_SOURCE] or output_settings.write_merged_hists:
+    if (
+        chunk_size is None
+        or chunk_size in [sources.ChunkSizeSentinel.SINGLE_FILE, sources.ChunkSizeSentinel.FULL_SOURCE]
+        or output_settings.write_merged_hists
+    ):
         if output_settings.primary_output.type == "skim":
             if output_settings.output_filename.suffix == ".root":
                 res = output_utils.check_for_task_root_skim_output_file(
-                    output_filename=output_utils.task_output_path_skim(output_filename=output_settings.output_filename, skim_name=output_settings.primary_output.container_name),
+                    output_filename=output_utils.task_output_path_skim(
+                        output_filename=output_settings.output_filename,
+                        skim_name=output_settings.primary_output.container_name,
+                    ),
                     reference_tree_name=output_settings.primary_output.reference_name,
                 )
             else:
                 res = output_utils.check_for_task_parquet_skim_output_file(
-                    output_filename=output_utils.task_output_path_skim(output_filename=output_settings.output_filename, skim_name=output_settings.primary_output.container_name),
+                    output_filename=output_utils.task_output_path_skim(
+                        output_filename=output_settings.output_filename,
+                        skim_name=output_settings.primary_output.container_name,
+                    ),
                     reference_array_name=output_settings.primary_output.reference_name,
                 )
         if output_settings.primary_output.type == "hists":
@@ -268,6 +283,7 @@ class FailedToSetupSourceError(Exception):
         result_success: Whether the task was successful.
         result_message: Message describing the result.
     """
+
     def __init__(self, result_success: bool, result_message: str):
         self.result_success = result_success
         self.result_message = result_message
@@ -281,26 +297,28 @@ class FailedToSetupSourceError(Exception):
     def __repr__(self) -> str:
         return f"{type(self).__name__}(result_success={self.result_success}, result_message={self.result_message})"
 
+
 class SetupSource(Protocol):
     def __call__(
-            self,
-            *,
-            task_settings: Settings,
-            task_metadata: Metadata,
-            output_settings: OutputSettings,
-            **kwargs: Any,
-        ) -> Iterator[ak.Array]:
-            ...
+        self,
+        *,
+        task_settings: Settings,
+        task_metadata: Metadata,
+        output_settings: OutputSettings,
+        **kwargs: Any,
+    ) -> Iterator[ak.Array]:
+        ...
+
 
 class SetupEmbeddingSource(Protocol):
     def __call__(
-            self,
-            *,
-            task_settings: Settings,
-            task_metadata: Metadata,
-            output_settings: OutputSettings,
-            **kwargs: Any,
-        ) -> tuple[dict[str, int], Iterator[ak.Array]]:
+        self,
+        *,
+        task_settings: Settings,
+        task_metadata: Metadata,
+        output_settings: OutputSettings,
+        **kwargs: Any,
+    ) -> tuple[dict[str, int], Iterator[ak.Array]]:
         ...
 
 
@@ -318,7 +336,15 @@ class NoUsefulAnalysisOutputError(Exception):
     """
 
 
-T_SkimTypes = Union[ak.Array, npt.NDArray[np.float32], npt.NDArray[np.float64], npt.NDArray[np.int16], npt.NDArray[np.int32], npt.NDArray[np.int64]]  # noqa: UP007
+T_SkimTypes = Union[  # noqa: UP007
+    ak.Array,
+    npt.NDArray[np.float32],
+    npt.NDArray[np.float64],
+    npt.NDArray[np.int16],
+    npt.NDArray[np.int32],
+    npt.NDArray[np.int64],
+]
+
 
 @attrs.frozen(kw_only=True)
 class AnalysisOutput:
@@ -337,14 +363,18 @@ class AnalysisOutput:
         for skim_name, skim_array in skim.items():
             # Enables the possibility of writing a single standard file (just wrap in a dict with an empty string as key).
             if skim_name:
-                _skim_output_filename = output_utils.task_output_path_skim(output_filename=output_filename, skim_name=skim_name)
+                _skim_output_filename = output_utils.task_output_path_skim(
+                    output_filename=output_filename, skim_name=skim_name
+                )
             else:
                 _skim_output_filename = output_filename
 
             _skim_output_filename.parent.mkdir(parents=True, exist_ok=True)
             # The skim_array could either be a dict or an array
             # We need to handle the check for empty outputs separately for each case
-            if (isinstance(skim_array, dict) and not skim_array) or (not isinstance(skim_array, dict) and ak.num(skim_array, axis=0) == 0):
+            if (isinstance(skim_array, dict) and not skim_array) or (
+                not isinstance(skim_array, dict) and ak.num(skim_array, axis=0) == 0
+            ):
                 # Skip the skim if it's empty
                 _skim_output_filename.with_suffix(".empty").touch()
             else:  # noqa: PLR5501
@@ -368,12 +398,12 @@ class AnalysisOutput:
                     )
 
     def write(
-            self,
-            output_filename: Path,
-            write_hists: bool | None,
-            write_skim: bool | None,
-            explode_skim_fields_to_separate_directories: bool
-        ) -> None:
+        self,
+        output_filename: Path,
+        write_hists: bool | None,
+        write_skim: bool | None,
+        explode_skim_fields_to_separate_directories: bool,
+    ) -> None:
         # If not specified, fall back to the default, which is to write the analysis outputs if they're provided
         if write_hists is None:
             write_hists = bool(self.hists)
@@ -398,46 +428,50 @@ class AnalysisOutput:
             task_hists = output_utils.merge_results(task_hists, self.hists)
         return task_hists
 
+
 # NOTE: This needs to be extremely generic to pass typing...
 #       Also, it _must_ come after AnalysisOutput definition...
 Analysis = Callable[..., AnalysisOutput]
 
+
 class AnalysisBound(Protocol):
     def __call__(
-            self,
-            *,
-            collision_system: str,
-            arrays: ak.Array,
-            validation_mode: bool = False,
-            return_skim: bool = False,
-            **kwargs: Any,
-        ) -> AnalysisOutput:
+        self,
+        *,
+        collision_system: str,
+        arrays: ak.Array,
+        validation_mode: bool = False,
+        return_skim: bool = False,
+        **kwargs: Any,
+    ) -> AnalysisOutput:
         ...
+
 
 class EmbeddingAnalysisBound(Protocol):
     def __call__(
-            self,
-            *,
-            collision_system: str,
-            source_index_identifiers: dict[str, int],
-            arrays: ak.Array,
-            validation_mode: bool = False,
-            return_skim: bool = False,
-            **kwargs: Any,
-        ) -> AnalysisOutput:
+        self,
+        *,
+        collision_system: str,
+        source_index_identifiers: dict[str, int],
+        arrays: ak.Array,
+        validation_mode: bool = False,
+        return_skim: bool = False,
+        **kwargs: Any,
+    ) -> AnalysisOutput:
         ...
+
 
 class CustomizeAnalysisMetadata(Protocol):
-    """Customize metadata based on the analysis arguments.
+    """Customize metadata based on the analysis arguments."""
 
-    """
     def __call__(
-            self,
-            *,
-            task_settings: Settings,
-            **analysis_arguments: Any,
-        ) -> Metadata:
+        self,
+        *,
+        task_settings: Settings,
+        **analysis_arguments: Any,
+    ) -> Metadata:
         ...
+
 
 class BoundCustomizeAnalysisMetadata(Protocol):
     """Customize metadata based on the analysis arguments.
@@ -445,11 +479,12 @@ class BoundCustomizeAnalysisMetadata(Protocol):
     This signature is if the analysis arguments have already been bound to the function.
 
     """
+
     def __call__(
-            self,
-            *,
-            task_settings: Settings,
-        ) -> Metadata:
+        self,
+        *,
+        task_settings: Settings,
+    ) -> Metadata:
         ...
 
 
@@ -501,7 +536,9 @@ def python_app_data(
     analysis_metadata_module_import_path = ""
     analysis_metadata_function_name = ""
     if analysis_metadata is not None:
-        analysis_metadata_module_import_path, analysis_metadata_function_name = _module_and_name_from_func(func=analysis_metadata)
+        analysis_metadata_module_import_path, analysis_metadata_function_name = _module_and_name_from_func(
+            func=analysis_metadata
+        )
 
     # NOTE: The order of the wrapping is important here! Otherwise, parsl breaks.
     @functools.wraps(analysis)
@@ -542,7 +579,9 @@ def python_app_data(
         # We handle this more carefully because it may not always be specified
         if analysis_metadata_module_import_path:
             module_containing_analysis_metadata_function = importlib.import_module(analysis_metadata_module_import_path)
-            metadata_function: CustomizeAnalysisMetadata = getattr(module_containing_analysis_metadata_function, analysis_metadata_function_name)
+            metadata_function: CustomizeAnalysisMetadata = getattr(
+                module_containing_analysis_metadata_function, analysis_metadata_function_name
+            )
         else:
             metadata_function = no_op_customize_analysis_metadata
 
@@ -586,7 +625,7 @@ def python_app_data(
                 metadata={
                     "analysis_arguments": analysis_arguments,
                     "signal_input": [Path(_input_file.filepath) for _input_file in inputs],
-                }
+                },
             )
         return result
 
@@ -621,7 +660,9 @@ def python_app_embed_MC_into_data(
     analysis_metadata_module_import_path = ""
     analysis_metadata_function_name = ""
     if analysis_metadata is not None:
-        analysis_metadata_module_import_path, analysis_metadata_function_name = _module_and_name_from_func(func=analysis_metadata)
+        analysis_metadata_module_import_path, analysis_metadata_function_name = _module_and_name_from_func(
+            func=analysis_metadata
+        )
 
     # NOTE: The order of the wrapping is important here! Otherwise, parsl breaks.
     @functools.wraps(analysis)
@@ -662,7 +703,9 @@ def python_app_embed_MC_into_data(
         # We handle this more carefully because it may not always be specified
         if analysis_metadata_module_import_path:
             module_containing_analysis_metadata_function = importlib.import_module(analysis_metadata_module_import_path)
-            metadata_function: CustomizeAnalysisMetadata = getattr(module_containing_analysis_metadata_function, analysis_metadata_function_name)
+            metadata_function: CustomizeAnalysisMetadata = getattr(
+                module_containing_analysis_metadata_function, analysis_metadata_function_name
+            )
         else:
             metadata_function = no_op_customize_analysis_metadata
 
@@ -709,7 +752,7 @@ def python_app_embed_MC_into_data(
                     "analysis_arguments": analysis_arguments,
                     "signal_input": [Path(_input_file.filepath) for _input_file in inputs[:n_signal_input_files]],
                     "background_input": [Path(_input_file.filepath) for _input_file in inputs[n_signal_input_files:]],
-                }
+                },
             )
         return result
 
@@ -744,7 +787,9 @@ def python_app_embed_MC_into_thermal_model(
     analysis_metadata_module_import_path = ""
     analysis_metadata_function_name = ""
     if analysis_metadata is not None:
-        analysis_metadata_module_import_path, analysis_metadata_function_name = _module_and_name_from_func(func=analysis_metadata)
+        analysis_metadata_module_import_path, analysis_metadata_function_name = _module_and_name_from_func(
+            func=analysis_metadata
+        )
 
     # NOTE: The order of the wrapping is important here! Otherwise, parsl breaks.
     @functools.wraps(analysis)
@@ -783,7 +828,9 @@ def python_app_embed_MC_into_thermal_model(
         # We handle this more carefully because it may not always be specified
         if analysis_metadata_module_import_path:
             module_containing_analysis_metadata_function = importlib.import_module(analysis_metadata_module_import_path)
-            metadata_function: CustomizeAnalysisMetadata = getattr(module_containing_analysis_metadata_function, analysis_metadata_function_name)
+            metadata_function: CustomizeAnalysisMetadata = getattr(
+                module_containing_analysis_metadata_function, analysis_metadata_function_name
+            )
         else:
             metadata_function = no_op_customize_analysis_metadata
 
@@ -828,7 +875,7 @@ def python_app_embed_MC_into_thermal_model(
                     "analysis_arguments": analysis_arguments,
                     "signal_input": [Path(_input_file.filepath) for _input_file in inputs],
                     "thermal_model_parameters": thermal_model_parameters,
-                }
+                },
             )
         return result
 

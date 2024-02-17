@@ -43,13 +43,12 @@ def load_embedding(
         fast_sim_parameters=models.ALICEFastSimParameters(
             event_activity=models.ALICETrackingEfficiencyEventActivity.central_00_10,
             period=models.ALICETrackingEfficiencyPeriod.LHC15o,
-        )
+        ),
     )
     # Background
     # For embedding, we will always be embedding into PbPb
     background_source = track_skim.FileSource(
-        filename=background_filename,
-        collision_system=background_collision_system_tag
+        filename=background_filename, collision_system=background_collision_system_tag
     )
 
     # Now, just zip them together, effectively.
@@ -83,11 +82,14 @@ def load_embedding(
 
     # Finally, apply selection
     n_events_removed = len(arrays) - np.count_nonzero(mask)
-    logger.info(f"Removing {n_events_removed} events out of {len(arrays)} total events ({round(n_events_removed / len(arrays) * 100, 2)}%) due to event selection")
+    logger.info(
+        f"Removing {n_events_removed} events out of {len(arrays)} total events ({round(n_events_removed / len(arrays) * 100, 2)}%) due to event selection"
+    )
     arrays = arrays[mask]
 
     return source_index_identifiers, load_data.normalize_for_embedding(
-        arrays=arrays, source_index_identifiers=source_index_identifiers,
+        arrays=arrays,
+        source_index_identifiers=source_index_identifiers,
         # NOTE: We set a fixed background index value because it's required for the ML framework.
         #       In principle, we could do this later during the analysis, but assignment gets tricky
         #       due to awkward arrays, so this is a simpler approach.
@@ -95,13 +97,14 @@ def load_embedding(
     )
 
 
-def analysis_embedding(source_index_identifiers: Mapping[str, int],
-                       arrays: ak.Array,
-                       jet_R: float,
-                       min_jet_pt: Mapping[str, float],
-                       use_standard_rho_subtract: bool = True,
-                       use_constituent_subtraction: bool = False,
-                       ) -> ak.Array:
+def analysis_embedding(
+    source_index_identifiers: Mapping[str, int],
+    arrays: ak.Array,
+    jet_R: float,
+    min_jet_pt: Mapping[str, float],
+    use_standard_rho_subtract: bool = True,
+    use_constituent_subtraction: bool = False,
+) -> ak.Array:
     # Validation
     if use_standard_rho_subtract and use_constituent_subtraction:
         _msg = "Selected both rho subtraction and constituent subtraction. Select only one."
@@ -155,7 +158,7 @@ def analysis_embedding(source_index_identifiers: Mapping[str, int],
                     algorithm="anti-kt",
                     # NOTE: We only want the minimum pt to apply to the detector level.
                     #       Otherwise, we'll bias our particle level jets.
-                    pt_range=jet_finding.pt_range(pt_min=min_jet_pt.get("part_level", 1.)),
+                    pt_range=jet_finding.pt_range(pt_min=min_jet_pt.get("part_level", 1.0)),
                     # NOTE: We only want fiducial acceptance at the "data" level (ie. hybrid)
                     eta_range=jet_finding.eta_range(jet_R=jet_R, fiducial_acceptance=False),
                     area_settings=jet_finding.AreaPP(),
@@ -166,11 +169,11 @@ def analysis_embedding(source_index_identifiers: Mapping[str, int],
                 jet_finding_settings=jet_finding.JetFindingSettings(
                     R=jet_R,
                     algorithm="anti-kt",
-                    pt_range=jet_finding.pt_range(pt_min=min_jet_pt.get("det_level", 5.)),
+                    pt_range=jet_finding.pt_range(pt_min=min_jet_pt.get("det_level", 5.0)),
                     # NOTE: We only want fiducial acceptance at the "data" level (ie. hybrid)
                     eta_range=jet_finding.eta_range(jet_R=jet_R, fiducial_acceptance=False),
                     area_settings=jet_finding.AreaPP(),
-                )
+                ),
             ),
             "hybrid": jet_finding.find_jets(
                 particles=arrays["hybrid"],
@@ -197,7 +200,7 @@ def analysis_embedding(source_index_identifiers: Mapping[str, int],
     # We need to keep track of the event level cuts on the jets from here until flattening.
     # This enables us to store event level quantities by projecting them along with the jets.
     # Unfortunately, this takes a good deal of book keeping
-    #event_level_mask_for_jets = np.ones(len(arrays)) > 0
+    # event_level_mask_for_jets = np.ones(len(arrays)) > 0
     event_level_mask_for_jets = []
 
     # Add some event level quantities.
@@ -209,8 +212,8 @@ def analysis_embedding(source_index_identifiers: Mapping[str, int],
     #       match up at the end.
     #       Adding the desired values will project them to the right shapes.
 
-    #logger.info("Right after jet finding...")
-    #import IPython; IPython.embed()
+    # logger.info("Right after jet finding...")
+    # import IPython; IPython.embed()
 
     # Apply jet level cuts.
     # **************
@@ -260,7 +263,7 @@ def analysis_embedding(source_index_identifiers: Mapping[str, int],
         & (ak.num(jets["hybrid"], axis=1) > 0)
     )
     jets = jets[jets_present_mask]
-    #event_level_mask_for_jets = event_level_mask_for_jets & jets_present_mask
+    # event_level_mask_for_jets = event_level_mask_for_jets & jets_present_mask
     event_level_mask_for_jets.append(jets_present_mask)
 
     # Now, onto the individual jet collections
@@ -279,10 +282,14 @@ def analysis_embedding(source_index_identifiers: Mapping[str, int],
     # to be the same shape as the detector level jets, so in principle they are paired together.
     hybrid_to_det_level_valid_matches = jets["hybrid", "matching"] > -1
     det_to_part_level_valid_matches = jets["det_level", "matching"] > -1
-    hybrid_to_det_level_including_det_to_part_level_valid_matches = det_to_part_level_valid_matches[jets["hybrid", "matching"][hybrid_to_det_level_valid_matches]]
+    hybrid_to_det_level_including_det_to_part_level_valid_matches = det_to_part_level_valid_matches[
+        jets["hybrid", "matching"][hybrid_to_det_level_valid_matches]
+    ]
     # First, restrict the hybrid level, requiring hybrid to det_level valid matches and
     # det_level to part_level valid matches.
-    jets["hybrid"] = jets["hybrid"][hybrid_to_det_level_valid_matches][hybrid_to_det_level_including_det_to_part_level_valid_matches]
+    jets["hybrid"] = jets["hybrid"][hybrid_to_det_level_valid_matches][
+        hybrid_to_det_level_including_det_to_part_level_valid_matches
+    ]
     # Next, restrict the det_level. Since we've restricted the hybrid to only valid matches, we should be able
     # to directly apply the masking indices.
     jets["det_level"] = jets["det_level"][jets["hybrid", "matching"]]
@@ -297,7 +304,7 @@ def analysis_embedding(source_index_identifiers: Mapping[str, int],
         & (ak.num(jets["hybrid"], axis=1) > 0)
     )
     jets = jets[jets_present_mask]
-    #event_level_mask_for_jets = event_level_mask_for_jets & jets_present_mask
+    # event_level_mask_for_jets = event_level_mask_for_jets & jets_present_mask
     event_level_mask_for_jets.append(jets_present_mask)
 
     logger.warning(f"n events: {len(jets)}")
@@ -306,15 +313,13 @@ def analysis_embedding(source_index_identifiers: Mapping[str, int],
         # Event weight
         "event_weight",
         # Store the original jet pt for the extractor bins
-        "jet_pt_original"
+        "jet_pt_original",
     ]
     event_level_arrays = arrays[event_level_fields]
     for m in event_level_mask_for_jets:
         event_level_arrays = event_level_arrays[m]
     event_level_following_jets_shape = ak.zip(
-        {
-            k: jets["part_level"].pt * 0 + event_level_arrays[k] for k in event_level_fields
-        }
+        {k: jets["part_level"].pt * 0 + event_level_arrays[k] for k in event_level_fields}
     )
 
     # Next step for using existing skimming:
@@ -324,7 +329,8 @@ def analysis_embedding(source_index_identifiers: Mapping[str, int],
     #       matching together as appropriate.
     jets = ak.zip(
         {
-            k: ak.flatten(v, axis=1) for k, v in zip(
+            k: ak.flatten(v, axis=1)
+            for k, v in zip(
                 ak.fields(jets) + ak.fields(event_level_following_jets_shape),
                 ak.unzip(jets) + ak.unzip(event_level_following_jets_shape),
                 strict=True,
@@ -340,25 +346,24 @@ def analysis_embedding(source_index_identifiers: Mapping[str, int],
     # the event structure for many calculations
     # Angularity
     for label in ["part_level", "det_level", "hybrid"]:
-        jets[label, "angularity"] = ak.sum(
-            jets[label].constituents.pt * jets[label].constituents.deltaR(jets[label]),
-            axis=1
-        ) / jets[label].pt
+        jets[label, "angularity"] = (
+            ak.sum(jets[label].constituents.pt * jets[label].constituents.deltaR(jets[label]), axis=1) / jets[label].pt
+        )
     # Shared momentum fraction
     try:
-        #import pickle
-        #with open("projects/exploration/repro.pkl", "wb") as f:
+        # import pickle
+        # with open("projects/exploration/repro.pkl", "wb") as f:
         #    pickle.dump(ak.to_buffers(jets["det_level"]), f)
-        #ak.to_parquet(array=jets["det_level"], where="projects/exploration/repro.parquet")
-        #res = jet_finding.repro(jets["det_level"].constituents)
+        # ak.to_parquet(array=jets["det_level"], where="projects/exploration/repro.parquet")
+        # res = jet_finding.repro(jets["det_level"].constituents)
         # Take slice for test...
-        #res = jet_finding.shared_momentum_fraction_for_flat_array(
+        # res = jet_finding.shared_momentum_fraction_for_flat_array(
         #    generator_like_jet_pts=jets["det_level"][:1].pt,
         #    generator_like_jet_constituents=jets["det_level"][:1].constituents,
         #    measured_like_jet_constituents=jets["hybrid"][:1].constituents,
-        #)
-        #logger.info("Success")
-        #import IPython; IPython.embed()
+        # )
+        # logger.info("Success")
+        # import IPython; IPython.embed()
         jets["det_level", "shared_momentum_fraction"] = jet_finding.shared_momentum_fraction_for_flat_array(
             generator_like_jet_pts=jets["det_level"].pt,
             # NOTE: Here, there was once a bug which required a to `ak.to_packed` call on both constituent fields.
@@ -369,9 +374,11 @@ def analysis_embedding(source_index_identifiers: Mapping[str, int],
         )
 
         # Require a shared momentum fraction of > 50%
-        shared_momentum_fraction_mask = (jets["det_level", "shared_momentum_fraction"] >= 0.5)
+        shared_momentum_fraction_mask = jets["det_level", "shared_momentum_fraction"] >= 0.5
         n_jets_removed = len(jets) - np.count_nonzero(shared_momentum_fraction_mask)
-        logger.info(f"Removing {n_jets_removed} events out of {len(jets)} total jets ({round(n_jets_removed / len(jets) * 100, 2)}%) due to shared momentum fraction")
+        logger.info(
+            f"Removing {n_jets_removed} events out of {len(jets)} total jets ({round(n_jets_removed / len(jets) * 100, 2)}%) due to shared momentum fraction"
+        )
         jets = jets[shared_momentum_fraction_mask]
     except Exception as e:
         print(e)  # noqa: T201
@@ -407,14 +414,15 @@ def write_skim(jets: ak.Array, filename: Path) -> None:
             f["tree"] = jets_renamed
     except Exception as e:
         logger.exception(e)
-        raise e from ValueError(
-            f"{jets.type}, {jets}"
-        )
+        raise e from ValueError(f"{jets.type}, {jets}")
 
 
 def run_embedding_analysis(
-    signal_filename: Path, background_filename: Path, background_collision_system_tag: str,
-    jet_R: float, min_jet_pt: Mapping[str, float],
+    signal_filename: Path,
+    background_filename: Path,
+    background_collision_system_tag: str,
+    jet_R: float,
+    min_jet_pt: Mapping[str, float],
     output_filename: Path,
     use_standard_rho_subtraction: bool = True,
     use_constituent_subtraction: bool = False,
@@ -443,24 +451,31 @@ def run_embedding_analysis(
 
 if __name__ == "__main__":
     import mammoth.helpers
+
     mammoth.helpers.setup_logging()
 
     JEWEL_identifier = "NoToy_PbPb"
     pt_hat_bin = "80_140"
     index = "000"
-    signal_filename = Path(f"/alf/data/rehlers/skims/JEWEL_PbPb_no_recoil/skim/central_00_10/JEWEL_{JEWEL_identifier}_PtHard{pt_hat_bin}_{index}.parquet")
+    signal_filename = Path(
+        f"/alf/data/rehlers/skims/JEWEL_PbPb_no_recoil/skim/central_00_10/JEWEL_{JEWEL_identifier}_PtHard{pt_hat_bin}_{index}.parquet"
+    )
 
     background_collision_system_tag = "PbPb_central"
-    #jet_R = 0.6
+    # jet_R = 0.6
     jet_R = 0.4
 
     use_standard_rho_subtraction = True
     use_constituent_subtraction = False
 
-    #for background_index in range(820, 830):
+    # for background_index in range(820, 830):
     for background_index in range(2, 3):
-        background_filename = Path(f"/alf/data/rehlers/substructure/trains/PbPb/7666/run_by_run/LHC15o/246087/AnalysisResults.15o.{background_index:03}.root")
-        output_filename = Path(f"/alf/data/rehlers/skims/JEWEL_PbPb_no_recoil/skim/ML/jetR{round(jet_R * 100):03}_{signal_filename.stem}_{background_filename.parent.stem}_{background_filename.stem}.root")
+        background_filename = Path(
+            f"/alf/data/rehlers/substructure/trains/PbPb/7666/run_by_run/LHC15o/246087/AnalysisResults.15o.{background_index:03}.root"
+        )
+        output_filename = Path(
+            f"/alf/data/rehlers/skims/JEWEL_PbPb_no_recoil/skim/ML/jetR{round(jet_R * 100):03}_{signal_filename.stem}_{background_filename.parent.stem}_{background_filename.stem}.root"
+        )
 
         logger.info(f"Processing {background_filename}")
         run_embedding_analysis(

@@ -43,6 +43,7 @@ skim_types_to_file_source: dict[str, sources.DelayedSource] = {
     "jetscape": jetscape.FileSource,
 }
 
+
 def _convert_analyzed_jets_to_all_jets_for_skim(
     jets: ak.Array,
     convert_data_format_prefixes: Mapping[str, str],
@@ -153,7 +154,9 @@ def hardest_kt_data_skim(
     # Pythia specific
     pt_hat_bin: int | None = -1,
     scale_factors: Mapping[int, float] | None = None,
-    det_level_artificial_tracking_efficiency: float | analysis_tracking.PtDependentTrackingEfficiencyParameters | None = 1.0,
+    det_level_artificial_tracking_efficiency: float
+    | analysis_tracking.PtDependentTrackingEfficiencyParameters
+    | None = 1.0,
     # Validation
     validation_mode: bool = False,
     background_subtraction: Mapping[str, Any] | None = None,
@@ -231,7 +234,7 @@ def hardest_kt_data_skim(
 
     # NOTE: We need to know how many jets there are, so we arbitrarily take the first field. The jets are flattened,
     #       so they're as good as any others.
-    _there_are_jets_left = (len(jets[ak.fields(jets)[0]]) > 0)
+    _there_are_jets_left = len(jets[ak.fields(jets)[0]]) > 0
 
     # There were no jets. Note that with a specially crafted empty file
     if not _there_are_jets_left:
@@ -400,7 +403,7 @@ def hardest_kt_embed_thermal_model_skim(  # noqa: C901
 
         # NOTE: We need to know how many jets there are, so we arbitrarily take the first field. The jets are flattened,
         #       so the first field is as good as any other.
-        _there_are_jets_left = (len(jets[ak.fields(jets)[0]]) > 0)
+        _there_are_jets_left = len(jets[ak.fields(jets)[0]]) > 0
 
         # There were no jets. Note that with a specially crafted empty file
         if not _there_are_jets_left:
@@ -565,7 +568,7 @@ def hardest_kt_embedding_skim(  # noqa: C901
 
         # NOTE: We need to know how many jets there are, so we arbitrarily take the first field. The jets are flattened,
         #       so the first field is as good as any other.
-        _there_are_jets_left = (len(jets[ak.fields(jets)[0]]) > 0)
+        _there_are_jets_left = len(jets[ak.fields(jets)[0]]) > 0
 
         # There were no jets. Note that with a specially crafted empty file
         if not _there_are_jets_left:
@@ -752,15 +755,15 @@ if __name__ == "__main__":
     result = hardest_kt_embedding_skim(
         collision_system="embed_pythia",
         signal_input=[
-            #Path("trains/pythia/2640/run_by_run/LHC20g4/296191/1/AnalysisResults.20g4.008.root")
-            #Path("trains/pythia/2640/run_by_run/LHC20g4/296935/1/AnalysisResults.20g4.003.root"),
+            # Path("trains/pythia/2640/run_by_run/LHC20g4/296191/1/AnalysisResults.20g4.008.root")
+            # Path("trains/pythia/2640/run_by_run/LHC20g4/296935/1/AnalysisResults.20g4.003.root"),
             Path("trains/pythia/2640/run_by_run/LHC20g4/297588/1/AnalysisResults.20g4.018.root"),
         ],
         background_input=[
-            #Path("trains/PbPb/645/run_by_run/LHC18r/296799/AnalysisResults.18r.179.root"),
-            #Path("trains/PbPb/645/run_by_run/LHC18r/296894/AnalysisResults.18r.337.root"),
-            #Path("trains/PbPb/645/run_by_run/LHC18r/297035/AnalysisResults.18r.248.root"),
-            #Path("trains/PbPb/645/run_by_run/LHC18q/295788/AnalysisResults.18q.202.root"),
+            # Path("trains/PbPb/645/run_by_run/LHC18r/296799/AnalysisResults.18r.179.root"),
+            # Path("trains/PbPb/645/run_by_run/LHC18r/296894/AnalysisResults.18r.337.root"),
+            # Path("trains/PbPb/645/run_by_run/LHC18r/297035/AnalysisResults.18r.248.root"),
+            # Path("trains/PbPb/645/run_by_run/LHC18q/295788/AnalysisResults.18q.202.root"),
             Path("trains/PbPb/645/run_by_run/LHC18r/296694/AnalysisResults.18r.121.root"),
             Path("trains/PbPb/645/run_by_run/LHC18r/297595/AnalysisResults.18r.384.root"),
         ],

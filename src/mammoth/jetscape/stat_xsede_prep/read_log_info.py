@@ -1,4 +1,3 @@
-
 """ Read log info to extract scaling time information.
 
 .. codeauthor:: Raymond Ehlers <raymond.ehlers@cern.ch>, ORNL
@@ -43,14 +42,14 @@ def read_logs(base_path: Path, model: str, tag: str, config: Config) -> list[flo
 
     times = []
     for d in sorted(p.glob("*")):
-        times.append(
-            read_log_for_runtime(filename = (d / str(config)).with_suffix(".log"))
-        )
+        times.append(read_log_for_runtime(filename=(d / str(config)).with_suffix(".log")))
 
     return times
 
 
-def run(base_path: Path, models: Sequence[str], tags: Sequence[str], config: Config) -> dict[str, dict[str, list[float]]]:
+def run(
+    base_path: Path, models: Sequence[str], tags: Sequence[str], config: Config
+) -> dict[str, dict[str, list[float]]]:
     output: dict[str, dict[str, list[float]]] = {}
     for tag in tags:
         output[tag] = {}
@@ -60,22 +59,21 @@ def run(base_path: Path, models: Sequence[str], tags: Sequence[str], config: Con
 
 
 if __name__ == "__main__":
-    #scratch_dir = Path("scratch_dir")
+    # scratch_dir = Path("scratch_dir")
     scratch_dir = Path(os.path.expandvars("$SCRATCH"))
     res = run(
-        base_path = scratch_dir / "jetscape-an" / "config" / "jetscape" / "STAT",
-        models = ["matter_lbt"],
-        tags = [
+        base_path=scratch_dir / "jetscape-an" / "config" / "jetscape" / "STAT",
+        models=["matter_lbt"],
+        tags=[
             "skylake_6_seed_1_1",
             "skylake_36_seed_1_1",
             "skylake_42_seed_1_1",
             "skylake_48_seed_1_1",
         ],
-        config = Config(
+        config=Config(
             sqrts=5020,
             trigger="single_hard",
-        )
+        ),
     )
 
     pprint.pprint(res)  # noqa: T203
-

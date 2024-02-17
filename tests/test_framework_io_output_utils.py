@@ -18,6 +18,7 @@ from pachyderm import binned_data
 
 logger = logging.getLogger(__name__)
 
+
 def _consistency_check(h_root: Any, h_uproot: Any) -> bool:
     """Check hists for consistency."""
     r = binned_data.BinnedData.from_existing_data(h_root)
@@ -91,7 +92,7 @@ def test_hist_merged_profile_round_trip() -> None:
         merged_profile_uproot,
     )
 
-    #with tempfile.NamedTemporaryFile() as output_file:
+    # with tempfile.NamedTemporaryFile() as output_file:
     #    with ROOT.TFile.Open(output_file.name, "RECREATE") as f:
     #        prof.Write()
 
@@ -99,6 +100,6 @@ def test_hist_merged_profile_round_trip() -> None:
 
 
 # TODO: To be implemented...
-#def test_shadd() -> None:
+# def test_shadd() -> None:
 #    """Test shadd, comparing to a known result from hadd."""
 #    ...

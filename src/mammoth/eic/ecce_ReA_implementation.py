@@ -46,17 +46,19 @@ class JetParameters:
     @property
     def name_eA(self) -> str:
         return self.name(n_PDF_label=f"eA_variation{self.variation}")
-        #return self.name(n_PDF_label=f"eA")
+        # return self.name(n_PDF_label=f"eA")
 
     def __str__(self) -> str:
         return self.name_eA
 
 
-def scale_jets(input_hists: dict[str, dict[str, hist.Hist]],
-               sim_config: Any,
-               analysis_config: AnalysisConfig,
-               cross_section: float,
-               expected_luminosities: Mapping[str, float]) -> dict[str, dict[str, hist.Hist]]:
+def scale_jets(
+    input_hists: dict[str, dict[str, hist.Hist]],
+    sim_config: Any,
+    analysis_config: AnalysisConfig,
+    cross_section: float,
+    expected_luminosities: Mapping[str, float],
+) -> dict[str, dict[str, hist.Hist]]:
     scaled_hists: dict[str, dict[str, hist.Hist]] = {}
 
     # Supports both ep and eA
@@ -66,7 +68,7 @@ def scale_jets(input_hists: dict[str, dict[str, hist.Hist]],
         pdf_name = input_spec.n_PDF_name
 
         expected_luminosity = expected_luminosities[pdf_name if pdf_name == "ep" else "eA"]
-        #scaled_hists[f"{pdf_name}_scaled"] = {}
+        # scaled_hists[f"{pdf_name}_scaled"] = {}
         scaled_hists[f"{pdf_name}"] = {}
 
         for jet_R in analysis_config.jet_R_values:
@@ -75,11 +77,20 @@ def scale_jets(input_hists: dict[str, dict[str, hist.Hist]],
                     for variable in analysis_config.variables:
                         for variation in input_spec.variations:
                             parameters_spectra = JetParameters(
-                                jet_R=jet_R, jet_type=jet_type, region=region, observable="spectra", variable=variable, variation=variation, n_PDF_name=pdf_name
+                                jet_R=jet_R,
+                                jet_type=jet_type,
+                                region=region,
+                                observable="spectra",
+                                variable=variable,
+                                variation=variation,
+                                n_PDF_name=pdf_name,
                             )
 
                             # First, scale by the cross section, which we need to do in all cases
-                            h_scaled = hists[parameters_spectra.name_eA if pdf_name != "ep" else parameters_spectra.name_ep] * cross_section
+                            h_scaled = (
+                                hists[parameters_spectra.name_eA if pdf_name != "ep" else parameters_spectra.name_ep]
+                                * cross_section
+                            )
 
                             # Now we need to account for the projected luminosity.
                             # However, the overall relative scaling between the ep and eA will be messed up if we scale them directly
@@ -90,6 +101,8 @@ def scale_jets(input_hists: dict[str, dict[str, hist.Hist]],
                             h_scaled.variances()[:] = h_scaled.variances() / expected_luminosity  # type: ignore[index, operator]
 
                             # Store the new hist
-                            scaled_hists[pdf_name][parameters_spectra.name_eA if pdf_name != "ep" else parameters_spectra.name_ep] = h_scaled
+                            scaled_hists[pdf_name][
+                                parameters_spectra.name_eA if pdf_name != "ep" else parameters_spectra.name_ep
+                            ] = h_scaled
 
     return scaled_hists

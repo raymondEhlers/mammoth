@@ -140,7 +140,8 @@ class Facility:
     task_configs: dict[str, TaskConfig] = attrs.Factory(dict)
     node_work_dir: Path = attrs.field(default=Path("."))  # noqa: PTH201
     storage_work_dir: Path = attrs.field(
-        converter=_expand_vars_in_work_dir, default=Path(".")  # noqa: PTH201
+        converter=_expand_vars_in_work_dir,
+        default=Path("."),  # noqa: PTH201
     )
     directories_to_mount_in_singularity: list[Path] = attrs.Factory(list)
     worker_init_script: str = attrs.field(default="")
@@ -175,11 +176,12 @@ _facilities_configs = {
         # Allocate by core:
         target_allocate_n_cores=1,
         launcher=SingleNodeLauncher,
-        #node_work_dir=Path("/tmp/parsl/$USER"),
-        #storage_work_dir=Path("/alf/data/rehlers/jetscape/work_dir"),
+        # node_work_dir=Path("/tmp/parsl/$USER"),
+        # storage_work_dir=Path("/alf/data/rehlers/jetscape/work_dir"),
         # Exclude login node
         nodes_to_exclude=[] if queue == "long" else ["pc059"],
-    ) for queue in ["short", "long", "loginOnly", "vip"]
+    )
+    for queue in ["short", "long", "loginOnly", "vip"]
 }
 # rehlers-MBP-m1pro
 _facilities_configs.update(
@@ -190,10 +192,11 @@ _facilities_configs.update(
             partition_name="INVALID",
             target_allocate_n_cores=1 if multi_core is False else 8,
             launcher=SingleNodeLauncher,
-            #node_work_dir=Path("/tmp/parsl/$USER"),
-            #storage_work_dir=(Path.cwd() / Path("work_dir")).resolve(),
+            # node_work_dir=Path("/tmp/parsl/$USER"),
+            # storage_work_dir=(Path.cwd() / Path("work_dir")).resolve(),
             directories_to_mount_in_singularity=[Path("/opt/scott")],
-        ) for multi_core in [False, True]
+        )
+        for multi_core in [False, True]
     }
 )
 # Hiccup at LBL
@@ -208,11 +211,12 @@ _facilities_configs.update(
             # Allocate by core:
             target_allocate_n_cores=1,
             launcher=SingleNodeLauncher,
-            #node_work_dir=Path("/tmp/parsl/$USER"),
-            #storage_work_dir=Path("/alf/data/rehlers/jetscape/work_dir"),
+            # node_work_dir=Path("/tmp/parsl/$USER"),
+            # storage_work_dir=Path("/alf/data/rehlers/jetscape/work_dir"),
             # Exclude login node
             nodes_to_exclude=[],
-        ) for queue in ["quick", "std", "long", "test"]
+        )
+        for queue in ["quick", "std", "long", "test"]
     }
 )
 
@@ -226,10 +230,10 @@ class JobFramework(enum.Enum):
 P = ParamSpec("P")
 R = TypeVar("R")
 
-def python_app(func: Callable[P, R]) -> Callable[P, concurrent.futures.Future[R]]:
-    """Helper for defining a python app for different job execution frameworks
 
-    """
+def python_app(func: Callable[P, R]) -> Callable[P, concurrent.futures.Future[R]]:
+    """Helper for defining a python app for different job execution frameworks"""
+
     @wraps(func)
     def inner(*args: P.args, **kwargs: P.kwargs) -> concurrent.futures.Future[R]:
         # Default to using parsl. Only use other frameworks if explicitly requested.
@@ -244,7 +248,7 @@ def python_app(func: Callable[P, R]) -> Callable[P, concurrent.futures.Future[R]
         elif job_framework == JobFramework.immediate_execution_debug:
             # NOTE: This is lying about the return value. But that's okay because this is just for
             #       immediate execution for debugging.
-            return func(*args, **kwargs)   #type: ignore[return-value]
+            return func(*args, **kwargs)  # type: ignore[return-value]
         else:
             _msg = f"Unrecognized job framework {job_framework}"
             raise ValueError(_msg)
@@ -262,7 +266,9 @@ def config(
     enable_monitoring: bool = False,
     request_n_blocks: int | None = None,
     additional_worker_init_script: str = "",
-) -> tuple[Config, Facility, list[helpers.LogMessage]]: ...
+) -> tuple[Config, Facility, list[helpers.LogMessage]]:
+    ...
+
 
 @typing.overload
 def config(
@@ -274,7 +280,9 @@ def config(
     enable_monitoring: bool = False,
     request_n_blocks: int | None = None,
     additional_worker_init_script: str = "",
-) -> tuple[dask.distributed.Client, Facility, list[helpers.LogMessage]]: ...
+) -> tuple[dask.distributed.Client, Facility, list[helpers.LogMessage]]:
+    ...
+
 
 @typing.overload
 def config(
@@ -286,7 +294,9 @@ def config(
     enable_monitoring: bool = False,
     request_n_blocks: int | None = None,
     additional_worker_init_script: str = "",
-) -> tuple[dask.distributed.client | Config, Facility, list[helpers.LogMessage]]: ...
+) -> tuple[dask.distributed.client | Config, Facility, list[helpers.LogMessage]]:
+    ...
+
 
 def config(
     job_framework: JobFramework,
@@ -340,7 +350,9 @@ def config(
     )
 
 
-def _potentially_immediately_log_message(log_messages: list[helpers.LogMessage], immediately_log_messages: bool) -> None:
+def _potentially_immediately_log_message(
+    log_messages: list[helpers.LogMessage], immediately_log_messages: bool
+) -> None:
     """If we can log immediately, let's do it. Otherwise, we leave it in place for later."""
     if immediately_log_messages:
         log_messages.pop().log()
@@ -378,7 +390,7 @@ def _define_config(
     # Setup
     log_messages: list[helpers.LogMessage] = []
     # If we're not dealing with parsl, there's no reason not to log immediately.
-    immediately_log_messages = (job_framework != JobFramework.parsl)
+    immediately_log_messages = job_framework != JobFramework.parsl
 
     # Determine request properties.
     # Namely, we need to know:
@@ -413,7 +425,9 @@ def _define_config(
 
     # Calculate the memory required per block
     # NOTE: type ignore because mypy apparently can't figure out that this is not None, even though the check is right there...
-    memory_to_allocate_per_block = n_tasks_per_block * task_config.memory_per_task if task_config.memory_per_task else None
+    memory_to_allocate_per_block = (
+        n_tasks_per_block * task_config.memory_per_task if task_config.memory_per_task else None
+    )
 
     log_messages.append(
         helpers.LogMessage(
@@ -441,7 +455,9 @@ def _define_config(
                     f"Explicitly requested more blocks than needed. We'll ignore this request and take only the minimum. Requested n_blocks: {n_blocks}, required n blocks: {n_blocks}",
                 )
             )
-            _potentially_immediately_log_message(log_messages=log_messages, immediately_log_messages=immediately_log_messages)
+            _potentially_immediately_log_message(
+                log_messages=log_messages, immediately_log_messages=immediately_log_messages
+            )
         elif request_n_blocks < n_blocks:
             log_messages.append(
                 helpers.LogMessage(
@@ -450,7 +466,9 @@ def _define_config(
                     f"Explicitly requested fewer blocks ({request_n_blocks}) than necessary ({n_blocks}) to run everything simultaneously. Tasks will run sequentially in the requested number of blocks.",
                 )
             )
-            _potentially_immediately_log_message(log_messages=log_messages, immediately_log_messages=immediately_log_messages)
+            _potentially_immediately_log_message(
+                log_messages=log_messages, immediately_log_messages=immediately_log_messages
+            )
             n_blocks = request_n_blocks
 
     if job_framework == JobFramework.immediate_execution_debug:
@@ -467,7 +485,7 @@ def _define_config(
             n_tasks_per_block=n_tasks_per_block,
             n_cores_to_allocate_per_block=n_cores_to_allocate_per_block,
             memory_to_allocate_per_block=memory_to_allocate_per_block,
-            additional_worker_init_script=additional_worker_init_script
+            additional_worker_init_script=additional_worker_init_script,
         )
     else:
         # Dask specific
@@ -480,7 +498,7 @@ def _define_config(
             n_tasks_per_block=n_tasks_per_block,
             n_cores_to_allocate_per_block=n_cores_to_allocate_per_block,
             memory_to_allocate_per_block=memory_to_allocate_per_block,
-            additional_worker_init_script=additional_worker_init_script
+            additional_worker_init_script=additional_worker_init_script,
         )
 
     # Store any further log messages
@@ -550,6 +568,7 @@ def _define_dask_distributed_cluster(
         cluster.adapt(minimum=0, maximum=n_blocks, interval="10s")
     else:
         import dask_jobqueue
+
         cluster = dask_jobqueue.SLURMCluster(
             # Need to pass None - otherwise it will pass an invalid job script (worse, it doesn't breaks on this line, but the next one)
             account=facility.allocation_account if facility.allocation_account else None,
@@ -560,10 +579,14 @@ def _define_dask_distributed_cluster(
             memory=f"{memory_to_allocate_per_block!s}GB",
             # string to prepend to #SBATCH blocks in the submit
             # Can add additional options directly to scheduler.
-            job_extra_directives=[f"#SBATCH --exclude={','.join(facility.nodes_to_exclude)}" if facility.nodes_to_exclude else ""],
+            job_extra_directives=[
+                f"#SBATCH --exclude={','.join(facility.nodes_to_exclude)}" if facility.nodes_to_exclude else ""
+            ],
             # Command to be run before starting a worker, such as:
             # 'module load Anaconda; source activate parsl_env'.
-            job_script_prologue=[f"{facility.worker_init_script}; {additional_worker_init_script}"] if facility.worker_init_script else [additional_worker_init_script],
+            job_script_prologue=[f"{facility.worker_init_script}; {additional_worker_init_script}"]
+            if facility.worker_init_script
+            else [additional_worker_init_script],
             walltime=walltime,
             # Apparently they dropped direct resources support (I can't fully trace it now), so we have to work around it by passing worker_extra_args
             worker_extra_args=["--resources " + ",".join([f"{k}={v}" for k, v in resources.items()])],
@@ -578,7 +601,9 @@ def _define_dask_distributed_cluster(
     return cluster, []
 
 
-def _default_parsl_config_kwargs(facility: Facility, workflow_name: str, enable_monitoring: bool = True) -> dict[str, Any]:
+def _default_parsl_config_kwargs(
+    facility: Facility, workflow_name: str, enable_monitoring: bool = True
+) -> dict[str, Any]:
     """Default parsl config keyword arguments.
 
     These are shared regardless of the facility.
@@ -626,7 +651,9 @@ def _define_parsl_config(
 ) -> tuple[Config, list[helpers.LogMessage]]:
     # Setup
     log_messages: list[helpers.LogMessage] = []
-    config_kwargs = _default_parsl_config_kwargs(facility=facility, workflow_name=task_config.name, enable_monitoring=enable_monitoring)
+    config_kwargs = _default_parsl_config_kwargs(
+        facility=facility, workflow_name=task_config.name, enable_monitoring=enable_monitoring
+    )
 
     # We need to treat the case of the local facility differently because
     # the provider is different (ie. it's not slurm).
@@ -653,8 +680,10 @@ def _define_parsl_config(
             # NOTE: If we want to try scaling, we can select less core for the init. If we
             #       We need at least one block, so if set to just one core, n-1 would break.
             #       Consequently, we require at least one initial block.
-            #init_blocks=max(n_cores - 1, 1),
-            worker_init=f"{facility.worker_init_script}; {additional_worker_init_script}" if facility.worker_init_script else additional_worker_init_script,
+            # init_blocks=max(n_cores - 1, 1),
+            worker_init=f"{facility.worker_init_script}; {additional_worker_init_script}"
+            if facility.worker_init_script
+            else additional_worker_init_script,
             launcher=facility.launcher(),
         )
     else:
@@ -673,16 +702,20 @@ def _define_parsl_config(
             account=facility.allocation_account,
             # string to prepend to #SBATCH blocks in the submit
             # Can add additional options directly to scheduler.
-            scheduler_options=f"#SBATCH --exclude={','.join(facility.nodes_to_exclude)}" if facility.nodes_to_exclude else "",
+            scheduler_options=f"#SBATCH --exclude={','.join(facility.nodes_to_exclude)}"
+            if facility.nodes_to_exclude
+            else "",
             # Command to be run before starting a worker, such as:
             # 'module load Anaconda; source activate parsl_env'.
-            worker_init=f"{facility.worker_init_script}; {additional_worker_init_script}" if facility.worker_init_script else additional_worker_init_script,
+            worker_init=f"{facility.worker_init_script}; {additional_worker_init_script}"
+            if facility.worker_init_script
+            else additional_worker_init_script,
             launcher=facility.launcher(),
             walltime=walltime,
             # If we're allocating full nodes, then we should request exclusivity.
             exclusive=facility.allocate_full_node,
-                **facility.high_throughput_executor_additional_options,
-            )
+            **facility.high_throughput_executor_additional_options,
+        )
 
     config = Config(
         executors=[
@@ -704,6 +737,7 @@ def _define_parsl_config(
 
     return config, log_messages
 
+
 @typing.overload
 def setup_job_framework(
     job_framework: Literal[JobFramework.dask_delayed],
@@ -713,7 +747,9 @@ def setup_job_framework(
     target_n_tasks_to_run_simultaneously: int,
     log_level: int,
     additional_worker_init_script: str = "",
-) -> tuple[dask.distributed.Client, dask.distributed.SpecCluster]: ...
+) -> tuple[dask.distributed.Client, dask.distributed.SpecCluster]:
+    ...
+
 
 @typing.overload
 def setup_job_framework(
@@ -724,7 +760,9 @@ def setup_job_framework(
     target_n_tasks_to_run_simultaneously: int,
     log_level: int,
     additional_worker_init_script: str = "",
-) -> tuple[parsl.DataFlowKernel, Config]: ...
+) -> tuple[parsl.DataFlowKernel, Config]:
+    ...
+
 
 @typing.overload
 def setup_job_framework(
@@ -735,7 +773,9 @@ def setup_job_framework(
     target_n_tasks_to_run_simultaneously: int,
     log_level: int,
     additional_worker_init_script: str = "",
-) -> tuple[parsl.DataFlowKernel, parsl.Config] | tuple[dask.distributed.Client, dask.distributed.SpecCluster]: ...
+) -> tuple[parsl.DataFlowKernel, parsl.Config] | tuple[dask.distributed.Client, dask.distributed.SpecCluster]:
+    ...
+
 
 def setup_job_framework(
     job_framework: JobFramework,
@@ -746,7 +786,6 @@ def setup_job_framework(
     log_level: int,
     additional_worker_init_script: str = "",
 ) -> tuple[parsl.DataFlowKernel, parsl.Config] | tuple[dask.distributed.Client, dask.distributed.SpecCluster]:
-
     # Basic setup: logging and parsl.
     # Setup job frameworks
     if job_framework != JobFramework.parsl:
@@ -789,7 +828,6 @@ def setup_job_framework(
         return dfk, job_framework_config
 
 
-
 def _cancel_future(job: concurrent.futures.Future[Any]) -> None:
     """Cancel the given app future
 
@@ -802,9 +840,15 @@ def _cancel_future(job: concurrent.futures.Future[Any]) -> None:
         # NOTE: This is not implemented with parsl AppFutures
         job.cancel()
 
+
 _T = TypeVar("_T")
 
-def provide_results_as_completed(input_futures: Sequence[concurrent.futures.Future[_T]], timeout: float | None = None, running_with_parsl: bool = False) -> Iterable[_T]:
+
+def provide_results_as_completed(
+    input_futures: Sequence[concurrent.futures.Future[_T]],
+    timeout: float | None = None,
+    running_with_parsl: bool = False,
+) -> Iterable[_T]:
     """Provide results as futures are completed.
 
     Taken from `coffea.processor.executor`, with small modifications for parsl specific issues
@@ -834,9 +878,7 @@ def provide_results_as_completed(input_futures: Sequence[concurrent.futures.Futu
                     return_when=concurrent.futures.FIRST_COMPLETED,
                 )
                 if len(done) == 0:
-                    logger.warning(
-                        f"No finished jobs after {timeout}s, stopping remaining {len(futures)} jobs early"
-                    )
+                    logger.warning(f"No finished jobs after {timeout}s, stopping remaining {len(futures)} jobs early")
                     break
                 while done:
                     try:
@@ -861,8 +903,6 @@ def provide_results_as_completed(input_futures: Sequence[concurrent.futures.Futu
     finally:
         running = sum(job.running() for job in futures)
         if running:
-            logger.warning(
-                f"Cancelling {running} running jobs (likely due to an exception)"
-            )
+            logger.warning(f"Cancelling {running} running jobs (likely due to an exception)")
         while futures:
             _cancel_future(futures.pop())
