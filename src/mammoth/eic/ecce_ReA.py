@@ -103,7 +103,7 @@ def _calculate_ReA(
     res = hist.Hist((eA_hist / ep_hist).to_boost_histogram())
     narrow_rebin = res[: complex(0, transition_for_binning) : hist.rebin(narrow_rebin_factor)] / (  # type: ignore[misc,operator]
         narrow_rebin_factor * 1.0
-    )  # type: ignore[misc,operator]
+    )
     wide_rebin = res[complex(0, transition_for_binning) :: hist.rebin(wide_rebin_factor)] / (wide_rebin_factor * 1.0)  # type: ignore[misc,operator]
 
     bin_edges = np.concatenate([narrow_rebin.axes[0].edges, wide_rebin.axes[0].edges[1:]])  # type: ignore[union-attr]
@@ -215,7 +215,7 @@ def calculate_double_ratio(
                                     :: hist.rebin(rebin_factor)  # type: ignore[misc]
                                 ]
                                 / (rebin_factor * 1.0)
-                            )  # type: ignore[misc]
+                            )
 
                         # import IPython; IPython.start_ipython(user_ns={**globals(),**locals()})
 

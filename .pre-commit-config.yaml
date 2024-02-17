@@ -54,8 +54,10 @@ repos:
     rev: "v1.8.0"
     hooks:
       - id: mypy
-        files: src|tests
-        args: []
+        files: src|tests|mammoth-cpp/src
+        # This is a bit aggressive, but otherwise it will be quite a pain to use since there
+        # are a number of touchy packages here.
+        args: ["--ignore-missing-imports"]
         additional_dependencies:
           - pytest
           - "numpy >=1.21"
@@ -74,6 +76,7 @@ repos:
           - "rich >=v13.4.0"
           - "dask[distributed]>=2022.12.0"
           - "dask-jobqueue>=0.8.1"
+          - "ipython >=8.0"
           #- "pachyderm >= 3.0"
 
   - repo: https://github.com/codespell-project/codespell
