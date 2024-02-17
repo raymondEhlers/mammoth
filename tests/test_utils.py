@@ -2,8 +2,7 @@
 
 .. codeauthor:: Raymond Ehlers <raymond.ehlers@cern.ch>, ORNL
 """
-
-from typing import Sequence
+from __future__ import annotations
 
 import awkward as ak
 import pytest
@@ -16,7 +15,8 @@ from mammoth.framework import utils
     [
         [0, 1],
     ], ids = ["first and second"])
-def test_group_by(columns: Sequence[int]) -> None:
+def test_group_by(columns: list[int]) -> None:
+    # fmt: off
     array = ak.Array([
         [   2.,    1.,    2.,    0.],
         [   4.,    2.,    4.,    0.],
@@ -100,9 +100,10 @@ def test_group_by(columns: Sequence[int]) -> None:
             [   5.,    2.,    6.,    0.]
         ]
     ])
+    # fmt: on
 
     comparison = desired_result_group_by_first
-    if not isinstance(columns, int) and len(columns) == 2:
+    if len(columns) == 2:
         comparison = desired_result_group_by_first_and_second
 
     assert ak.all(

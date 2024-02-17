@@ -11,12 +11,11 @@ import enum
 import logging
 import math
 import os.path
-import sys
 import typing
 from collections.abc import Callable, Iterable, Sequence
 from functools import wraps
 from pathlib import Path
-from typing import Any, Literal, TypeVar
+from typing import Any, Literal, ParamSpec, TypeVar
 
 import attrs
 import dask
@@ -34,11 +33,6 @@ from parsl.monitoring.monitoring import MonitoringHub
 from parsl.providers import LocalProvider, SlurmProvider
 
 from mammoth import helpers
-
-if sys.version_info < (3, 10):
-    from typing_extensions import ParamSpec
-else:
-    from typing import ParamSpec
 
 logger = logging.getLogger(__name__)
 

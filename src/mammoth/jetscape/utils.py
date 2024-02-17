@@ -21,7 +21,7 @@ def subtract_holes_from_jet_pt(jets: ak.Array, particles_holes: ak.Array, jet_R:
     Returns:
         ArrayBuilder with the output (note that it needs to have the snapshot applied).
     """
-    for jets_in_event, holes_in_event in zip(jets, particles_holes):
+    for jets_in_event, holes_in_event in zip(jets, particles_holes):  # noqa: B905
         builder.begin_list()
         for jet in jets_in_event:
             jet_pt = jet.pt

@@ -74,7 +74,7 @@ def _load_results(config: SimulationConfig, input_specs: Sequence[InputSpec]) ->
         #output_hists[spec.n_PDF_name] = ecce_base.load_hists(config.input_dir / spec.filename)
         # Convert to hist.Hist
         for k, v in output_hists[spec.n_PDF_name].items():
-            output_hists[spec.n_PDF_name][k] = v.to_hist()
+            output_hists[spec.n_PDF_name][k] = v.to_hist()  # type: ignore[attr-defined]
 
     return output_hists
 
@@ -89,12 +89,12 @@ def _calculate_ReA(ep_hists: dict[str, hist.Hist], eA_hists: dict[str, hist.Hist
     # 1. rebin with two widths: narrow and wide
     # 2. merge the two histograms together at some bin, taking the narrow below and the wide above
     res = hist.Hist((eA_hist / ep_hist).to_boost_histogram())
-    narrow_rebin = res[:complex(0, transition_for_binning):hist.rebin(narrow_rebin_factor)] / (narrow_rebin_factor * 1.0)
-    wide_rebin = res[complex(0, transition_for_binning)::hist.rebin(wide_rebin_factor)] / (wide_rebin_factor * 1.0)
+    narrow_rebin = res[:complex(0, transition_for_binning):hist.rebin(narrow_rebin_factor)] / (narrow_rebin_factor * 1.0)  # type: ignore[misc,operator]
+    wide_rebin = res[complex(0, transition_for_binning)::hist.rebin(wide_rebin_factor)] / (wide_rebin_factor * 1.0)  # type: ignore[misc,operator]
 
-    bin_edges = np.concatenate([narrow_rebin.axes[0].edges, wide_rebin.axes[0].edges[1:]])
-    values = np.concatenate([narrow_rebin.values(), wide_rebin.values()])
-    variances = np.concatenate([narrow_rebin.variances(), wide_rebin.variances()])
+    bin_edges = np.concatenate([narrow_rebin.axes[0].edges, wide_rebin.axes[0].edges[1:]])  # type: ignore[union-attr]
+    values = np.concatenate([narrow_rebin.values(), wide_rebin.values()])  # type: ignore[union-attr]
+    variances = np.concatenate([narrow_rebin.variances(), wide_rebin.variances()])  # type: ignore[union-attr]
 
     combined = hist.Hist(binned_data.BinnedData(axes=[bin_edges], values=values, variances=variances).to_boost_histogram())
 
@@ -184,14 +184,14 @@ def calculate_double_ratio(ReA_hists: dict[str, dict[JetParameters, hist.Hist]],
                                 (
                                     (binned_data.BinnedData.from_existing_data(v))
                                     / reference
-                                ).to_boost_histogram()[::hist.rebin(rebin_factor)] / (rebin_factor * 1.0))
+                                ).to_boost_histogram()[::hist.rebin(rebin_factor)] / (rebin_factor * 1.0))  # type: ignore[misc]
 
                         #import IPython; IPython.start_ipython(user_ns={**globals(),**locals()})
 
     return double_ratio_hists
 
 
-def _calculate_nominal_variations(variation_hists: dict[str, dict[str, hist.Hist]], nominal_hist: hist.Hist) -> bool:
+def _calculate_nominal_variations(variation_hists: dict[JetParameters, hist.Hist], nominal_hist: hist.Hist) -> bool:
     # Collect all of the differences from all of the variations
     differences_list = []
     for _k, v in variation_hists.items():
@@ -434,9 +434,10 @@ _jet_type_display_label = {
 def plot_ReA(sim_config: SimulationConfig, analysis_config: ecce_ReA_implementation.AnalysisConfig, input_hists: dict[str, dict[str, hist.Hist]],  # noqa: C901
              cross_section: float, scale_jets_by_expected_luminosity: bool = False, expected_luminosities: Mapping[str, float] | None = None, skip_slow_2D_plots: bool = False) -> None:
     input_spectra_hists = input_hists
+    # Validation
+    # Help out mypy
+    assert expected_luminosities is not None
     if scale_jets_by_expected_luminosity:
-        # Help out mypy
-        assert expected_luminosities is not None
         logger.info("Scaling jet spectra by expected luminosity")
         # Replaces the input spectra hists with the scaled hists
         input_spectra_hists = ecce_ReA_implementation.scale_jets(
@@ -708,6 +709,9 @@ def plot_ReA(sim_config: SimulationConfig, analysis_config: ecce_ReA_implementat
                                 if variation == 0:
                                     nominal_hist = variation_hists[_parameters_ReA]
 
+                            # Help out mypy...
+                            assert nominal_hist is not None
+
                             _calculate_nominal_variations(
                                 variation_hists=variation_hists,
                                 nominal_hist=nominal_hist,
@@ -847,6 +851,9 @@ def plot_ReA(sim_config: SimulationConfig, analysis_config: ecce_ReA_implementat
                                 if variation == 0:
                                     nominal_hist = variation_hists[_parameters_ReA]
 
+                            # Help out mypy...
+                            assert nominal_hist is not None
+
                             _calculate_nominal_variations(
                                 variation_hists=variation_hists,
                                 nominal_hist=nominal_hist,
@@ -973,7 +980,7 @@ def plot_ReA(sim_config: SimulationConfig, analysis_config: ecce_ReA_implementat
     except Exception as e:
         logger.info(f"Plotting n_PDF_variations for double ratio failed with {e}")
         import IPython
-        IPython.start_ipython(user_ns={**globals(), **locals()})
+        IPython.start_ipython(user_ns={**globals(), **locals()})  # type: ignore[no-untyped-call]
 
     ######################################################
     # Compare true vs det level to see the importance of unfolding
@@ -996,7 +1003,7 @@ def plot_ReA(sim_config: SimulationConfig, analysis_config: ecce_ReA_implementat
                         }
 
                         if not true_hists or not det_hists:
-                            logger.info(f"Couldn't find any hists for {jet_type_true}, {jet_type_det}, {variable}, {region}, {jet_R} and variation 0. Continiuing")
+                            logger.info(f"Couldn't find any hists for {jet_type_true}, {jet_type_det}, {variable}, {region}, {jet_R} and variation 0. Continuing")
                             continue
 
                         variable_label = ""
@@ -1042,7 +1049,7 @@ def plot_ReA(sim_config: SimulationConfig, analysis_config: ecce_ReA_implementat
                         )
 
     import IPython
-    IPython.start_ipython(user_ns={**globals(), **locals()})
+    IPython.start_ipython(user_ns={**globals(), **locals()})  # type: ignore[no-untyped-call]
     #import IPython; IPython.embed()
 
 

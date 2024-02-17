@@ -2,6 +2,7 @@
 
 .. codeauthor:: Raymond Ehlers <raymond.ehlers@cern.ch>, ORNL
 """
+from __future__ import annotations
 
 import logging
 from pathlib import Path
@@ -11,9 +12,7 @@ import awkward as ak
 import numpy as np
 import pytest
 
-from mammoth.framework.io import _jetscape_parser
-from mammoth.framework.io import jetscape
-
+from mammoth.framework.io import _jetscape_parser, jetscape
 
 logger = logging.getLogger(__name__)
 
@@ -177,7 +176,7 @@ def test_parsing_with_changing_chunk_size(caplog: Any, events_per_chunk: list[in
         arrays = next(event_generator)
         current_expected_length = next(expected_length_iter)
         while True:
-            print(f"{current_expected_length=}")
+            logger.info(f"{current_expected_length=}")
             if expect_agreement or expected_disagreement_index != i:
                 assert len(arrays) == current_expected_length
             else:
@@ -228,7 +227,8 @@ def test_jetscape_file_source_parquet(caplog: Any, legacy_skim: bool, tmp_path: 
         #       the new filename.
         output_filenames = list(tmp_path.glob("*.parquet"))
         if len(output_filenames) != 1:
-            raise ValueError(f"Found wrong number of output filenames: {output_filenames}")
+            _msg = f"Found wrong number of output filenames: {output_filenames}"
+            raise ValueError(_msg)
         base_output_filename = output_filenames[0]
     else:
         # This is a bit of a roundtrip test, but good enough for now. This will transform the output as expected,
@@ -261,7 +261,7 @@ def test_jetscape_file_source_parquet(caplog: Any, legacy_skim: bool, tmp_path: 
         arrays = next(event_generator)
         current_expected_length = next(expected_length_iter)
         while True:
-            print(f"{current_expected_length=}")
+            logger.info(f"{current_expected_length=}")
             if expect_agreement or expected_disagreement_index != i:
                 assert len(arrays) == current_expected_length
             else:

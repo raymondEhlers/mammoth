@@ -326,7 +326,8 @@ def analysis_embedding(source_index_identifiers: Mapping[str, int],
         {
             k: ak.flatten(v, axis=1) for k, v in zip(
                 ak.fields(jets) + ak.fields(event_level_following_jets_shape),
-                ak.unzip(jets) + ak.unzip(event_level_following_jets_shape)
+                ak.unzip(jets) + ak.unzip(event_level_following_jets_shape),
+                strict=True,
             )
         },
         depth_limit=1,

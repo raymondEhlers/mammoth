@@ -48,19 +48,19 @@ def get_hists(filename: Path) -> dict[str, hist.Hist]:
     return hists
 
 
-def combine_spectra_in_cent_bins(hists: Mapping[str, hist.Hist], jet_type: str, jet_R: float, a: str, b: str) -> hist.Hist:
+def combine_spectra_in_cent_bins(hists: Mapping[str, Mapping[str, hist.Hist]], jet_type: str, jet_R: float, a: str, b: str) -> hist.Hist:
     name = f"{jet_type}_jetR{format_R(jet_R)}_n_events_weighted"
     #name = "n_events_weighted"
 
-    a_n_events: hist.Hist = hists[f"PbPb_{a}"][name]  # type: ignore[assignment]
-    b_n_events: hist.Hist = hists[f"PbPb_{b}"][name]  # type: ignore[assignment]
+    a_n_events: hist.Hist = hists[f"PbPb_{a}"][name]
+    b_n_events: hist.Hist = hists[f"PbPb_{b}"][name]
     name = f"{jet_type}_jetR{format_R(jet_R)}_jet_pt"
-    a_jet_pt: hist.Hist = hists[f"PbPb_{a}"][name]  # type: ignore[assignment]
-    b_jet_pt: hist.Hist = hists[f"PbPb_{b}"][name]  # type: ignore[assignment]
+    a_jet_pt: hist.Hist = hists[f"PbPb_{a}"][name]
+    b_jet_pt: hist.Hist = hists[f"PbPb_{b}"][name]
 
     # See Laura's note on adding
     #return ((a_jet_pt / a_n_events.values()[0]) + (b_jet_pt / b_n_events.values()[0])) / 2
-    return (a_jet_pt + b_jet_pt) / (a_n_events.values()[0] + b_n_events.values()[0])
+    return (a_jet_pt + b_jet_pt) / (a_n_events.values()[0] + b_n_events.values()[0])  # type: ignore[no-any-return]
     #return ((a_jet_pt / np.sum(a_jet_pt.values())) + (b_jet_pt / np.sum(b_jet_pt.values()))) / 2
 
 
@@ -85,7 +85,7 @@ def _ML_jet_binning(system: str, jet_R: float) -> npt.NDArray[np.float64]:
                                np.arange(70, 100, 15),
                                # + 0.1 to make sure that we include the end point.
                                np.arange(100, max_pt_values[system] + 0.1, 20)])
-    return new_bins  # noqa: RET504
+    return new_bins  # type: ignore[no-any-return] # noqa: RET504
 
 
 def plot(output_dir: Path,  # noqa: C901
@@ -215,11 +215,11 @@ def plot(output_dir: Path,  # noqa: C901
                     name = f"{jet_type}_jetR{format_R(jet_R)}_jet_pt"
                     h_jet_pt = v[name]
 
-                    (h_jet_pt[::hist.rebin(5)] / 5).plot(ax=ax, label=labels[system], linewidth=2)
+                    (h_jet_pt[::hist.rebin(5)] / 5).plot(ax=ax, label=labels[system], linewidth=2)  # type: ignore[misc,operator,union-attr]
 
                     h_jet_pt_scaled = h_jet_pt / h_n_events.values()[0]
                     #h_jet_pt_scaled = h_jet_pt / np.sum(h_jet_pt.values())
-                    (h_jet_pt_scaled[::hist.rebin(5)] / 5).plot(ax=ax_scaled, label=labels[system], linewidth=2)
+                    (h_jet_pt_scaled[::hist.rebin(5)] / 5).plot(ax=ax_scaled, label=labels[system], linewidth=2)  # type: ignore[misc]
 
                     # Skip for now just to reduce the number of curves
                     if False:
@@ -227,7 +227,7 @@ def plot(output_dir: Path,  # noqa: C901
                         #h_RAA = h_pp_ref_jet_pt / h_jet_pt_scaled
                         #(h_RAA[::hist.rebin(5)] / 5).plot(ax=ax_RAA, label=labels[system], linewidth=2)
                         # Some bug somewhere. Not my problem... Back to binned_data...
-                        h_RAA = (
+                        h_RAA = (  # type: ignore[unreachable]
                             binned_data.BinnedData.from_existing_data(h_jet_pt_scaled[::hist.rebin(5)] / 5)
                             / binned_data.BinnedData.from_existing_data(h_pp_ref_jet_pt[::hist.rebin(5)] / 5)
                         )
@@ -241,11 +241,11 @@ def plot(output_dir: Path,  # noqa: C901
 
                 # Calculate 0-10%
                 h_PbPb_00_10_jet_pt = combine_spectra_in_cent_bins(hists=hists, jet_type=jet_type, jet_R=jet_R, a="00_05", b="05_10")
-                (h_PbPb_00_10_jet_pt[::hist.rebin(5)] / 5).plot(ax=ax_scaled, label=labels["PbPb_00_10"], linewidth=2)
+                (h_PbPb_00_10_jet_pt[::hist.rebin(5)] / 5).plot(ax=ax_scaled, label=labels["PbPb_00_10"], linewidth=2)  # type: ignore[misc,operator,union-attr]
 
                 # Calculate 30-50%
                 h_PbPb_30_50_jet_pt = combine_spectra_in_cent_bins(hists=hists, jet_type=jet_type, jet_R=jet_R, a="30_40", b="40_50")
-                (h_PbPb_30_50_jet_pt[::hist.rebin(5)] / 5).plot(ax=ax_scaled, label=labels["PbPb_30_50"], linewidth=2)
+                (h_PbPb_30_50_jet_pt[::hist.rebin(5)] / 5).plot(ax=ax_scaled, label=labels["PbPb_30_50"], linewidth=2)  # type: ignore[misc,operator,union-attr]
 
                 # Calculate RAA for calculate centralities
                 # 0-10%
@@ -256,8 +256,8 @@ def plot(output_dir: Path,  # noqa: C901
                 #    / binned_data.BinnedData.from_existing_data((h_pp_ref_jet_pt[10j::hist.rebin(10)] / 10))
                 #)
                 h_RAA = (
-                    binned_data.BinnedData.from_existing_data(h_PbPb_00_10_jet_pt[10j:])
-                    / binned_data.BinnedData.from_existing_data(h_pp_ref_jet_pt[10j:])
+                    binned_data.BinnedData.from_existing_data(h_PbPb_00_10_jet_pt[10j:])  # type: ignore[misc]
+                    / binned_data.BinnedData.from_existing_data(h_pp_ref_jet_pt[10j:])  # type: ignore[misc]
                 )
                 RAA_hists["PbPb_00_10"][f"{jet_type}_R{format_R(jet_R)}"] = h_RAA
                 ax_RAA.errorbar(
@@ -277,8 +277,8 @@ def plot(output_dir: Path,  # noqa: C901
                 #    / binned_data.BinnedData.from_existing_data((h_pp_ref_jet_pt[10j::hist.rebin(10)] / 10))
                 #)
                 h_RAA = (
-                    binned_data.BinnedData.from_existing_data(h_PbPb_30_50_jet_pt[10j:])
-                    / binned_data.BinnedData.from_existing_data(h_pp_ref_jet_pt[10j:])
+                    binned_data.BinnedData.from_existing_data(h_PbPb_30_50_jet_pt[10j:])  # type: ignore[misc]
+                    / binned_data.BinnedData.from_existing_data(h_pp_ref_jet_pt[10j:])  # type: ignore[misc]
                 )
                 RAA_hists["PbPb_30_50"][f"{jet_type}_R{format_R(jet_R)}"] = h_RAA
                 ax_RAA.errorbar(

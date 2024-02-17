@@ -2,6 +2,7 @@
 
 .. codeauthor:: Raymond Ehlers <raymond.ehlers@cern.ch>, ORNL
 """
+from __future__ import annotations
 
 import logging
 from typing import Any
@@ -201,7 +202,7 @@ def test_jet_finding_basic_single_event(caplog: Any) -> None:
                 and np.allclose(np.asarray(measured.py), np.asarray(expected.py))
                 and np.allclose(np.asarray(measured.pz), np.asarray(expected.pz))
                 and np.allclose(np.asarray(measured.E), np.asarray(expected.E))
-                for event, event_expected in zip(jets, expected_jets) for measured, expected in zip(event, event_expected))
+                for event, event_expected in zip(jets, expected_jets, strict=True) for measured, expected in zip(event, event_expected, strict=True))
 
     # only for testing - we want to see any fastjet warnings
     #assert False
@@ -292,7 +293,7 @@ def test_jet_finding_basic_multiple_events(caplog: Any, calculate_area: bool, al
                 and np.allclose(np.asarray(measured.py), np.asarray(expected.py))
                 and np.allclose(np.asarray(measured.pz), np.asarray(expected.pz))
                 and np.allclose(np.asarray(measured.E), np.asarray(expected.E))
-                for event, event_expected in zip(jets, expected_jets) for measured, expected in zip(event, event_expected))
+                for event, event_expected in zip(jets, expected_jets, strict=True) for measured, expected in zip(event, event_expected, strict=True))
 
     # Check that we've handled the area properly
     if calculate_area:
@@ -402,7 +403,7 @@ def test_jet_finding_with_subtraction_multiple_events(caplog: Any, separate_back
                 and np.allclose(np.asarray(measured.py), np.asarray(expected.py))
                 and np.allclose(np.asarray(measured.pz), np.asarray(expected.pz))
                 and np.allclose(np.asarray(measured.E), np.asarray(expected.E))
-                for event, event_expected in zip(jets, expected_jets) for measured, expected in zip(event, event_expected))
+                for event, event_expected in zip(jets, expected_jets, strict=True) for measured, expected in zip(event, event_expected, strict=True))
 
     # only for testing - we want to see any fastjet warnings
     #assert False
@@ -512,7 +513,7 @@ def test_jet_finding_with_constituent_subtraction_does_something_multiple_events
                     and np.allclose(np.asarray(measured.py), np.asarray(expected.py))
                     and np.allclose(np.asarray(measured.pz), np.asarray(expected.pz))
                     and np.allclose(np.asarray(measured.E), np.asarray(expected.E))
-                    for event, event_expected in zip(jets, expected_jets) for measured, expected in zip(event, event_expected))
+                    for event, event_expected in zip(jets, expected_jets, strict=True) for measured, expected in zip(event, event_expected, strict=True))
 
     # only for testing - we want to see any fastjet warnings
     #assert False
@@ -608,7 +609,7 @@ def test_negative_energy_recombiner(caplog: Any) -> None:
                 and np.allclose(np.asarray(measured.py), np.asarray(expected.py))
                 and np.allclose(np.asarray(measured.pz), np.asarray(expected.pz))
                 and np.allclose(np.asarray(measured.E), np.asarray(expected.E))
-                for event, event_expected in zip(jets, expected_jets) for measured, expected in zip(event, event_expected))
+                for event, event_expected in zip(jets, expected_jets, strict=True) for measured, expected in zip(event, event_expected, strict=True))
 
     # only for testing - we want to see any fastjet warnings
     #assert False

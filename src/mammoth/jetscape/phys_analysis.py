@@ -41,10 +41,10 @@ def _subtract_holes_from_jets_pt(jets_pt: ak.Array, jets_eta: ak.Array, jets_phi
                                  particles_holes_pt: ak.Array, particles_holes_eta: ak.Array, particles_holes_phi: ak.Array,
                                  jet_R: float, builder: ak.ArrayBuilder) -> ak.Array:
     for jets_pt_in_event, jets_eta_in_event, jets_phi_in_event, holes_pt_in_event, holes_eta_in_event, holes_phi_in_event in \
-            zip(jets_pt, jets_eta, jets_phi, particles_holes_pt, particles_holes_eta, particles_holes_phi):
+            zip(jets_pt, jets_eta, jets_phi, particles_holes_pt, particles_holes_eta, particles_holes_phi):  # noqa: B905
         builder.begin_list()
-        for jet_pt, jet_eta, jet_phi in zip(jets_pt_in_event, jets_eta_in_event, jets_phi_in_event):
-            for p_pt, p_eta, p_phi in zip(holes_pt_in_event, holes_eta_in_event, holes_phi_in_event):
+        for jet_pt, jet_eta, jet_phi in zip(jets_pt_in_event, jets_eta_in_event, jets_phi_in_event):  # noqa: B905
+            for p_pt, p_eta, p_phi in zip(holes_pt_in_event, holes_eta_in_event, holes_phi_in_event):  # noqa: B905
                 if _delta_R(eta_one=jet_eta, phi_one=jet_phi, eta_two=p_eta, phi_two=p_phi) < jet_R:
                     jet_pt -= p_pt  # noqa: PLW2901
             builder.append(jet_pt)
@@ -186,7 +186,7 @@ if __name__ == "__main__":
         input_arrays = ak.fill_none(input_arrays, fill_none_value)
 
         # Fully zip the arrays together.
-        arrays = ak.zip(dict(zip(ak.fields(input_arrays), ak.unzip(input_arrays))), depth_limit=None)
+        arrays = ak.zip(dict(zip(ak.fields(input_arrays), ak.unzip(input_arrays), strict=True)), depth_limit=None)
 
         run(particles = arrays)
 

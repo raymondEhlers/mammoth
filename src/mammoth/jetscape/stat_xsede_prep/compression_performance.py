@@ -4,6 +4,7 @@
 """
 from __future__ import annotations
 
+import itertools
 import tarfile
 import timeit
 from pathlib import Path
@@ -200,7 +201,7 @@ def data_distribution(arrays: ak.Array, events_per_chunk: int, pt_hat_range: str
         x = []
         x_err = []
         y = []
-        for low, high in zip(intervals[:-1], intervals[1:]):
+        for low, high in itertools.pairwise(intervals):
             start_time = timeit.default_timer()
             selection = (arrays["pt"] >= low) & (arrays["pt"] < high)
             filename = output_dir / f"{compression}{tag}_{int(low * 100)}_{int(high * 100)}.parquet"

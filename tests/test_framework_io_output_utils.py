@@ -29,15 +29,32 @@ def _consistency_check(h_root: Any, h_uproot: Any) -> bool:
 def _generate_profile_with_root(ROOT: Any) -> Any:
     # Create the TProfile
     # NOTE: We need the random string to avoid clobbering existing hists
-    random_string = str(uuid.uuid4())
-    profile_root = ROOT.TProfile(f"test_{random_string}", f"test_{random_string}", 10, -0.5, 9.5)
+    tag = uuid.uuid4()
+    profile_root = ROOT.TProfile(f"test_{tag}", f"test_{tag}", 10, -0.5, 9.5)
     for i in range(5):
         profile_root.Fill(i, i + 0.5, 1 + (i * 0.1))
     return profile_root
 
 
-#@pytest.mark.xfail(reason="Hist doesn't support TProfile properly yet (Jan 2024).")
-def test_hist_profile_round_trip(caplog: Any) -> None:  # noqa: ARG001
+def test_hist_profile_round_trip() -> None:
+    """Test round trip of TProfile through hist.
+
+    This isn't guaranteed by uproot, so we need to confirm it all works.
+    """
+    # TODO: Conditionally create the TProfile. We should normally save it...
+    ROOT = pytest.importorskip("ROOT")
+    # Create the TProfile
+    profile_root = _generate_profile_with_root(ROOT)
+
+    # Convert to uproot
+    profile_uproot = uproot.from_pyroot(profile_root)
+
+    # Check the values for consistency
+    assert _consistency_check(profile_root, profile_uproot)
+
+
+@pytest.mark.xfail(reason="Hist doesn't support adding TProfile properly yet (Jan 2024).")
+def test_hist_merged_profile_round_trip() -> None:
     """Test round trip of TProfile through hist.
 
     This isn't guaranteed by uproot, so we need to confirm it all works.

@@ -2,13 +2,14 @@
 
 .. codeauthor:: Raymond Ehlers <raymond.ehlers@cern.ch>, LBL/UCB
 """
+from __future__ import annotations
 
-from typing import Any
+import pytest  # noqa: F401
 
-import pytest  # noqa: F841
 from mammoth.job_utils import hours_in_walltime
 
-def test_hours_in_walltime(caplog: Any) -> None:
+
+def test_hours_in_walltime() -> None:
     assert hours_in_walltime("01:30:00") == 1
     assert hours_in_walltime("00:45:00") == 0
     assert hours_in_walltime("10:00:00") == 10

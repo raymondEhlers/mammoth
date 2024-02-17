@@ -1,3 +1,4 @@
+from __future__ import annotations
 
 import logging
 from functools import partial
@@ -58,7 +59,7 @@ def test_embedding_load_data_source_fixed_size_chunks(caplog: Any, chunk_size: i
     yielded_data_sizes = [chunk_size for _ in range(int(np.floor(full_file_size / chunk_size)))]
     yielded_data_sizes.append(full_file_size % chunk_size)
 
-    for _, (data, expected_size) in enumerate(zip(iter_arrays, yielded_data_sizes)):
+    for _, (data, expected_size) in enumerate(zip(iter_arrays, yielded_data_sizes, strict=True)):
         assert len(data) == expected_size
 
     # For the last iteration, we want to check whether it's matching the chunk size as appropriate

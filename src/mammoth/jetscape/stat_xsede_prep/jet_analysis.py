@@ -261,7 +261,7 @@ def angular_distribution_around_jet(jets: ak.Array, arrays: ak.Array, pt_hat_bin
         # About to calculate fj distances...
         # Cut to only 50 for technical reasons.
         distance_hist = bh.Histogram(bh.axis.Regular(160, 0, 8), storage=bh.storage.Weight())
-        for jets_in_event, particles_in_event in zip(jets[:50], vector.Array(arrays[particle_mask])[:50]):
+        for jets_in_event, particles_in_event in zip(jets[:50], vector.Array(arrays[particle_mask])[:50], strict=True):
             for jet in jets_in_event:
                 if counter % 10000 == 0:
                     print(f"Counter: {counter}")  # noqa: T201
@@ -430,7 +430,7 @@ if __name__ == "__main__":
         input_arrays = ak.fill_none(input_arrays, fill_none_value)
 
         # Fully zip the arrays together.
-        arrays = ak.zip(dict(zip(ak.fields(input_arrays), ak.unzip(input_arrays))), depth_limit=None)
+        arrays = ak.zip(dict(zip(ak.fields(input_arrays), ak.unzip(input_arrays), strict=True)), depth_limit=None)
         #arrays = ak.zip(
         #    {
         #        "particle_ID": input_arrays["particle_ID"],

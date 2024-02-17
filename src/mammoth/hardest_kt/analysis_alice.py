@@ -162,7 +162,7 @@ def analysis_MC(
     #       separately for the different collections and then zip them together. This should keep
     #       matching together as appropriate.
     jets = ak.zip(
-        {k: ak.flatten(v, axis=1) for k, v in zip(ak.fields(jets), ak.unzip(jets))},
+        {k: ak.flatten(v, axis=1) for k, v in zip(ak.fields(jets), ak.unzip(jets), strict=True)},
         depth_limit=1,
     )
 
@@ -276,7 +276,7 @@ def analysis_data(
     #       separately for the different collections and then zip them together. This should keep
     #       matching together as appropriate.
     jets = ak.zip(
-        {k: ak.flatten(v, axis=1) for k, v in zip(ak.fields(jets), ak.unzip(jets))},
+        {k: ak.flatten(v, axis=1) for k, v in zip(ak.fields(jets), ak.unzip(jets), strict=True)},
         depth_limit=1,
     )
 
@@ -438,7 +438,7 @@ def analysis_embedding(
     #       separately for the different collections and then zip them together. This should keep
     #       matching together as appropriate.
     jets = ak.zip(
-        {k: ak.flatten(v, axis=1) for k, v in zip(ak.fields(jets), ak.unzip(jets))},
+        {k: ak.flatten(v, axis=1) for k, v in zip(ak.fields(jets), ak.unzip(jets), strict=True)},
         depth_limit=1,
     )
 

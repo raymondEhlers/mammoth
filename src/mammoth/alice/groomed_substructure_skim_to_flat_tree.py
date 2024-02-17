@@ -11,7 +11,7 @@ import functools
 import logging
 from collections.abc import Iterable, Mapping
 from pathlib import Path
-from typing import Callable, Union
+from typing import Union
 
 import attrs
 import awkward as ak
@@ -26,7 +26,7 @@ from mammoth.framework.typing import AwkwardArray, Scalar
 
 logger = logging.getLogger(__name__)
 
-T_GroomingResults = dict[str, Union[npt.NDArray[np.float32], npt.NDArray[np.int16]]]
+T_GroomingResults = dict[str, Union[npt.NDArray[np.float32], npt.NDArray[np.int16]]]  # noqa: UP007
 
 @attrs.define
 class Calculation:
@@ -224,7 +224,7 @@ def _calculate_splitting_number(
     output = np.zeros(len(selected_splittings), dtype=np.int16)
 
     for i, (selected_splitting, restricted_splitting_indices, available_splittings_parents) in enumerate(
-        zip(selected_splittings, restricted_splittings_indices, all_splittings.parent_index)
+        zip(selected_splittings, restricted_splittings_indices, all_splittings.parent_index)  # noqa: B905
     ):
         # This would be to help out mypy, but it will probably interfere with numba, so we
         # just tell it to ignore the type. The point here is that parent_index of all_splittings is
@@ -445,7 +445,7 @@ def determine_matched_jets_numba(
             measured_like_groomed_index_array,
         ),
     ) in enumerate(
-        zip(
+        zip(  # noqa: B905
             generator_like_jets,
             generator_like_splittings,
             generator_like_groomed_values,
@@ -653,7 +653,7 @@ def generator_subjet_momentum_fraction_in_measured_jet_numba(
             measured_like_jet,
         ),
     ) in enumerate(
-        zip(
+        zip(  # noqa: B905
             generator_like_jets,
             generator_like_splittings,
             generator_like_groomed_indices,

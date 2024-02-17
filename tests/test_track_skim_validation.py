@@ -2,14 +2,16 @@
 
 .. codeauthor:: Raymond Ehlers <raymond.ehlers@cern.ch>, LBNL/UCB
 """
+from __future__ import annotations
 
 import logging
+from collections.abc import Sequence
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Sequence
+from typing import Any
 
 import attrs
-import pytest
 import pachyderm.plot
+import pytest
 
 from mammoth.alice import groomed_substructure_skim_to_flat_tree, substructure_comparison_tools
 from mammoth.framework import sources
@@ -63,12 +65,12 @@ _collision_system_to_aod_files["embed_pythia-PbPb"] = _collision_system_to_aod_f
 @attrs.define
 class AnalysisParameters:
     """Centralize some general track skim validation parameters"""
-    reference_analysis_prefixes: Dict[str, str]
-    track_skim_loading_data_rename_prefix: Dict[str, str]
-    track_skim_convert_data_format_prefixes: Dict[str, str]
-    comparison_prefixes: List[str]
-    min_jet_pt_by_R_and_prefix: Dict[float, Dict[str, float]]
-    pt_hat_bin: Optional[int] = None
+    reference_analysis_prefixes: dict[str, str]
+    track_skim_loading_data_rename_prefix: dict[str, str]
+    track_skim_convert_data_format_prefixes: dict[str, str]
+    comparison_prefixes: list[str]
+    min_jet_pt_by_R_and_prefix: dict[float, dict[str, float]]
+    pt_hat_bin: int | None = None
 
 # Stores the parameters together. Organizing them this way somehow seems to make sense.
 # Hard coding them is generally less than ideal, but they're supposed to be fixed
@@ -160,7 +162,7 @@ class TrackSkimValidationFilenames:
         )
 
 
-def _check_for_alice_input_files(input_files: Sequence[Path]) -> List[bool]:
+def _check_for_alice_input_files(input_files: Sequence[Path]) -> list[bool]:
     """Check for whether input ALICE data files exist.
 
     Supports "#" in filenames for compressed archives.
@@ -177,7 +179,7 @@ def _check_for_alice_input_files(input_files: Sequence[Path]) -> List[bool]:
 
 
 def _aliphysics_to_analysis_results(
-    collision_system: str, jet_R: float, input_files: Sequence[Path], validation_mode: bool = True, filename_to_rename_output_to: Optional[Path] = None,
+    collision_system: str, jet_R: float, input_files: Sequence[Path], validation_mode: bool = True, filename_to_rename_output_to: Path | None = None,
     allow_multiple_executions_of_run_macro: bool = True,
     write_logs_to_file: bool = False,
 ) -> Path:
@@ -214,7 +216,7 @@ def _aliphysics_to_analysis_results(
     # They might be missing since they're too large to store in the repo
     missing_files = _check_for_alice_input_files(input_files=input_files)
     if any(missing_files):
-        msg = f"Cannot generate AliPhysics reference due to missing inputs files. Missing: {[f for f, missing in zip(input_files, missing_files) if missing]}"
+        msg = f"Cannot generate AliPhysics reference due to missing inputs files. Missing: {[f for f, missing in zip(input_files, missing_files, strict=True) if missing]}"
         raise RuntimeError(
             msg
         )
@@ -233,12 +235,12 @@ def _aliphysics_to_analysis_results(
     # Select a large enough number that we'll exhaust any given input files
     n_events = 500_000
     # Further parameters
-    optional_kwargs: Dict[str, Any] = {}
+    optional_kwargs: dict[str, Any] = {}
     if collision_system == "embed_pythia":
         _analysis_parameters = _all_analysis_parameters[collision_system]
         missing_files = _check_for_alice_input_files(input_files=_collision_system_to_aod_files["embed_pythia-pythia"])
         if any(missing_files):
-            msg = f"Cannot generate AliPhysics reference due to missing embedding inputs files. Missing: {[f for f, missing in zip(input_files, missing_files) if missing]}"
+            msg = f"Cannot generate AliPhysics reference due to missing embedding inputs files. Missing: {[f for f, missing in zip(input_files, missing_files, strict=True) if missing]}"
             raise RuntimeError(
                 msg
             )
@@ -330,7 +332,7 @@ def _reference_aliphysics_tree_name(collision_system: str, jet_R: float) -> str:
     return f"AliAnalysisTaskJetDynamicalGrooming_{_jet_labels[collision_system]}_AKTChargedR{round(jet_R*100):03}_tracks_pT0150_E_scheme{_tags[collision_system]}"
 
 
-def _get_scale_factors_for_test() -> Dict[int, float]:
+def _get_scale_factors_for_test() -> dict[int, float]:
     # NOTE: This assumes that the validation uses LHC20g4_AOD. However, we do this consistently,
     #       so that's a reasonable assumption.
     # NOTE: These scale factors need to be determined externally. These were extracted separately
@@ -346,9 +348,9 @@ def _get_scale_factors_for_test() -> Dict[int, float]:
 class ConvertTreeToParquetArguments:
     """Trivial class to help organize arguments for converting AliPhysics output trees to parquet files."""
 
-    prefixes: List[str]
-    branches: List[str]
-    prefix_branches: List[str]
+    prefixes: list[str]
+    branches: list[str]
+    prefix_branches: list[str]
 
 
 def _dyg_analysis_results_to_parquet(filename: Path, collision_system: str, jet_R: float) -> Path:

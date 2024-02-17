@@ -4,6 +4,7 @@
 """
 from __future__ import annotations
 
+import itertools
 import logging
 from collections.abc import Sequence
 from pathlib import Path
@@ -27,7 +28,7 @@ def _load_results(input_specs: Sequence[run_ecce_analysis.DatasetSpec], input_di
         output_hists[str(spec)] = ecce_base.load_hists(input_dir / str(spec) / filename, filter=filter)
 
         for k, v in output_hists[str(spec)].items():
-            output_hists[str(spec)][k] = v.to_hist()
+            output_hists[str(spec)][k] = v.to_hist()  # type: ignore[attr-defined]
 
     return output_hists
 
@@ -186,7 +187,7 @@ def run() -> None:  # noqa: C901
 
     # NOTE: 15 == - 4.0 - 4.0
     eta_bins = [-4.0, -3.5, -3.0, -2.5, -2.0, -1.5, -1.2, -0.4, 0.4, 1.2, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0]
-    eta_ranges = list(zip(eta_bins[:-1], eta_bins[1:]))
+    eta_ranges = list(itertools.pairwise(eta_bins))
     eta_ranges.append((-4.0, 4.0))
 
     #backward_regions = eta_ranges[0:5]
@@ -210,44 +211,44 @@ def run() -> None:  # noqa: C901
     from importlib import reload  # noqa: F401
 
     import IPython
-    IPython.embed()
+    IPython.embed()  # type: ignore[no-untyped-call]
 
     # Single particle productions
     for regions_label, region_indices in [("forward", forward_regions), ("barrel", barrel_regions), ("backward", backward_regions)]:
         for selected_particle, latex_label in [("pion", r"$\pi$"), ("electron", r"$e^{\pm}$")]:
-            for input_spec in input_specs:
-                if input_spec.particle != selected_particle:
+            for part_input_spec in input_specs:
+                if part_input_spec.particle != selected_particle:
                     continue
-                output_dir_for_input_spec = output_dir / str(input_spec)
+                output_dir_for_input_spec = output_dir / str(part_input_spec)
                 output_dir_for_input_spec.mkdir(parents=True, exist_ok=True)
                 text = "ECCE Simulation"
-                text += "\n" + _input_spec_labels[str(input_spec)]
-                text += "\n" + "Single " + latex_label + fr", ${input_spec.momentum_selection[0]:g} < p_{{\text{{T}}}} < {input_spec.momentum_selection[1]:g}$"
+                text += "\n" + _input_spec_labels[str(part_input_spec)]
+                text += "\n" + "Single " + latex_label + fr", ${part_input_spec.momentum_selection[0]:g} < p_{{\text{{T}}}} < {part_input_spec.momentum_selection[1]:g}$"
 
                 hist_name_template = "histPResol_{particle}_FitMean_{eta_region_index}"
                 plot_ecce_track_comparison.plot_tracking_comparison(
-                    input_specs=[input_spec],
+                    input_specs=[part_input_spec],
                     input_spec_labels=_input_spec_labels,
                     output_hists=output_hists,
                     hist_name_template=hist_name_template,
                     plot_name=f"p_mean_{selected_particle}",
                     all_regions=eta_ranges, regions_label=regions_label, regions_index=region_indices,
                     text=text,
-                    selected_particle=input_spec.particle,
+                    selected_particle=part_input_spec.particle,
                     y_range=(-0.1, 0.1), y_label=r"$\langle (p_{\text{T}}^{\text{rec}} - p_{\text{T}}^{\text{MC}}) / p_{\text{T}}^{\text{MC}} \rangle$",
                     output_dir=output_dir_for_input_spec,
                 )
 
                 hist_name_template = "histPResol_{particle}_FitSigma_{eta_region_index}"
                 plot_ecce_track_comparison.plot_tracking_comparison(
-                    input_specs=[input_spec],
+                    input_specs=[part_input_spec],
                     input_spec_labels=_input_spec_labels,
                     output_hists=output_hists,
                     hist_name_template=hist_name_template,
                     plot_name=f"p_width_{selected_particle}",
                     all_regions=eta_ranges, regions_label=regions_label, regions_index=region_indices,
                     text=text,
-                    selected_particle=input_spec.particle,
+                    selected_particle=part_input_spec.particle,
                     y_range=(0.0, 0.17), y_label=r"$\sigma((p_{\text{T}}^{\text{rec}} - p_{\text{T}}^{\text{MC}}) / p_{\text{T}}^{\text{MC}})$",
                     output_dir=output_dir_for_input_spec,
                 )
@@ -256,14 +257,14 @@ def run() -> None:  # noqa: C901
         # Now, the comparison for each eta region
         for selected_particle, latex_label in [("pion", r"$\pi$"), ("electron", r"$e^{\pm}$")]:
             #plot_input_specs = [input_spec for input_spec in input_specs if input_spec.particle == selected_particle]
-            plot_input_specs = []
-            for input_spec in input_specs:
-                if input_spec.particle == selected_particle:
-                    plot_input_specs.append(input_spec)
-            logger.info(f"plot_input_specs: {plot_input_specs}")
+            plot_part_input_specs = []
+            for part_input_spec in input_specs:
+                if part_input_spec.particle == selected_particle:
+                    plot_part_input_specs.append(part_input_spec)
+            logger.info(f"plot_input_specs: {plot_part_input_specs}")
 
             # Skip if we didn't load the data
-            if not len(plot_input_specs):
+            if not len(plot_part_input_specs):
                 continue
 
             for i in region_indices:
@@ -274,7 +275,7 @@ def run() -> None:  # noqa: C901
 
                 hist_name_template = "histPResol_{particle}_FitMean_{eta_region_index}"
                 plot_ecce_track_comparison.plot_tracking_comparison(
-                    input_specs=plot_input_specs,
+                    input_specs=plot_part_input_specs,
                     input_spec_labels=_input_spec_labels,
                     output_hists=output_hists,
                     hist_name_template=hist_name_template,
@@ -288,7 +289,7 @@ def run() -> None:  # noqa: C901
 
                 hist_name_template = "histPResol_{particle}_FitSigma_{eta_region_index}"
                 plot_ecce_track_comparison.plot_tracking_comparison(
-                    input_specs=plot_input_specs,
+                    input_specs=plot_part_input_specs,
                     input_spec_labels=_input_spec_labels,
                     output_hists=output_hists,
                     hist_name_template=hist_name_template,
@@ -543,7 +544,7 @@ def run() -> None:  # noqa: C901
                         #)
 
     import IPython
-    IPython.embed()
+    IPython.embed()  # type: ignore[no-untyped-call]
 
     #for label, regions in [("backward", backward_regions), ("barrel", barrel_regions), ("forward", forward_regions)]:
     #for i in range(0, len(eta_ranges)):

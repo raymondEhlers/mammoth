@@ -31,7 +31,7 @@ def test_random_choice_jagged(caplog: Any, random_seed: int | None) -> None:
         assert array[mask].to_list() == [[2], [1], [], [4]]
 
 
-def test_smooth_array(caplog: Any) -> None:
+def test_smooth_array() -> None:
     """Test array smoothing implementation extracted from ROOT::TH1::Smooth()."""
     n_times = 1
     arr = np.array([1,2,7,4,5], dtype=np.float64)
@@ -69,9 +69,9 @@ def smooth_array_ROOT(array: npt.NDArray[np.float64], n_times: int = 1) -> npt.N
 
 
 @pytest.mark.parametrize("n_times", list(range(1, 4)), ids=lambda x: f"n_times={x}")
-def test_ROOT_comparison(caplog: Any, n_times: int) -> None:
+def test_ROOT_comparison(n_times: int) -> None:
     """ Compare the smoothing algorithm to ROOT's TH1::Smooth() method."""
-    ROOT = pytest.importorskip("ROOT")
+    ROOT = pytest.importorskip("ROOT")  # noqa: F841
 
     arr = np.array([1,2,7,4,5], dtype=np.float64)
     res = analysis_array_helpers.smooth_array(arr, n_times=n_times)

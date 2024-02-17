@@ -122,7 +122,7 @@ def analysis_MC(
         # Treat as a one track collection (will be either part or det level)
         # Validation
         # We almost certainly don't want an artificial tracking efficiency here
-        assert isinstance(det_level_artificial_tracking_efficiency, (float, np.number)), f"Det level tracking efficiency should almost certainly be a float. Passed: {det_level_artificial_tracking_efficiency}"
+        assert isinstance(det_level_artificial_tracking_efficiency, float | np.number), f"Det level tracking efficiency should almost certainly be a float. Passed: {det_level_artificial_tracking_efficiency}"
         assert np.isclose(det_level_artificial_tracking_efficiency, 1.0), f"Det level tracking efficiency should almost certainly be 1.0. Passed: {det_level_artificial_tracking_efficiency}"
 
         jets = reclustered_substructure.analyze_track_skim_and_recluster_data(

@@ -84,7 +84,7 @@ def find_jets_for_analysis(arrays: ak.Array, jet_R_values: Sequence[float], part
     #       debug issues, so we use a standard set of for loops here instead
     for jet_R in jet_R_values:
         #for particles, label in zip([particles_signal, particles_signal_charged], ["full", "charged"]):
-        for particles, label in zip([particles_signal_charged, particles_signal], ["charged", "full"]):
+        for particles, label in zip([particles_signal_charged, particles_signal], ["charged", "full"], strict=True):
             tag = JetLabel(jet_R=jet_R, label=label)
             logger.info(f"label: {tag}")
             jets[tag] = jet_finding.find_jets(
@@ -146,7 +146,7 @@ def write_tree(jets: ak.Array, filename: Path) -> bool:
             # because the type seems to be in tact. This is for sure a hack, but it should get
             # the job done.
             k: ak.values_astype(v if any_jets else jets[jet_label]["cross_section"], dtype)
-            for (k, dtype), v in zip(fields.items(), ak.unzip(jets[jet_label][list(fields)]))
+            for (k, dtype), v in zip(fields.items(), ak.unzip(jets[jet_label][list(fields)]), strict=True)
         })
         # NOTE: We don't want to flatten here because otherwise we lose the overall number of events.
         #       Plus, this ensures compatibility with the standard analysis.

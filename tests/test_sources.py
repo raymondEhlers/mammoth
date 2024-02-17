@@ -1,8 +1,10 @@
+from __future__ import annotations
 
 import itertools
 import logging
+from collections.abc import MutableMapping, Sequence
 from pathlib import Path
-from typing import Any, MutableMapping, Sequence
+from typing import Any
 
 import numpy as np
 import pytest
@@ -151,7 +153,7 @@ def test_chunk_generation_from_existing_data_with_fixed_chunk_size(
     # Finally, actually access the data and check the chunk sizes.
     gen = pythia_source.gen_data(chunk_size=chunk_size)
 
-    for _, (data, expected_size) in enumerate(zip(gen, yielded_data_sizes)):
+    for _, (data, expected_size) in enumerate(zip(gen, yielded_data_sizes, strict=True)):
         assert len(data) == expected_size
 
     # For the last iteration, we want to check whether it's matching the chunk size as appropriate
@@ -213,7 +215,6 @@ def test_chunk_generation_from_existing_data_with_variable_chunk_size(
             else:
                 assert len(data) == current_chunk_size
     except StopIteration:
-        ...
         stopped_iteration = True
 
     # Useful to keep track of when debugging
@@ -264,7 +265,7 @@ def test_multi_source_source_fixed_size_chunks(caplog: Any, chunk_size: int, num
     gen = pythia_source.gen_data(chunk_size=chunk_size)
 
     total_data_size = 0
-    for _, (data, expected_chunk_size) in enumerate(zip(gen, yielded_data_sizes)):
+    for _, (data, expected_chunk_size) in enumerate(zip(gen, yielded_data_sizes, strict=True)):
         assert len(data) == expected_chunk_size
         total_data_size += len(data)
 
@@ -343,7 +344,6 @@ def test_multi_source_source_variable_size_chunks(
                 assert len(data) == current_chunk_size
         finished_chunk_iterator = True
     except StopIteration:
-        ...
         stopped_iteration = True
 
     # Useful to keep track of when debugging
