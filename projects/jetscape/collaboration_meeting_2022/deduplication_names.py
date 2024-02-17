@@ -11,6 +11,7 @@ def main(filename: Path) -> list[str]:
 
     return list(set(names))
 
+
 if __name__ == "__main__":
     # NOTE: I removed names of folks who are listed but never took an assignment
     names = main(filename=Path("people_running_jobs.txt"))
@@ -18,4 +19,4 @@ if __name__ == "__main__":
     # This is what I used to print in the end
     print(", ".join(sorted(names)))
     # But can explore some more if needed
-    IPython.start_ipython(user_ns={**globals(),**locals()})
+    IPython.start_ipython(user_ns={**globals(), **locals()})

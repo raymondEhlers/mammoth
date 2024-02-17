@@ -32,7 +32,7 @@ right_mask = right["source_index"] >= 1000
 #       If I wanted to mask left and right, I need to figure out their combined mask, and then apply
 #       that to the distances! This is demonstrated below:
 # Raises here.
-#distances3 = left[left_mask].deltaR(right[right_mask])
+# distances3 = left[left_mask].deltaR(right[right_mask])
 # Correct way to do it:
 combined_mask = (left["source_index"] >= 1000) & (right["source_index"] >= 1000)
 distances4 = distances[combined_mask]

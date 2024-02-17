@@ -134,4 +134,3 @@ _EOF_
 #sbatch -a 1-$njobs $slurmJobConfig
 # -1 for the upper edge because it's inclusive
 sbatch -a ${startingIndex}-$((${startingIndex} + ${njobs} - 1)) $slurmJobConfig
-

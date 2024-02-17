@@ -9,6 +9,7 @@ from mammoth import helpers
 
 logger = logging.getLogger(__name__)
 
+
 def test_rich_progress_bar() -> None:
     stored_messages = [
         helpers.LogMessage(
@@ -33,6 +34,7 @@ def test_rich_progress_bar() -> None:
             time.sleep(0.5)
 
     logger.info("afterwards...")
+
 
 if __name__ == "__main__":
     test_rich_progress_bar()

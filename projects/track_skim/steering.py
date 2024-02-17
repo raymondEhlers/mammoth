@@ -44,13 +44,14 @@ from mammoth.hardest_kt import produce_flat_skim_from_track_skim
 
 # ## Reload
 
-#reload(job_utils)
+# reload(job_utils)
 reload(produce_flat_skim_from_track_skim)
 
 
 # ## Tasks
 
 # ### Running
+
 
 def define_productions() -> list[produce_flat_skim_from_track_skim.production.ProductionSettings]:
     # We want to provide the opportunity to run multiple productions at once.
@@ -91,16 +92,15 @@ def define_productions() -> list[produce_flat_skim_from_track_skim.production.Pr
     return productions
 
 
-
 # +
 # Job execution parameters
 productions = define_productions()
 
 # Base settings
 job_framework = job_utils.JobFramework.dask_delayed
-#job_framework = job_utils.JobFramework.immediate_execution_debug
+# job_framework = job_utils.JobFramework.immediate_execution_debug
 facility: job_utils.FACILITIES = "rehlers_mbp_m1pro"
-#conda_environment_name = "substructure_c_24_06"
+# conda_environment_name = "substructure_c_24_06"
 conda_environment_name = ""
 
 # Job execution configuration
@@ -145,7 +145,7 @@ futures = produce_flat_skim_from_track_skim.setup_and_submit_tasks(
     debug_mode=debug_mode,
     job_executor=job_executor if job_framework == job_utils.JobFramework.dask_delayed else None,  # type: ignore[arg-type]
 )
-#futures
+# futures
 
 futures
 
@@ -161,5 +161,3 @@ np.count_nonzero([r.result()[0] == False for r in futures]) / len(futures)  # no
 
 job_executor.close()
 job_cluster.close()
-
-

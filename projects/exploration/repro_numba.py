@@ -22,11 +22,13 @@ def repro(
         for generator_like_constituent in generator_like_constituents:
             s += generator_like_constituent.pt
 
+
 def reproducer() -> None:
     # NOTE: Need to write with to_buffers to maintain the right structure to reproduce this issue
     with Path("repro.pkl").open("rb") as f:
         a = ak.from_buffers(*pickle.load(f))
     repro(generator_like_jet_constituents=ak.packed(a.constituents))
+
 
 if __name__ == "__main__":
     reproducer()

@@ -23,7 +23,9 @@ def test_read(filename: str | Path, events_per_chunk: int, max_chunks: int = 1) 
     # Compare against the known result to ensure that it's working correctly!
     ref = None
     for loader in ["np", "pandas", "python"]:
-        for i, chunk_generator in enumerate(_jetscape_parser.read_events_in_chunks(filename=filename, events_per_chunk=events_per_chunk)):
+        for i, chunk_generator in enumerate(
+            _jetscape_parser.read_events_in_chunks(filename=filename, events_per_chunk=events_per_chunk)
+        ):
             # Bail out if we've done enough.
             if i == max_chunks:
                 break
@@ -41,14 +43,14 @@ def test_read(filename: str | Path, events_per_chunk: int, max_chunks: int = 1) 
                     comment="#",
                     sep=r"\s+",
                     # Converting to numpy makes the dtype conversion moot.
-                    #dtype={
+                    # dtype={
                     #    "particle_index": np.int32, "particle_ID": np.int32, "status": np.int8,
                     #    "E": np.float32, "px": np.float32, "py": np.float32, "pz": np.float32,
                     #    "eta": np.float32, "phi": np.float32
-                    #},
+                    # },
                     # We can reduce columns to save a little time reading.
                     # However, it makes little difference, and makes it less general. So we disable it for now.
-                    #usecols=["particle_ID", "status", "E", "px", "py", "eta", "phi"],
+                    # usecols=["particle_ID", "status", "E", "px", "py", "eta", "phi"],
                 ).to_numpy()
                 # NOTE: It's important that we convert to numpy before splitting. Otherwise, it will return columns names,
                 #       which will break the indexing and therefore the conversion.
@@ -71,17 +73,15 @@ def test_read(filename: str | Path, events_per_chunk: int, max_chunks: int = 1) 
             if ref is None:
                 ref = array_with_events
 
-            #if loader == "pandas":
+            # if loader == "pandas":
             #    import IPython; IPython.embed()
 
             assert array_with_events == ref
 
 
 if __name__ == "__main__":
-
     for pt_hat_range in ["7_9", "20_25", "50_55", "100_110", "250_260", "500_550", "900_1000"]:
         filename = f"JetscapeHadronListBin{pt_hat_range}"
         directory_name = "5020_PbPb_0-10_0R25_1R0_1"
         full_filename = f"../phys_paper/AAPaperData/{directory_name}/{filename}.out"
         test_read(filename=full_filename, events_per_chunk=100, max_chunks=1)
-

@@ -47,4 +47,3 @@ testexternals.cc:
 
 clean-local:
 	rm -f $(BUILT_SOURCES)
-

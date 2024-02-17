@@ -15,7 +15,7 @@ Beams:idA = 2212                     ! proton
 Beams:idB = 11                       ! electron
 Beams:eA  = 275                     ! 275 GeV proton
 Beams:eB  = 18                      ! 18 GeV electron
-Beams:frameType = 2 
+Beams:frameType = 2
 
 ! 4) Settings for the hard-process generation.
 
@@ -27,7 +27,7 @@ PDF:lepton = off
 #PDF:pSet                  = LHAPDF6:CT18ANNLO
 #PDF:pSet                  = LHAPDF6:CT18NLO
 #PDF:pSet                  = LHAPDF6:CT18ANLO
-TimeShower:QEDshowerByL=off 
+TimeShower:QEDshowerByL=off
 SpaceShower:pTmaxMatch=2
 
 ! 5) Switch on/off the key event generation steps.

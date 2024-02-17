@@ -27,7 +27,9 @@ class Config:
         return f"{self.sqrts}_{self.trigger}_trigger"
 
 
-def run_job_with_config(scratch_dir: Path, base_config_dir: Path, model: str, config_name: str, node_type: str, index: int | None = None) -> subprocess.Popen:  # type: ignore[type-arg]
+def run_job_with_config(
+    scratch_dir: Path, base_config_dir: Path, model: str, config_name: str, node_type: str, index: int | None = None
+) -> subprocess.Popen:  # type: ignore[type-arg]
     # Setup the config path
     config_path = (base_config_dir / model / config_name).with_suffix(".xml")
     # We need to separate this into a new directory so we don't overwrite it.
@@ -50,19 +52,19 @@ def run_job_with_config(scratch_dir: Path, base_config_dir: Path, model: str, co
     # Need to use Popen to ensure that we're not blocking.
     res = subprocess.Popen(
         ["time", "singularity", "run", "--cleanenv", scratch_dir / "jetscape-stat-estimate_latest.sif", config_path],
-        #["sleep", "3"],
-        #stdout=(base_config_dir / model / node_type / config_name).with_suffix(".log")
+        # ["sleep", "3"],
+        # stdout=(base_config_dir / model / node_type / config_name).with_suffix(".log")
         stdout=open(stdout, "w"),  # noqa: SIM115,PTH123
         stderr=subprocess.STDOUT,
     )
 
     return res  # noqa: RET504
-    #subprocess.run(
+    # subprocess.run(
     #    #["echo", "singularity", "shell", "--cleanenv", scratch_dir / "jetscape-stat-estimate_latest.sif", (base_config_dir / model / config_name).with_suffix(".xml")],
     #    ["sleep", "10"],
     #    #stdout=(base_config_dir / model / node_type / config_name).with_suffix(".log")
     #    stderr=subprocess.STDOUT,
-    #)
+    # )
 
 
 def setup_all_configs() -> dict[str, list[Config]]:
@@ -83,6 +85,7 @@ def setup_all_configs() -> dict[str, list[Config]]:
     }
     return configs  # noqa: RET504
 
+
 def monitor_processes(processes: Sequence[subprocess.Popen]) -> None:  # type: ignore[type-arg]
     # Convert to psutil Process so we can monitor them.
     process_list = [psutil.Process(p.pid) for p in processes]
@@ -94,7 +97,7 @@ if __name__ == "__main__":
     # Settings
     n_cores = 48
     node_type = f"skylake_{n_cores}"
-    #scratch_dir = Path("scratch_dir")
+    # scratch_dir = Path("scratch_dir")
     scratch_dir = Path(os.path.expandvars("$SCRATCH"))
 
     available_configs = setup_all_configs()
@@ -105,15 +108,17 @@ if __name__ == "__main__":
     for model in available_configs:
         for config in available_configs[model]:
             print(f"Starting {i}")
-            processes.append(run_job_with_config(
-                scratch_dir=scratch_dir,
-                base_config_dir=scratch_dir / "jetscape-an" / "config" / "jetscape" / "STAT",
-                #base_config_dir=Path("..") / "config" / "jetscape" / "STAT",
-                model=model,
-                config_name=str(config),
-                node_type=node_type,
-                index=i,
-            ))
+            processes.append(
+                run_job_with_config(
+                    scratch_dir=scratch_dir,
+                    base_config_dir=scratch_dir / "jetscape-an" / "config" / "jetscape" / "STAT",
+                    # base_config_dir=Path("..") / "config" / "jetscape" / "STAT",
+                    model=model,
+                    config_name=str(config),
+                    node_type=node_type,
+                    index=i,
+                )
+            )
             print(f"Started {i}")
             # Try to avoid going too crazy with the I/O.
             time.sleep(10)
@@ -124,4 +129,3 @@ if __name__ == "__main__":
     monitor_processes(processes=processes)
     elapsed = timeit.default_timer() - start_time
     print(f"Done! Elapsed time since starting first process: {elapsed}")
-

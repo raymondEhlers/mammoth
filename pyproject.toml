@@ -275,6 +275,10 @@ messages_control.disable = [
 ]
 
 
+[tool.codespell]
+ignore-words-list = "subjet"
+
+
 [tool.check-manifest]
 ignore = [
   ".github/**",

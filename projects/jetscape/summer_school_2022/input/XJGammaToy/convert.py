@@ -8,7 +8,9 @@ import uproot
 from pachyderm import binned_data
 
 
-def get_data(centrality: str, normalize: bool) -> tuple[binned_data.BinnedData, binned_data.BinnedData, binned_data.BinnedData]:
+def get_data(
+    centrality: str, normalize: bool
+) -> tuple[binned_data.BinnedData, binned_data.BinnedData, binned_data.BinnedData]:
     centrality_index_map = {
         "50-100": 1,
         # pp smeared with 50-100
@@ -39,6 +41,7 @@ def get_data(centrality: str, normalize: bool) -> tuple[binned_data.BinnedData, 
 
     return data, stat_error, sys_error
 
+
 def run(centrality_to_filename: Mapping[tuple[int, int], str], normalize: bool) -> None:
     all_data = {
         "50-100": get_data("50-100", normalize=normalize),
@@ -55,26 +58,36 @@ def run(centrality_to_filename: Mapping[tuple[int, int], str], normalize: bool) 
         with Path(filename).open("w") as f:
             print(name)
             # First, write the header
-            f.write(f"""# Version 1.0
+            f.write(
+                f"""# Version 1.0
 # DOI
 # Source
 # System PbPb5020
 # Centrality {centrality_range[0]} {centrality_range[1]}
 # XY XJGamma
 # Label x y stat,low stat,high sys,low sys,high
-""")
+"""
+            )
             # 50-100 is missing the first point. So we fill in an empty point for it at 0.0625
             if name == "50-100":
                 values_to_write = np.array([(0.0625, 0.0, 0.0, 0.0, 0.0, 0.0)])
-                #f.write(str(values_to_write))
+                # f.write(str(values_to_write))
                 np.savetxt(f, values_to_write, fmt="%f")
-            values_to_write = np.array([
-                data.axes[0].bin_centers, data.values, stat_error.errors, stat_error.errors, sys_error.errors, sys_error.errors,
-            ]).T
-            #for bin_center, value, stat, sys in zip(data.axes[0].bin_centers, data.values, stat_error.errors, sys_error.errors):
+            values_to_write = np.array(
+                [
+                    data.axes[0].bin_centers,
+                    data.values,
+                    stat_error.errors,
+                    stat_error.errors,
+                    sys_error.errors,
+                    sys_error.errors,
+                ]
+            ).T
+            # for bin_center, value, stat, sys in zip(data.axes[0].bin_centers, data.values, stat_error.errors, sys_error.errors):
             #    values_to_write = (bin_center, value, stat, stat, sys, sys)
             np.savetxt(f, values_to_write, fmt="%f")
-            #f.write(str(values_to_write))
+            # f.write(str(values_to_write))
+
 
 if __name__ == "__main__":
     run(

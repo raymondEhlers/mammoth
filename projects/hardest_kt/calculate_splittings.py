@@ -14,6 +14,7 @@ from mammoth import helpers
 
 logger = logging.getLogger(__name__)
 
+
 @attrs.define
 class Splitting:
     z: float
@@ -21,13 +22,12 @@ class Splitting:
 
     def kt(self, pt_parent: float) -> float:
         # Approx
-        #return pt_parent * self.z * self.delta_R  # type: ignore[no-any-return]
+        # return pt_parent * self.z * self.delta_R  # type: ignore[no-any-return]
         # Exact
         return pt_parent * self.z * np.sin(self.delta_R)  # type: ignore[no-any-return]
 
 
 def calculate_splittings(splittings: list[Splitting], input_jet_pt: float) -> None:
-
     pt_parent = input_jet_pt
     for i, splitting in enumerate(splittings):
         logger.info(f"{i}: {splitting}, pt_parent: {pt_parent} -> kt={splitting.kt(pt_parent=pt_parent):.3f}")
@@ -43,7 +43,7 @@ if __name__ == "__main__":
             Splitting(delta_R=0.35, z=0.2),
             Splitting(delta_R=0.30, z=0.5),
         ],
-        input_jet_pt=60.,
+        input_jet_pt=60.0,
     )
 
     logger.info("Tree 2:")
@@ -53,7 +53,7 @@ if __name__ == "__main__":
             Splitting(delta_R=0.30, z=0.2),
             Splitting(delta_R=0.20, z=0.5),
         ],
-        input_jet_pt=60.,
+        input_jet_pt=60.0,
     )
 
     logger.info("Tree 3:")
@@ -63,7 +63,7 @@ if __name__ == "__main__":
             Splitting(delta_R=0.35, z=0.1),
             Splitting(delta_R=0.30, z=0.5),
         ],
-        input_jet_pt=60.,
+        input_jet_pt=60.0,
     )
 
     # Selected splittings:
@@ -73,13 +73,13 @@ if __name__ == "__main__":
     logger.info("Tree 4:")
     calculate_splittings(
         splittings=[
-            #Splitting(delta_R=0.40, z=0.19),
-            #Splitting(delta_R=0.38, z=0.175),
+            # Splitting(delta_R=0.40, z=0.19),
+            # Splitting(delta_R=0.38, z=0.175),
             Splitting(delta_R=0.40, z=0.175),
             Splitting(delta_R=0.30, z=0.2),
-            #Splitting(delta_R=0.225, z=0.4),
+            # Splitting(delta_R=0.225, z=0.4),
             Splitting(delta_R=0.20, z=0.4),
             Splitting(delta_R=0.1, z=0.1),
         ],
-        input_jet_pt=60.,
+        input_jet_pt=60.0,
     )

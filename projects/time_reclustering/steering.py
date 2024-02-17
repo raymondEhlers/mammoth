@@ -45,13 +45,14 @@ from mammoth.time_reclustering import run_analysis
 
 # ## Reload
 
-#reload(job_utils)
+# reload(job_utils)
 reload(run_analysis)
 
 
 # ## Tasks
 
 # ### Running
+
 
 def define_productions() -> list[run_analysis.production.ProductionSettings]:
     # We want to provide the opportunity to run multiple productions at once.
@@ -97,10 +98,10 @@ def define_productions() -> list[run_analysis.production.ProductionSettings]:
 productions = define_productions()
 
 # Base settings
-#job_framework = job_utils.JobFramework.dask_delayed
+# job_framework = job_utils.JobFramework.dask_delayed
 job_framework = job_utils.JobFramework.immediate_execution_debug
 facility: job_utils.FACILITIES = "rehlers_mbp_m1pro"
-#conda_environment_name = "substructure_c_24_06"
+# conda_environment_name = "substructure_c_24_06"
 conda_environment_name = ""
 
 # Job execution configuration
@@ -145,7 +146,7 @@ futures = run_analysis.setup_and_submit_tasks(
     debug_mode=debug_mode,
     job_executor=job_executor if job_framework == job_utils.JobFramework.dask_delayed else None,  # type: ignore[arg-type]
 )
-#futures
+# futures
 
 futures[0].print()
 
@@ -155,12 +156,10 @@ all(f.success for f in futures[1:])
 
 import numpy as np
 
-#np.count_nonzero([r.result().success == False for r in futures if r.done()]) / len(futures)
+# np.count_nonzero([r.result().success == False for r in futures if r.done()]) / len(futures)
 np.count_nonzero([r.result().success == True for r in futures[1:] if r.done()])  # noqa: E712
 
 # ## Cleanup
 
 job_executor.close()
 job_cluster.close()
-
-

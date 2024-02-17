@@ -36,4 +36,3 @@ class WriteTree : public SubsysReco
   std::vector<float> m_phi;
   std::vector<float> m_E;
 };
-

@@ -18,9 +18,11 @@ logger = logging.getLogger(__name__)
 
 TH1D = Any
 
+
 def root_example() -> tuple[TH1D, TH1D]:
     # Delay import to avoid explicit dependenceT
     from mammoth.framework import root_utils
+
     ROOT = root_utils.import_ROOT()
 
     binning = np.array([0.25, 0.5, 1, 1.5, 2, 3, 4, 6], dtype=np.float64)
@@ -34,17 +36,19 @@ def root_example() -> tuple[TH1D, TH1D]:
     values_filled = []
     for i, bin_center in enumerate((binning[1:] - binning[:-1]) / 2 + binning[:-1], start=1):
         logger.info(f"{i=}, {bin_center=}")
-        for _j in range(10-i):
-            values_filled.append((i, 10-i))
-            h_ROOT.Fill(bin_center, 10-i)
-            h_ROOT_already_rebinned.Fill(bin_center, 10-i)
+        for _j in range(10 - i):
+            values_filled.append((i, 10 - i))
+            h_ROOT.Fill(bin_center, 10 - i)
+            h_ROOT_already_rebinned.Fill(bin_center, 10 - i)
 
     logger.info(f"{values_filled=}")
 
     h_temp = binned_data.BinnedData.from_existing_data(h_ROOT)
     logger.info(f"{h_temp.values=},\n{h_temp.variances=},\n{h_temp.errors=},\n{h_temp.errors / h_temp.values=}")
     h_temp_already_rebinned = binned_data.BinnedData.from_existing_data(h_ROOT_already_rebinned)
-    logger.info(f"{h_temp_already_rebinned.values=},\n{h_temp_already_rebinned.variances=},\n{h_temp_already_rebinned.errors=},\n{h_temp_already_rebinned.errors / h_temp_already_rebinned.values=}")
+    logger.info(
+        f"{h_temp_already_rebinned.values=},\n{h_temp_already_rebinned.variances=},\n{h_temp_already_rebinned.errors=},\n{h_temp_already_rebinned.errors / h_temp_already_rebinned.values=}"
+    )
     logger.info("=== Done creating hists")
 
     return h_ROOT, h_ROOT_already_rebinned
@@ -56,7 +60,7 @@ def test_rebin(h_ROOT: TH1D, h_ROOT_already_rebinned: TH1D) -> bool:
     binning_broader = h_temp_already_rebinned.axes[0].bin_edges
 
     # ROOT
-    h_ROOT_rebinned = h_ROOT.Rebin(len(binning_broader)-1, "test_rebinned", binning_broader)
+    h_ROOT_rebinned = h_ROOT.Rebin(len(binning_broader) - 1, "test_rebinned", binning_broader)
     h_temp_rebinned = binned_data.BinnedData.from_existing_data(h_ROOT_rebinned)
     logger.info(f"{h_temp_rebinned.values=}, {h_temp_rebinned.variances=}")
     h_temp_already_rebinned = binned_data.BinnedData.from_existing_data(h_ROOT_already_rebinned)
@@ -75,8 +79,8 @@ def test_rebin(h_ROOT: TH1D, h_ROOT_already_rebinned: TH1D) -> bool:
 
     return True
 
-def test_steer_rebinning() -> None:
 
+def test_steer_rebinning() -> None:
     h_ROOT, h_ROOT_already_rebinned = root_example()
     # First, without bin width scaling
     logger.info("===== Testing before scaling")
@@ -97,7 +101,9 @@ def test_steer_rebinning() -> None:
     # Undo scaling
     h_binned_data_handled_properly *= h_binned_data_handled_properly.axes[0].bin_widths
     # Rebin
-    h_binned_data_handled_properly = h_binned_data_handled_properly[::binned_data.BinnedData.from_existing_data(h_ROOT_already_rebinned_scale).axes[0].bin_edges]
+    h_binned_data_handled_properly = h_binned_data_handled_properly[
+        :: binned_data.BinnedData.from_existing_data(h_ROOT_already_rebinned_scale).axes[0].bin_edges
+    ]
     # Scale by bin width
     h_binned_data_handled_properly /= h_binned_data_handled_properly.axes[0].bin_widths
     # Finally, compare the scale + rebin with the rebin + scale

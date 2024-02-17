@@ -11,7 +11,7 @@ And I'm of course happy to answer any questions if things are unclear.
 - Basic jet finding using the anti-kt algorithm.
 - Jet background subtraction (using `useConstituentSubtraction = false`)
 - A more complicated example, subtracting background contributions from the jet constituents (using
-`useConstituentSubtraction = true`)
+  `useConstituentSubtraction = true`)
 
 Note that for the background subtraction examples to be meaningful, you should pass in a substantial number of
 particles. I've tested the code, and it seems to run fine, but I haven't tested the outputs yet in any detail.
@@ -40,5 +40,3 @@ Note that I _think_ this also requires a boost into a new reference frame, but t
 elsewhere (or via additional arguments to the Centauro plugin, but I wouldn't worry overly much about
 that for now). This is low priority overall, but I think it should be fairly easy to support, at least in a
 minimal capacity.
-
-

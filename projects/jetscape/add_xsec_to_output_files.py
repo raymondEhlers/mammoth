@@ -10,7 +10,6 @@ from pathlib import Path
 
 
 def add_xsec_to_output_files(output_file_dir: Path, output_filename_template: str, xsec_dir: Path) -> None:
-
     output_filenames = sorted(output_file_dir.glob(f"{output_filename_template}*"))
 
     for output_filename in output_filenames:

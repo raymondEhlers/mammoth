@@ -32,7 +32,6 @@ logger = logging.getLogger(__name__)
 
 
 def extract_event_weights(base_dir: Path) -> None:
-
     jet_R = 0.6
 
     for pt_hat_bin in [
@@ -47,7 +46,9 @@ def extract_event_weights(base_dir: Path) -> None:
         filename = base_dir / name
 
         with uproot.open(filename) as f:
-            t = f[f"JetTree_AliAnalysisTaskJetExtractor_JetPartLevel_AKTChargedR{round(jet_R * 100):03}_mctracks_pT0150_E_scheme_allJets"]
+            t = f[
+                f"JetTree_AliAnalysisTaskJetExtractor_JetPartLevel_AKTChargedR{round(jet_R * 100):03}_mctracks_pT0150_E_scheme_allJets"
+            ]
 
             event_weight = t.arrays(["Event_Weight"])
 
@@ -56,6 +57,4 @@ def extract_event_weights(base_dir: Path) -> None:
 
 if __name__ == "__main__":
     helpers.setup_logging()
-    extract_event_weights(
-        base_dir = Path("/alf/data/rehlers/skims/JEWEL_PbPb_no_recoil")
-    )
+    extract_event_weights(base_dir=Path("/alf/data/rehlers/skims/JEWEL_PbPb_no_recoil"))
