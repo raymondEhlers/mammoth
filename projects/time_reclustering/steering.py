@@ -18,6 +18,8 @@
 # ### Cross check environment
 
 # +
+from __future__ import annotations
+
 import logging
 import os
 
@@ -34,12 +36,11 @@ print(os.getenv("PATH"))
 # +
 from importlib import reload
 from pathlib import Path
-from typing import List
 
 from mammoth import job_utils
-
-from mammoth.time_reclustering import run_analysis
 from mammoth.alice import groomed_substructure_steering
+from mammoth.time_reclustering import run_analysis
+
 # -
 
 # ## Reload
@@ -52,7 +53,7 @@ reload(run_analysis)
 
 # ### Running
 
-def define_productions() -> List[run_analysis.production.ProductionSettings]:
+def define_productions() -> list[run_analysis.production.ProductionSettings]:
     # We want to provide the opportunity to run multiple productions at once.
     # We'll do so by defining each production below and then iterating over them below
     productions = []
@@ -150,11 +151,12 @@ futures[0].print()
 
 futures
 
-all((f.success for f in futures[1:]))
+all(f.success for f in futures[1:])
 
 import numpy as np
+
 #np.count_nonzero([r.result().success == False for r in futures if r.done()]) / len(futures)
-np.count_nonzero([r.result().success == True for r in futures[1:] if r.done()])
+np.count_nonzero([r.result().success == True for r in futures[1:] if r.done()])  # noqa: E712
 
 # ## Cleanup
 

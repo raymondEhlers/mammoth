@@ -365,7 +365,7 @@ def _subjet_shared_momentum(
                     continue
                 if np.abs(measured_like_constituent.phi - generator_like_constituent.phi) > delta:
                     continue
-            else:
+            else:  # noqa: PLR5501
                 if generator_like_constituent.id != measured_like_constituent.id:
                     continue
 
@@ -614,7 +614,7 @@ def _subjet_momentum_fraction_in_jet(
                     continue
                 if np.abs(measured_like_constituent.phi - generator_like_constituent.phi) > delta:
                     continue
-            else:
+            else:  # noqa: PLR5501
                 if generator_like_constituent.id != measured_like_constituent.id:
                     continue
 

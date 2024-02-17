@@ -18,6 +18,8 @@
 # ### Cross check environment
 
 # +
+from __future__ import annotations
+
 import logging
 import os
 
@@ -34,11 +36,10 @@ print(os.getenv("PATH"))
 # +
 from importlib import reload
 from pathlib import Path
-from typing import List
 
 from mammoth import job_utils
-
 from mammoth.hardest_kt import produce_flat_skim_from_track_skim
+
 # -
 
 # ## Reload
@@ -51,7 +52,7 @@ reload(produce_flat_skim_from_track_skim)
 
 # ### Running
 
-def define_productions() -> List[produce_flat_skim_from_track_skim.production.ProductionSettings]:
+def define_productions() -> list[produce_flat_skim_from_track_skim.production.ProductionSettings]:
     # We want to provide the opportunity to run multiple productions at once.
     # We'll do so by defining each production below and then iterating over them below
     productions = []
@@ -150,10 +151,11 @@ futures
 
 futures[0].result()
 
-all((f.result() for f in futures[2:]))
+all(f.result() for f in futures[2:])
 
 import numpy as np
-np.count_nonzero([r.result()[0] == False for r in futures]) / len(futures)
+
+np.count_nonzero([r.result()[0] == False for r in futures]) / len(futures)  # noqa: E712
 
 # ## Cleanup
 

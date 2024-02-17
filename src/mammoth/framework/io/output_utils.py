@@ -291,18 +291,19 @@ def _filter_for_supported_merging_types(contents: dict[str, Any], level: int = 0
                 #       great since it will be seen as a regular hist and give wrong answers...
                 and not isinstance(v, _shadd_unsupported_types)
             ):
-                logger.warning(
-                    _format_indent(level) + f"Narrowing type of {k} from {v!r} to {v.bases[0]!r} since we don't have the relevant streamers available."
-                )
+                msg = _format_indent(level) + f"Narrowing type of {k} from {v!r} to {v.bases[0]!r} since we don't have the relevant streamers available."
+                logger.warning(msg)
                 v = v.bases[0]  # noqa: PLW2901
             else:
-                logger.error(_format_indent(level) + f"{k}: Skipping unsupported type {v!r}")
+                msg = _format_indent(level) + f"{k}: Skipping unsupported type {v!r}"
+                logger.error(msg)
                 continue
 
         # Recurse
         # NOTE: Since we only support TNamed, we can treat the TList as a mapping
         if isinstance(v, uproot.models.TList.Model_TList):
-            logger.info(_format_indent(level) + f"Recursing for {k}")
+            msg = _format_indent(level) + f"Recursing for {k}"
+            logger.info(msg)
             output[k] = _filter_for_supported_merging_types(contents={entry.name: entry for entry in v}, level = level + 2)
         else:
             try:

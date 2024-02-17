@@ -24,11 +24,10 @@ from __future__ import annotations
 import logging
 from pathlib import Path
 
-import matplotlib as mpl
 import matplotlib.pyplot as plt
 import pachyderm.plot as pb
+
 from mammoth import helpers as mammoth_helpers
-from mammoth.eec.plot import exploration
 
 # %load_ext autoreload
 # %autoreload 2
@@ -57,17 +56,16 @@ output_dir = base_dir / Path("output")
 output_dir.mkdir(parents=True, exist_ok=True)
 
 # +
-from typing import Mapping, Sequence
+from collections.abc import Mapping
 
 import hist
 import seaborn as sns
-from pachyderm import binned_data
+
 # -
-
 # ## Load data
-
 # +
 import uproot
+from pachyderm import binned_data
 
 f = uproot.open(Path("trains") / "embed_thermal_model" / "0005" / "skim" / "shadd_pythia__2640__run_by_run__LHC20g4__AnalysisResults_20g4.root")
 #hists = {key.replace(";1", ""): binned_data.BinnedData.from_existing_data(f.get(key)) for key in f}
@@ -79,6 +77,7 @@ list(hists.keys())
 # +
 import cycler
 import numpy as np
+
 
 def _plot_RL(
     hists: Mapping[str, hist.Hist],
@@ -139,7 +138,7 @@ def _plot_RL(
 
         hists_for_ratio = []
         for name, (level, label, legend_entry) in names_and_labels.items():
-            is_signal = "signal" == label
+            is_signal = label == "signal"
             h = hists[name]
             # Project by trigger range
             trigger_range = trigger_name_to_range[label]

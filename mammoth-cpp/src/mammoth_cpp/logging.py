@@ -2,9 +2,10 @@
 
 .. codeauthor:: Raymond Ehlers <raymond.ehlers@cern.ch>, LBL/UCB
 """
+from __future__ import annotations
 
 import logging
-from typing import Any, List
+from typing import Any
 
 
 class StreamLogger:
@@ -16,7 +17,7 @@ class StreamLogger:
     def __init__(self, logger: Any, level: int):
         self.logger = logger
         self.log_level = level
-        self.buf: List[str] = []
+        self.buf: list[str] = []
 
     def write(self, msg: str) -> None:
         if msg.endswith("\n"):

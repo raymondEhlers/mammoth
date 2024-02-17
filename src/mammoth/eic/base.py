@@ -58,7 +58,7 @@ def load_hists(filename: Path, filter: str | None = "", filters: Sequence[str] |
                 if require_ends_with_in_filter:
                     if all(not k.endswith(f) for f in filters):
                         continue
-                else:
+                else:  # noqa: PLR5501
                     if all(f not in k for f in filters):
                         continue
             hists[k] = f[k]

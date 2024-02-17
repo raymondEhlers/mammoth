@@ -1,9 +1,8 @@
-#!/usr/bin/env python3
-
 """One off script to count the number of events in a set of root trees.
 
 .. codeauthor:: Raymond Ehlers <raymond.ehlers@cern.ch>, ORNL
 """
+from __future__ import annotations
 
 import logging
 from pathlib import Path

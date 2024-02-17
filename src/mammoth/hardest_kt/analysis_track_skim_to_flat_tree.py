@@ -325,7 +325,7 @@ def hardest_kt_embed_thermal_model_skim(  # noqa: C901
 
     # Try to bail out early to avoid reprocessing if possible.
     # This would only work if is was previously processed with one chunk, but it doesn't hurt to try
-    if chunk_size == sources.ChunkSizeSentinel.SINGLE_FILE or chunk_size == sources.ChunkSizeSentinel.FULL_SOURCE:
+    if chunk_size in [sources.ChunkSizeSentinel.SINGLE_FILE, sources.ChunkSizeSentinel.FULL_SOURCE]:
         # We need to exercise a bit of care here in the case that have chunk sizes smaller than an individual file.
         # In that case, the first file could be empty, but later chunks may not be so. To avoid that case, we only
         # perform this check if we are using a single file or the full source.
@@ -486,7 +486,7 @@ def hardest_kt_embedding_skim(  # noqa: C901
 
     # Try to bail out early to avoid reprocessing if possible.
     # This would only work if is was previously processed with one chunk, but it doesn't hurt to try
-    if chunk_size == sources.ChunkSizeSentinel.SINGLE_FILE or chunk_size == sources.ChunkSizeSentinel.FULL_SOURCE:
+    if chunk_size in [sources.ChunkSizeSentinel.SINGLE_FILE, sources.ChunkSizeSentinel.FULL_SOURCE]:
         # We need to exercise a bit of care here in the case that have chunk sizes smaller than an individual file.
         # In that case, the first file could be empty, but later chunks may not be so. To avoid that case, we only
         # perform this check if we are using a single file or the full source.

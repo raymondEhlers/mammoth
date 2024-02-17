@@ -240,7 +240,7 @@ def check_for_task_output(
     # NOTE: We have to exercise a bit of care here in the case that have chunk sizes smaller than an individual file.
     #       In that case, the first file could be empty, but later chunks may not be empty. To avoid that case, we only
     #       check when there is meaningful output, as defined by the two conditions above.
-    if chunk_size is None or (chunk_size == sources.ChunkSizeSentinel.SINGLE_FILE or chunk_size == sources.ChunkSizeSentinel.FULL_SOURCE) or output_settings.write_merged_hists:
+    if chunk_size is None or chunk_size in [sources.ChunkSizeSentinel.SINGLE_FILE, sources.ChunkSizeSentinel.FULL_SOURCE] or output_settings.write_merged_hists:
         if output_settings.primary_output.type == "skim":
             if output_settings.output_filename.suffix == ".root":
                 res = output_utils.check_for_task_root_skim_output_file(
@@ -347,7 +347,7 @@ class AnalysisOutput:
             if (isinstance(skim_array, dict) and not skim_array) or (not isinstance(skim_array, dict) and ak.num(skim_array, axis=0) == 0):
                 # Skip the skim if it's empty
                 _skim_output_filename.with_suffix(".empty").touch()
-            else:
+            else:  # noqa: PLR5501
                 if _skim_output_filename.suffix == ".root":
                     # Write the skim.
                     # This may not yet be ideal (as of June 2023), but this is a reasonable start.

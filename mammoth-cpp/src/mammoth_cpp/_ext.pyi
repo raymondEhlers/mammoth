@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from typing import ClassVar, Generator, Protocol, overload
+from collections.abc import Generator
+from typing import ClassVar, Protocol, overload
 
 import numpy as np
 import numpy.typing as npt

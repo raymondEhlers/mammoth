@@ -182,6 +182,8 @@ module = [
     "seaborn",
     "scipy.interpolate",
     "scipy",
+    "uproot",
+    "awkward",
 ]
 ignore_missing_imports = true
 
@@ -206,6 +208,7 @@ exclude = [
 extend-select = [
   "B",        # flake8-bugbear
   "I",        # isort
+  "C901",     # mccabe
   "ARG",      # flake8-unused-arguments
   "C4",       # flake8-comprehensions
   "EM",       # flake8-errmsg
@@ -232,12 +235,20 @@ ignore = [
   "ISC001",   # Conflicts with formatter
   "ISC003",   # Force string to be implicitly concatenated. However, I find this structure to be useful for better
               # readability due to consistent spacing with plotting labels.
+  "G004",     # Logging format string. This isn't best practices, but I use it too much to change for now
   "PLC0414",  # Messes with the re-export of imports needed from mypy
+  "PD011",    # Calls to `.values` are usually for histograms, not pandas. This is getting picked up as a false positive
 ]
 
 [tool.ruff.lint.per-file-ignores]
 "tests/**" = ["T20"]
 "noxfile.py" = ["T20"]
+"projects/**" = [
+  "T20",      # Print statements are fairly common in jupyter notebooks
+  "E402",     # Module level import not at top of file are fairly common in notebooks
+  "F841",     # Again, unused variables are common in notebooks
+  "B018",     # For useless variables. Sometimes we have useless statements to print them
+]
 
 [tool.ruff.lint.mccabe]
 max-complexity = 12

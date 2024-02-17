@@ -1,18 +1,14 @@
+from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import Dict, Iterable, List, Mapping, Sequence
 
-import hist
-import matplotlib
+import lhapdf
 import matplotlib.pyplot as plt
 import numpy as np
 import pachyderm.plot as pb
+
 from mammoth import helpers
-from pachyderm import binned_data
-
-import lhapdf
-
 
 logger = logging.getLogger(__name__)
 
@@ -39,7 +35,7 @@ def run(n_variations: int = 97) -> None:
 
     q2 = 100
     x = np.logspace(-4, 0, 100, endpoint=False)
-    output_dir = Path(".")
+    output_dir = Path()
 
     for struck_quark_pid, struck_quark_label in [(lhapdf.UP, "u"), (lhapdf.DOWN, "d")]:
         values = {}
@@ -59,8 +55,8 @@ def run(n_variations: int = 97) -> None:
 
                 temp_values = []
                 for x_val in x:
-                    weightNPDF = n_pdf.xfxQ2(struck_quark_pid, x_val, q2);
-                    weightPDF = proton_pdf.xfxQ2(struck_quark_pid, x_val, q2);
+                    weightNPDF = n_pdf.xfxQ2(struck_quark_pid, x_val, q2)
+                    weightPDF = proton_pdf.xfxQ2(struck_quark_pid, x_val, q2)
                     ratio = weightNPDF / weightPDF
                     #print(x_val, ratio)
                     temp_values.append(weightNPDF / weightPDF)
@@ -85,7 +81,7 @@ def run(n_variations: int = 97) -> None:
                     text=pb.TextConfig(x=0.03, y=0.97, text=text, font_size=22),
                     legend=pb.LegendConfig(location="lower left", font_size=22),
                 ),
-            figure=pb.Figure(edge_padding=dict(left=0.125, bottom=0.1)),
+            figure=pb.Figure(edge_padding={"left": 0.125, "bottom": 0.1}),
         )
 
         #with sns.color_palette("Set2"):

@@ -1,20 +1,19 @@
-#!/usr/bin/env python3
-
 """ Run multiple configurations on a single node.
 
 This is more efficient than requesting individual jobs.
 
 .. codeauthor:: Raymond Ehlers <raymond.ehlers@cern.ch>, ORNL
 """
+from __future__ import annotations
 
 import os.path
 import shutil
 import subprocess
 import time
 import timeit
+from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, List, Optional, Sequence
 
 import psutil
 
@@ -28,7 +27,7 @@ class Config:
         return f"{self.sqrts}_{self.trigger}_trigger"
 
 
-def run_job_with_config(scratch_dir: Path, base_config_dir: Path, model: str, config_name: str, node_type: str, index: Optional[int] = None) -> subprocess.Popen:  # type: ignore[type-arg]
+def run_job_with_config(scratch_dir: Path, base_config_dir: Path, model: str, config_name: str, node_type: str, index: int | None = None) -> subprocess.Popen:  # type: ignore[type-arg]
     # Setup the config path
     config_path = (base_config_dir / model / config_name).with_suffix(".xml")
     # We need to separate this into a new directory so we don't overwrite it.
@@ -53,7 +52,7 @@ def run_job_with_config(scratch_dir: Path, base_config_dir: Path, model: str, co
         ["time", "singularity", "run", "--cleanenv", scratch_dir / "jetscape-stat-estimate_latest.sif", config_path],
         #["sleep", "3"],
         #stdout=(base_config_dir / model / node_type / config_name).with_suffix(".log")
-        stdout=open(stdout, "w"),  # noqa: Sim115
+        stdout=open(stdout, "w"),  # noqa: SIM115,PTH123
         stderr=subprocess.STDOUT,
     )
 
@@ -66,7 +65,7 @@ def run_job_with_config(scratch_dir: Path, base_config_dir: Path, model: str, co
     #)
 
 
-def setup_all_configs() -> Dict[str, List[Config]]:
+def setup_all_configs() -> dict[str, list[Config]]:
     base_configs = [
         Config(sqrts=5020, trigger="single_hard"),
         Config(sqrts=5020, trigger="neutral"),
@@ -105,7 +104,7 @@ if __name__ == "__main__":
     i = 0
     for model in available_configs:
         for config in available_configs[model]:
-            print(f"Starting {i}")  # noqa: T201
+            print(f"Starting {i}")
             processes.append(run_job_with_config(
                 scratch_dir=scratch_dir,
                 base_config_dir=scratch_dir / "jetscape-an" / "config" / "jetscape" / "STAT",
@@ -115,14 +114,14 @@ if __name__ == "__main__":
                 node_type=node_type,
                 index=i,
             ))
-            print(f"Started {i}")  # noqa: T201
+            print(f"Started {i}")
             # Try to avoid going too crazy with the I/O.
             time.sleep(10)
             i += 1
 
-    print(processes)  # noqa: T201
+    print(processes)
 
     monitor_processes(processes=processes)
     elapsed = timeit.default_timer() - start_time
-    print(f"Done! Elapsed time since starting first process: {elapsed}")  # noqa: T201
+    print(f"Done! Elapsed time since starting first process: {elapsed}")
 

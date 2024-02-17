@@ -4,10 +4,10 @@ They're not really up to unit tests yet - this is just for me to take a look at 
 
 .. codeauthor:: Raymond Ehlers <raymond.ehlers@cern.ch>, ORNL
 """
+from __future__ import annotations
 
 import timeit
 from pathlib import Path
-from typing import Union
 
 import awkward as ak
 import numpy as np
@@ -16,7 +16,7 @@ import pandas as pd
 from mammoth.framework.io import _jetscape_parser
 
 
-def test_read(filename: Union[str, Path], events_per_chunk: int, max_chunks: int = 1) -> None:
+def test_read(filename: str | Path, events_per_chunk: int, max_chunks: int = 1) -> None:
     # Validation
     filename = Path(filename)
 
@@ -65,7 +65,7 @@ def test_read(filename: Union[str, Path], events_per_chunk: int, max_chunks: int
                 raise ValueError(_msg)
 
             elapsed = timeit.default_timer() - start_time
-            print(f"Loading {events_per_chunk} events with {loader}: {elapsed}")  # noqa: T201
+            print(f"Loading {events_per_chunk} events with {loader}: {elapsed}")
 
             array_with_events = ak.Array(np.split(hadrons, chunk_generator.event_split_index()))
             if ref is None:

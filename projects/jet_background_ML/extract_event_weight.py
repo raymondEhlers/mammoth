@@ -18,6 +18,7 @@ JEWEL 0-10% no recoils provides:
 
 .. codeauthor:: Raymond Ehlers <raymond.ehlers@cern.ch>, ORNL
 """
+from __future__ import annotations
 
 import logging
 from pathlib import Path

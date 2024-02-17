@@ -1,11 +1,10 @@
-#!/usr/bin/env python3
-
 """ Add jetscape cross section values to v1 FinalState* outputs
 
 This could be brought in separately, but this is way more convenient and is pretty easy to do.
 
 .. codeauthor:: Raymond Ehlers <raymond.ehlers@cern.ch>, ORNL
 """
+from __future__ import annotations
 
 from pathlib import Path
 
@@ -28,7 +27,7 @@ def add_xsec_to_output_files(output_file_dir: Path, output_filename_template: st
         line_to_write = f"#\tsigmaGen\t{x_sec}\tsigmaErr\t{x_sec_error}"
         # print(f"line_to_write: {line_to_write}")
 
-        print(f"Writing line to file '{output_filename}': {line_to_write}")  # noqa: T201
+        print(f"Writing line to file '{output_filename}': {line_to_write}")
         with output_filename.open("a") as f:
             f.write(line_to_write)
 

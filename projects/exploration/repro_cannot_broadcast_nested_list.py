@@ -4,6 +4,7 @@ See the note at the bottom
 
 .. codeauthor:: Raymond Ehlers <raymond.ehlers@cern.ch>, LBL/UCB
 """
+from __future__ import annotations
 
 import awkward as ak
 import vector
@@ -37,4 +38,4 @@ combined_mask = (left["source_index"] >= 1000) & (right["source_index"] >= 1000)
 distances4 = distances[combined_mask]
 assert distances4.to_list() == distances2.to_list()
 
-print("Success!")  # noqa: T201
+print("Success!")

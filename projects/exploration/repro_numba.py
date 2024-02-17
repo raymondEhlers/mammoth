@@ -4,6 +4,7 @@ Reported in https://github.com/scikit-hep/awkward-1.0/issues/1158
 
 .. codeauthor:: Raymond Ehlers <raymond.ehlers@cern.ch>, ORNL
 """
+from __future__ import annotations
 
 import pickle
 from pathlib import Path

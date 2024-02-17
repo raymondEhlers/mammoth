@@ -1,12 +1,13 @@
-#!/usr/bin/env python3
+from __future__ import annotations
 
 from pathlib import Path
 
 import IPython
 
+
 def main(filename: Path) -> list[str]:
-    with open(filename, "r") as f:
-        names = [l.strip("\n").strip() for l in f]
+    with filename.open() as f:
+        names = [line.strip("\n").strip() for line in f]
 
     return list(set(names))
 

@@ -37,7 +37,7 @@ def steer_task_execution(
     validation_mode: bool,
 ) -> framework_task.Output:
     # Validation
-    if output_settings.return_skim and not (task_settings.chunk_size == sources.ChunkSizeSentinel.SINGLE_FILE or task_settings.chunk_size == sources.ChunkSizeSentinel.FULL_SOURCE):
+    if output_settings.return_skim and task_settings.chunk_size not in [sources.ChunkSizeSentinel.SINGLE_FILE, sources.ChunkSizeSentinel.FULL_SOURCE]:
         # NOTE: Returning the skim is only supported for the case where we're processing a single file or the full source
         msg = "Cannot return skim if processing in chunks. Update your Output settings."
         raise ValueError(msg)

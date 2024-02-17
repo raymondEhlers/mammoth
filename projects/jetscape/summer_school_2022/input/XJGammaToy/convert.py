@@ -1,14 +1,14 @@
-#!/usr/bin/env python3
+from __future__ import annotations
 
+from collections.abc import Mapping
 from pathlib import Path
-from typing import Mapping, Tuple
 
 import numpy as np
 import uproot
 from pachyderm import binned_data
 
 
-def get_data(centrality: str, normalize: bool) -> Tuple[binned_data.BinnedData, binned_data.BinnedData, binned_data.BinnedData]:
+def get_data(centrality: str, normalize: bool) -> tuple[binned_data.BinnedData, binned_data.BinnedData, binned_data.BinnedData]:
     centrality_index_map = {
         "50-100": 1,
         # pp smeared with 50-100
@@ -32,14 +32,14 @@ def get_data(centrality: str, normalize: bool) -> Tuple[binned_data.BinnedData, 
 
     val = np.sum(data.values)
     if normalize:
-        print(f"integral: {val}")  # noqa: T201
+        print(f"integral: {val}")
         data /= val
         stat_error /= val
         sys_error /= val
 
     return data, stat_error, sys_error
 
-def run(centrality_to_filename: Mapping[Tuple[int, int], str], normalize: bool) -> None:
+def run(centrality_to_filename: Mapping[tuple[int, int], str], normalize: bool) -> None:
     all_data = {
         "50-100": get_data("50-100", normalize=normalize),
         "30-50": get_data("30-50", normalize=normalize),
@@ -53,7 +53,7 @@ def run(centrality_to_filename: Mapping[Tuple[int, int], str], normalize: bool) 
         data, stat_error, sys_error = all_data[name]
 
         with Path(filename).open("w") as f:
-            print(name)  # noqa: T201
+            print(name)
             # First, write the header
             f.write(f"""# Version 1.0
 # DOI

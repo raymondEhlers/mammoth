@@ -1,4 +1,6 @@
-import ROOT
+from __future__ import annotations
+
+import ROOT  # pyright: ignore[reportMissingImports]
 
 f = ROOT.TFile.Open("output_JetObservables.root")
 h = f.Get("nBackwardHadrons_full_true")

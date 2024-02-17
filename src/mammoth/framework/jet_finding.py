@@ -159,7 +159,7 @@ def _shared_momentum_fraction_for_flat_array_implementation(
                         continue
                     if np.abs(measured_like_constituent.phi - generator_like_constituent.phi) > max_matching_distance:
                         continue
-                else:
+                else:  # noqa: PLR5501
                     # if generator_like_constituent.identifier != measured_like_constituent.identifier:
                     # if generator_like_constituent["identifier"] != measured_like_constituent["identifier"]:
                     if generator_like_constituent_identifier != measured_like_constituent_identifier:
