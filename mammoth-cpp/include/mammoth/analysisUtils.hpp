@@ -10,6 +10,9 @@
  * @author: Raymond Ehlers <raymond.ehlers@cern.ch>, LBL/UCB
  */
 
+#include <algorithm>
+#include <array>
+#include <stdexcept>
 #include <string>
 #include <vector>
 
