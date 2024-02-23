@@ -118,6 +118,9 @@ write_template = "version = '{}'"
 [tool.pdm.build]
 excludes = [
     "tests/track_skim_validation/input/alice",
+    "tests/track_skim_validation/**/*.root",
+    "tests/track_skim_validation/**/*.parquet",
+    "tests/track_skim_validation/**/*.pdf",
     "**/.mypy_cache/",
 ]
 

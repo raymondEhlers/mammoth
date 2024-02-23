@@ -16,4 +16,9 @@ dependencies = []
 
 [tool.scikit-build]
 sdist.include = ["src/mammoth_cpp/fastjet"]
+sdist.exclude = [
+    "build",
+    "external/fastjet",
+    "external/install",
+]
 build-dir = "build/{wheel_tag}"
