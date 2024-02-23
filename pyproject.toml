@@ -155,6 +155,7 @@ warn_unreachable = true
 no_implicit_reexport = false
 disallow_untyped_defs = false
 disallow_incomplete_defs = false
+exclude = [".venv*"]
 
 [[tool.mypy.overrides]]
 module = "mammoth.*"
@@ -187,6 +188,7 @@ module = [
     "awkward",
     "ruamel.*",
     "dask_jobqueue",
+    "traitlets.*",
 ]
 ignore_missing_imports = true
 

@@ -57,13 +57,15 @@ repos:
         files: src|tests|mammoth-cpp/src
         # This is a bit aggressive, but otherwise it will be quite a pain to use since there
         # are a number of touchy packages here.
-        args: ["--ignore-missing-imports"]
+        exclude: ".venv*"
+        #args: ["--ignore-missing-imports"]
+        args: []
         additional_dependencies:
-          - pytest
-          - "numpy >=1.21"
-          - "scipy >=1.11.3"
+          - "pytest >=6.2.4"
           - "awkward >=2.0.8"
           - "uproot >=4.2"
+          - "numpy >=1.21"
+          - "scipy >=1.11.3"
           - "pyarrow >=4"
           - "pandas >=2.0"
           - "attrs >=21.2.0"
@@ -74,10 +76,10 @@ repos:
           - "vector >=0.8.5"
           - "parsl >=2023.10.23"
           - "rich >=v13.4.0"
+          - "pachyderm >=3.2.2"
           - "dask[distributed]>=2022.12.0"
           - "dask-jobqueue>=0.8.1"
           - "ipython >=8.0"
-          #- "pachyderm >= 3.0"
 
   - repo: https://github.com/codespell-project/codespell
     rev: "v2.2.6"
