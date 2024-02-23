@@ -536,6 +536,7 @@ def _define_dask_distributed_cluster(
 
     # We need to treat the case of the local facility differently because
     # the cluster is different (ie. it's not slurm).
+    cluster: dask.distributed.SpecCluster | None = None
     if facility.partition_name == "INVALID" or "rehlers_mbp_m1pro" in facility.name:
         # Due to limitations of the LocalCluster, we need only to have only 1 task per worker.
         # Here, we'll modify the allocation logic to make this work.
@@ -563,6 +564,8 @@ def _define_dask_distributed_cluster(
             processes=True,
             resources=resources,
         )
+        # mypy and pre-commit are terrible...
+        assert cluster is not None
         # Actually request the jobs. Doing this or not can be made configurable later if needed, but the default
         # from parsl is to immediately allocate, so if nothing else, it's provides the same functionality.
         cluster.adapt(minimum=0, maximum=n_blocks, interval="10s")
@@ -591,12 +594,17 @@ def _define_dask_distributed_cluster(
             # Apparently they dropped direct resources support (I can't fully trace it now), so we have to work around it by passing worker_extra_args
             worker_extra_args=["--resources " + ",".join([f"{k}={v}" for k, v in resources.items()])],
         )
+        # mypy and pre-commit are terrible...
+        assert cluster is not None
         # Actually request the jobs. Doing this or not can be made configurable later if needed, but the default
         # from parsl is to immediately allocate, so if nothing else, it's provides the same functionality.
         # NOTE: This call uses "_jobs" arguments. These may be the same as straight maximum, but I think there's potentially
         #       a factor of the number of processes. See: https://github.com/dask/dask-jobqueue/blob/bee0e0c5444a4fecfa8e273ba0ff871679d9e9e1/dask_jobqueue/core.py#L828-L831 .
         #       Since it's slightly unclear, it's easier just to have separate calls rather than worrying about it!
         cluster.adapt(minimum_jobs=0, maximum_jobs=n_blocks, interval="10s")
+
+    # mypy and pre-commit are terrible...
+    assert cluster is not None
 
     return cluster, []
 

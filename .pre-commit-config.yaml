@@ -3,6 +3,15 @@ ci:
   autofix_commit_msg: "style: pre-commit fixes"
 
 repos:
+  # Useful to determine which files are included/excluded, tests of pre-commit, etc.
+  # Don't enable by default because it seems noisy. But I'll keep it around because
+  # it can be quite useful for debugging
+  # See: https://github.com/pre-commit/pre-commit/issues/1173#issuecomment-542341362
+  #- repo: meta
+  #  hooks:
+  #  - id: identity
+  #    name: identity (all)
+
   - repo: https://github.com/adamchainz/blacken-docs
     rev: "1.16.0"
     hooks:
@@ -55,31 +64,38 @@ repos:
     hooks:
       - id: mypy
         files: src|tests|mammoth-cpp/src
+        # It's crazy that this is required, but apparently it is. I don't understand why
+        # (the files selection should be explicit...), but not worth my time to investigate.
+        exclude: ^.venv-*/
         # This is a bit aggressive, but otherwise it will be quite a pain to use since there
         # are a number of touchy packages here.
-        exclude: ".venv*"
         #args: ["--ignore-missing-imports"]
         args: []
         additional_dependencies:
-          - "pytest >=6.2.4"
-          - "awkward >=2.0.8"
-          - "uproot >=4.2"
-          - "numpy >=1.21"
-          - "scipy >=1.11.3"
-          - "pyarrow >=4"
-          - "pandas >=2.0"
-          - "attrs >=21.2.0"
-          - "particle >=0.15.1"
-          - "numba >=0.56.0"
-          - "hist >=2.5.0"
-          - "seaborn >=0.11.2"
-          - "vector >=0.8.5"
-          - "parsl >=2023.10.23"
-          - "rich >=v13.4.0"
+          # NOTE: I want the dependencies that are in my **lock file** (or as close as possible),
+          #       not in my pyproject. The issue is that if lower bound packages are taken, then
+          #       I'll get older typing than what I'm actually running with.
+          #       (this doesn't resolve all problems, but it seems like progress)
+          - "pytest >=8.0"
+          - "awkward >=2.6.1"
+          - "uproot >=5.2.2"
+          - "numpy >=1.26.4"
+          - "scipy >=1.12"
+          - "pyarrow >=15.0"
+          - "pandas >=2.2"
+          - "attrs >=23.2.0"
+          - "particle >=0.23.1"
+          - "numba >=0.59.0"
+          - "hist >=2.7.2"
+          - "seaborn >=0.13.2"
+          - "vector >=1.2"
+          - "parsl[monitoring] >=2024.2.12"
+          - "rich >=v13.7.0"
+          - "rich_argparse >=1.1.1"
           - "pachyderm >=3.2.2"
-          - "dask[distributed]>=2022.12.0"
-          - "dask-jobqueue>=0.8.1"
-          - "ipython >=8.0"
+          - "dask[distributed,diagnostics]>=2024.2.0"
+          - "dask-jobqueue>=0.8.2"
+          - "ipython >=8.21"
 
   - repo: https://github.com/codespell-project/codespell
     rev: "v2.2.6"

@@ -188,7 +188,11 @@ module = [
     "awkward",
     "ruamel.*",
     "dask_jobqueue",
+    # NOTE: Many of these are not direct dependencies, but implicit dependencies of actual dependencies.
+    #       For some reason, this fails occasionally, and the easiest response is just to ignore.
+    #       pre-commit + mypy really is extraordinarily painful...
     "traitlets.*",
+    "tornado.*",
 ]
 ignore_missing_imports = true
 
