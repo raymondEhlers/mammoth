@@ -242,6 +242,10 @@ def test_multi_source_source_fixed_size_chunks(caplog: Any, chunk_size: int, num
     # Input source
     from mammoth.framework.io import track_skim
 
+    _input_filename = _track_skim_base_path / "reference" / "AnalysisResults__pythia__jet_R020.root"
+    if not _input_filename.exists():
+        pytest.skip(reason=f"Missing input file {_input_filename} - please download the files with the script")
+
     pythia_source = sources.MultiSource(
         sources=[
             track_skim.FileSource(
@@ -254,7 +258,7 @@ def test_multi_source_source_fixed_size_chunks(caplog: Any, chunk_size: int, num
 
     # We need to know the full size to figure out the expected values.
     pythia_source_ref = track_skim.FileSource(
-        filename=_track_skim_base_path / "reference" / "AnalysisResults__pythia__jet_R020.root",
+        filename=_input_filename,
         collision_system="pythia",
     )
     # NOTE: This is inefficient, but it's not the end of the world. We could always set it manually if becomes a problem
@@ -303,10 +307,14 @@ def test_multi_source_source_variable_size_chunks(
     # Input source
     from mammoth.framework.io import track_skim
 
+    _input_filename = _track_skim_base_path / "reference" / "AnalysisResults__pythia__jet_R020.root"
+    if not _input_filename.exists():
+        pytest.skip(reason=f"Missing input file {_input_filename} - please download the files with the script")
+
     pythia_source = sources.MultiSource(
         sources=[
             track_skim.FileSource(
-                filename=_track_skim_base_path / "reference" / "AnalysisResults__pythia__jet_R020.root",
+                filename=_input_filename,
                 collision_system="pythia",
             )
             for _ in range(number_of_repeated_files)
@@ -320,7 +328,7 @@ def test_multi_source_source_variable_size_chunks(
     # NOTE: This is inefficient, but it's not the end of the world. We could always set it manually if becomes a problem
     # NOTE: For reference, it's 11358
     pythia_source_ref = track_skim.FileSource(
-        filename=_track_skim_base_path / "reference" / "AnalysisResults__pythia__jet_R020.root",
+        filename=_input_filename,
         collision_system="pythia",
     )
     full_file_size = len(next(pythia_source_ref.gen_data())) * number_of_repeated_files

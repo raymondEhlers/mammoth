@@ -35,12 +35,16 @@ def test_embedding_load_data_source_fixed_size_chunks(
         else:
             _n_repeat_pythia = 3
 
+    signal_input_filename = _track_skim_base_path / "reference" / "AnalysisResults__pythia__jet_R020.root"
+    background_input_filename = _track_skim_base_path / "reference" / "AnalysisResults__PbPb__jet_R020.root"
+    for _filename in [signal_input_filename, background_input_filename]:
+        if not _filename.exists():
+            pytest.skip(reason=f"Missing input file {_filename} - please download the files with the script")
+
     _, iter_arrays = load_data.embedding(
-        signal_input=[_track_skim_base_path / "reference" / "AnalysisResults__pythia__jet_R020.root"]
-        * _n_repeat_pythia,
+        signal_input=[signal_input_filename] * _n_repeat_pythia,
         signal_source=partial(track_skim.FileSource, collision_system="pythia"),
-        background_input=[_track_skim_base_path / "reference" / "AnalysisResults__PbPb__jet_R020.root"]
-        * _n_repeat_background,
+        background_input=[background_input_filename] * _n_repeat_background,
         background_source=partial(track_skim.FileSource, collision_system="PbPb"),
         background_is_constrained_source=background_is_constrained_source,
         chunk_size=chunk_size,

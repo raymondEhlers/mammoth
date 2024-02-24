@@ -228,7 +228,7 @@ def _aliphysics_to_analysis_results(
     missing_files = _check_for_alice_input_files(input_files=input_files)
     if any(missing_files):
         msg = f"Cannot generate AliPhysics reference due to missing inputs files. Missing: {[f for f, missing in zip(input_files, missing_files, strict=True) if missing]}"
-        raise RuntimeError(msg)
+        pytest.skip(reason=msg)
 
     # Need this to be available to use the run macro
     # Strictly speaking, we need AliPHysics, so we then try to grab a value from AliPhysics
