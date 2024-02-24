@@ -31,8 +31,7 @@ classifiers = [
   "Topic :: Scientific/Engineering",
   "Typing :: Typed",
 ]
-# For hatch, need to remove the dependencies references here
-dynamic = ["optional-dependencies", "version"]
+dynamic = ["version"]
 dependencies = [
     "awkward >=2.0.8",
     "uproot >=4.2",
@@ -67,28 +66,11 @@ dependencies = [
     "dask-jobqueue>=0.8.1",
 ]
 
-# NOTE: We use this for the dev dependencies because we need the PDM support for local
-#       editable repositories. If we ever don't need that, we can just move it to the
-#       standard compliant groups in `[project.optional-dependencies]` (eg. if moving to hatch)
-[tool.pdm.dev-dependencies]
-devtest = [
-    "pytest >=6.2.4",
-    "pytest-cov >=3",
-]
-dev = [
-    "ruff>=0.0.209",
-    "mypy >=0.931",
-    "ipython >=8.0",
-    "ipykernel >=6.15.1",
+[project.optional-dependencies]
+test = [
     "pytest >=6.2.4",
     "pytest-cov >=3",
     "pytest-sugar >=0.9.5",
-    "pytest-xdist>=3.1.0",
-    # Included so we can grab the headers for vscode (also so that we can build in the env if we want)
-    "pybind11 >=2.10",
-    # pachyderm
-    # pdm requires editable dependencies to be in the dev dependencies
-    "-e file:///${PROJECT_ROOT}/external/pachyderm#egg=pachyderm",
 ]
 docs = [
     "sphinx>=7.0",
@@ -96,6 +78,26 @@ docs = [
     "sphinx_copybutton",
     "sphinx_autodoc_typehints",
     "furo>=2023.08.17",
+]
+
+# NOTE: We use this for the dev dependencies because we need the PDM support for local
+#       editable repositories. If we ever don't need that, we can just move it to the
+#       standard compliant groups in `[project.optional-dependencies]` (eg. if moving to hatch)
+[tool.pdm.dev-dependencies]
+dev = [
+    "ruff >=0.0.209",
+    "mypy >=0.931",
+    "ipython >=8.0",
+    "ipykernel >=6.15.1",
+    "pytest >=6.2.4",
+    "pytest-cov >=3",
+    "pytest-sugar >=0.9.5",
+    "pytest-xdist >=3.1.0",
+    # Included so we can grab the headers for vscode (also so that we can build in the env if we want)
+    "pybind11 >=2.10",
+    # pachyderm
+    # pdm requires editable dependencies to be in the dev dependencies
+    "-e file:///${PROJECT_ROOT}/external/pachyderm#egg=pachyderm",
 ]
 
 [project.scripts]
