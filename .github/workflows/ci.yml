@@ -73,7 +73,11 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ./mammoth-cpp/external/install/fastjet
-          key: ${{ github.job }}-${{ hashFiles('mammoth-cpp/external/install/fastjet/bin/**') }}
+          #key: ${{ github.job }}-${{ hashFiles('mammoth-cpp/src/**') }}
+          # NOTE: We embed fastjet version. Ideally, we could configure this
+          #       from one place, but it's not obvious the best way to do this
+          #       at the moment, so we'll just work with this.
+          key: ${{ github.job }}-3.4.1_1.051
 
       - name: Build fastjet
         if: steps.cache-fastjet-build.outputs.cache-hit != 'true'
@@ -85,7 +89,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ./mammoth-cpp/dist
-          key: ${{ github.job }}-${{ env.PYTHON_VERSION }}-${{ hashFiles('mammoth-cpp/**') }}
+          key: ${{ github.job }}-${{ matrix.python-version }}-${{ hashFiles('mammoth-cpp/**') }}
 
       # Finally, build and install mammoth-cpp
       - name: Build mammoth-cpp wheel
