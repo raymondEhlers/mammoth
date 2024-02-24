@@ -66,10 +66,6 @@ jobs:
         with:
           xcode-version: latest-stable
 
-      # Needed to install the dev dependencies correctly.
-      - name: Setup PDM
-        uses: pdm-project/setup-pdm@v4
-
       # Build mammoth-cpp (adapted from awkward-cpp)
       # First, we want a cache for fastjet builds
       - name: Cache fastjet build arifacts
@@ -104,7 +100,7 @@ jobs:
 
       # Finally, install mammoth
       - name: Install package
-        run: pdm install -d
+        run: python -m pip install .[test]
 
       - name: Test package
         run: >-
