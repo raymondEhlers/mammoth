@@ -59,43 +59,44 @@ repos:
         args: ["--fix", "--show-fixes"]
       - id: ruff-format
 
-  - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: "v1.8.0"
-    hooks:
-      - id: mypy
-        files: src|tests|mammoth-cpp/src
-        # It's crazy that this is required, but apparently it is. I don't understand why
-        # (the files selection should be explicit...), but not worth my time to investigate.
-        exclude: ^.venv-*/
-        # This is a bit aggressive, but otherwise it will be quite a pain to use since there
-        # are a number of touchy packages here.
-        #args: ["--ignore-missing-imports"]
-        args: []
-        additional_dependencies:
-          # NOTE: I want the dependencies that are in my **lock file** (or as close as possible),
-          #       not in my pyproject. The issue is that if lower bound packages are taken, then
-          #       I'll get older typing than what I'm actually running with.
-          #       (this doesn't resolve all problems, but it seems like progress)
-          - "pytest >=8.0"
-          - "awkward >=2.6.1"
-          - "uproot >=5.2.2"
-          - "numpy >=1.26.4"
-          - "scipy >=1.12"
-          - "pyarrow >=15.0"
-          - "pandas >=2.2"
-          - "attrs >=23.2.0"
-          - "particle >=0.23.1"
-          - "numba >=0.59.0"
-          - "hist >=2.7.2"
-          - "seaborn >=0.13.2"
-          - "vector >=1.2"
-          - "parsl[monitoring] >=2024.2.12"
-          - "rich >=v13.7.0"
-          - "rich_argparse >=1.1.1"
-          - "pachyderm >=3.2.2"
-          - "dask[distributed,diagnostics]>=2024.2.0"
-          - "dask-jobqueue>=0.8.2"
-          - "ipython >=8.21"
+  #- repo: https://github.com/pre-commit/mirrors-mypy
+  #  rev: "v1.8.0"
+  #  hooks:
+  #    - id: mypy
+  #      files: src|tests|mammoth-cpp/src
+  #      # It's crazy that this is required, but apparently it is. I don't understand why
+  #      # (the files selection should be explicit...), but not worth my time to investigate.
+  #      exclude: ^.venv-*/
+  #      # This is a bit aggressive, but otherwise it will be quite a pain to use since there
+  #      # are a number of touchy packages here. And it can give non-sense like it can't find
+  #      # the mammoth when it is being checked...
+  #      #args: ["--ignore-missing-imports"]
+  #      args: []
+  #      additional_dependencies:
+  #        # NOTE: I want the dependencies that are in my **lock file** (or as close as possible),
+  #        #       not in my pyproject. The issue is that if lower bound packages are taken, then
+  #        #       I'll get older typing than what I'm actually running with.
+  #        #       (this doesn't resolve all problems, but it seems like progress)
+  #        - "pytest >=8.0"
+  #        - "awkward >=2.6.1"
+  #        - "uproot >=5.2.2"
+  #        - "numpy >=1.26.4"
+  #        - "scipy >=1.12"
+  #        - "pyarrow >=15.0"
+  #        - "pandas >=2.2"
+  #        - "attrs >=23.2.0"
+  #        - "particle >=0.23.1"
+  #        - "numba >=0.59.0"
+  #        - "hist >=2.7.2"
+  #        - "seaborn >=0.13.2"
+  #        - "vector >=1.2"
+  #        - "parsl[monitoring] >=2024.2.12"
+  #        - "rich >=v13.7.0"
+  #        - "rich_argparse >=1.1.1"
+  #        - "pachyderm >=3.2.2"
+  #        - "dask[distributed,diagnostics]>=2024.2.0"
+  #        - "dask-jobqueue>=0.8.2"
+  #        - "ipython >=8.21"
 
   - repo: https://github.com/codespell-project/codespell
     rev: "v2.2.6"
