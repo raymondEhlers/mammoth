@@ -70,6 +70,25 @@ jobs:
       - name: Setup PDM
         uses: pdm-project/setup-pdm@v4
 
+      # Build mammoth-cpp (adapted from awkward-cpp)
+      - name: Cache mammoth-cpp wheel
+        id: cache-mammoth-cpp-wheel
+        uses: actions/cache@v4
+        with:
+          path: ./mammoth-cpp/dist
+          key: ${{ github.job }}-${{ env.PYTHON_VERSION }}-${{ hashFiles('mammoth-cpp/**') }}
+
+      - name: Build mammoth-cpp wheel
+        if: steps.cache-mammoth-cpp-wheel.outputs.cache-hit != 'true'
+        run: |
+          python -m pip install build
+          python -m build -w ./mammoth-cpp
+          ls ./mammoth-cpp/dist
+
+      - name: Install mammoth-cpp
+        run: python -m pip install -v ./mammoth-cpp/dist/*.whl
+
+      # Finally, install mammoth
       - name: Install package
         run: pdm install -d
 
