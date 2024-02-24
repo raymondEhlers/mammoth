@@ -133,6 +133,9 @@ addopts = ["-ra", "--showlocals", "--strict-markers", "--strict-config"]
 xfail_strict = true
 filterwarnings = [
   "error",
+  # Temporarily until this is resolved: https://github.com/dateutil/dateutil/issues/1314
+  # NOTE: It is coming from dateutil, which is used by matplotlib + pandas
+  "ignore:datetime.datetime.utcfromtimestamp:DeprecationWarning:dateutil.tz.tz",
 ]
 log_level = "INFO"
 log_cli_level = "INFO"
