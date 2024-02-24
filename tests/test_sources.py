@@ -18,9 +18,13 @@ _track_skim_base_path = _here / "track_skim_validation"
 
 
 def test_uproot_source() -> None:
+    # Take as an arbitrary example file
+    _input_filename = _track_skim_base_path / "reference" / "AnalysisResults__pythia__jet_R020.root"
+    if not _input_filename.exists():
+        pytest.skip(reason=f"Missing input file {_input_filename} - please download the files with the script")
+
     uproot_source = sources.UprootSource(
-        # Take as an arbitrary example file
-        filename=_track_skim_base_path / "reference" / "AnalysisResults__pythia__jet_R020.root",
+        filename=_input_filename,
         tree_name="AliAnalysisTaskTrackSkim_*_tree",
     )
 
@@ -32,10 +36,15 @@ def test_uproot_source() -> None:
 
 def test_manual_thermal_model_embedding() -> None:
     chunk_size = 500
+
+    _input_filename = _track_skim_base_path / "reference" / "AnalysisResults__pythia__jet_R020.root"
+    if not _input_filename.exists():
+        pytest.skip(reason=f"Missing input file {_input_filename} - please download the files with the script")
+
     # Signal
     pythia_source = sources.UprootSource(
         # Take as an arbitrary example file
-        filename=_track_skim_base_path / "reference" / "AnalysisResults__pythia__jet_R020.root",
+        filename=_input_filename,
         tree_name="AliAnalysisTaskTrackSkim_*_tree",
     )
     # Background
@@ -80,10 +89,14 @@ def test_manual_data_embedding(
     else:
         PbPb_kwargs = {"repeat": True}
 
+    # Take as an arbitrary example file
+    _input_filename = _track_skim_base_path / "reference" / "AnalysisResults__pythia__jet_R020.root"
+    if not _input_filename.exists():
+        pytest.skip(reason=f"Missing input file {_input_filename} - please download the files with the script")
+
     pythia_source = sources.MultiSource(
         sources=sources.define_multiple_sources_from_single_root_file(
-            # Take as an arbitrary example file
-            filename=_track_skim_base_path / "reference" / "AnalysisResults__pythia__jet_R020.root",
+            filename=_input_filename,
             # Apparently the wild card doesn't work here because we need to grab the number of entries,
             # so we just specify the name directly.
             tree_name="AliAnalysisTaskTrackSkim_pythia_tree",
@@ -92,9 +105,14 @@ def test_manual_data_embedding(
         **pythia_kwargs,
     )
 
+    # Take as an arbitrary example file
+    _input_filename = _track_skim_base_path / "reference" / "AnalysisResults__embed_pythia-PbPb__jet_R020.root"
+    if not _input_filename.exists():
+        pytest.skip(reason=f"Missing input file {_input_filename} - please download the files with the script")
+
     PbPb_source = sources.MultiSource(
         sources=sources.UprootSource(
-            filename=_track_skim_base_path / "reference" / "AnalysisResults__embed_pythia-PbPb__jet_R020.root",
+            filename=_input_filename,
             tree_name="AliAnalysisTaskTrackSkim_*_tree",
         ),
         **PbPb_kwargs,
@@ -137,10 +155,14 @@ def test_chunk_generation_from_existing_data_with_fixed_chunk_size(caplog: Any, 
     # Input source
     from mammoth.framework.io import track_skim
 
+    _input_filename = _track_skim_base_path / "reference" / "AnalysisResults__pythia__jet_R020.root"
+    if not _input_filename.exists():
+        pytest.skip(reason=f"Missing input file {_input_filename} - please download the files with the script")
+
     # NOTE: It's important that we use the root file here, as this will implicitly use an UprootSource with
     #       chunk generation from existing data.
     pythia_source = track_skim.FileSource(
-        filename=_track_skim_base_path / "reference" / "AnalysisResults__pythia__jet_R020.root",
+        filename=_input_filename,
         collision_system="pythia",
     )
     # We need the full size to figure out the expect values.
@@ -185,10 +207,14 @@ def test_chunk_generation_from_existing_data_with_variable_chunk_size(caplog: An
     # Input source
     from mammoth.framework.io import track_skim
 
+    _input_filename = _track_skim_base_path / "reference" / "AnalysisResults__pythia__jet_R020.root"
+    if not _input_filename.exists():
+        pytest.skip(reason=f"Missing input file {_input_filename} - please download the files with the script")
+
     # NOTE: It's important that we use the root file here, as this will implicitly use an UprootSource with
     #       chunk generation from existing data.
     pythia_source = track_skim.FileSource(
-        filename=_track_skim_base_path / "reference" / "AnalysisResults__pythia__jet_R020.root",
+        filename=_input_filename,
         collision_system="pythia",
     )
     # We need the full size to figure out the expect values.
