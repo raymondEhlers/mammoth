@@ -42,8 +42,13 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest]
+        #os: [ubuntu-latest, macos-latest]
+        os: [ubuntu-latest]
         #os: [ubuntu-latest, windows-latest, macos-latest]
+        arch: [auto64]
+        build: ["cp"]
+        #python-version: ["310", "311", "312"]
+        python-version: ["311"]
 
     steps:
       - uses: actions/checkout@v4
@@ -51,6 +56,9 @@ jobs:
           fetch-depth: 0
 
       - uses: pypa/cibuildwheel@v2.16
+        env:
+          CIBW_BUILD: "${{ matrix.build }}${{matrix.python-version}}*"
+          CIBW_ARCHS: ${{ matrix.arch }}
         with:
           config-file: cibuildwheel.toml
           package-dir: mammoth-cpp
