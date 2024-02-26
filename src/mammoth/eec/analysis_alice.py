@@ -1,6 +1,10 @@
 """Run ALICE analysis for energy-energy correlators for pp, PbPb, MC, and embedding
 
-Note that the embedding analysis supports analyzing embedding data as well as into the thermal model.
+Here, we have a working definition of the analysis functions:
+- `analysis_one_collection`: Run the analysis for a single input collection. This includes data, one MC column, or one embedding column
+- `analysis_two_input_collections`: Run the analysis for two input collections. This includes two MC columns. In principle,
+    it could also include embedding, but it's not tested as such.
+- `analysis_three_input_collections`: Run the analysis for three input collections (ie. embedding).
 
 .. codeauthor:: Raymond Ehlers <raymond.ehlers@cern.ch>, LBL/UCB
 """
@@ -39,6 +43,101 @@ def customize_analysis_metadata(
     Nothing special required here as of June 2023.
     """
     return {}
+
+
+def _setup_one_input_collection_hists(trigger_pt_ranges: dict[str, tuple[float, float]]) -> dict[str, hist.Hist]:  # noqa: ARG001
+    return {}
+
+
+def analysis_one_input_collection(
+    *,
+    collision_system: str,  # noqa: ARG001
+    arrays: ak.Array,  # noqa: ARG001
+    # Analysis arguments
+    trigger_pt_ranges: dict[str, tuple[float, float]],
+    min_track_pt: dict[str, float],  # noqa: ARG001
+    momentum_weight_exponent: int | float,  # noqa: ARG001
+    combinatorics_chunk_size: int,
+    scale_factor: float,  # noqa: ARG001
+    det_level_artificial_tracking_efficiency: float | analysis_tracking.PtDependentTrackingEfficiencyParameters,  # noqa: ARG001
+    use_jet_trigger: bool,  # noqa: ARG001
+    # Injected analysis arguments (when appropriate)
+    pt_hat_bin: int = -1,  # noqa: ARG001
+    scale_factors: dict[str, float] | None = None,  # noqa: ARG001
+    # Default analysis arguments
+    validation_mode: bool = False,  # noqa: ARG001
+    return_skim: bool = False,
+    # NOTE: kwargs are required because we pass the config as the analysis arguments,
+    #       and it contains additional values.
+    **kwargs: Any,  # noqa: ARG001
+) -> framework_task.AnalysisOutput:
+    """Run the analysis for one input collection.
+
+    This includes data, or analyzing a single column of pp_MC, PbPb_MC, or embedding.
+    """
+    # Validation
+    if return_skim and combinatorics_chunk_size < 0:
+        logger.info(
+            f"Requested to return the skim, but the combination chunk size is {combinatorics_chunk_size} (> 0), which won't work. So we disable it."
+        )
+
+    # Setup
+    hists = _setup_one_input_collection_hists(trigger_pt_ranges=trigger_pt_ranges)
+    trigger_skim_output: dict[str, ak.Array] = {}
+
+    msg = "Data analysis not yet implemented"
+    raise NotImplementedError(msg)
+
+    return framework_task.AnalysisOutput(  # type: ignore[unreachable]
+        hists=hists,
+        skim=trigger_skim_output,
+    )
+
+
+def _setup_two_input_collections_hists(trigger_pt_ranges: dict[str, tuple[float, float]]) -> dict[str, hist.Hist]:  # noqa: ARG001
+    return {}
+
+
+def analysis_two_input_collections(
+    *,
+    collision_system: str,  # noqa: ARG001
+    arrays: ak.Array,  # noqa: ARG001
+    # Analysis arguments
+    trigger_pt_ranges: dict[str, tuple[float, float]],
+    min_track_pt: dict[str, float],  # noqa: ARG001
+    momentum_weight_exponent: int | float,  # noqa: ARG001
+    combinatorics_chunk_size: int,
+    scale_factor: float,  # noqa: ARG001
+    det_level_artificial_tracking_efficiency: float | analysis_tracking.PtDependentTrackingEfficiencyParameters,  # noqa: ARG001
+    use_jet_trigger: bool,  # noqa: ARG001
+    # Injected analysis arguments
+    pt_hat_bin: int,  # noqa: ARG001
+    scale_factors: dict[str, float],  # noqa: ARG001
+    # Default analysis arguments
+    validation_mode: bool = False,  # noqa: ARG001
+    return_skim: bool = False,
+    # NOTE: kwargs are required because we pass the config as the analysis arguments,
+    #       and it contains additional values.
+    **kwargs: Any,  # noqa: ARG001
+) -> framework_task.AnalysisOutput:
+    """Run the analysis for the two input collections."""
+    # Validation
+    if return_skim and combinatorics_chunk_size < 0:
+        logger.info(
+            f"Requested to return the skim, but the combination chunk size is {combinatorics_chunk_size} (> 0), which won't work. So we disable it."
+        )
+
+    # Setup
+    hists = _setup_two_input_collections_hists(trigger_pt_ranges=trigger_pt_ranges)
+    trigger_skim_output: dict[str, ak.Array] = {}
+
+    msg = "Two collection analysis not yet implemented"
+    raise NotImplementedError(msg)
+
+    return framework_task.AnalysisOutput(  # type: ignore[unreachable]
+        hists=hists,
+        skim=trigger_skim_output,
+    )
 
 
 def _chunks_for_combinatorics(combinatorics_chunk_size: int, array_length: int) -> Iterator[tuple[int, int]]:
