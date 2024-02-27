@@ -65,12 +65,12 @@ class EECProductionSpecialization:
 
 # Define the steering apps
 setup_data_skim = steer_job.setup_data_calculation(
-    analysis_function=analysis_alice.analysis_one_input_collection,
+    analysis_function=analysis_alice.analysis_one_input_level,
     analysis_metadata=analysis_alice.customize_analysis_metadata,
 )
 
 setup_MC_two_input_collection_skim = steer_job.setup_data_calculation(
-    analysis_function=analysis_alice.analysis_two_input_collections,
+    analysis_function=analysis_alice.analysis_two_input_levels,
     analysis_metadata=analysis_alice.customize_analysis_metadata,
 )
 
