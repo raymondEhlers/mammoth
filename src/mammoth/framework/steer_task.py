@@ -36,6 +36,22 @@ def steer_task_execution(
     # Default (ie. one's which must be implemented) analysis parameters
     validation_mode: bool,
 ) -> framework_task.Output:
+    """Steering for the execution of a task.
+
+    This puts all of the pieces together, iterating over the input arrays and analyzing
+    them according to the provided bound analysis function.
+
+    Args:
+        task_settings: Task settings.
+        task_metadata: Task metadata.
+        iter_arrays: Iterator over the arrays to be analyzed.
+        output_settings: Output settings.
+        analysis_function: Analysis function, with the analysis arguments already bound to it.
+        validation_mode: Whether or not to run in validation mode.
+
+    Returns:
+        Task output
+    """
     # Validation
     if output_settings.return_skim and task_settings.chunk_size not in [
         sources.ChunkSizeSentinel.SINGLE_FILE,
@@ -81,6 +97,7 @@ def steer_task_execution(
                 analysis_output = analysis_function(
                     collision_system=task_settings.collision_system,
                     arrays=arrays,
+                    input_metadata=task_metadata,
                     validation_mode=validation_mode,
                     # Although return_skim is an output option that we try to abstract away, it can be quite costly in terms of memory.
                     # Consequently, we break the abstraction and pass it, since many tasks are under memory pressure.
@@ -166,6 +183,8 @@ def steer_task_execution(
 
 def _default_task_metadata(task_settings: framework_task.Settings) -> framework_task.Metadata:
     """Default task metadata.
+
+    This is what was always want to include in the task metadata.
 
     Args:
         task_settings: Task settings.

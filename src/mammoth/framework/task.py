@@ -59,11 +59,14 @@ class Settings:
         production_identifier: Unique production identifier for the task.
         collision_system: Collision system
         chunk_size: Chunk size for the task.
+        input_metadata: Metadata about the input source. This is the one violation of concerns,
+            but it's really useful to have this information available to the analysis task.
     """
 
     production_identifier: str
     collision_system: str
     chunk_size: sources.T_ChunkSize
+    input_metadata: dict[str, Any]
 
 
 @attrs.frozen(kw_only=True)
@@ -585,6 +588,7 @@ def python_app_data(
         else:
             metadata_function = no_op_customize_analysis_metadata
 
+        signal_input = [Path(_input_file.filepath) for _input_file in inputs]
         try:
             result = steer_task.steer_data_task(
                 # General task settings
@@ -592,11 +596,17 @@ def python_app_data(
                     production_identifier=production_identifier,
                     collision_system=collision_system,
                     chunk_size=chunk_size,
+                    input_metadata={
+                        "signal_source_config": input_source_config,
+                        "signal_input": signal_input,
+                        "source_input_options": input_options,
+                        "type": "data",
+                    },
                 ),
                 # Inputs
                 setup_input_source=functools.partial(
                     load_data.setup_source_for_data_or_MC_task,
-                    signal_input=[Path(_input_file.filepath) for _input_file in inputs],
+                    signal_input=signal_input,
                     signal_source=io.file_source(file_source_config=input_source_config),
                     **input_options,
                 ),
@@ -709,6 +719,8 @@ def python_app_embed_MC_into_data(
         else:
             metadata_function = no_op_customize_analysis_metadata
 
+        signal_input = [Path(_input_file.filepath) for _input_file in inputs[:n_signal_input_files]]
+        background_input = [Path(_input_file.filepath) for _input_file in inputs[n_signal_input_files:]]
         try:
             result = steer_task.steer_embed_task(
                 # General task settings
@@ -716,13 +728,21 @@ def python_app_embed_MC_into_data(
                     production_identifier=production_identifier,
                     collision_system=collision_system,
                     chunk_size=chunk_size,
+                    input_metadata={
+                        "signal_source_config": signal_input_source_config,
+                        "signal_input": signal_input,
+                        "background_source_config": background_input_source_config,
+                        "background_input": background_input,
+                        "source_input_options": source_input_options,
+                        "type": "embed_MC_into_data",
+                    },
                 ),
                 # Inputs
                 setup_input_source=functools.partial(
                     load_data.setup_source_for_embedding_task,
-                    signal_input=[Path(_input_file.filepath) for _input_file in inputs[:n_signal_input_files]],
+                    signal_input=signal_input,
                     signal_source=io.file_source(file_source_config=signal_input_source_config),
-                    background_input=[Path(_input_file.filepath) for _input_file in inputs[n_signal_input_files:]],
+                    background_input=background_input,
                     background_source=io.file_source(file_source_config=background_input_source_config),
                     **source_input_options,
                 ),
@@ -799,6 +819,7 @@ def python_app_embed_MC_into_thermal_model(
         production_identifier: str,
         collision_system: str,
         chunk_size: sources.T_ChunkSize,
+        source_input_options: dict[str, Any],
         input_source_config: dict[str, Any],
         thermal_model_parameters: sources.ThermalModelParameters,
         output_settings_config: dict[str, Any],
@@ -834,6 +855,7 @@ def python_app_embed_MC_into_thermal_model(
         else:
             metadata_function = no_op_customize_analysis_metadata
 
+        signal_input = [Path(_input_file.filepath) for _input_file in inputs]
         try:
             result = steer_task.steer_embed_task(
                 # General task settings
@@ -841,13 +863,22 @@ def python_app_embed_MC_into_thermal_model(
                     production_identifier=production_identifier,
                     collision_system=collision_system,
                     chunk_size=chunk_size,
+                    input_metadata={
+                        "signal_source_config": input_source_config,
+                        "signal_input": signal_input,
+                        "background_source_config": thermal_model_parameters,
+                        "background_input": [],
+                        "source_input_options": source_input_options,
+                        "type": "embed_MC_into_thermal_model",
+                    },
                 ),
                 # Inputs
                 setup_input_source=functools.partial(
                     load_data.setup_source_for_embedding_thermal_model_task,
-                    signal_input=[Path(_input_file.filepath) for _input_file in inputs],
+                    signal_input=signal_input,
                     signal_source=io.file_source(file_source_config=input_source_config),
                     thermal_model_parameters=thermal_model_parameters,
+                    **source_input_options,
                 ),
                 output_settings=OutputSettings.from_config(
                     output_filename=Path(outputs[0].filepath),

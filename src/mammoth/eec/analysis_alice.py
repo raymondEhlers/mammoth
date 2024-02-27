@@ -65,6 +65,7 @@ def analysis_one_input_collection(
     pt_hat_bin: int = -1,  # noqa: ARG001
     scale_factors: dict[str, float] | None = None,  # noqa: ARG001
     # Default analysis arguments
+    input_metadata: dict[str, Any] | None = None,  # noqa: ARG001
     validation_mode: bool = False,  # noqa: ARG001
     return_skim: bool = False,
     # NOTE: kwargs are required because we pass the config as the analysis arguments,
@@ -114,6 +115,7 @@ def analysis_two_input_collections(
     pt_hat_bin: int,  # noqa: ARG001
     scale_factors: dict[str, float],  # noqa: ARG001
     # Default analysis arguments
+    input_metadata: dict[str, Any] | None = None,  # noqa: ARG001
     validation_mode: bool = False,  # noqa: ARG001
     return_skim: bool = False,
     # NOTE: kwargs are required because we pass the config as the analysis arguments,

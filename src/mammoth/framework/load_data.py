@@ -757,6 +757,7 @@ def setup_source_for_embedding_thermal_model_task(
         signal_source: Source for the signal.
         thermal_model_parameters: Parameters for the thermal model.
         output_settings: Output settings.
+        signal_source_collision_system: Collision system of the signal source.
     Returns:
         (source_index_identifiers, iter_arrays), where:
             source_index_identifiers: Mapping of source index to identifier.
