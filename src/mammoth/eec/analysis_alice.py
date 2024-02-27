@@ -1,10 +1,10 @@
 """Run ALICE analysis for energy-energy correlators for pp, PbPb, MC, and embedding
 
 Here, we have a working definition of the analysis functions:
-- `analysis_one_collection`: Run the analysis for a single input collection. This includes data, one MC column, or one embedding column
-- `analysis_two_input_collections`: Run the analysis for two input collections. This includes two MC columns. In principle,
+- `analysis_one_level`: Run the analysis for a single input level. This includes data, one MC column, or one embedding column
+- `analysis_two_input_levels`: Run the analysis for two input levels. This includes two MC columns. In principle,
     it could also include embedding, but it's not tested as such.
-- `analysis_three_input_collections`: Run the analysis for three input collections (ie. embedding).
+- `analysis_three_input_levels`: Run the analysis for three input levels (ie. embedding).
 
 .. codeauthor:: Raymond Ehlers <raymond.ehlers@cern.ch>, LBL/UCB
 """
@@ -45,141 +45,12 @@ def customize_analysis_metadata(
     return {}
 
 
-def _setup_one_input_collection_hists(trigger_pt_ranges: dict[str, tuple[float, float]]) -> dict[str, hist.Hist]:  # noqa: ARG001
-    return {}
-
-
-def analysis_one_input_collection(
-    *,
-    collision_system: str,  # noqa: ARG001
-    arrays: ak.Array,  # noqa: ARG001
-    # Analysis arguments
-    trigger_pt_ranges: dict[str, tuple[float, float]],
-    min_track_pt: dict[str, float],  # noqa: ARG001
-    momentum_weight_exponent: int | float,  # noqa: ARG001
-    combinatorics_chunk_size: int,
-    scale_factor: float,  # noqa: ARG001
-    det_level_artificial_tracking_efficiency: float | analysis_tracking.PtDependentTrackingEfficiencyParameters,  # noqa: ARG001
-    use_jet_trigger: bool,  # noqa: ARG001
-    # Injected analysis arguments (when appropriate)
-    pt_hat_bin: int = -1,  # noqa: ARG001
-    scale_factors: dict[str, float] | None = None,  # noqa: ARG001
-    # Default analysis arguments
-    input_metadata: dict[str, Any] | None = None,  # noqa: ARG001
-    validation_mode: bool = False,  # noqa: ARG001
-    return_skim: bool = False,
-    # NOTE: kwargs are required because we pass the config as the analysis arguments,
-    #       and it contains additional values.
-    **kwargs: Any,  # noqa: ARG001
-) -> framework_task.AnalysisOutput:
-    """Run the analysis for one input collection.
-
-    This includes data, or analyzing a single column of pp_MC, PbPb_MC, or embedding.
-    """
-    # Validation
-    if return_skim and combinatorics_chunk_size < 0:
-        logger.info(
-            f"Requested to return the skim, but the combination chunk size is {combinatorics_chunk_size} (> 0), which won't work. So we disable it."
-        )
-
-    # Setup
-    hists = _setup_one_input_collection_hists(trigger_pt_ranges=trigger_pt_ranges)
-    trigger_skim_output: dict[str, ak.Array] = {}
-
-    msg = "Data analysis not yet implemented"
-    raise NotImplementedError(msg)
-
-    return framework_task.AnalysisOutput(  # type: ignore[unreachable]
-        hists=hists,
-        skim=trigger_skim_output,
-    )
-
-
-def _setup_two_input_collections_hists(trigger_pt_ranges: dict[str, tuple[float, float]]) -> dict[str, hist.Hist]:  # noqa: ARG001
-    return {}
-
-
-def analysis_two_input_collections(
-    *,
-    collision_system: str,  # noqa: ARG001
-    arrays: ak.Array,  # noqa: ARG001
-    # Analysis arguments
-    trigger_pt_ranges: dict[str, tuple[float, float]],
-    min_track_pt: dict[str, float],  # noqa: ARG001
-    momentum_weight_exponent: int | float,  # noqa: ARG001
-    combinatorics_chunk_size: int,
-    scale_factor: float,  # noqa: ARG001
-    det_level_artificial_tracking_efficiency: float | analysis_tracking.PtDependentTrackingEfficiencyParameters,  # noqa: ARG001
-    use_jet_trigger: bool,  # noqa: ARG001
-    # Injected analysis arguments
-    pt_hat_bin: int,  # noqa: ARG001
-    scale_factors: dict[str, float],  # noqa: ARG001
-    # Default analysis arguments
-    input_metadata: dict[str, Any] | None = None,  # noqa: ARG001
-    validation_mode: bool = False,  # noqa: ARG001
-    return_skim: bool = False,
-    # NOTE: kwargs are required because we pass the config as the analysis arguments,
-    #       and it contains additional values.
-    **kwargs: Any,  # noqa: ARG001
-) -> framework_task.AnalysisOutput:
-    """Run the analysis for the two input collections."""
-    # Validation
-    if return_skim and combinatorics_chunk_size < 0:
-        logger.info(
-            f"Requested to return the skim, but the combination chunk size is {combinatorics_chunk_size} (> 0), which won't work. So we disable it."
-        )
-
-    # Setup
-    hists = _setup_two_input_collections_hists(trigger_pt_ranges=trigger_pt_ranges)
-    trigger_skim_output: dict[str, ak.Array] = {}
-
-    msg = "Two collection analysis not yet implemented"
-    raise NotImplementedError(msg)
-
-    return framework_task.AnalysisOutput(  # type: ignore[unreachable]
-        hists=hists,
-        skim=trigger_skim_output,
-    )
-
-
-def _chunks_for_combinatorics(combinatorics_chunk_size: int, array_length: int) -> Iterator[tuple[int, int]]:
-    """Yield the start and stop indices for calculating the combinatorics in chunks.
-
-    This is intended to keep memory usage lower when calculating and filling hists.
-    To be seen (June 2023) how well it actually works...
-
-    Args:
-        combinatorics_chunk_size: The size of the chunk to use for calculating the combinatorics.
-        array_length: The length of the array to be chunked.
-
-    Returns:
-        The start and stop indices for the chunks.
-    """
-    # Validation + short circuit
-    if combinatorics_chunk_size <= 0:
-        # IF we don't want to chunk, then just return the full range.
-        return None, None
-
-    start = 0
-    continue_iterating = True
-    while continue_iterating:
-        end = start + combinatorics_chunk_size
-        # Ensure that we never ask for more entries than are in the file.
-        if start + combinatorics_chunk_size > array_length:
-            end = array_length
-            continue_iterating = False
-        # Store the start and stop for convenience.
-        yield start, end
-        # Move up to the next iteration.
-        start = end
-
-
-def _setup_embedding_hists(trigger_pt_ranges: dict[str, tuple[float, float]]) -> dict[str, hist.Hist]:
+def _setup_base_hists(levels: list[str], trigger_pt_ranges: dict[str, tuple[float, float]]) -> dict[str, hist.Hist]:
     """Setup the histograms for the embedding analysis."""
     hists = {}
 
     # Spectra
-    for level in ["part_level", "det_level", "hybrid"]:
+    for level in levels:
         # Inclusive spectra
         hists[f"{level}_inclusive_trigger_spectra"] = hist.Hist(
             hist.axis.Regular(200, 0, 100, label="trigger_pt"), storage=hist.storage.Weight()
@@ -190,7 +61,7 @@ def _setup_embedding_hists(trigger_pt_ranges: dict[str, tuple[float, float]]) ->
         )
 
     # EECs
-    for level in ["part_level", "det_level", "hybrid"]:
+    for level in levels:
         for trigger_name, trigger_range_tuple in trigger_pt_ranges.items():
             trigger_pt_bin_args = (round((trigger_range_tuple[1] - trigger_range_tuple[0]) * 4), *trigger_range_tuple)
             hists[f"{level}_{trigger_name}_eec"] = hist.Hist(
@@ -240,6 +111,38 @@ def _setup_embedding_hists(trigger_pt_ranges: dict[str, tuple[float, float]]) ->
     return hists
 
 
+def _chunks_for_combinatorics(combinatorics_chunk_size: int, array_length: int) -> Iterator[tuple[int, int]]:
+    """Yield the start and stop indices for calculating the combinatorics in chunks.
+
+    This is intended to keep memory usage lower when calculating and filling hists.
+    To be seen (June 2023) how well it actually works...
+
+    Args:
+        combinatorics_chunk_size: The size of the chunk to use for calculating the combinatorics.
+        array_length: The length of the array to be chunked.
+
+    Returns:
+        The start and stop indices for the chunks.
+    """
+    # Validation + short circuit
+    if combinatorics_chunk_size <= 0:
+        # IF we don't want to chunk, then just return the full range.
+        return None, None
+
+    start = 0
+    continue_iterating = True
+    while continue_iterating:
+        end = start + combinatorics_chunk_size
+        # Ensure that we never ask for more entries than are in the file.
+        if start + combinatorics_chunk_size > array_length:
+            end = array_length
+            continue_iterating = False
+        # Store the start and stop for convenience.
+        yield start, end
+        # Move up to the next iteration.
+        start = end
+
+
 def _calculate_weight_for_plotting(
     left: ak.Array,
     right: ak.Array,
@@ -271,11 +174,294 @@ def _calculate_weight_for_plotting(
     return ak.flatten(left_right / trigger_pt)
 
 
-def analysis_embedding(  # noqa: C901
+def calculate_correlators(
+    *,
+    level: str,
+    trigger_name: str,
+    triggers: ak.Array,
+    arrays: ak.Array,
+    # Selection parameters
+    event_selection_mask: ak.Array,
+    # Analysis parameters
+    min_track_pt: float,
+    momentum_weight_exponent: int | float,
+    combinatorics_chunk_size: int,
+    scale_factor: float,
+    # Outputs
+    hists: dict[str, hist.Hist],
+    return_skim: bool,
+    # Optional parameters
+    background_index_identifier: int = -1,
+) -> dict[str, ak.Array]:
+    """Calculate the correlator given the triggers and particles.
+
+    Args:
+        level: The level name (ie collection) of the analysis.
+        trigger_name: The name of the trigger.
+        triggers: The triggers for the analysis.
+        event_selection_mask: The mask to apply to the event selection.
+        min_track_pt: The minimum track pt to use for the analysis.
+        momentum_weight_exponent: The exponent to use for the momentum weighting.
+        combinatorics_chunk_size: The size of the chunk to use for calculating the combinatorics.
+        scale_factor: The scale factor to apply to the histograms.
+        hists: The histograms to fill.
+        return_skim: If True, return the skim.
+        background_index_identifier: The starting index of the background particles. Only applicable
+            for embedding. Default: -1
+
+    Returns:
+        trigger_skim_output (which may be empty, if not requested to return the skim).
+
+    """
+    trigger_skim_output = {}
+
+    for _start, _end in _chunks_for_combinatorics(
+        combinatorics_chunk_size=combinatorics_chunk_size, array_length=len(triggers)
+    ):
+        # Next, go to away side in phi and define our recoil region
+        recoil_vector = -1 * triggers[_start:_end]
+        trigger_pt_event_wise = triggers[_start:_end].pt
+        # Mock up a four vector so we can use the calculation functionality from vector
+        recoil_direction = vector.Array(
+            ak.zip(
+                {
+                    "pt": recoil_vector.eta * 0,
+                    "eta": recoil_vector.eta,
+                    "phi": recoil_vector.phi,
+                    "m": recoil_vector.eta * 0,
+                }
+            )
+        )
+        logger.warning(
+            f"{level=}, {trigger_name=}: {_start=}, {_end=}, {len(recoil_vector)=} (Initial size: {len(triggers)})"
+        )
+
+        # For recoil region, look at delta_phi between them
+        event_selected_array = arrays[event_selection_mask][_start:_end]
+        # We perform the min pt selection first to reduce the number of calculations required.
+        particle_pt_mask = event_selected_array.pt > min_track_pt
+        event_selected_array = event_selected_array[particle_pt_mask]
+        logger.info(f"{level}, {trigger_name}: About to find particles within recoil cone")
+        within_hemisphere = recoil_direction[level][trigger_name].deltaphi(event_selected_array) < np.pi / 4
+        eec_particles = event_selected_array[within_hemisphere]
+
+        if return_skim and combinatorics_chunk_size < 0:
+            # NOTE: If we're using a combination chunk size, it's going to be really inefficient to return the skim
+            #       since we would need to recombine the chunks. So we just skip it in this case.
+            trigger_skim_output[f"{level}_{trigger_name}"] = ak.zip(
+                {
+                    "triggers": triggers,
+                    "particles": eec_particles,
+                },
+                depth_limit=1,
+            )
+
+        # NOTE: These selections could have the potential edge effects in eta, but since we have those in both
+        #       the signal and reference, these should be accounted for automatically.
+        #       This correspondence will be even better when we use mixed events.
+
+        # NOTE: Memory gets bad here. Steps to address:
+        #         1. Use the combinatorics chunk size to reduce the number of combinations in memory
+        #         2. Implement the calculation with numba
+        #         3. Implement the calculation in c++
+        #       As of 2023 June 20, we're only on step 1.
+        logger.info(f"{level}, {trigger_name}: About to calculate combinations")
+        # TODO: Mateusz claims that we should double count here, per the theorists (ie. Kyle).
+        #       This seems odd...
+        left, right = ak.unzip(ak.combinations(eec_particles, 2))
+        distances = left.deltaR(right)
+
+        # One argument should be the power
+        # First, need to broadcast the trigger pt
+        logger.info(f"{level}, {trigger_name}: About to fill hists")
+        trigger_pt, _ = ak.broadcast_arrays(
+            trigger_pt_event_wise,
+            distances,
+        )
+        # Save an additional set of calls to exponent if can be avoided
+        weight = _calculate_weight_for_plotting(
+            left=left,
+            right=right,
+            trigger_pt_event_wise=trigger_pt_event_wise,
+            momentum_weight_exponent=momentum_weight_exponent,
+        )
+        hists[f"{level}_{trigger_name}_eec"].fill(
+            ak.flatten(distances),
+            ak.flatten(trigger_pt),
+            weight=weight * scale_factor,
+        )
+        hists[f"{level}_{trigger_name}_eec_unweighted"].fill(
+            ak.flatten(distances),
+            ak.flatten(trigger_pt),
+            weight=np.ones_like(weight) * scale_factor,
+        )
+        if level == "hybrid":
+            # We're about to recalculate the weights and trigger pt, so let's release them now
+            del weight
+            del trigger_pt
+            # Compare to background only particles
+            # Need to select distances of particles for left and right which only are background particles
+            left_mask = left["source_index"] >= background_index_identifier
+            right_mask = right["source_index"] >= background_index_identifier
+            background_mask = left_mask & right_mask
+            distances = distances[background_mask]
+
+            trigger_pt, _ = ak.broadcast_arrays(
+                trigger_pt_event_wise,
+                distances,
+            )
+            # Recalculate weight
+            weight = _calculate_weight_for_plotting(
+                left=left,
+                right=right,
+                trigger_pt_event_wise=trigger_pt_event_wise,
+                momentum_weight_exponent=momentum_weight_exponent,
+                left_right_mask=background_mask,
+            )
+
+            hists[f"{level}_{trigger_name}_eec_bg_only"].fill(
+                ak.flatten(distances),
+                ak.flatten(trigger_pt),
+                weight=weight * scale_factor,
+            )
+            hists[f"{level}_{trigger_name}_eec_unweighted_bg_only"].fill(
+                ak.flatten(distances),
+                ak.flatten(trigger_pt),
+                weight=np.ones_like(weight) * scale_factor,
+            )
+
+        # Probably makes no difference...
+        del eec_particles
+        del left
+        del right
+        del distances
+        del trigger_pt
+        del weight
+
+    return trigger_skim_output
+
+
+def _setup_one_input_level_hists(
+    level_names: list[str], trigger_pt_ranges: dict[str, tuple[float, float]]
+) -> dict[str, hist.Hist]:
+    return _setup_base_hists(
+        levels=level_names,
+        trigger_pt_ranges=trigger_pt_ranges,
+    )
+
+
+def analysis_one_input_level(
+    *,
+    collision_system: str,  # noqa: ARG001
+    arrays: ak.Array,  # noqa: ARG001
+    input_metadata: dict[str, Any],  # noqa: ARG001
+    # Analysis arguments
+    trigger_pt_ranges: dict[str, tuple[float, float]],
+    min_track_pt: dict[str, float],  # noqa: ARG001
+    momentum_weight_exponent: int | float,  # noqa: ARG001
+    combinatorics_chunk_size: int,
+    scale_factor: float,  # noqa: ARG001
+    det_level_artificial_tracking_efficiency: float | analysis_tracking.PtDependentTrackingEfficiencyParameters,  # noqa: ARG001
+    use_jet_trigger: bool,  # noqa: ARG001
+    # Injected analysis arguments (when appropriate)
+    pt_hat_bin: int = -1,  # noqa: ARG001
+    scale_factors: dict[str, float] | None = None,  # noqa: ARG001
+    # Default analysis arguments
+    validation_mode: bool = False,  # noqa: ARG001
+    return_skim: bool = False,
+    # NOTE: kwargs are required because we pass the config as the analysis arguments,
+    #       and it contains additional values.
+    **kwargs: Any,  # noqa: ARG001
+) -> framework_task.AnalysisOutput:
+    """Run the analysis for one input level.
+
+    This includes data, or analyzing a single column of pp_MC, PbPb_MC, or embedding.
+    """
+    # Validation
+    if return_skim and combinatorics_chunk_size < 0:
+        logger.info(
+            f"Requested to return the skim, but the combination chunk size is {combinatorics_chunk_size} (> 0), which won't work. So we disable it."
+        )
+
+    # Setup
+    # TODO: Make this configurable, probably
+    level_names = ["data"]
+    hists = _setup_one_input_level_hists(level_names=level_names, trigger_pt_ranges=trigger_pt_ranges)
+    trigger_skim_output: dict[str, ak.Array] = {}
+
+    msg = "Data analysis not yet implemented"
+    raise NotImplementedError(msg)
+
+    return framework_task.AnalysisOutput(  # type: ignore[unreachable]
+        hists=hists,
+        skim=trigger_skim_output,
+    )
+
+
+def _setup_two_input_levels_hists(
+    level_names: list[str], trigger_pt_ranges: dict[str, tuple[float, float]]
+) -> dict[str, hist.Hist]:
+    return _setup_base_hists(
+        levels=level_names,
+        trigger_pt_ranges=trigger_pt_ranges,
+    )
+
+
+def analysis_two_input_levels(
+    *,
+    collision_system: str,  # noqa: ARG001
+    arrays: ak.Array,  # noqa: ARG001
+    input_metadata: dict[str, Any],  # noqa: ARG001
+    # Analysis arguments
+    trigger_pt_ranges: dict[str, tuple[float, float]],
+    min_track_pt: dict[str, float],  # noqa: ARG001
+    momentum_weight_exponent: int | float,  # noqa: ARG001
+    combinatorics_chunk_size: int,
+    scale_factor: float,  # noqa: ARG001
+    det_level_artificial_tracking_efficiency: float | analysis_tracking.PtDependentTrackingEfficiencyParameters,  # noqa: ARG001
+    use_jet_trigger: bool,  # noqa: ARG001
+    # Injected analysis arguments
+    pt_hat_bin: int,  # noqa: ARG001
+    scale_factors: dict[str, float],  # noqa: ARG001
+    # Default analysis arguments
+    validation_mode: bool = False,  # noqa: ARG001
+    return_skim: bool = False,
+    # NOTE: kwargs are required because we pass the config as the analysis arguments,
+    #       and it contains additional values.
+    **kwargs: Any,  # noqa: ARG001
+) -> framework_task.AnalysisOutput:
+    """Run the analysis for the two input levels."""
+    # Validation
+    if return_skim and combinatorics_chunk_size < 0:
+        logger.info(
+            f"Requested to return the skim, but the combination chunk size is {combinatorics_chunk_size} (> 0), which won't work. So we disable it."
+        )
+
+    # Setup
+    # TODO: Make this configurable, probably
+    level_names = ["part_level", "det_level"]
+    hists = _setup_two_input_levels_hists(level_names=level_names, trigger_pt_ranges=trigger_pt_ranges)
+    trigger_skim_output: dict[str, ak.Array] = {}
+
+    msg = "Two level analysis not yet implemented"
+    raise NotImplementedError(msg)
+
+    return framework_task.AnalysisOutput(  # type: ignore[unreachable]
+        hists=hists,
+        skim=trigger_skim_output,
+    )
+
+
+def _setup_embedding_hists(trigger_pt_ranges: dict[str, tuple[float, float]]) -> dict[str, hist.Hist]:
+    return _setup_base_hists(levels=["part_level", "det_level", "hybrid"], trigger_pt_ranges=trigger_pt_ranges)
+
+
+def analysis_embedding(
     *,
     collision_system: str,  # noqa: ARG001
     source_index_identifiers: dict[str, int],
     arrays: ak.Array,
+    input_metadata: dict[str, Any],  # noqa: ARG001
     # Analysis arguments
     trigger_pt_ranges: dict[str, tuple[float, float]],
     min_track_pt: dict[str, float],
@@ -329,8 +515,9 @@ def analysis_embedding(  # noqa: C901
     triggers_dict: dict[str, dict[str, ak.Array]] = {}
     event_selection_mask: dict[str, dict[str, ak.Array]] = {}
     if use_jet_trigger:
-        ...
-    else:
+        msg = "Jet trigger isn't yet implemented for embedding analysis."
+        raise NotImplementedError(msg)
+    else:  # noqa: RET506
         # NOTE: Use the signal fraction because we don't want any overlap between signal and reference events!
         signal_event_fraction = 0.8
         _rng = np.random.default_rng()
@@ -387,128 +574,22 @@ def analysis_embedding(  # noqa: C901
     for level in ["part_level", "det_level", "hybrid"]:
         recoil_direction[level] = {}
         for trigger_name, _ in trigger_pt_ranges.items():
-            for _start, _end in _chunks_for_combinatorics(
-                combinatorics_chunk_size=combinatorics_chunk_size, array_length=len(triggers_dict[level][trigger_name])
-            ):
-                # Next, go to away side in phi and define our recoil region
-                recoil_vector = -1 * triggers_dict[level][trigger_name][_start:_end]
-                trigger_pt_event_wise = triggers_dict[level][trigger_name][_start:_end].pt
-                # Mock up a four vector so we can use the calculation functionality from vector
-                recoil_direction[level][trigger_name] = vector.Array(
-                    ak.zip(
-                        {
-                            "pt": recoil_vector.eta * 0,
-                            "eta": recoil_vector.eta,
-                            "phi": recoil_vector.phi,
-                            "m": recoil_vector.eta * 0,
-                        }
-                    )
-                )
-                logger.warning(
-                    f"{level=}, {trigger_name=}: {_start=}, {_end=}, {len(recoil_vector)=} (Initial size: {len(triggers_dict[level][trigger_name])})"
-                )
-
-                # For recoil region, look at delta_phi between them
-                event_selected_array = arrays[level][event_selection_mask[level][trigger_name]][_start:_end]
-                # We perform the min pt selection first to reduce the number of calculations required.
-                particle_pt_mask = event_selected_array.pt > min_track_pt[level]
-                event_selected_array = event_selected_array[particle_pt_mask]
-                logger.info(f"{level}, {trigger_name}: About to find particles within recoil cone")
-                within_hemisphere = recoil_direction[level][trigger_name].deltaphi(event_selected_array) < np.pi / 4
-                eec_particles = event_selected_array[within_hemisphere]
-
-                if return_skim and combinatorics_chunk_size < 0:
-                    # NOTE: If we're using a combination chunk size, it's going to be really inefficient to return the skim
-                    #       since we would need to recombine the chunks. So we just skip it in this case.
-                    trigger_skim_output[f"{level}_{trigger_name}"] = ak.zip(
-                        {
-                            "triggers": triggers_dict[level][trigger_name],
-                            "particles": eec_particles,
-                        },
-                        depth_limit=1,
-                    )
-
-                # NOTE: These selections could have the potential edge effects in eta, but since we have those in both
-                #       the signal and reference, these should be accounted for automatically.
-                #       This correspondence will be even better when we use mixed events.
-
-                # NOTE: Memory gets bad here. Steps to address:
-                #         1. Use the combinatorics chunk size to reduce the number of combinations in memory
-                #         2. Implement the calculation with numba
-                #         3. Implement the calculation in c++
-                #       As of 2023 June 20, we're only on step 1.
-                logger.info(f"{level}, {trigger_name}: About to calculate combinations")
-                # TODO: Mateusz claims that we should double count here, per the theorists (ie. Kyle).
-                #       This seems odd...
-                left, right = ak.unzip(ak.combinations(eec_particles, 2))
-                distances = left.deltaR(right)
-
-                # One argument should be the power
-                # First, need to broadcast the trigger pt
-                logger.info(f"{level}, {trigger_name}: About to fill hists")
-                trigger_pt, _ = ak.broadcast_arrays(
-                    trigger_pt_event_wise,
-                    distances,
-                )
-                # Save an additional set of calls to exponent if can be avoided
-                weight = _calculate_weight_for_plotting(
-                    left=left,
-                    right=right,
-                    trigger_pt_event_wise=trigger_pt_event_wise,
-                    momentum_weight_exponent=momentum_weight_exponent,
-                )
-                hists[f"{level}_{trigger_name}_eec"].fill(
-                    ak.flatten(distances),
-                    ak.flatten(trigger_pt),
-                    weight=weight * scale_factor,
-                )
-                hists[f"{level}_{trigger_name}_eec_unweighted"].fill(
-                    ak.flatten(distances),
-                    ak.flatten(trigger_pt),
-                    weight=np.ones_like(weight) * scale_factor,
-                )
-                if level == "hybrid":
-                    # We're about to recalculate the weights and trigger pt, so let's release them now
-                    del weight
-                    del trigger_pt
-                    # Compare to background only particles
-                    # Need to select distances of particles for left and right which only are background particles
-                    left_mask = left["source_index"] >= source_index_identifiers["background"]
-                    right_mask = right["source_index"] >= source_index_identifiers["background"]
-                    background_mask = left_mask & right_mask
-                    distances = distances[background_mask]
-
-                    trigger_pt, _ = ak.broadcast_arrays(
-                        trigger_pt_event_wise,
-                        distances,
-                    )
-                    # Recalculate weight
-                    weight = _calculate_weight_for_plotting(
-                        left=left,
-                        right=right,
-                        trigger_pt_event_wise=trigger_pt_event_wise,
-                        momentum_weight_exponent=momentum_weight_exponent,
-                        left_right_mask=background_mask,
-                    )
-
-                    hists[f"{level}_{trigger_name}_eec_bg_only"].fill(
-                        ak.flatten(distances),
-                        ak.flatten(trigger_pt),
-                        weight=weight * scale_factor,
-                    )
-                    hists[f"{level}_{trigger_name}_eec_unweighted_bg_only"].fill(
-                        ak.flatten(distances),
-                        ak.flatten(trigger_pt),
-                        weight=np.ones_like(weight) * scale_factor,
-                    )
-
-                # Probably makes no difference...
-                del eec_particles
-                del left
-                del right
-                del distances
-                del trigger_pt
-                del weight
+            res = calculate_correlators(
+                level=level,
+                trigger_name=trigger_name,
+                triggers=triggers_dict[level][trigger_name],
+                arrays=arrays[level],
+                event_selection_mask=event_selection_mask[level][trigger_name],
+                min_track_pt=min_track_pt[level],
+                momentum_weight_exponent=momentum_weight_exponent,
+                combinatorics_chunk_size=combinatorics_chunk_size,
+                background_index_identifier=source_index_identifiers["background"],
+                scale_factor=scale_factor,
+                hists=hists,
+                return_skim=return_skim,
+            )
+            if res:
+                trigger_skim_output.update(res)
 
     # IPython.embed()  # type: ignore[no-untyped-call]
 
@@ -591,7 +672,7 @@ def run_some_standalone_tests() -> None:
     ...
 
 
-if __name__ == "__main__":
+def minimal_test() -> None:
     helpers.setup_logging(level=logging.INFO)
 
     # run_some_standalone_tests()
@@ -650,6 +731,7 @@ if __name__ == "__main__":
             collision_system="embed_thermal_model",
             source_index_identifiers=source_index_identifiers,
             arrays=arrays,
+            input_metadata={},
             trigger_pt_ranges={
                 "reference": (5, 7),
                 "signal": (20, 50),
@@ -677,3 +759,7 @@ if __name__ == "__main__":
 
     with uproot.recreate("test_eec_thermal_model.root") as f:
         output_utils.write_hists_to_file(hists=merged_hists, f=f)
+
+
+if __name__ == "__main__":
+    minimal_test()
