@@ -2,9 +2,10 @@ from __future__ import annotations
 
 import argparse
 import shutil
+import sys
 from pathlib import Path
 
-import nox
+import nox  # pyright: ignore [reportMissingImports]
 
 DIR = Path(__file__).parent.resolve()
 
@@ -109,3 +110,34 @@ def build(session: nox.Session) -> None:
 
     session.install("build")
     session.run("python", "-m", "build")
+
+
+@nox.session(venv_backend="none")
+def dev_cpp_vscode(session: nox.Session) -> None:
+    """
+    Prepare a .venv folder and create a build dir for vscode to read from.
+
+    This should make the cmake extension work more nicely.
+    Adapted from: https://github.com/scikit-build/scikit-build-core/issues/635
+
+    NOTE:
+        This can mix python versions (especially if executed with eg. pipx), so be
+        very careful with this! It's better to use my other workarounds documented in
+        the README
+    """
+    # Setup
+    venv_name = ".venv-cpp-vscode"
+    session.run(sys.executable, "-m", "venv", venv_name)
+    # Dependencies
+    session.run(f"{venv_name}/bin/pip", "install", "scikit-build-core[pyproject]", "pybind11")
+    # We want to trigger the mammoth-cpp
+    session.run(
+        f"{venv_name}/bin/pip",
+        "install",
+        "--no-build-isolation",
+        "--check-build-dependencies",
+        "-ve",
+        "mammoth-cpp",
+        "-Ccmake.define.CMAKE_EXPORT_COMPILE_COMMANDS=1",
+        "-Cbuild-dir=build",
+    )

@@ -47,3 +47,28 @@ Easiest is to use `pdm`, which will handle dependencies correctly. Just install 
 > ```
 
 </details>
+
+## Helpers with vscode
+
+To get the CMake plugin for vscode to play nicely with this package, I explored a few options:
+
+- [Manually configure CMake in vscode](#manually-configure-vscode) as necessary. It takes a little work
+  and isn't especially robust, but isn't terrible.
+- Create a new venv via `nox`, adapted from [here](https://github.com/scikit-build/scikit-build-core/issues/635).
+  This isn't the nicest because it can mix python versions, etc. It may still work, but use with care!
+
+### Manually configure vscode
+
+You need to add these values to your `.vscode/settings.json`:
+
+```json
+    "cmake.sourceDirectory": "${workspaceFolder}/mammoth-cpp",
+    "cmake.configureSettings": {
+        "CMAKE_PREFIX_PATH":"${workspaceRoot}/.venv-3.11/lib/python3.11/site-packages/pybind11/share/cmake/pybind11",
+    },
+    "cmake.configureArgs": [
+        "-DSKBUILD_PROJECT_NAME=mammoth-cpp"
+    ],
+```
+
+You'll have to adapt the virtualenv path as appropriate. This should allow the cmake plugin to configure properly.
