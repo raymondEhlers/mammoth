@@ -97,7 +97,8 @@ def setup_jet_finding_settings(max_rapidity: float) -> tuple[float, fj.JetDefini
 
     # Create the derived fastjet settings
     jet_definition = fj.JetDefinition(clustering_algorithm, jet_R, recombination_scheme, strategy)
-    ghost_area_spec = fj.GhostedAreaSpec(max_rapidity + jet_R, 1, ghost_area)
+    # NOTE: Don't need the + jet_R because we'll only take jets in the fiducial acceptance
+    ghost_area_spec = fj.GhostedAreaSpec(max_rapidity, 1, ghost_area)
     area_definition = fj.AreaDefinition(area_type, ghost_area_spec)
 
     return jet_R, jet_definition, area_definition
@@ -117,9 +118,10 @@ def run(n_events: int) -> None:
     pythia.init()
 
     # Setup your jet finder.
+    max_rapidity = 1.0
     # NOTE: If you can, you may want to move this out of the event loop. It depends on
     #       exactly how the package was coded up.
-    jet_R, jet_definition, area_definition = setup_jet_finding_settings()
+    jet_R, jet_definition, area_definition = setup_jet_finding_settings(max_rapidity=max_rapidity)
 
     # Define the jet selection here:
     # - Remove jets with pt < 10 GeV
@@ -128,12 +130,12 @@ def run(n_events: int) -> None:
     # It's more efficient to define it outside of the event loop since it doesn't change event-by-event
     # **Q**: How would you implement these selections? Hint: See the fastjet documentation
     # Advanced **Q**: Why do we want the jet to be fully contained within our acceptance?
-    selector = fj.SelectorPtMin(10.0) & fj.SelectorAbsEtaMax(2.0 - jet_R)
+    selector = fj.SelectorPtMin(10.0) & fj.SelectorAbsEtaMax(max_rapidity - jet_R)
 
     # Define some objects to store the results. Usually, we do this via histograms
     # This can be via the ROOT package (you'll have to set it up separately)
     # or via the `hist` package (scikit-hep/hist on GitHub, installable via pip).
-    hist_jet_pt = hist.Hist.new.Reg(100, 0, 100, name="jet_pt", label="Jet pT [GeV]")
+    hist_jet_pt = hist.Hist.new.Reg(100, 0, 200, name="jet_pt", label="Jet pT [GeV]").Double()
 
     # We'll run our analysis code inside of the event loop.
     for i_event in range(n_events):
@@ -148,7 +150,7 @@ def run(n_events: int) -> None:
             # - Only select mid-rapidity particles, which we'll define as |eta| < 2
             # - Accept all particles in phi
             # **Q**: How would you implement these selections? Hint: See the PYTHIA documentation
-            if pythia_particle.isFinal() and pythia_particle.isVisible() and abs(pythia_particle.eta()) < 2:
+            if pythia_particle.isFinal() and pythia_particle.isVisible() and abs(pythia_particle.eta()) < max_rapidity:
                 pj = fj.PseudoJet(pythia_particle.px(), pythia_particle.py(), pythia_particle.pz(), pythia_particle.e())
                 fj_particles.append(pj)
 
@@ -192,8 +194,8 @@ def run(n_events: int) -> None:
     # This can be done via the `uproot` package (scikit-hep/uproot on GitHub, installable via pip).
     # This will write the histograms themselves to a `.root` file, which can be read via uproot or via ROOT itself.
     with uproot.recreate("output.root") as f:
-        f["hist_jet_pt"] = hist_jet_pt.to_hist()
-        f["hist_jet_pt_scaled"] = scaled_hist_jet_pt.to_hist()
+        f["hist_jet_pt"] = hist_jet_pt
+        f["hist_jet_pt_scaled"] = scaled_hist_jet_pt
 
     # And now we're all done! Often, we'll print the statistics from the generation
     pythia.stat()
