@@ -203,6 +203,8 @@ module = [
     "traitlets.*",
     "tornado.*",
     "paramiko",
+    "jupyter",
+    "jupyter_server",
 ]
 ignore_missing_imports = true
 
