@@ -8,15 +8,16 @@ $ pip install pythia8mc fastjet
 ```
 
 .. codeauthor:: Raymond Ehlers <raymond.ehlers@cern.ch>, LBL/UCB
-.. codeauthor:: ... # Fill in your name here!
 """
 
 from __future__ import annotations
 
 import fastjet as fj  # pyright: ignore[reportMissingImports]
+import hist
 
-# NOTE: This would be just `pythia8` if you compile it yourself. However, it's `pythia8mc` if you install via PyPI (ie. pip)
+# NOTE: This would be just `pythia8` if you compile it yourself. However, it's pythia8mc if you install via PyPI (ie. pip)
 import pythia8mc  # pyright: ignore[reportMissingImports]
+import uproot
 
 
 def setup_pythia() -> pythia8mc.Pythia:
@@ -48,7 +49,7 @@ def setup_pythia() -> pythia8mc.Pythia:
     # Provide a unique seed for each run to ensure the outputs for multiple runs or processes are not the same.
     # **Q**: How can you do this properly?
     # Check the documentation for what is valid!
-    random_seed = ...
+    random_seed = 0
     pythia.readString("Random:setSeed = on")
     pythia.readString(f"Random:seed = {random_seed}")
 
@@ -64,7 +65,7 @@ def setup_pythia() -> pythia8mc.Pythia:
     return pythia
 
 
-def setup_jet_finding_settings() -> tuple[float, fj.JetDefinition, fj.AreaDefinition]:
+def setup_jet_finding_settings(max_rapidity: float) -> tuple[float, fj.JetDefinition, fj.AreaDefinition]:
     """Setup the jet finder.
 
     Use the following settings to get started:
@@ -80,17 +81,24 @@ def setup_jet_finding_settings() -> tuple[float, fj.JetDefinition, fj.AreaDefini
             (ie. one ghost per 0.05x0.05). Smaller sizes will take
             longer, but be more accurate.
 
+    Args:
+        max_rapidity: The maximum rapidity for the acceptance.
+
     Returns:
-        jet_definition, area_definition: The jet definition and the area definition.
+        jet_R, jet_definition, area_definition: The jet definition and the area definition.
     """
     # Define base parameters. Could make these arguments
     jet_R = 0.4
-    clustering_algorithm = ...
-    # ...
+    ghost_area = 0.05
+    clustering_algorithm = fj.antikt_algorithm
+    area_type = fj.active_area
+    recombination_scheme = fj.E_scheme
+    strategy = fj.Best
 
     # Create the derived fastjet settings
-    jet_definition = ...
-    area_definition = ...
+    jet_definition = fj.JetDefinition(clustering_algorithm, jet_R, recombination_scheme, strategy)
+    ghost_area_spec = fj.GhostedAreaSpec(max_rapidity + jet_R, 1, ghost_area)
+    area_definition = fj.AreaDefinition(area_type, ghost_area_spec)
 
     return jet_R, jet_definition, area_definition
 
@@ -120,12 +128,12 @@ def run(n_events: int) -> None:
     # It's more efficient to define it outside of the event loop since it doesn't change event-by-event
     # **Q**: How would you implement these selections? Hint: See the fastjet documentation
     # Advanced **Q**: Why do we want the jet to be fully contained within our acceptance?
-    selector = ...
+    selector = fj.SelectorPtMin(10.0) & fj.SelectorAbsEtaMax(2.0 - jet_R)
 
     # Define some objects to store the results. Usually, we do this via histograms
     # This can be via the ROOT package (you'll have to set it up separately)
     # or via the `hist` package (scikit-hep/hist on GitHub, installable via pip).
-    hist_jet_pt = ...
+    hist_jet_pt = hist.Hist.new.Reg(100, 0, 100, name="jet_pt", label="Jet pT [GeV]")
 
     # We'll run our analysis code inside of the event loop.
     for i_event in range(n_events):
@@ -133,14 +141,16 @@ def run(n_events: int) -> None:
         print(f"Generating event {i_event}")
 
         fj_particles = []
-        for pythia_particle in pythia.event:  # noqa: B007
+        for pythia_particle in pythia.event:
             # Add some selections to the pythia particles:
             # - Only keep stable ("final state") particles.
             # - Require that that particle "is visible" (ie. interacts via the EM or strong force)
             # - Only select mid-rapidity particles, which we'll define as |eta| < 2
             # - Accept all particles in phi
             # **Q**: How would you implement these selections? Hint: See the PYTHIA documentation
-            ...
+            if pythia_particle.isFinal() and pythia_particle.isVisible() and abs(pythia_particle.eta()) < 2:
+                pj = fj.PseudoJet(pythia_particle.px(), pythia_particle.py(), pythia_particle.pz(), pythia_particle.e())
+                fj_particles.append(pj)
 
             # For all particles you keep, you should convert them into a suitable type for fastjet.
             # This means you need to convert them into a PseudoJet. You can store them in the `fj_particles` list.
@@ -148,15 +158,10 @@ def run(n_events: int) -> None:
         # Create the jet finder, known as the `Clustering Sequence`
         # **Q**: What do all of the arguments mean here? You don't need to understand in great detail,
         #           but it's good to have a general idea.
-        cluster_sequence = ...
+        cluster_sequence = fj.ClusterSequenceArea(fj_particles, jet_definition, area_definition)
 
         # Apply some selections to the jets
-        # - Remove jets with pt < 10 GeV
-        # - Ensure the jets are fully contained within the "fiducial acceptance" that we've defined,
-        #   which means that the jet must be within |eta| < (2.0 - R).
-        # **Q**: How would you implement these selections? Hint: See the fastjet documentation
-        # Advanced **Q**: Why do we want the jet to be fully contained within our acceptance?
-        jets = ...
+        jets = selector(cluster_sequence.inclusive_jets())
 
         # Once you have the jets, you can fill them into a histogram.
         # As a first example, we can fill the jet pt (which you defined above)
@@ -174,17 +179,21 @@ def run(n_events: int) -> None:
     # used in generating the events (weightSum). ie. scale_factor = sigmaGen / weightSum
     # Hint: See the Pythia::Info object and the python interface documentation
     #       (note the name is slightly different than in the c++ code)
-    sigma_gen = ...
-    weight_sum = ...
+    pythia_info = pythia.infoPython()
+    sigma_gen = pythia_info.sigmaGen()
+    weight_sum = pythia_info.weightSum()
     scale_factor = sigma_gen / weight_sum
     # Apply this scale factor to your histogram.
     # You might also consider saving the unscaled and scaled versions to visually see how different they are.
     # **Q**: What does the size of this number suggest about how rare the process is?
+    scaled_hist_jet_pt = hist_jet_pt * scale_factor
 
     # Once the event loop is done, you can save the histograms to a file.
     # This can be done via the `uproot` package (scikit-hep/uproot on GitHub, installable via pip).
     # This will write the histograms themselves to a `.root` file, which can be read via uproot or via ROOT itself.
-    ...  # noqa: PIE790
+    with uproot.recreate("output.root") as f:
+        f["hist_jet_pt"] = hist_jet_pt.to_hist()
+        f["hist_jet_pt_scaled"] = scaled_hist_jet_pt.to_hist()
 
     # And now we're all done! Often, we'll print the statistics from the generation
     pythia.stat()
@@ -201,4 +210,4 @@ def run(n_events: int) -> None:
 
 
 if __name__ == "__main__":
-    run(n_events=100)
+    run(n_events=10)
