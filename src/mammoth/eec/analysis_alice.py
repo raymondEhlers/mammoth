@@ -17,6 +17,7 @@ from functools import partial
 from pathlib import Path
 from typing import Any
 
+import attrs
 import awkward as ak
 import hist
 import numpy as np
@@ -34,6 +35,31 @@ logger = logging.getLogger(__name__)
 vector.register_awkward()
 
 
+@attrs.define
+class TriggerParameters:
+    type: str = attrs.field()
+    kinematic_label: str = attrs.field()
+    classes: dict[str, Any] = attrs.field(factory=dict)
+    parameters: dict[str, Any] = attrs.field(factory=dict)
+
+    @classmethod
+    def from_config(cls, config: dict[str, Any]) -> TriggerParameters:
+        parameters = dict(config["parameters"])
+        trigger_type = parameters.pop("type")
+        kinematic_label = parameters.pop("kinematic_label")
+        classes = dict(config["classes"])
+
+        return cls(
+            type=trigger_type,
+            kinematic_label=kinematic_label,
+            classes=classes,
+            parameters=parameters,
+        )
+
+    def label(self) -> str:
+        return f"trigger_{self.type}_{self.kinematic_label}"
+
+
 def customize_analysis_metadata(
     task_settings: framework_task.Settings,  # noqa: ARG001
     **analysis_arguments: Any,  # noqa: ARG001
@@ -45,7 +71,7 @@ def customize_analysis_metadata(
     return {}
 
 
-def _setup_base_hists(levels: list[str], trigger_pt_ranges: dict[str, tuple[float, float]]) -> dict[str, hist.Hist]:
+def _setup_base_hists(levels: list[str], trigger_parameters: TriggerParameters) -> dict[str, hist.Hist]:
     """Setup the histograms for the embedding analysis."""
     hists = {}
 
@@ -62,7 +88,7 @@ def _setup_base_hists(levels: list[str], trigger_pt_ranges: dict[str, tuple[floa
 
     # EECs
     for level in levels:
-        for trigger_name, trigger_range_tuple in trigger_pt_ranges.items():
+        for trigger_name, trigger_range_tuple in trigger_parameters.classes.items():
             trigger_pt_bin_args = (round((trigger_range_tuple[1] - trigger_range_tuple[0]) * 4), *trigger_range_tuple)
             hists[f"{level}_{trigger_name}_eec"] = hist.Hist(
                 *[
@@ -172,6 +198,116 @@ def _calculate_weight_for_plotting(
     if left_right_mask is not None:
         left_right = left_right[left_right_mask]
     return ak.flatten(left_right / trigger_pt)
+
+
+def _find_jet_triggers(
+    *,
+    level: str,  # noqa: ARG001
+    arrays: ak.Array,  # noqa: ARG001
+    # Analysis arguments
+    trigger_parameters: TriggerParameters,  # noqa: ARG001
+    scale_factor: float,  # noqa: ARG001
+    validation_mode: bool,  # noqa: ARG001
+    # Outputs
+    hists: dict[str, hist.Hist],  # noqa: ARG001
+) -> tuple[dict[str, ak.Array], dict[str, ak.Array]]:
+    msg = "Jet trigger isn't yet implemented for embedding analysis."
+    raise NotImplementedError(msg)
+
+
+def _find_hadron_triggers(
+    *,
+    level: str,
+    arrays: ak.Array,
+    # Analysis arguments
+    trigger_parameters: TriggerParameters,
+    scale_factor: float,
+    validation_mode: bool,
+    # Outputs
+    hists: dict[str, hist.Hist],
+) -> tuple[dict[str, ak.Array], dict[str, ak.Array]]:
+    # NOTE: Use the signal fraction because we don't want any overlap between signal and reference events!
+    signal_event_fraction = 0.8
+    _rng = np.random.default_rng()
+    is_signal_event = _rng.random(ak.num(arrays, axis=0)) < signal_event_fraction
+
+    # Trigger QA
+    hists[f"{level}_inclusive_trigger_spectra"].fill(ak.flatten(arrays[level].pt), weight=scale_factor)
+
+    # Random choice args
+    random_choice_kwargs: dict[str, Any] = {}
+    if validation_mode:
+        random_choice_kwargs["random_seed"] = jet_finding.VALIDATION_MODE_RANDOM_SEED[0]
+    triggers_dict: dict[str, ak.Array] = {}
+    event_selection_mask: dict[str, ak.Array] = {}
+    for trigger_name, trigger_range_tuple in trigger_parameters.classes.items():
+        trigger_mask = (arrays[level].pt >= trigger_range_tuple[0]) & (arrays[level].pt < trigger_range_tuple[1])
+        # Add signal mask
+        event_trigger_mask = ~is_signal_event
+        if trigger_name == "signal":
+            event_trigger_mask = is_signal_event
+
+        # Apply the masks separately since one is particle-wise and one is event-wise
+        triggers = arrays[level][trigger_mask]
+        event_trigger_mask = event_trigger_mask & (ak.num(triggers, axis=-1) > 0)
+        triggers = triggers[event_trigger_mask]
+
+        # NOTE: As of April 2023, I don't record the overall number of events because I think
+        #       we're looking for a per-trigger yield (or we will normalize the different trigger
+        #       classes relative to each other, in which case, I don't think we'll care about the
+        #       precise event count).
+
+        # Randomly select if there is more than one trigger
+        # NOTE: This must operator on a concrete field, so we use px as a proxy.
+        select_trigger_mask = analysis_array_helpers.random_choice_jagged(arrays=triggers.px, **random_choice_kwargs)
+        # NOTE: Since we've now selected down to at most one trigger per event, and no empty events,
+        #       our triggers can now be represented with regular numpy arrays.
+        #       By simplifying now, it can make later operations easier.
+        triggers_dict[level][trigger_name] = ak.to_regular(triggers[select_trigger_mask])
+        event_selection_mask[level][trigger_name] = event_trigger_mask
+
+        # Fill in spectra
+        hists[f"{level}_trigger_spectra"].fill(
+            ak.flatten(triggers_dict[level][trigger_name].pt),
+            weight=scale_factor,
+        )
+
+    return triggers_dict, event_selection_mask
+
+
+def _find_triggers(
+    *,
+    level: str,
+    arrays: ak.Array,
+    # Analysis arguments
+    trigger_parameters: TriggerParameters,
+    scale_factor: float,
+    validation_mode: bool,
+    # Outputs
+    hists: dict[str, hist.Hist],
+) -> tuple[dict[str, ak.Array], dict[str, ak.Array]]:
+    match trigger_parameters.type:
+        case "jet":
+            return _find_jet_triggers(
+                level=level,
+                arrays=arrays,
+                trigger_parameters=trigger_parameters,
+                scale_factor=scale_factor,
+                validation_mode=validation_mode,
+                hists=hists,
+            )
+        case "hadron":
+            return _find_hadron_triggers(
+                level=level,
+                arrays=arrays,
+                trigger_parameters=trigger_parameters,
+                scale_factor=scale_factor,
+                validation_mode=validation_mode,
+                hists=hists,
+            )
+        case _:
+            msg = f"Trigger type {trigger_parameters.type} isn't yet implemented for analysis."
+            raise NotImplementedError(msg)
 
 
 def calculate_correlators(
@@ -341,12 +477,10 @@ def calculate_correlators(
     return trigger_skim_output
 
 
-def _setup_one_input_level_hists(
-    level_names: list[str], trigger_pt_ranges: dict[str, tuple[float, float]]
-) -> dict[str, hist.Hist]:
+def _setup_one_input_level_hists(level_names: list[str], trigger_parameters: TriggerParameters) -> dict[str, hist.Hist]:
     return _setup_base_hists(
         levels=level_names,
-        trigger_pt_ranges=trigger_pt_ranges,
+        trigger_parameters=trigger_parameters,
     )
 
 
@@ -356,7 +490,7 @@ def analysis_one_input_level(
     arrays: ak.Array,  # noqa: ARG001
     input_metadata: dict[str, Any],  # noqa: ARG001
     # Analysis arguments
-    trigger_pt_ranges: dict[str, tuple[float, float]],
+    trigger_parameters: TriggerParameters,
     min_track_pt: dict[str, float],  # noqa: ARG001
     momentum_weight_exponent: int | float,  # noqa: ARG001
     combinatorics_chunk_size: int,
@@ -386,7 +520,7 @@ def analysis_one_input_level(
     # Setup
     # TODO: Make this configurable, probably
     level_names = ["data"]
-    hists = _setup_one_input_level_hists(level_names=level_names, trigger_pt_ranges=trigger_pt_ranges)
+    hists = _setup_one_input_level_hists(level_names=level_names, trigger_parameters=trigger_parameters)
     trigger_skim_output: dict[str, ak.Array] = {}
 
     msg = "Data analysis not yet implemented"
@@ -399,11 +533,12 @@ def analysis_one_input_level(
 
 
 def _setup_two_input_levels_hists(
-    level_names: list[str], trigger_pt_ranges: dict[str, tuple[float, float]]
+    level_names: list[str],
+    trigger_parameters: TriggerParameters,
 ) -> dict[str, hist.Hist]:
     return _setup_base_hists(
         levels=level_names,
-        trigger_pt_ranges=trigger_pt_ranges,
+        trigger_parameters=trigger_parameters,
     )
 
 
@@ -413,7 +548,7 @@ def analysis_two_input_levels(
     arrays: ak.Array,  # noqa: ARG001
     input_metadata: dict[str, Any],  # noqa: ARG001
     # Analysis arguments
-    trigger_pt_ranges: dict[str, tuple[float, float]],
+    trigger_parameters: TriggerParameters,
     min_track_pt: dict[str, float],  # noqa: ARG001
     momentum_weight_exponent: int | float,  # noqa: ARG001
     combinatorics_chunk_size: int,
@@ -440,7 +575,7 @@ def analysis_two_input_levels(
     # Setup
     # TODO: Make this configurable, probably
     level_names = ["part_level", "det_level"]
-    hists = _setup_two_input_levels_hists(level_names=level_names, trigger_pt_ranges=trigger_pt_ranges)
+    hists = _setup_two_input_levels_hists(level_names=level_names, trigger_parameters=trigger_parameters)
     trigger_skim_output: dict[str, ak.Array] = {}
 
     msg = "Two level analysis not yet implemented"
@@ -452,8 +587,8 @@ def analysis_two_input_levels(
     )
 
 
-def _setup_embedding_hists(trigger_pt_ranges: dict[str, tuple[float, float]]) -> dict[str, hist.Hist]:
-    return _setup_base_hists(levels=["part_level", "det_level", "hybrid"], trigger_pt_ranges=trigger_pt_ranges)
+def _setup_embedding_hists(trigger_parameters: TriggerParameters) -> dict[str, hist.Hist]:
+    return _setup_base_hists(levels=["part_level", "det_level", "hybrid"], trigger_parameters=trigger_parameters)
 
 
 def analysis_embedding(
@@ -463,7 +598,7 @@ def analysis_embedding(
     arrays: ak.Array,
     input_metadata: dict[str, Any],  # noqa: ARG001
     # Analysis arguments
-    trigger_pt_ranges: dict[str, tuple[float, float]],
+    trigger_parameters: TriggerParameters,
     min_track_pt: dict[str, float],
     momentum_weight_exponent: int | float,
     combinatorics_chunk_size: int,
@@ -484,7 +619,7 @@ def analysis_embedding(
         )
 
     # Setup
-    hists = _setup_embedding_hists(trigger_pt_ranges=trigger_pt_ranges)
+    hists = _setup_embedding_hists(trigger_parameters=trigger_parameters)
     trigger_skim_output: dict[str, ak.Array] = {}
 
     # Event selection
@@ -534,7 +669,7 @@ def analysis_embedding(
         for level in ["part_level", "det_level", "hybrid"]:
             triggers_dict[level] = {}
             event_selection_mask[level] = {}
-            for trigger_name, trigger_range_tuple in trigger_pt_ranges.items():
+            for trigger_name, trigger_range_tuple in trigger_parameters.classes.items():
                 trigger_mask = (arrays[level].pt >= trigger_range_tuple[0]) & (
                     arrays[level].pt < trigger_range_tuple[1]
                 )
@@ -573,7 +708,7 @@ def analysis_embedding(
     recoil_direction: dict[str, dict[str, ak.Array]] = {}
     for level in ["part_level", "det_level", "hybrid"]:
         recoil_direction[level] = {}
-        for trigger_name, _ in trigger_pt_ranges.items():
+        for trigger_name, _ in trigger_parameters.classes.items():
             res = calculate_correlators(
                 level=level,
                 trigger_name=trigger_name,
@@ -732,10 +867,15 @@ def minimal_test() -> None:
             source_index_identifiers=source_index_identifiers,
             arrays=arrays,
             input_metadata={},
-            trigger_pt_ranges={
-                "reference": (5, 7),
-                "signal": (20, 50),
-            },
+            trigger_parameters=TriggerParameters(
+                type="hadron",
+                kinematic_label="pt",
+                classes={
+                    "reference": (5, 7),
+                    "signal": (20, 50),
+                },
+                parameters={},
+            ),
             min_track_pt={
                 "part_level": 1.0,
                 "det_level": 1.0,
