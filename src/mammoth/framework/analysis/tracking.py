@@ -101,7 +101,7 @@ def hybrid_background_particles_only_mask(
     # NOTE: The most general approach would be some divisor argument to select the signal source indexed
     #       particles, but since the background has the higher source index, we can just select particles
     #       with an index smaller than that offset.
-    background_only_particles_mask = ~(arrays["hybrid", "source_index"] < source_index_identifiers["background"])
+    background_only_particles_mask = ~(arrays["hybrid_level", "source_index"] < source_index_identifiers["background"])
     return background_only_particles_mask  # noqa: RET504
 
 
@@ -130,7 +130,7 @@ def hybrid_level_particles_mask_for_jet_finding(
     # Create an artificial tracking efficiency for detector level particles
     # To apply this, we want to select all background tracks + the subset of det level particles to keep
     # First, start with an all True mask
-    hybrid_level_mask = (arrays["hybrid"].pt >= 0)  # fmt: skip
+    hybrid_level_mask = (arrays["hybrid_level"].pt >= 0)  # fmt: skip
     if (
         isinstance(det_level_artificial_tracking_efficiency, PtDependentTrackingEfficiencyParameters)
         or det_level_artificial_tracking_efficiency < 1.0
@@ -145,7 +145,7 @@ def hybrid_level_particles_mask_for_jet_finding(
         # this in numpy, and then unflatten.
         # First, we determine the total number of det_level particles to determine how many random
         # numbers to generate (plus, the info needed to unflatten later)
-        _n_det_level_particles_per_event = ak.num(arrays["hybrid"][~background_particles_only_mask], axis=1)
+        _n_det_level_particles_per_event = ak.num(arrays["hybrid_level"][~background_particles_only_mask], axis=1)
         _total_n_det_level_particles = ak.sum(_n_det_level_particles_per_event)
 
         # Next, drop particles if their random values that are higher than the tracking efficiency
@@ -154,7 +154,7 @@ def hybrid_level_particles_mask_for_jet_finding(
         if isinstance(det_level_artificial_tracking_efficiency, PtDependentTrackingEfficiencyParameters):
             _pt_dependent_tracking_efficiency = det_level_artificial_tracking_efficiency.calculate_tracking_efficiency(
                 # NOTE: We need to flatten to be able to use searchsorted
-                pt_values=ak.flatten(arrays["hybrid"][~background_particles_only_mask].pt),
+                pt_values=ak.flatten(arrays["hybrid_level"][~background_particles_only_mask].pt),
             )
 
             _drop_particles_mask = random_values > _pt_dependent_tracking_efficiency
@@ -173,7 +173,7 @@ def hybrid_level_particles_mask_for_jet_finding(
         _hybrid_level_mask_np[_det_level_particles_mask_np] = _det_level_particles_to_keep_mask
 
         # Unflatten so we can apply the mask to the existing particles
-        hybrid_level_mask = ak.unflatten(_hybrid_level_mask_np, ak.num(arrays["hybrid"]))
+        hybrid_level_mask = ak.unflatten(_hybrid_level_mask_np, ak.num(arrays["hybrid_level"]))
 
         # Cross check that it worked.
         # If the entire hybrid mask is True, then it means that no particles were removed.

@@ -38,7 +38,7 @@ def load_data(filename: Path) -> ak.Array:
     )
     arrays = next(source.gen_data(chunk_size=sources.ChunkSizeSentinel.FULL_SOURCE))
     logger.info("Transforming data")
-    return _load_data.normalize_for_data(arrays=arrays, rename_prefix={"data": "particles"})
+    return _load_data.normalize_for_one_input_level(arrays=arrays, rename_prefix={"data": "particles"})
 
 
 def find_jets_for_analysis(

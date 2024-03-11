@@ -36,13 +36,15 @@ def _validate_potential_list_of_inputs(inputs: Path | Sequence[Path]) -> list[Pa
     return [inputs] if not isinstance(inputs, collections.abc.Iterable) else list(inputs)
 
 
-def normalize_for_data(
+def normalize_for_one_input_level(
     arrays: ak.Array,
     rename_prefix: Mapping[str, str] | None = None,
     mass_hypothesis: float | Mapping[str, float] = 0.139,
     particle_columns: Mapping[str, npt.DTypeLike] | None = None,
 ) -> ak.Array:
-    """Transform into a form appropriate for data analysis.
+    """Transform into a form appropriate for analysis of one input level.
+
+    In practice, this means that we treat this as data.
 
     Args:
         arrays: Input arrays
@@ -98,13 +100,17 @@ def normalize_for_data(
     )
 
 
-def normalize_for_MC(
+def normalize_for_two_input_level(
     arrays: ak.Array,
     rename_prefix: Mapping[str, str] | None = None,
     mass_hypothesis: float | Mapping[str, float] = 0.139,
     particle_columns: Mapping[str, npt.DTypeLike] | None = None,
 ) -> ak.Array:
-    """Transform into a form appropriate for MC analysis.
+    """Transform into a form appropriate for analysis with two input levels.
+
+    In practice, this usually means that we're treating the inputs as MC. This assumes columns of:
+    - part_level
+    - det_level
 
     Args:
         arrays: Input arrays
@@ -198,14 +204,14 @@ def _transform_data(
         # Handle MC vs data.
         # We treat MC separately unless we rename one of the prefixes to "data". In that case,
         # it means that we want to treat the MC as if it were standard data.
-        if collision_system in ["pythia", "pp_MC"] and "data" not in list(rename_prefix.keys()):
-            logger.info("Transforming as MC")
-            yield normalize_for_MC(arrays=arrays, rename_prefix=rename_prefix)
+        if collision_system in ["pythia", "pp_MC", "PbPb_MC"] and "data" not in list(rename_prefix.keys()):
+            logger.info("Transforming as two input levels")
+            yield normalize_for_two_input_level(arrays=arrays, rename_prefix=rename_prefix)
         else:
             # If not pythia, we don't need any special handling - it's all just data
             # All the rest of the collision systems would be embedded together separately by other functions
-            logger.info("Transforming as data")
-            yield normalize_for_data(arrays=arrays, rename_prefix=rename_prefix)
+            logger.info("Transforming as one input level")
+            yield normalize_for_one_input_level(arrays=arrays, rename_prefix=rename_prefix)
 
 
 def data(
@@ -256,14 +262,19 @@ def data(
     )
 
 
-def normalize_for_embedding(
+def normalize_for_three_input_level(
     arrays: ak.Array,
     source_index_identifiers: Mapping[str, int],
     mass_hypothesis: float | Mapping[str, float] = 0.139,
     particle_columns: Mapping[str, npt.DTypeLike] | None = None,
     fixed_background_index_value: int | None = None,
 ) -> ak.Array:
-    """Transform into a form appropriate for embedding.
+    """Transform into a form appropriate for analysis of three input levels.
+
+    In practice, this means setting up the input collections for embedding. This assumes columns of:
+    - part_level
+    - det_level
+    - hybrid_level
 
     Note:
         This performs embedding in the process of transforming.
@@ -295,6 +306,7 @@ def normalize_for_embedding(
     # 1) Add a source index, to identify where the particles came from.
     # 2) Add identifier column, to identify relationships between particles. May be the source index if not otherwise specified.
     # 2) Complete the four vectors (as necessary).
+    # Detector level
     det_level = arrays["signal"]["det_level"]
     det_level["source_index"] = ak.local_index(det_level) + source_index_identifiers["signal"]
     if "identifier" not in ak.fields(det_level):
@@ -351,7 +363,7 @@ def normalize_for_embedding(
             # (ie. we want `var * Momentum4D[...]`, but without the zip, we have `Momentum4D[var * ...]`)
             # NOTE: For some reason, ak.concatenate returns float64 here. I'm not sure why, but for now
             #       it's not diving into.
-            "hybrid": vector.zip(
+            "hybrid_level": vector.zip(
                 dict(
                     zip(
                         particle_columns.keys(),
@@ -369,6 +381,8 @@ def normalize_for_embedding(
                 )
             ),
             # Include the rest of the non particle related fields (ie. event level info)
+            # NOTE: We don't need to exclude the "hybrid_level" key from below because we're
+            #       generating it here for the first time.
             **{
                 k: v
                 for k, v in zip(ak.fields(arrays["signal"]), ak.unzip(arrays["signal"]), strict=True)
@@ -421,7 +435,7 @@ def _event_select_and_transform_embedding(
         arrays = arrays[(mask & background_event_selection)]  # noqa: PLW2901
 
         logger.info("Transforming embedded")
-        yield normalize_for_embedding(arrays=arrays, source_index_identifiers=source_index_identifiers)
+        yield normalize_for_three_input_level(arrays=arrays, source_index_identifiers=source_index_identifiers)
 
 
 def embedding(

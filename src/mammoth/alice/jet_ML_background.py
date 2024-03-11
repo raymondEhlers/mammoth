@@ -87,7 +87,7 @@ def load_embedding(
     )
     arrays = arrays[mask]
 
-    return source_index_identifiers, load_data.normalize_for_embedding(
+    return source_index_identifiers, load_data.normalize_for_three_input_level(
         arrays=arrays,
         source_index_identifiers=source_index_identifiers,
         # NOTE: We set a fixed background index value because it's required for the ML framework.

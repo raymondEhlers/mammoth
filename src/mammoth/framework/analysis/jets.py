@@ -113,9 +113,9 @@ def jet_matching_embedding(
     #       However, since we have the the additional jet constituent indexing info, we can
     #       figure out the matching directly between hybrid sub and det level. So we don't include
     #       the intermediate matching.
-    jets["det_level", "matching"], jets["hybrid", "matching"] = jet_finding.jet_matching_geometrical(
+    jets["det_level", "matching"], jets["hybrid_level", "matching"] = jet_finding.jet_matching_geometrical(
         jets_base=jets["det_level"],
-        jets_tag=jets["hybrid"],
+        jets_tag=jets["hybrid_level"],
         max_matching_distance=det_level_hybrid_max_matching_distance,
     )
     jets["part_level", "matching"], jets["det_level", "matching"] = jet_finding.jet_matching_geometrical(
@@ -132,7 +132,7 @@ def jet_matching_embedding(
     jets_present_mask = (
         (ak.num(jets["part_level"], axis=1) > 0)
         & (ak.num(jets["det_level"], axis=1) > 0)
-        & (ak.num(jets["hybrid"], axis=1) > 0)
+        & (ak.num(jets["hybrid_level"], axis=1) > 0)
     )
     jets = jets[jets_present_mask]
 
@@ -155,19 +155,19 @@ def jet_matching_embedding(
     # NOTE: This method doesn't check that particle level jets match to the detector level jets.
     #       However, it doesn't need to do so because the matching is bijective, so it already
     #       must be the case.
-    hybrid_to_det_level_valid_matches = jets["hybrid", "matching"] > -1
+    hybrid_to_det_level_valid_matches = jets["hybrid_level", "matching"] > -1
     det_to_part_level_valid_matches = jets["det_level", "matching"] > -1
     hybrid_to_det_level_including_det_to_part_level_valid_matches = det_to_part_level_valid_matches[
-        jets["hybrid", "matching"][hybrid_to_det_level_valid_matches]
+        jets["hybrid_level", "matching"][hybrid_to_det_level_valid_matches]
     ]
     # First, restrict the hybrid level, requiring hybrid to det_level valid matches and
     # det_level to part_level valid matches.
-    jets["hybrid"] = jets["hybrid"][hybrid_to_det_level_valid_matches][
+    jets["hybrid_level"] = jets["hybrid_level"][hybrid_to_det_level_valid_matches][
         hybrid_to_det_level_including_det_to_part_level_valid_matches
     ]
     # Next, restrict the det_level. Since we've restricted the hybrid to only valid matches, we should be able
     # to directly apply the masking indices.
-    jets["det_level"] = jets["det_level"][jets["hybrid", "matching"]]
+    jets["det_level"] = jets["det_level"][jets["hybrid_level", "matching"]]
     # Same reasoning here.
     jets["part_level"] = jets["part_level"][jets["det_level", "matching"]]
 
@@ -176,7 +176,7 @@ def jet_matching_embedding(
     jets_present_mask = (
         (ak.num(jets["part_level"], axis=1) > 0)
         & (ak.num(jets["det_level"], axis=1) > 0)
-        & (ak.num(jets["hybrid"], axis=1) > 0)
+        & (ak.num(jets["hybrid_level"], axis=1) > 0)
     )
     jets = jets[jets_present_mask]
 

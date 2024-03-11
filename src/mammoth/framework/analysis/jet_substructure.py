@@ -795,7 +795,7 @@ def parquet_to_substructure_analysis(filename: Path, prefixes: Mapping[str, str]
     # We'll need to handle this later in the skim.
     # NOTE: This always has prefix "data" if it's included!
     if "data_leading_track_pt" in ak.fields(arrays):
-        prefix_for_leading_track = "hybrid" if "hybrid" in list(prefixes.keys()) else "data"
+        prefix_for_leading_track = "hybrid_level" if "hybrid_level" in list(prefixes.keys()) else "data"
         additional_columns[prefix_for_leading_track] = {
             "leading_track_pt": arrays["data_leading_track_pt"],
         }
@@ -906,7 +906,7 @@ if __name__ == "__main__":
     convert_tree_to_parquet(
         filename=Path("trains/embedPythia/6632/AnalysisResults.18r.repaired.root"),
         tree_name="AliAnalysisTaskJetDynamicalGrooming_hybridLevelJets_AKTChargedR040_tracks_pT0150_E_schemeConstSub_RawTree_EventSub_Incl",
-        prefixes=list({"hybrid": "data", "true": "matched", "det_level": "detLevel"}.values()),
+        prefixes=list({"hybrid_level": "data", "true": "matched", "det_level": "detLevel"}.values()),
         branches=[],
         prefix_branches=[
             "{prefix}.fJetPt",
