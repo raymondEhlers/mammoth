@@ -1,8 +1,8 @@
 """Run ALICE analysis for energy-energy correlators for pp, PbPb, MC, and embedding
 
 Here, we have a working definition of the analysis functions:
-- `analysis_one_level`: Run the analysis for a single input level. This includes data, one MC column, or one embedding column
-- `analysis_two_input_levels`: Run the analysis for two input levels. This includes two MC columns. In principle,
+- `analysis_one_input_level`: Run the analysis for a single input level. This includes data, one MC column, or one embedding column
+- `analysis_two_input_level`: Run the analysis for two input levels. This includes two MC columns. In principle,
     it could also include embedding, but it's not tested as such.
 - `analysis_three_input_levels`: Run the analysis for three input levels (ie. embedding).
 
@@ -532,7 +532,7 @@ def analysis_one_input_level(
     )
 
 
-def _setup_two_input_levels_hists(
+def _setup_two_input_level_hists(
     level_names: list[str],
     trigger_parameters: TriggerParameters,
 ) -> dict[str, hist.Hist]:
@@ -542,7 +542,7 @@ def _setup_two_input_levels_hists(
     )
 
 
-def analysis_two_input_levels(
+def analysis_two_input_level(
     *,
     collision_system: str,  # noqa: ARG001
     arrays: ak.Array,  # noqa: ARG001
@@ -575,7 +575,7 @@ def analysis_two_input_levels(
     # Setup
     # TODO: Make this configurable, probably
     level_names = ["part_level", "det_level"]
-    hists = _setup_two_input_levels_hists(level_names=level_names, trigger_parameters=trigger_parameters)
+    hists = _setup_two_input_level_hists(level_names=level_names, trigger_parameters=trigger_parameters)
     trigger_skim_output: dict[str, ak.Array] = {}
 
     msg = "Two level analysis not yet implemented"
