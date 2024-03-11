@@ -97,7 +97,7 @@ def steer_task_execution(
                 analysis_output = analysis_function(
                     collision_system=task_settings.collision_system,
                     arrays=arrays,
-                    input_metadata=task_metadata,
+                    input_metadata=task_settings.input_metadata,
                     validation_mode=validation_mode,
                     # Although return_skim is an output option that we try to abstract away, it can be quite costly in terms of memory.
                     # Consequently, we break the abstraction and pass it, since many tasks are under memory pressure.

@@ -33,6 +33,7 @@ logger = logging.getLogger(__name__)
 ####################
 
 Metadata = dict[str, Any]
+InputMetadata = dict[str, Any]
 
 
 def description_from_metadata(metadata: dict[str, Any]) -> str:
@@ -59,14 +60,15 @@ class Settings:
         production_identifier: Unique production identifier for the task.
         collision_system: Collision system
         chunk_size: Chunk size for the task.
-        input_metadata: Metadata about the input source. This is the one violation of concerns,
+        input_metadata: Metadata about the input source. This is a violation of concerns
+            since the task settings shouldn't need to know about the input source,
             but it's really useful to have this information available to the analysis task.
     """
 
     production_identifier: str
     collision_system: str
     chunk_size: sources.T_ChunkSize
-    input_metadata: dict[str, Any]
+    input_metadata: InputMetadata
 
 
 @attrs.frozen(kw_only=True)
@@ -443,6 +445,7 @@ class AnalysisBound(Protocol):
         *,
         collision_system: str,
         arrays: ak.Array,
+        input_metadata: InputMetadata,
         validation_mode: bool = False,
         return_skim: bool = False,
         **kwargs: Any,
@@ -457,6 +460,7 @@ class EmbeddingAnalysisBound(Protocol):
         collision_system: str,
         source_index_identifiers: dict[str, int],
         arrays: ak.Array,
+        input_metadata: InputMetadata,
         validation_mode: bool = False,
         return_skim: bool = False,
         **kwargs: Any,
