@@ -64,83 +64,11 @@ class EECProductionSpecialization:
 
 
 # Define the steering apps
-##### DEV
-# An ideal steering interface
-# NOTE: The names of the workflows that we add are about the **input** provided by the workflow - not the analysis function!
-# NOTE: Workflow is identical for the one vs two input collections. It's just that the analyze_chunk function is different!
-setup_standard_workflow = steer_workflow.setup_framework_standard_workflow(
-    analyze_chunk_with_one_input_lvl=analysis_alice.analysis_one_input_level,
-    analyze_chunk_with_two_input_lvl=analysis_alice.analysis_two_input_level,
-    preprocess_arguments=...,
-    output_identifier=...,
-    metadata_for_labeling=...,
-)
-
-# If we need to do something different, you can always make more!
-setup_embedded_workflow = steer_workflow.setup_framework_embed_workflow(
-    analyze_chunk_with_one_input_lvl=analysis_alice.analysis_one_input_level,
-    analyze_chunk_with_two_input_lvl=analysis_alice.analysis_two_input_level,
-    analyze_chunk_with_three_input_lvl=analysis_alice.analysis_embedding,
-    preprocess_arguments=...,
-    output_identifier=...,
-    metadata_for_labeling=...,
-)
-
-# Wrap the above to reduce the redundancy of passing multiple functions and make them easier to use.
 setup_standard_workflow, setup_embed_workflow = steer_workflow.setup_framework_default_workflows(
     analyze_chunk_with_one_input_lvl=analysis_alice.analyze_chunk_one_input_level,
     analyze_chunk_with_two_input_lvl=analysis_alice.analyze_chunk_two_input_level,
     analyze_chunk_with_three_input_lvl=analysis_alice.analyze_chunk_three_input_level,
-    preprocess_arguments=...,
-    output_identifier=...,
-    metadata_for_labeling=...,
-)
-
-# setup_one_collection_workflow = steer_workflow.setup_one_input_collection_workflow(
-#    analyze_chunk=...,
-#    preprocess_arguments=...,
-#    output_identifier=...,
-#    metadata_for_labeling=...,
-# )
-
-# setup_two_collection_workflow = steer_workflow.setup_two_input_collection_workflow(
-#
-# )
-#
-# setup_embed_MC_into_data_workflow = steer_workflow.setup_embed_MC_into_data_workflow(
-#    analysis_function=groomed_substructure_analysis.analysis_embedding,
-#    argument_preprocessing=groomed_substructure_steering.argument_preprocessing,
-#    analysis_metadata=groomed_substructure_analysis.customize_analysis_metadata,
-#    analysis_output_identifier=groomed_substructure_steering.analysis_output_identifier,
-# )
-#
-# setup_embed_MC_into_thermal_model_workflow = steer_workflow.setup_embed_MC_into_thermal_model_workflow(
-#    analysis_function=groomed_substructure_analysis.analysis_embedding,
-#    argument_preprocessing=groomed_substructure_steering.argument_preprocessing,
-#    analysis_metadata=groomed_substructure_analysis.customize_analysis_metadata,
-#    analysis_output_identifier=groomed_substructure_steering.analysis_output_identifier,
-# )
-
-#### END DEV
-
-
-setup_data_skim = steer_workflow.setup_data_calculation(
-    analyze_chunk=analysis_alice.analysis_one_input_level,
-    metadata_for_labeling=analysis_alice.customize_analysis_metadata,
-)
-
-setup_MC_two_input_collection_skim = steer_workflow.setup_data_calculation(
-    analyze_chunk=analysis_alice.analysis_two_input_levels,
-    metadata_for_labeling=analysis_alice.customize_analysis_metadata,
-)
-
-setup_embed_MC_into_data_skim = steer_workflow.setup_embed_MC_into_data_calculation(
-    analyze_chunk=analysis_alice.analysis_embedding,
-    metadata_for_labeling=analysis_alice.customize_analysis_metadata,
-)
-
-setup_embed_MC_into_thermal_model_skim = steer_workflow.setup_embed_MC_into_thermal_model_calculation(
-    analyze_chunk=analysis_alice.analysis_embedding,
+    preprocess_arguments=analysis_alice.preprocess_arguments,
     metadata_for_labeling=analysis_alice.customize_analysis_metadata,
 )
 
@@ -219,30 +147,26 @@ def setup_and_submit_tasks(
                     job_framework=job_framework,
                 )
             )
-        # if "calculate_data_skim" in tasks_to_execute:
-        #    system_results.extend(
-        #        setup_calculate_data_skim(
-        #            prod=prod,
-        #            job_framework=job_framework,
-        #            debug_mode=debug_mode,
-        #        )
-        #    )
-        if "calculate_embed_thermal_model_skim" in tasks_to_execute:
-            system_results.extend(
-                setup_embed_MC_into_thermal_model_skim(
-                    prod=prod,
-                    job_framework=job_framework,
-                    debug_mode=debug_mode,
+        standard_workflows = ["calculate_data_skim", "calculate_pp_MC_skim"]
+        for wf in standard_workflows:
+            if wf in tasks_to_execute:
+                system_results.extend(
+                    setup_standard_workflow(
+                        prod=prod,
+                        job_framework=job_framework,
+                        debug_mode=debug_mode,
+                    )
                 )
-            )
-        if "calculate_embed_pythia_skim" in tasks_to_execute:
-            system_results.extend(
-                setup_embed_MC_into_data_skim(
-                    prod=prod,
-                    job_framework=job_framework,
-                    debug_mode=debug_mode,
+        embed_workflows = ["calculate_embed_thermal_model_skim", "calculate_embed_pythia_skim"]
+        for wf in embed_workflows:
+            if wf in tasks_to_execute:
+                system_results.extend(
+                    setup_embed_workflow(
+                        prod=prod,
+                        job_framework=job_framework,
+                        debug_mode=debug_mode,
+                    )
                 )
-            )
 
         all_results.extend(system_results)
         logger.info(f"Accumulated {len(system_results)} futures for {prod.collision_system}")

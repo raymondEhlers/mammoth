@@ -60,6 +60,13 @@ class TriggerParameters:
         return f"trigger_{self.type}_{self.kinematic_label}"
 
 
+def preprocess_arguments(**analysis_arguments: Any) -> dict[str, Any]:
+    trigger_parameters = TriggerParameters.from_config(analysis_arguments["trigger_parameters"])
+    return {
+        "trigger_parameters": trigger_parameters,
+    }
+
+
 def customize_analysis_metadata(
     task_settings: framework_task.Settings,  # noqa: ARG001
     **analysis_arguments: Any,  # noqa: ARG001
@@ -484,7 +491,7 @@ def _setup_one_input_level_hists(level_names: list[str], trigger_parameters: Tri
     )
 
 
-def analysis_one_input_level(
+def analyze_chunk_one_input_level(
     *,
     collision_system: str,  # noqa: ARG001
     arrays: ak.Array,  # noqa: ARG001
@@ -542,7 +549,7 @@ def _setup_two_input_level_hists(
     )
 
 
-def analysis_two_input_level(
+def analyze_chunk_two_input_level(
     *,
     collision_system: str,  # noqa: ARG001
     arrays: ak.Array,  # noqa: ARG001
@@ -591,7 +598,7 @@ def _setup_embedding_hists(trigger_parameters: TriggerParameters) -> dict[str, h
     return _setup_base_hists(levels=["part_level", "det_level", "hybrid"], trigger_parameters=trigger_parameters)
 
 
-def analysis_embedding(
+def analyze_chunk_three_input_level(
     *,
     collision_system: str,  # noqa: ARG001
     source_index_identifiers: dict[str, int],
@@ -612,6 +619,10 @@ def analysis_embedding(
     #       and it contains additional values.
     **kwargs: Any,  # noqa: ARG001
 ) -> framework_task.AnalysisOutput:
+    """Run the analysis for the three input levels.
+
+    ie. This means analysis for embedding
+    """
     # Validation
     if return_skim and combinatorics_chunk_size < 0:
         logger.info(
@@ -862,7 +873,7 @@ def minimal_test() -> None:
     # END NOTE
     for i_chunk, arrays in enumerate(iter_arrays):
         logger.info(f"Processing chunk: {i_chunk}")
-        analysis_output = analysis_embedding(
+        analysis_output = analyze_chunk_three_input_level(
             collision_system="embed_thermal_model",
             source_index_identifiers=source_index_identifiers,
             arrays=arrays,
