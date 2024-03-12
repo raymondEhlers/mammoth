@@ -15,7 +15,7 @@ def _safe_str_reclustering_settings(reclustering_settings: MutableMapping[str, A
     """Convert reclustering settings to a string, but safely handle missing keys."""
     algorithm = reclustering_settings.get("algorithm", "")
     additional_algorithm_parameter = reclustering_settings.get("additional_algorithm_parameter", "")
-    if isinstance(additional_algorithm_parameter, float):
+    if isinstance(additional_algorithm_parameter, float | int):
         additional_algorithm_parameter = f"{additional_algorithm_parameter}"
         # And then replace any possible decimal point with an "p"
         additional_algorithm_parameter = additional_algorithm_parameter.replace(".", "p")
