@@ -21,32 +21,13 @@ logger = logging.getLogger(__name__)
 
 
 # Define the steering apps
-setup_data_skim = steer_workflow.setup_data_calculation(
-    analyze_chunk=groomed_substructure_analysis.analysis_data,
+setup_standard_workflow, setup_embed_workflow = steer_workflow.setup_framework_default_workflows(
+    analyze_chunk_with_one_input_lvl=groomed_substructure_analysis.analysis_data,
+    analyze_chunk_with_two_input_lvl=groomed_substructure_analysis.analysis_MC,
+    analyze_chunk_with_three_input_lvl=groomed_substructure_analysis.analysis_embedding,
     preprocess_arguments=groomed_substructure_steering.argument_preprocessing,
-    metadata_for_labeling=groomed_substructure_analysis.customize_analysis_metadata,
     output_identifier=groomed_substructure_steering.analysis_output_identifier,
-)
-
-setup_MC_skim = steer_workflow.setup_data_calculation(
-    analyze_chunk=groomed_substructure_analysis.analysis_MC,
-    preprocess_arguments=groomed_substructure_steering.argument_preprocessing,
     metadata_for_labeling=groomed_substructure_analysis.customize_analysis_metadata,
-    output_identifier=groomed_substructure_steering.analysis_output_identifier,
-)
-
-setup_embed_MC_into_data_skim = steer_workflow.setup_embed_MC_into_data_calculation(
-    analyze_chunk=groomed_substructure_analysis.analysis_embedding,
-    preprocessing_arguments=groomed_substructure_steering.argument_preprocessing,
-    metadata_for_labeling=groomed_substructure_analysis.customize_analysis_metadata,
-    output_identifier=groomed_substructure_steering.analysis_output_identifier,
-)
-
-setup_embed_MC_into_thermal_model_skim = steer_workflow.setup_embed_MC_into_thermal_model_calculation(
-    analyze_chunk=groomed_substructure_analysis.analysis_embedding,
-    preprocess_arguments=groomed_substructure_steering.argument_preprocessing,
-    metadata_for_labeling=groomed_substructure_analysis.customize_analysis_metadata,
-    output_identifier=groomed_substructure_steering.analysis_output_identifier,
 )
 
 
@@ -140,7 +121,7 @@ def setup_and_submit_tasks(
             )
         if "calculate_data_skim" in tasks_to_execute:
             system_results.extend(
-                setup_data_skim(
+                setup_standard_workflow(
                     prod=prod,
                     job_framework=job_framework,
                     debug_mode=debug_mode,
@@ -148,7 +129,7 @@ def setup_and_submit_tasks(
             )
         if "calculate_pp_MC_skim" in tasks_to_execute:
             system_results.extend(
-                setup_MC_skim(
+                setup_standard_workflow(
                     prod=prod,
                     job_framework=job_framework,
                     debug_mode=debug_mode,
@@ -156,7 +137,7 @@ def setup_and_submit_tasks(
             )
         if "calculate_embed_pythia_skim" in tasks_to_execute:
             system_results.extend(
-                setup_embed_MC_into_data_skim(
+                setup_embed_workflow(
                     prod=prod,
                     job_framework=job_framework,
                     debug_mode=debug_mode,
@@ -164,7 +145,7 @@ def setup_and_submit_tasks(
             )
         if "calculate_embed_thermal_model_skim" in tasks_to_execute:
             system_results.extend(
-                setup_embed_MC_into_thermal_model_skim(
+                setup_embed_workflow(
                     prod=prod,
                     job_framework=job_framework,
                     debug_mode=debug_mode,
