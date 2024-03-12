@@ -90,6 +90,7 @@ def analyze_chunk_two_input_level(
     *,
     collision_system: str,
     arrays: ak.Array,
+    input_metadata: dict[str, Any],  # noqa: ARG001
     # Analysis arguments
     pt_hat_bin: int,
     scale_factors: dict[int, float],
@@ -180,6 +181,7 @@ def analyze_chunk_one_input_level(
     *,
     collision_system: str,
     arrays: ak.Array,
+    input_metadata: dict[str, Any],  # noqa: ARG001
     # Analysis arguments
     convert_data_format_prefixes: Mapping[str, str],
     jet_R: float,
@@ -279,6 +281,7 @@ def analyze_chunk_three_input_level(
     *,
     source_index_identifiers: Mapping[str, int],
     arrays: ak.Array,
+    input_metadata: dict[str, Any],  # noqa: ARG001
     # Analysis arguments
     scale_factor: float,
     convert_data_format_prefixes: Mapping[str, str],
@@ -389,6 +392,7 @@ def run_some_standalone_tests() -> None:
             rename_prefix={},
         ),
         collision_system=collision_system,
+        input_metadata={},
         # Analysis arguments
         pt_hat_bin=1,
         scale_factors={i: 1 for i in range(1, 21)},
