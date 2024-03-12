@@ -1051,6 +1051,10 @@ def setup_framework_default_workflows(
         Only one analyze function needs to be provided since we may not have valid ones for all cases.
         However, they cannot all be None!
 
+    Note:
+        If you need to customize how this is setup, you can always define conventions yourself!
+        This is just for convenience (hence the "default" in the name).
+
     Args:
         analyze_chunk_with_one_input_lvl: Analysis function to be run with one input level.
         analyze_chunk_with_two_input_lvl: Analysis function to be run with two input levels.
