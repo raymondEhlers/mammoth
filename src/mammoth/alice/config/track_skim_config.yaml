@@ -286,6 +286,8 @@ analysis_settings:
         # skim output to the structured jet substructure format
         convert_data_format_prefixes:
           data: "data"
+        analysis_input_levels:
+          - "data"
         splittings_selection: "iterative"
         # In GeV
         min_jet_pt: { "data": 5 }
@@ -302,6 +304,7 @@ analysis_settings:
         convert_data_format_prefixes:
           det_level: "data"
           part_level: "true"
+        analysis_input_levels: ["det_level", "part_level"]
         splittings_selection: "iterative"
         # In GeV
         # We don't want to restrict the part_level
@@ -320,6 +323,7 @@ analysis_settings:
         # skim output to the structured jet substructure format
         convert_data_format_prefixes:
           data: "data"
+        analysis_input_levels: ["data"]
         splittings_selection: "iterative"
         # In GeV
         min_jet_pt: { "data": 20 }
@@ -356,6 +360,7 @@ analysis_settings:
           hybrid: "hybrid"
           det_level: "det_level"
           part_level: "true"
+        analysis_input_levels: ["hybrid_level", "det_level", "part_level"]
         splittings_selection: "iterative"
         # In GeV
         # We don't want to restrict the "det_level" or "part_level" jet pt values

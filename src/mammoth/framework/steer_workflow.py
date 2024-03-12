@@ -13,7 +13,7 @@ from __future__ import annotations
 import copy
 import logging
 import secrets
-from collections.abc import Iterable, Sequence
+from collections.abc import Iterable, Mapping, Sequence
 from concurrent.futures import Future
 from pathlib import Path
 from typing import Any, Protocol
@@ -38,7 +38,7 @@ class SetupTasks(Protocol):
         *,
         prod: production.ProductionSettings,
         job_framework: job_utils.JobFramework,
-        debug_mode: bool,
+        debug_mode: bool | dict[str, Any],
     ) -> list[Future[framework_task.Output]]:
         ...
 
@@ -341,7 +341,7 @@ def setup_data_calculation(  # noqa: C901
     def wrap_setup(
         prod: production.ProductionSettings,
         job_framework: job_utils.JobFramework,
-        debug_mode: bool,
+        debug_mode: bool | dict[str, Any],
     ) -> list[Future[framework_task.Output]]:
         # Setup
         python_app_func = framework_task.python_app_data(
@@ -544,7 +544,7 @@ def setup_embed_MC_into_data_calculation(  # noqa: C901
     def wrap_setup(  # noqa: C901
         prod: production.ProductionSettings,
         job_framework: job_utils.JobFramework,
-        debug_mode: bool,
+        debug_mode: bool | dict[str, Any],
     ) -> list[Future[framework_task.Output]]:
         """Create futures to produce embed MC into data skim"""
         # Setup
@@ -842,7 +842,7 @@ def setup_embed_MC_into_thermal_model_calculation(
     def wrap_setup(
         prod: production.ProductionSettings,
         job_framework: job_utils.JobFramework,
-        debug_mode: bool,
+        debug_mode: bool | dict[str, Any],
     ) -> list[Future[framework_task.Output]]:
         # Setup
         python_app_func = framework_task.python_app_embed_MC_into_thermal_model(
@@ -1088,3 +1088,773 @@ def process_futures(
     # Otherwise, we can overwhelm with trying to print large objects
     res = [r.result().success for r in all_results]
     logger.info(res)
+
+
+def _determine_analysis_function(
+    *,
+    prod: production.ProductionSettings,
+    analyze_chunk_with_one_input_lvl: framework_task.Analysis | None = None,
+    analyze_chunk_with_two_input_lvl: framework_task.Analysis | None = None,
+    analyze_chunk_with_three_input_level: framework_task.Analysis | None = None,
+) -> framework_task.Analysis:
+    """Determine the analysis function to use based on the production settings.
+
+    We bass this off the analysis input levels that are provided. We're peeking a bit ahead,
+    but this is really convenient to do here, so it's worth it.
+
+    Args:
+        prod: Production settings.
+        analyze_chunk_with_one_input_lvl: Analysis function to be run with one input level. Default: None
+        analyze_chunk_with_two_input_lvl: Analysis function to be run with two input levels. Default: None
+        analyze_chunk_with_three_input_level: Analysis function to be run with three input levels. Default: None
+
+    Returns:
+        The analysis function to use based on the production settings.
+    """
+    # Determine the analysis function to use
+    analyze_chunk = None
+    analysis_input_levels = prod.config["settings"]["analysis_input_levels"]
+    match len(analysis_input_levels):
+        case 1:
+            analyze_chunk = analyze_chunk_with_one_input_lvl
+        case 2:
+            analyze_chunk = analyze_chunk_with_two_input_lvl
+        case 3:
+            analyze_chunk = analyze_chunk_with_three_input_level
+        case _:
+            _msg = f"Unexpected number of analysis input levels: {analysis_input_levels}"
+            raise ValueError(_msg)
+
+    if analyze_chunk is None:
+        _msg = f"Selected analysis function is None! Provided {analysis_input_levels=}"
+        raise ValueError(_msg)
+    return analyze_chunk
+
+
+def setup_framework_standard_workflow(  # noqa: C901
+    *,
+    analyze_chunk_with_one_input_lvl: framework_task.Analysis | None = None,
+    analyze_chunk_with_two_input_lvl: framework_task.Analysis | None = None,
+    preprocess_arguments: PreprocessArguments | None = None,
+    output_identifier: OutputIdentifier | None = None,
+    metadata_for_labeling: framework_task.CustomizeMetadataForLabeling | None = None,
+) -> SetupTasks:
+    """Setup standard workflow for the framework.
+
+    Args:
+        analyze_chunk_with_one_input_lvl: Analysis function to be run with one input level.
+        analyze_chunk_with_two_input_lvl: Analysis function to be run with two input levels.
+        preprocess_arguments: Preprocess the arguments in the steering.
+        output_identifier: Customize the output identifier.
+        metadata_for_labeling: Customize the task metadata.
+
+    Note:
+        Only one analyze function needs to be provided since we may not have valid ones for all cases.
+        However, they cannot all be None!
+
+    Returns:
+        Function that will setup the standard workflow with the using the provided analysis
+            functions. The correct function will be selected based on the options selected in
+            the configuration file.
+    """
+    # Validation
+    # We must have something...
+    assert analyze_chunk_with_one_input_lvl is not None or analyze_chunk_with_two_input_lvl is not None
+    # NOTE: We change the function name here to help out mypy. Something about the way that we're
+    #       wrapping the function causes an issue otherwise.
+    defined_preprocess_arguments, defined_output_identifier = _validate_setup_functions(
+        preprocess_arguments=preprocess_arguments,
+        output_identifier=output_identifier,
+    )
+    # Note: We'll handle metadata_for_labeling possibly being None in the python app
+
+    def wrap_setup(
+        prod: production.ProductionSettings,
+        job_framework: job_utils.JobFramework,
+        debug_mode: bool | dict[str, Any],
+    ) -> list[Future[framework_task.Output]]:
+        """Execute to setup the standard workflow for the framework.
+
+        Args:
+            prod: Production settings.
+            job_framework: Job framework to use.
+            debug_mode: Debug mode.
+
+        Returns:
+            List of futures for the tasks to be run.
+        """
+        # First, we need to select the function that we'll use. This is based on the production settings
+        analyze_chunk = _determine_analysis_function(
+            prod=prod,
+            analyze_chunk_with_one_input_lvl=analyze_chunk_with_one_input_lvl,
+            analyze_chunk_with_two_input_lvl=analyze_chunk_with_two_input_lvl,
+        )
+        # And then we can define the app we'll execute
+        python_app_func = framework_task.python_app_data(
+            analysis=analyze_chunk,
+            metadata_for_labeling=metadata_for_labeling,
+        )
+
+        # Setup input and output
+        # Need to handle pt hat bin productions differently than standard productions
+        # since we need to keep track of the pt hat bin
+        if "n_pt_hat_bins" in prod.config["metadata"]["dataset"]:
+            input_files: dict[int, list[Path]] = prod.input_files_per_pt_hat()
+        else:
+            input_files = {-1: prod.input_files()}
+        output_dir = prod.output_dir / "skim"
+        output_dir.mkdir(parents=True, exist_ok=True)
+
+        # If we want to debug some particular files, we can directly set them here
+        if debug_mode and isinstance(debug_mode, Mapping):
+            # input_files = {10: [Path("trains/pythia/2619/run_by_run/LHC18b8_cent_woSDD/282008/10/AnalysisResults.18b8_cent_woSDD.003.root")]}
+            # input_files = {-1: [Path("trains/pp/2111/run_by_run/LHC17p_CENT_woSDD/282341/AnalysisResults.17p.586.root")]}
+            # input_files = {-1: [Path("trains/PbPb/645/run_by_run/LHC18r/297595/AnalysisResults.18r.551.root")]}
+            # We rely on you to get this input type correct wrong since it's just a debug tool for convenience.
+            logger.info(f"Using debug mode input files: {debug_mode}")
+            input_files = debug_mode  # type: ignore[assignment]
+
+        # Setup for analysis and dataset settings
+        _metadata_config = prod.config["metadata"]
+        _analysis_config: dict[str, Any] = prod.config["settings"]
+        _output_settings_config = _analysis_config.pop("output_settings")
+        # NOTE: These are arguments which will be passed onto `load_data.setup_source_for_data_or_MC_task`.
+        #       If you want to pass all of the metadata, we will need to add a kwargs, since this can vary from dataset to dataset.
+        #       As of July 2023, explicitly specifying th arguments seems good enough.
+        _input_options = {"loading_data_rename_prefix": _metadata_config.get("loading_data_rename_prefix", {})}
+        # Chunk size
+        chunk_size = _analysis_config.pop("chunk_size", sources.ChunkSizeSentinel.FULL_SOURCE)
+        logger.info(f"Processing chunk size for {chunk_size}")
+        # Sample fraction of input events (for quick analysis)
+        sample_dataset_fraction = _metadata_config.get("sample_dataset_fraction", 1.0)
+        if sample_dataset_fraction < 1.0:
+            logger.warning(f"Sampling only a fraction of the statistics! Using {sample_dataset_fraction}")
+            # Sample the input files, but require at least one entry so we have something
+            # in each pt hat bin
+            input_files = {
+                _pt_hat_bin: [
+                    secrets.choice(_input_files)
+                    for _ in range(int(np.ceil(sample_dataset_fraction * len(_input_files))))
+                ]
+                for _pt_hat_bin, _input_files in input_files.items()
+            }
+
+        # Analysis settings
+        analysis_arguments = copy.deepcopy(_analysis_config)
+        # Det level artificial tracking efficiency (pythia / pp_MC only)
+        det_level_artificial_tracking_efficiency = None
+        if prod.collision_system in ["pythia", "pp_MC", "PbPb_MC"]:
+            # NOTE: Delayed import since we don't want to depend on this in the main framework directly
+            from mammoth.framework.analysis import tracking as analysis_tracking
+
+            # Artificial tracking efficiency (including the option for pt dependent tracking eff)
+            # NOTE: This depends on period, so it's better to do it here!
+            det_level_artificial_tracking_efficiency = _analysis_config.get(  # noqa: SIM910
+                "det_level_artificial_tracking_efficiency", None
+            )
+            # Pt dependent for tracking efficiency uncertainty
+            if _analysis_config.get("apply_pt_dependent_tracking_efficiency_uncertainty", False):
+                # NOTE: Careful - this needs to be added as 1-value. (ie. 1-.97=0.03 -> for .98 flat, we get .95)
+                det_level_artificial_tracking_efficiency = (
+                    analysis_tracking.PtDependentTrackingEfficiencyParameters.from_file(
+                        # NOTE: We select "anchor_period" and "0_100" here because we know we're analyzing pythia
+                        period=_metadata_config["dataset"]["anchor_period"],
+                        event_activity="0_100",
+                        # NOTE: There should be the possibility to apply this on top of the .98, for example.
+                        baseline_tracking_efficiency_shift=det_level_artificial_tracking_efficiency,
+                    )
+                )
+        analysis_arguments["det_level_artificial_tracking_efficiency"] = det_level_artificial_tracking_efficiency
+        # Preprocess the arguments
+        # NOTE: We do it last so we can access the other arguments if needed
+        analysis_arguments.update(
+            defined_preprocess_arguments(
+                **analysis_arguments,
+            )
+        )
+        # NOTE: We need to customize the analysis arguments to pass the relevant scale factor,
+        #       so we make a copy for clarity. We'll update it each loop.
+        analysis_arguments_with_pt_hat_scale_factor = copy.deepcopy(analysis_arguments)
+
+        # Scale factors
+        scale_factors = None
+        if prod.has_scale_factors:
+            scale_factors = prod.scale_factors()
+
+        results = []
+        _file_counter = 0
+        for pt_hat_bin, input_filenames in input_files.items():
+            # Setup the analysis arguments
+            # (The pt hat value may not always be meaningful, but we always include it).
+            analysis_arguments_with_pt_hat_scale_factor["pt_hat_bin"] = pt_hat_bin
+            if scale_factors is not None:
+                analysis_arguments_with_pt_hat_scale_factor["scale_factors"] = scale_factors
+
+            for input_filename in input_filenames:
+                if _file_counter % 500 == 0:
+                    logger.info(f"Adding {input_filename} for analysis")
+
+                # For debugging
+                if debug_mode and _file_counter > 1:
+                    break
+
+                # Setup file I/O
+                # Converts: "2111/run_by_run/LHC17p_CENT_woSDD/282341/AnalysisResults.17p.001.root"
+                #        -> "2111__run_by_run__LHC17p_CENT_woSDD__282341__AnalysisResults_17p_001"
+                output_identifier = safe_output_filename_from_relative_path(
+                    filename=input_filename,
+                    output_dir=prod.output_dir,
+                    number_of_parent_directories_for_relative_output_filename=_metadata_config["dataset"].get(
+                        "number_of_parent_directories_for_relative_output_filename", None
+                    ),
+                )
+                # Finally, add the customization
+                output_identifier += defined_output_identifier(**analysis_arguments_with_pt_hat_scale_factor)
+
+                # NOTE: The extension will be customized in the app....
+                output_filename = output_dir / f"{output_identifier}.dummy_ext"
+                # if _file_counter % 100 == 0:
+                #    import IPython; IPython.embed()
+                # And create the tasks
+                results.append(
+                    python_app_func(
+                        # Task settings
+                        production_identifier=prod.identifier,
+                        collision_system=prod.collision_system,
+                        chunk_size=chunk_size,
+                        # I/O
+                        # These are the general input options
+                        input_options=_input_options,
+                        # And these are the input options specific to the dataset
+                        input_source_config=_metadata_config["dataset"],
+                        output_settings_config=_output_settings_config,
+                        # Arguments
+                        analysis_arguments=analysis_arguments_with_pt_hat_scale_factor,
+                        # Framework options
+                        job_framework=job_framework,
+                        inputs=[File(input_filename)],
+                        outputs=[File(output_filename)],
+                    )
+                )
+
+                _file_counter += 1
+
+        logger.info("Done with creating apps!")
+        return results
+
+    return wrap_setup
+
+
+def setup_framework_embed_workflow(  # noqa: C901
+    *,
+    analyze_chunk_with_one_input_lvl: framework_task.Analysis | None = None,
+    analyze_chunk_with_two_input_lvl: framework_task.Analysis | None = None,
+    analyze_chunk_with_three_input_lvl: framework_task.Analysis | None = None,
+    preprocess_arguments: PreprocessArguments | None = None,
+    output_identifier: OutputIdentifier | None = None,
+    metadata_for_labeling: framework_task.CustomizeMetadataForLabeling | None = None,
+) -> SetupTasks:
+    """Setup embed workflow for the framework.
+
+    This is distinct enough from the standard workflow that it's worth separating out
+    (eg. we need separate inputs for the background)
+
+    Note:
+        Only one analyze function needs to be provided since we may not have valid ones for all cases.
+        However, they cannot all be None!
+
+    Args:
+        analyze_chunk_with_one_input_lvl: Analysis function to be run with one input level.
+        analyze_chunk_with_two_input_lvl: Analysis function to be run with two input levels.
+        analyze_chunk_with_three_input_lvl: Analysis function to be run with three input levels. (ie. embedding)
+        preprocess_arguments: Preprocess the arguments in the steering.
+        output_identifier: Customize the output identifier.
+        metadata_for_labeling: Customize the task metadata.
+
+    Returns:
+        Function that will setup the standard workflow with the using the provided analysis
+            functions. The correct function will be selected based on the options selected in
+            the configuration file.
+    """
+    # Validation
+    # We must have something...
+    assert (
+        analyze_chunk_with_one_input_lvl is not None
+        or analyze_chunk_with_two_input_lvl is not None
+        or analyze_chunk_with_three_input_lvl is not None
+    )
+    # NOTE: We change the function name here to help out mypy. Something about the way that we're
+    #       wrapping the function causes an issue otherwise.
+    defined_preprocess_arguments, defined_output_identifier = _validate_setup_functions(
+        preprocess_arguments=preprocess_arguments,
+        output_identifier=output_identifier,
+    )
+    # Note: We'll handle metadata_for_labeling possibly being None in the python app
+
+    def wrap_setup_embed_MC_into_data(  # noqa: C901
+        prod: production.ProductionSettings,
+        job_framework: job_utils.JobFramework,
+        debug_mode: bool | dict[str, Any],
+    ) -> list[Future[framework_task.Output]]:
+        """Create futures to produce embed MC into data skim"""
+        # First, we need to select the function that we'll use. This is based on the production settings
+        analyze_chunk = _determine_analysis_function(
+            prod=prod,
+            analyze_chunk_with_one_input_lvl=analyze_chunk_with_one_input_lvl,
+            analyze_chunk_with_two_input_lvl=analyze_chunk_with_two_input_lvl,
+        )
+        # And then we can define the app we'll execute
+        python_app_func = framework_task.python_app_embed_MC_into_data(
+            analysis=analyze_chunk,
+            metadata_for_labeling=metadata_for_labeling,
+        )
+
+        # Setup input and output
+        output_dir = prod.output_dir / "skim"
+        output_dir.mkdir(parents=True, exist_ok=True)
+
+        # Collect input files (signal and background)
+        background_input_files = prod.input_files()
+        # We store the signal input files in a few different formats to enable sampling different ways.
+        # We can sample pt hat bins equally by sampling the pt hat bin, and then taking a random file
+        # from that bin. In this case, the pythia files _are not_ sampled equally.
+        signal_input_files_per_pt_hat = prod.input_files_per_pt_hat()
+
+        # If we want to debug some particular files, we can directly set them here
+        if debug_mode and isinstance(debug_mode, Mapping):
+            # background_input_files = [Path("trains/PbPb/645/run_by_run/LHC18r/297595/AnalysisResults.18r.551.root")]
+            # signal_input_files_per_pt_hat = {
+            #     12: [
+            #         Path("trains/pythia/2640/run_by_run/LHC20g4/296690/12/AnalysisResults.20g4.008.root"),
+            #         Path("trains/pythia/2640/run_by_run/LHC20g4/295819/12/AnalysisResults.20g4.009.root"),
+            #         Path("trains/pythia/2640/run_by_run/LHC20g4/297479/12/AnalysisResults.20g4.009.root"),
+            #     ]
+            # }
+            signal_input_files_per_pt_hat = debug_mode.get(
+                "signal_input_files_per_pt_hat", signal_input_files_per_pt_hat
+            )
+            background_input_files = debug_mode.get("background_input_files", background_input_files)
+
+        # Setup for dataset and input
+        _metadata_config: dict[str, Any] = prod.config["metadata"]
+        _input_handling_config: dict[str, Any] = _metadata_config["input_handling"]
+        _background_is_constrained_source: bool = _metadata_config["input_constrained_source"].lower() != "signal"
+        source_input_options = {
+            "background_is_constrained_source": _background_is_constrained_source,
+            "signal_source_collision_system": _input_handling_config["signal"]["collision_system"],
+            "background_source_collision_system": _input_handling_config["background"]["collision_system"],
+        }
+        _analysis_config: dict[str, Any] = prod.config["settings"]
+        _output_settings_config = _analysis_config.pop("output_settings")
+        # Chunk size
+        chunk_size = _analysis_config.pop("chunk_size", sources.ChunkSizeSentinel.FULL_SOURCE)
+        logger.info(f"Processing chunk size for {chunk_size}")
+        logger.info(
+            f"Configuring embed pythia with {'background' if _background_is_constrained_source else 'signal'} as the constrained source."
+        )
+        # Sample fraction of input events (for quick analysis)
+        sample_dataset_fraction = _metadata_config.get("sample_dataset_fraction", 1.0)
+        rng_for_sample_dataset_fraction = np.random.default_rng()
+        # NOTE: In this case (ie. embedding MC into data), we need to implement this as
+        #       we loop over files because it's significantly simpler. See below.
+        if sample_dataset_fraction < 1.0:
+            logger.warning(f"Sampling only a fraction of the statistics! Using {sample_dataset_fraction}")
+
+        # Analysis settings
+        analysis_arguments = copy.deepcopy(_analysis_config)
+        # Artificial tracking efficiency (including the option for pt dependent tracking eff)
+        # NOTE: This depends on centrality and period, so it's better to do it here!
+        det_level_artificial_tracking_efficiency = _analysis_config["det_level_artificial_tracking_efficiency"]
+        # Pt dependent for tracking efficiency uncertainty
+        if _analysis_config["apply_pt_dependent_tracking_efficiency_uncertainty"]:
+            # NOTE: Delayed import since we don't want to depend on this in the main framework directly
+            from mammoth.framework.analysis import tracking as analysis_tracking
+
+            _event_activity_name_to_centrality_values = {
+                "central": "0_10",
+                "semi_central": "30_50",
+            }
+            # NOTE: Careful - this needs to be added as 1-value. (ie. 1-.97=0.03 -> for .98 flat, we get .95)
+            det_level_artificial_tracking_efficiency = (
+                analysis_tracking.PtDependentTrackingEfficiencyParameters.from_file(
+                    period=_metadata_config["dataset"]["period"],
+                    event_activity=_event_activity_name_to_centrality_values[_analysis_config["event_activity"]],
+                    # NOTE: There should be the possibility to apply this on top of the .98, for example.
+                    baseline_tracking_efficiency_shift=det_level_artificial_tracking_efficiency,
+                )
+            )
+        analysis_arguments["det_level_artificial_tracking_efficiency"] = det_level_artificial_tracking_efficiency
+        # Preprocess the arguments
+        # NOTE: We do it last so we can access the other arguments if needed
+        analysis_arguments.update(
+            defined_preprocess_arguments(
+                **analysis_arguments,
+            )
+        )
+
+        # Scale factors
+        scale_factors = None
+        if prod.has_scale_factors:
+            scale_factors = prod.scale_factors()
+        else:
+            _msg = "Check the embedding config - you need a signal dataset."
+            raise ValueError(_msg)
+
+        # NOTE: We need to customize the analysis arguments to pass the relevant scale factor,
+        #       so we make a copy for clarity. We'll update it each loop.
+        analysis_arguments_with_pt_hat_scale_factor = copy.deepcopy(analysis_arguments)
+
+        # Cross check input
+        # NOTE: Need to wait until here because need the scale factors
+        # NOTE: We usually need to skip this during debug mode because we may not have all pt hat bins in the input,
+        #       so it will fail trivially.
+        if not debug_mode:
+            pt_hat_bins, _ = _extract_info_from_signal_file_list(
+                signal_input_files_per_pt_hat=signal_input_files_per_pt_hat
+            )
+            if set(scale_factors) != set(pt_hat_bins):
+                _msg = f"Mismatch between the pt hat bins in the scale factors ({set(scale_factors)}) and the pt hat bins ({set(pt_hat_bins)})"
+                raise ValueError(_msg)
+
+        results = []
+        _embedding_file_pairs = {}
+        # Keep track of output identifiers. If there is already an existing identifier, then we can try again to avoid overwriting it.
+        _output_identifiers = []
+        input_generator = _determine_embed_pythia_input_files(
+            signal_input_files_per_pt_hat=signal_input_files_per_pt_hat,
+            background_input_files=background_input_files,
+            background_is_constrained_source=_background_is_constrained_source,
+            input_handling_config=_input_handling_config,
+        )
+        for _file_counter, (pt_hat_bin, signal_input, background_input) in enumerate(input_generator):
+            # Need to customize the analysis arguments to pass the relevant scale factor
+            analysis_arguments_with_pt_hat_scale_factor["scale_factor"] = scale_factors[pt_hat_bin]
+
+            if _file_counter % 500 == 0:
+                logger.info(
+                    f"Adding {(background_input if _background_is_constrained_source else signal_input)} for analysis"
+                )
+
+            # Sample fraction
+            # NOTE: It's much easier to implement here than messing with all of the input file determination.
+            #       This trades off non-uniform sampling for small samples (ie. if the fraction is very small,
+            #       the input pt hat bins may not be sampled uniformly). However, the reduced complexity
+            #       is worth this trade off.
+            # NOTE: This isn't very efficient to call for each file, but it's good enough for this purpose
+            #       since it's just in the steering.
+            if sample_dataset_fraction < 1.0 and rng_for_sample_dataset_fraction.random() > sample_dataset_fraction:
+                continue
+
+            # For debugging
+            if debug_mode and _file_counter > 1:
+                break
+
+            # Setup file I/O
+            # We want to identify as: "{signal_identifier}__embedded_into__{background_identifier}"
+            # Take the first signal and first background filenames as the main identifier to the path.
+            # Otherwise, the filename could become indefinitely long... (apparently there are file length limits in unix...)
+            output_identifier = safe_output_filename_from_relative_path(
+                filename=signal_input[0],
+                output_dir=prod.output_dir,
+                number_of_parent_directories_for_relative_output_filename=_metadata_config["signal_dataset"].get(
+                    "number_of_parent_directories_for_relative_output_filename", None
+                ),
+            )
+            output_identifier += "__embedded_into__"
+            output_identifier += safe_output_filename_from_relative_path(
+                filename=background_input[0],
+                output_dir=prod.output_dir,
+                number_of_parent_directories_for_relative_output_filename=_metadata_config["dataset"].get(
+                    "number_of_parent_directories_for_relative_output_filename", None
+                ),
+            )
+            # Finally, add the customization
+            output_identifier += defined_output_identifier(**analysis_arguments_with_pt_hat_scale_factor)
+
+            # Ensure that we don't use an output identifier twice.
+            # If we've already used it, we add a counter to it
+            _modifiable_output_identifier = output_identifier
+            _output_identifier_counter = 0
+            _output_identifier_stored = False
+            while not _output_identifier_stored:
+                if _modifiable_output_identifier in _output_identifiers:
+                    # If the identifier is in the list, try to add some counter to it.
+                    _output_identifier_counter += 1
+                    _modifiable_output_identifier = output_identifier + f"__{_output_identifier_counter:03}"
+                else:
+                    output_identifier = _modifiable_output_identifier
+                    _output_identifiers.append(output_identifier)
+                    _output_identifier_stored = True
+
+            # logger.info(f"output_identifier: {output_identifier}")
+            # NOTE: The extension will be customized in the app....
+            output_filename = output_dir / f"{output_identifier}.dummy_ext"
+
+            # Store the file pairs for our records
+            # The output identifier contains the first signal filename, as well as the background filename.
+            # We use it here rather than _just_ the background filename because we may embed into data multiple times
+            _embedding_file_pairs[output_identifier] = [str(_filename) for _filename in signal_input] + [
+                str(_filename) for _filename in background_input
+            ]
+
+            # And create the tasks
+            results.append(
+                python_app_func(
+                    # Task settings
+                    production_identifier=prod.identifier,
+                    collision_system=prod.collision_system,
+                    chunk_size=chunk_size,
+                    # I/O
+                    source_input_options=source_input_options,
+                    signal_input_source_config=_metadata_config["signal_dataset"],
+                    n_signal_input_files=len(signal_input),
+                    background_input_source_config=_metadata_config["dataset"],
+                    output_settings_config=_output_settings_config,
+                    # Arguments
+                    analysis_arguments=analysis_arguments_with_pt_hat_scale_factor,
+                    # Framework options
+                    job_framework=job_framework,
+                    inputs=[
+                        *[File(str(_filename)) for _filename in signal_input],
+                        *[File(str(_filename)) for _filename in background_input],
+                    ],
+                    outputs=[File(str(output_filename))],
+                )
+            )
+
+        # And write the file pairs, again for our records
+        y = yaml.yaml()
+        embedding_file_pairs_filename = prod.output_dir / "embedding_file_pairs.yaml"
+        _existing_embedding_file_pairs = {}
+        if embedding_file_pairs_filename.exists():
+            with embedding_file_pairs_filename.open() as f:
+                _existing_embedding_file_pairs = y.load(f)
+        # Add back in the existing file pairs if we've read them
+        if _existing_embedding_file_pairs:
+            _embedding_file_pairs.update(_existing_embedding_file_pairs)
+        # And then (re)write the file pairs
+        with embedding_file_pairs_filename.open("w") as f:
+            y.dump(_embedding_file_pairs, f)
+
+        logger.info("Done with creating apps!")
+        return results
+
+    def wrap_setup_embed_MC_into_thermal_model(
+        prod: production.ProductionSettings,
+        job_framework: job_utils.JobFramework,
+        debug_mode: bool | dict[str, Any],
+    ) -> list[Future[framework_task.Output]]:
+        # First, we need to select the function that we'll use. This is based on the production settings
+        analyze_chunk = _determine_analysis_function(
+            prod=prod,
+            analyze_chunk_with_one_input_lvl=analyze_chunk_with_one_input_lvl,
+            analyze_chunk_with_two_input_lvl=analyze_chunk_with_two_input_lvl,
+        )
+        # And then we can define the app we'll execute
+        python_app_func = framework_task.python_app_embed_MC_into_thermal_model(
+            analysis=analyze_chunk,
+            metadata_for_labeling=metadata_for_labeling,
+        )
+
+        # Setup input and output
+        # Need to handle pt hat bin productions differently than standard productions
+        # since we need to keep track of the pt hat bin
+        if "n_pt_hat_bins" in prod.config["metadata"]["dataset"]:
+            input_files: dict[int, list[Path]] = prod.input_files_per_pt_hat()
+        else:
+            input_files = {-1: prod.input_files()}
+            _msg = "Need pt hat production for embedding into a thermal model..."
+            raise RuntimeError(_msg)
+        output_dir = prod.output_dir / "skim"
+        output_dir.mkdir(parents=True, exist_ok=True)
+
+        if debug_mode and isinstance(debug_mode, Mapping):
+            # input_files = {10: [Path("trains/pythia/2619/run_by_run/LHC18b8_cent_woSDD/282008/10/AnalysisResults.18b8_cent_woSDD.003.root")]}
+            # input_files = {10: [
+            #    Path("trains/pythia/2640/run_by_run/LHC20g4/296415/4/AnalysisResults.20g4.007.root"),
+            #    Path("trains/pythia/2640/run_by_run/LHC20g4/296415/4/AnalysisResults.20g4.010.root"),
+            # ]}
+            # We rely on you to get this input type correct wrong since it's just a debug tool for convenience.
+            logger.info(f"Using debug mode input files: {debug_mode}")
+            input_files = debug_mode  # type: ignore[assignment]
+
+        # Setup for dataset settings (and grab analysis config for Output settings)
+        _metadata_config = prod.config["metadata"]
+        _analysis_config = prod.config["settings"]
+        _output_settings_config = _analysis_config.pop("output_settings")
+        # Thermal model parameters
+        thermal_model_parameters = sources.THERMAL_MODEL_SETTINGS[
+            f"{_metadata_config['dataset']['sqrt_s']}_{_analysis_config['event_activity']}"
+        ]
+        # Chunk size
+        chunk_size = _analysis_config.pop("chunk_size")
+        logger.info(f"Processing chunk size for {chunk_size}")
+        # Sample fraction of input events (for quick analysis)
+        sample_dataset_fraction = _metadata_config.get("sample_dataset_fraction", 1.0)
+        if sample_dataset_fraction < 1.0:
+            logger.warning(f"Sampling only a fraction of the statistics! Using {sample_dataset_fraction}")
+            # Sample the input files, but require at least one entry so we have something
+            # in each pt hat bin
+            input_files = {
+                _pt_hat_bin: [
+                    secrets.choice(_input_files)
+                    for _ in range(int(np.ceil(sample_dataset_fraction * len(_input_files))))
+                ]
+                for _pt_hat_bin, _input_files in input_files.items()
+            }
+
+        # Analysis settings
+        analysis_arguments = copy.deepcopy(_analysis_config)
+        # Preprocess the arguments
+        # NOTE: We do it last so we can access the other arguments if needed
+        analysis_arguments.update(
+            defined_preprocess_arguments(
+                **analysis_arguments,
+            )
+        )
+        # Scale factors
+        # NOTE: We need to mix these in below because we expect the single pt hat scale factor per func call
+        scale_factors = None
+        if prod.has_scale_factors:
+            scale_factors = prod.scale_factors()
+        else:
+            _msg = "Check the thermal model config - you need a signal dataset."
+            raise ValueError(_msg)
+
+        # NOTE: We need to customize the analysis arguments to pass the relevant scale factor,
+        #       so we make a copy for clarity. We'll update it each loop.
+        analysis_arguments_with_pt_hat_scale_factor = copy.deepcopy(analysis_arguments)
+
+        # Cross check
+        # NOTE: Need to wait until here because need the scale factors
+        # NOTE: We usually need to skip this during debug mode because we may not have all pt hat bins in the input,
+        #       so it will fail trivially.
+        if set(scale_factors) != set(input_files) and not debug_mode:
+            _msg = f"Mismatch between the pt hat bins in the scale factors ({set(scale_factors)}) and the pt hat bins ({set(input_files)})"
+            raise ValueError(_msg)
+
+        results = []
+        _file_counter = 0
+        # Reversed because the higher pt hard bins are of more importance to get done sooner.
+        for pt_hat_bin, input_filenames in reversed(input_files.items()):
+            analysis_arguments_with_pt_hat_scale_factor["scale_factor"] = scale_factors[pt_hat_bin]
+
+            for input_filename in input_filenames:
+                if _file_counter % 500 == 0 or debug_mode:
+                    logger.info(f"Adding {input_filename} for analysis")
+
+                # For debugging
+                if debug_mode and _file_counter > 1:
+                    break
+
+                # Setup file I/O
+                # Converts: "2111/run_by_run/LHC17p_CENT_woSDD/282341/AnalysisResults.17p.001.root"
+                #        -> "2111__run_by_run__LHC17p_CENT_woSDD__282341__AnalysisResults_17p_001"
+                output_identifier = safe_output_filename_from_relative_path(
+                    filename=input_filename,
+                    output_dir=prod.output_dir,
+                    number_of_parent_directories_for_relative_output_filename=_metadata_config["dataset"].get(
+                        "number_of_parent_directories_for_relative_output_filename", None
+                    ),
+                )
+                # Finally, add the customization
+                output_identifier += defined_output_identifier(**analysis_arguments_with_pt_hat_scale_factor)
+
+                # NOTE: The extension will be customized in the app....
+                output_filename = output_dir / f"{output_identifier}.dummy_ext"
+                # And create the tasks
+                results.append(
+                    python_app_func(
+                        # Task settings
+                        production_identifier=prod.identifier,
+                        collision_system=prod.collision_system,
+                        chunk_size=chunk_size,
+                        # I/O
+                        input_source_config=_metadata_config["dataset"],
+                        thermal_model_parameters=thermal_model_parameters,
+                        output_settings_config=_output_settings_config,
+                        # Arguments
+                        analysis_arguments=analysis_arguments_with_pt_hat_scale_factor,
+                        job_framework=job_framework,
+                        inputs=[
+                            File(str(input_filename)),
+                        ],
+                        outputs=[File(str(output_filename))],
+                    )
+                )
+
+                _file_counter += 1
+
+        logger.info("Done with creating apps!")
+        return results
+
+    # Select the correct setup function based on the collision system
+    def wrap_setup(
+        prod: production.ProductionSettings,
+        job_framework: job_utils.JobFramework,
+        debug_mode: bool | dict[str, Any],
+    ) -> list[Future[framework_task.Output]]:
+        """Simple wrapper to forward on setup of the embed workflow for the framework.
+
+        We do this so we don't have to specify which embedding function to use in the returned
+        setup function. Instead, we determine it dynamically here.
+
+        Args:
+            prod: Production settings.
+            job_framework: Job framework to use.
+            debug_mode: Debug mode.
+        Returns:
+            List of futures for the tasks to be run.
+        """
+        # Usually we want general embedding of MC into data, so handle embedding into the thermal model as the special case
+        if prod.collision_system == "embed_thermal_model":
+            return wrap_setup_embed_MC_into_thermal_model(prod=prod, job_framework=job_framework, debug_mode=debug_mode)
+        return wrap_setup_embed_MC_into_data(prod=prod, job_framework=job_framework, debug_mode=debug_mode)
+
+    return wrap_setup
+
+
+def setup_framework_default_workflows(
+    *,
+    analyze_chunk_with_one_input_lvl: framework_task.Analysis | None = None,
+    analyze_chunk_with_two_input_lvl: framework_task.Analysis | None = None,
+    analyze_chunk_with_three_input_lvl: framework_task.Analysis | None = None,
+    preprocess_arguments: PreprocessArguments | None = None,
+    output_identifier: OutputIdentifier | None = None,
+    metadata_for_labeling: framework_task.CustomizeMetadataForLabeling | None = None,
+) -> tuple[SetupTasks, SetupTasks]:
+    """Create setup functions for the standard and embed workflows in the analysis framework.
+
+    Note:
+        Only one analyze function needs to be provided since we may not have valid ones for all cases.
+        However, they cannot all be None!
+
+    Args:
+        analyze_chunk_with_one_input_lvl: Analysis function to be run with one input level.
+        analyze_chunk_with_two_input_lvl: Analysis function to be run with two input levels.
+        analyze_chunk_with_three_input_lvl: Analysis function to be run with three input levels. (ie. embedding)
+        preprocess_arguments: Preprocess the arguments in the steering.
+        output_identifier: Customize the output identifier.
+        metadata_for_labeling: Customize the task metadata.
+
+    Returns:
+        Function that will setup the standard workflow with the using the provided analysis
+            functions. The correct function will be selected based on the options selected in
+            the configuration file.
+    """
+    standard = setup_framework_standard_workflow(
+        analyze_chunk_with_one_input_lvl=analyze_chunk_with_one_input_lvl,
+        analyze_chunk_with_two_input_lvl=analyze_chunk_with_two_input_lvl,
+        preprocess_arguments=preprocess_arguments,
+        output_identifier=output_identifier,
+        metadata_for_labeling=metadata_for_labeling,
+    )
+    embed = setup_framework_embed_workflow(
+        analyze_chunk_with_one_input_lvl=analyze_chunk_with_one_input_lvl,
+        analyze_chunk_with_two_input_lvl=analyze_chunk_with_two_input_lvl,
+        analyze_chunk_with_three_input_lvl=analyze_chunk_with_three_input_lvl,
+        preprocess_arguments=preprocess_arguments,
+        output_identifier=output_identifier,
+        metadata_for_labeling=metadata_for_labeling,
+    )
+    return standard, embed

@@ -817,7 +817,7 @@ def minimal_test() -> None:
     ###########################
     # collision_system = "PbPb"
     # logger.info(f'Analyzing "{collision_system}"')
-    # jets = analysis_data(
+    # jets = analysis_one_input_level(
     #    collision_system=collision_system,
     #    arrays=load_data.data(
     #        data_input=Path(
