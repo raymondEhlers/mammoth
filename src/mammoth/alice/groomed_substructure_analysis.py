@@ -86,7 +86,7 @@ def _structured_skim_to_flat_skim_for_one_and_two_track_collections(
     )
 
 
-def analysis_MC(
+def analyze_chunk_two_input_level(
     *,
     collision_system: str,
     arrays: ak.Array,
@@ -117,34 +117,36 @@ def analysis_MC(
 
     # Perform jet finding and reclustering
     if len(convert_data_format_prefixes) == 1:
-        # Treat as a one track collection (will be either part or det level)
-        # Validation
-        # We almost certainly don't want an artificial tracking efficiency here
-        assert isinstance(
-            det_level_artificial_tracking_efficiency, float | np.number
-        ), f"Det level tracking efficiency should almost certainly be a float. Passed: {det_level_artificial_tracking_efficiency}"
-        assert np.isclose(
-            det_level_artificial_tracking_efficiency, 1.0
-        ), f"Det level tracking efficiency should almost certainly be 1.0. Passed: {det_level_artificial_tracking_efficiency}"
+        msg = "Shouldn't be able to access this functionality anymore."
+        raise RuntimeError(msg)
+        ## Treat as a one track collection (will be either part or det level)
+        ## Validation
+        ## We almost certainly don't want an artificial tracking efficiency here
+        # assert isinstance(
+        #    det_level_artificial_tracking_efficiency, float | np.number
+        # ), f"Det level tracking efficiency should almost certainly be a float. Passed: {det_level_artificial_tracking_efficiency}"
+        # assert np.isclose(
+        #    det_level_artificial_tracking_efficiency, 1.0
+        # ), f"Det level tracking efficiency should almost certainly be 1.0. Passed: {det_level_artificial_tracking_efficiency}"
 
-        jets = reclustered_substructure.analyze_track_skim_and_recluster_data(
-            collision_system=collision_system,
-            arrays=arrays,
-            jet_R=jet_R,
-            min_jet_pt=min_jet_pt,
-            reclustering_settings=reclustering_settings,
-            validation_mode=validation_mode,
-        )
-    else:
-        # Two track collections (part and det level)
-        jets = reclustered_substructure.analyze_track_skim_and_recluster_MC(
-            arrays=arrays,
-            jet_R=jet_R,
-            min_jet_pt=min_jet_pt,
-            reclustering_settings=reclustering_settings,
-            det_level_artificial_tracking_efficiency=det_level_artificial_tracking_efficiency,
-            validation_mode=validation_mode,
-        )
+        # jets = reclustered_substructure.analyze_track_skim_and_recluster_data(
+        #    collision_system=collision_system,
+        #    arrays=arrays,
+        #    jet_R=jet_R,
+        #    min_jet_pt=min_jet_pt,
+        #    reclustering_settings=reclustering_settings,
+        #    validation_mode=validation_mode,
+        # )
+
+    # Two track collections (part and det level)
+    jets = reclustered_substructure.analyze_track_skim_and_recluster_MC(
+        arrays=arrays,
+        jet_R=jet_R,
+        min_jet_pt=min_jet_pt,
+        reclustering_settings=reclustering_settings,
+        det_level_artificial_tracking_efficiency=det_level_artificial_tracking_efficiency,
+        validation_mode=validation_mode,
+    )
 
     # NOTE: We need to know how many jets there are, so we arbitrarily take the first field. The jets are flattened,
     #       so they're as good as any others.
@@ -174,7 +176,7 @@ def analysis_MC(
     )
 
 
-def analysis_data(
+def analyze_chunk_one_input_level(
     *,
     collision_system: str,
     arrays: ak.Array,
@@ -273,7 +275,7 @@ def _structured_skim_to_flat_skim_for_three_track_collections(
     )
 
 
-def analysis_embedding(
+def analyze_chunk_three_input_level(
     *,
     source_index_identifiers: Mapping[str, int],
     arrays: ak.Array,
@@ -378,7 +380,7 @@ def run_some_standalone_tests() -> None:
     # MC
     ######
     collision_system = "pp_MC"
-    jets = analysis_MC(  # noqa: F841
+    jets = analyze_chunk_two_input_level(  # noqa: F841
         arrays=load_data.data(
             # data_input=[Path("trains/")],
             data_input=[Path("trains/pythia/2640/run_by_run/LHC20g4/296191/1/AnalysisResults.20g4.008.root")],

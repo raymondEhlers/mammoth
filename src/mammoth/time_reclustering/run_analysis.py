@@ -22,9 +22,9 @@ logger = logging.getLogger(__name__)
 
 # Define the steering apps
 setup_standard_workflow, setup_embed_workflow = steer_workflow.setup_framework_default_workflows(
-    analyze_chunk_with_one_input_lvl=groomed_substructure_analysis.analysis_data,
-    analyze_chunk_with_two_input_lvl=groomed_substructure_analysis.analysis_MC,
-    analyze_chunk_with_three_input_lvl=groomed_substructure_analysis.analysis_embedding,
+    analyze_chunk_with_one_input_lvl=groomed_substructure_analysis.analyze_chunk_one_input_level,
+    analyze_chunk_with_two_input_lvl=groomed_substructure_analysis.analyze_chunk_two_input_level,
+    analyze_chunk_with_three_input_lvl=groomed_substructure_analysis.analyze_chunk_three_input_level,
     preprocess_arguments=groomed_substructure_steering.argument_preprocessing,
     output_identifier=groomed_substructure_steering.analysis_output_identifier,
     metadata_for_labeling=groomed_substructure_analysis.customize_analysis_metadata,
@@ -119,38 +119,26 @@ def setup_and_submit_tasks(
                     job_framework=job_framework,
                 )
             )
-        if "calculate_data_skim" in tasks_to_execute:
-            system_results.extend(
-                setup_standard_workflow(
-                    prod=prod,
-                    job_framework=job_framework,
-                    debug_mode=debug_mode,
+        standard_workflows = ["calculate_data_skim", "calculate_pp_MC_skim"]
+        for wf in standard_workflows:
+            if wf in tasks_to_execute:
+                system_results.extend(
+                    setup_standard_workflow(
+                        prod=prod,
+                        job_framework=job_framework,
+                        debug_mode=debug_mode,
+                    )
                 )
-            )
-        if "calculate_pp_MC_skim" in tasks_to_execute:
-            system_results.extend(
-                setup_standard_workflow(
-                    prod=prod,
-                    job_framework=job_framework,
-                    debug_mode=debug_mode,
+        embed_workflows = ["calculate_embed_pythia_skim", "calculate_embed_thermal_model_skim"]
+        for wf in embed_workflows:
+            if wf in tasks_to_execute:
+                system_results.extend(
+                    setup_embed_workflow(
+                        prod=prod,
+                        job_framework=job_framework,
+                        debug_mode=debug_mode,
+                    )
                 )
-            )
-        if "calculate_embed_pythia_skim" in tasks_to_execute:
-            system_results.extend(
-                setup_embed_workflow(
-                    prod=prod,
-                    job_framework=job_framework,
-                    debug_mode=debug_mode,
-                )
-            )
-        if "calculate_embed_thermal_model_skim" in tasks_to_execute:
-            system_results.extend(
-                setup_embed_workflow(
-                    prod=prod,
-                    job_framework=job_framework,
-                    debug_mode=debug_mode,
-                )
-            )
 
         all_results.extend(system_results)
         logger.info(f"Accumulated {len(system_results)} futures for {prod.collision_system}")
