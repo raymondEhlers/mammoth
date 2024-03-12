@@ -11,7 +11,7 @@ skimmed_datasets:
     # Parameters of the output
     list_name: "AliAnalysisTaskTrackSkim_pp"
     tree_name: "AliAnalysisTaskTrackSkim_pp_tree"
-    prefixes_in_output_file:
+    levels_in_output_file:
       - "data"
     files:
       # LHC17p
@@ -31,7 +31,7 @@ skimmed_datasets:
     # Parameters of the output
     list_name: "AliAnalysisTaskTrackSkim_pp"
     tree_name: "AliAnalysisTaskTrackSkim_pp_tree"
-    prefixes_in_output_file:
+    levels_in_output_file:
       - "data"
     files:
       # LHC17p
@@ -55,7 +55,7 @@ skimmed_datasets:
     # Parameters of the output
     list_name: "AliAnalysisTaskTrackSkim_pythia"
     tree_name: "AliAnalysisTaskTrackSkim_pythia_tree"
-    prefixes_in_output_file:
+    levels_in_output_file:
       - "data"
       - "gen"
     n_pt_hat_bins: 20
@@ -74,7 +74,7 @@ skimmed_datasets:
     # Parameters of the output
     list_name: "AliAnalysisTaskTrackSkim_pythia"
     tree_name: "AliAnalysisTaskTrackSkim_pythia_tree"
-    prefixes_in_output_file:
+    levels_in_output_file:
       - "data"
       - "gen"
     n_pt_hat_bins: 20
@@ -94,7 +94,7 @@ skimmed_datasets:
     # Parameters of the output
     list_name: "AliAnalysisTaskTrackSkim_pythia"
     tree_name: "AliAnalysisTaskTrackSkim_pythia_tree"
-    prefixes_in_output_file:
+    levels_in_output_file:
       - "data"
       - "gen"
     n_pt_hat_bins: 20
@@ -187,7 +187,7 @@ skimmed_datasets:
     # Parameters of the output
     list_name: "AliAnalysisTaskTrackSkim_PbPb_central"
     tree_name: "AliAnalysisTaskTrackSkim_PbPb_central_tree"
-    prefixes_in_output_file:
+    levels_in_output_file:
       - "data"
     files:
       - "trains/PbPb/642/run_by_run/LHC18q/*/AnalysisResults.18q.*.root"
@@ -202,7 +202,7 @@ skimmed_datasets:
     # Parameters of the output
     list_name: "AliAnalysisTaskTrackSkim_PbPb_semi_central"
     tree_name: "AliAnalysisTaskTrackSkim_PbPb_semi_central_tree"
-    prefixes_in_output_file:
+    levels_in_output_file:
       - "data"
     files:
       - "trains/PbPb/645/run_by_run/LHC18q/*/AnalysisResults.18q.*.root"
@@ -217,7 +217,7 @@ skimmed_datasets:
     # Parameters of the output
     list_name: "AliAnalysisTaskTrackSkim_PbPb_central"
     tree_name: "AliAnalysisTaskTrackSkim_PbPb_central_tree"
-    prefixes_in_output_file:
+    levels_in_output_file:
       - "data"
     files:
       - "trains/PbPb/7666/run_by_run/LHC15o/*/AnalysisResults.15o.*.root"
@@ -231,7 +231,7 @@ skimmed_datasets:
     # Parameters of the output
     list_name: "AliAnalysisTaskTrackSkim_PbPb_semi_central"
     tree_name: "AliAnalysisTaskTrackSkim_PbPb_semi_central_tree"
-    prefixes_in_output_file:
+    levels_in_output_file:
       - "data"
     files:
       - "trains/PbPb/7668/run_by_run/LHC15o/*/AnalysisResults.15o.*.root"
