@@ -13,36 +13,36 @@ from typing import Any
 
 from mammoth import job_utils
 from mammoth.alice import groomed_substructure_analysis, groomed_substructure_steering, steer_scale_factors
-from mammoth.framework import production, steer_job
+from mammoth.framework import production, steer_workflow
 from mammoth.framework import task as framework_task
-from mammoth.framework.steer_job import process_futures, setup_job_framework
+from mammoth.framework.steer_workflow import process_futures, setup_job_framework
 
 logger = logging.getLogger(__name__)
 
 
 # Define the steering apps
-setup_data_skim = steer_job.setup_data_calculation(
+setup_data_skim = steer_workflow.setup_data_calculation(
     analysis_function=groomed_substructure_analysis.analysis_data,
     argument_preprocessing=groomed_substructure_steering.argument_preprocessing,
     analysis_metadata=groomed_substructure_analysis.customize_analysis_metadata,
     analysis_output_identifier=groomed_substructure_steering.analysis_output_identifier,
 )
 
-setup_MC_skim = steer_job.setup_data_calculation(
+setup_MC_skim = steer_workflow.setup_data_calculation(
     analysis_function=groomed_substructure_analysis.analysis_MC,
     argument_preprocessing=groomed_substructure_steering.argument_preprocessing,
     analysis_metadata=groomed_substructure_analysis.customize_analysis_metadata,
     analysis_output_identifier=groomed_substructure_steering.analysis_output_identifier,
 )
 
-setup_embed_MC_into_data_skim = steer_job.setup_embed_MC_into_data_calculation(
+setup_embed_MC_into_data_skim = steer_workflow.setup_embed_MC_into_data_calculation(
     analysis_function=groomed_substructure_analysis.analysis_embedding,
     argument_preprocessing=groomed_substructure_steering.argument_preprocessing,
     analysis_metadata=groomed_substructure_analysis.customize_analysis_metadata,
     analysis_output_identifier=groomed_substructure_steering.analysis_output_identifier,
 )
 
-setup_embed_MC_into_thermal_model_skim = steer_job.setup_embed_MC_into_thermal_model_calculation(
+setup_embed_MC_into_thermal_model_skim = steer_workflow.setup_embed_MC_into_thermal_model_calculation(
     analysis_function=groomed_substructure_analysis.analysis_embedding,
     argument_preprocessing=groomed_substructure_steering.argument_preprocessing,
     analysis_metadata=groomed_substructure_analysis.customize_analysis_metadata,
