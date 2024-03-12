@@ -70,7 +70,7 @@ class OutputIdentifier(Protocol):
         ...
 
 
-def no_op_analysis_output_identifier(
+def no_op_output_identifier(
     **analysis_arguments: Any,  # noqa: ARG001
 ) -> str:
     """No-op for determining the output identifier."""
@@ -78,37 +78,31 @@ def no_op_analysis_output_identifier(
 
 
 def _validate_setup_functions(
-    argument_preprocessing: PreprocessArguments | None = None,
-    analysis_output_identifier: OutputIdentifier | None = None,
+    preprocess_arguments: PreprocessArguments | None = None,
+    output_identifier: OutputIdentifier | None = None,
 ) -> tuple[PreprocessArguments, OutputIdentifier]:
     """Standard validation for setup functions.
 
     Args:
-        argument_preprocessing: Preprocess the arguments in the steering.
-        analysis_output_identifier: Customize the output identifier.
+        preprocess_arguments: Preprocess the arguments in the steering.
+        output_identifier: Customize the output identifier.
     Returns:
         Tuple of the validated functions.
     """
-    if argument_preprocessing is None:
-        defined_argument_preprocessing = no_op_preprocess_arguments
-    else:
-        defined_argument_preprocessing = argument_preprocessing
-    if analysis_output_identifier is None:
-        defined_analysis_output_identifier = no_op_analysis_output_identifier
-    else:
-        defined_analysis_output_identifier = analysis_output_identifier
+    defined_preprocess_arguments = no_op_preprocess_arguments if preprocess_arguments is None else preprocess_arguments
+    defined_output_identifier = no_op_output_identifier if output_identifier is None else output_identifier
 
-    return defined_argument_preprocessing, defined_analysis_output_identifier
+    return defined_preprocess_arguments, defined_output_identifier
 
 
 class SetupSteeringTask(Protocol):
     """Setup processing calculation (ie. single input collection).
 
     Args:
-        analysis_function: Analysis function to be run.
-        argument_preprocessing: Preprocess the arguments in the steering.
-        analysis_output_identifier: Customize the output identifier.
-        analysis_metadata: Customize the task metadata.
+        analyze_chunk: Analysis function to be run.
+        preprocess_arguments: Preprocess the arguments in the steering.
+        output_identifier: Customize the output identifier.
+        metadata_for_labeling: Customize the task metadata.
 
     Returns:
         Function that will setup the embedding of MC into data with the specified analysis function.
@@ -116,10 +110,10 @@ class SetupSteeringTask(Protocol):
 
     def __call__(
         self,
-        analysis_function: framework_task.Analysis,
-        argument_preprocessing: PreprocessArguments | None = None,
-        analysis_output_identifier: OutputIdentifier | None = None,
-        analysis_metadata: framework_task.CustomizeAnalysisMetadata | None = None,
+        analyze_chunk: framework_task.Analysis,
+        preprocess_arguments: PreprocessArguments | None = None,
+        output_identifier: OutputIdentifier | None = None,
+        metadata_for_labeling: framework_task.CustomizeMetadataForLabeling | None = None,
     ) -> SetupTasks:
         ...
 
@@ -319,18 +313,18 @@ def _determine_embed_pythia_input_files(
 
 
 def setup_data_calculation(  # noqa: C901
-    analysis_function: framework_task.Analysis,
-    argument_preprocessing: PreprocessArguments | None = None,
-    analysis_output_identifier: OutputIdentifier | None = None,
-    analysis_metadata: framework_task.CustomizeAnalysisMetadata | None = None,
+    analyze_chunk: framework_task.Analysis,
+    preprocess_arguments: PreprocessArguments | None = None,
+    output_identifier: OutputIdentifier | None = None,
+    metadata_for_labeling: framework_task.CustomizeMetadataForLabeling | None = None,
 ) -> SetupTasks:
     """Setup processing data (ie. single input collection).
 
     Args:
-        analysis_function: Analysis function to be run.
-        argument_preprocessing: Preprocess the arguments in the steering.
-        analysis_output_identifier: Customize the output identifier.
-        analysis_metadata: Customize the task metadata.
+        analyze_chunk: Analysis function to be run.
+        preprocess_arguments: Preprocess the arguments in the steering.
+        output_identifier: Customize the output identifier.
+        metadata_for_labeling: Customize the task metadata.
 
     Returns:
         Function that will setup the embedding of MC into data with the specified analysis function.
@@ -338,11 +332,11 @@ def setup_data_calculation(  # noqa: C901
     # Validation
     # NOTE: We change the function name here to help out mypy. Something about the way that we're
     #       wrapping the function causes an issue otherwise.
-    defined_argument_preprocessing, defined_analysis_output_identifier = _validate_setup_functions(
-        argument_preprocessing=argument_preprocessing,
-        analysis_output_identifier=analysis_output_identifier,
+    defined_preprocess_arguments, defined_output_identifier = _validate_setup_functions(
+        preprocess_arguments=preprocess_arguments,
+        output_identifier=output_identifier,
     )
-    # Note: We'll handle analysis_metadata possibly being None in the python app
+    # Note: We'll handle metadata_for_labeling possibly being None in the python app
 
     def wrap_setup(
         prod: production.ProductionSettings,
@@ -351,8 +345,8 @@ def setup_data_calculation(  # noqa: C901
     ) -> list[Future[framework_task.Output]]:
         # Setup
         python_app_func = framework_task.python_app_data(
-            analysis=analysis_function,
-            analysis_metadata=analysis_metadata,
+            analysis=analyze_chunk,
+            metadata_for_labeling=metadata_for_labeling,
         )
 
         # Setup input and output
@@ -426,7 +420,7 @@ def setup_data_calculation(  # noqa: C901
         # Preprocess the arguments
         # NOTE: We do it last so we can access the other arguments if needed
         analysis_arguments.update(
-            defined_argument_preprocessing(
+            defined_preprocess_arguments(
                 **analysis_arguments,
             )
         )
@@ -467,7 +461,7 @@ def setup_data_calculation(  # noqa: C901
                     ),
                 )
                 # Finally, add the customization
-                output_identifier += defined_analysis_output_identifier(**analysis_arguments_with_pt_hat_scale_factor)
+                output_identifier += defined_output_identifier(**analysis_arguments_with_pt_hat_scale_factor)
 
                 # NOTE: The extension will be customized in the app....
                 output_filename = output_dir / f"{output_identifier}.dummy_ext"
@@ -522,18 +516,18 @@ def setup_data_calculation(  # noqa: C901
 
 
 def setup_embed_MC_into_data_calculation(  # noqa: C901
-    analysis_function: framework_task.Analysis,
-    argument_preprocessing: PreprocessArguments | None = None,
-    analysis_output_identifier: OutputIdentifier | None = None,
-    analysis_metadata: framework_task.CustomizeAnalysisMetadata | None = None,
+    analyze_chunk: framework_task.Analysis,
+    preprocessing_arguments: PreprocessArguments | None = None,
+    output_identifier: OutputIdentifier | None = None,
+    metadata_for_labeling: framework_task.CustomizeMetadataForLabeling | None = None,
 ) -> SetupTasks:
     """Setup the embedding of MC into data.
 
     Args:
-        analysis_function: Analysis function to be run.
-        argument_preprocessing: Preprocess the arguments in the steering.
-        analysis_metadata: Customize the task metadata.
-        analysis_output_identifier: Customize the output identifier.
+        analyze_chunk: Analysis function to be run.
+        preprocess_arguments: Preprocess the arguments in the steering.
+        output_identifier: Customize the output identifier.
+        metadata_for_labeling: Customize the task metadata.
 
     Returns:
         Function that will setup the embedding of MC into data with the specified analysis function.
@@ -541,11 +535,11 @@ def setup_embed_MC_into_data_calculation(  # noqa: C901
     # Validation
     # NOTE: We change the function name here to help out mypy. Something about the way that we're
     #       wrapping the function causes an issue otherwise.
-    defined_argument_preprocessing, defined_analysis_output_identifier = _validate_setup_functions(
-        argument_preprocessing=argument_preprocessing,
-        analysis_output_identifier=analysis_output_identifier,
+    defined_preprocess_arguments, defined_output_identifier = _validate_setup_functions(
+        preprocess_arguments=preprocessing_arguments,
+        output_identifier=output_identifier,
     )
-    # Note: We'll handle analysis_metadata possibly being None in the python app
+    # Note: We'll handle metadata_for_labeling possibly being None in the python app
 
     def wrap_setup(  # noqa: C901
         prod: production.ProductionSettings,
@@ -555,8 +549,8 @@ def setup_embed_MC_into_data_calculation(  # noqa: C901
         """Create futures to produce embed MC into data skim"""
         # Setup
         python_app_func = framework_task.python_app_embed_MC_into_data(
-            analysis=analysis_function,
-            analysis_metadata=analysis_metadata,
+            analysis=analyze_chunk,
+            metadata_for_labeling=metadata_for_labeling,
         )
 
         # Setup input and output
@@ -664,7 +658,7 @@ def setup_embed_MC_into_data_calculation(  # noqa: C901
         # Preprocess the arguments
         # NOTE: We do it last so we can access the other arguments if needed
         analysis_arguments.update(
-            defined_argument_preprocessing(
+            defined_preprocess_arguments(
                 **analysis_arguments,
             )
         )
@@ -746,7 +740,7 @@ def setup_embed_MC_into_data_calculation(  # noqa: C901
                 ),
             )
             # Finally, add the customization
-            output_identifier += defined_analysis_output_identifier(**analysis_arguments_with_pt_hat_scale_factor)
+            output_identifier += defined_output_identifier(**analysis_arguments_with_pt_hat_scale_factor)
 
             # Ensure that we don't use an output identifier twice.
             # If we've already used it, we add a counter to it
@@ -820,18 +814,18 @@ def setup_embed_MC_into_data_calculation(  # noqa: C901
 
 
 def setup_embed_MC_into_thermal_model_calculation(
-    analysis_function: framework_task.Analysis,
-    argument_preprocessing: PreprocessArguments | None = None,
-    analysis_output_identifier: OutputIdentifier | None = None,
-    analysis_metadata: framework_task.CustomizeAnalysisMetadata | None = None,
+    analyze_chunk: framework_task.Analysis,
+    preprocess_arguments: PreprocessArguments | None = None,
+    output_identifier: OutputIdentifier | None = None,
+    metadata_for_labeling: framework_task.CustomizeMetadataForLabeling | None = None,
 ) -> SetupTasks:
     """Setup the embedding of MC into a thermal model.
 
     Args:
-        analysis_function: Analysis function to be run.
-        argument_preprocessing: Preprocess the arguments in the steering.
-        analysis_metadata: Customize the task metadata.
-        analysis_output_identifier: Customize the output identifier.
+        analyze_chunk: Analysis function to be run.
+        preprocess_arguments: Preprocess the arguments in the steering.
+        metadata_for_labeling: Customize the task metadata.
+        output_identifier: Customize the output identifier.
 
     Returns:
         Function that will setup the embedding of MC into data with the specified analysis function.
@@ -839,11 +833,11 @@ def setup_embed_MC_into_thermal_model_calculation(
     # Validation
     # NOTE: We change the function name here to help out mypy. Something about the way that we're
     #       wrapping the function causes an issue otherwise.
-    defined_argument_preprocessing, defined_analysis_output_identifier = _validate_setup_functions(
-        argument_preprocessing=argument_preprocessing,
-        analysis_output_identifier=analysis_output_identifier,
+    defined_preprocess_arguments, defined_output_identifier = _validate_setup_functions(
+        preprocess_arguments=preprocess_arguments,
+        output_identifier=output_identifier,
     )
-    # Note: We'll handle analysis_metadata possibly being None in the python app
+    # Note: We'll handle metadata_for_labeling possibly being None in the python app
 
     def wrap_setup(
         prod: production.ProductionSettings,
@@ -852,8 +846,8 @@ def setup_embed_MC_into_thermal_model_calculation(
     ) -> list[Future[framework_task.Output]]:
         # Setup
         python_app_func = framework_task.python_app_embed_MC_into_thermal_model(
-            analysis=analysis_function,
-            analysis_metadata=analysis_metadata,
+            analysis=analyze_chunk,
+            metadata_for_labeling=metadata_for_labeling,
         )
 
         # Setup input and output
@@ -906,7 +900,7 @@ def setup_embed_MC_into_thermal_model_calculation(
         # Preprocess the arguments
         # NOTE: We do it last so we can access the other arguments if needed
         analysis_arguments.update(
-            defined_argument_preprocessing(
+            defined_preprocess_arguments(
                 **analysis_arguments,
             )
         )
@@ -956,7 +950,7 @@ def setup_embed_MC_into_thermal_model_calculation(
                     ),
                 )
                 # Finally, add the customization
-                output_identifier += defined_analysis_output_identifier(**analysis_arguments_with_pt_hat_scale_factor)
+                output_identifier += defined_output_identifier(**analysis_arguments_with_pt_hat_scale_factor)
 
                 # NOTE: The extension will be customized in the app....
                 output_filename = output_dir / f"{output_identifier}.dummy_ext"

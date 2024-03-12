@@ -22,31 +22,31 @@ logger = logging.getLogger(__name__)
 
 # Define the steering apps
 setup_data_skim = steer_workflow.setup_data_calculation(
-    analysis_function=groomed_substructure_analysis.analysis_data,
-    argument_preprocessing=groomed_substructure_steering.argument_preprocessing,
-    analysis_metadata=groomed_substructure_analysis.customize_analysis_metadata,
-    analysis_output_identifier=groomed_substructure_steering.analysis_output_identifier,
+    analyze_chunk=groomed_substructure_analysis.analysis_data,
+    preprocess_arguments=groomed_substructure_steering.argument_preprocessing,
+    metadata_for_labeling=groomed_substructure_analysis.customize_analysis_metadata,
+    output_identifier=groomed_substructure_steering.analysis_output_identifier,
 )
 
 setup_MC_skim = steer_workflow.setup_data_calculation(
-    analysis_function=groomed_substructure_analysis.analysis_MC,
-    argument_preprocessing=groomed_substructure_steering.argument_preprocessing,
-    analysis_metadata=groomed_substructure_analysis.customize_analysis_metadata,
-    analysis_output_identifier=groomed_substructure_steering.analysis_output_identifier,
+    analyze_chunk=groomed_substructure_analysis.analysis_MC,
+    preprocess_arguments=groomed_substructure_steering.argument_preprocessing,
+    metadata_for_labeling=groomed_substructure_analysis.customize_analysis_metadata,
+    output_identifier=groomed_substructure_steering.analysis_output_identifier,
 )
 
 setup_embed_MC_into_data_skim = steer_workflow.setup_embed_MC_into_data_calculation(
-    analysis_function=groomed_substructure_analysis.analysis_embedding,
-    argument_preprocessing=groomed_substructure_steering.argument_preprocessing,
-    analysis_metadata=groomed_substructure_analysis.customize_analysis_metadata,
-    analysis_output_identifier=groomed_substructure_steering.analysis_output_identifier,
+    analyze_chunk=groomed_substructure_analysis.analysis_embedding,
+    preprocessing_arguments=groomed_substructure_steering.argument_preprocessing,
+    metadata_for_labeling=groomed_substructure_analysis.customize_analysis_metadata,
+    output_identifier=groomed_substructure_steering.analysis_output_identifier,
 )
 
 setup_embed_MC_into_thermal_model_skim = steer_workflow.setup_embed_MC_into_thermal_model_calculation(
-    analysis_function=groomed_substructure_analysis.analysis_embedding,
-    argument_preprocessing=groomed_substructure_steering.argument_preprocessing,
-    analysis_metadata=groomed_substructure_analysis.customize_analysis_metadata,
-    analysis_output_identifier=groomed_substructure_steering.analysis_output_identifier,
+    analyze_chunk=groomed_substructure_analysis.analysis_embedding,
+    preprocess_arguments=groomed_substructure_steering.argument_preprocessing,
+    metadata_for_labeling=groomed_substructure_analysis.customize_analysis_metadata,
+    output_identifier=groomed_substructure_steering.analysis_output_identifier,
 )
 
 

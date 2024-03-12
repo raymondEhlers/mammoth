@@ -96,52 +96,52 @@ setup_standard_workflow, setup_embed_workflow = steer_workflow.setup_framework_d
     metadata_for_labeling=...,
 )
 
-#setup_one_collection_workflow = steer_workflow.setup_one_input_collection_workflow(
+# setup_one_collection_workflow = steer_workflow.setup_one_input_collection_workflow(
 #    analyze_chunk=...,
 #    preprocess_arguments=...,
 #    output_identifier=...,
 #    metadata_for_labeling=...,
-#)
+# )
 
-#setup_two_collection_workflow = steer_workflow.setup_two_input_collection_workflow(
+# setup_two_collection_workflow = steer_workflow.setup_two_input_collection_workflow(
 #
-#)
+# )
 #
-#setup_embed_MC_into_data_workflow = steer_workflow.setup_embed_MC_into_data_workflow(
+# setup_embed_MC_into_data_workflow = steer_workflow.setup_embed_MC_into_data_workflow(
 #    analysis_function=groomed_substructure_analysis.analysis_embedding,
 #    argument_preprocessing=groomed_substructure_steering.argument_preprocessing,
 #    analysis_metadata=groomed_substructure_analysis.customize_analysis_metadata,
 #    analysis_output_identifier=groomed_substructure_steering.analysis_output_identifier,
-#)
+# )
 #
-#setup_embed_MC_into_thermal_model_workflow = steer_workflow.setup_embed_MC_into_thermal_model_workflow(
+# setup_embed_MC_into_thermal_model_workflow = steer_workflow.setup_embed_MC_into_thermal_model_workflow(
 #    analysis_function=groomed_substructure_analysis.analysis_embedding,
 #    argument_preprocessing=groomed_substructure_steering.argument_preprocessing,
 #    analysis_metadata=groomed_substructure_analysis.customize_analysis_metadata,
 #    analysis_output_identifier=groomed_substructure_steering.analysis_output_identifier,
-#)
+# )
 
 #### END DEV
 
 
 setup_data_skim = steer_workflow.setup_data_calculation(
     analyze_chunk=analysis_alice.analysis_one_input_level,
-    analysis_metadata=analysis_alice.customize_analysis_metadata,
+    metadata_for_labeling=analysis_alice.customize_analysis_metadata,
 )
 
 setup_MC_two_input_collection_skim = steer_workflow.setup_data_calculation(
     analyze_chunk=analysis_alice.analysis_two_input_levels,
-    analysis_metadata=analysis_alice.customize_analysis_metadata,
+    metadata_for_labeling=analysis_alice.customize_analysis_metadata,
 )
 
 setup_embed_MC_into_data_skim = steer_workflow.setup_embed_MC_into_data_calculation(
     analyze_chunk=analysis_alice.analysis_embedding,
-    analysis_metadata=analysis_alice.customize_analysis_metadata,
+    metadata_for_labeling=analysis_alice.customize_analysis_metadata,
 )
 
 setup_embed_MC_into_thermal_model_skim = steer_workflow.setup_embed_MC_into_thermal_model_calculation(
     analyze_chunk=analysis_alice.analysis_embedding,
-    analysis_metadata=analysis_alice.customize_analysis_metadata,
+    metadata_for_labeling=analysis_alice.customize_analysis_metadata,
 )
 
 

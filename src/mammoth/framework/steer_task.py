@@ -210,7 +210,7 @@ def steer_data_task(
     # Analysis
     # NOTE: The analysis arguments are bound to both of these functions before passing here
     analysis_function: framework_task.AnalysisBound,
-    analysis_metadata_function: framework_task.CustomizeAnalysisMetadata,
+    metadata_for_labeling_function: framework_task.CustomizeMetadataForLabeling,
     # We split these argument out to ensure that they're explicitly supported
     validation_mode: bool,
 ) -> framework_task.Output:
@@ -226,7 +226,7 @@ def steer_data_task(
         setup_input_source: Function to setup the input source.
         output_settings: Output settings.
         analysis_function: Analysis function.
-        analysis_metadata_function: Function to customize the analysis metadata.
+        metadata_for_labeling_function: Function to customize the analysis metadata.
         validation_mode: Whether or not to run in validation mode.
 
     Returns:
@@ -240,7 +240,7 @@ def steer_data_task(
     # Task metadata
     task_metadata = _default_task_metadata(task_settings=task_settings)
     # Add in the customized analysis parameters
-    task_metadata.update(analysis_metadata_function(task_settings=task_settings))
+    task_metadata.update(metadata_for_labeling_function(task_settings=task_settings))
 
     # NOTE: Always call `description_and_output_metadata` right before they're needed to ensure they
     #       up to date since they may change
@@ -282,7 +282,7 @@ def steer_embed_task(
     # Analysis
     # NOTE: The analysis arguments are bound to both of these functions before passing here
     analysis_function: framework_task.EmbeddingAnalysisBound,
-    analysis_metadata_function: framework_task.CustomizeAnalysisMetadata,
+    metadata_for_labeling_function: framework_task.CustomizeMetadataForLabeling,
     # We split these argument out to ensure that they're explicitly supported
     validation_mode: bool,
 ) -> framework_task.Output:
@@ -298,7 +298,7 @@ def steer_embed_task(
         setup_input_source: Function to setup the input source.
         output_settings: Output settings.
         analysis_function: Analysis function.
-        analysis_metadata_function: Function to customize the analysis metadata.
+        metadata_for_labeling_function: Function to customize the analysis metadata.
         validation_mode: Whether or not to run in validation mode.
 
     Returns:
@@ -312,7 +312,7 @@ def steer_embed_task(
     # Task metadata
     task_metadata = _default_task_metadata(task_settings=task_settings)
     # Add in the customized analysis parameters
-    task_metadata.update(analysis_metadata_function(task_settings=task_settings))
+    task_metadata.update(metadata_for_labeling_function(task_settings=task_settings))
 
     # NOTE: Always call `description_and_output_metadata` right before they're needed to ensure they
     #       up to date since they may change

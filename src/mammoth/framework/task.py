@@ -468,7 +468,7 @@ class EmbeddingAnalysisBound(Protocol):
         ...
 
 
-class CustomizeAnalysisMetadata(Protocol):
+class CustomizeMetadataForLabeling(Protocol):
     """Customize metadata based on the analysis arguments."""
 
     def __call__(
@@ -480,11 +480,10 @@ class CustomizeAnalysisMetadata(Protocol):
         ...
 
 
-class BoundCustomizeAnalysisMetadata(Protocol):
+class BoundCustomizeMetadataForLabeling(Protocol):
     """Customize metadata based on the analysis arguments.
 
     This signature is if the analysis arguments have already been bound to the function.
-
     """
 
     def __call__(
@@ -495,7 +494,7 @@ class BoundCustomizeAnalysisMetadata(Protocol):
         ...
 
 
-def no_op_customize_analysis_metadata(
+def no_op_customize_metadata_for_labeling(
     task_settings: Settings,  # noqa: ARG001
     **analysis_arguments: Any,  # noqa: ARG001
 ) -> Metadata:
@@ -518,13 +517,13 @@ def _module_and_name_from_func(func: Callable[..., Any]) -> tuple[str, str]:
 def python_app_data(
     *,
     analysis: Analysis,
-    analysis_metadata: CustomizeAnalysisMetadata | None = None,
+    metadata_for_labeling: CustomizeMetadataForLabeling | None = None,
 ) -> Callable[..., concurrent.futures.Future[Output]]:
     """Python app for data task (ie. one particle collection)
 
     Args:
         analysis: Analysis function.
-        analysis_metadata: Function to customize the analysis metadata. Default: None.
+        metadata_for_labeling: Function to customize the analysis metadata. Default: None.
 
     Returns:
         Wrapper for data task.
@@ -540,11 +539,11 @@ def python_app_data(
     # Analysis function
     analysis_function_module_import_path, analysis_function_function_name = _module_and_name_from_func(func=analysis)
     # Task metadata
-    analysis_metadata_module_import_path = ""
-    analysis_metadata_function_name = ""
-    if analysis_metadata is not None:
-        analysis_metadata_module_import_path, analysis_metadata_function_name = _module_and_name_from_func(
-            func=analysis_metadata
+    metadata_for_labeling_module_import_path = ""
+    metadata_for_labeling_function_name = ""
+    if metadata_for_labeling is not None:
+        metadata_for_labeling_module_import_path, metadata_for_labeling_function_name = _module_and_name_from_func(
+            func=metadata_for_labeling
         )
 
     # NOTE: The order of the wrapping is important here! Otherwise, parsl breaks.
@@ -584,13 +583,15 @@ def python_app_data(
         analysis_function: Analysis = getattr(module_containing_analysis_function, analysis_function_function_name)
         # And metadata customization
         # We handle this more carefully because it may not always be specified
-        if analysis_metadata_module_import_path:
-            module_containing_analysis_metadata_function = importlib.import_module(analysis_metadata_module_import_path)
-            metadata_function: CustomizeAnalysisMetadata = getattr(
-                module_containing_analysis_metadata_function, analysis_metadata_function_name
+        if metadata_for_labeling_module_import_path:
+            module_containing_metadata_for_labeling_function = importlib.import_module(
+                metadata_for_labeling_module_import_path
+            )
+            metadata_function: CustomizeMetadataForLabeling = getattr(
+                module_containing_metadata_for_labeling_function, metadata_for_labeling_function_name
             )
         else:
-            metadata_function = no_op_customize_analysis_metadata
+            metadata_function = no_op_customize_metadata_for_labeling
 
         signal_input = [Path(_input_file.filepath) for _input_file in inputs]
         try:
@@ -623,7 +624,7 @@ def python_app_data(
                     analysis_function,
                     **analysis_arguments,
                 ),
-                analysis_metadata_function=functools.partial(
+                metadata_for_labeling_function=functools.partial(
                     metadata_function,
                     **analysis_arguments,
                 ),
@@ -649,13 +650,13 @@ def python_app_data(
 def python_app_embed_MC_into_data(
     *,
     analysis: Analysis,
-    analysis_metadata: CustomizeAnalysisMetadata | None = None,
+    metadata_for_labeling: CustomizeMetadataForLabeling | None = None,
 ) -> Callable[..., concurrent.futures.Future[Output]]:
     """Python app for embed MC in data task
 
     Args:
         analysis: Analysis function.
-        analysis_metadata: Function to customize the analysis metadata. Default: None.
+        metadata_for_labeling: Function to customize the analysis metadata. Default: None.
 
     Returns:
         Wrapper for embed MC into data task.
@@ -671,11 +672,11 @@ def python_app_embed_MC_into_data(
     # Analysis function
     analysis_function_module_import_path, analysis_function_function_name = _module_and_name_from_func(func=analysis)
     # Task metadata
-    analysis_metadata_module_import_path = ""
-    analysis_metadata_function_name = ""
-    if analysis_metadata is not None:
-        analysis_metadata_module_import_path, analysis_metadata_function_name = _module_and_name_from_func(
-            func=analysis_metadata
+    metadata_for_labeling_module_import_path = ""
+    metadata_for_labeling_function_name = ""
+    if metadata_for_labeling is not None:
+        metadata_for_labeling_module_import_path, metadata_for_labeling_function_name = _module_and_name_from_func(
+            func=metadata_for_labeling
         )
 
     # NOTE: The order of the wrapping is important here! Otherwise, parsl breaks.
@@ -715,13 +716,15 @@ def python_app_embed_MC_into_data(
         analysis_function: Analysis = getattr(module_containing_analysis_function, analysis_function_function_name)
         # And metadata customization
         # We handle this more carefully because it may not always be specified
-        if analysis_metadata_module_import_path:
-            module_containing_analysis_metadata_function = importlib.import_module(analysis_metadata_module_import_path)
-            metadata_function: CustomizeAnalysisMetadata = getattr(
-                module_containing_analysis_metadata_function, analysis_metadata_function_name
+        if metadata_for_labeling_module_import_path:
+            module_containing_metadata_for_labeling_function = importlib.import_module(
+                metadata_for_labeling_module_import_path
+            )
+            metadata_function: CustomizeMetadataForLabeling = getattr(
+                module_containing_metadata_for_labeling_function, metadata_for_labeling_function_name
             )
         else:
-            metadata_function = no_op_customize_analysis_metadata
+            metadata_function = no_op_customize_metadata_for_labeling
 
         signal_input = [Path(_input_file.filepath) for _input_file in inputs[:n_signal_input_files]]
         background_input = [Path(_input_file.filepath) for _input_file in inputs[n_signal_input_files:]]
@@ -759,7 +762,7 @@ def python_app_embed_MC_into_data(
                     analysis_function,
                     **analysis_arguments,
                 ),
-                analysis_metadata_function=functools.partial(
+                metadata_for_labeling_function=functools.partial(
                     metadata_function,
                     **analysis_arguments,
                 ),
@@ -786,13 +789,13 @@ def python_app_embed_MC_into_data(
 def python_app_embed_MC_into_thermal_model(
     *,
     analysis: Analysis,
-    analysis_metadata: CustomizeAnalysisMetadata | None = None,
+    metadata_for_labeling: CustomizeMetadataForLabeling | None = None,
 ) -> Callable[..., concurrent.futures.Future[Output]]:
     """Python app for embed MC in thermal model background task.
 
     Args:
         analysis: Analysis function.
-        analysis_metadata: Function to customize the analysis metadata. Default: None.
+        metadata_for_labeling: Function to customize the analysis metadata. Default: None.
 
     Returns:
         Wrapper for embed MC into thermal model background task.
@@ -808,11 +811,11 @@ def python_app_embed_MC_into_thermal_model(
     # Analysis function
     analysis_function_module_import_path, analysis_function_function_name = _module_and_name_from_func(func=analysis)
     # Task metadata
-    analysis_metadata_module_import_path = ""
-    analysis_metadata_function_name = ""
-    if analysis_metadata is not None:
-        analysis_metadata_module_import_path, analysis_metadata_function_name = _module_and_name_from_func(
-            func=analysis_metadata
+    metadata_for_labeling_module_import_path = ""
+    metadata_for_labeling_function_name = ""
+    if metadata_for_labeling is not None:
+        metadata_for_labeling_module_import_path, metadata_for_labeling_function_name = _module_and_name_from_func(
+            func=metadata_for_labeling
         )
 
     # NOTE: The order of the wrapping is important here! Otherwise, parsl breaks.
@@ -851,13 +854,15 @@ def python_app_embed_MC_into_thermal_model(
         analysis_function: Analysis = getattr(module_containing_analysis_function, analysis_function_function_name)
         # And metadata customization
         # We handle this more carefully because it may not always be specified
-        if analysis_metadata_module_import_path:
-            module_containing_analysis_metadata_function = importlib.import_module(analysis_metadata_module_import_path)
-            metadata_function: CustomizeAnalysisMetadata = getattr(
-                module_containing_analysis_metadata_function, analysis_metadata_function_name
+        if metadata_for_labeling_module_import_path:
+            module_containing_metadata_for_labeling_function = importlib.import_module(
+                metadata_for_labeling_module_import_path
+            )
+            metadata_function: CustomizeMetadataForLabeling = getattr(
+                module_containing_metadata_for_labeling_function, metadata_for_labeling_function_name
             )
         else:
-            metadata_function = no_op_customize_analysis_metadata
+            metadata_function = no_op_customize_metadata_for_labeling
 
         signal_input = [Path(_input_file.filepath) for _input_file in inputs]
         try:
@@ -893,7 +898,7 @@ def python_app_embed_MC_into_thermal_model(
                     analysis_function,
                     **analysis_arguments,
                 ),
-                analysis_metadata_function=functools.partial(
+                metadata_for_labeling_function=functools.partial(
                     metadata_function,
                     **analysis_arguments,
                 ),
