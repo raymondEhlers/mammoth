@@ -18,10 +18,10 @@ import numpy as np
 import vector
 
 from mammoth import helpers
-from mammoth.alice import groomed_substructure_skim_to_flat_tree, reclustered_substructure
 from mammoth.framework import task as framework_task
 from mammoth.framework.analysis import tracking as analysis_tracking
 from mammoth.hardest_kt import analysis_track_skim_to_flat_tree
+from mammoth.reclustered_substructure import analyze_chunk, groomed_substructure_skim_to_flat_tree
 
 logger = logging.getLogger(__name__)
 vector.register_awkward()
@@ -140,7 +140,7 @@ def analyze_chunk_two_input_level(
         # )
 
     # Two track collections (part and det level)
-    jets = reclustered_substructure.analyze_track_skim_and_recluster_MC(
+    jets = analyze_chunk.analyze_track_skim_and_recluster_MC(
         arrays=arrays,
         jet_R=jet_R,
         min_jet_pt=min_jet_pt,
@@ -202,7 +202,7 @@ def analyze_chunk_one_input_level(
 
     This implements the Analysis interface.
     """
-    jets = reclustered_substructure.analyze_track_skim_and_recluster_data(
+    jets = analyze_chunk.analyze_track_skim_and_recluster_data(
         collision_system=collision_system,
         arrays=arrays,
         jet_R=jet_R,
@@ -303,7 +303,7 @@ def analyze_chunk_three_input_level(
 
     This implements the Analysis interface.
     """
-    jets = reclustered_substructure.analyze_track_skim_and_recluster_embedding(
+    jets = analyze_chunk.analyze_track_skim_and_recluster_embedding(
         source_index_identifiers=source_index_identifiers,
         arrays=arrays,
         jet_R=jet_R,

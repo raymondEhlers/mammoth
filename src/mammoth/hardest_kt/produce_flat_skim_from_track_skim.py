@@ -19,12 +19,12 @@ from parsl.data_provider.files import File
 
 from mammoth import helpers, job_utils
 from mammoth.alice import job_utils as alice_job_utils
-from mammoth.alice.groomed_substructure_steering import SplittingsSelection
 from mammoth.framework import production, sources
 from mammoth.framework.analysis import objects as analysis_objects
 from mammoth.framework.analysis import tracking as analysis_tracking
 from mammoth.framework.io import output_utils
 from mammoth.job_utils import python_app
+from mammoth.reclustered_substructure.grooming_workflow import SplittingsSelection
 
 logger = logging.getLogger(__name__)
 

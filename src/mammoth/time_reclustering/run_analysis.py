@@ -12,22 +12,23 @@ from pathlib import Path
 from typing import Any
 
 from mammoth import job_utils
-from mammoth.alice import groomed_substructure_analysis, groomed_substructure_steering, steer_scale_factors
+from mammoth.alice import steer_scale_factors
 from mammoth.framework import production, steer_workflow
 from mammoth.framework import task as framework_task
 from mammoth.framework.steer_workflow import process_futures, setup_job_framework
+from mammoth.reclustered_substructure import analyze_chunk_to_groomed_flat_tree, grooming_workflow
 
 logger = logging.getLogger(__name__)
 
 
 # Define the steering apps
 setup_standard_workflow, setup_embed_workflow = steer_workflow.setup_framework_default_workflows(
-    analyze_chunk_with_one_input_lvl=groomed_substructure_analysis.analyze_chunk_one_input_level,
-    analyze_chunk_with_two_input_lvl=groomed_substructure_analysis.analyze_chunk_two_input_level,
-    analyze_chunk_with_three_input_lvl=groomed_substructure_analysis.analyze_chunk_three_input_level,
-    preprocess_arguments=groomed_substructure_steering.argument_preprocessing,
-    output_identifier=groomed_substructure_steering.analysis_output_identifier,
-    metadata_for_labeling=groomed_substructure_analysis.customize_analysis_metadata,
+    analyze_chunk_with_one_input_lvl=analyze_chunk_to_groomed_flat_tree.analyze_chunk_one_input_level,
+    analyze_chunk_with_two_input_lvl=analyze_chunk_to_groomed_flat_tree.analyze_chunk_two_input_level,
+    analyze_chunk_with_three_input_lvl=analyze_chunk_to_groomed_flat_tree.analyze_chunk_three_input_level,
+    preprocess_arguments=grooming_workflow.argument_preprocessing,
+    output_identifier=grooming_workflow.analysis_output_identifier,
+    metadata_for_labeling=analyze_chunk_to_groomed_flat_tree.customize_analysis_metadata,
 )
 
 
@@ -82,7 +83,7 @@ def define_productions() -> list[production.ProductionSettings]:
             production.ProductionSettings.read_config(
                 collision_system="pp_MC",
                 number=6,
-                specialization=groomed_substructure_steering.ProductionSpecialization(),
+                specialization=grooming_workflow.ProductionSpecialization(),
                 track_skim_config_filename=config_filename,
             ),
         ]

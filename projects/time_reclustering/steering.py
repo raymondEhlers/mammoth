@@ -38,7 +38,7 @@ from importlib import reload
 from pathlib import Path
 
 from mammoth import job_utils
-from mammoth.alice import groomed_substructure_steering
+from mammoth.reclustered_substructure import grooming_workflow
 from mammoth.time_reclustering import run_analysis
 
 # -
@@ -80,7 +80,7 @@ def define_productions() -> list[run_analysis.production.ProductionSettings]:
             run_analysis.production.ProductionSettings.read_config(
                 collision_system="pp_MC",
                 number=4,
-                specialization=groomed_substructure_steering.ProductionSpecialization(),
+                specialization=grooming_workflow.ProductionSpecialization(),
                 track_skim_config_filename=config_filename,
             ),
         ]

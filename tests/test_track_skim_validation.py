@@ -13,12 +13,12 @@ import attrs
 import pachyderm.plot
 import pytest
 
-from mammoth.alice import groomed_substructure_skim_to_flat_tree, substructure_comparison_tools
 from mammoth.framework import sources
 from mammoth.framework.analysis import jet_substructure as analysis_jet_substructure
 from mammoth.framework.analysis import objects as analysis_objects
 from mammoth.framework.io import track_skim as io_track_skim
 from mammoth.hardest_kt import analysis_track_skim_to_flat_tree, run_macro
+from mammoth.reclustered_substructure import groomed_substructure_skim_to_flat_tree, substructure_comparison_tools
 
 logger = logging.getLogger(__name__)
 
