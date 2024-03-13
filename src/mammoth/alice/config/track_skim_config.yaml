@@ -34,7 +34,7 @@ skimmed_datasets:
     skim_type: "track_skim"
     # Parameters of the output
     list_name: "AliAnalysisTaskTrackSkim_pp"
-    tree_name: "AliAnalysisTaskTrackSkim_pp_tree"
+    tree_name: "AliAnalysisTaskTrackSkim_pp_tree_v3"
     levels_in_output_file:
       - "data"
     files:
@@ -517,6 +517,10 @@ productions:
         label: ""
       settings:
         <<: *analysis_settings_time_reclustering_pp_R04
+        output_settings:
+          <<: *time_reclustering_output_settings
+        selected_grooming_methods:
+          - "soft_drop_z_cut_02"
     60:
       # R = 0.2 pp production
       metadata:
