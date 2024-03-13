@@ -182,7 +182,9 @@ class ProductionSettings:
     number: int
     config: dict[str, Any]
     specialization: ProductionSpecialization
-    _manual_analysis_parameter_keys: list[str] = attrs.field(default=["jet_R", "min_jet_pt", "background_subtraction"])
+    _manual_analysis_parameter_keys: list[str] = attrs.field(
+        default=["jet_R", "min_jet_pt", "background_subtraction", "analysis_input_levels"]
+    )
     _base_output_dir: Path = attrs.field(default=Path("trains"))
 
     @functools.cached_property
@@ -227,6 +229,7 @@ class ProductionSettings:
         else:
             for k, v in _background_subtraction_settings.items():
                 name += f"_{k}_{v!s}"
+        # Skip the analysis_input_levels. We just don't need them, and the polluted the identifier
         # Allow for customization
         # NOTE: Remember to pop keys here - otherwise they will be repeated when trying to
         #       iterate and record the remaining settings.
