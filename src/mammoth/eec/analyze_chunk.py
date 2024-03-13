@@ -1,10 +1,10 @@
 """Run ALICE analysis for energy-energy correlators for pp, PbPb, MC, and embedding
 
 Here, we have a working definition of the analysis functions:
-- `analysis_one_input_level`: Run the analysis for a single input level. This includes data, one MC column, or one embedding column
-- `analysis_two_input_level`: Run the analysis for two input levels. This includes two MC columns. In principle,
+- `analyze_chunk_one_input_level`: Run the analysis for a single input level. This includes data, one MC column, or one embedding column
+- `analyze_chunk_two_input_level`: Run the analysis for two input levels. This includes two MC columns. In principle,
     it could also include embedding, but it's not tested as such.
-- `analysis_three_input_levels`: Run the analysis for three input levels (ie. embedding).
+- `analyze_chunk_three_input_levels`: Run the analysis for three input levels (ie. embedding).
 
 .. codeauthor:: Raymond Ehlers <raymond.ehlers@cern.ch>, LBL/UCB
 """
