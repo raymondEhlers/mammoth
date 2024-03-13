@@ -100,7 +100,7 @@ class FileSource:
             columns = Columns.create(collision_system=self._collision_system)
             source: sources.Source = sources.UprootSource(
                 filename=self._filename,
-                tree_name="AliAnalysisTaskTrackSkim_*_tree",
+                tree_name=self.metadata.get("tree_name", "AliAnalysisTaskTrackSkim_*_tree"),
                 columns=list(columns.event_level) + list(columns.particle_level),
             )
             return _transform_output(
