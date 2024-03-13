@@ -36,7 +36,7 @@ Metadata = dict[str, Any]
 InputMetadata = dict[str, Any]
 
 
-def description_from_metadata(metadata: dict[str, Any]) -> str:
+def description_from_metadata(metadata: Metadata) -> str:
     return ", ".join([f"{k}={v}" for k, v in metadata.items()])
 
 
