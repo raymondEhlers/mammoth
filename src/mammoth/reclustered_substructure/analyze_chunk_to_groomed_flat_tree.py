@@ -20,7 +20,6 @@ import vector
 from mammoth import helpers
 from mammoth.framework import task as framework_task
 from mammoth.framework.analysis import tracking as analysis_tracking
-from mammoth.hardest_kt import analysis_track_skim_to_flat_tree
 from mammoth.reclustered_substructure import analyze_chunk, groomed_substructure_skim_to_flat_tree
 
 logger = logging.getLogger(__name__)
@@ -36,6 +35,67 @@ def customize_analysis_metadata(
     Nothing special required here as of June 2023.
     """
     return {"R": analysis_arguments["jet_R"]}
+
+
+def convert_analyzed_jets_to_all_jets_for_skim(
+    jets: ak.Array,
+    convert_data_format_prefixes: Mapping[str, str],
+) -> dict[str, ak.Array]:
+    """Converts analyzed jets from a track skim to the all_jets objects for skimming to a flat tree.
+
+    Args:
+        jets: Analyzed jets from the track skim.
+        convert_data_format_prefixes: Mapping from the track skim format prefix to
+            the desired prefix in the all_jets object.
+    Returns:
+        The all_jets dict for skimming to a flat tree.
+    """
+    # Need the unsubtracted leading track pt for hybrid
+    additional_columns_per_prefix = {}
+    for prefix_to_check in convert_data_format_prefixes:
+        if prefix_to_check in ak.fields(jets) and "unsubtracted_leading_track_pt" in ak.fields(jets[prefix_to_check]):
+            # Store the unsubtracted track pt.
+            # It is expected to be under "leading_track_pt" even though it's unsubtracted
+            additional_columns_per_prefix[prefix_to_check] = {
+                "leading_track_pt": jets[prefix_to_check, "unsubtracted_leading_track_pt"],
+            }
+
+    return {
+        convert_data_format_prefixes[k]: ak.zip(
+            {
+                "jet_pt": jets[k].pt,
+                "jet_constituents": ak.zip(
+                    {
+                        "pt": jets[k].constituents.pt,
+                        "eta": jets[k].constituents.eta,
+                        "phi": jets[k].constituents.phi,
+                        "id": jets[k].constituents.identifier,
+                    },
+                    with_name="JetConstituent",
+                ),
+                "jet_splittings": ak.Array(
+                    jets[k, "reclustering", "jet_splittings"],
+                    with_name="JetSplitting",
+                ),
+                "subjets": ak.zip(
+                    {
+                        "part_of_iterative_splitting": jets[
+                            k, "reclustering", "subjets", "part_of_iterative_splitting"
+                        ],
+                        "parent_splitting_index": jets[k, "reclustering", "subjets", "splitting_node_index"],
+                        "constituent_indices": jets[k, "reclustering", "subjets", "constituent_indices"],
+                    },
+                    with_name="Subjet",
+                    # We want to apply the behavior for each jet, and then for each subjet
+                    # in the jet, so we use a depth limit of 2.
+                    depth_limit=2,
+                ),
+                **additional_columns_per_prefix.get(k, {}),
+            },
+            depth_limit=1,
+        )
+        for k in convert_data_format_prefixes
+    }
 
 
 def _structured_skim_to_flat_skim_for_one_and_two_track_collections(
@@ -54,7 +114,7 @@ def _structured_skim_to_flat_skim_for_one_and_two_track_collections(
     handled in a separate function.
     """
     # Now, adapt into the expected format.
-    all_jets = analysis_track_skim_to_flat_tree._convert_analyzed_jets_to_all_jets_for_skim(
+    all_jets = convert_analyzed_jets_to_all_jets_for_skim(
         jets=jets,
         convert_data_format_prefixes=convert_data_format_prefixes,
     )
@@ -253,7 +313,7 @@ def _structured_skim_to_flat_skim_for_three_track_collections(
     handled in a separate function.
     """
     # Now, adapt into the expected format.
-    all_jets = analysis_track_skim_to_flat_tree._convert_analyzed_jets_to_all_jets_for_skim(
+    all_jets = convert_analyzed_jets_to_all_jets_for_skim(
         jets=jets,
         convert_data_format_prefixes=convert_data_format_prefixes,
     )
