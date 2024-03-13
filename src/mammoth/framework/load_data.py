@@ -38,7 +38,7 @@ def _validate_potential_list_of_inputs(inputs: Path | Sequence[Path]) -> list[Pa
 
 def normalize_for_one_input_level(
     arrays: ak.Array,
-    rename_prefix: Mapping[str, str] | None = None,
+    rename_levels: Mapping[str, str] | None = None,
     mass_hypothesis: float | Mapping[str, float] = 0.139,
     particle_columns: Mapping[str, npt.DTypeLike] | None = None,
 ) -> ak.Array:
@@ -48,7 +48,7 @@ def normalize_for_one_input_level(
 
     Args:
         arrays: Input arrays
-        rename_prefix: Prefix to label the data, and any mapping that we might need to perform. Note: the mapping
+        rename_levels: Prefix to label the data, and any mapping that we might need to perform. Note: the mapping
             goes from value -> key!  Default: "data" -> "data".
         mass_hypothesis: Mass hypothesis for the prefixes, or individually. Default: 0.139 GeV
             for all particle collections. (Same interface here even though we expect only one particle collection).
@@ -61,9 +61,9 @@ def normalize_for_one_input_level(
     if not particle_columns:
         particle_columns = _default_particle_columns
     # Validation
-    if rename_prefix is None or not rename_prefix:
-        rename_prefix = {"data": "data"}
-    _prefixes = list(rename_prefix.keys())
+    if rename_levels is None or not rename_levels:
+        rename_levels = {"data": "data"}
+    _prefixes = list(rename_levels.keys())
     if isinstance(mass_hypothesis, int | float):
         mass_hypotheses = {p: float(mass_hypothesis) for p in _prefixes}
     else:
@@ -73,7 +73,7 @@ def normalize_for_one_input_level(
     # 1) Add a source index, to identify where the particles came from.
     # 2) Add identifier column, to identify relationships between particles. May be the source index if not otherwise specified.
     # 3) Complete the four vectors (as necessary).
-    data = arrays[rename_prefix["data"]]
+    data = arrays[rename_levels["data"]]
     data["source_index"] = ak.local_index(data)
     if "identifier" not in ak.fields(data):
         data["identifier"] = data["source_index"]
@@ -94,7 +94,7 @@ def normalize_for_one_input_level(
             **{
                 k: v
                 for k, v in zip(ak.fields(arrays), ak.unzip(arrays), strict=True)
-                if k not in [*_prefixes, rename_prefix["data"]]
+                if k not in [*_prefixes, rename_levels["data"]]
             },
         }
     )
@@ -102,7 +102,7 @@ def normalize_for_one_input_level(
 
 def normalize_for_two_input_level(
     arrays: ak.Array,
-    rename_prefix: Mapping[str, str] | None = None,
+    rename_levels: Mapping[str, str] | None = None,
     mass_hypothesis: float | Mapping[str, float] = 0.139,
     particle_columns: Mapping[str, npt.DTypeLike] | None = None,
 ) -> ak.Array:
@@ -114,7 +114,7 @@ def normalize_for_two_input_level(
 
     Args:
         arrays: Input arrays
-        rename_prefix: Prefix to label the data, and any mapping that we might need to perform. Note: the mapping
+        rename_levels: Prefix to label the data, and any mapping that we might need to perform. Note: the mapping
             goes from value -> key!  Default: "part_level" -> "part_level", "det_level" -> "det_level".
         mass_hypothesis: Mass hypothesis for either all three prefixes, or individually. Default: 0.139 GeV
             for all particle collections.
@@ -127,14 +127,14 @@ def normalize_for_two_input_level(
     if not particle_columns:
         particle_columns = _default_particle_columns
     # Validation
-    # Since we require the rename_prefix to define what prefixes to work with, if it's passed as an
+    # Since we require the rename_levels to define what prefixes to work with, if it's passed as an
     # empty mapping, we should treat it as is None was actually passed.
-    if rename_prefix is None or not rename_prefix:
-        rename_prefix = {
+    if rename_levels is None or not rename_levels:
+        rename_levels = {
             "part_level": "part_level",
             "det_level": "det_level",
         }
-    _prefixes = list(rename_prefix.keys())
+    _prefixes = list(rename_levels.keys())
     if isinstance(mass_hypothesis, int | float):
         mass_hypotheses = {p: float(mass_hypothesis) for p in _prefixes}
     else:
@@ -144,7 +144,7 @@ def normalize_for_two_input_level(
     # 1) Add a source index, to identify where the particles came from.
     # 2) Add identifier column, to identify relationships between particles. May be the source index if not otherwise specified.
     # 2) Complete the four vectors (as necessary).
-    det_level = arrays[rename_prefix["det_level"]]
+    det_level = arrays[rename_levels["det_level"]]
     det_level["source_index"] = ak.local_index(det_level)
     if "identifier" not in ak.fields(det_level):
         det_level["identifier"] = det_level["source_index"]
@@ -154,7 +154,7 @@ def normalize_for_two_input_level(
     #       >>> det_level = ak.with_name(det_level, name="Momentum4D")
     det_level = vector.Array(det_level)
     # Part level
-    part_level = arrays[rename_prefix["part_level"]]
+    part_level = arrays[rename_levels["part_level"]]
     part_level["source_index"] = ak.local_index(part_level)
     if "identifier" not in ak.fields(part_level):
         part_level["identifier"] = part_level["source_index"]
@@ -188,7 +188,7 @@ def normalize_for_two_input_level(
 def _transform_data(
     gen_data: sources.T_GenData,
     collision_system: str,
-    rename_prefix: Mapping[str, str],
+    rename_levels: Mapping[str, str],
 ) -> sources.T_GenData:
     """Perform normalization for data and MC
 
@@ -204,21 +204,21 @@ def _transform_data(
         # Handle MC vs data.
         # We treat MC separately unless we rename one of the prefixes to "data". In that case,
         # it means that we want to treat the MC as if it were standard data.
-        if collision_system in ["pythia", "pp_MC", "PbPb_MC"] and "data" not in list(rename_prefix.keys()):
+        if collision_system in ["pythia", "pp_MC", "PbPb_MC"] and "data" not in list(rename_levels.keys()):
             logger.info("Transforming as two input levels")
-            yield normalize_for_two_input_level(arrays=arrays, rename_prefix=rename_prefix)
+            yield normalize_for_two_input_level(arrays=arrays, rename_levels=rename_levels)
         else:
             # If not pythia, we don't need any special handling - it's all just data
             # All the rest of the collision systems would be embedded together separately by other functions
             logger.info("Transforming as one input level")
-            yield normalize_for_one_input_level(arrays=arrays, rename_prefix=rename_prefix)
+            yield normalize_for_one_input_level(arrays=arrays, rename_levels=rename_levels)
 
 
 def data(
     data_input: Path | Sequence[Path],
     data_source: sources.SourceFromFilename,
     collision_system: str,
-    rename_prefix: Mapping[str, str],
+    rename_levels: Mapping[str, str],
     chunk_size: sources.T_ChunkSize = sources.ChunkSizeSentinel.FULL_SOURCE,
 ) -> ak.Array | Iterator[ak.Array]:
     """Load data for ALICE analysis from the track skim task output.
@@ -229,7 +229,7 @@ def data(
         data_input: Filenames containing the data.
         data_source: Data source to be used to load the data stored at the filenames.
         collision_system: Collision system corresponding to the data to load.
-        rename_prefix: Prefix to label the data, and any mapping that we might need to perform. Note: the mapping
+        rename_levels: Prefix to label the data, and any mapping that we might need to perform. Note: the mapping
             goes from value -> key!
         chunk_size: Chunk size to use when loading the data. Default: Full source.
     Returns:
@@ -255,7 +255,7 @@ def data(
     _transform_data_iter = _transform_data(
         gen_data=source.gen_data(chunk_size=chunk_size),
         collision_system=collision_system,
-        rename_prefix=rename_prefix,
+        rename_levels=rename_levels,
     )
     return (
         _transform_data_iter if chunk_size is not sources.ChunkSizeSentinel.FULL_SOURCE else next(_transform_data_iter)
@@ -589,7 +589,7 @@ def setup_source_for_data_or_MC_task(
     # Inputs
     signal_input: Path | Sequence[Path],
     signal_source: sources.SourceFromFilename | sources.DelayedSource,
-    loading_data_rename_prefix: Mapping[str, str],
+    loading_data_rename_levels: Mapping[str, str],
     # Outputs
     output_settings: task.OutputSettings,
 ) -> Iterator[ak.Array]:
@@ -608,7 +608,7 @@ def setup_source_for_data_or_MC_task(
         task_metadata: Task metadata.
         signal_input: Input signal file(s).
         signal_source: Source for the signal.
-        loading_data_rename_prefix: Rename existing data prefix to another prefix in the array. Eg. "detLevel" -> "det_level".
+        loading_data_rename_levels: Rename existing level to another level in the array. Eg. "detLevel" -> "det_level".
         output_settings: Output settings.
     Returns:
         iter_arrays: Iterator over the arrays to process.
@@ -635,7 +635,7 @@ def setup_source_for_data_or_MC_task(
             data_input=input_filenames,
             data_source=partial(signal_source, collision_system=task_settings.collision_system),
             collision_system=task_settings.collision_system,
-            rename_prefix=loading_data_rename_prefix,
+            rename_levels=loading_data_rename_levels,
             chunk_size=task_settings.chunk_size,
         )
     except sources.NoDataAvailableError as e:

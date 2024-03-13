@@ -282,26 +282,26 @@ dataset_metadata_settings:
     _pp: &base_metadata_pp
       # Parameters relevant for loading the dataset
       # Map from value -> key of how prefixes should be renamed when loading data
-      loading_data_rename_prefix:
+      loading_data_rename_levels:
         data: "data"
 
     _pythia: &base_metadata_pythia
       # Parameters relevant for loading the dataset
       # Map from value -> key of how prefixes should be renamed when loading data
       # For pythia, this isn't necessary since it has a dedicated function for loading MC data
-      loading_data_rename_prefix: {}
+      loading_data_rename_levels: {}
 
     _PbPb: &base_metadata_PbPb
       # Parameters relevant for loading the dataset
       # Map from value -> key of how prefixes should be renamed when loading data
-      loading_data_rename_prefix:
+      loading_data_rename_levels:
         data: "data"
 
     _embed: &base_metadata_embed
       # Parameters relevant for loading the dataset
       # Map from value -> key of how prefixes should be renamed when loading data
       # For embedding, this isn't necessary since it has a dedicated function for loading embedding data
-      loading_data_rename_prefix: {}
+      loading_data_rename_levels: {}
       input_constrained_source: "signal"
       input_handling:
         signal_parameters:
@@ -326,12 +326,12 @@ dataset_metadata_settings:
       # Parameters relevant for loading the dataset
       # Map from value -> key of how prefixes should be renamed when loading data
       # For embedding, this isn't necessary since it has a dedicated function for loading embedding data
-      loading_data_rename_prefix: {}
+      loading_data_rename_levels: {}
 
     _PbPb_MC: &base_metadata_PbPb_MC
       # Parameters relevant for loading the dataset
       # Map from value -> key of how prefixes should be renamed when loading data
-      loading_data_rename_prefix:
+      loading_data_rename_levels:
         data: "part_level"
 
 analysis_settings:

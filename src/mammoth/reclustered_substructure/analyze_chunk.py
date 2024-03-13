@@ -509,7 +509,7 @@ def run_some_standalone_experiments() -> None:
     #        ),
     #        data_source=partial(track_skim.FileSource, collision_system=collision_system),
     #        collision_system=collision_system,
-    #        rename_prefix={"data": "data"} if collision_system != "pp_MC" else {"data": "det_level"},
+    #        rename_levels={"data": "data"} if collision_system != "pp_MC" else {"data": "det_level"},
     #    ),
     #    jet_R=0.2,
     #    min_jet_pt={"data": 20.0 if collision_system == "pp" else 20.0},

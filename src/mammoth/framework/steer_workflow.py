@@ -443,7 +443,7 @@ def setup_framework_standard_workflow(  # noqa: C901
         # NOTE: These are arguments which will be passed onto `load_data.setup_source_for_data_or_MC_task`.
         #       If you want to pass all of the metadata, we will need to add a kwargs, since this can vary from dataset to dataset.
         #       As of July 2023, explicitly specifying th arguments seems good enough.
-        _input_options = {"loading_data_rename_prefix": _metadata_config.get("loading_data_rename_prefix", {})}
+        _input_options = {"loading_data_rename_levels": _metadata_config.get("loading_data_rename_levels", {})}
         # Chunk size
         chunk_size = _analysis_config.pop("chunk_size", sources.ChunkSizeSentinel.FULL_SOURCE)
         logger.info(f"Processing chunk size for {chunk_size}")

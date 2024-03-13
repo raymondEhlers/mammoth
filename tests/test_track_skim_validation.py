@@ -71,7 +71,7 @@ class AnalysisParameters:
     """Centralize some general track skim validation parameters"""
 
     reference_analysis_prefixes: dict[str, str]
-    track_skim_loading_data_rename_prefix: dict[str, str]
+    track_skim_loading_data_rename_levels: dict[str, str]
     track_skim_to_flat_skim_level_names: dict[str, str]
     comparison_prefixes: list[str]
     min_jet_pt_by_R_and_prefix: dict[float, dict[str, float]]
@@ -86,7 +86,7 @@ _all_analysis_parameters = {
         reference_analysis_prefixes={
             "data": "data",
         },
-        track_skim_loading_data_rename_prefix={"data": "data"},
+        track_skim_loading_data_rename_levels={"data": "data"},
         track_skim_to_flat_skim_level_names={"data": "data"},
         comparison_prefixes=["data"],
         min_jet_pt_by_R_and_prefix={
@@ -96,7 +96,7 @@ _all_analysis_parameters = {
     ),
     "pythia": AnalysisParameters(
         reference_analysis_prefixes={"data": "data", "true": "matched"},
-        track_skim_loading_data_rename_prefix={},
+        track_skim_loading_data_rename_levels={},
         track_skim_to_flat_skim_level_names={"det_level": "data", "part_level": "true"},
         comparison_prefixes=["data", "true"],
         min_jet_pt_by_R_and_prefix={
@@ -109,7 +109,7 @@ _all_analysis_parameters = {
         reference_analysis_prefixes={
             "data": "data",
         },
-        track_skim_loading_data_rename_prefix={"data": "data"},
+        track_skim_loading_data_rename_levels={"data": "data"},
         track_skim_to_flat_skim_level_names={"data": "data"},
         comparison_prefixes=["data"],
         min_jet_pt_by_R_and_prefix={
@@ -120,7 +120,7 @@ _all_analysis_parameters = {
     "embed_pythia": AnalysisParameters(
         reference_analysis_prefixes={"hybrid_level": "data", "true": "matched", "det_level": "detLevel"},
         # NOTE: This field is not meaningful for embedding
-        track_skim_loading_data_rename_prefix={},
+        track_skim_loading_data_rename_levels={},
         track_skim_to_flat_skim_level_names={"hybrid_level": "hybrid", "det_level": "det_level", "part_level": "true"},
         comparison_prefixes=["hybrid", "det_level", "true"],
         min_jet_pt_by_R_and_prefix={
@@ -662,7 +662,7 @@ def test_track_skim_validation(  # noqa: C901
             min_jet_pt=_analysis_parameters.min_jet_pt_by_R_and_prefix[jet_R],
             iterative_splittings=iterative_splittings,
             skim_type="track_skim",
-            loading_data_rename_prefix=_analysis_parameters.track_skim_loading_data_rename_prefix,
+            loading_data_rename_levels=_analysis_parameters.track_skim_loading_data_rename_levels,
             track_skim_to_flat_skim_level_names=_analysis_parameters.track_skim_to_flat_skim_level_names,
             output_filename=track_skim_filenames.skim(),
             scale_factors=scale_factors,

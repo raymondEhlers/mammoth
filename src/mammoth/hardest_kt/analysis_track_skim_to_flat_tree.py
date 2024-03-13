@@ -98,7 +98,7 @@ def hardest_kt_data_skim(
     output_filename: Path,
     track_skim_to_flat_skim_level_names: Mapping[str, str],
     # Data specific
-    loading_data_rename_prefix: Mapping[str, str] | None = None,
+    loading_data_rename_levels: Mapping[str, str] | None = None,
     # Pythia specific
     pt_hat_bin: int | None = -1,
     scale_factors: Mapping[int, float] | None = None,
@@ -110,8 +110,8 @@ def hardest_kt_data_skim(
     background_subtraction: Mapping[str, Any] | None = None,
 ) -> tuple[bool, str]:
     # Validation
-    if loading_data_rename_prefix is None:
-        loading_data_rename_prefix = {"data": "data"}
+    if loading_data_rename_levels is None:
+        loading_data_rename_levels = {"data": "data"}
 
     # Setup
     _description = framework_task.description_from_metadata(
@@ -136,7 +136,7 @@ def hardest_kt_data_skim(
         #       implemented it, we leave it in place - perhaps it can be fixed later (or maybe just needs the right
         #       combination of options passed).
         if collision_system in ["pp", "PbPb"] or (
-            collision_system in ["pythia", "pp_MC", "PbPb_MC"] and "data" in loading_data_rename_prefix
+            collision_system in ["pythia", "pp_MC", "PbPb_MC"] and "data" in loading_data_rename_levels
         ):
             jets = analysis_alice.analysis_data(
                 collision_system=collision_system,
@@ -144,7 +144,7 @@ def hardest_kt_data_skim(
                     data_input=input_filename,
                     data_source=partial(FileSource, collision_system=collision_system),
                     collision_system=collision_system,
-                    rename_prefix=loading_data_rename_prefix,
+                    rename_levels=loading_data_rename_levels,
                 ),
                 jet_R=jet_R,
                 min_jet_pt=min_jet_pt,
@@ -164,7 +164,7 @@ def hardest_kt_data_skim(
                     data_input=input_filename,
                     data_source=partial(FileSource, collision_system=collision_system),
                     collision_system=collision_system,
-                    rename_prefix=loading_data_rename_prefix,
+                    rename_levels=loading_data_rename_levels,
                 ),
                 jet_R=jet_R,
                 min_jet_pt=min_jet_pt,
@@ -597,7 +597,7 @@ def run_some_standalone_tests() -> None:
             min_jet_pt=_min_jet_pt[collision_system],
             iterative_splittings=True,
             skim_type="track_skim",
-            loading_data_rename_prefix={"data": "data"} if collision_system != "pythia" else {},
+            loading_data_rename_levels={"data": "data"} if collision_system != "pythia" else {},
             track_skim_to_flat_skim_level_names={"data": "data"}
             if collision_system != "pythia"
             else {"det_level": "data", "part_level": "true"},

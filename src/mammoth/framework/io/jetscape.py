@@ -95,7 +95,7 @@ class FileSource:
             if self.metadata.get("legacy_skim", False):
                 # Legacy skims need additional transformation to confirm to expected source outputs.
                 # NOTE: The renaming of the overall "particles" field to something else could be handled
-                #       via the `rename_prefix` argument in load_data, but it's easier to do it here since
+                #       via the `rename_levels` argument in load_data, but it's easier to do it here since
                 #       we may also need to rename particle level fields.
                 return _transform_output(
                     gen_data=source.gen_data(chunk_size=chunk_size), source_default_chunk_size=self._default_chunk_size
