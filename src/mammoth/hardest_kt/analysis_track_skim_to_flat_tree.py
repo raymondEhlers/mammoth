@@ -48,6 +48,15 @@ def _convert_analyzed_jets_to_all_jets_for_skim(
     jets: ak.Array,
     convert_data_format_prefixes: Mapping[str, str],
 ) -> dict[str, ak.Array]:
+    """Converts analyzed jets from the track skim to the all_jets objects for skimming to a flat tree.
+
+    Args:
+        jets: Analyzed jets from the track skim.
+        convert_data_format_prefixes: Mapping from the track skim format prefix to
+            the desired prefix in the all_jets object.
+    Returns:
+        The all_jets dict for skimming to a flat tree.
+    """
     # Need the unsubtracted leading track pt for hybrid
     additional_columns_per_prefix = {}
     for prefix_to_check in convert_data_format_prefixes:
