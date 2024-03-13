@@ -19,11 +19,7 @@ logger = logging.getLogger(__name__)
 
 # We need a consistent console object to set everything up properly
 # (Namely, logging with the progress bars), so we define it here.
-# NOTE: The `force_jupyter=False`` argument is to try to fix logging in vscode.
-#       It doesn't show up properly, as it stands (extra spaces, odd line lengths,
-#       poor colors on dark backgrounds). However, I'm unsure if this will actually
-#       resolve it (Feb 2024)
-rich_console = Console(force_jupyter=False)
+rich_console = Console()
 
 
 @attrs.define
