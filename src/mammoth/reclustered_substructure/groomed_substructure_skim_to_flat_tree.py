@@ -1452,46 +1452,6 @@ def calculate_data_skim(
     )
 
 
-def cross_check_task_names_to_export(
-    grooming_method: str,
-    prefixes: Mapping[str, str],
-) -> dict[str, npt.DTypeLike]:
-    branch_names: dict[str, npt.DTypeLike] = {}
-
-    substructure_variables = [
-        "{grooming_method}_{prefix}_delta_R",
-        "{grooming_method}_{prefix}_kt",
-        "{grooming_method}_{prefix}_z",
-        "{grooming_method}_{prefix}_n_to_split",
-        "{grooming_method}_{prefix}_n_groomed_to_split",
-        "{grooming_method}_{prefix}_n_passed_grooming",
-    ]
-
-    # Contain 8 * 3 + 1 (scale_factor) + 1 (hybrid_leading_track_pt_sub)
-    branch_names["scale_factor"] = np.float32
-    for prefix in prefixes:
-        # Jet properties
-        for var_name in ["{prefix}_jet_pt", "{prefix}_leading_track_pt"]:
-            branch_names[var_name.format(prefix=prefix)] = np.float32
-        if prefix == "hybrid":
-            branch_names["hybrid_leading_track_pt_sub"] = np.float32
-
-        # Substructure properties
-        for var_name in substructure_variables:
-            branch_names[var_name.format(grooming_method=grooming_method, prefix=prefix)] = np.float32
-
-    # Matching properties
-    for measured_like, generator_like in [("det_level", "true"), ("hybrid", "det_level")]:
-        for level in ["leading", "subleading"]:
-            branch_names[f"{grooming_method}_{measured_like}_{generator_like}_matching_{level}"] = np.int16
-            if measured_like == "hybrid":
-                branch_names[
-                    f"{grooming_method}_{generator_like}_{level}_subjet_momentum_fraction_in_{measured_like}_jet"
-                ] = np.float32
-
-    return branch_names
-
-
 if __name__ == "__main__":
     # An example for testing...
     from mammoth import helpers
