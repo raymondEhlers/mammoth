@@ -11,7 +11,7 @@ import awkward as ak
 import pytest  # noqa: F401
 import vector
 
-from mammoth.eec import analysis_alice
+from mammoth.eec import analyze_chunk
 
 vector.register_awkward()
 logger = logging.getLogger(__name__)
@@ -71,7 +71,7 @@ def test_calculate_weight_for_plotting(caplog: Any) -> None:
     particles.type.show()
 
     left, right = ak.unzip(ak.combinations(particles, 2))
-    res = analysis_alice._calculate_weight_for_plotting(
+    res = analyze_chunk._calculate_weight_for_plotting(
         left=left,
         right=right,
         trigger_pt_event_wise=particles.pt[:, 0],
