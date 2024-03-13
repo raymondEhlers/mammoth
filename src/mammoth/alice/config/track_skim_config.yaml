@@ -1,3 +1,7 @@
+---
+# NOTE: Convention for map keys and anchors - if they lead with an `_`, they are meant to be private,
+#       which is to say, not to be used directly in a production.  Nothing is critical here - it's
+#       just to make it easier to keep track of everything.
 skimmed_datasets:
   # pp
   # LHC17pq pass 1
@@ -273,126 +277,128 @@ skimmed_datasets:
     files:
       - "trains/PbPb_MC/996432/files.txt"
 
-analysis_settings:
+dataset_metadata_settings:
   _base:
-    _pp:
-      metadata: &base_metadata_pp
-        # Parameters relevant for loading the dataset
-        # Map from value -> key of how prefixes should be renamed when loading data
-        loading_data_rename_prefix:
-          data: "data"
-      settings: &_base_analysis_settings_pp
-        track_skim_to_flat_skim_level_names: # Map from track_skim level -> level of the structured jet substructure format
-          data: "data"
-        analysis_input_levels:
-          - "data"
-        splittings_selection: "iterative"
-        # In GeV
-        min_jet_pt: { "data": 5 }
+    _pp: &base_metadata_pp
+      # Parameters relevant for loading the dataset
+      # Map from value -> key of how prefixes should be renamed when loading data
+      loading_data_rename_prefix:
+        data: "data"
 
-    _pythia:
-      metadata: &base_metadata_pythia
-        # Parameters relevant for loading the dataset
-        # Map from value -> key of how prefixes should be renamed when loading data
-        # For pythia, this isn't necessary since it has a dedicated function for loading MC data
-        loading_data_rename_prefix: {}
-      settings: &_base_analysis_settings_pythia
-        track_skim_to_flat_skim_level_names: # Map from track_skim level -> level of the structured jet substructure format
-          det_level: "data"
-          part_level: "true"
-        analysis_input_levels: ["det_level", "part_level"]
-        splittings_selection: "iterative"
-        # In GeV
-        # We don't want to restrict the part_level
-        min_jet_pt: { "det_level": 5 }
-        # By default, don't apply any additional reduction
-        det_level_artificial_tracking_efficiency: 1.0
+    _pythia: &base_metadata_pythia
+      # Parameters relevant for loading the dataset
+      # Map from value -> key of how prefixes should be renamed when loading data
+      # For pythia, this isn't necessary since it has a dedicated function for loading MC data
+      loading_data_rename_prefix: {}
 
-    _PbPb:
-      metadata: &base_metadata_PbPb
-        # Parameters relevant for loading the dataset
-        # Map from value -> key of how prefixes should be renamed when loading data
-        loading_data_rename_prefix:
-          data: "data"
-      settings: &_base_analysis_settings_PbPb
-        track_skim_to_flat_skim_level_names: # Map from track_skim level -> level of the structured jet substructure format
-          data: "data"
-        analysis_input_levels: ["data"]
-        splittings_selection: "iterative"
-        # In GeV
-        min_jet_pt: { "data": 20 }
+    _PbPb: &base_metadata_PbPb
+      # Parameters relevant for loading the dataset
+      # Map from value -> key of how prefixes should be renamed when loading data
+      loading_data_rename_prefix:
+        data: "data"
 
-    _embed:
-      metadata: &base_metadata_embed
-        # Parameters relevant for loading the dataset
-        # Map from value -> key of how prefixes should be renamed when loading data
-        # For embedding, this isn't necessary since it has a dedicated function for loading embedding data
-        loading_data_rename_prefix: {}
-        input_constrained_source: "signal"
-        input_handling:
-          signal_parameters:
-            collision_system: "pythia"
-            constrained_source: # ie. signal is the constraint
-              n_files_to_use_per_task: 1
-            unconstrained_source:
-              # Sample pt hat bin distribution equally
-              # NOTE: This option isn't meaningful in the constrained source case
-              sample_each_pt_hat_bin_equally: true
-              # Number of signal files to make available to a background file
-              # This ensures some additional diversity if we end up with a very small signal file
-              n_files_to_use_per_task: 3
-          background_parameters:
-            collision_system: "PbPb"
-            constrained_source: # ie. background is the constraint
-              n_files_to_use_per_task: 1
-            unconstrained_source:
-              n_files_to_use_per_task: 2
-      settings: &_base_analysis_settings_embed
-        track_skim_to_flat_skim_level_names: # Map from track_skim level -> level of the structured jet substructure format
-          hybrid_level: "hybrid"
-          det_level: "det_level"
-          part_level: "true"
-        analysis_input_levels: ["hybrid_level", "det_level", "part_level"]
-        splittings_selection: "iterative"
-        # In GeV
-        # We don't want to restrict the "det_level" or "part_level" jet pt values
-        min_jet_pt: { "hybrid_level": 20 }
+    _embed: &base_metadata_embed
+      # Parameters relevant for loading the dataset
+      # Map from value -> key of how prefixes should be renamed when loading data
+      # For embedding, this isn't necessary since it has a dedicated function for loading embedding data
+      loading_data_rename_prefix: {}
+      input_constrained_source: "signal"
+      input_handling:
+        signal_parameters:
+          collision_system: "pythia"
+          constrained_source: # ie. signal is the constraint
+            n_files_to_use_per_task: 1
+          unconstrained_source:
+            # Sample pt hat bin distribution equally
+            # NOTE: This option isn't meaningful in the constrained source case
+            sample_each_pt_hat_bin_equally: true
+            # Number of signal files to make available to a background file
+            # This ensures some additional diversity if we end up with a very small signal file
+            n_files_to_use_per_task: 3
+        background_parameters:
+          collision_system: "PbPb"
+          constrained_source: # ie. background is the constraint
+            n_files_to_use_per_task: 1
+          unconstrained_source:
+            n_files_to_use_per_task: 2
 
-    _embed_thermal_model:
-      metadata: &base_metadata_embed_thermal_model
-        # Parameters relevant for loading the dataset
-        # Map from value -> key of how prefixes should be renamed when loading data
-        # For embedding, this isn't necessary since it has a dedicated function for loading embedding data
-        loading_data_rename_prefix: {}
+    _embed_thermal_model: &base_metadata_embed_thermal_model
+      # Parameters relevant for loading the dataset
+      # Map from value -> key of how prefixes should be renamed when loading data
+      # For embedding, this isn't necessary since it has a dedicated function for loading embedding data
+      loading_data_rename_prefix: {}
 
-    _PbPb_MC:
-      metadata: &base_metadata_PbPb_MC
-        # Parameters relevant for loading the dataset
-        # Map from value -> key of how prefixes should be renamed when loading data
-        loading_data_rename_prefix:
-          data: "part_level"
+    _PbPb_MC: &base_metadata_PbPb_MC
+      # Parameters relevant for loading the dataset
+      # Map from value -> key of how prefixes should be renamed when loading data
+      loading_data_rename_prefix:
+        data: "part_level"
 
-  pp_R02: &analysis_settings_pp_R02
-    <<: *_base_analysis_settings_pp
-    jet_R: 0.2
-  pp_R04: &analysis_settings_pp_R04
-    <<: *_base_analysis_settings_pp
-    jet_R: 0.4
+analysis_settings:
+  # This is the base - ie. the default - settings for reclustered substructure
+  _reclustered_substructure_settings:
+    _pp: &_reclustered_substructure_settings_pp
+      track_skim_to_flat_skim_level_names: # Map from track_skim level -> level of the structured jet substructure format
+        data: "data"
+      analysis_input_levels:
+        - "data"
+      splittings_selection: "iterative"
+      # In GeV
+      min_jet_pt: { "data": 5 }
 
-  pythia_R02: &analysis_settings_pythia_R02
-    <<: *_base_analysis_settings_pythia
-    jet_R: 0.2
-  pythia_R04: &analysis_settings_pythia_R04
-    <<: *_base_analysis_settings_pythia
-    jet_R: 0.4
+    _pythia: &_reclustered_substructure_settings_pythia
+      track_skim_to_flat_skim_level_names: # Map from track_skim level -> level of the structured jet substructure format
+        det_level: "data"
+        part_level: "true"
+      analysis_input_levels: ["det_level", "part_level"]
+      splittings_selection: "iterative"
+      # In GeV
+      # We don't want to restrict the part_level
+      min_jet_pt: { "det_level": 5 }
+      # By default, don't apply any additional reduction
+      det_level_artificial_tracking_efficiency: 1.0
 
-  PbPb_R02: &analysis_settings_PbPb_R02
-    <<: *_base_analysis_settings_PbPb
-    jet_R: 0.2
+    _PbPb: &_reclustered_substructure_settings_PbPb
+      track_skim_to_flat_skim_level_names: # Map from track_skim level -> level of the structured jet substructure format
+        data: "data"
+      analysis_input_levels: ["data"]
+      splittings_selection: "iterative"
+      # In GeV
+      min_jet_pt: { "data": 20 }
 
-  embed_R02: &analysis_settings_embed_R02
-    <<: *_base_analysis_settings_embed
-    jet_R: 0.2
+    _embed: &_reclustered_substructure_settings_embed
+      track_skim_to_flat_skim_level_names: # Map from track_skim level -> level of the structured jet substructure format
+        hybrid_level: "hybrid"
+        det_level: "det_level"
+        part_level: "true"
+      analysis_input_levels: ["hybrid_level", "det_level", "part_level"]
+      splittings_selection: "iterative"
+      # In GeV
+      # We don't want to restrict the "det_level" or "part_level" jet pt values
+      min_jet_pt: { "hybrid_level": 20 }
+
+  _hardest_kt_settings:
+    pp_R02: &analysis_settings_hardest_kt_pp_R02
+      <<: *_reclustered_substructure_settings_pp
+      jet_R: 0.2
+    pp_R04: &analysis_settings_hardest_kt_pp_R04
+      <<: *_reclustered_substructure_settings_pp
+      jet_R: 0.4
+
+    pythia_R02: &analysis_settings_hardest_kt_pythia_R02
+      <<: *_reclustered_substructure_settings_pythia
+      jet_R: 0.2
+    pythia_R04: &analysis_settings_hardest_kt_pythia_R04
+      <<: *_reclustered_substructure_settings_pythia
+      jet_R: 0.4
+
+    PbPb_R02: &analysis_settings_hardest_kt_PbPb_R02
+      <<: *_reclustered_substructure_settings_PbPb
+      jet_R: 0.2
+
+    embed_R02: &analysis_settings_hardest_kt_embed_R02
+      <<: *_reclustered_substructure_settings_embed
+      jet_R: 0.2
 
   _time_reclustering_settings:
     reclustering_settings: &_time_reclustering_reclustering_settings
@@ -413,84 +419,82 @@ analysis_settings:
       write_merged_hists: false
 
     pp_R04: &analysis_settings_time_reclustering_pp_R04
-      <<: *_base_analysis_settings_pp
+      <<: *_reclustered_substructure_settings_pp
       jet_R: 0.4
       reclustering_settings:
         <<: *_time_reclustering_reclustering_settings
 
     pp_MC_R04: &analysis_settings_time_reclustering_pp_MC_R04
-      <<: *_base_analysis_settings_pythia
+      <<: *_reclustered_substructure_settings_pythia
       jet_R: 0.4
       reclustering_settings:
         <<: *_time_reclustering_reclustering_settings
 
     PbPb_R04: &analysis_settings_time_reclustering_PbPb_R04
-      <<: *_base_analysis_settings_PbPb
+      <<: *_reclustered_substructure_settings_PbPb
       jet_R: 0.4
       reclustering_settings:
         <<: *_time_reclustering_reclustering_settings
 
     embed_R04: &analysis_settings_time_reclustering_embed_R04
-      <<: *_base_analysis_settings_embed
+      <<: *_reclustered_substructure_settings_embed
       jet_R: 0.4
       reclustering_settings:
         <<: *_time_reclustering_reclustering_settings
 
   _EEC_analysis_settings:
-    base_analysis_settings:
-      base: &_base_analysis_settings_EEC
-        trigger_parameters:
-          classes:
-            reference: [5., 7.]
-            signal: [20., 50.]
-          parameters:
-            type: "hadron"
-            kinematic_label: "pt"
-        trigger_parameters_jet:
-          classes:
-            signal: [20., 120.]
-          parameters:
-            type: "jet"
-            kinematic_label: "pt"
-            jet_R: 0.4
-        trigger_parameters_photon:
-          classes:
-            reference: [5., 7.]
-            signal: [20, 50]
-          parameters:
-            type: "photon"
-            kinematic_label: "E"
-            isolation_cone: 0.4
-            max_background_in_isolation: 2. # in GeV
-        momentum_weight_exponent: 1
+    base_analysis_settings: &_base_analysis_settings_EEC
+      trigger_parameters:
+        classes:
+          reference: [5., 7.]
+          signal: [20., 50.]
+        parameters:
+          type: "hadron"
+          kinematic_label: "pt"
+      trigger_parameters_jet:
+        classes:
+          signal: [20., 120.]
+        parameters:
+          type: "jet"
+          kinematic_label: "pt"
+          jet_R: 0.4
+      trigger_parameters_photon:
+        classes:
+          reference: [5., 7.]
+          signal: [20, 50]
+        parameters:
+          type: "photon"
+          kinematic_label: "E"
+          isolation_cone: 0.4
+          max_background_in_isolation: 2. # in GeV
+      momentum_weight_exponent: 1
 
-    analysis_settings:
-      pp: &analysis_settings_EEC_pp
-        <<: *_base_analysis_settings_EEC
-        # In GeV
-        min_track_pt:
-          data: 1.
+    pp: &analysis_settings_EEC_pp
+      <<: *_base_analysis_settings_EEC
+      # In GeV
+      min_track_pt:
+        data: 1.
 
-      pythia: &analysis_settings_EEC_pythia
-        <<: *_base_analysis_settings_EEC
-        # In GeV
-        min_track_pt:
-          part_level: 1.
-          det_level: 1.
+    pythia: &analysis_settings_EEC_pythia
+      <<: *_base_analysis_settings_EEC
+      # In GeV
+      min_track_pt:
+        part_level: 1.
+        det_level: 1.
 
-      PbPb: &analysis_settings_EEC_PbPb
-        <<: *_base_analysis_settings_EEC
-        # In GeV
-        min_track_pt:
-          data: 1.
+    PbPb: &analysis_settings_EEC_PbPb
+      <<: *_base_analysis_settings_EEC
+      # In GeV
+      min_track_pt:
+        data: 1.
 
-      embed: &analysis_settings_EEC_embed
-        <<: *_base_analysis_settings_EEC
-        # In GeV
-        min_track_pt:
-          part_level: 1.
-          det_level: 1.
-          hybrid_level: 1.
+    embed: &analysis_settings_EEC_embed
+      <<: *_base_analysis_settings_EEC
+      # In GeV
+      min_track_pt:
+        part_level: 1.
+        det_level: 1.
+        hybrid_level: 1.
 
   # NOTE: We don't need an explicit one for embedding into a thermal model - we can
   #       just take the standard embedding analysis settings
@@ -504,7 +508,7 @@ productions:
         production_number: 2
         label: ""
       settings:
-        <<: *analysis_settings_pp_R02
+        <<: *analysis_settings_hardest_kt_pp_R02
     60:
       # R = 0.2 pp production
       metadata:
@@ -513,7 +517,7 @@ productions:
         production_number: 60
         label: ""
       settings:
-        <<: *analysis_settings_pp_R02
+        <<: *analysis_settings_hardest_kt_pp_R02
     61:
       # R = 0.4 pp production
       metadata:
@@ -522,7 +526,7 @@ productions:
         production_number: 61
         label: ""
       settings:
-        <<: *analysis_settings_pp_R04
+        <<: *analysis_settings_hardest_kt_pp_R04
 
   pythia:
     # Debug
@@ -533,7 +537,7 @@ productions:
         production_number: 3
         label: ""
       settings:
-        <<: *analysis_settings_pythia_R02
+        <<: *analysis_settings_hardest_kt_pythia_R02
     4:
       metadata:
         <<: *base_metadata_pythia
@@ -541,7 +545,7 @@ productions:
         production_number: 4
         label: "herwig"
       settings:
-        <<: *analysis_settings_pythia_R02
+        <<: *analysis_settings_hardest_kt_pythia_R02
     # Production
     60:
       metadata:
@@ -550,7 +554,7 @@ productions:
         production_number: 60
         label: ""
       settings:
-        <<: *analysis_settings_pythia_R02
+        <<: *analysis_settings_hardest_kt_pythia_R02
     61:
       # Tracking efficiency systematic
       metadata:
@@ -559,7 +563,7 @@ productions:
         production_number: 61
         label: ""
       settings:
-        <<: *analysis_settings_pythia_R02
+        <<: *analysis_settings_hardest_kt_pythia_R02
         apply_pt_dependent_tracking_efficiency_uncertainty: true
     62:
       # Tracking efficiency systematic (for consistency with the preliminaries)
@@ -569,7 +573,7 @@ productions:
         production_number: 62
         label: ""
       settings:
-        <<: *analysis_settings_pythia_R02
+        <<: *analysis_settings_hardest_kt_pythia_R02
         det_level_artificial_tracking_efficiency: 0.96
         apply_pt_dependent_tracking_efficiency_uncertainty: false
     63:
@@ -579,7 +583,7 @@ productions:
         production_number: 63
         label: "herwig_fastsim"
       settings:
-        <<: *analysis_settings_pythia_R02
+        <<: *analysis_settings_hardest_kt_pythia_R02
     64:
       metadata:
         <<: *base_metadata_pythia
@@ -587,7 +591,7 @@ productions:
         production_number: 64
         label: "pythia_fastsim"
       settings:
-        <<: *analysis_settings_pythia_R02
+        <<: *analysis_settings_hardest_kt_pythia_R02
     65:
       # R = 0.4 production
       metadata:
@@ -596,7 +600,7 @@ productions:
         production_number: 65
         label: ""
       settings:
-        <<: *analysis_settings_pythia_R04
+        <<: *analysis_settings_hardest_kt_pythia_R04
     66:
       # R = 0.4 production, tracking efficiency systematic
       metadata:
@@ -605,7 +609,7 @@ productions:
         production_number: 66
         label: ""
       settings:
-        <<: *analysis_settings_pythia_R04
+        <<: *analysis_settings_hardest_kt_pythia_R04
         apply_pt_dependent_tracking_efficiency_uncertainty: true
     67:
       # R = 0.4 HERWIG fastsim
@@ -615,7 +619,7 @@ productions:
         production_number: 67
         label: "herwig_fastsim"
       settings:
-        <<: *analysis_settings_pythia_R04
+        <<: *analysis_settings_hardest_kt_pythia_R04
     68:
       # R = 0.4 PYTHIA fastsim
       metadata:
@@ -624,7 +628,7 @@ productions:
         production_number: 68
         label: "pythia_fastsim"
       settings:
-        <<: *analysis_settings_pythia_R04
+        <<: *analysis_settings_hardest_kt_pythia_R04
 
   pp_MC:
     3:
@@ -633,7 +637,7 @@ productions:
         production_number: 3
         label: ""
       settings:
-        <<: *analysis_settings_pythia_R02
+        <<: *analysis_settings_hardest_kt_pythia_R02
     # Time reclustering pythia test
     # NOTE: This is the wrong dataset for pythia, but its useful for testing
     4:
@@ -740,7 +744,7 @@ productions:
         production_number: 2
         label: "semi_central"
       settings:
-        <<: *analysis_settings_PbPb_R02
+        <<: *analysis_settings_hardest_kt_PbPb_R02
         event_activity: "semi_central"
         background_subtraction:
           r_max: 0.5
@@ -752,7 +756,7 @@ productions:
         production_number: 3
         label: "semi_central"
       settings:
-        <<: *analysis_settings_PbPb_R02
+        <<: *analysis_settings_hardest_kt_PbPb_R02
         event_activity: "semi_central"
         background_subtraction:
           r_max: 0.05
@@ -779,7 +783,7 @@ productions:
         production_number: 60
         label: "central"
       settings:
-        <<: *analysis_settings_PbPb_R02
+        <<: *analysis_settings_hardest_kt_PbPb_R02
         event_activity: "central"
     61:
       metadata:
@@ -789,7 +793,7 @@ productions:
         production_number: 61
         label: "semi_central"
       settings:
-        <<: *analysis_settings_PbPb_R02
+        <<: *analysis_settings_hardest_kt_PbPb_R02
         event_activity: "semi_central"
         background_subtraction:
           r_max: 0.5
@@ -801,7 +805,7 @@ productions:
         production_number: 62
         label: "semi_central"
       settings:
-        <<: *analysis_settings_PbPb_R02
+        <<: *analysis_settings_hardest_kt_PbPb_R02
         event_activity: "semi_central"
         background_subtraction:
           r_max: 0.05
@@ -813,7 +817,7 @@ productions:
         production_number: 63
         label: "semi_central"
       settings:
-        <<: *analysis_settings_PbPb_R02
+        <<: *analysis_settings_hardest_kt_PbPb_R02
         event_activity: "semi_central"
         background_subtraction:
           r_max: 0.7
@@ -829,7 +833,7 @@ productions:
         production_number: 64
         label: "semi_central"
       settings:
-        <<: *analysis_settings_PbPb_R02
+        <<: *analysis_settings_hardest_kt_PbPb_R02
         event_activity: "semi_central"
         background_subtraction:
           r_max: 0.1
@@ -842,7 +846,7 @@ productions:
         production_number: 65
         label: "semi_central"
       settings:
-        <<: *analysis_settings_PbPb_R02
+        <<: *analysis_settings_hardest_kt_PbPb_R02
         event_activity: "semi_central"
         background_subtraction:
           r_max: 0.05
@@ -855,7 +859,7 @@ productions:
         production_number: 66
         label: "semi_central"
       settings:
-        <<: *analysis_settings_PbPb_R02
+        <<: *analysis_settings_hardest_kt_PbPb_R02
         event_activity: "semi_central"
         background_subtraction:
           r_max: 0.50
@@ -871,7 +875,7 @@ productions:
         production_number: 67
         label: "semi_central"
       settings:
-        <<: *analysis_settings_PbPb_R02
+        <<: *analysis_settings_hardest_kt_PbPb_R02
         event_activity: "semi_central"
         background_subtraction:
           r_max: 0.1
@@ -883,7 +887,7 @@ productions:
         production_number: 68
         label: "semi_central"
       settings:
-        <<: *analysis_settings_PbPb_R02
+        <<: *analysis_settings_hardest_kt_PbPb_R02
         event_activity: "semi_central"
         background_subtraction:
           r_max: 0.05
@@ -895,7 +899,7 @@ productions:
         production_number: 69
         label: "semi_central"
       settings:
-        <<: *analysis_settings_PbPb_R02
+        <<: *analysis_settings_hardest_kt_PbPb_R02
         event_activity: "semi_central"
         background_subtraction:
           r_max: 0.50
@@ -907,7 +911,7 @@ productions:
         production_number: 70
         label: "central"
       settings:
-        <<: *analysis_settings_PbPb_R02
+        <<: *analysis_settings_hardest_kt_PbPb_R02
         event_activity: "central"
         background_subtraction:
           r_max: 0.1
@@ -919,7 +923,7 @@ productions:
         production_number: 71
         label: "central"
       settings:
-        <<: *analysis_settings_PbPb_R02
+        <<: *analysis_settings_hardest_kt_PbPb_R02
         event_activity: "central"
         background_subtraction:
           r_max: 0.05
@@ -931,7 +935,7 @@ productions:
         production_number: 72
         label: "central"
       settings:
-        <<: *analysis_settings_PbPb_R02
+        <<: *analysis_settings_hardest_kt_PbPb_R02
         event_activity: "central"
         background_subtraction:
           r_max: 0.50
@@ -946,7 +950,7 @@ productions:
         production_number: 2
         label: "central"
       settings:
-        <<: *analysis_settings_PbPb_R02
+        <<: *analysis_settings_hardest_kt_PbPb_R02
         output_settings:
           # Utilize the time reclustering output settings for convenience in testing
           <<: *time_reclustering_output_settings
@@ -965,7 +969,7 @@ productions:
         production_number: 2
         label: "embed_pythia_semi_central"
       settings:
-        <<: *analysis_settings_embed_R02
+        <<: *analysis_settings_hardest_kt_embed_R02
         event_activity: "semi_central"
         background_subtraction:
           r_max: 0.05
@@ -983,7 +987,7 @@ productions:
         production_number: 3
         label: "embed_pythia_semi_central"
       settings:
-        <<: *analysis_settings_embed_R02
+        <<: *analysis_settings_hardest_kt_embed_R02
         event_activity: "semi_central"
         background_subtraction:
           r_max: 0.1
@@ -997,7 +1001,7 @@ productions:
         production_number: 4
         label: "embed_pythia_semi_central"
       settings:
-        <<: *analysis_settings_embed_R02
+        <<: *analysis_settings_hardest_kt_embed_R02
         event_activity: "semi_central"
         #chunk_size: 15000
         chunk_size: 5000
@@ -1013,7 +1017,7 @@ productions:
         production_number: 60
         label: "embed_pythia_semi_central"
       settings:
-        <<: *analysis_settings_embed_R02
+        <<: *analysis_settings_hardest_kt_embed_R02
         event_activity: "semi_central"
         background_subtraction:
           r_max: 0.05
@@ -1028,7 +1032,7 @@ productions:
         production_number: 61
         label: "embed_pythia_semi_central"
       settings:
-        <<: *analysis_settings_embed_R02
+        <<: *analysis_settings_hardest_kt_embed_R02
         event_activity: "semi_central"
         background_subtraction:
           r_max: 0.05
@@ -1042,7 +1046,7 @@ productions:
         production_number: 62
         label: "embed_pythia_semi_central"
       settings:
-        <<: *analysis_settings_embed_R02
+        <<: *analysis_settings_hardest_kt_embed_R02
         event_activity: "semi_central"
         background_subtraction:
           r_max: 0.7
@@ -1057,7 +1061,7 @@ productions:
         production_number: 63
         label: "embed_pythia_semi_central"
       settings:
-        <<: *analysis_settings_embed_R02
+        <<: *analysis_settings_hardest_kt_embed_R02
         event_activity: "semi_central"
         background_subtraction:
           r_max: 0.7
@@ -1077,7 +1081,7 @@ productions:
         production_number: 64
         label: "embed_pythia_semi_central"
       settings:
-        <<: *analysis_settings_embed_R02
+        <<: *analysis_settings_hardest_kt_embed_R02
         event_activity: "semi_central"
         background_subtraction:
           r_max: 0.1
@@ -1093,7 +1097,7 @@ productions:
         production_number: 65
         label: "embed_pythia_semi_central"
       settings:
-        <<: *analysis_settings_embed_R02
+        <<: *analysis_settings_hardest_kt_embed_R02
         event_activity: "semi_central"
         background_subtraction:
           r_max: 0.05
@@ -1109,7 +1113,7 @@ productions:
         production_number: 66
         label: "embed_pythia_semi_central"
       settings:
-        <<: *analysis_settings_embed_R02
+        <<: *analysis_settings_hardest_kt_embed_R02
         event_activity: "semi_central"
         background_subtraction:
           r_max: 0.50
@@ -1128,7 +1132,7 @@ productions:
         production_number: 67
         label: "embed_pythia_semi_central"
       settings:
-        <<: *analysis_settings_embed_R02
+        <<: *analysis_settings_hardest_kt_embed_R02
         event_activity: "semi_central"
         chunk_size: 4000
         background_subtraction:
@@ -1144,7 +1148,7 @@ productions:
         production_number: 68
         label: "embed_pythia_semi_central"
       settings:
-        <<: *analysis_settings_embed_R02
+        <<: *analysis_settings_hardest_kt_embed_R02
         event_activity: "semi_central"
         chunk_size: 4000
         background_subtraction:
@@ -1160,7 +1164,7 @@ productions:
         production_number: 69
         label: "embed_pythia_semi_central"
       settings:
-        <<: *analysis_settings_embed_R02
+        <<: *analysis_settings_hardest_kt_embed_R02
         event_activity: "semi_central"
         chunk_size: 4000
         background_subtraction:
@@ -1176,7 +1180,7 @@ productions:
         production_number: 70
         label: "embed_pythia_semi_central"
       settings:
-        <<: *analysis_settings_embed_R02
+        <<: *analysis_settings_hardest_kt_embed_R02
         event_activity: "semi_central"
         chunk_size: 4000
         background_subtraction:
@@ -1195,7 +1199,7 @@ productions:
         production_number: 71
         label: "embed_pythia_central"
       settings:
-        <<: *analysis_settings_embed_R02
+        <<: *analysis_settings_hardest_kt_embed_R02
         event_activity: "central"
         chunk_size: 4000
         background_subtraction:
@@ -1211,7 +1215,7 @@ productions:
         production_number: 72
         label: "embed_pythia_central"
       settings:
-        <<: *analysis_settings_embed_R02
+        <<: *analysis_settings_hardest_kt_embed_R02
         event_activity: "central"
         chunk_size: 4000
         background_subtraction:
@@ -1227,7 +1231,7 @@ productions:
         production_number: 73
         label: "embed_pythia_central"
       settings:
-        <<: *analysis_settings_embed_R02
+        <<: *analysis_settings_hardest_kt_embed_R02
         event_activity: "central"
         chunk_size: 4000
         background_subtraction:
@@ -1243,7 +1247,7 @@ productions:
         production_number: 74
         label: "embed_pythia_central"
       settings:
-        <<: *analysis_settings_embed_R02
+        <<: *analysis_settings_hardest_kt_embed_R02
         event_activity: "central"
         chunk_size: 4000
         background_subtraction:
@@ -1259,7 +1263,7 @@ productions:
         production_number: 75
         label: "embed_pythia_semi_central"
       settings:
-        <<: *analysis_settings_embed_R02
+        <<: *analysis_settings_hardest_kt_embed_R02
         event_activity: "semi_central"
         chunk_size: 4000
         background_subtraction:
@@ -1277,7 +1281,7 @@ productions:
         production_number: 76
         label: "embed_pythia_central"
       settings:
-        <<: *analysis_settings_embed_R02
+        <<: *analysis_settings_hardest_kt_embed_R02
         event_activity: "central"
         chunk_size: 4000
         background_subtraction:
@@ -1294,7 +1298,7 @@ productions:
         production_number: 2
         label: "embed_pythia_semi_central"
       settings:
-        <<: *analysis_settings_embed_R02
+        <<: *analysis_settings_hardest_kt_embed_R02
         event_activity: "semi_central"
         chunk_size: 5000
         background_subtraction:
@@ -1372,7 +1376,7 @@ productions:
         production_number: 60
         label: "embed_pythia_semi_central"
       settings:
-        <<: *analysis_settings_embed_R02
+        <<: *analysis_settings_hardest_kt_embed_R02
         event_activity: "semi_central"
         chunk_size: 5000
         background_subtraction:
@@ -1393,7 +1397,7 @@ productions:
         production_number: 61
         label: "embed_pythia_semi_central"
       settings:
-        <<: *analysis_settings_embed_R02
+        <<: *analysis_settings_hardest_kt_embed_R02
         event_activity: "semi_central"
         chunk_size: 4000
         background_subtraction:
@@ -1407,7 +1411,7 @@ productions:
         production_number: 62
         label: "embed_pythia_central"
       settings:
-        <<: *analysis_settings_embed_R02
+        <<: *analysis_settings_hardest_kt_embed_R02
         event_activity: "central"
         chunk_size: 4000
         background_subtraction:
