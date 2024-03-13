@@ -76,7 +76,7 @@ def _hardest_kt_data_skim(
         # Add the second prefix for true jets
         prefixes["true"] = "true"
 
-    groomed_substructure_skim_to_flat_tree.calculate_data_skim_mammoth_framework_v1(
+    groomed_substructure_skim_to_flat_tree._calculate_data_skim_mammoth_framework_v1(
         all_jets=all_jets,
         input_filename=input_filename,
         collision_system=collision_system,
@@ -231,7 +231,7 @@ def _hardest_kt_embedding_skim(
         "det_level": "det_level",
     }
 
-    groomed_substructure_skim_to_flat_tree.calculate_embedding_skim_mammoth_framework_v1(
+    groomed_substructure_skim_to_flat_tree._calculate_embedding_skim_mammoth_framework_v1(
         all_jets=all_jets,
         input_filename=input_filename,
         iterative_splittings=iterative_splittings,

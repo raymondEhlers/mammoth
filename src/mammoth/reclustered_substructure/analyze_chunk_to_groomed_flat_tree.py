@@ -135,7 +135,7 @@ def _structured_skim_to_flat_skim_for_one_and_two_track_collections(
         if len(track_skim_to_flat_skim_level_names) > 1:
             prefixes["true"] = "true"
 
-    return groomed_substructure_skim_to_flat_tree.calculate_data_skim_impl(
+    return groomed_substructure_skim_to_flat_tree.calculate_one_or_two_input_level_skim_impl(
         all_jets=all_jets,
         collision_system=collision_system,
         prefixes=prefixes,
@@ -326,7 +326,7 @@ def _structured_skim_to_flat_skim_for_three_track_collections(
         "det_level": "det_level",
     }
 
-    return groomed_substructure_skim_to_flat_tree.calculate_embedding_skim_impl(
+    return groomed_substructure_skim_to_flat_tree.calculate_three_input_level_skim_impl(
         all_jets=all_jets,
         prefixes=prefixes,
         iterative_splittings=iterative_splittings,

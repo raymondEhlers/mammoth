@@ -770,7 +770,7 @@ def _calculate_jet_kinematics(
     return ak.values_astype(eta, float_type), ak.values_astype(phi, float_type)
 
 
-def calculate_embedding_skim_impl(
+def calculate_three_input_level_skim_impl(
     all_jets: ak.Array,
     prefixes: Mapping[str, str],
     iterative_splittings: bool,
@@ -780,25 +780,29 @@ def calculate_embedding_skim_impl(
     draw_example_splittings_to_filename: Path | None = None,
     selected_grooming_methods: list[str] | None = None,
 ) -> T_GroomingResults:
-    """Determine the response and prong matching for jets substructure techniques.
+    """Calculate the flat skim based on the all_jets input for three input levels.
+
+    In practice, this means skimming to a flat tree for embedding.
 
     Args:
-        input_filename: Input file path.
-        iterative_splittings: If True, we should only consider iterative splittings.
+        all_jets: All jets structured dict
         prefixes: Mapping from our standard names to those which are used in the stored data.
+        iterative_splittings: If True, we should only consider iterative splittings.
+        jet_R: Jet radius.
+        scale_factor: Scale factor.
         create_friend_tree: Create a friend tree instead of the standard tree. It contains
             supplemental information. See the code for precisely what it contains. Default: False.
         draw_example_splittings: If True, draw a few interesting splitting graphs. Default: False.
+        selected_grooming_methods: Select a subset of grooming methods. Default: None, which
+            includes all grooming methods.
+
+    Returns:
+        Grooming results.
     """
     # Setup
     # Output consistent types.
     float_type = np.float32
     to_float = functools.partial(ak.values_astype, to=np.float32)
-
-    # Jets setup.
-    # true_jets = all_jets["matched"]
-    # det_level_jets = all_jets["detLevel"]
-    # hybrid_jets = all_jets["data"]
 
     # Do the calculations
     # Do not mask on the number of constituents. This would prevent tagged <-> untagged migrations in the response.
@@ -1033,101 +1037,7 @@ def calculate_embedding_skim_impl(
     return {k: np.asarray(v) for k, v in grooming_results.items()}
 
 
-def calculate_embedding_skim_mammoth_framework_v1(
-    all_jets: ak.Array,
-    input_filename: Path,
-    iterative_splittings: bool,
-    prefixes: Mapping[str, str],
-    jet_R: float,
-    output_filename: Path,
-    scale_factor: float,
-    output_tree_name: str = "tree",
-    create_friend_tree: bool = False,
-    write_root: bool = True,
-    write_feather: bool = False,
-    write_parquet: bool = False,
-    draw_example_splittings_to_filename: Path | None = None,
-    selected_grooming_methods: list[str] | None = None,
-) -> tuple[bool, Path, str]:
-    """Calculate the embedding skim using the mammoth v1 framework."""
-    # First, directly run the skim
-    grooming_results = calculate_embedding_skim_impl(
-        all_jets=all_jets,
-        prefixes=prefixes,
-        iterative_splittings=iterative_splittings,
-        jet_R=jet_R,
-        create_friend_tree=create_friend_tree,
-        scale_factor=scale_factor,
-        selected_grooming_methods=selected_grooming_methods,
-        draw_example_splittings_to_filename=draw_example_splittings_to_filename,
-    )
-
-    # Then handle the I/O once finished
-    logger.info(f"Finished processing tree from file {input_filename}")
-    _write_skim_output(
-        grooming_results=grooming_results,
-        output_filename=output_filename,
-        write_root=write_root,
-        output_tree_name=output_tree_name,
-        write_parquet=write_parquet,
-        write_feather=write_feather,
-        create_friend_tree=create_friend_tree,
-    )
-    return True, output_filename, "processed"
-
-
-def calculate_embedding_skim(
-    input_filename: Path,
-    iterative_splittings: bool,
-    prefixes: Mapping[str, str],
-    scale_factors: Mapping[int, float],
-    train_directory: Path,
-    jet_R: float,
-    output_filename: Path,
-    output_tree_name: str = "tree",
-    create_friend_tree: bool = False,
-    draw_example_splittings: bool = False,
-    write_feather: bool = False,
-    write_parquet: bool = False,
-    selected_grooming_methods: list[str] | None = None,
-) -> tuple[bool, Path, str]:
-    # Validation
-    # Bail out early if the file already exists.
-    if output_filename.exists():
-        return True, output_filename, "already exists"
-
-    # Setup
-    # Use the train configuration to extract the train number and pt hard bin, which are used to get the scale factor.
-    y = yaml.yaml()
-    with (train_directory / "config.yaml").open() as f:
-        train_config = y.load(f)
-    train_number = train_config["number"]
-    pt_hard_bin = train_config["pt_hard_bin"]
-    logger.debug(f"Extracted train number: {train_number}, pt hard bin: {pt_hard_bin}")
-    scale_factor = scale_factors[pt_hard_bin]
-
-    # Jets setup.
-    logger.info(f"Skimming tree from file {input_filename}")
-    all_jets = analysis_jet_substructure.parquet_to_substructure_analysis(filename=input_filename, prefixes=prefixes)
-
-    return calculate_embedding_skim_mammoth_framework_v1(
-        all_jets=all_jets,
-        input_filename=input_filename,
-        iterative_splittings=iterative_splittings,
-        prefixes=prefixes,
-        scale_factor=scale_factor,
-        jet_R=jet_R,
-        output_filename=output_filename,
-        output_tree_name=output_tree_name,
-        create_friend_tree=create_friend_tree,
-        draw_example_splittings_to_filename=output_filename.parent if draw_example_splittings else None,
-        write_feather=write_feather,
-        write_parquet=write_parquet,
-        selected_grooming_methods=selected_grooming_methods,
-    )
-
-
-def calculate_data_skim_impl(
+def calculate_one_or_two_input_level_skim_impl(
     all_jets: ak.Array,
     collision_system: str,
     prefixes: Mapping[str, str],
@@ -1137,6 +1047,25 @@ def calculate_data_skim_impl(
     scale_factors: Mapping[int, float] | None = None,
     selected_grooming_methods: list[str] | None = None,
 ) -> T_GroomingResults:
+    """Calculate the flat skim based on the all_jets input for one or two input levels.
+
+    In practice, this means skimming to a flat tree for data or MC.
+
+    Args:
+        all_jets: All jets structured dict
+        collision_system: Collision system.
+        prefixes: Mapping from our standard names to those which are used in the stored data.
+        iterative_splittings: If True, we should only consider iterative splittings.
+        jet_R: Jet radius.
+        create_friend_tree: Create a friend tree instead of the standard tree. It contains
+            supplemental information. See the code for precisely what it contains. Default: False.
+        scale_factors: Scale factors.
+        selected_grooming_methods: Select a subset of grooming methods. Default: None, which
+            includes all grooming methods.
+
+    Returns:
+        Grooming results.
+    """
     # Setup
     # Output consistent types.
     float_type = np.float32
@@ -1319,6 +1248,8 @@ def _write_skim_output(
 ) -> bool:
     """Write skim output to file.
 
+    OBSOLETE! (practically - as part of mammoth v1)
+
     Args:
         grooming_results: The grooming results to write.
         output_filename: The output filename.
@@ -1365,7 +1296,108 @@ def _write_skim_output(
     return True
 
 
-def calculate_data_skim_mammoth_framework_v1(
+def _calculate_embedding_skim_mammoth_framework_v1(
+    all_jets: ak.Array,
+    input_filename: Path,
+    iterative_splittings: bool,
+    prefixes: Mapping[str, str],
+    jet_R: float,
+    output_filename: Path,
+    scale_factor: float,
+    output_tree_name: str = "tree",
+    create_friend_tree: bool = False,
+    write_root: bool = True,
+    write_feather: bool = False,
+    write_parquet: bool = False,
+    draw_example_splittings_to_filename: Path | None = None,
+    selected_grooming_methods: list[str] | None = None,
+) -> tuple[bool, Path, str]:
+    """Calculate the embedding skim using the mammoth v1 framework.
+
+    OBSOLETE! (practically - as part of mammoth v1)
+    """
+    # First, directly run the skim
+    grooming_results = calculate_three_input_level_skim_impl(
+        all_jets=all_jets,
+        prefixes=prefixes,
+        iterative_splittings=iterative_splittings,
+        jet_R=jet_R,
+        create_friend_tree=create_friend_tree,
+        scale_factor=scale_factor,
+        selected_grooming_methods=selected_grooming_methods,
+        draw_example_splittings_to_filename=draw_example_splittings_to_filename,
+    )
+
+    # Then handle the I/O once finished
+    logger.info(f"Finished processing tree from file {input_filename}")
+    _write_skim_output(
+        grooming_results=grooming_results,
+        output_filename=output_filename,
+        write_root=write_root,
+        output_tree_name=output_tree_name,
+        write_parquet=write_parquet,
+        write_feather=write_feather,
+        create_friend_tree=create_friend_tree,
+    )
+    return True, output_filename, "processed"
+
+
+def _calculate_embedding_skim(
+    input_filename: Path,
+    iterative_splittings: bool,
+    prefixes: Mapping[str, str],
+    scale_factors: Mapping[int, float],
+    train_directory: Path,
+    jet_R: float,
+    output_filename: Path,
+    output_tree_name: str = "tree",
+    create_friend_tree: bool = False,
+    draw_example_splittings: bool = False,
+    write_feather: bool = False,
+    write_parquet: bool = False,
+    selected_grooming_methods: list[str] | None = None,
+) -> tuple[bool, Path, str]:
+    """Entry point for calculating the embedding skim.
+
+    OBSOLETE! (practically - as part of mammoth v1)
+    """
+    # Validation
+    # Bail out early if the file already exists.
+    if output_filename.exists():
+        return True, output_filename, "already exists"
+
+    # Setup
+    # Use the train configuration to extract the train number and pt hard bin, which are used to get the scale factor.
+    y = yaml.yaml()
+    with (train_directory / "config.yaml").open() as f:
+        train_config = y.load(f)
+    train_number = train_config["number"]
+    pt_hard_bin = train_config["pt_hard_bin"]
+    logger.debug(f"Extracted train number: {train_number}, pt hard bin: {pt_hard_bin}")
+    scale_factor = scale_factors[pt_hard_bin]
+
+    # Jets setup.
+    logger.info(f"Skimming tree from file {input_filename}")
+    all_jets = analysis_jet_substructure.parquet_to_substructure_analysis(filename=input_filename, prefixes=prefixes)
+
+    return _calculate_embedding_skim_mammoth_framework_v1(
+        all_jets=all_jets,
+        input_filename=input_filename,
+        iterative_splittings=iterative_splittings,
+        prefixes=prefixes,
+        scale_factor=scale_factor,
+        jet_R=jet_R,
+        output_filename=output_filename,
+        output_tree_name=output_tree_name,
+        create_friend_tree=create_friend_tree,
+        draw_example_splittings_to_filename=output_filename.parent if draw_example_splittings else None,
+        write_feather=write_feather,
+        write_parquet=write_parquet,
+        selected_grooming_methods=selected_grooming_methods,
+    )
+
+
+def _calculate_data_skim_mammoth_framework_v1(
     all_jets: ak.Array,
     input_filename: Path,
     collision_system: str,
@@ -1381,9 +1413,12 @@ def calculate_data_skim_mammoth_framework_v1(
     write_parquet: bool = False,
     selected_grooming_methods: list[str] | None = None,
 ) -> tuple[bool, Path, str]:
-    """Calculate the data skim using the mammoth v1 framework."""
+    """Calculate the data skim using the mammoth v1 framework.
+
+    OBSOLETE! (practically - as part of mammoth v1)
+    """
     # First, directly run the skim
-    grooming_results = calculate_data_skim_impl(
+    grooming_results = calculate_one_or_two_input_level_skim_impl(
         all_jets=all_jets,
         collision_system=collision_system,
         prefixes=prefixes,
@@ -1408,7 +1443,7 @@ def calculate_data_skim_mammoth_framework_v1(
     return True, output_filename, "processed"
 
 
-def calculate_data_skim(
+def _calculate_data_skim(
     input_filename: Path,
     collision_system: str,
     iterative_splittings: bool,
@@ -1422,6 +1457,10 @@ def calculate_data_skim(
     write_parquet: bool = False,
     selected_grooming_methods: list[str] | None = None,
 ) -> tuple[bool, Path, str]:
+    """Entry point for calculating the embedding skim.
+
+    OBSOLETE!
+    """
     # Validation
     if scale_factors is None and collision_system in ["pythia", "pp_MC", "PbPb_MC"]:
         _msg = f"Need scale factors for {collision_system} to be provided externally."
@@ -1435,7 +1474,7 @@ def calculate_data_skim(
     # Careful, this can return general columns, not just jets in prefixes (for example, the pt_hard in pythia)
     all_jets = analysis_jet_substructure.parquet_to_substructure_analysis(filename=input_filename, prefixes=prefixes)
 
-    return calculate_data_skim_mammoth_framework_v1(
+    return _calculate_data_skim_mammoth_framework_v1(
         all_jets=all_jets,
         input_filename=input_filename,
         collision_system=collision_system,
@@ -1457,7 +1496,7 @@ if __name__ == "__main__":
     from mammoth import helpers
 
     helpers.setup_logging()
-    # res = calculate_embedding_skim(
+    # res = _calculate_embedding_skim(
     #     input_filename=Path(
     #         "trains/embedPythia/6650/parquet/events_per_job_100000/AnalysisResults.18q.repaired.00.parquet"
     #     ),
@@ -1475,7 +1514,7 @@ if __name__ == "__main__":
     # Skim data.
     collision_system = "pythia"
     train_number = 2461
-    res = calculate_data_skim(
+    res = _calculate_data_skim(
         input_filename=Path(
             f"trains/{collision_system}/{train_number}/parquet/events_per_job_200000/AnalysisResults.cent_woSDD.01.repaired.00.parquet"
         ),
