@@ -39,29 +39,29 @@ def customize_analysis_metadata(
 
 def convert_analyzed_jets_to_all_jets_for_skim(
     jets: ak.Array,
-    convert_data_format_prefixes: Mapping[str, str],
+    track_skim_to_flat_skim_level_names: Mapping[str, str],
 ) -> dict[str, ak.Array]:
-    """Converts analyzed jets from a track skim to the all_jets objects for skimming to a flat tree.
+    """Converts analyzed jets from a track skim to the all_jets dict for skimming to a flat tree.
 
     Args:
         jets: Analyzed jets from the track skim.
-        convert_data_format_prefixes: Mapping from the track skim format prefix to
-            the desired prefix in the all_jets object.
+        input_to_output_level_names: Mapping from the track skim format prefix to
+            the desired level (ie. prefix) in the all_jets dict format.
     Returns:
         The all_jets dict for skimming to a flat tree.
     """
     # Need the unsubtracted leading track pt for hybrid
     additional_columns_per_prefix = {}
-    for prefix_to_check in convert_data_format_prefixes:
-        if prefix_to_check in ak.fields(jets) and "unsubtracted_leading_track_pt" in ak.fields(jets[prefix_to_check]):
+    for level_to_check in track_skim_to_flat_skim_level_names:
+        if level_to_check in ak.fields(jets) and "unsubtracted_leading_track_pt" in ak.fields(jets[level_to_check]):
             # Store the unsubtracted track pt.
             # It is expected to be under "leading_track_pt" even though it's unsubtracted
-            additional_columns_per_prefix[prefix_to_check] = {
-                "leading_track_pt": jets[prefix_to_check, "unsubtracted_leading_track_pt"],
+            additional_columns_per_prefix[level_to_check] = {
+                "leading_track_pt": jets[level_to_check, "unsubtracted_leading_track_pt"],
             }
 
     return {
-        convert_data_format_prefixes[k]: ak.zip(
+        track_skim_to_flat_skim_level_names[k]: ak.zip(
             {
                 "jet_pt": jets[k].pt,
                 "jet_constituents": ak.zip(
@@ -94,7 +94,7 @@ def convert_analyzed_jets_to_all_jets_for_skim(
             },
             depth_limit=1,
         )
-        for k in convert_data_format_prefixes
+        for k in track_skim_to_flat_skim_level_names
     }
 
 
@@ -103,7 +103,7 @@ def _structured_skim_to_flat_skim_for_one_and_two_track_collections(
     collision_system: str,
     jet_R: float,
     iterative_splittings: bool,
-    convert_data_format_prefixes: Mapping[str, str],
+    track_skim_to_flat_skim_level_names: Mapping[str, str],
     scale_factors: Mapping[int, float] | None = None,
     pt_hat_bin: int | None = -1,
     selected_grooming_methods: list[str] | None = None,
@@ -116,7 +116,7 @@ def _structured_skim_to_flat_skim_for_one_and_two_track_collections(
     # Now, adapt into the expected format.
     all_jets = convert_analyzed_jets_to_all_jets_for_skim(
         jets=jets,
-        convert_data_format_prefixes=convert_data_format_prefixes,
+        track_skim_to_flat_skim_level_names=track_skim_to_flat_skim_level_names,
     )
 
     # If I want to write out an the intermediate step, I can uncomment this here.
@@ -132,7 +132,7 @@ def _structured_skim_to_flat_skim_for_one_and_two_track_collections(
         # Add the second prefix for true jets
         # NOTE: We only want to do this if we're already stated that we want to
         #       want to analyze both the part and det level jets.
-        if len(convert_data_format_prefixes) > 1:
+        if len(track_skim_to_flat_skim_level_names) > 1:
             prefixes["true"] = "true"
 
     return groomed_substructure_skim_to_flat_tree.calculate_data_skim_impl(
@@ -154,7 +154,7 @@ def analyze_chunk_two_input_level(
     # Analysis arguments
     pt_hat_bin: int,
     scale_factors: dict[int, float],
-    convert_data_format_prefixes: Mapping[str, str],
+    track_skim_to_flat_skim_level_names: Mapping[str, str],
     jet_R: float,
     min_jet_pt: dict[str, float],
     iterative_splittings: bool,
@@ -177,7 +177,7 @@ def analyze_chunk_two_input_level(
     assert det_level_artificial_tracking_efficiency is not None
 
     # Perform jet finding and reclustering
-    if len(convert_data_format_prefixes) == 1:
+    if len(track_skim_to_flat_skim_level_names) == 1:
         msg = "Shouldn't be able to access this functionality anymore."
         raise RuntimeError(msg)
         ## Treat as a one track collection (will be either part or det level)
@@ -224,7 +224,7 @@ def analyze_chunk_two_input_level(
         collision_system=collision_system,
         jet_R=jet_R,
         iterative_splittings=iterative_splittings,
-        convert_data_format_prefixes=convert_data_format_prefixes,
+        track_skim_to_flat_skim_level_names=track_skim_to_flat_skim_level_names,
         scale_factors=scale_factors,
         pt_hat_bin=pt_hat_bin,
         selected_grooming_methods=selected_grooming_methods,
@@ -243,7 +243,7 @@ def analyze_chunk_one_input_level(
     arrays: ak.Array,
     input_metadata: dict[str, Any],  # noqa: ARG001
     # Analysis arguments
-    convert_data_format_prefixes: Mapping[str, str],
+    track_skim_to_flat_skim_level_names: Mapping[str, str],
     jet_R: float,
     min_jet_pt: dict[str, float],
     iterative_splittings: bool,
@@ -288,7 +288,7 @@ def analyze_chunk_one_input_level(
         collision_system=collision_system,
         jet_R=jet_R,
         iterative_splittings=iterative_splittings,
-        convert_data_format_prefixes=convert_data_format_prefixes,
+        track_skim_to_flat_skim_level_names=track_skim_to_flat_skim_level_names,
         selected_grooming_methods=selected_grooming_methods,
     )
 
@@ -303,7 +303,7 @@ def _structured_skim_to_flat_skim_for_three_track_collections(
     jets: ak.Array,
     jet_R: float,
     iterative_splittings: bool,
-    convert_data_format_prefixes: Mapping[str, str],
+    track_skim_to_flat_skim_level_names: Mapping[str, str],
     scale_factor: float,
     selected_grooming_methods: list[str] | None = None,
 ) -> groomed_substructure_skim_to_flat_tree.T_GroomingResults:
@@ -315,7 +315,7 @@ def _structured_skim_to_flat_skim_for_three_track_collections(
     # Now, adapt into the expected format.
     all_jets = convert_analyzed_jets_to_all_jets_for_skim(
         jets=jets,
-        convert_data_format_prefixes=convert_data_format_prefixes,
+        track_skim_to_flat_skim_level_names=track_skim_to_flat_skim_level_names,
     )
 
     # Define the prefixes for analysis. This should be fairly uniform for the track skim,
@@ -344,7 +344,7 @@ def analyze_chunk_three_input_level(
     input_metadata: dict[str, Any],  # noqa: ARG001
     # Analysis arguments
     scale_factor: float,
-    convert_data_format_prefixes: Mapping[str, str],
+    track_skim_to_flat_skim_level_names: Mapping[str, str],
     jet_R: float,
     min_jet_pt: dict[str, float],
     iterative_splittings: bool,
@@ -388,7 +388,7 @@ def analyze_chunk_three_input_level(
         jets=jets,
         jet_R=jet_R,
         iterative_splittings=iterative_splittings,
-        convert_data_format_prefixes=convert_data_format_prefixes,
+        track_skim_to_flat_skim_level_names=track_skim_to_flat_skim_level_names,
         scale_factor=scale_factor,
         selected_grooming_methods=selected_grooming_methods,
     )
@@ -434,7 +434,7 @@ def run_some_standalone_tests() -> None:
     #        ),
     #        jet_R=0.4,
     #        iterative_splittings=True,
-    #        convert_data_format_prefixes={"data": "data"},
+    #        track_skim_to_flat_skim_level_names={"data": "data"},
     #        min_jet_pt={"data": 5.0 if collision_system == "pp" else 20.0},
     #    )
 
@@ -456,7 +456,7 @@ def run_some_standalone_tests() -> None:
         # Analysis arguments
         pt_hat_bin=1,
         scale_factors={i: 1 for i in range(1, 21)},
-        convert_data_format_prefixes={
+        track_skim_to_flat_skim_level_names={
             "det_level": "data",
             "part_level": "true",
         },

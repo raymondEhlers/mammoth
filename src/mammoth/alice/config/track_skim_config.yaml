@@ -282,9 +282,7 @@ analysis_settings:
         loading_data_rename_prefix:
           data: "data"
       settings: &_base_analysis_settings_pp
-        # Map from key -> value of how prefixes should be renamed when converting the track
-        # skim output to the structured jet substructure format
-        convert_data_format_prefixes:
+        track_skim_to_flat_skim_level_names: # Map from track_skim level -> level of the structured jet substructure format
           data: "data"
         analysis_input_levels:
           - "data"
@@ -299,9 +297,7 @@ analysis_settings:
         # For pythia, this isn't necessary since it has a dedicated function for loading MC data
         loading_data_rename_prefix: {}
       settings: &_base_analysis_settings_pythia
-        # Map from key -> value of how prefixes should be renamed when converting the track
-        # skim output to the structured jet substructure format
-        convert_data_format_prefixes:
+        track_skim_to_flat_skim_level_names: # Map from track_skim level -> level of the structured jet substructure format
           det_level: "data"
           part_level: "true"
         analysis_input_levels: ["det_level", "part_level"]
@@ -319,9 +315,7 @@ analysis_settings:
         loading_data_rename_prefix:
           data: "data"
       settings: &_base_analysis_settings_PbPb
-        # Map from key -> value of how prefixes should be renamed when converting the track
-        # skim output to the structured jet substructure format
-        convert_data_format_prefixes:
+        track_skim_to_flat_skim_level_names: # Map from track_skim level -> level of the structured jet substructure format
           data: "data"
         analysis_input_levels: ["data"]
         splittings_selection: "iterative"
@@ -354,17 +348,15 @@ analysis_settings:
             unconstrained_source:
               n_files_to_use_per_task: 2
       settings: &_base_analysis_settings_embed
-        # Map from key -> value of how prefixes should be renamed when converting the track
-        # skim output to the structured jet substructure format
-        convert_data_format_prefixes:
-          hybrid: "hybrid"
+        track_skim_to_flat_skim_level_names: # Map from track_skim level -> level of the structured jet substructure format
+          hybrid_level: "hybrid"
           det_level: "det_level"
           part_level: "true"
         analysis_input_levels: ["hybrid_level", "det_level", "part_level"]
         splittings_selection: "iterative"
         # In GeV
         # We don't want to restrict the "det_level" or "part_level" jet pt values
-        min_jet_pt: { "hybrid": 20 }
+        min_jet_pt: { "hybrid_level": 20 }
 
     _embed_thermal_model:
       metadata: &base_metadata_embed_thermal_model
@@ -498,7 +490,7 @@ analysis_settings:
         min_track_pt:
           part_level: 1.
           det_level: 1.
-          hybrid: 1.
+          hybrid_level: 1.
 
   # NOTE: We don't need an explicit one for embedding into a thermal model - we can
   #       just take the standard embedding analysis settings
@@ -1363,7 +1355,7 @@ productions:
         output_settings:
           primary_output:
             type: "hists"
-            reference_name: "hybrid_reference_eec"
+            reference_name: "hybrid_level_reference_eec"
             container_name: ""
           return_skim: false
           write_chunk_skim: false

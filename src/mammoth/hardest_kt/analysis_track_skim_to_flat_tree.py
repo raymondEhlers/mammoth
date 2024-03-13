@@ -50,7 +50,7 @@ def _hardest_kt_data_skim(
     collision_system: str,
     jet_R: float,
     iterative_splittings: bool,
-    convert_data_format_prefixes: Mapping[str, str],
+    track_skim_to_flat_skim_level_names: Mapping[str, str],
     output_filename: Path,
     scale_factors: Mapping[int, float] | None = None,
     pt_hat_bin: int | None = -1,
@@ -63,7 +63,7 @@ def _hardest_kt_data_skim(
     # Now, adapt into the expected format.
     all_jets = analyze_chunk_to_groomed_flat_tree.convert_analyzed_jets_to_all_jets_for_skim(
         jets=jets,
-        convert_data_format_prefixes=convert_data_format_prefixes,
+        track_skim_to_flat_skim_level_names=track_skim_to_flat_skim_level_names,
     )
 
     # ak.to_parquet(all_jets, input_filename.parent / Path("intermediate.parquet"))
@@ -96,7 +96,7 @@ def hardest_kt_data_skim(
     iterative_splittings: bool,
     skim_type: str,
     output_filename: Path,
-    convert_data_format_prefixes: Mapping[str, str],
+    track_skim_to_flat_skim_level_names: Mapping[str, str],
     # Data specific
     loading_data_rename_prefix: Mapping[str, str] | None = None,
     # Pythia specific
@@ -197,7 +197,7 @@ def hardest_kt_data_skim(
         collision_system=collision_system,
         jet_R=jet_R,
         iterative_splittings=iterative_splittings,
-        convert_data_format_prefixes=convert_data_format_prefixes,
+        track_skim_to_flat_skim_level_names=track_skim_to_flat_skim_level_names,
         output_filename=output_filename,
         pt_hat_bin=pt_hat_bin,
         scale_factors=scale_factors,
@@ -212,13 +212,13 @@ def _hardest_kt_embedding_skim(
     jet_R: float,
     iterative_splittings: bool,
     scale_factor: float,
-    convert_data_format_prefixes: Mapping[str, str],
+    track_skim_to_flat_skim_level_names: Mapping[str, str],
     output_filename: Path,
 ) -> None:
     # Now, adapt into the expected format.
     all_jets = analyze_chunk_to_groomed_flat_tree.convert_analyzed_jets_to_all_jets_for_skim(
         jets=jets,
-        convert_data_format_prefixes=convert_data_format_prefixes,
+        track_skim_to_flat_skim_level_names=track_skim_to_flat_skim_level_names,
     )
 
     # Define the prefixes for analysis. This should be fairly uniform for the track skim,
@@ -245,7 +245,7 @@ def _hardest_kt_embedding_skim(
 def hardest_kt_embed_thermal_model_skim(  # noqa: C901
     collision_system: str,
     signal_input: Path | Sequence[Path],
-    convert_data_format_prefixes: Mapping[str, str],
+    track_skim_to_flat_skim_level_names: Mapping[str, str],
     jet_R: float,
     min_jet_pt: Mapping[str, float],
     iterative_splittings: bool,
@@ -381,7 +381,7 @@ def hardest_kt_embed_thermal_model_skim(  # noqa: C901
             jet_R=jet_R,
             iterative_splittings=iterative_splittings,
             scale_factor=scale_factor,
-            convert_data_format_prefixes=convert_data_format_prefixes,
+            track_skim_to_flat_skim_level_names=track_skim_to_flat_skim_level_names,
             output_filename=_output_filename,
         )
 
@@ -400,7 +400,7 @@ def hardest_kt_embedding_skim(  # noqa: C901
     collision_system: str,
     signal_input: Path | Sequence[Path],
     background_input: Path | Sequence[Path],
-    convert_data_format_prefixes: Mapping[str, str],
+    track_skim_to_flat_skim_level_names: Mapping[str, str],
     jet_R: float,
     min_jet_pt: Mapping[str, float],
     iterative_splittings: bool,
@@ -549,7 +549,7 @@ def hardest_kt_embedding_skim(  # noqa: C901
             jet_R=jet_R,
             iterative_splittings=iterative_splittings,
             scale_factor=scale_factor,
-            convert_data_format_prefixes=convert_data_format_prefixes,
+            track_skim_to_flat_skim_level_names=track_skim_to_flat_skim_level_names,
             output_filename=_output_filename,
         )
 
@@ -598,7 +598,7 @@ def run_some_standalone_tests() -> None:
             iterative_splittings=True,
             skim_type="track_skim",
             loading_data_rename_prefix={"data": "data"} if collision_system != "pythia" else {},
-            convert_data_format_prefixes={"data": "data"}
+            track_skim_to_flat_skim_level_names={"data": "data"}
             if collision_system != "pythia"
             else {"det_level": "data", "part_level": "true"},
             output_filename=base_path / "skim" / "skim_output.root",
@@ -630,7 +630,7 @@ def run_some_standalone_tests() -> None:
         iterative_splittings=True,
         output_filename=base_path / "skim" / "test" / "thermal_model_skim_output.root",
         thermal_model_parameters=sources.THERMAL_MODEL_SETTINGS["5020_central"],
-        convert_data_format_prefixes={"hybrid": "hybrid", "det_level": "det_level", "part_level": "true"},
+        track_skim_to_flat_skim_level_names={"hybrid": "hybrid", "det_level": "det_level", "part_level": "true"},
         scale_factor=scale_factors[pt_hat_bin],
         background_subtraction={"r_max": 0.25},
         det_level_artificial_tracking_efficiency=0.98,
@@ -680,7 +680,7 @@ def run_some_standalone_tests() -> None:
         min_jet_pt=_min_jet_pt["embed_pythia"],
         iterative_splittings=True,
         output_filename=output_filename,
-        convert_data_format_prefixes={"hybrid": "hybrid", "det_level": "det_level", "part_level": "true"},
+        track_skim_to_flat_skim_level_names={"hybrid": "hybrid", "det_level": "det_level", "part_level": "true"},
         scale_factor=scale_factors[pt_hat_bin],
         background_subtraction={"r_max": 0.25},
         det_level_artificial_tracking_efficiency=1.0,
@@ -719,7 +719,7 @@ if __name__ == "__main__":
         min_jet_pt={"hybrid": 20},
         iterative_splittings=True,
         output_filename=Path("a_test") / "skim" / "test" / "embedding_skim_output.root",
-        convert_data_format_prefixes={"hybrid": "hybrid", "det_level": "det_level", "part_level": "true"},
+        track_skim_to_flat_skim_level_names={"hybrid_level": "hybrid", "det_level": "det_level", "part_level": "true"},
         scale_factor=scale_factors[pt_hat_bin],
         background_subtraction={"r_max": 0.1},
         det_level_artificial_tracking_efficiency=0.95,

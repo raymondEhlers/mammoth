@@ -80,8 +80,8 @@ class ProductionSpecialization:
             name += f"__reclustering_settings_{_safe_str_reclustering_settings(reclustering_settings)}"
         # Always pop the output settings, but don't include it. It's just not needed
         analysis_settings.pop("output_settings")
-        # Also the prefix conversion, since it's just not important for the identifier
-        analysis_settings.pop("convert_data_format_prefixes")
+        # Also the levels conversion, since it's just not important for the identifier
+        analysis_settings.pop("track_skim_to_flat_skim_level_names")
         # Additional "_" at the end to add full offsets for the customized identifier properties
         return f"{name}_"
 
