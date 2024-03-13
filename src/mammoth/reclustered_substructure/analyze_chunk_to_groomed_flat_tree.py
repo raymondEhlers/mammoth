@@ -318,9 +318,8 @@ def _structured_skim_to_flat_skim_for_three_track_collections(
         track_skim_to_flat_skim_level_names=track_skim_to_flat_skim_level_names,
     )
 
-    # Define the prefixes for analysis. This should be fairly uniform for the track skim,
-    # so we hard code it for now.
-    # NOTE: If this becomes an issue, we can just make it an argument.
+    # Define the prefixes for analysis of the all_jets structure to the flat skim.
+    # We take care of modifying the labeling above, so we can hard code it here.
     prefixes = {
         "hybrid": "hybrid",
         "true": "true",
@@ -482,7 +481,7 @@ def run_some_standalone_tests() -> None:
     #     ),
     #     jet_R=0.4,
     #     min_jet_pt={
-    #         "hybrid": 20,
+    #         "hybrid_level": 20,
     #         "det_level": 1,
     #         "part_level": 1,
     #     },
@@ -497,7 +496,7 @@ def run_some_standalone_tests() -> None:
     #     ),
     #     jet_R=0.2,
     #     min_jet_pt={
-    #         "hybrid": 20,
+    #         "hybrid_level": 20,
     #         #"det_level": 1,
     #         #"part_level": 1,
     #     },

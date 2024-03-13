@@ -193,7 +193,7 @@ def run() -> None:
         "embedding_analysis",
     ]
     jet_R_values = [0.2, 0.4, 0.6]
-    min_jet_pt = {"hybrid": 10}
+    min_jet_pt = {"hybrid_level": 10}
     sample_each_pt_hat_bin_equally = True
     # systems_to_process = _possible_systems
     systems_to_process = _possible_systems[1:]

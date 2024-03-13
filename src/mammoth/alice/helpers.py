@@ -71,12 +71,10 @@ def _determine_particle_column_names(arrays: ak.Array, selected_particle_column_
     particle_columns = []
     if not selected_particle_column_name:
         # If no particle column is selected, then automatically detect the columns to use.
-        if "part_level" in ak.fields(arrays):
-            particle_columns.append("part_level")
-        if "det_level" in ak.fields(arrays):
-            particle_columns.append("det_level")
-        if "hybrid" in ak.fields(arrays):
-            particle_columns.append("hybrid")
+        possible_columns = ["part_level", "det_level", "hybrid_level"]
+        for possible_col in possible_columns:
+            if possible_col in ak.fields(arrays):
+                particle_columns.append(possible_col)
 
         # Double check that we got something
         if not particle_columns:
@@ -101,7 +99,7 @@ def standard_track_selection(
     - minimum pt of 150 MeV for all particle collections
     - requiring at least one particle in each collection per event (if requested).
 
-    This applies to "part_level", "det_level", and "hybrid" collections, unless we specify
+    This applies to "part_level", "det_level", and "hybrid_level" collections, unless we specify
     a particular single collection to select on.
 
     NOTE:
@@ -273,8 +271,8 @@ def standard_jet_selection(
             and collision_system not in ["PbPb"]
             and "embed" not in collision_system
         ):
-            # We only want to apply this to det_level or data, so skip both "part_level" and "hybrid"
-            if column_name not in ["part_level", "hybrid"]:
+            # We only want to apply this to det_level or data, so skip both "part_level" and "hybrid_level"
+            if column_name not in ["part_level", "hybrid_level"]:
                 masks[column_name] = (masks[column_name]) & (ak.num(jets[column_name, "constituents"], axis=2) > 1)
                 logger.info(
                     f"{column_name}: require more than one constituent n accepted: {np.count_nonzero(np.asarray(ak.flatten(masks[column_name] == True, axis=None)))}"  # noqa: E712

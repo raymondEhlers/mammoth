@@ -16,7 +16,7 @@ import IPython
 
 from mammoth import helpers, job_utils
 from mammoth.alice import steer_scale_factors
-from mammoth.eec import analysis_alice
+from mammoth.eec import analyze_chunk
 from mammoth.framework import production, steer_workflow
 from mammoth.framework import task as framework_task
 from mammoth.framework.io import output_utils
@@ -65,11 +65,11 @@ class EECProductionSpecialization:
 
 # Define the steering apps
 setup_standard_workflow, setup_embed_workflow = steer_workflow.setup_framework_default_workflows(
-    analyze_chunk_with_one_input_lvl=analysis_alice.analyze_chunk_one_input_level,
-    analyze_chunk_with_two_input_lvl=analysis_alice.analyze_chunk_two_input_level,
-    analyze_chunk_with_three_input_lvl=analysis_alice.analyze_chunk_three_input_level,
-    preprocess_arguments=analysis_alice.preprocess_arguments,
-    metadata_for_labeling=analysis_alice.customize_analysis_metadata,
+    analyze_chunk_with_one_input_lvl=analyze_chunk.analyze_chunk_one_input_level,
+    analyze_chunk_with_two_input_lvl=analyze_chunk.analyze_chunk_two_input_level,
+    analyze_chunk_with_three_input_lvl=analyze_chunk.analyze_chunk_three_input_level,
+    preprocess_arguments=analyze_chunk.preprocess_arguments,
+    metadata_for_labeling=analyze_chunk.customize_analysis_metadata,
 )
 
 

@@ -118,7 +118,7 @@ def _setup_base_hists(levels: list[str], trigger_parameters: TriggerParameters) 
             #    ],
             #    storage=hist.storage.Weight()
             # )
-            if level == "hybrid":
+            if level == "hybrid_level":
                 hists[f"{level}_{trigger_name}_eec_bg_only"] = hist.Hist(
                     *[
                         hist.axis.Regular(200, 1e-4, 1.5, label="R_L"),
@@ -438,7 +438,7 @@ def calculate_correlators(
             ak.flatten(trigger_pt),
             weight=np.ones_like(weight) * scale_factor,
         )
-        if level == "hybrid":
+        if level == "hybrid_level":
             # We're about to recalculate the weights and trigger pt, so let's release them now
             del weight
             del trigger_pt
@@ -595,7 +595,7 @@ def analyze_chunk_two_input_level(
 
 
 def _setup_embedding_hists(trigger_parameters: TriggerParameters) -> dict[str, hist.Hist]:
-    return _setup_base_hists(levels=["part_level", "det_level", "hybrid"], trigger_parameters=trigger_parameters)
+    return _setup_base_hists(levels=["part_level", "det_level", "hybrid_level"], trigger_parameters=trigger_parameters)
 
 
 def analyze_chunk_three_input_level(
@@ -654,7 +654,7 @@ def analyze_chunk_three_input_level(
         source_index_identifiers=source_index_identifiers,
         validation_mode=validation_mode,
     )
-    arrays["hybrid"] = arrays["hybrid"][hybrid_level_mask]
+    arrays["hybrid_level"] = arrays["hybrid_level"][hybrid_level_mask]
 
     # Find trigger(s)
     logger.info("Finding trigger(s)")
@@ -670,14 +670,14 @@ def analyze_chunk_three_input_level(
         is_signal_event = _rng.random(ak.num(arrays, axis=0)) < signal_event_fraction
 
         # Trigger QA
-        for level in ["part_level", "det_level", "hybrid"]:
+        for level in ["part_level", "det_level", "hybrid_level"]:
             hists[f"{level}_inclusive_trigger_spectra"].fill(ak.flatten(arrays[level].pt), weight=scale_factor)
 
         # Random choice args
         random_choice_kwargs: dict[str, Any] = {}
         if validation_mode:
             random_choice_kwargs["random_seed"] = jet_finding.VALIDATION_MODE_RANDOM_SEED[0]
-        for level in ["part_level", "det_level", "hybrid"]:
+        for level in ["part_level", "det_level", "hybrid_level"]:
             triggers_dict[level] = {}
             event_selection_mask[level] = {}
             for trigger_name, trigger_range_tuple in trigger_parameters.classes.items():
@@ -717,7 +717,7 @@ def analyze_chunk_three_input_level(
                 )
 
     recoil_direction: dict[str, dict[str, ak.Array]] = {}
-    for level in ["part_level", "det_level", "hybrid"]:
+    for level in ["part_level", "det_level", "hybrid_level"]:
         recoil_direction[level] = {}
         for trigger_name, _ in trigger_parameters.classes.items():
             res = calculate_correlators(
@@ -794,7 +794,7 @@ def run_some_standalone_tests() -> None:
     #     ),
     #     jet_R=0.4,
     #     min_jet_pt={
-    #         "hybrid": 20,
+    #         "hybrid_level": 20,
     #         "det_level": 1,
     #         "part_level": 1,
     #     },
@@ -809,7 +809,7 @@ def run_some_standalone_tests() -> None:
     #     ),
     #     jet_R=0.2,
     #     min_jet_pt={
-    #         "hybrid": 20,
+    #         "hybrid_level": 20,
     #         #"det_level": 1,
     #         #"part_level": 1,
     #     },
@@ -890,7 +890,7 @@ def minimal_test() -> None:
             min_track_pt={
                 "part_level": 1.0,
                 "det_level": 1.0,
-                "hybrid": 1.0,
+                "hybrid_level": 1.0,
             },
             momentum_weight_exponent=1,
             combinatorics_chunk_size=500,

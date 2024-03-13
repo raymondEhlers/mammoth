@@ -509,6 +509,14 @@ productions:
         label: ""
       settings:
         <<: *analysis_settings_hardest_kt_pp_R02
+    3:
+      metadata:
+        <<: *base_metadata_pp
+        dataset: *LHC17pq_pp_pass2
+        production_number: 3
+        label: ""
+      settings:
+        <<: *analysis_settings_time_reclustering_pp_R04
     60:
       # R = 0.2 pp production
       metadata:

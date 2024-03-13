@@ -133,8 +133,8 @@ def analysis_embedding(
     # Hybrid level track cuts:
     # - min: 150 MeV
     # NOTE: Since the HF Tree uses track containers, the min is usually applied by default
-    hybrid_track_pt_mask = arrays["hybrid"].pt >= 0.150
-    arrays["hybrid"] = arrays["hybrid"][hybrid_track_pt_mask]
+    hybrid_track_pt_mask = arrays["hybrid_level"].pt >= 0.150
+    arrays["hybrid_level"] = arrays["hybrid_level"][hybrid_track_pt_mask]
 
     # Jet finding
     logger.info("Find jets")
@@ -143,7 +143,7 @@ def analysis_embedding(
     # NOTE: The most general approach would be some divisor argument to select the signal source indexed
     #       particles, but since the background has the higher source index, we can just select particles
     #       with an index smaller than that offset.
-    background_only_particles_mask = ~(arrays["hybrid", "source_index"] < source_index_identifiers["background"])
+    background_only_particles_mask = ~(arrays["hybrid_level", "source_index"] < source_index_identifiers["background"])
 
     # Since rho subtraction is the default, we start with that
     subtractor: jet_finding.RhoSubtractor | jet_finding.ConstituentSubtractor = jet_finding.RhoSubtractor()
@@ -175,16 +175,16 @@ def analysis_embedding(
                     area_settings=jet_finding.AreaPP(),
                 ),
             ),
-            "hybrid": jet_finding.find_jets(
-                particles=arrays["hybrid"],
+            "hybrid_level": jet_finding.find_jets(
+                particles=arrays["hybrid_level"],
                 jet_finding_settings=jet_finding.JetFindingSettings(
                     R=jet_R,
                     algorithm="anti-kt",
-                    pt_range=jet_finding.pt_range(pt_min=min_jet_pt["hybrid"]),
+                    pt_range=jet_finding.pt_range(pt_min=min_jet_pt["hybrid_level"]),
                     eta_range=jet_finding.eta_range(jet_R=jet_R, fiducial_acceptance=True),
                     area_settings=jet_finding.AreaAA(),
                 ),
-                background_particles=arrays["hybrid"][background_only_particles_mask],
+                background_particles=arrays["hybrid_level"][background_only_particles_mask],
                 background_subtraction=jet_finding.BackgroundSubtraction(
                     type=jet_finding.BackgroundSubtractionType.event_wise_constituent_subtraction,
                     estimator=jet_finding.JetMedianBackgroundEstimator(
@@ -223,7 +223,7 @@ def analysis_embedding(
     # NOTE: We need to do it after jet finding to avoid a z bias.
     # **************
     det_level_mask = ~ak.any(jets["det_level"].constituents.pt > 100, axis=-1)
-    hybrid_mask = ~ak.any(jets["hybrid"].constituents.pt > 100, axis=-1)
+    hybrid_mask = ~ak.any(jets["hybrid_level"].constituents.pt > 100, axis=-1)
     # **************
     # Apply area cut
     # Requires at least 60% of possible area.
@@ -231,18 +231,18 @@ def analysis_embedding(
     min_area = jet_finding.area_percentage(60, jet_R)
     part_level_mask = jets["part_level", "area"] > min_area
     det_level_mask = det_level_mask & (jets["det_level", "area"] > min_area)
-    hybrid_mask = hybrid_mask & (jets["hybrid", "area"] > min_area)
+    hybrid_mask = hybrid_mask & (jets["hybrid_level", "area"] > min_area)
 
     # Apply the cuts
     jets["part_level"] = jets["part_level"][part_level_mask]
     jets["det_level"] = jets["det_level"][det_level_mask]
-    jets["hybrid"] = jets["hybrid"][hybrid_mask]
+    jets["hybrid_level"] = jets["hybrid_level"][hybrid_mask]
 
     logger.info("Matching jets")
     # det_level <-> hybrid
-    jets["det_level", "matching"], jets["hybrid", "matching"] = jet_finding.jet_matching_geometrical(
+    jets["det_level", "matching"], jets["hybrid_level", "matching"] = jet_finding.jet_matching_geometrical(
         jets_base=jets["det_level"],
-        jets_tag=jets["hybrid"],
+        jets_tag=jets["hybrid_level"],
         max_matching_distance=0.3,
     )
     # part_level <-> det_level
@@ -260,7 +260,7 @@ def analysis_embedding(
     jets_present_mask = (
         (ak.num(jets["part_level"], axis=1) > 0)
         & (ak.num(jets["det_level"], axis=1) > 0)
-        & (ak.num(jets["hybrid"], axis=1) > 0)
+        & (ak.num(jets["hybrid_level"], axis=1) > 0)
     )
     jets = jets[jets_present_mask]
     # event_level_mask_for_jets = event_level_mask_for_jets & jets_present_mask
@@ -280,19 +280,19 @@ def analysis_embedding(
     #
     # The other benefit to this approach is that it should reorder the particle level matches
     # to be the same shape as the detector level jets, so in principle they are paired together.
-    hybrid_to_det_level_valid_matches = jets["hybrid", "matching"] > -1
+    hybrid_to_det_level_valid_matches = jets["hybrid_level", "matching"] > -1
     det_to_part_level_valid_matches = jets["det_level", "matching"] > -1
     hybrid_to_det_level_including_det_to_part_level_valid_matches = det_to_part_level_valid_matches[
-        jets["hybrid", "matching"][hybrid_to_det_level_valid_matches]
+        jets["hybrid_level", "matching"][hybrid_to_det_level_valid_matches]
     ]
     # First, restrict the hybrid level, requiring hybrid to det_level valid matches and
     # det_level to part_level valid matches.
-    jets["hybrid"] = jets["hybrid"][hybrid_to_det_level_valid_matches][
+    jets["hybrid_level"] = jets["hybrid_level"][hybrid_to_det_level_valid_matches][
         hybrid_to_det_level_including_det_to_part_level_valid_matches
     ]
     # Next, restrict the det_level. Since we've restricted the hybrid to only valid matches, we should be able
     # to directly apply the masking indices.
-    jets["det_level"] = jets["det_level"][jets["hybrid", "matching"]]
+    jets["det_level"] = jets["det_level"][jets["hybrid_level", "matching"]]
     # Same reasoning here.
     jets["part_level"] = jets["part_level"][jets["det_level", "matching"]]
 
@@ -301,7 +301,7 @@ def analysis_embedding(
     jets_present_mask = (
         (ak.num(jets["part_level"], axis=1) > 0)
         & (ak.num(jets["det_level"], axis=1) > 0)
-        & (ak.num(jets["hybrid"], axis=1) > 0)
+        & (ak.num(jets["hybrid_level"], axis=1) > 0)
     )
     jets = jets[jets_present_mask]
     # event_level_mask_for_jets = event_level_mask_for_jets & jets_present_mask
@@ -345,7 +345,7 @@ def analysis_embedding(
     # We do this after flatten the jets because it's simpler, and we don't actually care about
     # the event structure for many calculations
     # Angularity
-    for label in ["part_level", "det_level", "hybrid"]:
+    for label in ["part_level", "det_level", "hybrid_level"]:
         jets[label, "angularity"] = (
             ak.sum(jets[label].constituents.pt * jets[label].constituents.deltaR(jets[label]), axis=1) / jets[label].pt
         )
@@ -360,7 +360,7 @@ def analysis_embedding(
         # res = jet_finding.shared_momentum_fraction_for_flat_array(
         #    generator_like_jet_pts=jets["det_level"][:1].pt,
         #    generator_like_jet_constituents=jets["det_level"][:1].constituents,
-        #    measured_like_jet_constituents=jets["hybrid"][:1].constituents,
+        #    measured_like_jet_constituents=jets["hybrid_level"][:1].constituents,
         # )
         # logger.info("Success")
         # import IPython; IPython.embed()
@@ -370,7 +370,7 @@ def analysis_embedding(
             #       I haven't test it, but it's supposed to be long fixed, so I removed the calls here. If there's
             #       a problem, they can be easily added back.
             generator_like_jet_constituents=jets["det_level"].constituents,
-            measured_like_jet_constituents=jets["hybrid"].constituents,
+            measured_like_jet_constituents=jets["hybrid_level"].constituents,
         )
 
         # Require a shared momentum fraction of > 50%
@@ -396,11 +396,11 @@ def write_skim(jets: ak.Array, filename: Path) -> None:
         # JEWEL specific
         "Jet_Pt_NoToy": jets["jet_pt_original"],
         # Generic
-        "Jet_Pt": jets["hybrid"].pt,
-        "Jet_NumTracks": ak.num(jets["hybrid"].constituents, axis=1),
-        "Jet_Track_Pt": jets["hybrid"].constituents.pt,
-        "Jet_Track_Label": jets["hybrid"].constituents["identifier"],
-        "Jet_Shape_Angularity": jets["hybrid", "angularity"],
+        "Jet_Pt": jets["hybrid_level"].pt,
+        "Jet_NumTracks": ak.num(jets["hybrid_level"].constituents, axis=1),
+        "Jet_Track_Pt": jets["hybrid_level"].constituents.pt,
+        "Jet_Track_Label": jets["hybrid_level"].constituents["identifier"],
+        "Jet_Shape_Angularity": jets["hybrid_level", "angularity"],
         "Jet_MC_MatchedDetLevelJet_Pt": jets["det_level"].pt,
         "Jet_MC_MatchedPartLevelJet_Pt": jets["part_level"].pt,
         "Jet_MC_TruePtFraction": jets["det_level"]["shared_momentum_fraction"],
@@ -483,7 +483,7 @@ if __name__ == "__main__":
             background_filename=background_filename,
             background_collision_system_tag=background_collision_system_tag,
             jet_R=jet_R,
-            min_jet_pt={"hybrid": 10},
+            min_jet_pt={"hybrid_level": 10},
             output_filename=output_filename,
             use_standard_rho_subtraction=use_standard_rho_subtraction,
             use_constituent_subtraction=use_constituent_subtraction,

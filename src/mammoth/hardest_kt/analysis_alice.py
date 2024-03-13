@@ -351,16 +351,16 @@ def analysis_embedding(
                     area_settings=jet_finding.AreaPP(**area_kwargs),
                 ),
             ),
-            "hybrid": jet_finding.find_jets(
-                particles=arrays["hybrid"][hybrid_level_mask],
+            "hybrid_level": jet_finding.find_jets(
+                particles=arrays["hybrid_level"][hybrid_level_mask],
                 jet_finding_settings=jet_finding.JetFindingSettings(
                     R=jet_R,
                     algorithm="anti-kt",
-                    pt_range=jet_finding.pt_range(pt_min=min_jet_pt["hybrid"]),
+                    pt_range=jet_finding.pt_range(pt_min=min_jet_pt["hybrid_level"]),
                     eta_range=jet_finding.eta_range(jet_R=jet_R, fiducial_acceptance=True),
                     area_settings=jet_finding.AreaAA(**area_kwargs),
                 ),
-                background_particles=arrays["hybrid"][background_only_particles_mask],
+                background_particles=arrays["hybrid_level"][background_only_particles_mask],
                 background_subtraction=jet_finding.BackgroundSubtraction(
                     type=jet_finding.BackgroundSubtractionType.event_wise_constituent_subtraction,
                     estimator=jet_finding.JetMedianBackgroundEstimator(
@@ -405,13 +405,13 @@ def analysis_embedding(
     # NOTE: We need to flatten since we could just have empty events.
     # NOTE: Further, we need to access some variable to avoid flattening into a record, so we select px arbitrarily.
     # NOTE: We have to use pt because of awkward #2207 (https://github.com/scikit-hep/awkward/issues/2207)
-    _there_are_jets_left = len(ak.flatten(jets["hybrid"].pt, axis=None)) > 0
+    _there_are_jets_left = len(ak.flatten(jets["hybrid_level"].pt, axis=None)) > 0
     # Now, we actually run the reclustering if possible
     if not _there_are_jets_left:
         logger.warning("No jets left for reclustering. Skipping reclustering...")
     else:
         logger.info("Reclustering jets...")
-        for level in ["hybrid", "det_level", "part_level"]:
+        for level in ["hybrid_level", "det_level", "part_level"]:
             logger.info(f"Reclustering {level}")
             # We only do the area calculation for data.
             reclustering_kwargs = {}
@@ -443,7 +443,7 @@ def analysis_embedding(
         jets["det_level", "shared_momentum_fraction"] = jet_finding.shared_momentum_fraction_for_flat_array(
             generator_like_jet_pts=jets["det_level"].pt,
             generator_like_jet_constituents=jets["det_level"].constituents,
-            measured_like_jet_constituents=jets["hybrid"].constituents,
+            measured_like_jet_constituents=jets["hybrid_level"].constituents,
         )
 
         # Require a shared momentum fraction (default >= 0.5)
@@ -507,7 +507,7 @@ def run_some_standalone_tests() -> None:
     #     ),
     #     jet_R=0.4,
     #     min_jet_pt={
-    #         "hybrid": 20,
+    #         "hybrid_level": 20,
     #         "det_level": 1,
     #         "part_level": 1,
     #     },
@@ -522,7 +522,7 @@ def run_some_standalone_tests() -> None:
     #     ),
     #     jet_R=0.2,
     #     min_jet_pt={
-    #         "hybrid": 20,
+    #         "hybrid_level": 20,
     #         #"det_level": 1,
     #         #"part_level": 1,
     #     },
@@ -574,7 +574,7 @@ if __name__ == "__main__":
             arrays=arrays,
             jet_R=0.2,
             min_jet_pt={
-                "hybrid": 20,
+                "hybrid_level": 20,
             },
             background_subtraction_settings={"r_max": 0.1},
             det_level_artificial_tracking_efficiency=0.99,
