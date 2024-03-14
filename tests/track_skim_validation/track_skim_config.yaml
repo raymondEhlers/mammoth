@@ -82,7 +82,7 @@ dataset_metadata_settings:
       # Map from value -> key of how prefixes should be renamed when loading data
       # For embedding, this isn't necessary since it has a dedicated function for loading embedding data
       loading_data_rename_levels: {}
-      input_constrained_source: "signal"
+      input_constrained_source: "background"
       input_handling:
         signal_parameters:
           collision_system: "pythia"

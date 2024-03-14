@@ -462,8 +462,8 @@ def _track_skim_to_parquet(input_filename: Path, output_filename: Path, collisio
     )
 
 
-# @pytest.mark.parametrize("jet_R", [0.2, 0.4], ids=["R02", "R04"])
-@pytest.mark.parametrize("jet_R", [0.2], ids=["R02"])
+@pytest.mark.parametrize("jet_R", [0.2, 0.4], ids=["R02", "R04"])
+# @pytest.mark.parametrize("jet_R", [0.2], ids=["R02"])
 # @pytest.mark.parametrize("collision_system", ["pp", "pythia", "PbPb", "embed_pythia"])
 @pytest.mark.parametrize("collision_system", ["embed_pythia"])
 # @pytest.mark.parametrize("steering_version", ["v1", "v2_2024"])
@@ -700,6 +700,9 @@ def test_track_skim_validation(  # noqa: C901
         if not result[0]:
             msg = f"Skim failed for {collision_system}, {jet_R}"
             raise ValueError(msg)
+
+        # Keep track of this value for the comparison below.
+        track_skim_flat_tree_filename = track_skim_filenames.skim()
     elif steering_version == "v2_2024":
         from mammoth import job_utils
         from mammoth.framework import production, steer_workflow
@@ -756,16 +759,16 @@ def test_track_skim_validation(  # noqa: C901
         # Check the results ran
         for task_res in workflow_results:
             assert task_res.success, f"Failed to run workflow: {task_res}"
-        # Finally, copy the output file to the expected location for comparison
-        # NOTE: We could of course update the filename below, but then we're left
-        #       with two copies of skim files that need to be cleaned up. Since we
-        #       know that we're
+        # Finally, we set the output file to the expected location for comparison
+        # NOTE: We originally considered copying the skim files to the expected locations.
+        #       However, this isn't thread-safe, so we avoid it.
+        #       It does mean that we want to cleanup the file later.
         # TODO: Not thread safe :-(. Just clean them up afterwards...
         skim_output_files = list((prod.output_dir / "skim").glob("*.root"))
         if len(skim_output_files) != 1:
             msg = f"Expected one skim output file, but found: {skim_output_files}"
             raise ValueError(msg)
-        skim_output_files[0].rename(track_skim_filenames.skim())
+        track_skim_flat_tree_filename = skim_output_files[0]
     else:
         msg = f"Unknown steering version: {steering_version}"
         raise ValueError(msg)
@@ -775,9 +778,13 @@ def test_track_skim_validation(  # noqa: C901
         jet_R=jet_R,
         prefixes=_analysis_parameters.comparison_prefixes,
         standard_filename=reference_filenames.skim(),
-        track_skim_filename=track_skim_filenames.skim(),
+        track_skim_filename=track_skim_flat_tree_filename,
         base_output_dir=_track_skim_base_path / "plot",
         track_skim_validation_mode=True,
         assert_false_on_failed_comparison_for_debugging_during_testing=True,
     )
     assert comparison_result, f"Validation failed during comparison for {_failed_variables}"
+
+    # Cleanup the track skim flat tree file from the v2_2024 workflow
+    if steering_version == "v2_2024":
+        track_skim_flat_tree_filename.unlink(missing_ok=True)
