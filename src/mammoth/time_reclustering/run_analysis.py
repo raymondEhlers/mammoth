@@ -1,4 +1,4 @@
-"""Run mammoth EEC skimming and analysis tasks
+"""Run mammoth time reclustering skimming and analysis tasks
 
 .. codeauthor:: Raymond Ehlers <raymond.ehlers@cern.ch>, LBL/UCB
 """
