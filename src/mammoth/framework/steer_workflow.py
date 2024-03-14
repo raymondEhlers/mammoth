@@ -438,7 +438,7 @@ def setup_framework_standard_workflow(  # noqa: C901
 
         # Setup for analysis and dataset settings
         _metadata_config = prod.config["metadata"]
-        _analysis_config: dict[str, Any] = prod.config["settings"]
+        _analysis_config: dict[str, Any] = copy.deepcopy(prod.config["settings"])
         _output_settings_config = _analysis_config.pop("output_settings")
         # NOTE: These are arguments which will be passed onto `load_data.setup_source_for_data_or_MC_task`.
         #       If you want to pass all of the metadata, we will need to add a kwargs, since this can vary from dataset to dataset.
@@ -667,7 +667,7 @@ def setup_framework_embed_workflow(  # noqa: C901
             "signal_source_collision_system": _input_handling_config["signal_parameters"]["collision_system"],
             "background_source_collision_system": _input_handling_config["background_parameters"]["collision_system"],
         }
-        _analysis_config: dict[str, Any] = prod.config["settings"]
+        _analysis_config: dict[str, Any] = copy.deepcopy(prod.config["settings"])
         _output_settings_config = _analysis_config.pop("output_settings")
         # Chunk size
         chunk_size = _analysis_config.pop("chunk_size", sources.ChunkSizeSentinel.FULL_SOURCE)
@@ -904,7 +904,7 @@ def setup_framework_embed_workflow(  # noqa: C901
 
         # Setup for dataset settings (and grab analysis config for Output settings)
         _metadata_config = prod.config["metadata"]
-        _analysis_config = prod.config["settings"]
+        _analysis_config = copy.deepcopy(prod.config["settings"])
         _output_settings_config = _analysis_config.pop("output_settings")
         # Thermal model parameters
         thermal_model_parameters = sources.THERMAL_MODEL_SETTINGS[
