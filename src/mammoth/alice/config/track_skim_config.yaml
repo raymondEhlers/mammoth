@@ -539,6 +539,13 @@ productions:
         label: ""
       settings:
         <<: *analysis_settings_hardest_kt_pp_R04
+    62:
+      # R = 0.2 pp pass 2 production
+      metadata:
+        <<: *base_metadata_pp
+        dataset: *LHC17pq_pp_pass2
+        production_number: 62
+        label: ""
 
   pythia:
     # Debug
