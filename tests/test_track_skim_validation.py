@@ -463,11 +463,8 @@ def _track_skim_to_parquet(input_filename: Path, output_filename: Path, collisio
 
 
 @pytest.mark.parametrize("jet_R", [0.2, 0.4], ids=["R02", "R04"])
-# @pytest.mark.parametrize("jet_R", [0.2], ids=["R02"])
-# @pytest.mark.parametrize("collision_system", ["pp", "pythia", "PbPb", "embed_pythia"])
-@pytest.mark.parametrize("collision_system", ["embed_pythia"])
-# @pytest.mark.parametrize("steering_version", ["v1", "v2_2024"])
-@pytest.mark.parametrize("steering_version", ["v2_2024"])
+@pytest.mark.parametrize("collision_system", ["pp", "pythia", "PbPb", "embed_pythia"])
+@pytest.mark.parametrize("steering_version", ["v1", "v2_2024"])
 def test_track_skim_validation(  # noqa: C901
     caplog: Any,
     jet_R: float,
@@ -750,10 +747,10 @@ def test_track_skim_validation(  # noqa: C901
                 prod=prod,
                 job_framework=job_utils.JobFramework.immediate_execution_debug,
                 debug_mode={
-                    "signal": {
+                    "signal_input_files_per_pt_hat": {
                         pt_hat_bin: [signal_filename, signal_filename, signal_filename],
                     },
-                    "background": [background_filename],
+                    "background_input_files": [background_filename],
                 },
             )
         # Check the results ran

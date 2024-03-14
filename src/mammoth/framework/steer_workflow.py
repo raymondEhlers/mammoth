@@ -653,10 +653,19 @@ def setup_framework_embed_workflow(  # noqa: C901
             #         Path("trains/pythia/2640/run_by_run/LHC20g4/297479/12/AnalysisResults.20g4.009.root"),
             #     ]
             # }
-            signal_input_files_per_pt_hat = debug_mode.get(
-                "signal_input_files_per_pt_hat", signal_input_files_per_pt_hat
-            )
-            background_input_files = debug_mode.get("background_input_files", background_input_files)
+            logger.info(f"Using debug mode input files: {debug_mode}")
+            if not ("signal_input_files_per_pt_hat" in debug_mode and "background_input_files" in debug_mode):
+                msg = "Must specify both signal_input_files_per_pt_hat and background_input_files in debug mode!"
+                raise ValueError(msg)
+            # By using the intermediate values, it allows us to pass None in the dict to
+            # indicate that we should use the standard files. However, this also requires
+            # the user to explicitly say so to avoid doing it on accident.
+            _temp_value = debug_mode["signal_input_files_per_pt_hat"]
+            if _temp_value is not None:
+                signal_input_files_per_pt_hat = _temp_value
+            _temp_value = debug_mode["background_input_files"]
+            if _temp_value is not None:
+                background_input_files = _temp_value
 
         # Setup for dataset and input
         _metadata_config: dict[str, Any] = prod.config["metadata"]

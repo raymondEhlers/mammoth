@@ -16,6 +16,7 @@ skimmed_datasets:
       - "data"
     files:
       # NOTE: We need a valid file here, but it will be overridden in the test as appropriate
+      #       so the true value doesn't really matter.
       - "tests/track_skim_validation/track_skim/AnalysisResults__pp__jet_R020.parquet"
   # pp_MC
   # pythia
@@ -38,6 +39,7 @@ skimmed_datasets:
     n_pt_hat_bins: 20
     files:
       # NOTE: We need a valid file here, but it will be overridden in the test as appropriate
+      #       so the true value doesn't really matter.
       - "tests/track_skim_validation/track_skim/AnalysisResults__pythia__jet_R020.parquet"
 
   LHC18qr_pass3_AOD252: &LHC18qr_PbPb
@@ -54,6 +56,7 @@ skimmed_datasets:
       - "data"
     files:
       # NOTE: We need a valid file here, but it will be overridden in the test as appropriate
+      #       so the true value doesn't really matter.
       - "tests/track_skim_validation/track_skim/AnalysisResults__PbPb__jet_R020.parquet"
 
 # The dataset_metadata_settings are copied exactly from the real track_skim_config.yaml on 2024 March 13
