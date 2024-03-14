@@ -182,7 +182,7 @@ def _find_possible_grooming_methods(arrays: ak.Array, prefixes: Sequence[str]) -
             grooming_methods.extend(k)
         # No matches - just continue
 
-    return grooming_methods
+    return sorted(grooming_methods)
 
 
 def compare_flat_substructure(  # noqa: C901
@@ -233,7 +233,7 @@ def compare_flat_substructure(  # noqa: C901
                 f"Note: These grooming methods are only present in the track skim and can't be compared: {non_overlapping_grooming_methods}"
             )
         # And then use the determined methods
-        grooming_methods = list(overlapping_grooming_methods)
+        grooming_methods = sorted(overlapping_grooming_methods)
         # Validation
         if len(grooming_methods) == 0:
             _msg = f"Unable to find any grooming methods. Check file and regex!\n{overlapping_grooming_methods=}\n{non_overlapping_grooming_methods=}"
