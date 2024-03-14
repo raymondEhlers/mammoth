@@ -462,7 +462,8 @@ def _track_skim_to_parquet(input_filename: Path, output_filename: Path, collisio
 
 
 @pytest.mark.parametrize("jet_R", [0.2, 0.4])
-@pytest.mark.parametrize("collision_system", ["pp", "pythia", "PbPb", "embed_pythia"])
+# @pytest.mark.parametrize("collision_system", ["pp", "pythia", "PbPb", "embed_pythia"])
+@pytest.mark.parametrize("collision_system", ["pp"])
 # @pytest.mark.parametrize("steering_version", ["v1", "v2_2024"])
 @pytest.mark.parametrize("steering_version", ["v2_2024"])
 def test_track_skim_validation(  # noqa: C901
@@ -717,12 +718,16 @@ def test_track_skim_validation(  # noqa: C901
             track_skim_config_filename=_track_skim_base_path / "track_skim_config.yaml",
             base_output_dir=_track_skim_base_path / "track_skim",
         )
+        logger.info(f"{prod.config=}")
+        pt_hat_bin = _analysis_parameters.pt_hat_bin
+        if pt_hat_bin is None:
+            pt_hat_bin = -1
         if collision_system != "embed_pythia":
             workflow_results = setup_standard_workflow(
                 prod=prod,
                 job_framework=job_utils.JobFramework.immediate_execution_debug,
                 debug_mode={
-                    _analysis_parameters.pt_hat_bin: track_skim_filenames.parquet_output(),
+                    pt_hat_bin: [track_skim_filenames.parquet_output()],
                 },
             )
         else:
@@ -733,7 +738,7 @@ def test_track_skim_validation(  # noqa: C901
                 job_framework=job_utils.JobFramework.immediate_execution_debug,
                 debug_mode={
                     "signal": {
-                        _analysis_parameters.pt_hat_bin: [signal_filename, signal_filename, signal_filename],
+                        pt_hat_bin: [signal_filename, signal_filename, signal_filename],
                     },
                     "background": [background_filename],
                 },

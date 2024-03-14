@@ -118,7 +118,22 @@ dataset_metadata_settings:
 analysis_settings:
   # This is the base - ie. the default - settings for reclustered substructure
   _reclustered_substructure_settings:
+    output_settings: &_output_settings
+      primary_output:
+        type: "skim"
+        reference_name: "tree"
+        container_name: ""
+      return_skim: false
+      write_chunk_skim: true
+      write_skim_extension: "root"
+      explode_skim_fields_to_separate_directories: false
+      return_merged_hists: false
+      write_chunk_hists: false
+      write_merged_hists: false
+
     _pp: &_reclustered_substructure_settings_pp
+      output_settings:
+        <<: *_output_settings
       track_skim_to_flat_skim_level_names: # Map from track_skim level -> level of the structured jet substructure format
         data: "data"
       analysis_input_levels:
@@ -129,6 +144,8 @@ analysis_settings:
       validation_mode: true
 
     _pythia: &_reclustered_substructure_settings_pythia
+      output_settings:
+        <<: *_output_settings
       track_skim_to_flat_skim_level_names: # Map from track_skim level -> level of the structured jet substructure format
         det_level: "data"
         part_level: "true"
@@ -142,6 +159,8 @@ analysis_settings:
       validation_mode: true
 
     _PbPb: &_reclustered_substructure_settings_PbPb
+      output_settings:
+        <<: *_output_settings
       track_skim_to_flat_skim_level_names: # Map from track_skim level -> level of the structured jet substructure format
         data: "data"
       analysis_input_levels: ["data"]
@@ -151,12 +170,15 @@ analysis_settings:
       validation_mode: true
 
     _embed: &_reclustered_substructure_settings_embed
+      output_settings:
+        <<: *_output_settings
       track_skim_to_flat_skim_level_names: # Map from track_skim level -> level of the structured jet substructure format
         hybrid_level: "hybrid"
         det_level: "det_level"
         part_level: "true"
       analysis_input_levels: ["hybrid_level", "det_level", "part_level"]
       splittings_selection: "iterative"
+      apply_pt_dependent_tracking_efficiency_uncertainty: false
       # In GeV
       # We don't want to restrict the "det_level" or "part_level" jet pt values
       min_jet_pt: { "hybrid_level": 20 }
