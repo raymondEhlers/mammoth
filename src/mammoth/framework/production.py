@@ -433,13 +433,18 @@ class ProductionSettings:
         number: int,
         specialization: ProductionSpecialization,
         track_skim_config_filename: Path | None = None,
+        base_output_dir: Path | None = None,
     ) -> ProductionSettings:
         track_skim_config = _read_full_config(track_skim_config_filename)
         config = track_skim_config["productions"][collision_system][number]
+        additional_kwargs: dict[str, Any] = {}
+        if base_output_dir is not None:
+            additional_kwargs["base_output_dir"] = Path(base_output_dir)
 
         return cls(
             collision_system=collision_system,
             number=number,
             config=config,
             specialization=specialization,
+            **additional_kwargs,
         )
