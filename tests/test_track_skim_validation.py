@@ -463,10 +463,13 @@ def _track_skim_to_parquet(input_filename: Path, output_filename: Path, collisio
 
 @pytest.mark.parametrize("jet_R", [0.2, 0.4])
 @pytest.mark.parametrize("collision_system", ["pp", "pythia", "PbPb", "embed_pythia"])
+# @pytest.mark.parametrize("steering_version", ["v1", "v2_2024"])
+@pytest.mark.parametrize("steering_version", ["v2_2024"])
 def test_track_skim_validation(  # noqa: C901
     caplog: Any,
     jet_R: float,
     collision_system: str,
+    steering_version: str,
     iterative_splittings: bool = True,
     write_aliphysics_reference_logs_to_file: bool = False,
 ) -> None:
@@ -654,44 +657,92 @@ def test_track_skim_validation(  # noqa: C901
     # However, that's exactly what we want to create, so we intentionally remove it here
     # to ensure that the test actually runs.
     track_skim_filenames.skim().unlink(missing_ok=True)
-    if collision_system != "embed_pythia":
-        result = analysis_track_skim_to_flat_tree.hardest_kt_data_skim(
-            input_filename=track_skim_filenames.parquet_output(),
-            collision_system=collision_system,
-            jet_R=jet_R,
-            min_jet_pt=_analysis_parameters.min_jet_pt_by_R_and_prefix[jet_R],
-            iterative_splittings=iterative_splittings,
-            skim_type="track_skim",
-            loading_data_rename_levels=_analysis_parameters.track_skim_loading_data_rename_levels,
-            track_skim_to_flat_skim_level_names=_analysis_parameters.track_skim_to_flat_skim_level_names,
-            output_filename=track_skim_filenames.skim(),
-            scale_factors=scale_factors,
-            pt_hat_bin=_analysis_parameters.pt_hat_bin,
-            validation_mode=True,
-        )
-    else:
-        # Help out typing...
-        assert _analysis_parameters.pt_hat_bin is not None
+    if steering_version == "v1":
+        if collision_system != "embed_pythia":
+            result = analysis_track_skim_to_flat_tree.hardest_kt_data_skim(
+                input_filename=track_skim_filenames.parquet_output(),
+                collision_system=collision_system,
+                jet_R=jet_R,
+                min_jet_pt=_analysis_parameters.min_jet_pt_by_R_and_prefix[jet_R],
+                iterative_splittings=iterative_splittings,
+                skim_type="track_skim",
+                loading_data_rename_levels=_analysis_parameters.track_skim_loading_data_rename_levels,
+                track_skim_to_flat_skim_level_names=_analysis_parameters.track_skim_to_flat_skim_level_names,
+                output_filename=track_skim_filenames.skim(),
+                scale_factors=scale_factors,
+                pt_hat_bin=_analysis_parameters.pt_hat_bin,
+                validation_mode=True,
+            )
+        else:
+            # Help out typing...
+            assert _analysis_parameters.pt_hat_bin is not None
 
-        signal_filename = track_skim_filenames.parquet_output(extra_collision_system_label="pythia")
-        background_filename = track_skim_filenames.parquet_output(extra_collision_system_label="PbPb")
-        result = analysis_track_skim_to_flat_tree.hardest_kt_embedding_skim(
-            collision_system=collision_system,
-            # Repeat the signal file to ensure that we have enough events to exhaust the background
-            signal_input=[signal_filename, signal_filename, signal_filename],
-            background_input=background_filename,
-            jet_R=jet_R,
-            min_jet_pt=_analysis_parameters.min_jet_pt_by_R_and_prefix[jet_R],
-            iterative_splittings=iterative_splittings,
-            output_filename=track_skim_filenames.skim(),
-            track_skim_to_flat_skim_level_names=_analysis_parameters.track_skim_to_flat_skim_level_names,
-            scale_factor=scale_factors[_analysis_parameters.pt_hat_bin],
-            background_subtraction={"r_max": 0.25},
-            det_level_artificial_tracking_efficiency=1.0,
-            validation_mode=True,
+            signal_filename = track_skim_filenames.parquet_output(extra_collision_system_label="pythia")
+            background_filename = track_skim_filenames.parquet_output(extra_collision_system_label="PbPb")
+            result = analysis_track_skim_to_flat_tree.hardest_kt_embedding_skim(
+                collision_system=collision_system,
+                # Repeat the signal file to ensure that we have enough events to exhaust the background
+                signal_input=[signal_filename, signal_filename, signal_filename],
+                background_input=background_filename,
+                jet_R=jet_R,
+                min_jet_pt=_analysis_parameters.min_jet_pt_by_R_and_prefix[jet_R],
+                iterative_splittings=iterative_splittings,
+                output_filename=track_skim_filenames.skim(),
+                track_skim_to_flat_skim_level_names=_analysis_parameters.track_skim_to_flat_skim_level_names,
+                scale_factor=scale_factors[_analysis_parameters.pt_hat_bin],
+                background_subtraction={"r_max": 0.25},
+                det_level_artificial_tracking_efficiency=1.0,
+                validation_mode=True,
+            )
+        if not result[0]:
+            msg = f"Skim failed for {collision_system}, {jet_R}"
+            raise ValueError(msg)
+    elif steering_version == "v2_2024":
+        from mammoth import job_utils
+        from mammoth.framework import production, steer_workflow
+        from mammoth.reclustered_substructure import analyze_chunk_to_groomed_flat_tree, grooming_workflow
+
+        setup_standard_workflow, setup_embed_workflow = steer_workflow.setup_framework_default_workflows(
+            analyze_chunk_with_one_input_lvl=analyze_chunk_to_groomed_flat_tree.analyze_chunk_one_input_level,
+            analyze_chunk_with_two_input_lvl=analyze_chunk_to_groomed_flat_tree.analyze_chunk_two_input_level,
+            analyze_chunk_with_three_input_lvl=analyze_chunk_to_groomed_flat_tree.analyze_chunk_three_input_level,
+            preprocess_arguments=grooming_workflow.argument_preprocessing,
+            output_identifier=grooming_workflow.analysis_output_identifier,
+            metadata_for_labeling=analyze_chunk_to_groomed_flat_tree.customize_analysis_metadata,
         )
-    if not result[0]:
-        msg = f"Skim failed for {collision_system}, {jet_R}"
+        prod = production.ProductionSettings.read_config(
+            collision_system=collision_system,
+            number=1 if jet_R == 0.2 else 2,
+            specialization=grooming_workflow.ProductionSpecialization(),
+            track_skim_config_filename=_track_skim_base_path / "track_skim_config.yaml",
+            base_output_dir=_track_skim_base_path / "track_skim",
+        )
+        if collision_system != "embed_pythia":
+            workflow_results = setup_standard_workflow(
+                prod=prod,
+                job_framework=job_utils.JobFramework.immediate_execution_debug,
+                debug_mode={
+                    _analysis_parameters.pt_hat_bin: track_skim_filenames.parquet_output(),
+                },
+            )
+        else:
+            signal_filename = track_skim_filenames.parquet_output(extra_collision_system_label="pythia")
+            background_filename = track_skim_filenames.parquet_output(extra_collision_system_label="PbPb")
+            workflow_results = setup_embed_workflow(
+                prod=prod,
+                job_framework=job_utils.JobFramework.immediate_execution_debug,
+                debug_mode={
+                    "signal": {
+                        _analysis_parameters.pt_hat_bin: [signal_filename, signal_filename, signal_filename],
+                    },
+                    "background": [background_filename],
+                },
+            )
+        # Check the results ran
+        for task_res in workflow_results:
+            assert task_res.success, f"Failed to run workflow: {task_res}"
+    else:
+        msg = f"Unknown steering version: {steering_version}"
         raise ValueError(msg)
 
     comparison_result, _failed_variables = substructure_comparison_tools.compare_flat_substructure(
