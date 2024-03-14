@@ -624,6 +624,7 @@ def setup_framework_embed_workflow(  # noqa: C901
             prod=prod,
             analyze_chunk_with_one_input_lvl=analyze_chunk_with_one_input_lvl,
             analyze_chunk_with_two_input_lvl=analyze_chunk_with_two_input_lvl,
+            analyze_chunk_with_three_input_level=analyze_chunk_with_three_input_lvl,
         )
         # And then we can define the app we'll execute
         python_app_func = framework_task.python_app_embed_MC_into_data(
@@ -871,6 +872,7 @@ def setup_framework_embed_workflow(  # noqa: C901
             prod=prod,
             analyze_chunk_with_one_input_lvl=analyze_chunk_with_one_input_lvl,
             analyze_chunk_with_two_input_lvl=analyze_chunk_with_two_input_lvl,
+            analyze_chunk_with_three_input_level=analyze_chunk_with_three_input_lvl,
         )
         # And then we can define the app we'll execute
         python_app_func = framework_task.python_app_embed_MC_into_thermal_model(
