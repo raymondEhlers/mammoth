@@ -114,7 +114,11 @@ dataset_metadata_settings:
       loading_data_rename_levels:
         data: "part_level"
 
-
+# NOTE: These settings have to match those in test_track_skim_validation.
+#       Most consistent would be to dynamically write this file based on
+#       those settings, but that would be huge pain, so we just ensure they match.
+#       If we change things and get it wrong at some points, we'll just see
+#       a failed test.
 analysis_settings:
   # This is the base - ie. the default - settings for reclustered substructure
   _reclustered_substructure_settings:
@@ -153,7 +157,7 @@ analysis_settings:
       splittings_selection: "iterative"
       # In GeV
       # We don't want to restrict the part_level
-      min_jet_pt: { "det_level": 5 }
+      min_jet_pt: { "det_level": 20.0 }
       # By default, don't apply any additional reduction
       det_level_artificial_tracking_efficiency: 1.0
       validation_mode: true
@@ -201,15 +205,15 @@ analysis_settings:
 
     PbPb_R02: &analysis_settings_hardest_kt_PbPb_R02
       <<: *_reclustered_substructure_settings_PbPb
+      min_jet_pt: { "data": 10. }
       jet_R: 0.2
     PbPb_R04: &analysis_settings_hardest_kt_PbPb_R04
       <<: *_reclustered_substructure_settings_PbPb
-      min_jet_pt: { "data": 10 }
       jet_R: 0.4
 
     embed_R02: &analysis_settings_hardest_kt_embed_R02
       <<: *_reclustered_substructure_settings_embed
-      min_jet_pt: { "data": 10 }
+      min_jet_pt: { "hybrid_level": 10. }
       jet_R: 0.2
     embed_R04: &analysis_settings_hardest_kt_embed_R04
       <<: *_reclustered_substructure_settings_embed

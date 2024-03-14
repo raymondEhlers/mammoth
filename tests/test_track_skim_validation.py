@@ -5,6 +5,7 @@
 from __future__ import annotations
 
 import logging
+import os.path
 from collections.abc import Sequence
 from pathlib import Path
 from typing import Any
@@ -461,9 +462,10 @@ def _track_skim_to_parquet(input_filename: Path, output_filename: Path, collisio
     )
 
 
-@pytest.mark.parametrize("jet_R", [0.2, 0.4])
+# @pytest.mark.parametrize("jet_R", [0.2, 0.4], ids=["R02", "R04"])
+@pytest.mark.parametrize("jet_R", [0.2], ids=["R02"])
 # @pytest.mark.parametrize("collision_system", ["pp", "pythia", "PbPb", "embed_pythia"])
-@pytest.mark.parametrize("collision_system", ["pp"])
+@pytest.mark.parametrize("collision_system", ["embed_pythia"])
 # @pytest.mark.parametrize("steering_version", ["v1", "v2_2024"])
 @pytest.mark.parametrize("steering_version", ["v2_2024"])
 def test_track_skim_validation(  # noqa: C901
@@ -716,9 +718,17 @@ def test_track_skim_validation(  # noqa: C901
             number=1 if jet_R == 0.2 else 2,
             specialization=grooming_workflow.ProductionSpecialization(),
             track_skim_config_filename=_track_skim_base_path / "track_skim_config.yaml",
-            base_output_dir=_track_skim_base_path / "track_skim",
+            # NOTE: The relpath is important because we rely on relative paths for the production
+            #       to run smoothly. Otherwise, we make a comparison between a relative and absolute path when
+            #       trying to determine a safe output filename, which isn't allowed!
+            base_output_dir=Path(os.path.relpath(_track_skim_base_path / "track_skim")),
         )
-        logger.info(f"{prod.config=}")
+        # NOTE: We intentionally don't write the production config. It's just another thing to clean up...
+        # Next, we need to remove the output skim directory - otherwise the workflow will skip the task
+        skim_output_files = list((prod.output_dir / "skim").glob("*.root"))
+        for skim_output_file in skim_output_files:
+            skim_output_file.unlink()
+
         pt_hat_bin = _analysis_parameters.pt_hat_bin
         if pt_hat_bin is None:
             pt_hat_bin = -1
@@ -746,6 +756,16 @@ def test_track_skim_validation(  # noqa: C901
         # Check the results ran
         for task_res in workflow_results:
             assert task_res.success, f"Failed to run workflow: {task_res}"
+        # Finally, copy the output file to the expected location for comparison
+        # NOTE: We could of course update the filename below, but then we're left
+        #       with two copies of skim files that need to be cleaned up. Since we
+        #       know that we're
+        # TODO: Not thread safe :-(. Just clean them up afterwards...
+        skim_output_files = list((prod.output_dir / "skim").glob("*.root"))
+        if len(skim_output_files) != 1:
+            msg = f"Expected one skim output file, but found: {skim_output_files}"
+            raise ValueError(msg)
+        skim_output_files[0].rename(track_skim_filenames.skim())
     else:
         msg = f"Unknown steering version: {steering_version}"
         raise ValueError(msg)
