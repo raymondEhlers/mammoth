@@ -664,8 +664,8 @@ def setup_framework_embed_workflow(  # noqa: C901
         _background_is_constrained_source: bool = _metadata_config["input_constrained_source"].lower() != "signal"
         source_input_options = {
             "background_is_constrained_source": _background_is_constrained_source,
-            "signal_source_collision_system": _input_handling_config["signal"]["collision_system"],
-            "background_source_collision_system": _input_handling_config["background"]["collision_system"],
+            "signal_source_collision_system": _input_handling_config["signal_parameters"]["collision_system"],
+            "background_source_collision_system": _input_handling_config["background_parameters"]["collision_system"],
         }
         _analysis_config: dict[str, Any] = prod.config["settings"]
         _output_settings_config = _analysis_config.pop("output_settings")
