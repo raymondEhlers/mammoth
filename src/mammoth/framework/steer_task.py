@@ -87,8 +87,11 @@ def steer_task_execution(
             if res[0]:
                 _nonstandard_processing_outcome.append(res)
                 logger.info(f"Skipping already processed chunk {i_chunk}: {res}")
+                # Setup for next loop
+                i_chunk += 1
                 continue
 
+            continue_on_to_write_output = True
             try:
                 # We know we need to process, so now it's time to actually grab the data!
                 arrays = next(iter_arrays)
@@ -110,11 +113,11 @@ def steer_task_execution(
                 local_output_settings.output_filename.with_suffix(".empty").touch()
                 _message = (
                     True,
-                    f"Chunk {i_chunk}: Done - no data available (reason: {e}), so not trying to skim",
+                    f"Chunk {i_chunk}: Done - no data available (reason: {e}), so not skipping further steps",
                 )
                 _nonstandard_processing_outcome.append(_message)
                 logger.info(_message)
-                continue
+                continue_on_to_write_output = False
             except framework_task.NoUsefulAnalysisOutputError as e:
                 # We have no usable analysis output.
                 # Just create the empty filename and continue. This will prevent trying to re-run with no jets in the future.
@@ -122,26 +125,28 @@ def steer_task_execution(
                 local_output_settings.output_filename.with_suffix(".empty").touch()
                 _message = (
                     True,
-                    f"Chunk {i_chunk}: Done - no usable analysis output available (reason: {e}), so not trying to skim",
+                    f"Chunk {i_chunk}: Done - no usable analysis output available (reason: {e}), so skipping further steps",
                 )
                 _nonstandard_processing_outcome.append(_message)
                 logger.info(_message)
-                continue
+                continue_on_to_write_output = False
 
-            task_hists = analysis_output.merge_hists(task_hists=task_hists)
-            analysis_output.write(
-                output_filename=local_output_settings.output_filename,
-                write_hists=local_output_settings.write_chunk_hists,
-                write_skim=local_output_settings.write_chunk_skim,
-                explode_skim_fields_to_separate_directories=local_output_settings.explode_skim_fields_to_separate_directories,
-            )
+            if continue_on_to_write_output:
+                task_hists = analysis_output.merge_hists(task_hists=task_hists)
+                analysis_output.write(
+                    output_filename=local_output_settings.output_filename,
+                    write_hists=local_output_settings.write_chunk_hists,
+                    write_skim=local_output_settings.write_chunk_skim,
+                    explode_skim_fields_to_separate_directories=local_output_settings.explode_skim_fields_to_separate_directories,
+                )
+                # Cleanup
+                # We can't delete the analysis output if we're going to return the skim
+                # (again, we can only do this if we analyze in one chunk)
+                if not output_settings.return_skim:
+                    del analysis_output
 
             # Cleanup (may not be necessary, but it doesn't hurt)
             del arrays
-            # We can't delete the analysis output if we're going to return the skim
-            # (again, we can only do this if we analyze in one chunk)
-            if not output_settings.return_skim:
-                del analysis_output
 
             # Setup for next loop
             i_chunk += 1
