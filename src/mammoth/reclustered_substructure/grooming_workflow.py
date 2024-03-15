@@ -41,7 +41,10 @@ def analysis_output_identifier(**analysis_arguments: Any) -> str:
     output_identifier = ""
     # Selection of grooming methods
     selected_grooming_methods = analysis_arguments.get("selected_grooming_methods", [])
-    if selected_grooming_methods:
+    # NOTE: We skip including this if there are too many selected grooming methods.
+    #       Otherwise, the filename will get too long and untenable.
+    #       (5 is arbitrary and could be adjusted, but seems reasonable as a starting point).
+    if selected_grooming_methods and len(selected_grooming_methods) < 5:
         output_identifier += f"__grooming_methods_{'_'.join(selected_grooming_methods)}"
     # Selection of splittings
     splittings_selection = SplittingsSelection[analysis_arguments["splittings_selection"]]
