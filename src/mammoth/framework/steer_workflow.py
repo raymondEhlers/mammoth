@@ -38,7 +38,7 @@ class SetupTasks(Protocol):
         *,
         prod: production.ProductionSettings,
         job_framework: job_utils.JobFramework,
-        debug_mode: bool | dict[str, Any],
+        debug_mode: bool | dict[str | int, Any],
     ) -> list[Future[framework_task.Output]]:
         ...
 
@@ -393,7 +393,7 @@ def setup_framework_standard_workflow(  # noqa: C901
     def wrap_setup(
         prod: production.ProductionSettings,
         job_framework: job_utils.JobFramework,
-        debug_mode: bool | dict[str, Any],
+        debug_mode: bool | dict[str | int, Any],
     ) -> list[Future[framework_task.Output]]:
         """Execute to setup the standard workflow for the framework.
 
@@ -616,7 +616,7 @@ def setup_framework_embed_workflow(  # noqa: C901
     def wrap_setup_embed_MC_into_data(  # noqa: C901
         prod: production.ProductionSettings,
         job_framework: job_utils.JobFramework,
-        debug_mode: bool | dict[str, Any],
+        debug_mode: bool | dict[str | int, Any],
     ) -> list[Future[framework_task.Output]]:
         """Create futures to produce embed MC into data skim"""
         # First, we need to select the function that we'll use. This is based on the production settings
@@ -874,7 +874,7 @@ def setup_framework_embed_workflow(  # noqa: C901
     def wrap_setup_embed_MC_into_thermal_model(
         prod: production.ProductionSettings,
         job_framework: job_utils.JobFramework,
-        debug_mode: bool | dict[str, Any],
+        debug_mode: bool | dict[str | int, Any],
     ) -> list[Future[framework_task.Output]]:
         # First, we need to select the function that we'll use. This is based on the production settings
         analyze_chunk = _determine_analysis_function(
@@ -1025,7 +1025,7 @@ def setup_framework_embed_workflow(  # noqa: C901
     def wrap_setup(
         prod: production.ProductionSettings,
         job_framework: job_utils.JobFramework,
-        debug_mode: bool | dict[str, Any],
+        debug_mode: bool | dict[str | int, Any],
     ) -> list[Future[framework_task.Output]]:
         """Simple wrapper to forward on setup of the embed workflow for the framework.
 
