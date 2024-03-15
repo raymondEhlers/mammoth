@@ -337,6 +337,19 @@ dataset_metadata_settings:
 analysis_settings:
   # This is the base - ie. the default - settings for reclustered substructure
   _reclustered_substructure_settings:
+    output_settings: &reclustered_substructure_output_settings
+      primary_output:
+        type: "skim"
+        reference_name: "tree"
+        container_name: ""
+      return_skim: false
+      write_chunk_skim: true
+      write_skim_extension: "root"
+      explode_skim_fields_to_separate_directories: false
+      return_merged_hists: false
+      write_chunk_hists: false
+      write_merged_hists: false
+
     _pp: &_reclustered_substructure_settings_pp
       track_skim_to_flat_skim_level_names: # Map from track_skim level -> level of the structured jet substructure format
         data: "data"
@@ -420,19 +433,6 @@ analysis_settings:
     reclustering_settings: &_time_reclustering_reclustering_settings
       algorithm: "generalized_kt"
       additional_algorithm_parameter: 0.5
-
-    output_settings: &time_reclustering_output_settings
-      primary_output:
-        type: "skim"
-        reference_name: "tree"
-        container_name: ""
-      return_skim: false
-      write_chunk_skim: true
-      write_skim_extension: "root"
-      explode_skim_fields_to_separate_directories: false
-      return_merged_hists: false
-      write_chunk_hists: false
-      write_merged_hists: false
 
     pp_R04: &analysis_settings_time_reclustering_pp_R04
       <<: *_reclustered_substructure_settings_pp
@@ -534,7 +534,7 @@ productions:
       settings:
         <<: *analysis_settings_time_reclustering_pp_R04
         output_settings:
-          <<: *time_reclustering_output_settings
+          <<: *reclustered_substructure_output_settings
         selected_grooming_methods:
           - "soft_drop_z_cut_02"
     60:
@@ -562,6 +562,10 @@ productions:
         dataset: *LHC17pq_pp_pass2
         production_number: 62
         label: ""
+      settings:
+        <<: *analysis_settings_hardest_kt_pp_R02
+        output_settings:
+          <<: *reclustered_substructure_output_settings
 
   pythia:
     # Debug
@@ -684,7 +688,7 @@ productions:
       settings:
         <<: *analysis_settings_time_reclustering_pp_MC_R04
         output_settings:
-          <<: *time_reclustering_output_settings
+          <<: *reclustered_substructure_output_settings
         selected_grooming_methods:
           - "soft_drop_z_cut_02"
     # Time reclustering pythia fastsim
@@ -711,7 +715,7 @@ productions:
         reclustering_settings: null
         chunk_size: 5000
         output_settings:
-          <<: *time_reclustering_output_settings
+          <<: *reclustered_substructure_output_settings
         selected_grooming_methods:
           - "soft_drop_z_cut_02"
     # NOTE: Starts at 69 to be consistent with the "pythia", which this generalizes from.
@@ -725,7 +729,7 @@ productions:
       settings:
         <<: *analysis_settings_time_reclustering_pp_MC_R04
         output_settings:
-          <<: *time_reclustering_output_settings
+          <<: *reclustered_substructure_output_settings
         selected_grooming_methods:
           - "soft_drop_z_cut_02"
     # Herwig fastsim w/ time reclustering
@@ -738,7 +742,7 @@ productions:
       settings:
         <<: *analysis_settings_time_reclustering_pp_MC_R04
         output_settings:
-          <<: *time_reclustering_output_settings
+          <<: *reclustered_substructure_output_settings
         selected_grooming_methods:
           - "soft_drop_z_cut_02"
     # Pythia fastsim w/ CA reclustering
@@ -752,7 +756,7 @@ productions:
         <<: *analysis_settings_time_reclustering_pp_MC_R04
         reclustering_settings: null
         output_settings:
-          <<: *time_reclustering_output_settings
+          <<: *reclustered_substructure_output_settings
         selected_grooming_methods:
           - "soft_drop_z_cut_02"
     # Herwig fastsim w/ CA reclustering
@@ -766,7 +770,7 @@ productions:
         <<: *analysis_settings_time_reclustering_pp_MC_R04
         reclustering_settings: null
         output_settings:
-          <<: *time_reclustering_output_settings
+          <<: *reclustered_substructure_output_settings
         selected_grooming_methods:
           - "soft_drop_z_cut_02"
 
@@ -988,7 +992,7 @@ productions:
         <<: *analysis_settings_hardest_kt_PbPb_R02
         output_settings:
           # Utilize the time reclustering output settings for convenience in testing
-          <<: *time_reclustering_output_settings
+          <<: *reclustered_substructure_output_settings
         event_activity: "central"
         # No background subtraction
         # And disable artificial tracking efficiency
