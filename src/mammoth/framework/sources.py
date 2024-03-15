@@ -28,14 +28,38 @@ from mammoth.framework import models, utils
 logger = logging.getLogger(__name__)
 
 
+@attrs.define(frozen=True)
+class Sentinel:
+    """A class for implementing sentinel types.
+
+    Borrowed and slightly adapted from awkward-array.
+    """
+
+    _name: str = attrs.field()
+    _module: str | None = attrs.field(default=None)
+
+    def __repr__(self) -> str:
+        if self._module is not None:
+            return f"{self._module}.{self._name}"
+        return f"{self._name}"
+
+
+# Defining the objects here to avoid any pickling issues.
+# They should be accessed through the ChunkSizeSentinel!
+_CHUNK_SIZE_SENTINEL_SOURCE_DEFAULT = Sentinel("_CHUNK_SIZE_SENTINEL_SOURCE_DEFAULT", __name__)
+_CHUNK_SIZE_SENTINEL_FULL_SOURCE = Sentinel("_CHUNK_SIZE_SENTINEL_FULL_SOURCE", __name__)
+_CHUNK_SIZE_SENTINEL_FIXED_SIZE = Sentinel("_CHUNK_SIZE_SENTINEL_FIXED_SIZE", __name__)
+_CHUNK_SIZE_SENTINEL_SINGLE_FILE = Sentinel("_CHUNK_SIZE_SENTINEL_SINGLE_FILE", __name__)
+
+
 class ChunkSizeSentinel(enum.Enum):
-    SOURCE_DEFAULT = object()
-    FULL_SOURCE = object()  # noqa: PIE796
+    SOURCE_DEFAULT = _CHUNK_SIZE_SENTINEL_SOURCE_DEFAULT
+    FULL_SOURCE = _CHUNK_SIZE_SENTINEL_FULL_SOURCE
     # Specific examples that only work for some sources
     # Requires the users to specify a size
-    FIXED_SIZE = object()  # noqa: PIE796
+    FIXED_SIZE = _CHUNK_SIZE_SENTINEL_FIXED_SIZE
     # One file at a time
-    SINGLE_FILE = object()  # noqa: PIE796
+    SINGLE_FILE = _CHUNK_SIZE_SENTINEL_SINGLE_FILE
 
 
 T_ChunkSize = int | ChunkSizeSentinel
