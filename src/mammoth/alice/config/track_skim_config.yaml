@@ -378,27 +378,43 @@ analysis_settings:
       min_jet_pt: { "hybrid_level": 20 }
 
   _hardest_kt_settings:
+    _standard_parameters:
+      selected_grooming_methods: &hardest_kt_selected_grooming_methods
+        - "dynamical_core"
+        - "dynamical_kt"
+        - "dynamical_time"
+        - "dynamical_core_z_cut_02"
+        - "dynamical_kt_z_cut_02"
+        - "dynamical_time_z_cut_02"
+        - "soft_drop_z_cut_02"
+        - "soft_drop_z_cut_04"
     pp_R02: &analysis_settings_hardest_kt_pp_R02
       <<: *_reclustered_substructure_settings_pp
       jet_R: 0.2
+      selected_grooming_methods: *hardest_kt_selected_grooming_methods
     pp_R04: &analysis_settings_hardest_kt_pp_R04
       <<: *_reclustered_substructure_settings_pp
       jet_R: 0.4
+      selected_grooming_methods: *hardest_kt_selected_grooming_methods
 
     pythia_R02: &analysis_settings_hardest_kt_pythia_R02
       <<: *_reclustered_substructure_settings_pythia
       jet_R: 0.2
+      selected_grooming_methods: *hardest_kt_selected_grooming_methods
     pythia_R04: &analysis_settings_hardest_kt_pythia_R04
       <<: *_reclustered_substructure_settings_pythia
       jet_R: 0.4
+      selected_grooming_methods: *hardest_kt_selected_grooming_methods
 
     PbPb_R02: &analysis_settings_hardest_kt_PbPb_R02
       <<: *_reclustered_substructure_settings_PbPb
       jet_R: 0.2
+      selected_grooming_methods: *hardest_kt_selected_grooming_methods
 
     embed_R02: &analysis_settings_hardest_kt_embed_R02
       <<: *_reclustered_substructure_settings_embed
       jet_R: 0.2
+      selected_grooming_methods: *hardest_kt_selected_grooming_methods
 
   _time_reclustering_settings:
     reclustering_settings: &_time_reclustering_reclustering_settings
