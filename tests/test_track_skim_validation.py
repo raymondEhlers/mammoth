@@ -653,11 +653,12 @@ def test_track_skim_validation(  # noqa: C901
         raise RuntimeError(msg)
 
     scale_factors = _get_scale_factors_for_test()
-    # The skim task will skip the calculation if the output file already exists.
-    # However, that's exactly what we want to create, so we intentionally remove it here
-    # to ensure that the test actually runs.
-    track_skim_filenames.skim().unlink(missing_ok=True)
     if steering_version == "v1":
+        # The skim task will skip the calculation if the output file already exists.
+        # However, that's exactly what we want to create, so we intentionally remove it here
+        # to ensure that the test actually runs.
+        track_skim_filenames.skim().unlink(missing_ok=True)
+
         if collision_system != "embed_pythia":
             result = analysis_track_skim_to_flat_tree.hardest_kt_data_skim(
                 input_filename=track_skim_filenames.parquet_output(),
@@ -725,6 +726,7 @@ def test_track_skim_validation(  # noqa: C901
         )
         # NOTE: We intentionally don't write the production config. It's just another thing to clean up...
         # Next, we need to remove the output skim directory - otherwise the workflow will skip the task
+        # (We do this lower than in the v1 case because we need the production to determine the directory)
         skim_output_files = list((prod.output_dir / "skim").glob("*.root"))
         for skim_output_file in skim_output_files:
             skim_output_file.unlink()
@@ -760,7 +762,6 @@ def test_track_skim_validation(  # noqa: C901
         # NOTE: We originally considered copying the skim files to the expected locations.
         #       However, this isn't thread-safe, so we avoid it.
         #       It does mean that we want to cleanup the file later.
-        # TODO: Not thread safe :-(. Just clean them up afterwards...
         skim_output_files = list((prod.output_dir / "skim").glob("*.root"))
         if len(skim_output_files) != 1:
             msg = f"Expected one skim output file, but found: {skim_output_files}"
