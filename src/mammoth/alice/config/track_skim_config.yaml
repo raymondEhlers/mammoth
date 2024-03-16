@@ -359,7 +359,7 @@ analysis_settings:
       # In GeV
       min_jet_pt: { "data": 5 }
 
-    _pythia: &_reclustered_substructure_settings_pythia
+    _pp_MC: &_reclustered_substructure_settings_pp_MC
       track_skim_to_flat_skim_level_names: # Map from track_skim level -> level of the structured jet substructure format
         det_level: "data"
         part_level: "true"
@@ -410,12 +410,12 @@ analysis_settings:
       jet_R: 0.4
       selected_grooming_methods: *hardest_kt_selected_grooming_methods
 
-    pythia_R02: &analysis_settings_hardest_kt_pythia_R02
-      <<: *_reclustered_substructure_settings_pythia
+    pp_MC_R02: &analysis_settings_hardest_kt_pp_MC_R02
+      <<: *_reclustered_substructure_settings_pp_MC
       jet_R: 0.2
       selected_grooming_methods: *hardest_kt_selected_grooming_methods
-    pythia_R04: &analysis_settings_hardest_kt_pythia_R04
-      <<: *_reclustered_substructure_settings_pythia
+    pp_MC_R04: &analysis_settings_hardest_kt_pp_MC_R04
+      <<: *_reclustered_substructure_settings_pp_MC
       jet_R: 0.4
       selected_grooming_methods: *hardest_kt_selected_grooming_methods
 
@@ -441,7 +441,7 @@ analysis_settings:
         <<: *_time_reclustering_reclustering_settings
 
     pp_MC_R04: &analysis_settings_time_reclustering_pp_MC_R04
-      <<: *_reclustered_substructure_settings_pythia
+      <<: *_reclustered_substructure_settings_pp_MC
       jet_R: 0.4
       reclustering_settings:
         <<: *_time_reclustering_reclustering_settings
@@ -576,7 +576,7 @@ productions:
         production_number: 3
         label: ""
       settings:
-        <<: *analysis_settings_hardest_kt_pythia_R02
+        <<: *analysis_settings_hardest_kt_pp_MC_R02
     4:
       metadata:
         <<: *base_metadata_pythia
@@ -584,7 +584,7 @@ productions:
         production_number: 4
         label: "herwig"
       settings:
-        <<: *analysis_settings_hardest_kt_pythia_R02
+        <<: *analysis_settings_hardest_kt_pp_MC_R02
     # Production
     60:
       metadata:
@@ -593,7 +593,7 @@ productions:
         production_number: 60
         label: ""
       settings:
-        <<: *analysis_settings_hardest_kt_pythia_R02
+        <<: *analysis_settings_hardest_kt_pp_MC_R02
     61:
       # Tracking efficiency systematic
       metadata:
@@ -602,7 +602,7 @@ productions:
         production_number: 61
         label: ""
       settings:
-        <<: *analysis_settings_hardest_kt_pythia_R02
+        <<: *analysis_settings_hardest_kt_pp_MC_R02
         apply_pt_dependent_tracking_efficiency_uncertainty: true
     62:
       # Tracking efficiency systematic (for consistency with the preliminaries)
@@ -612,7 +612,7 @@ productions:
         production_number: 62
         label: ""
       settings:
-        <<: *analysis_settings_hardest_kt_pythia_R02
+        <<: *analysis_settings_hardest_kt_pp_MC_R02
         det_level_artificial_tracking_efficiency: 0.96
         apply_pt_dependent_tracking_efficiency_uncertainty: false
     63:
@@ -622,7 +622,7 @@ productions:
         production_number: 63
         label: "herwig_fastsim"
       settings:
-        <<: *analysis_settings_hardest_kt_pythia_R02
+        <<: *analysis_settings_hardest_kt_pp_MC_R02
     64:
       metadata:
         <<: *base_metadata_pythia
@@ -630,7 +630,7 @@ productions:
         production_number: 64
         label: "pythia_fastsim"
       settings:
-        <<: *analysis_settings_hardest_kt_pythia_R02
+        <<: *analysis_settings_hardest_kt_pp_MC_R02
     65:
       # R = 0.4 production
       metadata:
@@ -639,7 +639,7 @@ productions:
         production_number: 65
         label: ""
       settings:
-        <<: *analysis_settings_hardest_kt_pythia_R04
+        <<: *analysis_settings_hardest_kt_pp_MC_R04
     66:
       # R = 0.4 production, tracking efficiency systematic
       metadata:
@@ -648,7 +648,7 @@ productions:
         production_number: 66
         label: ""
       settings:
-        <<: *analysis_settings_hardest_kt_pythia_R04
+        <<: *analysis_settings_hardest_kt_pp_MC_R04
         apply_pt_dependent_tracking_efficiency_uncertainty: true
     67:
       # R = 0.4 HERWIG fastsim
@@ -658,7 +658,7 @@ productions:
         production_number: 67
         label: "herwig_fastsim"
       settings:
-        <<: *analysis_settings_hardest_kt_pythia_R04
+        <<: *analysis_settings_hardest_kt_pp_MC_R04
     68:
       # R = 0.4 PYTHIA fastsim
       metadata:
@@ -667,7 +667,10 @@ productions:
         production_number: 68
         label: "pythia_fastsim"
       settings:
-        <<: *analysis_settings_hardest_kt_pythia_R04
+        <<: *analysis_settings_hardest_kt_pp_MC_R04
+    ##################################################
+    # NOTE: Don't add more here - do it below in pp_MC
+    ##################################################
 
   pp_MC:
     3:
@@ -676,7 +679,7 @@ productions:
         production_number: 3
         label: ""
       settings:
-        <<: *analysis_settings_hardest_kt_pythia_R02
+        <<: *analysis_settings_hardest_kt_pp_MC_R02
     # Time reclustering pythia test
     # NOTE: This is the wrong dataset for pythia, but its useful for testing
     4:
@@ -773,6 +776,29 @@ productions:
           <<: *reclustered_substructure_output_settings
         selected_grooming_methods:
           - "soft_drop_z_cut_02"
+    # Hardest kt, R = 0.2 pass 2 anchored production
+    73:
+      metadata:
+        <<: *base_metadata_pythia
+        dataset: *LHC23a3_pythia
+        production_number: 73
+        label: ""
+      settings:
+        <<: *analysis_settings_hardest_kt_pp_MC_R02
+        output_settings:
+          <<: *reclustered_substructure_output_settings
+    # Hardest kt, R = 0.2 pass 2 anchored tracking efficiency systematic
+    74:
+      metadata:
+        <<: *base_metadata_pythia
+        dataset: *LHC23a3_pythia
+        production_number: 74
+        label: ""
+      settings:
+        <<: *analysis_settings_hardest_kt_pp_MC_R02
+        apply_pt_dependent_tracking_efficiency_uncertainty: true
+        output_settings:
+          <<: *reclustered_substructure_output_settings
 
   PbPb:
     2:
