@@ -49,7 +49,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - uses: pypa/cibuildwheel@v2.16
+      - uses: pypa/cibuildwheel@v2.17
         env:
           CIBW_BUILD: "${{ matrix.build }}${{matrix.python-version}}*"
           CIBW_ARCHS: ${{ matrix.arch }}
