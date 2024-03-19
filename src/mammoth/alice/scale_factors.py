@@ -172,7 +172,7 @@ def scale_factor_uproot(filenames: Sequence[Path], list_name: str = "") -> tuple
             # Don't forget to keep track of accepted events for potentially relatively
             # normalizing the scale factors later.
             n_events_hist = binned_data.BinnedData.from_existing_data(
-                [h for h in hists if h.name == "fHistEventCount"][0]  # noqa: RUF015
+                [h.to_hist() for h in hists if h.name == "fHistEventCount"][0]  # noqa: RUF015
             )
             n_accepted_events.append(n_events_hist.values[0])
 
