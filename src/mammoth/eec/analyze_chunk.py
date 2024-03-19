@@ -494,21 +494,18 @@ def _setup_one_input_level_hists(level_names: list[str], trigger_parameters: Tri
 def analyze_chunk_one_input_level(
     *,
     collision_system: str,  # noqa: ARG001
-    arrays: ak.Array,  # noqa: ARG001
+    arrays: ak.Array,
     input_metadata: dict[str, Any],  # noqa: ARG001
     # Analysis arguments
     trigger_parameters: TriggerParameters,
-    min_track_pt: dict[str, float],  # noqa: ARG001
-    momentum_weight_exponent: int | float,  # noqa: ARG001
+    min_track_pt: dict[str, float],
+    momentum_weight_exponent: int | float,
     combinatorics_chunk_size: int,
-    scale_factor: float,  # noqa: ARG001
-    det_level_artificial_tracking_efficiency: float | analysis_tracking.PtDependentTrackingEfficiencyParameters,  # noqa: ARG001
-    use_jet_trigger: bool,  # noqa: ARG001
     # Injected analysis arguments (when appropriate)
-    pt_hat_bin: int = -1,  # noqa: ARG001
-    scale_factors: dict[str, float] | None = None,  # noqa: ARG001
+    pt_hat_bin: int = -1,
+    scale_factors: dict[int, float] | None = None,
     # Default analysis arguments
-    validation_mode: bool = False,  # noqa: ARG001
+    validation_mode: bool = False,
     return_skim: bool = False,
     # NOTE: kwargs are required because we pass the config as the analysis arguments,
     #       and it contains additional values.
@@ -523,15 +520,54 @@ def analyze_chunk_one_input_level(
         logger.info(
             f"Requested to return the skim, but the combination chunk size is {combinatorics_chunk_size} (> 0), which won't work. So we disable it."
         )
+    # If we don't need a scale factor, it's more convenient to just set it to 1.0
+    if scale_factors is None:
+        scale_factors = {-1: 1.0}
 
     # Setup
     # TODO: Make this configurable, probably
-    level_names = ["data"]
-    hists = _setup_one_input_level_hists(level_names=level_names, trigger_parameters=trigger_parameters)
+    level = "data"
+    hists = _setup_one_input_level_hists(level_names=[level], trigger_parameters=trigger_parameters)
     trigger_skim_output: dict[str, ak.Array] = {}
 
-    msg = "Data analysis not yet implemented"
-    raise NotImplementedError(msg)
+    # Event selection
+    # This would apply to the signal events, because this is what we propagate from the embedding transform
+    arrays = alice_helpers.standard_event_selection(arrays=arrays)
+
+    # Track cuts
+    arrays = alice_helpers.standard_track_selection(
+        arrays=arrays, require_at_least_one_particle_in_each_collection_per_event=True
+    )
+
+    # Find trigger(s)
+    triggers_dict: dict[str, ak.Array] = {}
+    event_selection_mask: dict[str, ak.Array] = {}
+    triggers_dict, event_selection_mask = _find_triggers(
+        level=level,
+        arrays=arrays[level],
+        trigger_parameters=trigger_parameters,
+        scale_factor=scale_factors[pt_hat_bin],
+        validation_mode=validation_mode,
+        hists=hists,
+    )
+
+    # Calculate correlators
+    for trigger_name, _ in trigger_parameters.classes.items():
+        res = calculate_correlators(
+            level=level,
+            trigger_name=trigger_name,
+            triggers=triggers_dict[trigger_name],
+            arrays=arrays[level],
+            event_selection_mask=event_selection_mask[trigger_name],
+            min_track_pt=min_track_pt[level],
+            momentum_weight_exponent=momentum_weight_exponent,
+            combinatorics_chunk_size=combinatorics_chunk_size,
+            scale_factor=scale_factors[pt_hat_bin],
+            hists=hists,
+            return_skim=return_skim,
+        )
+        if res:
+            trigger_skim_output.update(res)
 
     return framework_task.AnalysisOutput(  # type: ignore[unreachable]
         hists=hists,
@@ -552,21 +588,19 @@ def _setup_two_input_level_hists(
 def analyze_chunk_two_input_level(
     *,
     collision_system: str,  # noqa: ARG001
-    arrays: ak.Array,  # noqa: ARG001
+    arrays: ak.Array,
     input_metadata: dict[str, Any],  # noqa: ARG001
     # Analysis arguments
     trigger_parameters: TriggerParameters,
-    min_track_pt: dict[str, float],  # noqa: ARG001
-    momentum_weight_exponent: int | float,  # noqa: ARG001
+    min_track_pt: dict[str, float],
+    momentum_weight_exponent: int | float,
     combinatorics_chunk_size: int,
-    scale_factor: float,  # noqa: ARG001
-    det_level_artificial_tracking_efficiency: float | analysis_tracking.PtDependentTrackingEfficiencyParameters,  # noqa: ARG001
-    use_jet_trigger: bool,  # noqa: ARG001
+    det_level_artificial_tracking_efficiency: float | analysis_tracking.PtDependentTrackingEfficiencyParameters,
     # Injected analysis arguments
-    pt_hat_bin: int,  # noqa: ARG001
-    scale_factors: dict[str, float],  # noqa: ARG001
+    pt_hat_bin: int,
+    scale_factors: dict[int, float],
     # Default analysis arguments
-    validation_mode: bool = False,  # noqa: ARG001
+    validation_mode: bool = False,
     return_skim: bool = False,
     # NOTE: kwargs are required because we pass the config as the analysis arguments,
     #       and it contains additional values.
@@ -585,17 +619,82 @@ def analyze_chunk_two_input_level(
     hists = _setup_two_input_level_hists(level_names=level_names, trigger_parameters=trigger_parameters)
     trigger_skim_output: dict[str, ak.Array] = {}
 
-    msg = "Two level analysis not yet implemented"
-    raise NotImplementedError(msg)
+    # Event selection
+    # This would apply to the signal events, because this is what we propagate from the embedding transform
+    arrays = alice_helpers.standard_event_selection(arrays=arrays)
 
-    return framework_task.AnalysisOutput(  # type: ignore[unreachable]
+    # Track cuts
+    arrays = alice_helpers.standard_track_selection(
+        arrays=arrays, require_at_least_one_particle_in_each_collection_per_event=True
+    )
+
+    # Calculate the relevant masks for det level particles to potentially apply an
+    # artificial tracking inefficiency
+    det_level_mask = analysis_tracking.det_level_particles_mask_for_jet_finding(
+        arrays=arrays,
+        det_level_artificial_tracking_efficiency=det_level_artificial_tracking_efficiency,
+        validation_mode=validation_mode,
+    )
+    # Require that events have at least one particle after any possible masking.
+    # If not, the entire array will be thrown out during jet finding, so better to
+    # remove them now and be able to analyze the rest of the array. We're not missing
+    # anything meaningful by doing this because we can't analyze such a case anyway
+    # (and it might only be useful for an efficiency of losing events due to tracking,
+    # which should be exceptionally rare).
+    _events_with_at_least_one_particle = (ak.num(arrays["part_level"]) > 0) & (
+        ak.num(arrays["det_level"][det_level_mask]) > 0
+    )
+    arrays = arrays[_events_with_at_least_one_particle]
+    # NOTE: We need to apply it to the det level mask as well because we
+    #       may be dropping some events, which then needs to be reflected in
+    det_level_mask = det_level_mask[_events_with_at_least_one_particle]
+    arrays["det_level"] = arrays["det_level"][det_level_mask]
+
+    # Find trigger(s)
+    logger.info("Finding trigger(s)")
+    triggers_dict: dict[str, dict[str, ak.Array]] = {}
+    event_selection_mask: dict[str, dict[str, ak.Array]] = {}
+    for level in level_names:
+        triggers_dict[level], event_selection_mask[level] = _find_triggers(
+            level=level,
+            arrays=arrays[level],
+            trigger_parameters=trigger_parameters,
+            scale_factor=scale_factors[pt_hat_bin],
+            validation_mode=validation_mode,
+            hists=hists,
+        )
+
+    # Calculate combinatorics
+    for level in level_names:
+        for trigger_name, _ in trigger_parameters.classes.items():
+            res = calculate_correlators(
+                level=level,
+                trigger_name=trigger_name,
+                triggers=triggers_dict[level][trigger_name],
+                arrays=arrays[level],
+                event_selection_mask=event_selection_mask[level][trigger_name],
+                min_track_pt=min_track_pt[level],
+                momentum_weight_exponent=momentum_weight_exponent,
+                combinatorics_chunk_size=combinatorics_chunk_size,
+                scale_factor=scale_factors[pt_hat_bin],
+                hists=hists,
+                return_skim=return_skim,
+            )
+            if res:
+                trigger_skim_output.update(res)
+
+    # IPython.embed()  # type: ignore[no-untyped-call]
+
+    return framework_task.AnalysisOutput(
         hists=hists,
         skim=trigger_skim_output,
     )
 
 
-def _setup_embedding_hists(trigger_parameters: TriggerParameters) -> dict[str, hist.Hist]:
-    return _setup_base_hists(levels=["part_level", "det_level", "hybrid_level"], trigger_parameters=trigger_parameters)
+def _setup_three_input_level_hists(
+    level_names: list[str], trigger_parameters: TriggerParameters
+) -> dict[str, hist.Hist]:
+    return _setup_base_hists(levels=level_names, trigger_parameters=trigger_parameters)
 
 
 def analyze_chunk_three_input_level(
@@ -611,7 +710,6 @@ def analyze_chunk_three_input_level(
     combinatorics_chunk_size: int,
     scale_factor: float,
     det_level_artificial_tracking_efficiency: float | analysis_tracking.PtDependentTrackingEfficiencyParameters,
-    use_jet_trigger: bool,
     # Default analysis arguments
     validation_mode: bool = False,
     return_skim: bool = False,
@@ -630,7 +728,8 @@ def analyze_chunk_three_input_level(
         )
 
     # Setup
-    hists = _setup_embedding_hists(trigger_parameters=trigger_parameters)
+    level_names = ["part_level", "det_level", "hybrid_level"]
+    hists = _setup_three_input_level_hists(level_names=level_names, trigger_parameters=trigger_parameters)
     trigger_skim_output: dict[str, ak.Array] = {}
 
     # Event selection
@@ -660,65 +759,18 @@ def analyze_chunk_three_input_level(
     logger.info("Finding trigger(s)")
     triggers_dict: dict[str, dict[str, ak.Array]] = {}
     event_selection_mask: dict[str, dict[str, ak.Array]] = {}
-    if use_jet_trigger:
-        msg = "Jet trigger isn't yet implemented for embedding analysis."
-        raise NotImplementedError(msg)
-    else:  # noqa: RET506
-        # NOTE: Use the signal fraction because we don't want any overlap between signal and reference events!
-        signal_event_fraction = 0.8
-        _rng = np.random.default_rng()
-        is_signal_event = _rng.random(ak.num(arrays, axis=0)) < signal_event_fraction
+    for level in level_names:
+        triggers_dict[level], event_selection_mask[level] = _find_triggers(
+            level=level,
+            arrays=arrays[level],
+            trigger_parameters=trigger_parameters,
+            scale_factor=scale_factor,
+            validation_mode=validation_mode,
+            hists=hists,
+        )
 
-        # Trigger QA
-        for level in ["part_level", "det_level", "hybrid_level"]:
-            hists[f"{level}_inclusive_trigger_spectra"].fill(ak.flatten(arrays[level].pt), weight=scale_factor)
-
-        # Random choice args
-        random_choice_kwargs: dict[str, Any] = {}
-        if validation_mode:
-            random_choice_kwargs["random_seed"] = jet_finding.VALIDATION_MODE_RANDOM_SEED[0]
-        for level in ["part_level", "det_level", "hybrid_level"]:
-            triggers_dict[level] = {}
-            event_selection_mask[level] = {}
-            for trigger_name, trigger_range_tuple in trigger_parameters.classes.items():
-                trigger_mask = (arrays[level].pt >= trigger_range_tuple[0]) & (
-                    arrays[level].pt < trigger_range_tuple[1]
-                )
-                # Add signal mask
-                event_trigger_mask = ~is_signal_event
-                if trigger_name == "signal":
-                    event_trigger_mask = is_signal_event
-
-                # Apply the masks separately since one is particle-wise and one is event-wise
-                triggers = arrays[level][trigger_mask]
-                event_trigger_mask = event_trigger_mask & (ak.num(triggers, axis=-1) > 0)
-                triggers = triggers[event_trigger_mask]
-
-                # NOTE: As of April 2023, I don't record the overall number of events because I think
-                #       we're looking for a per-trigger yield (or we will normalize the different trigger
-                #       classes relative to each other, in which case, I don't think we'll care about the
-                #       precise event count).
-
-                # Randomly select if there is more than one trigger
-                # NOTE: This must operator on a concrete field, so we use px as a proxy.
-                select_trigger_mask = analysis_array_helpers.random_choice_jagged(
-                    arrays=triggers.px, **random_choice_kwargs
-                )
-                # NOTE: Since we've now selected down to at most one trigger per event, and no empty events,
-                #       our triggers can now be represented with regular numpy arrays.
-                #       By simplifying now, it can make later operations easier.
-                triggers_dict[level][trigger_name] = ak.to_regular(triggers[select_trigger_mask])
-                event_selection_mask[level][trigger_name] = event_trigger_mask
-
-                # Fill in spectra
-                hists[f"{level}_trigger_spectra"].fill(
-                    ak.flatten(triggers_dict[level][trigger_name].pt),
-                    weight=scale_factor,
-                )
-
-    recoil_direction: dict[str, dict[str, ak.Array]] = {}
-    for level in ["part_level", "det_level", "hybrid_level"]:
-        recoil_direction[level] = {}
+    # Calculate combinatorics
+    for level in level_names:
         for trigger_name, _ in trigger_parameters.classes.items():
             res = calculate_correlators(
                 level=level,

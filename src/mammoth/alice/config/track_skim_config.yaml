@@ -461,21 +461,21 @@ analysis_settings:
 
   _EEC_analysis_settings:
     base_analysis_settings: &_base_analysis_settings_EEC
-      trigger_parameters:
+      trigger_parameters_hadron: &analysis_settings_EEC_trigger_hadron
         classes:
           reference: [5., 7.]
           signal: [20., 50.]
         parameters:
           type: "hadron"
           kinematic_label: "pt"
-      trigger_parameters_jet:
+      trigger_parameters_jet: &analysis_settings_EEC_trigger_jet
         classes:
           signal: [20., 120.]
         parameters:
           type: "jet"
           kinematic_label: "pt"
           jet_R: 0.4
-      trigger_parameters_photon:
+      trigger_parameters_photon: &analysis_settings_EEC_trigger_photon
         classes:
           reference: [5., 7.]
           signal: [20, 50]
