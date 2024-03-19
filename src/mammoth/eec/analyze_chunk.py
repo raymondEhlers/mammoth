@@ -176,7 +176,7 @@ def _chunks_for_combinatorics(combinatorics_chunk_size: int, array_length: int) 
         start = end
 
 
-def _calculate_weight_for_plotting(
+def _calculate_weight_for_plotting_two_particle_correlator(
     left: ak.Array,
     right: ak.Array,
     trigger_pt_event_wise: ak.Array,
@@ -270,12 +270,12 @@ def _find_hadron_triggers(
         # NOTE: Since we've now selected down to at most one trigger per event, and no empty events,
         #       our triggers can now be represented with regular numpy arrays.
         #       By simplifying now, it can make later operations easier.
-        triggers_dict[level][trigger_name] = ak.to_regular(triggers[select_trigger_mask])
-        event_selection_mask[level][trigger_name] = event_trigger_mask
+        triggers_dict[trigger_name] = ak.to_regular(triggers[select_trigger_mask])
+        event_selection_mask[trigger_name] = event_trigger_mask
 
         # Fill in spectra
         hists[f"{level}_trigger_spectra"].fill(
-            ak.flatten(triggers_dict[level][trigger_name].pt),
+            ak.flatten(triggers_dict[trigger_name].pt),
             weight=scale_factor,
         )
 
@@ -326,6 +326,7 @@ def calculate_correlators(
     # Selection parameters
     event_selection_mask: ak.Array,
     # Analysis parameters
+    correlator_type: str,
     min_track_pt: float,
     momentum_weight_exponent: int | float,
     combinatorics_chunk_size: int,
@@ -343,6 +344,7 @@ def calculate_correlators(
         trigger_name: The name of the trigger.
         triggers: The triggers for the analysis.
         event_selection_mask: The mask to apply to the event selection.
+        correlator_type: The type of correlator to calculate.
         min_track_pt: The minimum track pt to use for the analysis.
         momentum_weight_exponent: The exponent to use for the momentum weighting.
         combinatorics_chunk_size: The size of the chunk to use for calculating the combinatorics.
@@ -356,6 +358,12 @@ def calculate_correlators(
         trigger_skim_output (which may be empty, if not requested to return the skim).
 
     """
+    # Validation
+    if correlator_type not in ["two_particle", "one_particle"]:
+        _msg = f"Invalid correlator type {correlator_type}: not yet implemented."
+        raise ValueError(_msg)
+
+    # Setup
     trigger_skim_output = {}
 
     for _start, _end in _chunks_for_combinatorics(
@@ -376,7 +384,7 @@ def calculate_correlators(
             )
         )
         logger.warning(
-            f"{level=}, {trigger_name=}: {_start=}, {_end=}, {len(recoil_vector)=} (Initial size: {len(triggers)})"
+            f"{level=}, {trigger_name=}: {_start=}, {_end=}, {len(recoil_vector)=} (Initial size={len(triggers)})"
         )
 
         # For recoil region, look at delta_phi between them
@@ -385,7 +393,7 @@ def calculate_correlators(
         particle_pt_mask = event_selected_array.pt > min_track_pt
         event_selected_array = event_selected_array[particle_pt_mask]
         logger.info(f"{level}, {trigger_name}: About to find particles within recoil cone")
-        within_hemisphere = recoil_direction[level][trigger_name].deltaphi(event_selected_array) < np.pi / 4
+        within_hemisphere = recoil_direction.deltaphi(event_selected_array) < np.pi / 4
         eec_particles = event_selected_array[within_hemisphere]
 
         if return_skim and combinatorics_chunk_size < 0:
@@ -409,25 +417,39 @@ def calculate_correlators(
         #         3. Implement the calculation in c++
         #       As of 2023 June 20, we're only on step 1.
         logger.info(f"{level}, {trigger_name}: About to calculate combinations")
-        # TODO: Mateusz claims that we should double count here, per the theorists (ie. Kyle).
-        #       This seems odd...
-        left, right = ak.unzip(ak.combinations(eec_particles, 2))
-        distances = left.deltaR(right)
+        if correlator_type == "two_particle":
+            # NOTE: Mateusz claims that we should double count here, per the theorists (ie. Kyle).
+            #       We talked further, and it seems that this is just a normalization factor.
+            #       Just be consistent, and it should be okay.
+            left, right = ak.unzip(ak.combinations(eec_particles, 2))
+            distances = left.deltaR(right)
 
-        # One argument should be the power
-        # First, need to broadcast the trigger pt
-        logger.info(f"{level}, {trigger_name}: About to fill hists")
-        trigger_pt, _ = ak.broadcast_arrays(
-            trigger_pt_event_wise,
-            distances,
-        )
-        # Save an additional set of calls to exponent if can be avoided
-        weight = _calculate_weight_for_plotting(
-            left=left,
-            right=right,
-            trigger_pt_event_wise=trigger_pt_event_wise,
-            momentum_weight_exponent=momentum_weight_exponent,
-        )
+            # One argument should be the power
+            # First, need to broadcast the trigger pt
+            logger.info(f"{level}, {trigger_name}: About to fill hists")
+            trigger_pt, _ = ak.broadcast_arrays(
+                trigger_pt_event_wise,
+                distances,
+            )
+            # Save an additional set of calls to exponent if can be avoided
+            weight = _calculate_weight_for_plotting_two_particle_correlator(
+                left=left,
+                right=right,
+                trigger_pt_event_wise=trigger_pt_event_wise,
+                momentum_weight_exponent=momentum_weight_exponent,
+            )
+        elif correlator_type == "one_particle":
+            distances = eec_particles.deltaR(recoil_direction)
+
+            # One argument should be the power
+            # First, need to broadcast the trigger pt
+            logger.info(f"{level}, {trigger_name}: About to fill hists")
+            trigger_pt, _ = ak.broadcast_arrays(
+                trigger_pt_event_wise,
+                distances,
+            )
+            weight = ak.flatten(eec_particles.pt)
+
         hists[f"{level}_{trigger_name}_eec"].fill(
             ak.flatten(distances),
             ak.flatten(trigger_pt),
@@ -454,7 +476,7 @@ def calculate_correlators(
                 distances,
             )
             # Recalculate weight
-            weight = _calculate_weight_for_plotting(
+            weight = _calculate_weight_for_plotting_two_particle_correlator(
                 left=left,
                 right=right,
                 trigger_pt_event_wise=trigger_pt_event_wise,
@@ -475,11 +497,12 @@ def calculate_correlators(
 
         # Probably makes no difference...
         del eec_particles
-        del left
-        del right
         del distances
         del trigger_pt
         del weight
+        if correlator_type == "two_particle":
+            del left
+            del right
 
     return trigger_skim_output
 
@@ -497,6 +520,7 @@ def analyze_chunk_one_input_level(
     arrays: ak.Array,
     input_metadata: dict[str, Any],  # noqa: ARG001
     # Analysis arguments
+    correlator_type: str,
     trigger_parameters: TriggerParameters,
     min_track_pt: dict[str, float],
     momentum_weight_exponent: int | float,
@@ -540,11 +564,9 @@ def analyze_chunk_one_input_level(
     )
 
     # Find trigger(s)
-    triggers_dict: dict[str, ak.Array] = {}
-    event_selection_mask: dict[str, ak.Array] = {}
     triggers_dict, event_selection_mask = _find_triggers(
         level=level,
-        arrays=arrays[level],
+        arrays=arrays,
         trigger_parameters=trigger_parameters,
         scale_factor=scale_factors[pt_hat_bin],
         validation_mode=validation_mode,
@@ -559,6 +581,7 @@ def analyze_chunk_one_input_level(
             triggers=triggers_dict[trigger_name],
             arrays=arrays[level],
             event_selection_mask=event_selection_mask[trigger_name],
+            correlator_type=correlator_type,
             min_track_pt=min_track_pt[level],
             momentum_weight_exponent=momentum_weight_exponent,
             combinatorics_chunk_size=combinatorics_chunk_size,
@@ -592,6 +615,7 @@ def analyze_chunk_two_input_level(
     input_metadata: dict[str, Any],  # noqa: ARG001
     # Analysis arguments
     trigger_parameters: TriggerParameters,
+    correlator_type: str,
     min_track_pt: dict[str, float],
     momentum_weight_exponent: int | float,
     combinatorics_chunk_size: int,
@@ -655,9 +679,11 @@ def analyze_chunk_two_input_level(
     triggers_dict: dict[str, dict[str, ak.Array]] = {}
     event_selection_mask: dict[str, dict[str, ak.Array]] = {}
     for level in level_names:
+        triggers_dict[level] = {}
+        event_selection_mask[level] = {}
         triggers_dict[level], event_selection_mask[level] = _find_triggers(
             level=level,
-            arrays=arrays[level],
+            arrays=arrays,
             trigger_parameters=trigger_parameters,
             scale_factor=scale_factors[pt_hat_bin],
             validation_mode=validation_mode,
@@ -673,6 +699,7 @@ def analyze_chunk_two_input_level(
                 triggers=triggers_dict[level][trigger_name],
                 arrays=arrays[level],
                 event_selection_mask=event_selection_mask[level][trigger_name],
+                correlator_type=correlator_type,
                 min_track_pt=min_track_pt[level],
                 momentum_weight_exponent=momentum_weight_exponent,
                 combinatorics_chunk_size=combinatorics_chunk_size,
@@ -682,8 +709,6 @@ def analyze_chunk_two_input_level(
             )
             if res:
                 trigger_skim_output.update(res)
-
-    # IPython.embed()  # type: ignore[no-untyped-call]
 
     return framework_task.AnalysisOutput(
         hists=hists,
@@ -705,6 +730,7 @@ def analyze_chunk_three_input_level(
     input_metadata: dict[str, Any],  # noqa: ARG001
     # Analysis arguments
     trigger_parameters: TriggerParameters,
+    correlator_type: str,
     min_track_pt: dict[str, float],
     momentum_weight_exponent: int | float,
     combinatorics_chunk_size: int,
@@ -762,7 +788,7 @@ def analyze_chunk_three_input_level(
     for level in level_names:
         triggers_dict[level], event_selection_mask[level] = _find_triggers(
             level=level,
-            arrays=arrays[level],
+            arrays=arrays,
             trigger_parameters=trigger_parameters,
             scale_factor=scale_factor,
             validation_mode=validation_mode,
@@ -778,6 +804,7 @@ def analyze_chunk_three_input_level(
                 triggers=triggers_dict[level][trigger_name],
                 arrays=arrays[level],
                 event_selection_mask=event_selection_mask[level][trigger_name],
+                correlator_type=correlator_type,
                 min_track_pt=min_track_pt[level],
                 momentum_weight_exponent=momentum_weight_exponent,
                 combinatorics_chunk_size=combinatorics_chunk_size,
@@ -908,26 +935,65 @@ def minimal_test() -> None:
     #    background_is_constrained_source=False,
     #    chunk_size=2500,
     # )
-    from mammoth.framework import sources
 
-    source_index_identifiers, iter_arrays = load_data.embedding_thermal_model(
-        # NOTE: This isn't anchored, but it's convenient for testing...
-        # signal_input=[Path("trains/pythia/2619/run_by_run/LHC18b8_fast/282125/14/AnalysisResults.18b8_fast.008.root")],
-        signal_input=[Path("trains/pythia/2640/run_by_run/LHC20g4/296415/4/AnalysisResults.20g4.011.root")],
-        signal_source=partial(track_skim.FileSource, collision_system="pythia"),
-        thermal_model_parameters=sources.THERMAL_MODEL_SETTINGS["5020_central"],
-        # chunk_size=2500,
+    # from mammoth.framework import sources
+    # source_index_identifiers, iter_arrays = load_data.embedding_thermal_model(
+    #    # NOTE: This isn't anchored, but it's convenient for testing...
+    #    # signal_input=[Path("trains/pythia/2619/run_by_run/LHC18b8_fast/282125/14/AnalysisResults.18b8_fast.008.root")],
+    #    signal_input=[Path("trains/pythia/2640/run_by_run/LHC20g4/296415/4/AnalysisResults.20g4.011.root")],
+    #    signal_source=partial(track_skim.FileSource, collision_system="pp_MC"),
+    #    thermal_model_parameters=sources.THERMAL_MODEL_SETTINGS["5020_central"],
+    #    # chunk_size=2500,
+    #    chunk_size=1000,
+    # )
+
+    ## NOTE: Just for quick testing
+    # merged_hists: dict[str, hist.Hist] = {}
+    ## END NOTE
+    # for i_chunk, arrays in enumerate(iter_arrays):
+    #    logger.info(f"Processing chunk: {i_chunk}")
+    #    analysis_output = analyze_chunk_three_input_level(
+    #        collision_system="embed_thermal_model",
+    #        source_index_identifiers=source_index_identifiers,
+    #        arrays=arrays,
+    #        input_metadata={},
+    #        trigger_parameters=TriggerParameters(
+    #            type="hadron",
+    #            kinematic_label="pt",
+    #            classes={
+    #                "reference": (5, 7),
+    #                "signal": (20, 50),
+    #            },
+    #            parameters={},
+    #        ),
+    #        correlator_type="two_particle",
+    #        min_track_pt={
+    #            "part_level": 1.0,
+    #            "det_level": 1.0,
+    #            "hybrid_level": 1.0,
+    #        },
+    #        momentum_weight_exponent=1,
+    #        combinatorics_chunk_size=500,
+    #        scale_factor=1,
+    #        det_level_artificial_tracking_efficiency=0.99,
+    #        use_jet_trigger=False,
+    #        return_skim=False,
+    #    )
+    #    merged_hists = output_utils.merge_results(merged_hists, analysis_output.hists)
+
+    iter_arrays = load_data.data(
+        data_input=[Path("trains/pythia/2640/run_by_run/LHC20g4/296415/4/AnalysisResults.20g4.011.root")],
+        data_source=partial(track_skim.FileSource, collision_system="pp_MC"),
+        collision_system="pp_MC",
+        rename_levels={"data": "part_level"},
         chunk_size=1000,
     )
-
     # NOTE: Just for quick testing
     merged_hists: dict[str, hist.Hist] = {}
-    # END NOTE
     for i_chunk, arrays in enumerate(iter_arrays):
         logger.info(f"Processing chunk: {i_chunk}")
-        analysis_output = analyze_chunk_three_input_level(
-            collision_system="embed_thermal_model",
-            source_index_identifiers=source_index_identifiers,
+        analysis_output = analyze_chunk_one_input_level(
+            collision_system="pp_MC",
             arrays=arrays,
             input_metadata={},
             trigger_parameters=TriggerParameters(
@@ -939,10 +1005,9 @@ def minimal_test() -> None:
                 },
                 parameters={},
             ),
+            correlator_type="one_particle",
             min_track_pt={
-                "part_level": 1.0,
-                "det_level": 1.0,
-                "hybrid_level": 1.0,
+                "data": 1.0,
             },
             momentum_weight_exponent=1,
             combinatorics_chunk_size=500,
@@ -960,7 +1025,7 @@ def minimal_test() -> None:
     # Just for quick testing!
     import uproot
 
-    with uproot.recreate("test_eec_thermal_model.root") as f:
+    with uproot.recreate("test_eec.root") as f:
         output_utils.write_hists_to_file(hists=merged_hists, f=f)
 
 

@@ -488,12 +488,18 @@ analysis_settings:
 
     pp: &analysis_settings_EEC_pp
       <<: *_base_analysis_settings_EEC
+      trigger_parameters:
+        <<: *analysis_settings_EEC_trigger_hadron
+      correlator_type: "one_particle"
       # In GeV
       min_track_pt:
         data: 1.
 
     pythia: &analysis_settings_EEC_pythia
       <<: *_base_analysis_settings_EEC
+      trigger_parameters:
+        <<: *analysis_settings_EEC_trigger_hadron
+      correlator_type: "one_particle"
       # In GeV
       min_track_pt:
         part_level: 1.
@@ -501,12 +507,18 @@ analysis_settings:
 
     PbPb: &analysis_settings_EEC_PbPb
       <<: *_base_analysis_settings_EEC
+      trigger_parameters:
+        <<: *analysis_settings_EEC_trigger_hadron
+      correlator_type: "one_particle"
       # In GeV
       min_track_pt:
         data: 1.
 
     embed: &analysis_settings_EEC_embed
       <<: *_base_analysis_settings_EEC
+      trigger_parameters:
+        <<: *analysis_settings_EEC_trigger_hadron
+      correlator_type: "one_particle"
       # In GeV
       min_track_pt:
         part_level: 1.

@@ -71,7 +71,7 @@ def test_calculate_weight_for_plotting(caplog: Any) -> None:
     particles.type.show()
 
     left, right = ak.unzip(ak.combinations(particles, 2))
-    res = analyze_chunk._calculate_weight_for_plotting(
+    res = analyze_chunk._calculate_weight_for_plotting_two_particle_correlator(
         left=left,
         right=right,
         trigger_pt_event_wise=particles.pt[:, 0],
