@@ -7,7 +7,6 @@ build-backend = "pdm.backend"
 #build-backend = "hatchling.build"
 
 [project]
-
 name = "mammoth"
 authors = [
   { name = "Raymond Ehlers", email = "raymond.ehlers@cern.ch" },
