@@ -24,6 +24,7 @@ import parsl
 from parsl.addresses import address_by_hostname, address_by_route
 from parsl.app.app import python_app as parsl_python_app
 from parsl.config import Config
+from parsl.data_provider.staging import Staging
 from parsl.executors import HighThroughputExecutor
 from parsl.executors.high_throughput.errors import WorkerLost
 from parsl.executors.high_throughput.interchange import ManagerLost
@@ -32,7 +33,7 @@ from parsl.launchers.launchers import Launcher
 from parsl.monitoring.monitoring import MonitoringHub
 from parsl.providers import LocalProvider, SlurmProvider
 
-from mammoth import helpers
+from mammoth import helpers, job_file_management
 
 logger = logging.getLogger(__name__)
 
@@ -48,6 +49,10 @@ FACILITIES = Literal[
     "hiccup_std",
     "hiccup_long",
     "hiccup_test",
+    "hiccup_staging_quick",
+    "hiccup_staging_std",
+    "hiccup_staging_long",
+    "hiccup_staging_test",
 ]
 
 
@@ -129,6 +134,9 @@ class Facility:
         launcher: Launcher class to use with the high throughput executor. Default: SrunLauncher.
         parsl_config_additional_options: Additional keyword options to pass directly to
             the parsl config. Default: {}
+        nodes_to_exclude: Nodes to exclude from the allocation. Default: [].
+        staging_storage_classes: Classes to handle staging files to storage. Default: [], corresponding
+            to the default staging classes.
     """
 
     name: str
@@ -148,8 +156,8 @@ class Facility:
     high_throughput_executor_additional_options: dict[str, Any] = attrs.Factory(dict)
     launcher: Callable[[], Launcher] = attrs.field(default=SrunLauncher)
     parsl_config_additional_options: dict[str, Any] = attrs.Factory(dict)
-    cmd_timeout: int = attrs.field(default=10)
     nodes_to_exclude: list[str] = attrs.Factory(list)
+    staging_storage_classes: list[Staging] = attrs.Factory(list)
 
     @property
     def target_allocate_n_cores(self) -> int:
@@ -213,8 +221,27 @@ _facilities_configs.update(
             launcher=SingleNodeLauncher,
             # node_work_dir=Path("/tmp/parsl/$USER"),
             # storage_work_dir=Path("/alf/data/rehlers/jetscape/work_dir"),
-            # Exclude login node
             nodes_to_exclude=[],
+        )
+        for queue in ["quick", "std", "long", "test"]
+    }
+)
+# With staging
+_facilities_configs.update(
+    {
+        f"hiccup_staging_{queue}": Facility(
+            name="hiccup_staging",
+            node_spec=NodeSpec(n_cores=20, memory=64),
+            partition_name=queue,
+            # Allocate full node:
+            # target_allocate_n_cores=11 if queue != "loginOnly" else 6,
+            # Allocate by core:
+            target_allocate_n_cores=1,
+            launcher=SingleNodeLauncher,
+            node_work_dir=Path("/scratch/u/$USER/parsl"),
+            # storage_work_dir=Path("/alf/data/rehlers/jetscape/work_dir"),
+            nodes_to_exclude=[],
+            staging_storage_classes=[job_file_management.RSyncStaging()],
         )
         for queue in ["quick", "std", "long", "test"]
     }
@@ -738,6 +765,7 @@ def _define_parsl_config(
                 #       be determined by the number of cores per worker and the cores per node.
                 working_dir=str(facility.node_work_dir),
                 provider=provider,
+                storage_access=facility.staging_storage_classes if facility.staging_storage_classes else None,
             )
         ],
         **config_kwargs,
