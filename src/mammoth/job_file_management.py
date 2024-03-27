@@ -11,10 +11,12 @@ from __future__ import annotations
 
 import concurrent.futures
 import logging
+import shutil
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
+import attrs
 import parsl
 from parsl.app.futures import DataFuture
 from parsl.data_provider.data_manager import DataManager
@@ -23,6 +25,122 @@ from parsl.data_provider.staging import Staging
 from parsl.utils import RepresentationMixin
 
 logger = logging.getLogger(__name__)
+
+
+@attrs.define(frozen=True)
+class FileStaging:
+    """Handles file staging within a job.
+
+    The concept here is that there are two directories:
+        - The permanent directory, which is where the files are stored permanently.
+        - The worker node directory, which is where the files are stored on the worker node.
+    Within this concept, we keep the directory structure as consistent as possible, even
+    on the worker node, eg.:
+
+    ```python
+    fs = FileStaging(
+        permanent_work_dir=Path("/path/to/permanent"),
+        node_work_dir=Path("/path/to/worker_node"),
+    )
+    input_file = Path("/path/to/permanent/some_directory_path/input_file.txt")
+    result = fs.stage_files_in(files_to_stage_in=[input_file])
+    assert result[0] == Path(
+        "/path/to/worker_node/input/some_directory_path/input_file.txt"
+    )
+    ```
+
+    and then staging out will undo this, again as appropriate. The scheme is slightly involved,
+    but I think it will be more intuitive in the long run.
+
+    Attributes:
+        permanent_work_dir: Permanent work directory for storing files.
+        node_work_dir: Work directory on the worker node for storing files.
+    """
+
+    permanent_work_dir: Path
+    node_work_dir: Path
+
+    @property
+    def node_work_dir_input(self) -> Path:
+        """Input directory on the worker node.
+
+        Nothing deeper here - just a useful convention.
+        """
+        return self.node_work_dir / "input"
+
+    @property
+    def node_work_dir_output(self) -> Path:
+        """Output directory on the worker node.
+
+        Nothing deeper here - just a useful convention.
+        """
+        return self.node_work_dir / "output"
+
+    def stage_files_in(self, files_to_stage_in: list[Path]) -> list[Path]:
+        """Stage files in.
+
+        Args:
+            files_to_stage_in: Files to stage in.
+        Returns:
+            Paths of the files that were staged out, in their worker node locations.
+        """
+        # Setup as necessary
+        stage_in_dir = self.node_work_dir_input
+        stage_in_dir.mkdir(parents=True, exist_ok=True)
+
+        # Stage in the files, relative to the permanent directory.
+        modified_paths = []
+        for f in files_to_stage_in:
+            p = stage_in_dir / f.relative_to(self.permanent_work_dir)
+            modified_paths.append(p)
+            shutil.copy(f, p)
+
+        return modified_paths
+
+    def _stage_files_out(self, files_to_stage_out: list[Path]) -> list[Path]:
+        """Stage files out implementation.
+
+        Args:
+            files_to_stage_out: Files to stage out.
+        Returns:
+            Paths of the files that were staged out, in their permanent locations.
+        """
+        # Stage out the files, relative to the permanent directory.
+        modified_paths = []
+        for f in files_to_stage_out:
+            p = self.permanent_work_dir / f.relative_to(self.node_work_dir)
+            try:
+                modified_paths.append(p)
+                shutil.copy(f, p)
+            except OSError as e:
+                logger.exception(e)
+                continue
+            # If we've succeeded in copying, we can remove the existing file.
+            f.unlink()
+
+        return modified_paths
+
+    def stage_all_files_out(self) -> list[Path]:
+        """Stage out all files in the output directory.
+
+        Returns:
+            Paths of the files that were staged out, in their permanent locations.
+        """
+        # NOTE: Could also use shutil.copytree(src, dest, dir_exist_ok=True), but
+        #       this is more convenient since we already implemented the copying, so
+        #       just leave it as is for now...
+        all_files_to_stage_out = list(self.node_work_dir_output.rglob("*"))
+        return self._stage_files_out(files_to_stage_out=all_files_to_stage_out)
+
+    def stage_files_out(self, output_files: list[Path]) -> list[Path]:
+        """Stage out the provided files.
+
+        Args:
+            output_files: Files to stage out.
+        Returns:
+            Paths of the files that were staged out, in their permanent locations.
+        """
+        return self._stage_files_out(files_to_stage_out=output_files)
 
 
 def retrieve_working_dir(dm: DataManager, executor: str) -> str:
@@ -47,7 +165,7 @@ def retrieve_working_dir(dm: DataManager, executor: str) -> str:
     return working_dir
 
 
-class RSyncStaging(Staging, RepresentationMixin):
+class RSyncStagingForParsl(Staging, RepresentationMixin):
     """Sync locally accessible files between worker nodes and storage directories.
 
     Based on RSyncStaging from parsl, with modifications for our purposes

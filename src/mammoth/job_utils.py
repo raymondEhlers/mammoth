@@ -171,6 +171,38 @@ class Facility:
         # If our target for allocating cores is equal to a single node, then we are allocating a full node.
         return self.node_spec.n_cores == self.target_allocate_n_cores
 
+    def file_staging(self) -> job_file_management.FileStaging | None:
+        """Generate file staging class.
+
+        Returns:
+            The FileStaging class, or if we cannot generate a valid file
+            staging strategy, return None.
+        """
+        if self.node_work_dir != Path():
+            return job_file_management.FileStaging(
+                permanent_work_dir=self.storage_work_dir,
+                node_work_dir=self.node_work_dir,
+            )
+        return None
+
+    def minimize_IO_as_possible(self, override: bool | None) -> bool:
+        """Determine if we should minimize IO as much as possible.
+
+        We can try to reduce IO. The tradeoff is that we may end up overwriting output files.
+        This is useful for IO sensitive systems, but it should be used with care.
+
+        Args:
+            override: Override the default setting determined by the config.
+        """
+        if override is not None:
+            return override
+        disable_checks_for_existing_output = False
+        # If there are file staging settings, we're unlikely to find the file that we're looking for,
+        # so it's best to override it and just take the savings.
+        if self.file_staging() or self._minimize_IO_as_possible:
+            disable_checks_for_existing_output = True
+        return disable_checks_for_existing_output
+
 
 # Define the facility configurations.
 # 587 cluster
