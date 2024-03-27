@@ -128,14 +128,22 @@ def _read_full_config(config_path: Path | None = None) -> dict[str, Any]:
     return full_config
 
 
-def _extract_hf_tree_files_txt_filename(files: list[str]) -> Path:
-    # By convention, the `files.txt` file is used to enumerate the files,
-    # so it is the only file provided by the config.
-    # Validation
-    if len(files) != 1:
-        _msg = f"Wrong number of files provided for HF Tree Creator. Should only be 1! Provided: {files}"
+def _check_for_list_of_files_in_txt_file(files: list[str]) -> bool:
+    """Check if the files are listed in a text file."""
+    # This is simplify defined by convention
+    return len(files) == 1 and "files.txt" in files[0]
+
+
+def _filenames_from_txt_file(files: list[str]) -> list[Path]:
+    """Read filenames from a text file."""
+    # Validation as a double check
+    if not _check_for_list_of_files_in_txt_file(files):
+        _msg = f"Invalid list of filenames in text file provided: {files}"
         raise ValueError(_msg)
-    return Path(files[0])
+
+    with Path(files[0]).open() as f:
+        # The strip ensures that extra "\n" don't make it into the file list (which apparently had happened up to this point)
+        return [Path(line.strip("\n")) for line in f]
 
 
 class ProductionSpecialization(Protocol):
@@ -260,19 +268,13 @@ class ProductionSettings:
                 _files.extend(_files_in_single_pt_hat)
             return _files
 
-        if self.skim_type == "HF_tree_at_LBL":
-            # First, grab the files listed in `files.txt`
-            _hf_tree_files_txt_filename = _extract_hf_tree_files_txt_filename(
-                files=self.config["metadata"]["dataset"]["files"]
-            )
-            with _hf_tree_files_txt_filename.open() as f:
-                # The strip ensures that extra "\n" don't make it into the file list (which apparently had happened up to this point)
-                _all_files = [Path(line.strip("\n")) for line in f]
-            return _all_files  # noqa: RET504
+        input_files = self.config["metadata"]["dataset"]["files"]
+        if _check_for_list_of_files_in_txt_file(input_files):
+            return _filenames_from_txt_file(input_files)
 
         # Handle the track skim as the default case.
         # Here, we just can blindly expand
-        return utils.ensure_and_expand_paths(self.config["metadata"]["dataset"]["files"])
+        return utils.ensure_and_expand_paths(input_files)
 
     @property
     def has_scale_factors(self) -> bool:
@@ -288,15 +290,10 @@ class ProductionSettings:
         # Will be signal_dataset if embedded, but otherwise will be the standard "dataset" key
         dataset_key = "signal_dataset" if "signal_dataset" in self.config["metadata"] else "dataset"
 
-        if self.skim_type == "HF_tree_at_LBL":
-            # First, grab the files listed in `files.txt`
-            _hf_tree_files_txt_filename = _extract_hf_tree_files_txt_filename(
-                files=self.config["metadata"][dataset_key]["files"]
-            )
-            with _hf_tree_files_txt_filename.open() as f:
-                _all_files = list(f)
-            # The strip ensures that extra "\n" don't make it into the file list (which apparently had happened up to this point)
-            _all_files = [_name.strip("\n") for _name in _all_files]
+        input_files = self.config["metadata"][dataset_key]["files"]
+        if _check_for_list_of_files_in_txt_file(input_files):
+            _all_files = _filenames_from_txt_file(input_files)
+
             # Now, extract the pt hat bin and group by pt hat bin according to the convention
             _files: dict[int, list[Path]] = {}
             _number_of_parents_to_pt_hat_bin = self.config["metadata"][dataset_key][
