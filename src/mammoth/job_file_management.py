@@ -109,6 +109,7 @@ class FileStaging:
         Returns:
             Paths of the files that were staged out, in their worker node locations.
         """
+        logger.debug("Staging in files")
         # Setup as necessary
         stage_in_dir = self.node_work_dir_input
         stage_in_dir.mkdir(parents=True, exist_ok=True)
@@ -129,6 +130,9 @@ class FileStaging:
 
         # Finally, move the files
         for f, p in zip(files_to_stage_in, modified_paths, strict=True):
+            logger.debug(
+                f"Copying permanent:'{f.relative_to(self.permanent_work_dir)}' -> node:'{p.relative_to(self.node_work_dir_input)}'"
+            )
             shutil.copy(f, p)
 
         # Store the values so we can clean them up later
@@ -150,6 +154,7 @@ class FileStaging:
         Returns:
             Paths of the files that were staged out, in their permanent locations.
         """
+        logger.debug("Staging out files")
         # Stage out the files, relative to the permanent directory.
         modified_paths = []
         # Group the directories to create together to optimize IO
@@ -167,6 +172,9 @@ class FileStaging:
         # Finally, move the files
         for f, p in zip(files_to_stage_out, modified_paths, strict=True):
             try:
+                logger.debug(
+                    f"Copying node:'{f.relative_to(self.node_work_dir_output)}' -> permanent:'{p.relative_to(self.permanent_work_dir)}'"
+                )
                 shutil.copy(f, p)
             except OSError as e:
                 logger.exception(e)
