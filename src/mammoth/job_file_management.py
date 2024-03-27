@@ -27,7 +27,7 @@ from parsl.utils import RepresentationMixin
 logger = logging.getLogger(__name__)
 
 
-@attrs.define(frozen=True)
+@attrs.define
 class FileStaging:
     """Handles file staging within a job.
 
@@ -55,10 +55,13 @@ class FileStaging:
     Attributes:
         permanent_work_dir: Permanent work directory for storing files.
         node_work_dir: Work directory on the worker node for storing files.
+        _staged_in_files: Files that have been staged in. We keep track of them
+            so can clean them up afterwards.
     """
 
     permanent_work_dir: Path
     node_work_dir: Path
+    _staged_in_files: list[Path] = attrs.field(init=False, factory=list)
 
     @property
     def node_work_dir_input(self) -> Path:
@@ -76,11 +79,33 @@ class FileStaging:
         """
         return self.node_work_dir / "output"
 
-    def stage_files_in(self, files_to_stage_in: list[Path]) -> list[Path]:
+    def translate_permanent_to_node_path(self, permanent_path: Path) -> Path:
+        """Translate a file path from the permanent directory to the worker node directory.
+
+        Args:
+            permanent_path: Path to a file in the permanent directory.
+        Returns:
+            Path to the file in the worker node directory.
+        """
+        return self.node_work_dir_input / permanent_path.relative_to(self.permanent_work_dir)
+
+    def translated_node_to_permanent_path(self, node_path: Path) -> Path:
+        """Translate a file path in the worker node directory to the permanent directory.
+
+        Args:
+            node_path: Path to a file in the worker node directory.
+        Returns:
+            Path to the file in the permanent directory.
+        """
+        return self.permanent_work_dir / node_path.relative_to(self.node_work_dir_output)
+
+    def stage_files_in(self, files_to_stage_in: list[Path], plan_to_clean_up_afterwards: bool = True) -> list[Path]:
         """Stage files in.
 
         Args:
             files_to_stage_in: Files to stage in.
+            plan_to_clean_up_afterwards: Whether to plan to clean up the staged in files
+                after they are staged out.
         Returns:
             Paths of the files that were staged out, in their worker node locations.
         """
@@ -90,12 +115,32 @@ class FileStaging:
 
         # Stage in the files, relative to the permanent directory.
         modified_paths = []
+        # Group the directories to create together to optimize IO
+        directories_to_create = set()
+
         for f in files_to_stage_in:
-            p = stage_in_dir / f.relative_to(self.permanent_work_dir)
+            p = self.translate_permanent_to_node_path(f)
             modified_paths.append(p)
+            directories_to_create.add(p.parent)
+
+        # Create the directories
+        for d in directories_to_create:
+            d.mkdir(parents=True, exist_ok=True)
+
+        # Finally, move the files
+        for f, p in zip(files_to_stage_in, modified_paths, strict=True):
             shutil.copy(f, p)
 
+        # Store the values so we can clean them up later
+        if plan_to_clean_up_afterwards:
+            self._staged_in_files.extend(modified_paths)
+
         return modified_paths
+
+    def clean_up_staged_in_files_after_task(self) -> None:
+        """Clean up the staged in files after the task completes."""
+        for f in self._staged_in_files:
+            f.unlink()
 
     def _stage_files_out(self, files_to_stage_out: list[Path]) -> list[Path]:
         """Stage files out implementation.
@@ -107,16 +152,33 @@ class FileStaging:
         """
         # Stage out the files, relative to the permanent directory.
         modified_paths = []
+        # Group the directories to create together to optimize IO
+        directories_to_create = set()
+        # Calculate the output paths
         for f in files_to_stage_out:
-            p = self.permanent_work_dir / f.relative_to(self.node_work_dir)
+            p = self.translated_node_to_permanent_path(f)
+            modified_paths.append(p)
+            directories_to_create.add(p.parent)
+
+        # Create the directories
+        for d in directories_to_create:
+            d.mkdir(parents=True, exist_ok=True)
+
+        # Finally, move the files
+        for f, p in zip(files_to_stage_out, modified_paths, strict=True):
             try:
-                modified_paths.append(p)
                 shutil.copy(f, p)
             except OSError as e:
                 logger.exception(e)
                 continue
             # If we've succeeded in copying, we can remove the existing file.
             f.unlink()
+        try:
+            shutil.rmtree(self.node_work_dir_output)
+        except OSError as e:
+            logger.exception(e)
+            msg = f"Failed to remove node work directory: {self.node_work_dir_output}"
+            raise RuntimeError(msg) from e
 
         return modified_paths
 
@@ -129,18 +191,48 @@ class FileStaging:
         # NOTE: Could also use shutil.copytree(src, dest, dir_exist_ok=True), but
         #       this is more convenient since we already implemented the copying, so
         #       just leave it as is for now...
-        all_files_to_stage_out = list(self.node_work_dir_output.rglob("*"))
+        # NOTE: We have to take the hit on the file check because otherwise it will include
+        #       directories in the glob.
+        all_files_to_stage_out = [v for v in self.node_work_dir_output.rglob("*") if v.is_file()]
         return self._stage_files_out(files_to_stage_out=all_files_to_stage_out)
 
-    def stage_files_out(self, output_files: list[Path]) -> list[Path]:
+    def stage_files_out(self, files_to_stage_out: list[Path]) -> list[Path]:
         """Stage out the provided files.
 
         Args:
-            output_files: Files to stage out.
+            files_to_stage_out: Files to stage out.
         Returns:
             Paths of the files that were staged out, in their permanent locations.
         """
-        return self._stage_files_out(files_to_stage_out=output_files)
+        return self._stage_files_out(files_to_stage_out=files_to_stage_out)
+
+    def wrap_task(
+        self, f: Callable[..., Any], files_to_stage_in: list[Path], clean_up_staged_in_files: bool = True
+    ) -> Callable[..., Any]:
+        """Wrap a task to stage out files after the task completes.
+
+        Args:
+            f: The function to wrap.
+            files_to_stage_in: Files to stage in.
+            clean_up_staged_in_files: Whether to clean up the staged in files
+                after the task completes. Default: True
+        Returns:
+            The wrapped function.
+        """
+
+        def wrapper(*args: Any, **kwargs: Any) -> Any:
+            self.stage_files_in(
+                files_to_stage_in=files_to_stage_in, plan_to_clean_up_afterwards=clean_up_staged_in_files
+            )
+            result = f(*args, **kwargs)
+            # Clean up the staged in files.
+            if clean_up_staged_in_files:
+                self.clean_up_staged_in_files_after_task()
+            # And stage out
+            self.stage_all_files_out()
+            return result
+
+        return wrapper
 
 
 def retrieve_working_dir(dm: DataManager, executor: str) -> str:
