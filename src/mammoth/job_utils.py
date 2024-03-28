@@ -103,6 +103,13 @@ class TaskConfig:
 
 @attrs.define
 class NodeSpec:
+    """Specification for a single node.
+
+    Attributes:
+        n_cores: Number of cores on the node.
+        memory: Memory on the node in GB.
+    """
+
     n_cores: int
     # Denoted in GB.
     memory: int
@@ -153,11 +160,12 @@ class Facility:
     )
     directories_to_mount_in_singularity: list[Path] = attrs.Factory(list)
     worker_init_script: str = attrs.field(default="")
-    high_throughput_executor_additional_options: dict[str, Any] = attrs.Factory(dict)
+    slurm_provider_additional_options: dict[str, Any] = attrs.Factory(dict)
     launcher: Callable[[], Launcher] = attrs.field(default=SrunLauncher)
     parsl_config_additional_options: dict[str, Any] = attrs.Factory(dict)
     nodes_to_exclude: list[str] = attrs.Factory(list)
     staging_storage_classes: list[Staging] = attrs.Factory(list)
+    _minimize_IO_as_possible: bool = attrs.field(default=False)
 
     @property
     def target_allocate_n_cores(self) -> int:
@@ -254,6 +262,7 @@ _facilities_configs.update(
             # node_work_dir=Path("/tmp/parsl/$USER"),
             # storage_work_dir=Path("/alf/data/rehlers/jetscape/work_dir"),
             nodes_to_exclude=[],
+            minimize_IO_as_possible=True,
         )
         for queue in ["quick", "std", "long", "test"]
     }
@@ -273,7 +282,9 @@ _facilities_configs.update(
             node_work_dir=Path("/scratch/u/$USER/parsl"),
             # storage_work_dir=Path("/alf/data/rehlers/jetscape/work_dir"),
             nodes_to_exclude=[],
-            staging_storage_classes=[job_file_management.RSyncStaging()],
+            # We'll implement our new file staging, so no need to have parsl take care of it.
+            # staging_storage_classes=[job_file_management.ParslRSyncStaging()],
+            minimize_IO_as_possible=True,
         )
         for queue in ["quick", "std", "long", "test"]
     }
@@ -284,6 +295,14 @@ class JobFramework(enum.Enum):
     dask_delayed = enum.auto()
     parsl = enum.auto()
     immediate_execution_debug = enum.auto()
+
+
+@attrs.define
+class ExecutionSettings:
+    job_framework: JobFramework
+    file_staging_settings: job_file_management.FileStaging | None = None
+    minimize_IO_as_possible: bool = False
+    debug_mode: bool | dict[str | int, Any] = False
 
 
 P = ParamSpec("P")
@@ -781,7 +800,7 @@ def _define_parsl_config(
             walltime=walltime,
             # If we're allocating full nodes, then we should request exclusivity.
             exclusive=facility.allocate_full_node,
-            **facility.high_throughput_executor_additional_options,
+            **facility.slurm_provider_additional_options,
         )
 
     config = Config(
@@ -815,7 +834,9 @@ def setup_job_framework(
     target_n_tasks_to_run_simultaneously: int,
     log_level: int,
     additional_worker_init_script: str = "",
-) -> tuple[dask.distributed.Client, dask.distributed.SpecCluster]:
+    override_minimize_IO_as_possible: bool | None = None,
+    debug_mode: bool = False,
+) -> tuple[dask.distributed.Client, dask.distributed.SpecCluster, ExecutionSettings]:
     ...
 
 
@@ -828,7 +849,9 @@ def setup_job_framework(
     target_n_tasks_to_run_simultaneously: int,
     log_level: int,
     additional_worker_init_script: str = "",
-) -> tuple[parsl.DataFlowKernel, Config]:
+    override_minimize_IO_as_possible: bool | None = None,
+    debug_mode: bool = False,
+) -> tuple[parsl.DataFlowKernel, Config, ExecutionSettings]:
     ...
 
 
@@ -841,7 +864,12 @@ def setup_job_framework(
     target_n_tasks_to_run_simultaneously: int,
     log_level: int,
     additional_worker_init_script: str = "",
-) -> tuple[parsl.DataFlowKernel, parsl.Config] | tuple[dask.distributed.Client, dask.distributed.SpecCluster]:
+    override_minimize_IO_as_possible: bool | None = None,
+    debug_mode: bool = False,
+) -> (
+    tuple[parsl.DataFlowKernel, parsl.Config, ExecutionSettings]
+    | tuple[dask.distributed.Client, dask.distributed.SpecCluster, ExecutionSettings]
+):
     ...
 
 
@@ -853,7 +881,12 @@ def setup_job_framework(
     target_n_tasks_to_run_simultaneously: int,
     log_level: int,
     additional_worker_init_script: str = "",
-) -> tuple[parsl.DataFlowKernel, parsl.Config] | tuple[dask.distributed.Client, dask.distributed.SpecCluster]:
+    override_minimize_IO_as_possible: bool | None = None,
+    debug_mode: bool = False,
+) -> (
+    tuple[parsl.DataFlowKernel, parsl.Config, ExecutionSettings]
+    | tuple[dask.distributed.Client, dask.distributed.SpecCluster, ExecutionSettings]
+):
     # Basic setup: logging and parsl.
     # Setup job frameworks
     if job_framework != JobFramework.parsl:
@@ -877,11 +910,19 @@ def setup_job_framework(
         enable_monitoring=True,
         additional_worker_init_script=additional_worker_init_script,
     )
+
+    execution_settings = ExecutionSettings(
+        job_framework=job_framework,
+        file_staging_settings=_facility_config.file_staging(),
+        minimize_IO_as_possible=_facility_config.minimize_IO_as_possible(override=override_minimize_IO_as_possible),
+        debug_mode=debug_mode,
+    )
+
     if job_framework == JobFramework.immediate_execution_debug:
         # This is a debug option, so it will break typing
-        return None, None  # type: ignore[return-value]
+        return None, None, execution_settings  # type: ignore[return-value]
     elif job_framework == JobFramework.dask_delayed:  # noqa: RET505
-        return dask.distributed.Client(job_framework_config), job_framework_config  # type: ignore[no-untyped-call,return-value]
+        return dask.distributed.Client(job_framework_config), job_framework_config, execution_settings  # type: ignore[no-untyped-call,return-value]
     else:
         # Keep track of the dfk to keep parsl alive
         dfk = helpers.setup_logging_and_parsl(
@@ -893,7 +934,7 @@ def setup_job_framework(
         # Quiet down parsl
         logging.getLogger("parsl").setLevel(logging.WARNING)
 
-        return dfk, job_framework_config
+        return dfk, job_framework_config, execution_settings
 
 
 def _cancel_future(job: concurrent.futures.Future[Any]) -> None:

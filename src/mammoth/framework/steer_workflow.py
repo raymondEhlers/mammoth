@@ -37,8 +37,7 @@ class SetupTasks(Protocol):
         self,
         *,
         prod: production.ProductionSettings,
-        job_framework: job_utils.JobFramework,
-        debug_mode: bool | dict[str | int, Any],
+        execution_settings: job_utils.ExecutionSettings,
     ) -> list[Future[framework_task.Output]]:
         ...
 
@@ -121,6 +120,7 @@ class SetupSteeringTask(Protocol):
 def safe_output_filename_from_relative_path(
     filename: Path,
     output_dir: Path,
+    cwd: Path,
     number_of_parent_directories_for_relative_output_filename: int | None = None,
 ) -> str:
     """Safe and identifiable name for naming output files based on the relative path.
@@ -128,9 +128,15 @@ def safe_output_filename_from_relative_path(
     Converts: "2111/run_by_run/LHC17p_CENT_woSDD/282341/AnalysisResults.17p.001.root"
            -> "2111__run_by_run__LHC17p_CENT_woSDD__282341__AnalysisResults_17p_001"
 
+    NOTE:
+        Per the python docs, `relative_to` is a string operation, so we shouldn't hit
+        the filesystem here!
+
     Args:
         filename: Filename to be converted.
         output_dir: Base output directory for the calculation.
+        cwd: Current working directory. Only used sometimes, but better to have it so we don't
+            have to call it repeatedly here.
         number_of_parent_directories_for_relative_output_filename: Number of parent directories above
             filename to use as the reference directory for the relative path. If None, the grandparent
             is used. Default: None.
@@ -155,7 +161,7 @@ def safe_output_filename_from_relative_path(
             # NOTE: We can't use `resolve()` because it will resolve symlinks, which we probably don't want it to do
             #       since we usually symlink the `train` directory.
             # NOTE: `pathlib.Path.absolute()` would be perfect here, but it requires 3.11
-            reference_dir = Path.cwd() / reference_dir
+            reference_dir = cwd / reference_dir
     return str(filename.relative_to(reference_dir).with_suffix("")).replace("/", "__").replace(".", "_")
 
 
@@ -392,8 +398,7 @@ def setup_framework_standard_workflow(  # noqa: C901
 
     def wrap_setup(
         prod: production.ProductionSettings,
-        job_framework: job_utils.JobFramework,
-        debug_mode: bool | dict[str | int, Any],
+        execution_settings: job_utils.ExecutionSettings,
     ) -> list[Future[framework_task.Output]]:
         """Execute to setup the standard workflow for the framework.
 
@@ -428,13 +433,13 @@ def setup_framework_standard_workflow(  # noqa: C901
         output_dir.mkdir(parents=True, exist_ok=True)
 
         # If we want to debug some particular files, we can directly set them here
-        if debug_mode and isinstance(debug_mode, Mapping):
+        if execution_settings.debug_mode and isinstance(execution_settings.debug_mode, Mapping):
             # input_files = {10: [Path("trains/pythia/2619/run_by_run/LHC18b8_cent_woSDD/282008/10/AnalysisResults.18b8_cent_woSDD.003.root")]}
             # input_files = {-1: [Path("trains/pp/2111/run_by_run/LHC17p_CENT_woSDD/282341/AnalysisResults.17p.586.root")]}
             # input_files = {-1: [Path("trains/PbPb/645/run_by_run/LHC18r/297595/AnalysisResults.18r.551.root")]}
             # We rely on you to get this input type correct wrong since it's just a debug tool for convenience.
-            logger.info(f"Using debug mode input files: {debug_mode}")
-            input_files = debug_mode  # type: ignore[assignment]
+            logger.info(f"Using debug mode input files: {execution_settings.debug_mode}")
+            input_files = execution_settings.debug_mode  # type: ignore[assignment]
 
         # Setup for analysis and dataset settings
         _metadata_config = prod.config["metadata"]
@@ -503,6 +508,9 @@ def setup_framework_standard_workflow(  # noqa: C901
         if prod.has_scale_factors:
             scale_factors = prod.scale_factors()
 
+        # Helper for below, so we don't have to call it repeatedly
+        cwd = Path.cwd()
+
         results = []
         _file_counter = 0
         for pt_hat_bin, input_filenames in input_files.items():
@@ -517,7 +525,7 @@ def setup_framework_standard_workflow(  # noqa: C901
                     logger.info(f"Adding {input_filename} for analysis")
 
                 # For debugging
-                if debug_mode and _file_counter > 1:
+                if execution_settings.debug_mode and _file_counter > 1:
                     break
 
                 # Setup file I/O
@@ -525,10 +533,11 @@ def setup_framework_standard_workflow(  # noqa: C901
                 #        -> "2111__run_by_run__LHC17p_CENT_woSDD__282341__AnalysisResults_17p_001"
                 output_identifier = safe_output_filename_from_relative_path(
                     filename=input_filename,
-                    output_dir=prod.output_dir,
+                    output_dir=output_dir,
                     number_of_parent_directories_for_relative_output_filename=_metadata_config["dataset"].get(
                         "number_of_parent_directories_for_relative_output_filename", None
                     ),
+                    cwd=cwd,
                 )
                 # Finally, add the customization
                 output_identifier += defined_output_identifier(**analysis_arguments_with_pt_hat_scale_factor)
@@ -553,7 +562,7 @@ def setup_framework_standard_workflow(  # noqa: C901
                         # Arguments
                         analysis_arguments=analysis_arguments_with_pt_hat_scale_factor,
                         # Framework options
-                        job_framework=job_framework,
+                        job_framework=execution_settings.job_framework,
                         inputs=[File(input_filename)],
                         outputs=[File(output_filename)],
                     )
@@ -615,8 +624,7 @@ def setup_framework_embed_workflow(  # noqa: C901
 
     def wrap_setup_embed_MC_into_data(  # noqa: C901
         prod: production.ProductionSettings,
-        job_framework: job_utils.JobFramework,
-        debug_mode: bool | dict[str | int, Any],
+        execution_settings: job_utils.ExecutionSettings,
     ) -> list[Future[framework_task.Output]]:
         """Create futures to produce embed MC into data skim"""
         # First, we need to select the function that we'll use. This is based on the production settings
@@ -644,7 +652,7 @@ def setup_framework_embed_workflow(  # noqa: C901
         signal_input_files_per_pt_hat = prod.input_files_per_pt_hat()
 
         # If we want to debug some particular files, we can directly set them here
-        if debug_mode and isinstance(debug_mode, Mapping):
+        if execution_settings.debug_mode and isinstance(execution_settings.debug_mode, Mapping):
             # background_input_files = [Path("trains/PbPb/645/run_by_run/LHC18r/297595/AnalysisResults.18r.551.root")]
             # signal_input_files_per_pt_hat = {
             #     12: [
@@ -653,17 +661,20 @@ def setup_framework_embed_workflow(  # noqa: C901
             #         Path("trains/pythia/2640/run_by_run/LHC20g4/297479/12/AnalysisResults.20g4.009.root"),
             #     ]
             # }
-            logger.info(f"Using debug mode input files: {debug_mode}")
-            if not ("signal_input_files_per_pt_hat" in debug_mode and "background_input_files" in debug_mode):
+            logger.info(f"Using debug mode input files: {execution_settings.debug_mode}")
+            if not (
+                "signal_input_files_per_pt_hat" in execution_settings.debug_mode
+                and "background_input_files" in execution_settings.debug_mode
+            ):
                 msg = "Must specify both signal_input_files_per_pt_hat and background_input_files in debug mode!"
                 raise ValueError(msg)
             # By using the intermediate values, it allows us to pass None in the dict to
             # indicate that we should use the standard files. However, this also requires
             # the user to explicitly say so to avoid doing it on accident.
-            _temp_value = debug_mode["signal_input_files_per_pt_hat"]
+            _temp_value = execution_settings.debug_mode["signal_input_files_per_pt_hat"]
             if _temp_value is not None:
                 signal_input_files_per_pt_hat = _temp_value
-            _temp_value = debug_mode["background_input_files"]
+            _temp_value = execution_settings.debug_mode["background_input_files"]
             if _temp_value is not None:
                 background_input_files = _temp_value
 
@@ -740,13 +751,16 @@ def setup_framework_embed_workflow(  # noqa: C901
         # NOTE: Need to wait until here because need the scale factors
         # NOTE: We usually need to skip this during debug mode because we may not have all pt hat bins in the input,
         #       so it will fail trivially.
-        if not debug_mode:
+        if not execution_settings.debug_mode:
             pt_hat_bins, _ = _extract_info_from_signal_file_list(
                 signal_input_files_per_pt_hat=signal_input_files_per_pt_hat
             )
             if set(scale_factors) != set(pt_hat_bins):
                 _msg = f"Mismatch between the pt hat bins in the scale factors ({set(scale_factors)}) and the pt hat bins ({set(pt_hat_bins)})"
                 raise ValueError(_msg)
+
+        # Helper for below, so we don't have to call it repeatedly
+        cwd = Path.cwd()
 
         results = []
         _embedding_file_pairs = {}
@@ -778,7 +792,7 @@ def setup_framework_embed_workflow(  # noqa: C901
                 continue
 
             # For debugging
-            if debug_mode and _file_counter > 1:
+            if execution_settings.debug_mode and _file_counter > 1:
                 break
 
             # Setup file I/O
@@ -791,6 +805,7 @@ def setup_framework_embed_workflow(  # noqa: C901
                 number_of_parent_directories_for_relative_output_filename=_metadata_config["signal_dataset"].get(
                     "number_of_parent_directories_for_relative_output_filename", None
                 ),
+                cwd=cwd,
             )
             output_identifier += "__embedded_into__"
             output_identifier += safe_output_filename_from_relative_path(
@@ -799,6 +814,7 @@ def setup_framework_embed_workflow(  # noqa: C901
                 number_of_parent_directories_for_relative_output_filename=_metadata_config["dataset"].get(
                     "number_of_parent_directories_for_relative_output_filename", None
                 ),
+                cwd=cwd,
             )
             # Finally, add the customization
             output_identifier += defined_output_identifier(**analysis_arguments_with_pt_hat_scale_factor)
@@ -845,7 +861,7 @@ def setup_framework_embed_workflow(  # noqa: C901
                     # Arguments
                     analysis_arguments=analysis_arguments_with_pt_hat_scale_factor,
                     # Framework options
-                    job_framework=job_framework,
+                    job_framework=execution_settings.job_framework,
                     inputs=[
                         *[File(str(_filename)) for _filename in signal_input],
                         *[File(str(_filename)) for _filename in background_input],
@@ -873,8 +889,7 @@ def setup_framework_embed_workflow(  # noqa: C901
 
     def wrap_setup_embed_MC_into_thermal_model(
         prod: production.ProductionSettings,
-        job_framework: job_utils.JobFramework,
-        debug_mode: bool | dict[str | int, Any],
+        execution_settings: job_utils.ExecutionSettings,
     ) -> list[Future[framework_task.Output]]:
         # First, we need to select the function that we'll use. This is based on the production settings
         analyze_chunk = _determine_analysis_function(
@@ -901,15 +916,15 @@ def setup_framework_embed_workflow(  # noqa: C901
         output_dir = prod.output_dir / "skim"
         output_dir.mkdir(parents=True, exist_ok=True)
 
-        if debug_mode and isinstance(debug_mode, Mapping):
+        if execution_settings.debug_mode and isinstance(execution_settings.debug_mode, Mapping):
             # input_files = {10: [Path("trains/pythia/2619/run_by_run/LHC18b8_cent_woSDD/282008/10/AnalysisResults.18b8_cent_woSDD.003.root")]}
             # input_files = {10: [
             #    Path("trains/pythia/2640/run_by_run/LHC20g4/296415/4/AnalysisResults.20g4.007.root"),
             #    Path("trains/pythia/2640/run_by_run/LHC20g4/296415/4/AnalysisResults.20g4.010.root"),
             # ]}
             # We rely on you to get this input type correct wrong since it's just a debug tool for convenience.
-            logger.info(f"Using debug mode input files: {debug_mode}")
-            input_files = debug_mode  # type: ignore[assignment]
+            logger.info(f"Using debug mode input files: {execution_settings.debug_mode}")
+            input_files = execution_settings.debug_mode  # type: ignore[assignment]
 
         # Setup for dataset settings (and grab analysis config for Output settings)
         _metadata_config = prod.config["metadata"]
@@ -962,9 +977,12 @@ def setup_framework_embed_workflow(  # noqa: C901
         # NOTE: Need to wait until here because need the scale factors
         # NOTE: We usually need to skip this during debug mode because we may not have all pt hat bins in the input,
         #       so it will fail trivially.
-        if set(scale_factors) != set(input_files) and not debug_mode:
+        if set(scale_factors) != set(input_files) and not execution_settings.debug_mode:
             _msg = f"Mismatch between the pt hat bins in the scale factors ({set(scale_factors)}) and the pt hat bins ({set(input_files)})"
             raise ValueError(_msg)
+
+        # Helper for below, so we don't have to call it repeatedly
+        cwd = Path.cwd()
 
         results = []
         _file_counter = 0
@@ -973,11 +991,11 @@ def setup_framework_embed_workflow(  # noqa: C901
             analysis_arguments_with_pt_hat_scale_factor["scale_factor"] = scale_factors[pt_hat_bin]
 
             for input_filename in input_filenames:
-                if _file_counter % 500 == 0 or debug_mode:
+                if _file_counter % 500 == 0 or execution_settings.debug_mode:
                     logger.info(f"Adding {input_filename} for analysis")
 
                 # For debugging
-                if debug_mode and _file_counter > 1:
+                if execution_settings.debug_mode and _file_counter > 1:
                     break
 
                 # Setup file I/O
@@ -989,6 +1007,7 @@ def setup_framework_embed_workflow(  # noqa: C901
                     number_of_parent_directories_for_relative_output_filename=_metadata_config["dataset"].get(
                         "number_of_parent_directories_for_relative_output_filename", None
                     ),
+                    cwd=cwd,
                 )
                 # Finally, add the customization
                 output_identifier += defined_output_identifier(**analysis_arguments_with_pt_hat_scale_factor)
@@ -1008,7 +1027,7 @@ def setup_framework_embed_workflow(  # noqa: C901
                         output_settings_config=_output_settings_config,
                         # Arguments
                         analysis_arguments=analysis_arguments_with_pt_hat_scale_factor,
-                        job_framework=job_framework,
+                        job_framework=execution_settings.job_framework,
                         inputs=[
                             File(str(input_filename)),
                         ],
@@ -1024,8 +1043,7 @@ def setup_framework_embed_workflow(  # noqa: C901
     # Select the correct setup function based on the collision system
     def wrap_setup(
         prod: production.ProductionSettings,
-        job_framework: job_utils.JobFramework,
-        debug_mode: bool | dict[str | int, Any],
+        execution_settings: job_utils.ExecutionSettings,
     ) -> list[Future[framework_task.Output]]:
         """Simple wrapper to forward on setup of the embed workflow for the framework.
 
@@ -1041,8 +1059,8 @@ def setup_framework_embed_workflow(  # noqa: C901
         """
         # Usually we want general embedding of MC into data, so handle embedding into the thermal model as the special case
         if prod.collision_system == "embed_thermal_model":
-            return wrap_setup_embed_MC_into_thermal_model(prod=prod, job_framework=job_framework, debug_mode=debug_mode)
-        return wrap_setup_embed_MC_into_data(prod=prod, job_framework=job_framework, debug_mode=debug_mode)
+            return wrap_setup_embed_MC_into_thermal_model(prod=prod, execution_settings=execution_settings)
+        return wrap_setup_embed_MC_into_data(prod=prod, execution_settings=execution_settings)
 
     return wrap_setup
 
@@ -1108,9 +1126,11 @@ def setup_job_framework(
     conda_environment_name: str | None = None,
     tasks_requiring_root: list[str] | None = None,
     tasks_requiring_aliphysics: list[str] | None = None,
+    override_minimize_IO_as_possible: bool | None = None,
+    debug_mode: bool = False,
 ) -> (
-    tuple[job_utils.parsl.DataFlowKernel, job_utils.parsl.Config]
-    | tuple[job_utils.dask.distributed.Client, job_utils.dask.distributed.SpecCluster]
+    tuple[job_utils.parsl.DataFlowKernel, job_utils.parsl.Config, job_utils.ExecutionSettings]
+    | tuple[job_utils.dask.distributed.Client, job_utils.dask.distributed.SpecCluster, job_utils.ExecutionSettings]
 ):
     # Validation
     if tasks_requiring_root is None:
@@ -1136,6 +1156,8 @@ def setup_job_framework(
         target_n_tasks_to_run_simultaneously=target_n_tasks_to_run_simultaneously,
         log_level=log_level,
         additional_worker_init_script=_additional_worker_init_script,
+        override_minimize_IO_as_possible=override_minimize_IO_as_possible,
+        debug_mode=debug_mode,
     )
 
 
