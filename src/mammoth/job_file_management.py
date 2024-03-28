@@ -147,9 +147,9 @@ class FileStaging:
         stage_in_dir.mkdir(parents=True, exist_ok=True)
 
         # Stage in the files, relative to the permanent directory.
-        modified_paths = []
+        modified_paths: list[Path] = []
         # Group the directories to create together to optimize IO
-        directories_to_create = set()
+        directories_to_create: set[Path] = set()
 
         for f in files_to_stage_in:
             p = self.path_manager.translate_input_permanent_to_node_path(f)
@@ -190,7 +190,7 @@ class FileStaging:
         """
         logger.debug("Staging out files")
         # Stage out the files, relative to the permanent directory.
-        modified_paths = []
+        modified_paths: list[Path] = []
         # Group the directories to create together to optimize IO
         directories_to_create = set()
         # Calculate the output paths
