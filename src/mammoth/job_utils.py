@@ -187,7 +187,7 @@ class Facility:
             staging strategy, return None.
         """
         if self.node_work_dir != Path():
-            return job_file_management.FileStaging(
+            return job_file_management.FileStaging.from_directories(
                 permanent_work_dir=self.storage_work_dir,
                 node_work_dir=self.node_work_dir,
             )
