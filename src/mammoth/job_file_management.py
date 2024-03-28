@@ -215,13 +215,23 @@ class FileStaging:
         return self._stage_files_out(files_to_stage_out=files_to_stage_out)
 
     def wrap_task(
-        self, f: Callable[..., Any], files_to_stage_in: list[Path], clean_up_staged_in_files: bool = True
+        self,
+        f: Callable[..., Any],
+        files_to_stage_in: list[Path],
+        name_of_input_files_kwargs: str,
+        clean_up_staged_in_files: bool = True,
     ) -> Callable[..., Any]:
         """Wrap a task to stage out files after the task completes.
+
+        NOTE:
+            Since we need to update the arguments with the locations of the staged in files,
+            this wrapper is somewhat limited, especially in the case of complicated arguments.
 
         Args:
             f: The function to wrap.
             files_to_stage_in: Files to stage in.
+            name_of_input_files_kwargs: Name of the input files kwargs in the wrapped function.
+                This enables you to pass the staged in files.
             clean_up_staged_in_files: Whether to clean up the staged in files
                 after the task completes. Default: True
         Returns:
@@ -229,9 +239,17 @@ class FileStaging:
         """
 
         def wrapper(*args: Any, **kwargs: Any) -> Any:
-            self.stage_files_in(
+            # Validation
+            if name_of_input_files_kwargs not in kwargs:
+                msg = f"Argument for input files {name_of_input_files_kwargs} not found in args list"
+                raise ValueError(msg)
+            staged_in_files = self.stage_files_in(
                 files_to_stage_in=files_to_stage_in, plan_to_clean_up_afterwards=clean_up_staged_in_files
             )
+            # Update the arguments with the locations of the staged in files.
+            kwargs[name_of_input_files_kwargs] = staged_in_files
+
+            # And then call the function
             result = f(*args, **kwargs)
             # Clean up the staged in files.
             if clean_up_staged_in_files:

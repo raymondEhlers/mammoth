@@ -114,7 +114,10 @@ def test_integration(staging_options: str) -> None:
         # Create a task to be wrapped.
         # In this case, we use it to create output files as it's only task.
         # However, it could be doing anything...
-        def generate_output_files(output_dir: Path) -> list[Path]:
+        def generate_output_files(
+            input_files: list[Path],  # noqa: ARG001
+            output_dir: Path,
+        ) -> list[Path]:
             """Generate output files.
 
             This is a stand in for a more complex task that would be wrapped by
@@ -133,12 +136,14 @@ def test_integration(staging_options: str) -> None:
         # Create an instance of FileStaging
         fs = FileStaging(permanent_work_dir=permanent_work_dir, node_work_dir=node_work_dir)
         if staging_options == "task_wrapper":
-            f = fs.wrap_task(generate_output_files, files_to_stage_in=permanent_files)
+            f = fs.wrap_task(
+                generate_output_files, name_of_input_files_kwargs="input_files", files_to_stage_in=permanent_files
+            )
             # NOTE: We call the result the output_files, but that's just for convenience in checking
             #       the test. It could be any result! In fact, we generally wouldn't want to return
             #       the output_files since they would point at the node work dir, which is temporary.
             #       (this won't be an issue in our framework because we can take care of this for a user).
-            node_path_files_to_stage_out = f(output_dir=fs.node_work_dir_output)
+            node_path_files_to_stage_out = f(input_files=permanent_files, output_dir=fs.node_work_dir_output)
             # We'll have to derive the staged_in_files and staged_out_files since we don't
             # have direct access to the outputs when we use the wrapper.
             node_path_files_staged_in = fs._staged_in_files
@@ -147,7 +152,9 @@ def test_integration(staging_options: str) -> None:
             # Stage in the permanent files
             node_path_files_staged_in = fs.stage_files_in(files_to_stage_in=permanent_files)
             # Generate the output files
-            node_path_files_to_stage_out = generate_output_files(fs.node_work_dir_output)
+            node_path_files_to_stage_out = generate_output_files(
+                input_files=node_path_files_staged_in, output_dir=fs.node_work_dir_output
+            )
             # Stage out the output files
             if "glob_output_files" in staging_options:
                 staged_out_files = fs.stage_all_files_out()
