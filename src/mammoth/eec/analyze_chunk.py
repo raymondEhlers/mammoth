@@ -592,7 +592,7 @@ def analyze_chunk_one_input_level(
         if res:
             trigger_skim_output.update(res)
 
-    return framework_task.AnalysisOutput(  # type: ignore[unreachable]
+    return framework_task.AnalysisOutput(
         hists=hists,
         skim=trigger_skim_output,
     )
