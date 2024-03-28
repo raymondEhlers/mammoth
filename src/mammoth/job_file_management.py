@@ -10,9 +10,10 @@ Based on the rsync provider. Modifications include:
 from __future__ import annotations
 
 import concurrent.futures
+import contextlib
 import logging
 import shutil
-from collections.abc import Callable
+from collections.abc import Callable, Generator
 from pathlib import Path
 from typing import Any
 
@@ -51,6 +52,10 @@ class FileStaging:
 
     and then staging out will undo this, again as appropriate. The scheme is slightly involved,
     but I think it will be more intuitive in the long run.
+
+    Note:
+        The preferred way to use this is via the `potential_file_staging` context manager!
+        It makes operations much, much simpler!
 
     Attributes:
         permanent_work_dir: Permanent work directory for storing files.
@@ -145,6 +150,8 @@ class FileStaging:
         """Clean up the staged in files after the task completes."""
         for f in self._staged_in_files:
             f.unlink()
+        # And clear the list since we're done.
+        self._staged_in_files = []
 
     def _stage_files_out(self, files_to_stage_out: list[Path]) -> list[Path]:
         """Stage files out implementation.
@@ -214,51 +221,41 @@ class FileStaging:
         """
         return self._stage_files_out(files_to_stage_out=files_to_stage_out)
 
-    def wrap_task(
-        self,
-        f: Callable[..., Any],
-        files_to_stage_in: list[Path],
-        name_of_input_files_kwargs: str,
-        clean_up_staged_in_files: bool = True,
-    ) -> Callable[..., Any]:
-        """Wrap a task to stage out files after the task completes.
 
-        NOTE:
-            Since we need to update the arguments with the locations of the staged in files,
-            this wrapper is somewhat limited, especially in the case of complicated arguments.
+@contextlib.contextmanager
+def potential_file_staging(
+    *, file_staging: FileStaging | None, input_files: list[Path], output_files: list[Path] | None = None
+) -> Generator[list[Path], None, None]:
+    """Manage file staging for tasks.
 
-        Args:
-            f: The function to wrap.
-            files_to_stage_in: Files to stage in.
-            name_of_input_files_kwargs: Name of the input files kwargs in the wrapped function.
-                This enables you to pass the staged in files.
-            clean_up_staged_in_files: Whether to clean up the staged in files
-                after the task completes. Default: True
-        Returns:
-            The wrapped function.
-        """
+    We assume that we will clean up the staged in files.
 
-        def wrapper(*args: Any, **kwargs: Any) -> Any:
-            # Validation
-            if name_of_input_files_kwargs not in kwargs:
-                msg = f"Argument for input files {name_of_input_files_kwargs} not found in args list"
-                raise ValueError(msg)
-            staged_in_files = self.stage_files_in(
-                files_to_stage_in=files_to_stage_in, plan_to_clean_up_afterwards=clean_up_staged_in_files
-            )
-            # Update the arguments with the locations of the staged in files.
-            kwargs[name_of_input_files_kwargs] = staged_in_files
+    NOTE:
+        If file staging is disabled, then we just provide the input files back and don't do
+        anything else. i.e. in that case, it's effectively a no-op.
 
-            # And then call the function
-            result = f(*args, **kwargs)
-            # Clean up the staged in files.
-            if clean_up_staged_in_files:
-                self.clean_up_staged_in_files_after_task()
-            # And stage out
-            self.stage_all_files_out()
-            return result
-
-        return wrapper
+    Args:
+        file_staging: File staging object.
+        input_files: Files to stage in.
+        output_files: Files to stage out. Default: None. If None, all files will be staged out.
+    Yields:
+        The path to staged in files.
+    """
+    if file_staging:
+        node_staged_in_files = file_staging.stage_files_in(files_to_stage_in=input_files)
+        # Yield the correct paths, Provide the opportunity for the user to do the necessary operations...
+        yield node_staged_in_files
+        # Clean up the staged in files
+        file_staging.clean_up_staged_in_files_after_task()
+        # And stage out, using the provided output files if appropriate.
+        if output_files is not None:
+            file_staging.stage_files_out(files_to_stage_out=output_files)
+        else:
+            file_staging.stage_all_files_out()
+    else:
+        # Nothing to be done...
+        yield input_files
+        # And no cleanup necessary
 
 
 def retrieve_working_dir(dm: DataManager, executor: str) -> str:

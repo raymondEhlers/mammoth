@@ -9,7 +9,7 @@ from pathlib import Path
 
 import pytest
 
-from mammoth.job_file_management import FileStaging
+from mammoth import job_file_management
 
 
 def test_stage_files_in() -> None:
@@ -32,7 +32,7 @@ def test_stage_files_in() -> None:
             file.parent.mkdir(parents=True, exist_ok=True)
             file.touch()
         # Create an instance of FileStaging
-        fs = FileStaging(permanent_work_dir=permanent_work_dir, node_work_dir=node_work_dir)
+        fs = job_file_management.FileStaging(permanent_work_dir=permanent_work_dir, node_work_dir=node_work_dir)
 
         # Stage in the files
         staged_files = fs.stage_files_in(files)
@@ -62,7 +62,7 @@ def test_stage_files_out() -> None:
         node_work_dir.mkdir(parents=True)
 
         # Create an instance of FileStaging
-        fs = FileStaging(permanent_work_dir=permanent_work_dir, node_work_dir=node_work_dir)
+        fs = job_file_management.FileStaging(permanent_work_dir=permanent_work_dir, node_work_dir=node_work_dir)
         # Create test files at different depths in the node work dir
         node_files = [
             fs.node_work_dir_output / "dir1" / "dir2" / "file1.txt",
@@ -89,7 +89,7 @@ def test_stage_files_out() -> None:
 
 
 # TODO: Test staging out all files vs the list!
-@pytest.mark.parametrize("staging_options", ["task_wrapper", "wo_task_wrapper", "wo_task_wrapper_glob_output_files"])
+@pytest.mark.parametrize("staging_options", ["context_manager", "wo_task_wrapper", "wo_task_wrapper_glob_output_files"])
 def test_integration(staging_options: str) -> None:
     """Integration test for staging in and staging out."""
     # Create a temporary directory with a nested structure
@@ -134,20 +134,21 @@ def test_integration(staging_options: str) -> None:
             return output_files
 
         # Create an instance of FileStaging
-        fs = FileStaging(permanent_work_dir=permanent_work_dir, node_work_dir=node_work_dir)
-        if staging_options == "task_wrapper":
-            f = fs.wrap_task(
-                generate_output_files, name_of_input_files_kwargs="input_files", files_to_stage_in=permanent_files
-            )
-            # NOTE: We call the result the output_files, but that's just for convenience in checking
-            #       the test. It could be any result! In fact, we generally wouldn't want to return
-            #       the output_files since they would point at the node work dir, which is temporary.
-            #       (this won't be an issue in our framework because we can take care of this for a user).
-            node_path_files_to_stage_out = f(input_files=permanent_files, output_dir=fs.node_work_dir_output)
-            # We'll have to derive the staged_in_files and staged_out_files since we don't
-            # have direct access to the outputs when we use the wrapper.
-            node_path_files_staged_in = fs._staged_in_files
-            staged_out_files = [fs.translated_node_to_permanent_path(f) for f in node_path_files_to_stage_out]
+        fs = job_file_management.FileStaging(permanent_work_dir=permanent_work_dir, node_work_dir=node_work_dir)
+        if staging_options == "context_manager":
+            with job_file_management.potential_file_staging(file_staging=fs, input_files=permanent_files):
+                node_path_files_to_stage_out = generate_output_files(
+                    input_files=permanent_files, output_dir=fs.node_work_dir_output
+                )
+                # NOTE: We call the result the output_files, but that's just for convenience in checking
+                #       the test. It could be any result! In fact, we generally wouldn't want to return
+                #       the output_files since they would point at the node work dir, which is temporary.
+                #       (this won't be an issue in our framework because we can take care of this for a user).
+
+                # We'll have to derive the staged_in_files and staged_out_files since we don't
+                # have direct access to the outputs when we use the wrapper.
+                node_path_files_staged_in = fs._staged_in_files
+                staged_out_files = [fs.translated_node_to_permanent_path(f) for f in node_path_files_to_stage_out]
         else:
             # Stage in the permanent files
             node_path_files_staged_in = fs.stage_files_in(files_to_stage_in=permanent_files)
