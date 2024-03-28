@@ -32,13 +32,15 @@ def test_stage_files_in() -> None:
             file.parent.mkdir(parents=True, exist_ok=True)
             file.touch()
         # Create an instance of FileStaging
-        fs = job_file_management.FileStaging(permanent_work_dir=permanent_work_dir, node_work_dir=node_work_dir)
+        fs = job_file_management.FileStaging.from_directories(
+            permanent_work_dir=permanent_work_dir, node_work_dir=node_work_dir
+        )
 
         # Stage in the files
         staged_files = fs.stage_files_in(files)
 
         # Verify that the files are staged in to the correct location
-        expected_staged_files = [fs.node_work_dir_input / file.relative_to(permanent_work_dir) for file in files]
+        expected_staged_files = [fs.path_manager.translate_input_permanent_to_node_path(file) for file in files]
         assert staged_files == expected_staged_files
         # And verify that they actually exist!
         for staged_file in staged_files:
@@ -62,12 +64,14 @@ def test_stage_files_out() -> None:
         node_work_dir.mkdir(parents=True)
 
         # Create an instance of FileStaging
-        fs = job_file_management.FileStaging(permanent_work_dir=permanent_work_dir, node_work_dir=node_work_dir)
+        fs = job_file_management.FileStaging.from_directories(
+            permanent_work_dir=permanent_work_dir, node_work_dir=node_work_dir
+        )
         # Create test files at different depths in the node work dir
         node_files = [
-            fs.node_work_dir_output / "dir1" / "dir2" / "file1.txt",
-            fs.node_work_dir_output / "dir1" / "file2.txt",
-            fs.node_work_dir_output / "file3.txt",
+            fs.path_manager.node_work_dir_output / "dir1" / "dir2" / "file1.txt",
+            fs.path_manager.node_work_dir_output / "dir1" / "file2.txt",
+            fs.path_manager.node_work_dir_output / "file3.txt",
         ]
         for f in node_files:
             f.parent.mkdir(parents=True, exist_ok=True)
@@ -88,7 +92,6 @@ def test_stage_files_out() -> None:
         assert not any(node_file.exists() for node_file in node_files)
 
 
-# TODO: Test staging out all files vs the list!
 @pytest.mark.parametrize("staging_options", ["context_manager", "wo_task_wrapper", "wo_task_wrapper_glob_output_files"])
 def test_integration(staging_options: str) -> None:
     """Integration test for staging in and staging out."""
@@ -115,7 +118,7 @@ def test_integration(staging_options: str) -> None:
         # In this case, we use it to create output files as it's only task.
         # However, it could be doing anything...
         def generate_output_files(
-            input_files: list[Path],  # noqa: ARG001
+            input_files: list[Path],
             output_dir: Path,
         ) -> list[Path]:
             """Generate output files.
@@ -123,6 +126,12 @@ def test_integration(staging_options: str) -> None:
             This is a stand in for a more complex task that would be wrapped by
             the FileStaging class.
             """
+            # Check that we have the node worker input files!
+            expected_staged_in_files = sorted(
+                [fs.path_manager.translate_input_permanent_to_node_path(f) for f in permanent_files]
+            )
+            assert sorted(input_files) == expected_staged_in_files
+
             output_files = [
                 output_dir / "output1.txt",
                 output_dir / "output2.txt",
@@ -134,11 +143,15 @@ def test_integration(staging_options: str) -> None:
             return output_files
 
         # Create an instance of FileStaging
-        fs = job_file_management.FileStaging(permanent_work_dir=permanent_work_dir, node_work_dir=node_work_dir)
+        fs = job_file_management.FileStaging.from_directories(
+            permanent_work_dir=permanent_work_dir, node_work_dir=node_work_dir
+        )
         if staging_options == "context_manager":
-            with job_file_management.potential_file_staging(file_staging=fs, input_files=permanent_files):
+            with job_file_management.StagingManager(file_staging=fs, input_files=permanent_files) as staging_manager:
+                translated_input_files = staging_manager.translate_input_paths(paths=permanent_files)
                 node_path_files_to_stage_out = generate_output_files(
-                    input_files=permanent_files, output_dir=fs.node_work_dir_output
+                    input_files=translated_input_files,
+                    output_dir=staging_manager.translate_output_paths([permanent_work_dir])[0],
                 )
                 # NOTE: We call the result the output_files, but that's just for convenience in checking
                 #       the test. It could be any result! In fact, we generally wouldn't want to return
@@ -148,13 +161,15 @@ def test_integration(staging_options: str) -> None:
                 # We'll have to derive the staged_in_files and staged_out_files since we don't
                 # have direct access to the outputs when we use the wrapper.
                 node_path_files_staged_in = fs._staged_in_files
-                staged_out_files = [fs.translated_node_to_permanent_path(f) for f in node_path_files_to_stage_out]
+                staged_out_files = [
+                    fs.path_manager.translate_output_node_to_permanent_path(f) for f in node_path_files_to_stage_out
+                ]
         else:
             # Stage in the permanent files
             node_path_files_staged_in = fs.stage_files_in(files_to_stage_in=permanent_files)
             # Generate the output files
             node_path_files_to_stage_out = generate_output_files(
-                input_files=node_path_files_staged_in, output_dir=fs.node_work_dir_output
+                input_files=node_path_files_staged_in, output_dir=fs.path_manager.node_work_dir_output
             )
             # Stage out the output files
             if "glob_output_files" in staging_options:
@@ -165,7 +180,9 @@ def test_integration(staging_options: str) -> None:
             fs.clean_up_staged_in_files_after_task()
 
         # Verify that the files are staged in and staged out to the correct locations
-        expected_staged_in_files = sorted([fs.translate_permanent_to_node_path(f) for f in permanent_files])
+        expected_staged_in_files = sorted(
+            [fs.path_manager.translate_input_permanent_to_node_path(f) for f in permanent_files]
+        )
         expected_staged_out_files = sorted(
             [
                 permanent_work_dir / "output1.txt",
@@ -187,3 +204,54 @@ def test_integration(staging_options: str) -> None:
         assert not any(staged_file.exists() for staged_file in node_path_files_staged_in)
         # Verify that the staged out files on the node are cleaned up
         assert not any(staged_file.exists() for staged_file in node_path_files_to_stage_out)
+
+
+@pytest.mark.parametrize("actually_stage_files", [True, False])
+def test_staging_manager(actually_stage_files: bool) -> None:
+    """Tests for the staging manager.
+
+    Includes testing that it does nothing when the file staging is disabled
+    """
+    # Create a temporary directory with a nested structure
+    with tempfile.TemporaryDirectory() as temp_dir:
+        # Setup
+        temp_dir_path = Path(temp_dir)
+        permanent_work_dir = temp_dir_path / "permanent"
+        node_work_dir = temp_dir_path / "worker_node"
+        permanent_work_dir.mkdir(parents=True)
+        node_work_dir.mkdir(parents=True)
+
+        # Create test files at different depths in the permanent work dir
+        permanent_files = [
+            permanent_work_dir / "dir1" / "dir2" / "file1.txt",
+            permanent_work_dir / "dir1" / "file2.txt",
+            permanent_work_dir / "file3.txt",
+        ]
+        for f in permanent_files:
+            f.parent.mkdir(parents=True, exist_ok=True)
+            f.touch()
+
+        fs = None
+        if actually_stage_files:
+            fs = job_file_management.FileStaging.from_directories(
+                permanent_work_dir=permanent_work_dir, node_work_dir=node_work_dir
+            )
+
+        with job_file_management.StagingManager(file_staging=fs, input_files=permanent_files) as staging_manager:
+            translated_input_files = staging_manager.translate_input_paths(paths=permanent_files)
+            translated_output_files = staging_manager.translate_output_paths([permanent_work_dir])
+
+            if actually_stage_files:
+                # Input
+                comparison_files_input = {
+                    fs.path_manager.translate_input_permanent_to_node_path(f) for f in permanent_files
+                }
+                assert set(translated_input_files) == comparison_files_input
+                # Output
+                assert set(translated_output_files) == {fs.path_manager.node_work_dir_output}
+            else:
+                # Input
+                comparison_files_input = set(permanent_files)
+                assert set(translated_input_files) == comparison_files_input
+                # Output
+                assert set(translated_output_files) == {permanent_work_dir}
