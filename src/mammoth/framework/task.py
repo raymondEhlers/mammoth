@@ -23,6 +23,7 @@ import numpy as np
 import numpy.typing as npt
 import uproot
 
+from mammoth import job_file_management
 from mammoth.framework import sources
 from mammoth.framework.io import output_utils
 
@@ -160,7 +161,7 @@ class OutputSettings:
             return_merged_hists=self.return_merged_hists,
             write_chunk_hists=self.write_chunk_hists,
             write_merged_hists=self.write_merged_hists,
-            # 1: because we don't want to store the leading "."
+            # [1:] because we don't want to store the leading "."
             write_skim_extension=new_output_filename.suffix[1:],
         )
 
@@ -561,6 +562,7 @@ def python_app_data(
         job_framework: job_utils.JobFramework,  # noqa: ARG001
         inputs: list[File] = [],  # noqa: B006
         outputs: list[File] = [],  # noqa: B006
+        file_staging: job_file_management.FileStaging | None = None,
         # NOTE: These aren't meaningful for python apps! However, they silence some parsl warnings (which are actually incorrect and due to bugs, but w/e),
         #       and they don't hurt anything, so better to just put them in.
         # NOTE: The int typing is only because the AUTO_LOGNAME is apparently defined using a literal int.
@@ -594,54 +596,67 @@ def python_app_data(
             metadata_function = no_op_customize_metadata_for_labeling
 
         signal_input = [Path(_input_file.filepath) for _input_file in inputs]
-        try:
-            result = steer_task.steer_data_task(
-                # General task settings
-                task_settings=Settings(
+        # NOTE: We can't explicitly stage the output files here because the convention is just to pass
+        #       a dummy output file that we'll adapt to our needs in the task. We do this because we don't
+        #       know for show e.g. how many chunks the task will produce, so we can't know the output
+        #       filenames beforehand. By not passing explicitly, it will move all files that are there.
+        with job_file_management.StagingManager(file_staging=file_staging, input_files=signal_input) as staging_manager:
+            # NOTE: It's really important - we need to take (potentially) updated paths here!
+            translated_signal_input, translated_output = staging_manager.translate_paths(
+                input_files=signal_input, output_files=[Path(p.filepath) for p in outputs]
+            )
+            try:
+                result = steer_task.steer_data_task(
+                    # General task settings
+                    task_settings=Settings(
+                        production_identifier=production_identifier,
+                        collision_system=collision_system,
+                        chunk_size=chunk_size,
+                        input_metadata={
+                            "signal_source_config": input_source_config,
+                            # NOTE: We intentionally pass the untranslated paths here to ensure that the task
+                            #       metadata isn't impacted by the file staging. We shouldn't access the file
+                            #       here in any case - it's just to keep track, so it's fine to keep the original.
+                            "signal_input": translated_signal_input,
+                            "source_input_options": input_options,
+                            "type": "data",
+                        },
+                    ),
+                    # Inputs
+                    setup_input_source=functools.partial(
+                        load_data.setup_source_for_data_or_MC_task,
+                        signal_input=translated_signal_input,
+                        signal_source=io.file_source(file_source_config=input_source_config),
+                        **input_options,
+                    ),
+                    output_settings=OutputSettings.from_config(
+                        output_filename=translated_output[0],
+                        config=output_settings_config,
+                    ),
+                    # Analysis
+                    analysis_function=functools.partial(
+                        analysis_function,
+                        **analysis_arguments,
+                    ),
+                    metadata_for_labeling_function=functools.partial(
+                        metadata_function,
+                        **analysis_arguments,
+                    ),
+                    # Pass it separately to ensure that it's accounted for explicitly.
+                    validation_mode=analysis_arguments.get("validation_mode", False),
+                )
+            except Exception as e:
+                result = framework_task.Output(
                     production_identifier=production_identifier,
                     collision_system=collision_system,
-                    chunk_size=chunk_size,
-                    input_metadata={
-                        "signal_source_config": input_source_config,
+                    success=False,
+                    message=f"failure during execution of task with exception {e} with: \n{traceback.format_exc()}",
+                    metadata={
+                        "analysis_arguments": analysis_arguments,
                         "signal_input": signal_input,
-                        "source_input_options": input_options,
-                        "type": "data",
                     },
-                ),
-                # Inputs
-                setup_input_source=functools.partial(
-                    load_data.setup_source_for_data_or_MC_task,
-                    signal_input=signal_input,
-                    signal_source=io.file_source(file_source_config=input_source_config),
-                    **input_options,
-                ),
-                output_settings=OutputSettings.from_config(
-                    output_filename=Path(outputs[0].filepath),
-                    config=output_settings_config,
-                ),
-                # Analysis
-                analysis_function=functools.partial(
-                    analysis_function,
-                    **analysis_arguments,
-                ),
-                metadata_for_labeling_function=functools.partial(
-                    metadata_function,
-                    **analysis_arguments,
-                ),
-                # Pass it separately to ensure that it's accounted for explicitly.
-                validation_mode=analysis_arguments.get("validation_mode", False),
-            )
-        except Exception as e:
-            result = framework_task.Output(
-                production_identifier=production_identifier,
-                collision_system=collision_system,
-                success=False,
-                message=f"failure during execution of task with exception {e} with: \n{traceback.format_exc()}",
-                metadata={
-                    "analysis_arguments": analysis_arguments,
-                    "signal_input": [Path(_input_file.filepath) for _input_file in inputs],
-                },
-            )
+                )
+
         return result
 
     return app_wrapper
@@ -696,6 +711,7 @@ def python_app_embed_MC_into_data(
         job_framework: job_utils.JobFramework,  # noqa: ARG001
         inputs: list[File] = [],  # noqa: B006
         outputs: list[File] = [],  # noqa: B006
+        file_staging: job_file_management.FileStaging | None = None,
         # See note in data version
         stdout: int | str = job_utils.parsl.AUTO_LOGNAME,  # noqa: ARG001
         stderr: int | str = job_utils.parsl.AUTO_LOGNAME,  # noqa: ARG001
@@ -728,60 +744,72 @@ def python_app_embed_MC_into_data(
 
         signal_input = [Path(_input_file.filepath) for _input_file in inputs[:n_signal_input_files]]
         background_input = [Path(_input_file.filepath) for _input_file in inputs[n_signal_input_files:]]
-        try:
-            result = steer_task.steer_embed_task(
-                # General task settings
-                task_settings=Settings(
+        # NOTE: We can't explicitly stage the output files here because the convention is just to pass
+        #       a dummy output file that we'll adapt to our needs in the task. We do this because we don't
+        #       know for show e.g. how many chunks the task will produce, so we can't know the output
+        #       filenames beforehand. By not passing explicitly, it will move all files that are there.
+        with job_file_management.StagingManager(file_staging=file_staging, input_files=signal_input) as staging_manager:
+            # NOTE: It's really important - we need to take (potentially) updated paths here!
+            translated_signal_input = staging_manager.translate_input_paths(paths=signal_input)
+            translated_background_input = staging_manager.translate_input_paths(paths=background_input)
+            translated_output = staging_manager.translate_output_paths(paths=[Path(p.filepath) for p in outputs])
+            try:
+                result = steer_task.steer_embed_task(
+                    # General task settings
+                    task_settings=Settings(
+                        production_identifier=production_identifier,
+                        collision_system=collision_system,
+                        chunk_size=chunk_size,
+                        input_metadata={
+                            "signal_source_config": signal_input_source_config,
+                            # NOTE: We intentionally pass the untranslated paths here to ensure that the task
+                            #       metadata isn't impacted by the file staging. We shouldn't access the file
+                            #       here in any case - it's just to keep track, so it's fine to keep the original.
+                            "signal_input": signal_input,
+                            "background_source_config": background_input_source_config,
+                            "background_input": background_input,
+                            "source_input_options": source_input_options,
+                            "type": "embed_MC_into_data",
+                        },
+                    ),
+                    # Inputs
+                    setup_input_source=functools.partial(
+                        load_data.setup_source_for_embedding_task,
+                        signal_input=translated_signal_input,
+                        signal_source=io.file_source(file_source_config=signal_input_source_config),
+                        background_input=translated_background_input,
+                        background_source=io.file_source(file_source_config=background_input_source_config),
+                        **source_input_options,
+                    ),
+                    output_settings=OutputSettings.from_config(
+                        output_filename=translated_output[0],
+                        config=output_settings_config,
+                    ),
+                    # Analysis
+                    analysis_function=functools.partial(
+                        analysis_function,
+                        **analysis_arguments,
+                    ),
+                    metadata_for_labeling_function=functools.partial(
+                        metadata_function,
+                        **analysis_arguments,
+                    ),
+                    # Pass it separately to ensure that it's accounted for explicitly.
+                    validation_mode=analysis_arguments.get("validation_mode", False),
+                )
+            except Exception as e:
+                result = framework_task.Output(
                     production_identifier=production_identifier,
                     collision_system=collision_system,
-                    chunk_size=chunk_size,
-                    input_metadata={
-                        "signal_source_config": signal_input_source_config,
+                    success=False,
+                    message=f"failure during execution of task with exception {e} with: \n{traceback.format_exc()}",
+                    metadata={
+                        "analysis_arguments": analysis_arguments,
                         "signal_input": signal_input,
-                        "background_source_config": background_input_source_config,
                         "background_input": background_input,
-                        "source_input_options": source_input_options,
-                        "type": "embed_MC_into_data",
                     },
-                ),
-                # Inputs
-                setup_input_source=functools.partial(
-                    load_data.setup_source_for_embedding_task,
-                    signal_input=signal_input,
-                    signal_source=io.file_source(file_source_config=signal_input_source_config),
-                    background_input=background_input,
-                    background_source=io.file_source(file_source_config=background_input_source_config),
-                    **source_input_options,
-                ),
-                output_settings=OutputSettings.from_config(
-                    output_filename=Path(outputs[0].filepath),
-                    config=output_settings_config,
-                ),
-                # Analysis
-                analysis_function=functools.partial(
-                    analysis_function,
-                    **analysis_arguments,
-                ),
-                metadata_for_labeling_function=functools.partial(
-                    metadata_function,
-                    **analysis_arguments,
-                ),
-                # Pass it separately to ensure that it's accounted for explicitly.
-                validation_mode=analysis_arguments.get("validation_mode", False),
-            )
-        except Exception as e:
-            result = framework_task.Output(
-                production_identifier=production_identifier,
-                collision_system=collision_system,
-                success=False,
-                message=f"failure during execution of task with exception {e} with: \n{traceback.format_exc()}",
-                metadata={
-                    "analysis_arguments": analysis_arguments,
-                    "signal_input": [Path(_input_file.filepath) for _input_file in inputs[:n_signal_input_files]],
-                    "background_input": [Path(_input_file.filepath) for _input_file in inputs[n_signal_input_files:]],
-                },
-            )
-        return result
+                )
+            return result
 
     return app_wrapper
 
@@ -834,6 +862,7 @@ def python_app_embed_MC_into_thermal_model(
         job_framework: job_utils.JobFramework,  # noqa: ARG001
         inputs: list[File] = [],  # noqa: B006
         outputs: list[File] = [],  # noqa: B006
+        file_staging: job_file_management.FileStaging | None = None,
         # See note in data version
         stdout: int | str = job_utils.parsl.AUTO_LOGNAME,  # noqa: ARG001
         stderr: int | str = job_utils.parsl.AUTO_LOGNAME,  # noqa: ARG001
@@ -865,58 +894,69 @@ def python_app_embed_MC_into_thermal_model(
             metadata_function = no_op_customize_metadata_for_labeling
 
         signal_input = [Path(_input_file.filepath) for _input_file in inputs]
-        try:
-            result = steer_task.steer_embed_task(
-                # General task settings
-                task_settings=Settings(
+        # NOTE: We can't explicitly stage the output files here because the convention is just to pass
+        #       a dummy output file that we'll adapt to our needs in the task. We do this because we don't
+        #       know for show e.g. how many chunks the task will produce, so we can't know the output
+        #       filenames beforehand. By not passing explicitly, it will move all files that are there.
+        with job_file_management.StagingManager(file_staging=file_staging, input_files=signal_input) as staging_manager:
+            # NOTE: It's really important - we need to take (potentially) updated paths here!
+            translated_signal_input = staging_manager.translate_input_paths(paths=signal_input)
+            translated_output = staging_manager.translate_output_paths(paths=[Path(p.filepath) for p in outputs])
+            try:
+                result = steer_task.steer_embed_task(
+                    # General task settings
+                    task_settings=Settings(
+                        production_identifier=production_identifier,
+                        collision_system=collision_system,
+                        chunk_size=chunk_size,
+                        input_metadata={
+                            "signal_source_config": input_source_config,
+                            # NOTE: We intentionally pass the untranslated paths here to ensure that the task
+                            #       metadata isn't impacted by the file staging. We shouldn't access the file
+                            #       here in any case - it's just to keep track, so it's fine to keep the original.
+                            "signal_input": signal_input,
+                            "background_source_config": thermal_model_parameters,
+                            "background_input": [],
+                            "source_input_options": source_input_options,
+                            "type": "embed_MC_into_thermal_model",
+                        },
+                    ),
+                    # Inputs
+                    setup_input_source=functools.partial(
+                        load_data.setup_source_for_embedding_thermal_model_task,
+                        signal_input=translated_signal_input,
+                        signal_source=io.file_source(file_source_config=input_source_config),
+                        thermal_model_parameters=thermal_model_parameters,
+                        **source_input_options,
+                    ),
+                    output_settings=OutputSettings.from_config(
+                        output_filename=translated_output[0],
+                        config=output_settings_config,
+                    ),
+                    # Analysis
+                    analysis_function=functools.partial(
+                        analysis_function,
+                        **analysis_arguments,
+                    ),
+                    metadata_for_labeling_function=functools.partial(
+                        metadata_function,
+                        **analysis_arguments,
+                    ),
+                    # Pass it separately to ensure that it's accounted for explicitly.
+                    validation_mode=analysis_arguments.get("validation_mode", False),
+                )
+            except Exception as e:
+                result = framework_task.Output(
                     production_identifier=production_identifier,
                     collision_system=collision_system,
-                    chunk_size=chunk_size,
-                    input_metadata={
-                        "signal_source_config": input_source_config,
+                    success=False,
+                    message=f"failure during execution of task with exception {e} with: \n{traceback.format_exc()}",
+                    metadata={
+                        "analysis_arguments": analysis_arguments,
                         "signal_input": signal_input,
-                        "background_source_config": thermal_model_parameters,
-                        "background_input": [],
-                        "source_input_options": source_input_options,
-                        "type": "embed_MC_into_thermal_model",
+                        "thermal_model_parameters": thermal_model_parameters,
                     },
-                ),
-                # Inputs
-                setup_input_source=functools.partial(
-                    load_data.setup_source_for_embedding_thermal_model_task,
-                    signal_input=signal_input,
-                    signal_source=io.file_source(file_source_config=input_source_config),
-                    thermal_model_parameters=thermal_model_parameters,
-                    **source_input_options,
-                ),
-                output_settings=OutputSettings.from_config(
-                    output_filename=Path(outputs[0].filepath),
-                    config=output_settings_config,
-                ),
-                # Analysis
-                analysis_function=functools.partial(
-                    analysis_function,
-                    **analysis_arguments,
-                ),
-                metadata_for_labeling_function=functools.partial(
-                    metadata_function,
-                    **analysis_arguments,
-                ),
-                # Pass it separately to ensure that it's accounted for explicitly.
-                validation_mode=analysis_arguments.get("validation_mode", False),
-            )
-        except Exception as e:
-            result = framework_task.Output(
-                production_identifier=production_identifier,
-                collision_system=collision_system,
-                success=False,
-                message=f"failure during execution of task with exception {e} with: \n{traceback.format_exc()}",
-                metadata={
-                    "analysis_arguments": analysis_arguments,
-                    "signal_input": [Path(_input_file.filepath) for _input_file in inputs],
-                    "thermal_model_parameters": thermal_model_parameters,
-                },
-            )
-        return result
+                )
+            return result
 
     return app_wrapper
