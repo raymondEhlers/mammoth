@@ -12,6 +12,7 @@ from __future__ import annotations
 import concurrent.futures
 import logging
 import shutil
+import uuid
 from collections.abc import Callable
 from pathlib import Path
 from types import TracebackType
@@ -32,6 +33,7 @@ logger = logging.getLogger(__name__)
 class PathManager:
     permanent_work_dir: Path
     node_work_dir: Path
+    _unique_id: str = attrs.field(init=False, factory=lambda: str(uuid.uuid4())[:10])
 
     @property
     def node_work_dir_input(self) -> Path:
@@ -39,7 +41,7 @@ class PathManager:
 
         Nothing deeper here - just a useful convention.
         """
-        return self.node_work_dir / "input"
+        return self.node_work_dir / self._unique_id / "input"
 
     @property
     def node_work_dir_output(self) -> Path:
@@ -47,7 +49,7 @@ class PathManager:
 
         Nothing deeper here - just a useful convention.
         """
-        return self.node_work_dir / "output"
+        return self.node_work_dir / self._unique_id / "output"
 
     def translate_input_permanent_to_node_path(self, permanent_path: Path) -> Path:
         """Translate a file path from the permanent directory to the worker node directory.
