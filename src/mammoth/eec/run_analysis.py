@@ -126,8 +126,7 @@ def define_productions() -> list[production.ProductionSettings]:
 def setup_and_submit_tasks(
     productions: Sequence[production.ProductionSettings],
     task_config: job_utils.TaskConfig,
-    job_framework: job_utils.JobFramework,
-    debug_mode: bool,
+    execution_settings: job_utils.ExecutionSettings,
     job_executor: job_utils.parsl.DataFlowKernel | job_utils.dask.distributed.Client,
 ) -> list[Future[Any]]:
     all_results: list[Future[framework_task.Output]] = []
@@ -144,7 +143,7 @@ def setup_and_submit_tasks(
             system_results.extend(
                 steer_scale_factors.steer_extract_scale_factors(
                     prod=prod,
-                    job_framework=job_framework,
+                    job_framework=execution_settings.job_framework,
                 )
             )
         standard_workflows = ["calculate_data_skim", "calculate_pp_MC_skim"]
@@ -153,8 +152,7 @@ def setup_and_submit_tasks(
                 system_results.extend(
                     setup_standard_workflow(
                         prod=prod,
-                        job_framework=job_framework,
-                        debug_mode=debug_mode,
+                        execution_settings=execution_settings,
                     )
                 )
         embed_workflows = ["calculate_embed_thermal_model_skim", "calculate_embed_pythia_skim"]
@@ -163,8 +161,7 @@ def setup_and_submit_tasks(
                 system_results.extend(
                     setup_embed_workflow(
                         prod=prod,
-                        job_framework=job_framework,
-                        debug_mode=debug_mode,
+                        execution_settings=execution_settings,
                     )
                 )
 
@@ -173,7 +170,7 @@ def setup_and_submit_tasks(
 
     logger.info(f"Accumulated {len(all_results)} total futures")
 
-    if job_framework == job_utils.JobFramework.dask_delayed:
+    if execution_settings.job_framework == job_utils.JobFramework.dask_delayed:
         assert isinstance(job_executor, job_utils.dask.distributed.Client)
         all_results = job_executor.compute(  # type: ignore[no-untyped-call]
             all_results,
@@ -260,6 +257,7 @@ def run(job_framework: job_utils.JobFramework) -> list[Future[Any]]:
     target_n_tasks_to_run_simultaneously = 60
     log_level = logging.INFO
     walltime = "24:00:00"
+    override_minimize_IO_as_possible = None
     debug_mode = True
     if debug_mode:
         # Usually, we want to run in the short queue
@@ -269,7 +267,7 @@ def run(job_framework: job_utils.JobFramework) -> list[Future[Any]]:
     facility: job_utils.FACILITIES = "rehlers_mbp_m1pro"
 
     # Keep the job executor just to keep it alive
-    job_executor, _job_framework_config = setup_job_framework(
+    job_executor, _job_framework_config, execution_settings = setup_job_framework(
         job_framework=job_framework,
         productions=productions,
         task_config=task_config,
@@ -278,12 +276,13 @@ def run(job_framework: job_utils.JobFramework) -> list[Future[Any]]:
         target_n_tasks_to_run_simultaneously=target_n_tasks_to_run_simultaneously,
         log_level=log_level,
         conda_environment_name=conda_environment_name,
+        override_minimize_IO_as_possible=override_minimize_IO_as_possible,
+        debug_mode=debug_mode,
     )
     all_results = setup_and_submit_tasks(
         productions=productions,
         task_config=task_config,
-        job_framework=job_framework,
-        debug_mode=debug_mode,
+        execution_settings=execution_settings,
         job_executor=job_executor,
     )
 

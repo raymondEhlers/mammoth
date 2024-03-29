@@ -1060,8 +1060,8 @@ def setup_job_framework(
     log_level: int,
     conda_environment_name: str | None = None,
 ) -> (
-    tuple[job_utils.parsl.DataFlowKernel, job_utils.parsl.Config]
-    | tuple[job_utils.dask.distributed.Client, job_utils.dask.distributed.SpecCluster]
+    tuple[job_utils.parsl.DataFlowKernel, job_utils.parsl.Config, job_utils.ExecutionSettings]
+    | tuple[job_utils.dask.distributed.Client, job_utils.dask.distributed.SpecCluster, job_utils.ExecutionSettings]
 ):
     # First, need to figure out if we need additional environments such as ROOT
     _additional_worker_init_script = alice_job_utils.determine_additional_worker_init(
@@ -1362,7 +1362,7 @@ def run(job_framework: job_utils.JobFramework) -> list[Future[Any]]:
     facility: job_utils.FACILITIES = "hiccup_std" if job_utils.hours_in_walltime(walltime) >= 2 else "hiccup_quick"
 
     # Keep the job executor just to keep it alive
-    job_executor, _job_framework_config = setup_job_framework(
+    job_executor, _job_framework_config, _execution_config = setup_job_framework(
         job_framework=job_framework,
         productions=productions,
         task_config=task_config,
