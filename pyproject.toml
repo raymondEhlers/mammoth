@@ -222,6 +222,7 @@ exclude = [
     'bak',
     'build',
     'dist',
+    "src/*/_version.py",
 ]
 
 [tool.ruff.lint]
