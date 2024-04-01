@@ -128,13 +128,13 @@ def _read_full_config(config_path: Path | None = None) -> dict[str, Any]:
     return full_config
 
 
-def _check_for_list_of_files_in_txt_file(files: list[str]) -> bool:
+def _check_for_list_of_files_in_txt_file(files: list[Path]) -> bool:
     """Check if the files are listed in a text file."""
     # This is simplify defined by convention
-    return len(files) == 1 and "files.txt" in files[0]
+    return len(files) == 1 and "files.txt" in str(files[0])
 
 
-def _filenames_from_txt_file(files: list[str]) -> list[Path]:
+def _filenames_from_txt_file(files: list[Path]) -> list[Path]:
     """Read filenames from a text file."""
     # Validation as a double check
     if not _check_for_list_of_files_in_txt_file(files):
@@ -269,6 +269,12 @@ class ProductionSettings:
             return _files
 
         input_files = self.config["metadata"]["dataset"]["files"]
+        # Standardize input_files:
+        # We want these paths to be relative to the output directory to allow
+        # the outputs to be used with an absolute storage work directory.
+        input_files = [self.base_output_dir / p for p in input_files]
+
+        # Now, check for a file list
         if _check_for_list_of_files_in_txt_file(input_files):
             return _filenames_from_txt_file(input_files)
 
@@ -291,7 +297,14 @@ class ProductionSettings:
         dataset_key = "signal_dataset" if "signal_dataset" in self.config["metadata"] else "dataset"
 
         input_files = self.config["metadata"][dataset_key]["files"]
+        # Standardize input_files:
+        # We want these paths to be relative to the output directory to allow
+        # the outputs to be used with an absolute storage work directory.
+        input_files = [self.base_output_dir / p for p in input_files]
+
+        # Now, check for a file list
         if _check_for_list_of_files_in_txt_file(input_files):
+            # These filenames are already assumed to be absolute.
             _all_files = _filenames_from_txt_file(input_files)
 
             # Now, extract the pt hat bin and group by pt hat bin according to the convention
@@ -312,8 +325,12 @@ class ProductionSettings:
         # +1 due to pt hat bins being 1-indexed
         _files = {}
         for pt_hat_bin in range(1, self.config["metadata"][dataset_key]["n_pt_hat_bins"] + 1):
+            # NOTE: We also standardize the files relative to the base_output_dir here
             _files[pt_hat_bin] = utils.ensure_and_expand_paths(
-                [Path(s.format(pt_hat_bin=pt_hat_bin)) for s in self.config["metadata"][dataset_key]["files"]]
+                [
+                    self.base_output_dir / s.format(pt_hat_bin=pt_hat_bin)
+                    for s in self.config["metadata"][dataset_key]["files"]
+                ]
             )
 
         return _files
@@ -329,11 +346,11 @@ class ProductionSettings:
         # NOTE: By convention, we expect the scale factors to be called `scale_factors.yaml`.
         #       If it's not available, it's usually best to just copy it in.
 
-        # Need to go up twice to get back to the "trains" directory because the collision system
+        # We need to start from the train directory because the collision system
         # stored in the production config may not be the same as the dataset that we're actually
-        # extracting the scale factors from (ie. embedPythia != pythia)
+        # extracting the scale factors from (ie. embed_pythia != pythia)
         return (
-            self.output_dir.parent.parent
+            self.base_output_dir
             # NOTE: The values from the config are wrapped in a string to help out mypy.
             #       Otherwise, it can't determine the type for some reason...
             / str(self.config["metadata"][dataset_key]["collision_system"])

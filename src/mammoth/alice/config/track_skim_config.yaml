@@ -2,6 +2,7 @@
 # NOTE: Convention for map keys and anchors - if they lead with an `_`, they are meant to be private,
 #       which is to say, not to be used directly in a production.  Nothing is critical here - it's
 #       just to make it easier to keep track of everything.
+# NOTE: All files are assumed to be in the base_output_dir, which is by default the `trains` directory.
 skimmed_datasets:
   # pp
   # LHC17pq pass 1
@@ -19,11 +20,11 @@ skimmed_datasets:
       - "data"
     files:
       # LHC17p
-      - "trains/pp/2111/run_by_run/LHC17p_CENT_woSDD/*/AnalysisResults.17p.*.root"
-      - "trains/pp/2111/run_by_run/LHC17p_FAST/*/AnalysisResults.17p.*.root"
+      - "pp/2111/run_by_run/LHC17p_CENT_woSDD/*/AnalysisResults.17p.*.root"
+      - "pp/2111/run_by_run/LHC17p_FAST/*/AnalysisResults.17p.*.root"
       # LHC17q
-      - "trains/pp/2112/run_by_run/LHC17q_CENT_woSDD/*/AnalysisResults.17q.*.root"
-      - "trains/pp/2112/run_by_run/LHC17q_FAST/*/AnalysisResults.17q.*.root"
+      - "pp/2112/run_by_run/LHC17q_CENT_woSDD/*/AnalysisResults.17q.*.root"
+      - "pp/2112/run_by_run/LHC17q_FAST/*/AnalysisResults.17q.*.root"
   # LHC17pq pass 2
   LHC17pq_pass2_AOD_2351_2352: &LHC17pq_pp_pass2
     name: "LHC17pq_pass2_AOD_2351_2352"
@@ -39,11 +40,11 @@ skimmed_datasets:
       - "data"
     files:
       # LHC17p
-      - "trains/pp/2351/run_by_run/LHC17p_CENT_woSDD/*/AnalysisResults.17p.*.root"
-      - "trains/pp/2351/run_by_run/LHC17p_FAST/*/AnalysisResults.17p.*.root"
+      - "pp/2351/run_by_run/LHC17p_CENT_woSDD/*/AnalysisResults.17p.*.root"
+      - "pp/2351/run_by_run/LHC17p_FAST/*/AnalysisResults.17p.*.root"
       # LHC17q
-      - "trains/pp/2352/run_by_run/LHC17q_CENT_woSDD/*/AnalysisResults.17q.*.root"
-      - "trains/pp/2352/run_by_run/LHC17q_FAST/*/AnalysisResults.17q.*.root"
+      - "pp/2352/run_by_run/LHC17q_CENT_woSDD/*/AnalysisResults.17q.*.root"
+      - "pp/2352/run_by_run/LHC17q_FAST/*/AnalysisResults.17q.*.root"
 
   # pp_MC
   # pythia
@@ -64,8 +65,8 @@ skimmed_datasets:
       - "gen"
     n_pt_hat_bins: 20
     files:
-      - "trains/pythia/2619/run_by_run/LHC18b8_cent_woSDD/*/{pt_hat_bin}/AnalysisResults.18b8_cent_woSDD.*.root"
-      - "trains/pythia/2619/run_by_run/LHC18b8_fast/*/{pt_hat_bin}/AnalysisResults.18b8_fast.*.root"
+      - "pythia/2619/run_by_run/LHC18b8_cent_woSDD/*/{pt_hat_bin}/AnalysisResults.18b8_cent_woSDD.*.root"
+      - "pythia/2619/run_by_run/LHC18b8_fast/*/{pt_hat_bin}/AnalysisResults.18b8_fast.*.root"
   # Anchored to LHC17pq pass2
   LHC23a3_AOD_2907: &LHC23a3_pythia
     name: "LHC23a3_AOD_2907"
@@ -84,8 +85,8 @@ skimmed_datasets:
       - "gen"
     n_pt_hat_bins: 20
     files:
-      - "trains/pythia/2907/run_by_run/LHC23a3_cent_woSDD/*/{pt_hat_bin}/AnalysisResults.23a3_cent_woSDD.*.root"
-      - "trains/pythia/2907/run_by_run/LHC23a3_fast/*/{pt_hat_bin}/AnalysisResults.23a3_fast.*.root"
+      - "pythia/2907/run_by_run/LHC23a3_cent_woSDD/*/{pt_hat_bin}/AnalysisResults.23a3_cent_woSDD.*.root"
+      - "pythia/2907/run_by_run/LHC23a3_fast/*/{pt_hat_bin}/AnalysisResults.23a3_fast.*.root"
 
   # Anchored to LHC18qr pass3
   LHC20g4_AOD_2640: &LHC20g4_pythia
@@ -104,7 +105,7 @@ skimmed_datasets:
       - "gen"
     n_pt_hat_bins: 20
     files:
-      - "trains/pythia/2640/run_by_run/LHC20g4/*/{pt_hat_bin}/AnalysisResults.20g4.*.root"
+      - "pythia/2640/run_by_run/LHC20g4/*/{pt_hat_bin}/AnalysisResults.20g4.*.root"
   # LBL Fast Sims
   # This is a FastSim of the LHC18b8 Pythia production anchored to 17pq
   LBL20_Pythia_FastSim_1_258314: &LBL20_Pythia_FastSim_1_17pq
@@ -126,7 +127,7 @@ skimmed_datasets:
     #       overwrite each other unless we known which child train output they are from.
     number_of_parent_directories_for_relative_output_filename: 5
     files:
-      - "trains/pythia/258314/files.txt"
+      - "pythia/258314/files.txt"
   # Anchored is unclear, but I suspect that it's LHC17pq (?)
   LBL20_Herwig_FastSim_1_266374: &LBL20_Herwig_FastSim_1_17pq
     name: "LBL20_Herwig_FastSim_1_266374"
@@ -146,7 +147,7 @@ skimmed_datasets:
     # NOTE: Only needed if the inputs are not in the trains directory, as is the cause on hiccup
     number_of_parent_directories_for_relative_output_filename: 3
     files:
-      - "trains/pythia/266374/files.txt"
+      - "pythia/266374/files.txt"
   # JETSCAPE PP19
   # Arbitrarily defined as #1 in JETSCAPE productions
   JETSCAPE_PP19_1: &JETSCAPE_PP19
@@ -160,7 +161,7 @@ skimmed_datasets:
     # Parameters of the output
     n_pt_hat_bins: 66
     files:
-      - "trains/pp_MC/jetscape/0001/JetscapeHadronListBin*.parquet"
+      - "pp_MC/jetscape/0001/JetscapeHadronListBin*.parquet"
   # JEWEL pp
   # Particle level only
   LBL21_JEWEL_823890: &LBL21_JEWEL_pp_1
@@ -179,7 +180,7 @@ skimmed_datasets:
     # NOTE: Only needed if the inputs are not in the trains directory, as is the cause on hiccup
     number_of_parent_directories_for_relative_output_filename: 3
     files:
-      - "trains/pp_MC/823890/files.txt"
+      - "pp_MC/823890/files.txt"
 
   # PbPb
   LHC18qr_pass3_AOD252_central_642: &LHC18qr_PbPb_central
@@ -195,8 +196,8 @@ skimmed_datasets:
     levels_in_output_file:
       - "data"
     files:
-      - "trains/PbPb/642/run_by_run/LHC18q/*/AnalysisResults.18q.*.root"
-      - "trains/PbPb/642/run_by_run/LHC18r/*/AnalysisResults.18r.*.root"
+      - "PbPb/642/run_by_run/LHC18q/*/AnalysisResults.18q.*.root"
+      - "PbPb/642/run_by_run/LHC18r/*/AnalysisResults.18r.*.root"
   LHC18qr_pass3_AOD252_semi_central_645: &LHC18qr_PbPb_semi_central
     name: "LHC18qr_pass3_AOD252_semi_central_645"
     collision_system: "PbPb"
@@ -210,8 +211,8 @@ skimmed_datasets:
     levels_in_output_file:
       - "data"
     files:
-      - "trains/PbPb/645/run_by_run/LHC18q/*/AnalysisResults.18q.*.root"
-      - "trains/PbPb/645/run_by_run/LHC18r/*/AnalysisResults.18r.*.root"
+      - "PbPb/645/run_by_run/LHC18q/*/AnalysisResults.18q.*.root"
+      - "PbPb/645/run_by_run/LHC18r/*/AnalysisResults.18r.*.root"
   LHC15o_pass1_AOD194_central_7666: &LHC15o_PbPb_central
     name: "LHC15o_pass1_AOD194_central_7666"
     collision_system: "PbPb"
@@ -225,7 +226,7 @@ skimmed_datasets:
     levels_in_output_file:
       - "data"
     files:
-      - "trains/PbPb/7666/run_by_run/LHC15o/*/AnalysisResults.15o.*.root"
+      - "PbPb/7666/run_by_run/LHC15o/*/AnalysisResults.15o.*.root"
   LHC15o_pass1_AOD194_semi_central_7668: &LHC15o_PbPb_semi_central
     name: "LHC15o_pass1_AOD194_semi_central_7668"
     collision_system: "PbPb"
@@ -239,7 +240,7 @@ skimmed_datasets:
     levels_in_output_file:
       - "data"
     files:
-      - "trains/PbPb/7668/run_by_run/LHC15o/*/AnalysisResults.15o.*.root"
+      - "PbPb/7668/run_by_run/LHC15o/*/AnalysisResults.15o.*.root"
 
   # PbPb_MC
   LBL21_JEWEL_NoRecoils_FastSim_1_798301: &LBL21_JEWEL_NoRecoils_FastSim_1
@@ -258,8 +259,8 @@ skimmed_datasets:
     # NOTE: Only needed if the inputs are not in the trains directory, as is the cause on hiccup
     number_of_parent_directories_for_relative_output_filename: 3
     files:
-      #- "trains/PbPb_MC/798301/files.txt"
-      - "trains/PbPb_MC/798301/files_test.txt"
+      #- "PbPb_MC/798301/files.txt"
+      - "PbPb_MC/798301/files_test.txt"
   LBL21_JEWEL_Recoils_FastSim_1_996432: &LBL21_JEWEL_Recoils_FastSim_1
     name: "LBL21_JEWEL_Recoils_FastSim_1_996432"
     collision_system: "PbPb_MC"
@@ -276,7 +277,7 @@ skimmed_datasets:
     # NOTE: Only needed if the inputs are not in the trains directory, as is the cause on hiccup
     number_of_parent_directories_for_relative_output_filename: 3
     files:
-      - "trains/PbPb_MC/996432/files.txt"
+      - "PbPb_MC/996432/files.txt"
 
 dataset_metadata_settings:
   _base:
