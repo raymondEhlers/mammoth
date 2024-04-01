@@ -179,15 +179,15 @@ class Facility:
         # If our target for allocating cores is equal to a single node, then we are allocating a full node.
         return self.node_spec.n_cores == self.target_allocate_n_cores
 
-    def file_staging(self) -> job_file_management.FileStaging | None:
-        """Generate file staging class.
+    def file_staging(self) -> job_file_management.FileStagingSettings | None:
+        """Generate file staging settings class.
 
         Returns:
-            The FileStaging class, or if we cannot generate a valid file
+            The FileStagingSettings class, or if we cannot generate a valid file
             staging strategy, return None.
         """
         if self.node_work_dir != Path():
-            return job_file_management.FileStaging.from_directories(
+            return job_file_management.FileStagingSettings(
                 permanent_work_dir=self.storage_work_dir,
                 node_work_dir=self.node_work_dir,
             )
@@ -240,9 +240,9 @@ _facilities_configs.update(
             partition_name="INVALID",
             target_allocate_n_cores=1 if multi_core is False else 8,
             launcher=SingleNodeLauncher,
-            # node_work_dir=Path("/tmp/parsl/$USER"),
+            node_work_dir=Path("/tmp/parsl/$USER"),
             # storage_work_dir=(Path.cwd() / Path("work_dir")).resolve(),
-            directories_to_mount_in_singularity=[Path("/opt/scott")],
+            directories_to_mount_in_singularity=[],
         )
         for multi_core in [False, True]
     }
@@ -300,7 +300,7 @@ class JobFramework(enum.Enum):
 @attrs.define
 class ExecutionSettings:
     job_framework: JobFramework
-    file_staging_settings: job_file_management.FileStaging | None = None
+    file_staging_settings: job_file_management.FileStagingSettings | None = None
     minimize_IO_as_possible: bool = False
     debug_mode: bool | dict[str | int, Any] = False
 

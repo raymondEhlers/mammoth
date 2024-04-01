@@ -568,7 +568,7 @@ def python_app_data(
         job_framework: job_utils.JobFramework,  # noqa: ARG001
         inputs: list[File] = [],  # noqa: B006
         outputs: list[File] = [],  # noqa: B006
-        file_staging: job_file_management.FileStaging | None = None,
+        file_staging_settings: job_file_management.FileStagingSettings | None = None,
         # NOTE: These aren't meaningful for python apps! However, they silence some parsl warnings (which are actually incorrect and due to bugs, but w/e),
         #       and they don't hurt anything, so better to just put them in.
         # NOTE: The int typing is only because the AUTO_LOGNAME is apparently defined using a literal int.
@@ -618,7 +618,10 @@ def python_app_data(
         #       a dummy output file that we'll adapt to our needs in the task. We do this because we don't
         #       know for show e.g. how many chunks the task will produce, so we can't know the output
         #       filenames beforehand. By not passing explicitly, it will move all files that are there.
-        with job_file_management.StagingManager(file_staging=file_staging, input_files=signal_input) as staging_manager:
+        with job_file_management.FileStagingManager.from_settings(
+            settings=file_staging_settings, input_files=signal_input
+        ) as staging_manager:
+            logger.warning(f"{staging_manager.staging_enabled=}")
             # NOTE: It's really important - we need to take (potentially) updated paths here!
             translated_signal_input, translated_output = staging_manager.translate_paths(
                 input_files=signal_input, output_files=[Path(p.filepath) for p in outputs]
@@ -729,7 +732,7 @@ def python_app_embed_MC_into_data(
         job_framework: job_utils.JobFramework,  # noqa: ARG001
         inputs: list[File] = [],  # noqa: B006
         outputs: list[File] = [],  # noqa: B006
-        file_staging: job_file_management.FileStaging | None = None,
+        file_staging_settings: job_file_management.FileStagingSettings | None = None,
         # See note in data version
         stdout: int | str = job_utils.parsl.AUTO_LOGNAME,  # noqa: ARG001
         stderr: int | str = job_utils.parsl.AUTO_LOGNAME,  # noqa: ARG001
@@ -766,7 +769,9 @@ def python_app_embed_MC_into_data(
         #       a dummy output file that we'll adapt to our needs in the task. We do this because we don't
         #       know for show e.g. how many chunks the task will produce, so we can't know the output
         #       filenames beforehand. By not passing explicitly, it will move all files that are there.
-        with job_file_management.StagingManager(file_staging=file_staging, input_files=signal_input) as staging_manager:
+        with job_file_management.FileStagingManager.from_settings(
+            settings=file_staging_settings, input_files=signal_input
+        ) as staging_manager:
             # NOTE: It's really important - we need to take (potentially) updated paths here!
             translated_signal_input = staging_manager.translate_input_paths(paths=signal_input)
             translated_background_input = staging_manager.translate_input_paths(paths=background_input)
@@ -880,7 +885,7 @@ def python_app_embed_MC_into_thermal_model(
         job_framework: job_utils.JobFramework,  # noqa: ARG001
         inputs: list[File] = [],  # noqa: B006
         outputs: list[File] = [],  # noqa: B006
-        file_staging: job_file_management.FileStaging | None = None,
+        file_staging_settings: job_file_management.FileStagingSettings | None = None,
         # See note in data version
         stdout: int | str = job_utils.parsl.AUTO_LOGNAME,  # noqa: ARG001
         stderr: int | str = job_utils.parsl.AUTO_LOGNAME,  # noqa: ARG001
@@ -916,7 +921,9 @@ def python_app_embed_MC_into_thermal_model(
         #       a dummy output file that we'll adapt to our needs in the task. We do this because we don't
         #       know for show e.g. how many chunks the task will produce, so we can't know the output
         #       filenames beforehand. By not passing explicitly, it will move all files that are there.
-        with job_file_management.StagingManager(file_staging=file_staging, input_files=signal_input) as staging_manager:
+        with job_file_management.FileStagingManager.from_settings(
+            settings=file_staging_settings, input_files=signal_input
+        ) as staging_manager:
             # NOTE: It's really important - we need to take (potentially) updated paths here!
             translated_signal_input = staging_manager.translate_input_paths(paths=signal_input)
             translated_output = staging_manager.translate_output_paths(paths=[Path(p.filepath) for p in outputs])

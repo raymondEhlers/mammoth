@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import concurrent.futures
 import logging
+import os.path
 import shutil
 import uuid
 from collections.abc import Callable
@@ -30,10 +31,44 @@ logger = logging.getLogger(__name__)
 
 
 @attrs.define(frozen=True)
-class PathManager:
+class FileStagingSettings:
+    """Settings for file staging.
+
+    NOTE:
+        The unique ID ensures that jobs don't interfere with each other. It costs some in IO,
+        but it should be worth it to avoid potential conflicts (especially for staging out files).
+
+    Attributes:
+        permanent_work_dir: Permanent work directory for storing files.
+        node_work_dir: Work directory on the worker node for storing files with the unique ID.
+        _node_work_dir: Work directory on the worker node for storing files without the unique ID.
+            You usually want it **with** the unique ID (hence this being a private attribute).
+        _unique_id: Unique ID for the node work directory.
+    """
+
     permanent_work_dir: Path
-    node_work_dir: Path
+    _node_work_dir: Path
     _unique_id: str = attrs.field(init=False, factory=lambda: str(uuid.uuid4())[:10])
+
+    @property
+    def node_work_dir(self) -> Path:
+        return self._node_work_dir / self._unique_id
+
+    def make_unique_copy(self, expand_env_vars_in_node_work_dir: bool) -> FileStagingSettings:
+        """Create a unique copy of the path manager.
+
+        Args:
+            expand_env_vars_in_node_work_dir: Whether to expand environment variables in the node work dir.
+                Usually, you'll want to save this for when you're on the worker node.
+        Returns:
+            A new `FileStagingPaths` object with a unique ID.
+        """
+        # NOTE: We intentionally retrieve the node work dir without the unique ID, since we want
+        #       a new value in the copy.
+        node_work_dir = self._node_work_dir
+        if expand_env_vars_in_node_work_dir:
+            node_work_dir = Path(os.path.expandvars(node_work_dir))
+        return FileStagingSettings(permanent_work_dir=self.permanent_work_dir, node_work_dir=node_work_dir)
 
     @property
     def node_work_dir_input(self) -> Path:
@@ -41,7 +76,7 @@ class PathManager:
 
         Nothing deeper here - just a useful convention.
         """
-        return self.node_work_dir / self._unique_id / "input"
+        return self.node_work_dir / "input"
 
     @property
     def node_work_dir_output(self) -> Path:
@@ -49,7 +84,7 @@ class PathManager:
 
         Nothing deeper here - just a useful convention.
         """
-        return self.node_work_dir / self._unique_id / "output"
+        return self.node_work_dir / "output"
 
     def translate_input_permanent_to_node_path(self, permanent_path: Path) -> Path:
         """Translate a file path from the permanent directory to the worker node directory.
@@ -82,9 +117,11 @@ class PathManager:
         return self.permanent_work_dir / node_path.relative_to(self.node_work_dir_output)
 
 
-@attrs.define
-class FileStaging:
-    """Handles file staging within a job.
+@attrs.define(frozen=True)
+class FileStager:
+    """Handles file staging within a job according to the provided settings.
+
+    Best used in conjunction with the `FileStagingManager` context manager!
 
     The concept here is that there are two directories:
         - The permanent directory, which is where the files are stored permanently.
@@ -93,23 +130,21 @@ class FileStaging:
     on the worker node, eg.:
 
     ```python
-    fs = FileStaging.from_directories(
-        permanent_work_dir=Path("/path/to/permanent"),
-        node_work_dir=Path("/path/to/worker_node"),
+    fs = FileStaging(
+        FileStagingSettings(
+            permanent_work_dir=Path("/path/to/permanent"),
+            node_work_dir=Path("/path/to/worker_node"),
+        )
     )
     input_file = Path("/path/to/permanent/some_directory_path/input_file.txt")
     result = fs.stage_files_in(files_to_stage_in=[input_file])
     assert result[0] == Path(
-        "/path/to/worker_node/input/some_directory_path/input_file.txt"
+        "/path/to/worker_node/<unique_ID>/input/some_directory_path/input_file.txt"
     )
     ```
 
     and then staging out will undo this, again as appropriate. The scheme is slightly involved,
     but I think it will be more intuitive in the long run.
-
-    Note:
-        The preferred way to use this is via the `potential_file_staging` context manager!
-        It makes operations much, much simpler!
 
     Attributes:
         permanent_work_dir: Permanent work directory for storing files.
@@ -118,34 +153,52 @@ class FileStaging:
             so can clean them up afterwards.
     """
 
-    path_manager: PathManager
-    _staged_in_files: list[Path] = attrs.field(init=False, factory=list)
+    settings: FileStagingSettings
+    # _staged_in_files: list[Path] = attrs.field(init=False, factory=list)
 
-    @classmethod
-    def from_directories(cls, permanent_work_dir: Path, node_work_dir: Path) -> FileStaging:
-        """Create a `FileStaging` object from directories.
+    # @classmethod
+    # def from_directories(cls, permanent_work_dir: Path, node_work_dir: Path) -> FileStager:
+    #    """Create a `FileStaging` object from directories.
 
-        Args:
-            permanent_work_dir: Permanent work directory for storing files.
-            node_work_dir: Work directory on the worker node for storing files.
-        Returns:
-            A FileStaging object.
-        """
-        return cls(path_manager=PathManager(permanent_work_dir=permanent_work_dir, node_work_dir=node_work_dir))
+    #    Args:
+    #        permanent_work_dir: Permanent work directory for storing files.
+    #        node_work_dir: Work directory on the worker node for storing files.
+    #    Returns:
+    #        A FileStaging object.
+    #    """
+    #    return cls(settings=FileStagingPaths(permanent_work_dir=permanent_work_dir, node_work_dir=node_work_dir))
 
-    def stage_files_in(self, files_to_stage_in: list[Path], plan_to_clean_up_afterwards: bool = True) -> list[Path]:
+    # def make_unique(self, expand_env_vars_in_node_work_dir: bool) -> FileStager:
+    #    """Create a unique stager with the same settings.
+
+    #    We don't want tasks to share the same stager, so we create a new one for each task.
+
+    #    Args:
+    #        expand_env_vars_in_node_work_dir: Whether to expand environment variables in the node work dir.
+    #            Usually, you'll want to save this for when you're on the worker node.
+    #    Returns:
+    #        A new `FileStaging` object with a unique ID.
+    #    """
+    #    if expand_env_vars_in_node_work_dir:
+    #        node_work_dir = Path(os.path.expandvars(self.settings.node_work_dir))
+    #    return FileStager(
+    #        settings=FileStagingPaths(
+    #            permanent_work_dir=self.settings.permanent_work_dir,
+    #            node_work_dir=node_work_dir,
+    #        )
+    #    )
+
+    def stage_files_in(self, files_to_stage_in: list[Path]) -> list[Path]:
         """Stage files in.
 
         Args:
             files_to_stage_in: Files to stage in.
-            plan_to_clean_up_afterwards: Whether to plan to clean up the staged in files
-                after they are staged out.
         Returns:
             Paths of the files that were staged out, in their worker node locations.
         """
-        logger.debug("Staging in files")
+        logger.warning("Staging in files")
         # Setup as necessary
-        stage_in_dir = self.path_manager.node_work_dir_input
+        stage_in_dir = self.settings.node_work_dir_input
         stage_in_dir.mkdir(parents=True, exist_ok=True)
 
         # Stage in the files, relative to the permanent directory.
@@ -154,7 +207,7 @@ class FileStaging:
         directories_to_create: set[Path] = set()
 
         for f in files_to_stage_in:
-            p = self.path_manager.translate_input_permanent_to_node_path(f)
+            p = self.settings.translate_input_permanent_to_node_path(f)
             modified_paths.append(p)
             directories_to_create.add(p.parent)
 
@@ -164,23 +217,32 @@ class FileStaging:
 
         # Finally, move the files
         for f, p in zip(files_to_stage_in, modified_paths, strict=True):
-            logger.debug(
-                f"Copying permanent:'{f.relative_to(self.path_manager.permanent_work_dir)}' -> node:'{p.relative_to(self.path_manager.node_work_dir_input)}'"
-            )
+            # TODO: Return to debug after finishing testing!
+            logger.warning(f"Copying permanent:'{f.relative_to(self.settings.permanent_work_dir)}' -> node:'{p}'")
             shutil.copy(f, p)
 
         # Store the values so we can clean them up later
-        if plan_to_clean_up_afterwards:
-            self._staged_in_files.extend(modified_paths)
+        # if plan_to_clean_up_afterwards:
+        #    self._staged_in_files.extend(modified_paths)
 
         return modified_paths
 
-    def clean_up_staged_in_files_after_task(self) -> None:
-        """Clean up the staged in files after the task completes."""
-        for f in self._staged_in_files:
-            f.unlink()
-        # And clear the list since we're done.
-        self._staged_in_files = []
+    def stage_files_out(self, files_to_stage_out: list[Path] | None = None) -> list[Path]:
+        """Stage out the provided files.
+
+        Args:
+            files_to_stage_out: Files to stage out.
+        Returns:
+            Paths of the files that were staged out, in their permanent locations.
+        """
+        if files_to_stage_out is None:
+            # NOTE: Could also use shutil.copytree(src, dest, dir_exist_ok=True), but
+            #       this is more convenient since we already implemented the copying, so
+            #       just leave it as is for now...
+            # NOTE: We have to take the hit on the is_file check because otherwise it will include
+            #       directories in the glob.
+            files_to_stage_out = [v for v in self.settings.node_work_dir_output.rglob("*") if v.is_file()]
+        return self._stage_files_out(files_to_stage_out=files_to_stage_out)
 
     def _stage_files_out(self, files_to_stage_out: list[Path]) -> list[Path]:
         """Stage files out implementation.
@@ -190,14 +252,14 @@ class FileStaging:
         Returns:
             Paths of the files that were staged out, in their permanent locations.
         """
-        logger.debug("Staging out files")
+        logger.warning("Staging out files")
         # Stage out the files, relative to the permanent directory.
         modified_paths: list[Path] = []
         # Group the directories to create together to optimize IO
         directories_to_create = set()
         # Calculate the output paths
         for f in files_to_stage_out:
-            p = self.path_manager.translate_output_node_to_permanent_path(f)
+            p = self.settings.translate_output_node_to_permanent_path(f)
             modified_paths.append(p)
             directories_to_create.add(p.parent)
 
@@ -208,9 +270,8 @@ class FileStaging:
         # Finally, move the files
         for f, p in zip(files_to_stage_out, modified_paths, strict=True):
             try:
-                logger.debug(
-                    f"Copying node:'{f.relative_to(self.path_manager.node_work_dir_output)}' -> permanent:'{p.relative_to(self.path_manager.permanent_work_dir)}'"
-                )
+                # TODO: Return to debug after finishing testing!
+                logger.warning(f"Copying node:'{f.relative_to(self.settings.node_work_dir_output)}' -> permanent:'{p}'")
                 shutil.copy(f, p)
             except OSError as e:
                 logger.exception(e)
@@ -218,42 +279,21 @@ class FileStaging:
             # If we've succeeded in copying, we can remove the existing file.
             f.unlink()
         try:
-            shutil.rmtree(self.path_manager.node_work_dir_output)
+            shutil.rmtree(self.settings.node_work_dir_output)
         except OSError as e:
             logger.exception(e)
-            msg = f"Failed to remove node work directory: {self.path_manager.node_work_dir_output}"
+            msg = f"Failed to remove node output work directory: {self.settings.node_work_dir_output}"
             raise RuntimeError(msg) from e
 
         return modified_paths
 
-    def stage_all_files_out(self) -> list[Path]:
-        """Stage out all files in the output directory.
 
-        Returns:
-            Paths of the files that were staged out, in their permanent locations.
-        """
-        # NOTE: Could also use shutil.copytree(src, dest, dir_exist_ok=True), but
-        #       this is more convenient since we already implemented the copying, so
-        #       just leave it as is for now...
-        # NOTE: We have to take the hit on the file check because otherwise it will include
-        #       directories in the glob.
-        all_files_to_stage_out = [v for v in self.path_manager.node_work_dir_output.rglob("*") if v.is_file()]
-        return self._stage_files_out(files_to_stage_out=all_files_to_stage_out)
-
-    def stage_files_out(self, files_to_stage_out: list[Path]) -> list[Path]:
-        """Stage out the provided files.
-
-        Args:
-            files_to_stage_out: Files to stage out.
-        Returns:
-            Paths of the files that were staged out, in their permanent locations.
-        """
-        return self._stage_files_out(files_to_stage_out=files_to_stage_out)
-
-
-@attrs.define(frozen=True)
-class StagingManager:
+@attrs.define
+class FileStagingManager:
     """Manage file staging.
+
+    This is the preferred interface for staging files. It takes care of many details that you would otherwise
+    have to worry about.
 
     We assume that we will clean up the staged in files.
 
@@ -261,43 +301,98 @@ class StagingManager:
         If file staging is disabled, then we just provide the manager and don't do
         anything else. i.e. in that case, it's effectively a no-op.
 
-    Args:
+    NOTE:
+        The attributes are marked as private because we don't want the user to try
+        to interact directly with them and get confused. It's better if they have
+        to make explicit (but obvious) choices.
+
+    Attributes:
         file_staging: File staging object.
-        input_files: Files to stage in.
-        output_files: Files to stage out. Default: None. If None, all files will be staged out.
-    Yields:
-        The path to staged in files.
+        _input_files: List of input files to potentially stage in from the permanent directory
+            to the worker node.
+        _output_files: List of output files to potentially stage out from the worker node to
+            the permanent directory. Default: None, which means that we will stage out all files
+            that are in the output directory.
+        _input_files_post_stage_in: List of input files that were staged in, after the stage in operation.
+        _output_files_post_stage_out: List of output files to staged out, after the stage out operation.
     """
 
-    file_staging: FileStaging | None
+    file_stager: FileStager | None
     _input_files: list[Path]
     _output_files: list[Path] | None = None
+    _input_files_post_stage_in: list[Path] = attrs.field(init=False, factory=list)
+    # _output_files_post_stage_out: list[Path] | None = attrs.field(init=False, default=None)
+
+    @classmethod
+    def from_settings(
+        cls, settings: FileStagingSettings | None, input_files: list[Path], output_files: list[Path] | None = None
+    ) -> FileStagingManager:
+        if settings is None:
+            # We don't want the manager to do anything, so don't provide a stager. This will ensure
+            # that this manager is effectively a no-op. We pass the other arguments for completeness,
+            # but they aren't needed.
+            return cls(file_stager=None, input_files=input_files, output_files=output_files)
+        return cls(
+            file_stager=FileStager(settings=settings.make_unique_copy(expand_env_vars_in_node_work_dir=True)),
+            input_files=input_files,
+            output_files=output_files,
+        )
+
+    @property
+    def staging_enabled(self) -> bool:
+        return self.file_stager is not None
 
     def translate_input_paths(self, paths: list[Path]) -> list[Path]:
+        """Translate input file paths to the path to use for the task.
+
+        Args:
+            paths: Paths to the input files.
+        Returns:
+            Translated paths to the input files.
+        """
         # Translate as appropriate if we are staging.
-        if self.file_staging:
-            return [self.file_staging.path_manager.translate_input_permanent_to_node_path(f) for f in paths]
+        if self.file_stager:
+            return [self.file_stager.settings.translate_input_permanent_to_node_path(f) for f in paths]
         # If we're not staging, then we don't need to do anything
         return paths
 
     def translate_output_paths(self, paths: list[Path]) -> list[Path]:
-        if self.file_staging:
-            return [self.file_staging.path_manager.translate_output_permanent_to_node_path(f) for f in paths]
+        """Translate output file paths to the path to use for the task.
+
+        Args:
+            paths: Paths to the output files.
+        Returns:
+            Translated paths to the output files.
+        """
+        if self.file_stager:
+            return [self.file_stager.settings.translate_output_permanent_to_node_path(f) for f in paths]
         return paths
 
     def translate_paths(self, *, input_files: list[Path], output_files: list[Path]) -> tuple[list[Path], list[Path]]:
+        """Convenience function to translate both input and output paths.
+
+        NOTE:
+            Thus function requires both input and output files. If you only need one,
+            then just use the dedicated functions.
+
+        Args:
+            input_files: Paths to the input files.
+            output_files: Paths to the output files.
+        Returns:
+            Translated paths to the input and output files.
+        """
         return self.translate_input_paths(input_files), self.translate_output_paths(output_files)
 
-    def __enter__(self) -> StagingManager:
+    def __enter__(self) -> FileStagingManager:
         # If not, there's nothing to be done
-        if self.file_staging:
+        if self.file_stager:
             # If file staging is valid, then ensure we stage in.
-            self.file_staging.stage_files_in(files_to_stage_in=self._input_files)
+            self._input_files_post_stage_in = self.file_stager.stage_files_in(files_to_stage_in=self._input_files)
             # And that we create the basic output dir. Some codes may forget to do this,
             # so it's convenient to take care of it here.
             # NOTE: We only want to do it if file_staging is valid since it's likely to exist
             #       if we're not actually staging. So may as well save the IO.
-            self.file_staging.path_manager.node_work_dir_output.mkdir(parents=True, exist_ok=True)
+            self.file_stager.settings.node_work_dir_output.mkdir(parents=True, exist_ok=True)
         # Then we return self to keep track of it in the context manager
         return self
 
@@ -320,15 +415,52 @@ class StagingManager:
         exc_val: BaseException | None,
         exc_tb: TracebackType | None,
     ) -> None:
-        if self.file_staging:
+        if self.file_stager:
             # Clean up the staged in files
-            self.file_staging.clean_up_staged_in_files_after_task()
+            self._clean_up_staged_in_files_after_task()
             # And stage out, using the provided output files if appropriate.
-            if self._output_files is not None:
-                self.file_staging.stage_files_out(files_to_stage_out=self._output_files)
-            else:
-                self.file_staging.stage_all_files_out()
+            self.file_stager.stage_files_out(files_to_stage_out=self._output_files)
+            # And then the last bit of cleanup - removing the node work dir itself
+            try:
+                self.file_stager.settings.node_work_dir.rmdir()
+            except OSError as e:
+                # This isn't critical, so we just log it and move on.
+                logger.exception(e)
+                # TODO: Remove this warning after testing
+                logger.warning(
+                    f"Failed to remove node work directory: {self.file_stager.settings.node_work_dir} containing {list(self.file_stager.settings.node_work_dir.rglob('*'))}"
+                )
         # If we're not staging, there's nothing to be done
+
+    def _clean_up_staged_in_files_after_task(self) -> None:
+        """Clean up the staged in files after the task completes."""
+        if self.file_stager:
+            for f in self._input_files_post_stage_in:
+                f.unlink()
+            # NOTE: Although we've remove the files, this still leaves the whole directory structure,
+            #       so we also want to remove the input directory itself. This will only fail on
+            #       read-only files, so it would be easy to lose important data if we're not careful.
+            #       To address this, we do a check for remaining files and raise an error if there are
+            #       any. This of course has an IO cost, but again, we're on the local storage of a
+            #       worker node, so it should be relatively cheap.
+            try:
+                # TODO: Clean up warnings here after testing
+                logger.warning(
+                    f"Removing input directory: {self.file_stager.settings.node_work_dir_input} containing {list(self.file_stager.settings.node_work_dir_input.rglob('*'))}"
+                )
+                # Double check that there are not any files left in the tree before removing the whole thing.
+                if any(f for f in self.file_stager.settings.node_work_dir_input.rglob("*") if f.is_file()):
+                    msg = f"Input directory {self.file_stager.settings.node_work_dir_input} still contains files!"
+                    raise RuntimeError(msg)
+                shutil.rmtree(self.file_stager.settings.node_work_dir_input)
+            except (RuntimeError, OSError) as e:
+                logger.warning(f"Failed to remove directory... {self.file_stager.settings.node_work_dir_input}")
+                logger.exception(e)
+                msg = f"Failed to remove node input work directory: {self.file_stager.settings.node_work_dir_input}"
+                raise RuntimeError(msg) from e
+
+            # And clear the list since we're done.
+            self._input_files_post_stage_in = []
 
 
 def retrieve_working_dir(dm: DataManager, executor: str) -> str:
