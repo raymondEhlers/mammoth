@@ -26,9 +26,13 @@ def expand_wildcards_in_filenames(paths: Sequence[Path]) -> list[Path]:
         p = str(path)
         if "*" in p:
             # Glob all associated filenames.
-            # NOTE: This assumes that the paths are relative to the execution directory. But that's
-            #       almost always the case.
-            return_paths.extend(list(Path(".").glob(p)))  # noqa: PTH201
+            # Split at the first wildcard to get the base directory and the wildcard pattern.
+            # NOTE: The maxsplit=1 ensures that we only split on the first wildcard, which is
+            #       exactly what we want. Otherwise, it might split on later "*" in the string,
+            #       which would give unexpected behavior.
+            base_dir, pattern = p.split("*", maxsplit=1)
+            # NOTE: The split absorbs the "*", so we'll have to add it back in below.
+            return_paths.extend(list(Path(base_dir).glob(f"*{pattern}")))
         else:
             return_paths.append(path)
 
