@@ -6,7 +6,7 @@
 #       extension: .py
 #       format_name: light
 #       format_version: '1.5'
-#       jupytext_version: 1.14.5
+#       jupytext_version: 1.15.2
 #   kernelspec:
 #     display_name: .venv
 #     language: python
@@ -20,14 +20,15 @@
 # +
 from __future__ import annotations
 
-# Setup
 import logging
 from pathlib import Path
 
+import matplotlib as mpl  # noqa: F401
 import matplotlib.pyplot as plt
 import pachyderm.plot as pb
 
 from mammoth import helpers as mammoth_helpers
+from mammoth.eec.plot import exploration  # noqa: F401
 
 # %load_ext autoreload
 # %autoreload 2
@@ -46,6 +47,7 @@ logging.getLogger("PIL").setLevel(logging.INFO)
 logging.getLogger("pachyderm.histogram").setLevel(logging.INFO)
 logging.getLogger("boost_histogram").setLevel(logging.INFO)
 logging.getLogger("numba").setLevel(logging.INFO)
+logging.getLogger("comm").setLevel(logging.INFO)
 
 logger = logging.getLogger(__name__)
 
@@ -91,12 +93,9 @@ def _plot_RL(
     plot_config: pb.PlotConfig,
     output_dir: Path,
     trigger_name_to_range: dict[str, tuple[float, float]],
+    normalize_to_probability: bool,
+    output_extension: str,
 ) -> None:
-    # trigger_name_to_fraction = {
-    #    "reference": 0.2,
-    #    "signal": 0.8,
-    # }
-
     _palette_6_mod = {
         "purple": "#7e459e",
         "green": "#85aa55",
@@ -157,15 +156,16 @@ def _plot_RL(
             h = h[::4]
 
             # Normalize
-            # TODO: Collect n_trig without being reliant on fraction...
+            # NOTE: This includes the trigger fraction
             n_trig = np.sum(
                 hists[f"{level}_trigger_spectra"][hist.loc(trigger_range[0]) : hist.loc(trigger_range[1])].values()
             )
-            # ].value / trigger_name_to_fraction[label]
-            # ].value / trigger_name_to_fraction[label] / (trigger_range[1] - trigger_range[0])
             h /= n_trig
             # Bin widths
             # h /= h.axes[0].bin_widths
+            # Prob norm
+            if normalize_to_probability:
+                h /= sum(h.values)
 
             hists_for_ratio.append(h)
 
@@ -201,7 +201,7 @@ def _plot_RL(
     # ax.xaxis.set_major_locator(mpl.ticker.MultipleLocator(base=1.0))
 
     filename = f"{plot_config.name}"
-    fig.savefig(output_dir / f"{filename}.pdf")
+    fig.savefig(output_dir / f"{filename}.{output_extension}")
     plt.close(fig)
 
 
@@ -210,18 +210,28 @@ def plot_RL(
     names_and_labels: dict[str, str],
     output_dir: Path,
     trigger_name_to_range: dict[str, tuple[float, float]],
+    normalize_to_probability: bool,
     text_font_size: int = 31,
+    output_extension: str = "svg",
 ) -> bool:
     collision_system = "embed_thermal_model"
     text = "ALICE Work in Progress"
     text += "\n" + r"PYTHIA8 $\bigotimes$ thermal model"
     text += "\n" + r"$\sqrt{s_{\text{NN}}} = 5.02$ TeV"
+
+    name = f"raw_EEC__{collision_system}__{'_'.join(names_and_labels)}"
+    y_label = r"$1/N_{\text{trig}}\:\text{d}N/\text{d}R_{\text{L}}$"
+    if normalize_to_probability:
+        name += "__norm_prob"
+        y_label = "Prob."
+
     _plot_RL(
         hists=hists,
         names_and_labels=names_and_labels,
         trigger_name_to_range=trigger_name_to_range,
+        normalize_to_probability=normalize_to_probability,
         plot_config=pb.PlotConfig(
-            name=f"raw_EEC__{collision_system}__{'_'.join(names_and_labels)}",
+            name=name,
             panels=[
                 # Main panel
                 pb.Panel(
@@ -235,7 +245,7 @@ def plot_RL(
                         ),
                         pb.AxisConfig(
                             "y",
-                            label=r"$1/N_{\text{trig}}\:\text{d}N/\text{d}R_{\text{L}}$",
+                            label=y_label,
                             font_size=text_font_size,
                             log=True,
                             # range=(1e2, 1e7),
@@ -272,47 +282,160 @@ def plot_RL(
             ],
             figure=pb.Figure(edge_padding={"left": 0.15, "bottom": 0.11, "top": 0.975}),
         ),
+        output_extension=output_extension,
         output_dir=output_dir,
     )
 
 
-# -
-
+# +
 trigger_name_to_range = {
     "reference": (5, 7),
     "signal": (20, 50),
 }
-for names_and_labels in [
-    {
-        "hybrid_signal_eec": ("hybrid", "signal", "Hybrid"),
-        "det_level_signal_eec": ("det_level", "signal", "Det. level"),
-    },
-    {
-        "det_level_reference_eec": ("det_level", "reference", "Det. level ref."),
-        "det_level_signal_eec": ("det_level", "signal", "Det. level signal"),
-    },
-    {
-        "det_level_reference_eec_unweighted": ("det_level", "reference", "Det. level ref."),
-        "det_level_signal_eec_unweighted": ("det_level", "signal", "Det. level signal"),
-    },
-    {
-        "hybrid_reference_eec": ("hybrid", "reference", "Hybrid ref."),
-        "hybrid_signal_eec": ("hybrid", "signal", "Hybrid signal"),
-    },
-    {
-        "hybrid_reference_eec_unweighted": ("hybrid", "reference", "Hybrid ref."),
-        "hybrid_signal_eec_unweighted": ("hybrid", "signal", "Hybrid signal"),
-    },
-    {
-        "hybrid_reference_eec_bg_only": ("hybrid", "reference", "Hybrid ref. BG only"),
-        "hybrid_signal_eec_bg_only": ("hybrid", "signal", "Hybrid signal BG only"),
-    },
-]:
+output_extension = "svg"
+
+# Hybrid vs det level for signal selections
+for normalize_to_probability in [False, True]:
     plot_RL(
         hists=hists,
-        names_and_labels=names_and_labels,
+        names_and_labels={
+            "hybrid_signal_eec": ("hybrid", "signal", "Hybrid"),
+            "det_level_signal_eec": ("det_level", "signal", "Det. level"),
+        },
         trigger_name_to_range=trigger_name_to_range,
         output_dir=output_dir,
+        normalize_to_probability=normalize_to_probability,
+        output_extension=output_extension,
     )
 
+    # Det level reference vs signal
+    plot_RL(
+        hists=hists,
+        names_and_labels={
+            "det_level_reference_eec": ("det_level", "reference", "Det. level ref."),
+            "det_level_signal_eec": ("det_level", "signal", "Det. level signal"),
+        },
+        trigger_name_to_range=trigger_name_to_range,
+        output_dir=output_dir,
+        normalize_to_probability=normalize_to_probability,
+        output_extension=output_extension,
+    )
+
+    # Det level reference vs signal unweighted
+    plot_RL(
+        hists=hists,
+        names_and_labels={
+            "det_level_reference_eec_unweighted": ("det_level", "reference", "Det. level ref."),
+            "det_level_signal_eec_unweighted": ("det_level", "signal", "Det. level signal"),
+        },
+        trigger_name_to_range=trigger_name_to_range,
+        output_dir=output_dir,
+        normalize_to_probability=normalize_to_probability,
+        output_extension=output_extension,
+    )
+
+    # Hybrid reference vs signal
+    plot_RL(
+        hists=hists,
+        names_and_labels={
+            "hybrid_reference_eec": ("hybrid", "reference", "Hybrid ref."),
+            "hybrid_signal_eec": ("hybrid", "signal", "Hybrid signal"),
+        },
+        trigger_name_to_range=trigger_name_to_range,
+        output_dir=output_dir,
+        normalize_to_probability=normalize_to_probability,
+        output_extension=output_extension,
+    )
+    # Hybrid reference vs signal unweighted
+    plot_RL(
+        hists=hists,
+        names_and_labels={
+            "hybrid_reference_eec_unweighted": ("hybrid", "reference", "Hybrid ref."),
+            "hybrid_signal_eec_unweighted": ("hybrid", "signal", "Hybrid signal"),
+        },
+        trigger_name_to_range=trigger_name_to_range,
+        output_dir=output_dir,
+        normalize_to_probability=normalize_to_probability,
+        output_extension=output_extension,
+    )
+
+    # Hybrid reference vs signal bg only
+    plot_RL(
+        hists=hists,
+        names_and_labels={
+            "hybrid_reference_eec_bg_only": ("hybrid", "reference", "Hybrid ref. BG only"),
+            "hybrid_signal_eec_bg_only": ("hybrid", "signal", "Hybrid signal BG only"),
+        },
+        trigger_name_to_range=trigger_name_to_range,
+        output_dir=output_dir,
+        normalize_to_probability=normalize_to_probability,
+        output_extension=output_extension,
+    )
+    # Hybrid reference vs signal bg only unweighted
+    plot_RL(
+        hists=hists,
+        names_and_labels={
+            "hybrid_reference_eec_unweighted_bg_only": ("hybrid", "reference", "Hybrid ref. BG only"),
+            "hybrid_signal_eec_unweighted_bg_only": ("hybrid", "signal", "Hybrid signal BG only"),
+        },
+        trigger_name_to_range=trigger_name_to_range,
+        output_dir=output_dir,
+        normalize_to_probability=normalize_to_probability,
+        output_extension=output_extension,
+    )
+# -
+
 list(hists.keys())
+
+
+# ## Early look at plots
+
+# ### BG only
+# #### Hybrid reference vs signal
+#
+# EEC weighted with power 1, n_trig (left), prob (right) normalized
+#
+# <img src="output/raw_EEC__embed_thermal_model__hybrid_reference_eec_bg_only_hybrid_signal_eec_bg_only.svg" width="48.5%"/>
+# <img src="output/raw_EEC__embed_thermal_model__hybrid_reference_eec_bg_only_hybrid_signal_eec_bg_only__norm_prob.svg" width="48.5%"/>
+
+# #### Hybrid reference vs signal, background only, unweighted
+#
+# EEC weighted with power 1 (left), and unweighted (right)
+#
+# <img src="output/raw_EEC__embed_thermal_model__hybrid_reference_eec_unweighted_bg_only_hybrid_signal_eec_unweighted_bg_only.svg" width="48.5%"/>
+# <img src="output/raw_EEC__embed_thermal_model__hybrid_reference_eec_unweighted_bg_only_hybrid_signal_eec_unweighted_bg_only__norm_prob.svg" width="48.5%"/>
+
+# ### Including signal
+# #### Hybrid reference vs signal
+#
+# EEC weighted with power 1, n_trig (left), prob (right) normalized
+#
+# <img src="output/raw_EEC__embed_thermal_model__hybrid_reference_eec_hybrid_signal_eec.svg" width="48.5%"/>
+# <img src="output/raw_EEC__embed_thermal_model__hybrid_reference_eec_hybrid_signal_eec__norm_prob.svg" width="48.5%"/>
+#
+
+# #### Hybrid reference vs signal, unweighted
+#
+# EEC weighted with power 1 (left), and unweighted (right)
+#
+# <img src="output/raw_EEC__embed_thermal_model__hybrid_reference_eec_unweighted_hybrid_signal_eec_unweighted.svg" width="48.5%"/>
+# <img src="output/raw_EEC__embed_thermal_model__hybrid_reference_eec_unweighted_hybrid_signal_eec_unweighted__norm_prob.svg" width="48.5%"/>
+
+#
+
+# #### Det level reference vs signal
+#
+# EEC weighted with power 1, n_trig (left), prob (right) normalized
+#
+# <img src="output/raw_EEC__embed_thermal_model__det_level_reference_eec_det_level_signal_eec.svg" width="48.5%"/>
+# <img src="output/raw_EEC__embed_thermal_model__det_level_reference_eec_det_level_signal_eec__norm_prob.svg" width="48.5%"/>
+#
+
+# #### Det level reference vs signal, unweighted
+#
+# EEC weighted with power 1 (left), and unweighted (right)
+#
+# <img src="output/raw_EEC__embed_thermal_model__det_level_reference_eec_unweighted_det_level_signal_eec_unweighted.svg" width="48.5%"/>
+# <img src="output/raw_EEC__embed_thermal_model__det_level_reference_eec_unweighted_det_level_signal_eec_unweighted__norm_prob.svg" width="48.5%"/>
+
+#
