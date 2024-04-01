@@ -73,7 +73,7 @@ class Settings:
 
     @property
     def minimize_IO_as_possible(self) -> bool:
-        return self.input_metadata["setup_source_input_options"]["minimize_IO_as_possible"]  # type: ignore[no-any-return]
+        return self.input_metadata["input_options_for_load_data_setup_source"]["minimize_IO_as_possible"]  # type: ignore[no-any-return]
 
 
 @attrs.frozen(kw_only=True)
@@ -561,8 +561,8 @@ def python_app_data(
         production_identifier: str,
         collision_system: str,
         chunk_size: sources.T_ChunkSize,
-        setup_source_input_options: dict[str, Any],
         input_source_config: dict[str, Any],
+        input_options_for_load_data_setup_source: dict[str, Any],
         output_settings_config: dict[str, Any],
         analysis_arguments: dict[str, Any],
         job_framework: job_utils.JobFramework,  # noqa: ARG001
@@ -575,6 +575,18 @@ def python_app_data(
         stdout: int | str = job_utils.parsl.AUTO_LOGNAME,  # noqa: ARG001
         stderr: int | str = job_utils.parsl.AUTO_LOGNAME,  # noqa: ARG001
     ) -> Output:
+        """App wrapper for one or two input levels.
+
+        I think that's the right label. Certainly it's the app wrapper.
+
+        Args:
+            ...
+            input_setup_config: Options passed for configuring the input source (ie. from the IO module).
+            input_options_for_load_data_setup_source: Options passed for setting up the input source in
+                `load_data`.
+            output_settings_config: Configuration for the output settings.
+            ...
+        """
         # Standard imports in the app
         import functools
         import importlib
@@ -624,7 +636,7 @@ def python_app_data(
                             #       metadata isn't impacted by the file staging. We shouldn't access the file
                             #       here in any case - it's just to keep track, so it's fine to keep the original.
                             "signal_input": translated_signal_input,
-                            "setup_source_input_options": setup_source_input_options,
+                            "input_options_for_load_data_setup_source": input_options_for_load_data_setup_source,
                             "type": "data",
                         },
                     ),
@@ -633,7 +645,7 @@ def python_app_data(
                         load_data.setup_source_for_data_or_MC_task,
                         signal_input=translated_signal_input,
                         signal_source=io.file_source(file_source_config=input_source_config),
-                        **setup_source_input_options,
+                        **input_options_for_load_data_setup_source,
                     ),
                     output_settings=OutputSettings.from_config(
                         output_filename=translated_output[0],
@@ -708,10 +720,10 @@ def python_app_embed_MC_into_data(
         production_identifier: str,
         collision_system: str,
         chunk_size: sources.T_ChunkSize,
-        setup_source_input_options: dict[str, Any],
         signal_input_source_config: dict[str, Any],
         n_signal_input_files: int,
         background_input_source_config: dict[str, Any],
+        input_options_for_load_data_setup_source: dict[str, Any],
         output_settings_config: dict[str, Any],
         analysis_arguments: dict[str, Any],
         job_framework: job_utils.JobFramework,  # noqa: ARG001
@@ -774,7 +786,7 @@ def python_app_embed_MC_into_data(
                             "signal_input": signal_input,
                             "background_source_config": background_input_source_config,
                             "background_input": background_input,
-                            "setup_source_input_options": setup_source_input_options,
+                            "input_options_for_load_data_setup_source": input_options_for_load_data_setup_source,
                             "type": "embed_MC_into_data",
                         },
                     ),
@@ -785,7 +797,7 @@ def python_app_embed_MC_into_data(
                         signal_source=io.file_source(file_source_config=signal_input_source_config),
                         background_input=translated_background_input,
                         background_source=io.file_source(file_source_config=background_input_source_config),
-                        **setup_source_input_options,
+                        **input_options_for_load_data_setup_source,
                     ),
                     output_settings=OutputSettings.from_config(
                         output_filename=translated_output[0],
@@ -860,7 +872,7 @@ def python_app_embed_MC_into_thermal_model(
         production_identifier: str,
         collision_system: str,
         chunk_size: sources.T_ChunkSize,
-        setup_source_input_options: dict[str, Any],
+        input_options_for_load_data_setup_source: dict[str, Any],
         input_source_config: dict[str, Any],
         thermal_model_parameters: sources.ThermalModelParameters,
         output_settings_config: dict[str, Any],
@@ -923,7 +935,7 @@ def python_app_embed_MC_into_thermal_model(
                             "signal_input": signal_input,
                             "background_source_config": thermal_model_parameters,
                             "background_input": [],
-                            "setup_source_input_options": setup_source_input_options,
+                            "input_options_for_load_data_setup_source": input_options_for_load_data_setup_source,
                             "type": "embed_MC_into_thermal_model",
                         },
                     ),
@@ -933,7 +945,7 @@ def python_app_embed_MC_into_thermal_model(
                         signal_input=translated_signal_input,
                         signal_source=io.file_source(file_source_config=input_source_config),
                         thermal_model_parameters=thermal_model_parameters,
-                        **setup_source_input_options,
+                        **input_options_for_load_data_setup_source,
                     ),
                     output_settings=OutputSettings.from_config(
                         output_filename=translated_output[0],

@@ -448,7 +448,7 @@ def setup_framework_standard_workflow(  # noqa: C901
         # NOTE: These are arguments which will be passed onto `load_data.setup_source_for_data_or_MC_task`.
         #       If you want to pass all of the metadata, we will need to add a kwargs, since this can vary from dataset to dataset.
         #       As of July 2023, explicitly specifying th arguments seems good enough.
-        _setup_source_input_options = {
+        _input_options_for_load_data_setup_source = {
             "loading_data_rename_levels": _metadata_config.get("loading_data_rename_levels", {}),
             "minimize_IO_as_possible": execution_settings.minimize_IO_as_possible,
         }
@@ -555,10 +555,10 @@ def setup_framework_standard_workflow(  # noqa: C901
                         collision_system=prod.collision_system,
                         chunk_size=chunk_size,
                         # I/O
-                        # These are the general input options
-                        setup_source_input_options=_setup_source_input_options,
-                        # And these are the input options specific to the dataset
+                        # Inputs
                         input_source_config=_metadata_config["dataset"],
+                        input_options_for_load_data_setup_source=_input_options_for_load_data_setup_source,
+                        # Outputs
                         output_settings_config=_output_settings_config,
                         # Arguments
                         analysis_arguments=analysis_arguments_with_pt_hat_scale_factor,
@@ -855,12 +855,12 @@ def setup_framework_embed_workflow(  # noqa: C901
                     collision_system=prod.collision_system,
                     chunk_size=chunk_size,
                     # I/O
-                    # General
-                    setup_source_input_options=source_input_options,
-                    # Specific
+                    # Inputs
                     signal_input_source_config=_metadata_config["signal_dataset"],
                     n_signal_input_files=len(signal_input),
                     background_input_source_config=_metadata_config["dataset"],
+                    input_options_for_load_data_setup_source=source_input_options,
+                    # Outputs
                     output_settings_config=_output_settings_config,
                     # Arguments
                     analysis_arguments=analysis_arguments_with_pt_hat_scale_factor,
@@ -934,7 +934,7 @@ def setup_framework_embed_workflow(  # noqa: C901
         _metadata_config = prod.config["metadata"]
         _analysis_config = copy.deepcopy(prod.config["settings"])
         _output_settings_config = _analysis_config.pop("output_settings")
-        _setup_source_input_options = {
+        _input_options_for_load_data_setup_source = {
             "minimize_IO_as_possible": execution_settings.minimize_IO_as_possible,
         }
         # Thermal model parameters
@@ -1027,10 +1027,10 @@ def setup_framework_embed_workflow(  # noqa: C901
                         collision_system=prod.collision_system,
                         chunk_size=chunk_size,
                         # I/O
-                        # General
-                        setup_source_input_options=_setup_source_input_options,
-                        # Specific
+                        # Inputs
                         thermal_model_parameters=thermal_model_parameters,
+                        input_options_for_load_data_setup_source=_input_options_for_load_data_setup_source,
+                        # Output
                         output_settings_config=_output_settings_config,
                         # Arguments
                         analysis_arguments=analysis_arguments_with_pt_hat_scale_factor,
