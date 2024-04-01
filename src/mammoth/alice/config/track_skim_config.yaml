@@ -769,8 +769,8 @@ productions:
           <<: *reclustered_substructure_output_settings
         selected_grooming_methods:
           - "soft_drop_z_cut_02"
+    # EEC: Debugging with a fraction of stats on my MBP
     7:
-      # EECs with a fraction of stats on my MBP
       metadata:
         dataset: *LHC20g4_pythia
         #sample_dataset_fraction: 0.1
@@ -861,6 +861,20 @@ productions:
         apply_pt_dependent_tracking_efficiency_uncertainty: true
         output_settings:
           <<: *reclustered_substructure_output_settings
+    # EEC: Single particle, fraction of stats, two input levels
+    75:
+      metadata:
+        dataset: *LHC20g4_pythia
+        sample_dataset_fraction: 0.2
+        # Equivalent to train number, but a more general term makes more sense here.
+        production_number: 75
+        label: ""
+      settings:
+        <<: *analysis_settings_EEC_pp_MC
+        chunk_size: 5000
+        combinatorics_chunk_size: 1000
+        output_settings:
+          <<: *EEC_output_settings_hadron_trigger_two_input_level
 
   PbPb:
     2:
