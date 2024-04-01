@@ -180,7 +180,7 @@ class FileStager:
         Returns:
             Paths of the files that were staged out, in their worker node locations.
         """
-        logger.warning("Staging in files")
+        logger.info("Staging in files")
         # Setup as necessary
         stage_in_dir = self.settings.node_work_dir_input
         stage_in_dir.mkdir(parents=True, exist_ok=True)
@@ -234,7 +234,7 @@ class FileStager:
         Returns:
             Paths of the files that were staged out, in their permanent locations.
         """
-        logger.warning("Staging out files")
+        logger.info("Staging out files")
         # Stage out the files, relative to the permanent directory.
         modified_paths: list[Path] = []
         # Group the directories to create together to optimize IO

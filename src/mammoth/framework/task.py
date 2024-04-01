@@ -621,7 +621,7 @@ def python_app_data(
         with job_file_management.FileStagingManager.from_settings(
             settings=file_staging_settings, input_files=signal_input
         ) as staging_manager:
-            logger.warning(f"{staging_manager.staging_enabled=}")
+            logger.info(f"{staging_manager.staging_enabled=}")
             # NOTE: It's really important - we need to take (potentially) updated paths here!
             translated_signal_input, translated_output = staging_manager.translate_paths(
                 input_files=signal_input, output_files=[Path(p.filepath) for p in outputs]

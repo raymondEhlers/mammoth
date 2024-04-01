@@ -402,7 +402,7 @@ def calculate_correlators(
         # We perform the min pt selection first to reduce the number of calculations required.
         particle_pt_mask = event_selected_array.pt > min_track_pt
         event_selected_array = event_selected_array[particle_pt_mask]
-        logger.info(f"{level}, {trigger_name}: About to find particles within recoil cone")
+        logger.debug(f"{level}, {trigger_name}: About to find particles within recoil cone")
         within_hemisphere = recoil_direction.deltaphi(event_selected_array) < np.pi / 4
         eec_particles = event_selected_array[within_hemisphere]
 
@@ -426,7 +426,7 @@ def calculate_correlators(
         #         2. Implement the calculation with numba
         #         3. Implement the calculation in c++
         #       As of 2023 June 20, we're only on step 1.
-        logger.info(f"{level}, {trigger_name}: About to calculate combinations")
+        logger.debug(f"{level}, {trigger_name}: About to calculate combinations")
         if correlator_type == "two_particle":
             # NOTE: Mateusz claims that we should double count here, per the theorists (ie. Kyle).
             #       We talked further, and it seems that this is just a normalization factor.
@@ -436,7 +436,7 @@ def calculate_correlators(
 
             # One argument should be the power
             # First, need to broadcast the trigger pt
-            logger.info(f"{level}, {trigger_name}: About to fill hists")
+            logger.debug(f"{level}, {trigger_name}: About to fill hists")
             trigger_pt, _ = ak.broadcast_arrays(
                 trigger_pt_event_wise,
                 distances,
@@ -575,6 +575,7 @@ def analyze_chunk_one_input_level(
     )
 
     # Find trigger(s)
+    logger.debug("Finding trigger(s)")
     triggers_dict, event_selection_mask = _find_triggers(
         level=level,
         arrays=arrays,
@@ -687,7 +688,7 @@ def analyze_chunk_two_input_level(
     arrays["det_level"] = arrays["det_level"][det_level_mask]
 
     # Find trigger(s)
-    logger.info("Finding trigger(s)")
+    logger.debug("Finding trigger(s)")
     triggers_dict: dict[str, dict[str, ak.Array]] = {}
     event_selection_mask: dict[str, dict[str, ak.Array]] = {}
     for level in level_names:
@@ -795,7 +796,7 @@ def analyze_chunk_three_input_level(
     arrays["hybrid_level"] = arrays["hybrid_level"][hybrid_level_mask]
 
     # Find trigger(s)
-    logger.info("Finding trigger(s)")
+    logger.debug("Finding trigger(s)")
     triggers_dict: dict[str, dict[str, ak.Array]] = {}
     event_selection_mask: dict[str, dict[str, ak.Array]] = {}
     for level in level_names:
