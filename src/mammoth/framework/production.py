@@ -414,10 +414,18 @@ class ProductionSettings:
         output["identifier"] = self.identifier
         output["date"] = datetime.datetime.utcnow().strftime("%Y-%m-%d")
         output["config"] = dict(self.config)
-        output["input_filenames"] = [str(p) for p in self.input_files()]
+        # NOTE: We write relative to the base_output_dir to ensure that the outputs are
+        #       approximately system independent. In practice, we're unlikely to try to
+        #       move same production to a new system (better to just copy and use a new
+        #       production number), but this relative paths approach will e.g. make
+        #       comparisons easier. This was basically what we were doing implicitly
+        #       before improving support for absolute base_output_dir (ie. pre March 2024).
+        output["input_filenames"] = [str(p.relative_to(self.base_output_dir)) for p in self.input_files()]
         if "signal_dataset" in self.config["metadata"]:
             output["signal_filenames"] = [
-                str(_filename) for filenames in self.input_files_per_pt_hat().values() for _filename in filenames
+                str(_filename.relative_to(self.base_output_dir))
+                for filenames in self.input_files_per_pt_hat().values()
+                for _filename in filenames
             ]
         # Add description of the software
         output.update(_describe_production_software(production_config=self.config))
