@@ -71,6 +71,10 @@ class Settings:
     chunk_size: sources.T_ChunkSize
     input_metadata: InputMetadata
 
+    @property
+    def minimize_IO_as_possible(self) -> bool:
+        return self.input_metadata["setup_source_input_options"]["minimize_IO_as_possible"]  # type: ignore[no-any-return]
+
 
 @attrs.frozen(kw_only=True)
 class PrimaryOutput:
@@ -520,7 +524,9 @@ def python_app_data(
     analysis: Analysis,
     metadata_for_labeling: CustomizeMetadataForLabeling | None = None,
 ) -> Callable[..., concurrent.futures.Future[Output]]:
-    """Python app for data task (ie. one particle collection)
+    """Python app for one or two input levels.
+
+    In practice, this usually means data or MC tasks.
 
     Args:
         analysis: Analysis function.
@@ -555,7 +561,7 @@ def python_app_data(
         production_identifier: str,
         collision_system: str,
         chunk_size: sources.T_ChunkSize,
-        input_options: dict[str, Any],
+        setup_source_input_options: dict[str, Any],
         input_source_config: dict[str, Any],
         output_settings_config: dict[str, Any],
         analysis_arguments: dict[str, Any],
@@ -618,7 +624,7 @@ def python_app_data(
                             #       metadata isn't impacted by the file staging. We shouldn't access the file
                             #       here in any case - it's just to keep track, so it's fine to keep the original.
                             "signal_input": translated_signal_input,
-                            "source_input_options": input_options,
+                            "setup_source_input_options": setup_source_input_options,
                             "type": "data",
                         },
                     ),
@@ -627,7 +633,7 @@ def python_app_data(
                         load_data.setup_source_for_data_or_MC_task,
                         signal_input=translated_signal_input,
                         signal_source=io.file_source(file_source_config=input_source_config),
-                        **input_options,
+                        **setup_source_input_options,
                     ),
                     output_settings=OutputSettings.from_config(
                         output_filename=translated_output[0],
@@ -702,7 +708,7 @@ def python_app_embed_MC_into_data(
         production_identifier: str,
         collision_system: str,
         chunk_size: sources.T_ChunkSize,
-        source_input_options: dict[str, Any],
+        setup_source_input_options: dict[str, Any],
         signal_input_source_config: dict[str, Any],
         n_signal_input_files: int,
         background_input_source_config: dict[str, Any],
@@ -768,7 +774,7 @@ def python_app_embed_MC_into_data(
                             "signal_input": signal_input,
                             "background_source_config": background_input_source_config,
                             "background_input": background_input,
-                            "source_input_options": source_input_options,
+                            "setup_source_input_options": setup_source_input_options,
                             "type": "embed_MC_into_data",
                         },
                     ),
@@ -779,7 +785,7 @@ def python_app_embed_MC_into_data(
                         signal_source=io.file_source(file_source_config=signal_input_source_config),
                         background_input=translated_background_input,
                         background_source=io.file_source(file_source_config=background_input_source_config),
-                        **source_input_options,
+                        **setup_source_input_options,
                     ),
                     output_settings=OutputSettings.from_config(
                         output_filename=translated_output[0],
@@ -854,7 +860,7 @@ def python_app_embed_MC_into_thermal_model(
         production_identifier: str,
         collision_system: str,
         chunk_size: sources.T_ChunkSize,
-        source_input_options: dict[str, Any],
+        setup_source_input_options: dict[str, Any],
         input_source_config: dict[str, Any],
         thermal_model_parameters: sources.ThermalModelParameters,
         output_settings_config: dict[str, Any],
@@ -917,7 +923,7 @@ def python_app_embed_MC_into_thermal_model(
                             "signal_input": signal_input,
                             "background_source_config": thermal_model_parameters,
                             "background_input": [],
-                            "source_input_options": source_input_options,
+                            "setup_source_input_options": setup_source_input_options,
                             "type": "embed_MC_into_thermal_model",
                         },
                     ),
@@ -927,7 +933,7 @@ def python_app_embed_MC_into_thermal_model(
                         signal_input=translated_signal_input,
                         signal_source=io.file_source(file_source_config=input_source_config),
                         thermal_model_parameters=thermal_model_parameters,
-                        **source_input_options,
+                        **setup_source_input_options,
                     ),
                     output_settings=OutputSettings.from_config(
                         output_filename=translated_output[0],

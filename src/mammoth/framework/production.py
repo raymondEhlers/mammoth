@@ -361,6 +361,10 @@ class ProductionSettings:
         output_dir.mkdir(parents=True, exist_ok=True)
         return output_dir
 
+    @property
+    def base_output_dir(self) -> Path:
+        return self._base_output_dir
+
     @functools.cached_property
     def tasks_to_execute(self) -> list[str]:
         # Could in principle be multiple tasks.

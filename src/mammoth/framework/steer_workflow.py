@@ -117,16 +117,16 @@ class SetupSteeringTask(Protocol):
         ...
 
 
-def safe_output_filename_from_relative_path(
+def safe_slug_from_relative_path_of_input_filename(
     filename: Path,
-    output_dir: Path,
+    production_base_dir: Path,
     cwd: Path,
     number_of_parent_directories_for_relative_output_filename: int | None = None,
 ) -> str:
-    """Safe and identifiable name for naming output files based on the relative path.
+    """Safe and identifiable name for naming output files based on the relative input path.
 
-    Converts: "2111/run_by_run/LHC17p_CENT_woSDD/282341/AnalysisResults.17p.001.root"
-           -> "2111__run_by_run__LHC17p_CENT_woSDD__282341__AnalysisResults_17p_001"
+    Converts: "pp/2111/run_by_run/LHC17p_CENT_woSDD/282341/AnalysisResults.17p.001.root"
+           -> "pp_2111__run_by_run__LHC17p_CENT_woSDD__282341__AnalysisResults_17p_001"
 
     NOTE:
         Per the python docs, `relative_to` is a string operation, so we shouldn't hit
@@ -134,12 +134,12 @@ def safe_output_filename_from_relative_path(
 
     Args:
         filename: Filename to be converted.
-        output_dir: Base output directory for the calculation.
-        cwd: Current working directory. Only used sometimes, but better to have it so we don't
-            have to call it repeatedly here.
+        production_base_dir: Production base directory. e.g. `trains/`
+        cwd: Current working directory. Only used in the case of absolute paths, but better
+            to have it available so we don't have to call it repeatedly here.
         number_of_parent_directories_for_relative_output_filename: Number of parent directories above
-            filename to use as the reference directory for the relative path. If None, the grandparent
-            is used. Default: None.
+            filename to use as the reference directory for the relative path. If None, the
+            production_base_dir is used (e.g. which ends up as `trains`). Default: None.
     Returns:
         Filename that is safe for using as the output filename.
     """
@@ -154,7 +154,7 @@ def safe_output_filename_from_relative_path(
         # NOTE: We use the grandparent of the output dir because the input filename is going to be a different train
         #       than our output. For the case of embedding trains, we might not even share the collision system.
         #       So by going to the grandparent (ie `trains`), we end up with a shared path
-        reference_dir = output_dir.parent.parent
+        reference_dir = production_base_dir
         # `relative_to` requires that both filenames are the same type (either absolute or relative)
         # `reference_dir` is usually relative, so we may need to resolve it to ensure that the comparison will work.
         if filename.is_absolute():
@@ -448,7 +448,10 @@ def setup_framework_standard_workflow(  # noqa: C901
         # NOTE: These are arguments which will be passed onto `load_data.setup_source_for_data_or_MC_task`.
         #       If you want to pass all of the metadata, we will need to add a kwargs, since this can vary from dataset to dataset.
         #       As of July 2023, explicitly specifying th arguments seems good enough.
-        _input_options = {"loading_data_rename_levels": _metadata_config.get("loading_data_rename_levels", {})}
+        _setup_source_input_options = {
+            "loading_data_rename_levels": _metadata_config.get("loading_data_rename_levels", {}),
+            "minimize_IO_as_possible": execution_settings.minimize_IO_as_possible,
+        }
         # Chunk size
         chunk_size = _analysis_config.pop("chunk_size", sources.ChunkSizeSentinel.FULL_SOURCE)
         logger.info(f"Processing chunk size for {chunk_size}")
@@ -529,11 +532,9 @@ def setup_framework_standard_workflow(  # noqa: C901
                     break
 
                 # Setup file I/O
-                # Converts: "2111/run_by_run/LHC17p_CENT_woSDD/282341/AnalysisResults.17p.001.root"
-                #        -> "2111__run_by_run__LHC17p_CENT_woSDD__282341__AnalysisResults_17p_001"
-                output_identifier = safe_output_filename_from_relative_path(
+                output_identifier = safe_slug_from_relative_path_of_input_filename(
                     filename=input_filename,
-                    output_dir=output_dir,
+                    production_base_dir=prod.base_output_dir,
                     number_of_parent_directories_for_relative_output_filename=_metadata_config["dataset"].get(
                         "number_of_parent_directories_for_relative_output_filename", None
                     ),
@@ -555,7 +556,7 @@ def setup_framework_standard_workflow(  # noqa: C901
                         chunk_size=chunk_size,
                         # I/O
                         # These are the general input options
-                        input_options=_input_options,
+                        setup_source_input_options=_setup_source_input_options,
                         # And these are the input options specific to the dataset
                         input_source_config=_metadata_config["dataset"],
                         output_settings_config=_output_settings_config,
@@ -686,6 +687,7 @@ def setup_framework_embed_workflow(  # noqa: C901
             "background_is_constrained_source": _background_is_constrained_source,
             "signal_source_collision_system": _input_handling_config["signal_parameters"]["collision_system"],
             "background_source_collision_system": _input_handling_config["background_parameters"]["collision_system"],
+            "minimize_IO_as_possible": execution_settings.minimize_IO_as_possible,
         }
         _analysis_config: dict[str, Any] = copy.deepcopy(prod.config["settings"])
         _output_settings_config = _analysis_config.pop("output_settings")
@@ -799,18 +801,18 @@ def setup_framework_embed_workflow(  # noqa: C901
             # We want to identify as: "{signal_identifier}__embedded_into__{background_identifier}"
             # Take the first signal and first background filenames as the main identifier to the path.
             # Otherwise, the filename could become indefinitely long... (apparently there are file length limits in unix...)
-            output_identifier = safe_output_filename_from_relative_path(
+            output_identifier = safe_slug_from_relative_path_of_input_filename(
                 filename=signal_input[0],
-                output_dir=prod.output_dir,
+                production_base_dir=prod.base_output_dir,
                 number_of_parent_directories_for_relative_output_filename=_metadata_config["signal_dataset"].get(
                     "number_of_parent_directories_for_relative_output_filename", None
                 ),
                 cwd=cwd,
             )
             output_identifier += "__embedded_into__"
-            output_identifier += safe_output_filename_from_relative_path(
+            output_identifier += safe_slug_from_relative_path_of_input_filename(
                 filename=background_input[0],
-                output_dir=prod.output_dir,
+                production_base_dir=prod.base_output_dir,
                 number_of_parent_directories_for_relative_output_filename=_metadata_config["dataset"].get(
                     "number_of_parent_directories_for_relative_output_filename", None
                 ),
@@ -853,7 +855,9 @@ def setup_framework_embed_workflow(  # noqa: C901
                     collision_system=prod.collision_system,
                     chunk_size=chunk_size,
                     # I/O
-                    source_input_options=source_input_options,
+                    # General
+                    setup_source_input_options=source_input_options,
+                    # Specific
                     signal_input_source_config=_metadata_config["signal_dataset"],
                     n_signal_input_files=len(signal_input),
                     background_input_source_config=_metadata_config["dataset"],
@@ -930,6 +934,9 @@ def setup_framework_embed_workflow(  # noqa: C901
         _metadata_config = prod.config["metadata"]
         _analysis_config = copy.deepcopy(prod.config["settings"])
         _output_settings_config = _analysis_config.pop("output_settings")
+        _setup_source_input_options = {
+            "minimize_IO_as_possible": execution_settings.minimize_IO_as_possible,
+        }
         # Thermal model parameters
         thermal_model_parameters = sources.THERMAL_MODEL_SETTINGS[
             f"{_metadata_config['dataset']['sqrt_s']}_{_analysis_config['event_activity']}"
@@ -999,11 +1006,9 @@ def setup_framework_embed_workflow(  # noqa: C901
                     break
 
                 # Setup file I/O
-                # Converts: "2111/run_by_run/LHC17p_CENT_woSDD/282341/AnalysisResults.17p.001.root"
-                #        -> "2111__run_by_run__LHC17p_CENT_woSDD__282341__AnalysisResults_17p_001"
-                output_identifier = safe_output_filename_from_relative_path(
+                output_identifier = safe_slug_from_relative_path_of_input_filename(
                     filename=input_filename,
-                    output_dir=prod.output_dir,
+                    production_base_dir=prod.base_output_dir,
                     number_of_parent_directories_for_relative_output_filename=_metadata_config["dataset"].get(
                         "number_of_parent_directories_for_relative_output_filename", None
                     ),
@@ -1022,7 +1027,9 @@ def setup_framework_embed_workflow(  # noqa: C901
                         collision_system=prod.collision_system,
                         chunk_size=chunk_size,
                         # I/O
-                        input_source_config=_metadata_config["dataset"],
+                        # General
+                        setup_source_input_options=_setup_source_input_options,
+                        # Specific
                         thermal_model_parameters=thermal_model_parameters,
                         output_settings_config=_output_settings_config,
                         # Arguments

@@ -586,6 +586,8 @@ def setup_source_for_data_or_MC_task(
     # Task settings
     task_settings: task.Settings,
     task_metadata: task.Metadata,
+    # General IO
+    minimize_IO_as_possible: bool,
     # Inputs
     signal_input: Path | Sequence[Path],
     signal_source: sources.SourceFromFilename | sources.DelayedSource,
@@ -609,6 +611,7 @@ def setup_source_for_data_or_MC_task(
         signal_input: Input signal file(s).
         signal_source: Source for the signal.
         loading_data_rename_levels: Rename existing level to another level in the array. Eg. "detLevel" -> "det_level".
+        minimize_IO_as_possible: Whether to minimize IO as much as possible.
         output_settings: Output settings.
     Returns:
         iter_arrays: Iterator over the arrays to process.
@@ -625,9 +628,12 @@ def setup_source_for_data_or_MC_task(
         }
     )
 
-    res = task.check_for_task_output(output_settings=output_settings, chunk_size=task_settings.chunk_size)
-    if res[0]:
-        raise task.FailedToSetupSourceError(result_success=res[0], result_message=res[1])
+    if minimize_IO_as_possible:
+        logger.info("Skipping check for task output to minimize IO.")
+    else:
+        res = task.check_for_task_output(output_settings=output_settings, chunk_size=task_settings.chunk_size)
+        if res[0]:
+            raise task.FailedToSetupSourceError(result_success=res[0], result_message=res[1])
 
     # Setup iteration over the input files
     try:
@@ -660,6 +666,8 @@ def setup_source_for_embedding_task(
     # Task settings
     task_settings: task.Settings,
     task_metadata: task.Metadata,
+    # General IO
+    minimize_IO_as_possible: bool,
     # Inputs
     signal_input: Path | Sequence[Path],
     signal_source: sources.SourceFromFilename | sources.DelayedSource,
@@ -688,6 +696,7 @@ def setup_source_for_embedding_task(
         background_input: Input background file(s).
         background_source: Source for the background.
         background_is_constrained_source: Whether the background is the constrained source.
+        minimize_IO_as_possible: Whether to minimize IO as much as possible.
         output_settings: Output settings.
     Returns:
         (source_index_identifiers, iter_arrays), where:
@@ -708,9 +717,12 @@ def setup_source_for_embedding_task(
         }
     )
 
-    res = task.check_for_task_output(output_settings=output_settings, chunk_size=task_settings.chunk_size)
-    if res[0]:
-        raise task.FailedToSetupSourceError(result_success=res[0], result_message=res[1])
+    if minimize_IO_as_possible:
+        logger.info("Skipping check for task output to minimize IO.")
+    else:
+        res = task.check_for_task_output(output_settings=output_settings, chunk_size=task_settings.chunk_size)
+        if res[0]:
+            raise task.FailedToSetupSourceError(result_success=res[0], result_message=res[1])
 
     # Setup iteration over the input files
     # If we don't use a processing chunk size, it should all be done in one chunk by default.
@@ -753,6 +765,8 @@ def setup_source_for_embedding_thermal_model_task(
     # Task settings
     task_settings: task.Settings,
     task_metadata: task.Metadata,
+    # General IO
+    minimize_IO_as_possible: bool,
     # Inputs
     signal_input: Path | Sequence[Path],
     signal_source: sources.SourceFromFilename | sources.DelayedSource,
@@ -767,6 +781,8 @@ def setup_source_for_embedding_thermal_model_task(
 
     Args:
         task_settings: Task settings.
+        task_metadata: Task metadata.
+        minimize_IO_as_possible: Whether to minimize IO as much as possible.
         signal_input: Input signal file(s).
         signal_source: Source for the signal.
         thermal_model_parameters: Parameters for the thermal model.
@@ -789,9 +805,12 @@ def setup_source_for_embedding_thermal_model_task(
         }
     )
 
-    res = task.check_for_task_output(output_settings=output_settings, chunk_size=task_settings.chunk_size)
-    if res[0]:
-        raise task.FailedToSetupSourceError(result_success=res[0], result_message=res[1])
+    if minimize_IO_as_possible:
+        logger.info("Skipping check for task output to minimize IO.")
+    else:
+        res = task.check_for_task_output(output_settings=output_settings, chunk_size=task_settings.chunk_size)
+        if res[0]:
+            raise task.FailedToSetupSourceError(result_success=res[0], result_message=res[1])
 
     # Setup iteration over the input files
     # If we don't use a processing chunk size, it should all be done in one chunk by default.

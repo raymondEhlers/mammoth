@@ -20,7 +20,7 @@ from mammoth.framework.io import output_utils
 logger = logging.getLogger(__name__)
 
 
-def steer_task_execution(
+def steer_task_execution(  # noqa: C901
     *,
     task_settings: framework_task.Settings,
     task_metadata: framework_task.Metadata,
@@ -81,15 +81,18 @@ def steer_task_execution(
             local_output_settings = output_settings.with_new_output_filename(_output_filename)
 
             # Try to bail out as early to avoid reprocessing if possible.
-            res = framework_task.check_for_task_output(
-                output_settings=local_output_settings,
-            )
-            if res[0]:
-                _nonstandard_processing_outcome.append(res)
-                logger.info(f"Skipping already processed chunk {i_chunk}: {res}")
-                # Setup for next loop
-                i_chunk += 1
-                continue
+            if task_settings.minimize_IO_as_possible:
+                logger.info(f"Skipping task (analysis) output check to minimize IO. Chunk: {i_chunk}")
+            else:
+                res = framework_task.check_for_task_output(
+                    output_settings=local_output_settings,
+                )
+                if res[0]:
+                    _nonstandard_processing_outcome.append(res)
+                    logger.info(f"Skipping already processed chunk {i_chunk}: {res}")
+                    # Setup for next loop
+                    i_chunk += 1
+                    continue
 
             continue_on_to_write_output = True
             try:

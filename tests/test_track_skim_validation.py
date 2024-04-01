@@ -737,23 +737,31 @@ def test_track_skim_validation(  # noqa: C901
         if collision_system != "embed_pythia":
             workflow_results = setup_standard_workflow(
                 prod=prod,
-                job_framework=job_utils.JobFramework.immediate_execution_debug,
-                debug_mode={
-                    pt_hat_bin: [track_skim_filenames.parquet_output()],
-                },
+                execution_settings=job_utils.ExecutionSettings(
+                    job_framework=job_utils.JobFramework.immediate_execution_debug,
+                    file_staging_settings=None,
+                    minimize_IO_as_possible=False,
+                    debug_mode={
+                        pt_hat_bin: [track_skim_filenames.parquet_output()],
+                    },
+                ),
             )
         else:
             signal_filename = track_skim_filenames.parquet_output(extra_collision_system_label="pythia")
             background_filename = track_skim_filenames.parquet_output(extra_collision_system_label="PbPb")
             workflow_results = setup_embed_workflow(
                 prod=prod,
-                job_framework=job_utils.JobFramework.immediate_execution_debug,
-                debug_mode={
-                    "signal_input_files_per_pt_hat": {
-                        pt_hat_bin: [signal_filename, signal_filename, signal_filename],
+                execution_settings=job_utils.ExecutionSettings(
+                    job_framework=job_utils.JobFramework.immediate_execution_debug,
+                    file_staging_settings=None,
+                    minimize_IO_as_possible=False,
+                    debug_mode={
+                        "signal_input_files_per_pt_hat": {
+                            pt_hat_bin: [signal_filename, signal_filename, signal_filename],
+                        },
+                        "background_input_files": [background_filename],
                     },
-                    "background_input_files": [background_filename],
-                },
+                ),
             )
         # Check the results ran
         for task_res in workflow_results:
@@ -783,6 +791,7 @@ def test_track_skim_validation(  # noqa: C901
     )
     assert comparison_result, f"Validation failed during comparison for {_failed_variables}"
 
-    # Cleanup the track skim flat tree file from the v2_2024 workflow
-    if steering_version == "v2_2024":
-        track_skim_flat_tree_filename.unlink(missing_ok=True)
+    # Can cleanup the track skim flat tree file from the v2_2024 workflow.
+    # However, as of March 2024, I think it's okay to just leave the files...
+    # if steering_version == "v2_2024":
+    #     track_skim_flat_tree_filename.unlink(missing_ok=True)
