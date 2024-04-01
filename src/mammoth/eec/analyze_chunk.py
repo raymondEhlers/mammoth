@@ -551,9 +551,10 @@ def analyze_chunk_one_input_level(
     """
     # Validation
     if return_skim and combinatorics_chunk_size < 0:
-        logger.info(
+        logger.warning(
             f"Requested to return the skim, but the combination chunk size is {combinatorics_chunk_size} (> 0), which won't work. So we disable it."
         )
+        return_skim = False
     # If we don't need a scale factor, it's more convenient to just set it to 1.0
     if scale_factors is None:
         scale_factors = {-1: 1.0}
@@ -643,9 +644,10 @@ def analyze_chunk_two_input_level(
     """Run the analysis for the two input levels."""
     # Validation
     if return_skim and combinatorics_chunk_size < 0:
-        logger.info(
+        logger.warning(
             f"Requested to return the skim, but the combination chunk size is {combinatorics_chunk_size} (> 0), which won't work. So we disable it."
         )
+        return_skim = False
 
     # Setup
     # TODO: Make this configurable, probably
@@ -759,9 +761,10 @@ def analyze_chunk_three_input_level(
     """
     # Validation
     if return_skim and combinatorics_chunk_size < 0:
-        logger.info(
+        logger.warning(
             f"Requested to return the skim, but the combination chunk size is {combinatorics_chunk_size} (> 0), which won't work. So we disable it."
         )
+        return_skim = False
 
     # Setup
     level_names = ["part_level", "det_level", "hybrid_level"]
