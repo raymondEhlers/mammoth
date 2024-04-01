@@ -119,9 +119,12 @@ class FileStagingSettings:
 
 @attrs.define(frozen=True)
 class FileStager:
-    """Handles file staging within a job according to the provided settings.
+    """Performs file staging within a job according to the provided settings.
 
-    Best used in conjunction with the `FileStagingManager` context manager!
+    Best used in conjunction with the `FileStagingManager` context manager! Otherwise,
+    there's a lot details to manage (e.g. file cleanup), that aren't handled by this class.
+    All it does is move files and some basic cleanup (but only in cases where we can be
+    100% confident that it's safe).
 
     The concept here is that there are two directories:
         - The permanent directory, which is where the files are stored permanently.
@@ -131,11 +134,12 @@ class FileStager:
 
     ```python
     fs = FileStaging(
-        FileStagingSettings(
+        settings=FileStagingSettings(
             permanent_work_dir=Path("/path/to/permanent"),
             node_work_dir=Path("/path/to/worker_node"),
         )
     )
+    # Stage in
     input_file = Path("/path/to/permanent/some_directory_path/input_file.txt")
     result = fs.stage_files_in(files_to_stage_in=[input_file])
     assert result[0] == Path(
@@ -143,50 +147,30 @@ class FileStager:
     )
     ```
 
-    and then staging out will undo this, again as appropriate. The scheme is slightly involved,
-    but I think it will be more intuitive in the long run.
+    and then staging out will undo this, again as appropriate. e.g.:
+
+    ```python
+    fs = FileStaging(
+        settings=FileStagingSettings(
+            permanent_work_dir=Path("/path/to/permanent"),
+            node_work_dir=Path("/path/to/worker_node"),
+        )
+    )
+    # Stage out
+    output_file = Path(
+        "/path/to/worker_node/<unique_ID>/output/some_output_directory_path/output_file.txt"
+    )
+    result = fs.stage_files_out(files_to_stage_out=[output_file])
+    assert result[0] == Path(
+        "/path/to/permanent/<unique_ID>/some_output_directory_path/output_file.txt"
+    )
+    ```
 
     Attributes:
-        permanent_work_dir: Permanent work directory for storing files.
-        node_work_dir: Work directory on the worker node for storing files.
-        _staged_in_files: Files that have been staged in. We keep track of them
-            so can clean them up afterwards.
+        settings: File staging settings.
     """
 
     settings: FileStagingSettings
-    # _staged_in_files: list[Path] = attrs.field(init=False, factory=list)
-
-    # @classmethod
-    # def from_directories(cls, permanent_work_dir: Path, node_work_dir: Path) -> FileStager:
-    #    """Create a `FileStaging` object from directories.
-
-    #    Args:
-    #        permanent_work_dir: Permanent work directory for storing files.
-    #        node_work_dir: Work directory on the worker node for storing files.
-    #    Returns:
-    #        A FileStaging object.
-    #    """
-    #    return cls(settings=FileStagingPaths(permanent_work_dir=permanent_work_dir, node_work_dir=node_work_dir))
-
-    # def make_unique(self, expand_env_vars_in_node_work_dir: bool) -> FileStager:
-    #    """Create a unique stager with the same settings.
-
-    #    We don't want tasks to share the same stager, so we create a new one for each task.
-
-    #    Args:
-    #        expand_env_vars_in_node_work_dir: Whether to expand environment variables in the node work dir.
-    #            Usually, you'll want to save this for when you're on the worker node.
-    #    Returns:
-    #        A new `FileStaging` object with a unique ID.
-    #    """
-    #    if expand_env_vars_in_node_work_dir:
-    #        node_work_dir = Path(os.path.expandvars(self.settings.node_work_dir))
-    #    return FileStager(
-    #        settings=FileStagingPaths(
-    #            permanent_work_dir=self.settings.permanent_work_dir,
-    #            node_work_dir=node_work_dir,
-    #        )
-    #    )
 
     def stage_files_in(self, files_to_stage_in: list[Path]) -> list[Path]:
         """Stage files in.
@@ -220,20 +204,19 @@ class FileStager:
             logger.debug(f"Copying permanent:'{f.relative_to(self.settings.permanent_work_dir)}' -> node:'{p}'")
             shutil.copy(f, p)
 
-        # Store the values so we can clean them up later
-        # if plan_to_clean_up_afterwards:
-        #    self._staged_in_files.extend(modified_paths)
-
         return modified_paths
 
     def stage_files_out(self, files_to_stage_out: list[Path] | None = None) -> list[Path]:
         """Stage out the provided files.
 
         Args:
-            files_to_stage_out: Files to stage out.
+            files_to_stage_out: Files to stage out, using their paths on the worker node.
+                Default: None. In that case, we stage out al files in the output directory.
         Returns:
             Paths of the files that were staged out, in their permanent locations.
         """
+        # We won't always known the output files beforehand. In that case, we want
+        # to just stage out all files in the output directory.
         if files_to_stage_out is None:
             # NOTE: Could also use shutil.copytree(src, dest, dir_exist_ok=True), but
             #       this is more convenient since we already implemented the copying, so
@@ -305,19 +288,23 @@ class FileStager:
 class FileStagingManager:
     """Manage file staging.
 
-    This is the preferred interface for staging files. It takes care of many details that you would otherwise
-    have to worry about.
+    This is the preferred interface for actually staging files. It takes care of many details
+    that you would otherwise have to worry about in e.g. cleaning up files as appropriate.
 
-    We assume that we will clean up the staged in files.
+    Note that we assume that we will clean up the staged in files. This is almost certainly
+    what you want to do.
 
     NOTE:
         If file staging is disabled, then we just provide the manager and don't do
         anything else. i.e. in that case, it's effectively a no-op.
 
-    NOTE:
-        The attributes are marked as private because we don't want the user to try
-        to interact directly with them and get confused. It's better if they have
-        to make explicit (but obvious) choices.
+    The file list attributes are marked as private because we don't want the user to try to
+    interact directly with them and get confused. It's better if they have to make explicit
+    (but obvious) choices to get the right paths.
+
+    There's no `_output_files_post_stage_out` because we don't need to keep track of them.
+    Further, the context manager will be out of scope by then, so we can't access this value
+    anyway by the time we would be interested. So it's better to just not keep track of it.
 
     Attributes:
         file_staging: File staging object.
@@ -327,14 +314,12 @@ class FileStagingManager:
             the permanent directory. Default: None, which means that we will stage out all files
             that are in the output directory.
         _input_files_post_stage_in: List of input files that were staged in, after the stage in operation.
-        _output_files_post_stage_out: List of output files to staged out, after the stage out operation.
     """
 
     file_stager: FileStager | None
     _input_files: list[Path]
     _output_files: list[Path] | None = None
     _input_files_post_stage_in: list[Path] = attrs.field(init=False, factory=list)
-    # _output_files_post_stage_out: list[Path] | None = attrs.field(init=False, default=None)
 
     @classmethod
     def from_settings(
@@ -397,6 +382,7 @@ class FileStagingManager:
         return self.translate_input_paths(input_files), self.translate_output_paths(output_files)
 
     def __enter__(self) -> FileStagingManager:
+        """Entering the context manager, staging in files if appropriate."""
         # If not, there's nothing to be done
         if self.file_stager:
             # If file staging is valid, then ensure we stage in.
@@ -428,8 +414,9 @@ class FileStagingManager:
         exc_val: BaseException | None,
         exc_tb: TracebackType | None,
     ) -> None:
+        """Exiting the context manager, staging out files if appropriate."""
         if self.file_stager:
-            # Clean up the staged in files
+            # First, clean up the staged in files so we don't forget.
             self._clean_up_staged_in_files_after_task()
             # And stage out, using the provided output files if appropriate.
             self.file_stager.stage_files_out(files_to_stage_out=self._output_files)
