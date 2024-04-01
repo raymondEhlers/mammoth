@@ -271,7 +271,7 @@ class FileStager:
         for f, p in zip(files_to_stage_out, modified_paths, strict=True):
             try:
                 # TODO: Return to debug after finishing testing!
-                logger.warning(f"Copying node:'{f.relative_to(self.settings.node_work_dir_output)}' -> permanent:'{p}'")
+                logger.warning(f"Copying node:'{f}' -> permanent:'{p.relative_to(self.settings.permanent_work_dir)}'")
                 shutil.copy(f, p)
             except OSError as e:
                 logger.exception(e)
