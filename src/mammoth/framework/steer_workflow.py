@@ -566,6 +566,7 @@ def setup_framework_standard_workflow(  # noqa: C901
                         job_framework=execution_settings.job_framework,
                         inputs=[File(input_filename)],
                         outputs=[File(output_filename)],
+                        file_staging=execution_settings.file_staging_settings,
                     )
                 )
 
@@ -871,6 +872,7 @@ def setup_framework_embed_workflow(  # noqa: C901
                         *[File(str(_filename)) for _filename in background_input],
                     ],
                     outputs=[File(str(output_filename))],
+                    file_staging=execution_settings.file_staging_settings,
                 )
             )
 
@@ -1039,6 +1041,7 @@ def setup_framework_embed_workflow(  # noqa: C901
                             File(str(input_filename)),
                         ],
                         outputs=[File(str(output_filename))],
+                        file_staging=execution_settings.file_staging_settings,
                     )
                 )
 
