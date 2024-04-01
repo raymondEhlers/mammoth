@@ -861,10 +861,11 @@ productions:
         apply_pt_dependent_tracking_efficiency_uncertainty: true
         output_settings:
           <<: *reclustered_substructure_output_settings
-    # EEC: Single particle, fraction of stats, two input levels
+    # EEC: Single particle, fraction of stats, two input levels.
+    # NOTE: Using pass1, since I don't 100% trust pass2 at the moment.
     75:
       metadata:
-        dataset: *LHC20g4_pythia
+        dataset: *LHC18b8_pythia
         sample_dataset_fraction: 0.2
         # Equivalent to train number, but a more general term makes more sense here.
         production_number: 75
