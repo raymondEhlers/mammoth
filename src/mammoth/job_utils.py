@@ -240,7 +240,7 @@ _facilities_configs.update(
             partition_name="INVALID",
             target_allocate_n_cores=1 if multi_core is False else 8,
             launcher=SingleNodeLauncher,
-            node_work_dir=Path("/tmp/parsl/$USER"),
+            # node_work_dir=Path("/tmp/parsl/$USER"),
             # storage_work_dir=(Path.cwd() / Path("work_dir")).resolve(),
             directories_to_mount_in_singularity=[],
         )

@@ -217,8 +217,7 @@ class FileStager:
 
         # Finally, move the files
         for f, p in zip(files_to_stage_in, modified_paths, strict=True):
-            # TODO: Return to debug after finishing testing!
-            logger.warning(f"Copying permanent:'{f.relative_to(self.settings.permanent_work_dir)}' -> node:'{p}'")
+            logger.debug(f"Copying permanent:'{f.relative_to(self.settings.permanent_work_dir)}' -> node:'{p}'")
             shutil.copy(f, p)
 
         # Store the values so we can clean them up later
@@ -267,23 +266,37 @@ class FileStager:
         for d in directories_to_create:
             d.mkdir(parents=True, exist_ok=True)
 
-        # Finally, move the files
+        # Finally, move the files out
         for f, p in zip(files_to_stage_out, modified_paths, strict=True):
             try:
-                # TODO: Return to debug after finishing testing!
-                logger.warning(f"Copying node:'{f}' -> permanent:'{p.relative_to(self.settings.permanent_work_dir)}'")
+                logger.debug(f"Copying node:'{f}' -> permanent:'{p.relative_to(self.settings.permanent_work_dir)}'")
                 shutil.copy(f, p)
             except OSError as e:
                 logger.exception(e)
                 continue
-            # If we've succeeded in copying, we can remove the existing file.
+            # If we've succeeded in copying, we can remove the existing file on the worker node.
             f.unlink()
         try:
+            # Double check that there are not any files left in the tree before removing the whole thing.
+            # NOTE: This does take some IO, but it's on the node, so it should be relatively cheap.
+            remaining_files = [f for f in self.settings.node_work_dir_output.rglob("*") if f.is_file()]
+            if any(remaining_files):
+                msg = (
+                    f"Wanted to remove node output directory: {self.settings.node_work_dir_output}"
+                    f", but it still contains files: {remaining_files}"
+                )
+                raise RuntimeError(msg)
+            # If there aren't any files left, then we're all good to remove the directory
             shutil.rmtree(self.settings.node_work_dir_output)
-        except OSError as e:
+        except (RuntimeError, OSError) as e:
+            # If this fails, it doesn't prevent further operations, so we just log it and move on.
             logger.exception(e)
-            msg = f"Failed to remove node output work directory: {self.settings.node_work_dir_output}"
-            raise RuntimeError(msg) from e
+            # Add some additional information, so we can figure out how it went wrong in the future.
+            msg = (
+                f"Failed to remove node output work directory: {self.settings.node_work_dir_output}"
+                f" containing {list(self.settings.node_work_dir_output.rglob('*'))}"
+            )
+            logger.warning(msg)
 
         return modified_paths
 
@@ -424,12 +437,14 @@ class FileStagingManager:
             try:
                 self.file_stager.settings.node_work_dir.rmdir()
             except OSError as e:
-                # This isn't critical, so we just log it and move on.
+                # If this fails, it doesn't prevent further operations, so we just log it and move on.
                 logger.exception(e)
-                # TODO: Remove this warning after testing
-                logger.warning(
-                    f"Failed to remove node work directory: {self.file_stager.settings.node_work_dir} containing {list(self.file_stager.settings.node_work_dir.rglob('*'))}"
+                # Add some additional information, so we can figure out how it went wrong in the future.
+                msg = (
+                    f"Failed to remove node origin work directory: {self.file_stager.settings.node_work_dir}"
+                    f" containing {list(self.file_stager.settings.node_work_dir.rglob('*'))}"
                 )
+                logger.warning(msg)
         # If we're not staging, there's nothing to be done
 
     def _clean_up_staged_in_files_after_task(self) -> None:
@@ -444,20 +459,26 @@ class FileStagingManager:
             #       any. This of course has an IO cost, but again, we're on the local storage of a
             #       worker node, so it should be relatively cheap.
             try:
-                # TODO: Clean up warnings here after testing
-                logger.warning(
-                    f"Removing input directory: {self.file_stager.settings.node_work_dir_input} containing {list(self.file_stager.settings.node_work_dir_input.rglob('*'))}"
-                )
                 # Double check that there are not any files left in the tree before removing the whole thing.
-                if any(f for f in self.file_stager.settings.node_work_dir_input.rglob("*") if f.is_file()):
-                    msg = f"Input directory {self.file_stager.settings.node_work_dir_input} still contains files!"
+                # NOTE: This does take some IO, but it's on the node, so it should be relatively cheap.
+                remaining_files = [f for f in self.file_stager.settings.node_work_dir_input.rglob("*") if f.is_file()]
+                if any(remaining_files):
+                    msg = (
+                        f"Wanted to remove node input directory: {self.file_stager.settings.node_work_dir_input}"
+                        f", but it still contains files: {remaining_files}"
+                    )
                     raise RuntimeError(msg)
+                # If there aren't any files left, then we're all good to remove the directory
                 shutil.rmtree(self.file_stager.settings.node_work_dir_input)
             except (RuntimeError, OSError) as e:
-                logger.warning(f"Failed to remove directory... {self.file_stager.settings.node_work_dir_input}")
+                # If this fails, it doesn't prevent further operations, so we just log it and move on.
                 logger.exception(e)
-                msg = f"Failed to remove node input work directory: {self.file_stager.settings.node_work_dir_input}"
-                raise RuntimeError(msg) from e
+                # Add some additional information, so we can figure out how it went wrong in the future.
+                msg = (
+                    f"Failed to remove node input work directory: {self.file_stager.settings.node_work_dir_input}"
+                    f" containing {list(self.file_stager.settings.node_work_dir_input.rglob('*'))}"
+                )
+                logger.warning(msg)
 
             # And clear the list since we're done.
             self._input_files_post_stage_in = []
