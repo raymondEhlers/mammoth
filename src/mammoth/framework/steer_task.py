@@ -82,7 +82,13 @@ def steer_task_execution(  # noqa: C901
 
             # Try to bail out as early to avoid reprocessing if possible.
             if task_settings.minimize_IO_as_possible:
-                logger.info(f"Skipping (analysis) task output check to minimize IO. Chunk: {i_chunk}")
+                # Only log on the first instance to avoid spamming the log
+                if i_chunk < 1:
+                    msg = (
+                        f"Skipping (analysis) task output check to minimize IO. Chunk: {i_chunk}."
+                        f" (NOTE: Won't log again to avoid spamming)"
+                    )
+                    logger.info(msg)
             else:
                 res = framework_task.check_for_task_output(
                     output_settings=local_output_settings,

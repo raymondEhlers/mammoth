@@ -453,7 +453,7 @@ def calculate_correlators(
 
             # One argument should be the power
             # First, need to broadcast the trigger pt
-            logger.info(f"{level}, {trigger_name}: About to fill hists")
+            logger.debug(f"{level}, {trigger_name}: About to fill hists")
             trigger_pt, _ = ak.broadcast_arrays(
                 trigger_pt_event_wise,
                 distances,
