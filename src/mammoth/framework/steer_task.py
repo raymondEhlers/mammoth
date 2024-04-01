@@ -82,7 +82,7 @@ def steer_task_execution(  # noqa: C901
 
             # Try to bail out as early to avoid reprocessing if possible.
             if task_settings.minimize_IO_as_possible:
-                logger.info(f"Skipping task (analysis) output check to minimize IO. Chunk: {i_chunk}")
+                logger.warning(f"Skipping (analysis) task output check to minimize IO. Chunk: {i_chunk}")
             else:
                 res = framework_task.check_for_task_output(
                     output_settings=local_output_settings,

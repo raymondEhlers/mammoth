@@ -56,6 +56,7 @@ class TriggerParameters:
             parameters=parameters,
         )
 
+    @property
     def label(self) -> str:
         return f"trigger_{self.type}_{self.kinematic_label}"
 
@@ -65,6 +66,15 @@ def preprocess_arguments(**analysis_arguments: Any) -> dict[str, Any]:
     return {
         "trigger_parameters": trigger_parameters,
     }
+
+
+def output_identifier(**analysis_arguments: Any) -> str:
+    identifier = ""
+    trigger_parameters: TriggerParameters = analysis_arguments.pop("trigger_parameters")
+    identifier += f"__{trigger_parameters.label}"
+    for trigger_name, trigger_range_tuple in trigger_parameters.classes.items():
+        identifier += f"_{trigger_name}_{trigger_range_tuple[0]:g}_{trigger_range_tuple[1]:g}"
+    return identifier
 
 
 def customize_analysis_metadata(
@@ -383,9 +393,9 @@ def calculate_correlators(
                 }
             )
         )
-        logger.warning(
-            f"{level=}, {trigger_name=}: {_start=}, {_end=}, {len(recoil_vector)=} (Initial size={len(triggers)})"
-        )
+        # logger.warning(
+        #    f"{level=}, {trigger_name=}: {_start=}, {_end=}, {len(recoil_vector)=} (Initial size={len(triggers)})"
+        # )
 
         # For recoil region, look at delta_phi between them
         event_selected_array = arrays[event_selection_mask][_start:_end]

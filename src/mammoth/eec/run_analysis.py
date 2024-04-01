@@ -28,12 +28,13 @@ logger = logging.getLogger(__name__)
 @attrs.frozen()
 class EECProductionSpecialization:
     def customize_identifier(self, analysis_settings: MutableMapping[str, Any]) -> str:
+        """Customize the production identifier."""
+        name = ""
         # NOTE: Only handle things here that need special treatment!
-        # Trigger pt ranges
-        name = "_trigger_pt_ranges_"
-        trigger_pt_ranges: dict[str, tuple[float, float]] = analysis_settings.pop("trigger_pt_ranges")
-        for trigger_name, trigger_pt_tuple in trigger_pt_ranges.items():
-            name += f"_{trigger_name}_{trigger_pt_tuple[0]:g}_{trigger_pt_tuple[1]:g}"
+        trigger_parameters = analyze_chunk.TriggerParameters.from_config(analysis_settings.pop("trigger_parameters"))
+        name += f"__{trigger_parameters.label}"
+        for trigger_name, trigger_range_tuple in trigger_parameters.classes.items():
+            name += f"_{trigger_name}_{trigger_range_tuple[0]:g}_{trigger_range_tuple[1]:g}"
         name += "_"
         # Min track pt
         name += "_min_track_pt"
@@ -69,6 +70,7 @@ setup_standard_workflow, setup_embed_workflow = steer_workflow.setup_framework_d
     analyze_chunk_with_two_input_lvl=analyze_chunk.analyze_chunk_two_input_level,
     analyze_chunk_with_three_input_lvl=analyze_chunk.analyze_chunk_three_input_level,
     preprocess_arguments=analyze_chunk.preprocess_arguments,
+    output_identifier=analyze_chunk.output_identifier,
     metadata_for_labeling=analyze_chunk.customize_analysis_metadata,
 )
 

@@ -354,8 +354,7 @@ analysis_settings:
     _pp: &_reclustered_substructure_settings_pp
       track_skim_to_flat_skim_level_names: # Map from track_skim level -> level of the structured jet substructure format
         data: "data"
-      analysis_input_levels:
-        - "data"
+      analysis_input_levels: ["data"]
       splittings_selection: "iterative"
       # In GeV
       min_jet_pt: { "data": 5 }
@@ -459,8 +458,16 @@ analysis_settings:
       reclustering_settings:
         <<: *_time_reclustering_reclustering_settings
 
+  ########################3
+  # Energy-energy correlators
+  ########################3
   _EEC_analysis_settings:
+    # Base settings for EEC -- applied to all EEC analyses
     base_analysis_settings: &_base_analysis_settings_EEC
+      momentum_weight_exponent: 1
+
+    # We don't want to automatically apply these settings, but only take use selectively
+    default_parameters:
       trigger_parameters_hadron: &analysis_settings_EEC_trigger_hadron
         classes:
           reference: [5., 7.]
@@ -484,10 +491,33 @@ analysis_settings:
           kinematic_label: "E"
           isolation_cone: 0.4
           max_background_in_isolation: 2. # in GeV
-      momentum_weight_exponent: 1
+      default_output_settings:
+        one_input_level: &EEC_output_settings_hadron_trigger_one_input_level
+          primary_output:
+            type: "hists"
+            reference_name: "data_level_reference_eec"
+            container_name: ""
+          return_skim: false
+          write_chunk_skim: false
+          write_skim_extension: "parquet"
+          return_merged_hists: false
+          write_chunk_hists: false
+          write_merged_hists: true
+        two_input_level: &EEC_output_settings_hadron_trigger_two_input_level
+          primary_output:
+            type: "hists"
+            reference_name: "det_level_reference_eec"
+            container_name: ""
+          return_skim: false
+          write_chunk_skim: false
+          write_skim_extension: "parquet"
+          return_merged_hists: false
+          write_chunk_hists: false
+          write_merged_hists: true
 
     pp: &analysis_settings_EEC_pp
       <<: *_base_analysis_settings_EEC
+      analysis_input_levels: ["data"]
       trigger_parameters:
         <<: *analysis_settings_EEC_trigger_hadron
       correlator_type: "one_particle"
@@ -495,8 +525,9 @@ analysis_settings:
       min_track_pt:
         data: 1.
 
-    pythia: &analysis_settings_EEC_pythia
+    pp_MC: &analysis_settings_EEC_pp_MC
       <<: *_base_analysis_settings_EEC
+      analysis_input_levels: ["det_level", "part_level"]
       trigger_parameters:
         <<: *analysis_settings_EEC_trigger_hadron
       correlator_type: "one_particle"
@@ -504,9 +535,12 @@ analysis_settings:
       min_track_pt:
         part_level: 1.
         det_level: 1.
+      # By default, don't apply any additional reduction
+      det_level_artificial_tracking_efficiency: 1.0
 
     PbPb: &analysis_settings_EEC_PbPb
       <<: *_base_analysis_settings_EEC
+      analysis_input_levels: ["data"]
       trigger_parameters:
         <<: *analysis_settings_EEC_trigger_hadron
       correlator_type: "one_particle"
@@ -516,6 +550,7 @@ analysis_settings:
 
     embed: &analysis_settings_EEC_embed
       <<: *_base_analysis_settings_EEC
+      analysis_input_levels: ["hybrid_level", "det_level", "part_level"]
       trigger_parameters:
         <<: *analysis_settings_EEC_trigger_hadron
       correlator_type: "one_particle"
@@ -734,6 +769,20 @@ productions:
           <<: *reclustered_substructure_output_settings
         selected_grooming_methods:
           - "soft_drop_z_cut_02"
+    7:
+      # EECs with a fraction of stats on my MBP
+      metadata:
+        dataset: *LHC20g4_pythia
+        #sample_dataset_fraction: 0.1
+        # Equivalent to train number, but a more general term makes more sense here.
+        production_number: 7
+        label: ""
+      settings:
+        <<: *analysis_settings_EEC_pp_MC
+        chunk_size: 5000
+        combinatorics_chunk_size: 500
+        output_settings:
+          <<: *EEC_output_settings_hadron_trigger_two_input_level
     # NOTE: Starts at 69 to be consistent with the "pythia", which this generalizes from.
     # Pythia fastsim w/ time reclustering
     69:
