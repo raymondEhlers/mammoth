@@ -1446,6 +1446,8 @@ productions:
         label: "embed_pythia_semi_central"
       settings:
         <<: *analysis_settings_hardest_kt_embed_R02
+        output_settings:
+          <<: *reclustered_substructure_output_settings
         event_activity: "semi_central"
         chunk_size: 4000
         background_subtraction:
@@ -1463,6 +1465,8 @@ productions:
         label: "embed_pythia_central"
       settings:
         <<: *analysis_settings_hardest_kt_embed_R02
+        output_settings:
+          <<: *reclustered_substructure_output_settings
         event_activity: "central"
         chunk_size: 4000
         background_subtraction:
