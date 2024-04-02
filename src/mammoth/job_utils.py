@@ -260,7 +260,7 @@ _facilities_configs.update(
             target_allocate_n_cores=1,
             launcher=SingleNodeLauncher,
             # node_work_dir=Path("/tmp/parsl/$USER"),
-            # storage_work_dir=Path("/alf/data/rehlers/jetscape/work_dir"),
+            # storage_work_dir=Path("/rstorage/rehlers"),
             nodes_to_exclude=[],
             minimize_IO_as_possible=True,
         )
@@ -280,7 +280,7 @@ _facilities_configs.update(
             target_allocate_n_cores=1,
             launcher=SingleNodeLauncher,
             node_work_dir=Path("/scratch/u/$USER/parsl"),
-            # storage_work_dir=Path("/alf/data/rehlers/jetscape/work_dir"),
+            storage_work_dir=Path("/rstorage/rehlers"),
             nodes_to_exclude=[],
             # We'll implement our new file staging, so no need to have parsl take care of it.
             # staging_storage_classes=[job_file_management.ParslRSyncStaging()],
