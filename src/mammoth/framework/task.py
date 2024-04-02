@@ -770,7 +770,7 @@ def python_app_embed_MC_into_data(
         #       know for show e.g. how many chunks the task will produce, so we can't know the output
         #       filenames beforehand. By not passing explicitly, it will move all files that are there.
         with job_file_management.FileStagingManager.from_settings(
-            settings=file_staging_settings, input_files=signal_input
+            settings=file_staging_settings, input_files=signal_input + background_input
         ) as staging_manager:
             # NOTE: It's really important - we need to take (potentially) updated paths here!
             translated_signal_input = staging_manager.translate_input_paths(paths=signal_input)
