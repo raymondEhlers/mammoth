@@ -433,6 +433,7 @@ def setup_framework_standard_workflow(  # noqa: C901
         output_dir.mkdir(parents=True, exist_ok=True)
 
         # If we want to debug some particular files, we can directly set them here
+        logger.info(f"{execution_settings.debug_mode=}")
         if execution_settings.debug_mode and isinstance(execution_settings.debug_mode, Mapping):
             # input_files = {10: [Path("trains/pythia/2619/run_by_run/LHC18b8_cent_woSDD/282008/10/AnalysisResults.18b8_cent_woSDD.003.root")]}
             # input_files = {-1: [Path("trains/pp/2111/run_by_run/LHC17p_CENT_woSDD/282341/AnalysisResults.17p.586.root")]}
@@ -653,6 +654,7 @@ def setup_framework_embed_workflow(  # noqa: C901
         signal_input_files_per_pt_hat = prod.input_files_per_pt_hat()
 
         # If we want to debug some particular files, we can directly set them here
+        logger.info(f"{execution_settings.debug_mode=}")
         if execution_settings.debug_mode and isinstance(execution_settings.debug_mode, Mapping):
             # background_input_files = [Path("trains/PbPb/645/run_by_run/LHC18r/297595/AnalysisResults.18r.551.root")]
             # signal_input_files_per_pt_hat = {
@@ -920,6 +922,8 @@ def setup_framework_embed_workflow(  # noqa: C901
         output_dir = prod.output_dir / "skim"
         output_dir.mkdir(parents=True, exist_ok=True)
 
+        # If we want to debug some particular files, we can directly set them here
+        logger.info(f"{execution_settings.debug_mode=}")
         if execution_settings.debug_mode and isinstance(execution_settings.debug_mode, Mapping):
             # input_files = {10: [Path("trains/pythia/2619/run_by_run/LHC18b8_cent_woSDD/282008/10/AnalysisResults.18b8_cent_woSDD.003.root")]}
             # input_files = {10: [
@@ -1135,7 +1139,7 @@ def setup_job_framework(
     tasks_requiring_root: list[str] | None = None,
     tasks_requiring_aliphysics: list[str] | None = None,
     override_minimize_IO_as_possible: bool | None = None,
-    debug_mode: bool = False,
+    debug_mode: bool | dict[str | int, Any] = False,
 ) -> (
     tuple[job_utils.parsl.DataFlowKernel, job_utils.parsl.Config, job_utils.ExecutionSettings]
     | tuple[job_utils.dask.distributed.Client, job_utils.dask.distributed.SpecCluster, job_utils.ExecutionSettings]

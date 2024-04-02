@@ -835,7 +835,7 @@ def setup_job_framework(
     log_level: int,
     additional_worker_init_script: str = "",
     override_minimize_IO_as_possible: bool | None = None,
-    debug_mode: bool = False,
+    debug_mode: bool | dict[str | int, Any] = False,
 ) -> tuple[dask.distributed.Client, dask.distributed.SpecCluster, ExecutionSettings]:
     ...
 
@@ -850,7 +850,7 @@ def setup_job_framework(
     log_level: int,
     additional_worker_init_script: str = "",
     override_minimize_IO_as_possible: bool | None = None,
-    debug_mode: bool = False,
+    debug_mode: bool | dict[str | int, Any] = False,
 ) -> tuple[parsl.DataFlowKernel, Config, ExecutionSettings]:
     ...
 
@@ -865,7 +865,7 @@ def setup_job_framework(
     log_level: int,
     additional_worker_init_script: str = "",
     override_minimize_IO_as_possible: bool | None = None,
-    debug_mode: bool = False,
+    debug_mode: bool | dict[str | int, Any] = False,
 ) -> (
     tuple[parsl.DataFlowKernel, parsl.Config, ExecutionSettings]
     | tuple[dask.distributed.Client, dask.distributed.SpecCluster, ExecutionSettings]
@@ -882,7 +882,7 @@ def setup_job_framework(
     log_level: int,
     additional_worker_init_script: str = "",
     override_minimize_IO_as_possible: bool | None = None,
-    debug_mode: bool = False,
+    debug_mode: bool | dict[str | int, Any] = False,
 ) -> (
     tuple[parsl.DataFlowKernel, parsl.Config, ExecutionSettings]
     | tuple[dask.distributed.Client, dask.distributed.SpecCluster, ExecutionSettings]
