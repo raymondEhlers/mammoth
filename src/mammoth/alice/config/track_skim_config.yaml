@@ -867,7 +867,6 @@ productions:
     75:
       metadata:
         dataset: *LHC18b8_pythia
-        sample_dataset_fraction: 0.2
         # Equivalent to train number, but a more general term makes more sense here.
         production_number: 75
         label: ""
