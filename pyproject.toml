@@ -63,6 +63,7 @@ dependencies = [
     #"pachyderm @ file://{root:uri}/external/pachyderm",
     "dask[distributed,diagnostics]>=2022.12.0",
     "dask-jobqueue>=0.8.1",
+    "rich-argparse>=1.4.0",
 ]
 
 [project.optional-dependencies]
