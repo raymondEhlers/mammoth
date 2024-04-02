@@ -1431,6 +1431,44 @@ productions:
           r_max: 0.1
         det_level_artificial_tracking_efficiency: 0.94
         apply_pt_dependent_tracking_efficiency_uncertainty: false
+    # There was a bug in passing the pt dependent tracking efficiency uncertainty to the task settings
+    # in productions 74 and 75 (it was in the steering). Therefore, we create new productions here.
+    # They're identical configurations but I want new production numbers for bookkeeping.
+    # (NOTE: I also put the semi-central first now...)
+    77:
+      # Tracking efficiency systematic with pt dependence for semi-central, r_max = 0.1. Added 1 April 2024
+      # This includes a bug fix for passing the pt dependent tracking efficiency
+      metadata:
+        <<: *base_metadata_embed
+        dataset: *LHC18qr_PbPb_semi_central
+        signal_dataset: *LHC20g4_pythia
+        production_number: 77
+        label: "embed_pythia_semi_central"
+      settings:
+        <<: *analysis_settings_hardest_kt_embed_R02
+        event_activity: "semi_central"
+        chunk_size: 4000
+        background_subtraction:
+          r_max: 0.1
+        det_level_artificial_tracking_efficiency: 0.99
+        apply_pt_dependent_tracking_efficiency_uncertainty: true
+    78:
+      # Tracking efficiency systematic with pt dependence for central, r_max = 0.1. Added 1 April 2024.
+      # This includes a bug fix for passing the pt dependent tracking efficiency
+      metadata:
+        <<: *base_metadata_embed
+        dataset: *LHC18qr_PbPb_central
+        signal_dataset: *LHC20g4_pythia
+        production_number: 78
+        label: "embed_pythia_central"
+      settings:
+        <<: *analysis_settings_hardest_kt_embed_R02
+        event_activity: "central"
+        chunk_size: 4000
+        background_subtraction:
+          r_max: 0.1
+        det_level_artificial_tracking_efficiency: 0.98
+        apply_pt_dependent_tracking_efficiency_uncertainty: true
 
   embed_thermal_model:
     2:
