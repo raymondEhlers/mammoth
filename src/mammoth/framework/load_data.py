@@ -647,6 +647,9 @@ def setup_source_for_data_or_MC_task(
     except sources.NoDataAvailableError as e:
         # Just create the empty filename and return. This will prevent trying to re-run with no jets in the future.
         # Remember that this depends heavily on the analysis cuts!
+        # NOTE: We need to make sure this directory exists - it may not if we're doing file staging and the first
+        #      chunk doesn't work.
+        output_settings.output_filename.parent.mkdir(parents=True, exist_ok=True)
         output_settings.output_filename.with_suffix(".empty").touch()
         raise task.FailedToSetupSourceError(
             result_success=True,
@@ -743,6 +746,9 @@ def setup_source_for_embedding_task(
     except sources.NoDataAvailableError as e:
         # Just create the empty filename and return. This will prevent trying to re-run with no jets in the future.
         # Remember that this depends heavily on the analysis cuts!
+        # NOTE: We need to make sure this directory exists - it may not if we're doing file staging and the first
+        #      chunk doesn't work.
+        output_settings.output_filename.parent.mkdir(parents=True, exist_ok=True)
         output_settings.output_filename.with_suffix(".empty").touch()
         raise task.FailedToSetupSourceError(
             result_success=True,
@@ -827,6 +833,9 @@ def setup_source_for_embedding_thermal_model_task(
     except sources.NoDataAvailableError as e:
         # Just create the empty filename and return. This will prevent trying to re-run with no jets in the future.
         # Remember that this depends heavily on the analysis cuts!
+        # NOTE: We need to make sure this directory exists - it may not if we're doing file staging and the first
+        #      chunk doesn't work.
+        output_settings.output_filename.parent.mkdir(parents=True, exist_ok=True)
         output_settings.output_filename.with_suffix(".empty").touch()
         raise task.FailedToSetupSourceError(
             result_success=True,

@@ -119,6 +119,9 @@ def steer_task_execution(  # noqa: C901
             except sources.NoDataAvailableError as e:
                 # If this occurred, we won't know until we try the iterator, so we need to catch it here.
                 # Just create the empty filename and continue. This will prevent trying to re-run with no jets in the future.
+                # NOTE: We need to make sure this directory exists - it may not if we're doing file staging and the first
+                #      chunk doesn't work.
+                local_output_settings.output_filename.parent.mkdir(parents=True, exist_ok=True)
                 local_output_settings.output_filename.with_suffix(".empty").touch()
                 _message = (
                     True,
@@ -130,7 +133,10 @@ def steer_task_execution(  # noqa: C901
             except framework_task.NoUsefulAnalysisOutputError as e:
                 # We have no usable analysis output.
                 # Just create the empty filename and continue. This will prevent trying to re-run with no jets in the future.
-                # Remember that this depends heavily on the jet pt cuts!
+                # Remember that this results depends heavily on the jet pt cuts!
+                # NOTE: We need to make sure this directory exists - it may not if we're doing file staging and the first
+                #      chunk doesn't work.
+                local_output_settings.output_filename.parent.mkdir(parents=True, exist_ok=True)
                 local_output_settings.output_filename.with_suffix(".empty").touch()
                 _message = (
                     True,
