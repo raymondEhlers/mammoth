@@ -108,10 +108,11 @@ def define_productions() -> list[production.ProductionSettings]:
             # ),
             # Production
             production.ProductionSettings.read_config(
-                collision_system="embed_thermal_model",
-                number=3,
+                collision_system="pp_MC",
+                number=75,
                 specialization=EECProductionSpecialization(),
                 track_skim_config_filename=config_filename,
+                base_output_dir="/rstorage/rehlers/trains",
             ),
         ]
     )
@@ -191,18 +192,21 @@ def run(job_framework: job_utils.JobFramework) -> list[Future[Any]]:
     conda_environment_name = ""
     task_config = job_utils.TaskConfig(name=task_name, n_cores_per_task=1)
     # target_n_tasks_to_run_simultaneously = 120
-    # target_n_tasks_to_run_simultaneously = 110
-    target_n_tasks_to_run_simultaneously = 60
+    target_n_tasks_to_run_simultaneously = 110
+    # target_n_tasks_to_run_simultaneously = 60
     log_level = logging.INFO
     walltime = "24:00:00"
     override_minimize_IO_as_possible = None
-    debug_mode = True
+    debug_mode = False
     if debug_mode:
         # Usually, we want to run in the short queue
         target_n_tasks_to_run_simultaneously = 2
         walltime = "1:59:00"
-    # facility: job_utils.FACILITIES = "ORNL_b587_long" if job_utils.hours_in_walltime(walltime) >= 2 else "ORNL_b587_short"
-    facility: job_utils.FACILITIES = "rehlers_mbp_m1pro"
+    facility: job_utils.FACILITIES = (
+        "hiccup_staging_std" if job_utils.hours_in_walltime(walltime) >= 2 else "hiccup_staging_quick"
+    )
+    # facility: job_utils.FACILITIES = "hiccup_std" if job_utils.hours_in_walltime(walltime) >= 2 else "hiccup_quick"
+    # facility: job_utils.FACILITIES = "rehlers_mbp_m1pro"
 
     # Keep the job executor just to keep it alive
     job_executor, _job_framework_config, execution_settings = setup_job_framework(
@@ -230,4 +234,5 @@ def run(job_framework: job_utils.JobFramework) -> list[Future[Any]]:
 
 
 if __name__ == "__main__":
-    run(job_framework=job_utils.JobFramework.immediate_execution_debug)
+    # run(job_framework=job_utils.JobFramework.immediate_execution_debug)
+    run(job_framework=job_utils.JobFramework.parsl)
