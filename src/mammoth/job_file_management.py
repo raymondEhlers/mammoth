@@ -13,10 +13,12 @@ import concurrent.futures
 import logging
 import os.path
 import shutil
+import signal
+import sys
 import uuid
 from collections.abc import Callable
 from pathlib import Path
-from types import TracebackType
+from types import FrameType, TracebackType
 from typing import Any, overload
 
 import attrs
@@ -383,6 +385,8 @@ class FileStagingManager:
 
     def __enter__(self) -> FileStagingManager:
         """Entering the context manager, staging in files if appropriate."""
+        # Register ctrl-c handler
+        signal.signal(signal.SIGINT, self._sigint_handler)
         # If not, there's nothing to be done
         if self.file_stager:
             # If file staging is valid, then ensure we stage in.
@@ -433,6 +437,19 @@ class FileStagingManager:
                 )
                 logger.warning(msg)
         # If we're not staging, there's nothing to be done
+
+    def _sigint_handler(self, signal_received: int, frame: FrameType | None) -> None:  # noqa: ARG002
+        """Handle if ctrl-c is pressed.
+
+        Based on: https://aalvarez.me/posts/gracefully-exiting-python-context-managers-on-ctrl-c/
+
+        This ensures that we can clean up the staged in and out files if the task is interrupted.
+        """
+        logger.warning("Detected Ctrl + C handler called. Performing remaining staging...")
+        # Calling __exit__ should take care of all of the staging and cleanup.
+        self.__exit__(None, None, None)
+
+        sys.exit(0)
 
     def _clean_up_staged_in_files_after_task(self) -> None:
         """Clean up the staged in files after the task completes."""
