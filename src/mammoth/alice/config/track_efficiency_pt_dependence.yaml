@@ -1,7 +1,12 @@
 # Extracted from `AliPhysics/PWGJE/EMCALJetTasks/macros/TrackEfficiencyConfiguration.yaml` on 30 Jan 2023
 # Further details at https://indico.cern.ch/event/1241856/#24-discussions-pt-dependent-tr
+# Some minor modifications are implemented:
+# - Properly quoting the centrality keys.
+# - Bump the last bin edge to even higher 999.0 -> 9999 (I actually hit this limit once... It can happen
+#   because we apply a max constituent pt cut, but we don't want to bias the jet finding by applying
+#   the cut to the input particles themselves...).
 
-pt_binning: [0.0, 0.5, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0, 13.0, 14.0, 999.0]
+pt_binning: [0.0, 0.5, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0, 13.0, 14.0, 9999.0]
 
 # Period:
 #   centrality: [values]

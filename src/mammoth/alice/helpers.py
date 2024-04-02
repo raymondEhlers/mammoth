@@ -131,7 +131,7 @@ def standard_track_selection(
     # For most ALICE skims, this selection has already been done, so we don't need to do anything here.
     if columns_to_explicitly_select_charged_particles is None:
         columns_to_explicitly_select_charged_particles = []
-    #
+    # If not specified, use the default ALICE charged hadron PID
     if charged_hadron_PIDs is None:
         charged_hadron_PIDs = _DEFAULT_CHARGED_HADRON_PIDs
 
