@@ -280,7 +280,7 @@ _facilities_configs.update(
             target_allocate_n_cores=1,
             launcher=SingleNodeLauncher,
             node_work_dir=Path("/scratch/u/$USER/parsl"),
-            #storage_work_dir=Path("/rstorage/rehlers"),
+            # storage_work_dir=Path("/rstorage/rehlers"),
             # NOTE: We use /rstorage rather than my directory because other data such as LBL skims
             #       may be stored in another directory, such as `/rstorage/alice`. If it's in such
             #       a directory, we won't be able to stage the file.
