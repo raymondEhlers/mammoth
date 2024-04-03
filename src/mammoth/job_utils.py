@@ -280,7 +280,17 @@ _facilities_configs.update(
             target_allocate_n_cores=1,
             launcher=SingleNodeLauncher,
             node_work_dir=Path("/scratch/u/$USER/parsl"),
-            storage_work_dir=Path("/rstorage/rehlers"),
+            #storage_work_dir=Path("/rstorage/rehlers"),
+            # NOTE: We use /rstorage rather than my directory because other data such as LBL skims
+            #       may be stored in another directory, such as `/rstorage/alice`. If it's in such
+            #       a directory, we won't be able to stage the file.
+            #       The downside is that there's now often an additional level of directories
+            #       (eg: `/scratch/u/rehlers/parsl/<unique_id>/rehlers/trains/...` rather than
+            #       without the extra rehlers. However, this isn't a terrible price to pay
+            #       for it working otherwise. If it becomes a bigger issue in the future,
+            #       I could always try adding `walk_up=True` to the `relative_to(...)` call,
+            #       although it would require additional testing to ensure it doesn't cause problems.
+            storage_work_dir=Path("/rstorage"),
             nodes_to_exclude=[],
             # We'll implement our new file staging, so no need to have parsl take care of it.
             # staging_storage_classes=[job_file_management.ParslRSyncStaging()],

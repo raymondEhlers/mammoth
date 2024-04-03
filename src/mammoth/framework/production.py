@@ -416,17 +416,33 @@ class ProductionSettings:
         output["config"] = dict(self.config)
         # NOTE: We write relative to the base_output_dir to ensure that the outputs are
         #       approximately system independent. In practice, we're unlikely to try to
-        #       move same production to a new system (better to just copy and use a new
-        #       production number), but this relative paths approach will e.g. make
+        #       move the same production to a new system (better to just copy and use a
+        #       new production number), but this relative paths approach will e.g. make
         #       comparisons easier. This was basically what we were doing implicitly
         #       before improving support for absolute base_output_dir (ie. pre March 2024).
-        output["input_filenames"] = [str(p.relative_to(self.base_output_dir)) for p in self.input_files()]
+        # NOTE: While the abaove point is correct, it will only work if the input files
+        #       are actually stored in the base_output_dir. If that's not the case, then
+        #       we'll just go back to the full path
+        input_files = self.input_files()
+        if _check_if_relative_path_is_possible(p=input_files[0], base_output_dir=self.base_output_dir):
+            output["input_filenames"] = [str(p.relative_to(self.base_output_dir)) for p in input_files]
+        else:
+            output["input_filenames"] = [str(p) for p in input_files]
         if "signal_dataset" in self.config["metadata"]:
-            output["signal_filenames"] = [
-                str(_filename.relative_to(self.base_output_dir))
+            signal_input_files = [
+                _filename
                 for filenames in self.input_files_per_pt_hat().values()
                 for _filename in filenames
             ]
+            if _check_if_relative_path_is_possible(p=signal_input_files[0], base_output_dir=self.base_output_dir):
+                output["signal_filenames"] = [
+                    str(_filename.relative_to(self.base_output_dir))
+                    for _filename in signal_input_files
+                ]
+            else:
+                output["signal_filenames"] = [
+                    str(_filename) for _filename in signal_input_files
+                ]
         # Add description of the software
         output.update(_describe_production_software(production_config=self.config))
 
@@ -474,3 +490,13 @@ class ProductionSettings:
             specialization=specialization,
             **additional_kwargs,
         )
+
+def _check_if_relative_path_is_possible(p: Path, base_output_dir: Path) -> bool:
+    """Check if it's possible to find a relative path to the base_output_dir
+
+    """
+    try:
+        str(p.relative_to(base_output_dir))
+    except ValueError as e:
+        return False
+    return True
