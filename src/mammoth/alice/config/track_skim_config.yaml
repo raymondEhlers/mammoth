@@ -241,6 +241,20 @@ skimmed_datasets:
       - "data"
     files:
       - "PbPb/7668/run_by_run/LHC15o/*/AnalysisResults.15o.*.root"
+  # PbPb @ LBL
+  # LHC18qr
+  # NOTE: I'm reasonably certain that it's pass3, but I'm not 100% sure
+  LHC18qr_pass3_AOD252_central_570_LBL: &LHC18qr_PbPb_central_at_LBL
+    name: "LHC18qr_pass3_AOD252_central_570_LBL"
+    collision_system: "PbPb"
+    sqrt_s: 5020
+    period: ["LHC18q", "LHC18r"]
+    # Keep track of the skim type for documentation
+    skim_type: "HF_tree_at_LBL"
+    levels_in_output_file:
+      - "data"
+    files:
+      - "PbPb/570/files.txt"
 
   # PbPb_MC
   LBL21_JEWEL_NoRecoils_FastSim_1_798301: &LBL21_JEWEL_NoRecoils_FastSim_1
@@ -1458,7 +1472,7 @@ productions:
       # This includes a bug fix for passing the pt dependent tracking efficiency
       metadata:
         <<: *base_metadata_embed
-        dataset: *LHC18qr_PbPb_central
+        dataset: *LHC18qr_PbPb_central_at_LBL
         signal_dataset: *LHC20g4_pythia
         production_number: 78
         label: "embed_pythia_central"
