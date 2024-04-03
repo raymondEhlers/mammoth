@@ -180,7 +180,7 @@ class FileStager:
         Args:
             files_to_stage_in: Files to stage in.
         Returns:
-            Paths of the files that were staged out, in their worker node locations.
+            Paths of the files that were staged in, in their worker node locations.
         """
         logger.info("Staging in files")
         # Setup as necessary

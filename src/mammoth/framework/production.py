@@ -420,7 +420,7 @@ class ProductionSettings:
         #       new production number), but this relative paths approach will e.g. make
         #       comparisons easier. This was basically what we were doing implicitly
         #       before improving support for absolute base_output_dir (ie. pre March 2024).
-        # NOTE: While the abaove point is correct, it will only work if the input files
+        # NOTE: While the above point is correct, it will only work if the input files
         #       are actually stored in the base_output_dir. If that's not the case, then
         #       we'll just go back to the full path
         input_files = self.input_files()
@@ -430,19 +430,14 @@ class ProductionSettings:
             output["input_filenames"] = [str(p) for p in input_files]
         if "signal_dataset" in self.config["metadata"]:
             signal_input_files = [
-                _filename
-                for filenames in self.input_files_per_pt_hat().values()
-                for _filename in filenames
+                _filename for filenames in self.input_files_per_pt_hat().values() for _filename in filenames
             ]
             if _check_if_relative_path_is_possible(p=signal_input_files[0], base_output_dir=self.base_output_dir):
                 output["signal_filenames"] = [
-                    str(_filename.relative_to(self.base_output_dir))
-                    for _filename in signal_input_files
+                    str(_filename.relative_to(self.base_output_dir)) for _filename in signal_input_files
                 ]
             else:
-                output["signal_filenames"] = [
-                    str(_filename) for _filename in signal_input_files
-                ]
+                output["signal_filenames"] = [str(_filename) for _filename in signal_input_files]
         # Add description of the software
         output.update(_describe_production_software(production_config=self.config))
 
@@ -491,12 +486,21 @@ class ProductionSettings:
             **additional_kwargs,
         )
 
+
 def _check_if_relative_path_is_possible(p: Path, base_output_dir: Path) -> bool:
     """Check if it's possible to find a relative path to the base_output_dir
 
+    Args:
+        p: Path to check if it can be made relative to the base_output_dir.
+        base_output_dir: Base output directory to check if the path can be made relative to it.
+    Returns:
+        True if the path can be made relative to the base_output_dir, False otherwise.
     """
     try:
         str(p.relative_to(base_output_dir))
-    except ValueError as e:
+    except ValueError:
+        # NOTE: In principle this is a bit brittle since other things could have thrown
+        #       the value error. However, we're not doing so much above, so it's usually
+        #       a reasonable assumption.
         return False
     return True
