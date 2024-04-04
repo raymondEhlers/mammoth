@@ -721,6 +721,9 @@ def _default_parsl_config_kwargs(
         # to a bug, this won't do any good. However, since I have observed a few transient issues,
         # it's better to give it a second try
         "retries": 1,
+        # We use parsl a lot, so probably better to give them some usage information to help them
+        # justify their funding.
+        "usage_tracking": True,
     }
 
     # Setup
