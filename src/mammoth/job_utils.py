@@ -717,6 +717,10 @@ def _default_parsl_config_kwargs(
         # This is a balance - if we're too aggressive, then the blocks may be stopped while we still
         # have work remaining. However, if we're not aggressive enough, then we're wasting our allocation.
         "max_idletime": 20,
+        # Retries will only help if the job fails due to some transient issue. If the job fails due
+        # to a bug, this won't do any good. However, since I have observed a few transient issues,
+        # it's better to give it a second try
+        "retries": 1,
     }
 
     # Setup
@@ -823,10 +827,14 @@ def _define_parsl_config(
                 cores_per_worker=task_config.n_cores_per_task,
                 # cores_per_worker=round(n_cores_per_node / n_workers_per_node),
                 # NOTE: We don't want to set the `max_workers` because we want the number of workers to
-                #       be determined by the number of cores per worker and the cores per node.
+                #       be determined by the number of cores per worker and the cores per node. (Also, it's deprecated...)
                 working_dir=str(facility.node_work_dir),
                 provider=provider,
                 storage_access=facility.staging_storage_classes if facility.staging_storage_classes else None,
+                # NOTE: We bump this up for hiccup because we observe occasional issues with the manager being marked as lost
+                #       while it's actually still alive. Presumably it's in a resource content and a bit stuck, but based on the
+                #       interchange logs, it's not actually lost. This should provide more time for it to recover.
+                heartbeat_threshold=600 if "hiccup" in facility.name else 120,
             )
         ],
         **config_kwargs,
