@@ -147,11 +147,9 @@ def _filenames_from_txt_file(files: list[Path]) -> list[Path]:
 
 
 class ProductionSpecialization(Protocol):
-    def customize_identifier(self, analysis_settings: MutableMapping[str, Any]) -> str:
-        ...
+    def customize_identifier(self, analysis_settings: MutableMapping[str, Any]) -> str: ...
 
-    def tasks_to_execute(self, collision_system: str) -> list[str]:
-        ...
+    def tasks_to_execute(self, collision_system: str) -> list[str]: ...
 
 
 _possible_collision_systems = [

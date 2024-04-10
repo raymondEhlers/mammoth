@@ -1,4 +1,4 @@
-""" Collection of transforms for sources.
+"""Collection of transforms for sources.
 
 .. codeauthor:: Raymond Ehlers <raymond.ehlers@cern.ch>, ORNL
 """

@@ -1,4 +1,4 @@
-""" Jet related analysis tools.
+"""Jet related analysis tools.
 
 These all build on various aspects of the framework, but are at a higher level than the basic framework
 functionality itself.

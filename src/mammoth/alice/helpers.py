@@ -1,4 +1,4 @@
-""" Helpers and utilities for ALICE analyses
+"""Helpers and utilities for ALICE analyses
 
 .. codeauthor:: Raymond Ehlers <raymond.ehlers@cern.ch>, LBL/UCB
 """

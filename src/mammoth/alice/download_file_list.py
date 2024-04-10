@@ -1,4 +1,4 @@
-""" Download LEGO train output file list stored in YAML
+"""Download LEGO train output file list stored in YAML
 
 Ported from jet_substructure. The code here isn't amazing (nor is the pachyderm interface),
 but it works, so no point in messing with it (as of June 2023).

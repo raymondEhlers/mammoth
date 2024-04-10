@@ -1,4 +1,4 @@
-""" Adapt from the track skim to the existing code base.
+"""Adapt from the track skim to the existing code base.
 
 .. codeauthor:: Raymond Ehlers <raymond.ehlers@cern.ch>, ORNL
 """

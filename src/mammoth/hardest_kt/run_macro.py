@@ -1,4 +1,4 @@
-""" Run the event extractor AliPhysics task.
+"""Run the event extractor AliPhysics task.
 
 .. codeauthor:: Raymond Ehlers <raymond.ehlers@cern.ch>, ORNL
 """

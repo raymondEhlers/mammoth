@@ -1,4 +1,4 @@
-""" Parse JETSCAPE ascii input files in chunks.
+"""Parse JETSCAPE ascii input files in chunks.
 
 .. codeauthor:: Raymond Ehlers <raymond.ehlers@cern.ch>, LBL/UCB
 """

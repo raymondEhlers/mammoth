@@ -1,4 +1,4 @@
-""" Extract scale factors from all repaired files.
+"""Extract scale factors from all repaired files.
 
 .. codeauthor:: Raymond Ehlers <raymond.ehlers@cern.ch>, ORNL
 """

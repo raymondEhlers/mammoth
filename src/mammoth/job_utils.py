@@ -354,8 +354,7 @@ def config(
     enable_monitoring: bool = False,
     request_n_blocks: int | None = None,
     additional_worker_init_script: str = "",
-) -> tuple[Config, Facility, list[helpers.LogMessage]]:
-    ...
+) -> tuple[Config, Facility, list[helpers.LogMessage]]: ...
 
 
 @typing.overload
@@ -368,8 +367,7 @@ def config(
     enable_monitoring: bool = False,
     request_n_blocks: int | None = None,
     additional_worker_init_script: str = "",
-) -> tuple[dask.distributed.Client, Facility, list[helpers.LogMessage]]:
-    ...
+) -> tuple[dask.distributed.Client, Facility, list[helpers.LogMessage]]: ...
 
 
 @typing.overload
@@ -382,8 +380,7 @@ def config(
     enable_monitoring: bool = False,
     request_n_blocks: int | None = None,
     additional_worker_init_script: str = "",
-) -> tuple[dask.distributed.client | Config, Facility, list[helpers.LogMessage]]:
-    ...
+) -> tuple[dask.distributed.client | Config, Facility, list[helpers.LogMessage]]: ...
 
 
 def config(
@@ -857,8 +854,7 @@ def setup_job_framework(
     additional_worker_init_script: str = "",
     override_minimize_IO_as_possible: bool | None = None,
     debug_mode: bool | dict[str | int, Any] = False,
-) -> tuple[dask.distributed.Client, dask.distributed.SpecCluster, ExecutionSettings]:
-    ...
+) -> tuple[dask.distributed.Client, dask.distributed.SpecCluster, ExecutionSettings]: ...
 
 
 @typing.overload
@@ -872,8 +868,7 @@ def setup_job_framework(
     additional_worker_init_script: str = "",
     override_minimize_IO_as_possible: bool | None = None,
     debug_mode: bool | dict[str | int, Any] = False,
-) -> tuple[parsl.DataFlowKernel, Config, ExecutionSettings]:
-    ...
+) -> tuple[parsl.DataFlowKernel, Config, ExecutionSettings]: ...
 
 
 @typing.overload
@@ -890,8 +885,7 @@ def setup_job_framework(
 ) -> (
     tuple[parsl.DataFlowKernel, parsl.Config, ExecutionSettings]
     | tuple[dask.distributed.Client, dask.distributed.SpecCluster, ExecutionSettings]
-):
-    ...
+): ...
 
 
 def setup_job_framework(

@@ -1,10 +1,11 @@
-""" Basic objects related to analysis.
+"""Basic objects related to analysis.
 
 These all build on various aspects of the framework, but are at a higher level than the basic framework
 functionality itself.
 
 .. codeauthor:: Raymond Ehlers <raymond.ehlers@cern.ch>, LBL
 """
+
 from __future__ import annotations
 
 import logging

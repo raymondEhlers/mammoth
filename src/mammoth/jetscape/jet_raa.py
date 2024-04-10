@@ -1,7 +1,8 @@
-""" Jet RAA for comparison with the ALICE jet background ML analysis
+"""Jet RAA for comparison with the ALICE jet background ML analysis
 
 .. codeauthor:: Raymond Ehlers <raymond.ehlers@cern.ch>, ORNL
 """
+
 from __future__ import annotations
 
 import logging

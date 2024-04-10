@@ -1,7 +1,8 @@
-""" Read log info to extract scaling time information.
+"""Read log info to extract scaling time information.
 
 .. codeauthor:: Raymond Ehlers <raymond.ehlers@cern.ch>, ORNL
 """
+
 from __future__ import annotations
 
 import os.path

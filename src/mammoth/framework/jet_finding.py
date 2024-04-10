@@ -1,4 +1,4 @@
-""" Jet finding functionality.
+"""Jet finding functionality.
 
 .. codeauthor:: Raymond Ehlers <raymond.ehlers@cern.ch>, ORNL
 """

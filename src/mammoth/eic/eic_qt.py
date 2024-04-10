@@ -1,7 +1,8 @@
-""" Analyze Pythia6 e-p events.
+"""Analyze Pythia6 e-p events.
 
 .. codeauthor:: Raymond Ehlers <raymond.ehlers@cern.ch>, ORNL
 """
+
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence

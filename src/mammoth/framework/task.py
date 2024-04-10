@@ -316,8 +316,7 @@ class SetupSource(Protocol):
         task_metadata: Metadata,
         output_settings: OutputSettings,
         **kwargs: Any,
-    ) -> Iterator[ak.Array]:
-        ...
+    ) -> Iterator[ak.Array]: ...
 
 
 class SetupEmbeddingSource(Protocol):
@@ -328,8 +327,7 @@ class SetupEmbeddingSource(Protocol):
         task_metadata: Metadata,
         output_settings: OutputSettings,
         **kwargs: Any,
-    ) -> tuple[dict[str, int], Iterator[ak.Array]]:
-        ...
+    ) -> tuple[dict[str, int], Iterator[ak.Array]]: ...
 
 
 ##############################
@@ -454,8 +452,7 @@ class AnalysisBound(Protocol):
         validation_mode: bool = False,
         return_skim: bool = False,
         **kwargs: Any,
-    ) -> AnalysisOutput:
-        ...
+    ) -> AnalysisOutput: ...
 
 
 class EmbeddingAnalysisBound(Protocol):
@@ -469,8 +466,7 @@ class EmbeddingAnalysisBound(Protocol):
         validation_mode: bool = False,
         return_skim: bool = False,
         **kwargs: Any,
-    ) -> AnalysisOutput:
-        ...
+    ) -> AnalysisOutput: ...
 
 
 class CustomizeMetadataForLabeling(Protocol):
@@ -481,8 +477,7 @@ class CustomizeMetadataForLabeling(Protocol):
         *,
         task_settings: Settings,
         **analysis_arguments: Any,
-    ) -> Metadata:
-        ...
+    ) -> Metadata: ...
 
 
 class BoundCustomizeMetadataForLabeling(Protocol):
@@ -495,8 +490,7 @@ class BoundCustomizeMetadataForLabeling(Protocol):
         self,
         *,
         task_settings: Settings,
-    ) -> Metadata:
-        ...
+    ) -> Metadata: ...
 
 
 def no_op_customize_metadata_for_labeling(

@@ -1,4 +1,4 @@
-""" Input sources
+"""Input sources
 
 .. codeauthor:: Raymond Ehlers <raymond.ehlers@cern.ch>, ORNL
 """
@@ -72,8 +72,7 @@ class DelayedSource(Protocol):
     This is used for loading data, but it's much more convenient if it's available from the sources.
     """
 
-    def __call__(self, *args: Any, **kwargs: Any) -> Source:
-        ...
+    def __call__(self, *args: Any, **kwargs: Any) -> Source: ...
 
 
 class SourceFromFilename(Protocol):
@@ -84,8 +83,7 @@ class SourceFromFilename(Protocol):
     This is used for loading data, but it's much more convenient if it's available from the sources.
     """
 
-    def __call__(self, filename: Path) -> Source:
-        ...
+    def __call__(self, filename: Path) -> Source: ...
 
 
 # Allows loading all chunks by picking a number larger than any possible (set of) file(s).

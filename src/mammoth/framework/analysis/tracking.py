@@ -1,4 +1,4 @@
-""" Analysis level functionality related to tracking.
+"""Analysis level functionality related to tracking.
 
 .. codeauthor:: Raymond Ehlers <raymond.ehlers@cern.ch>, LBL/UCB
 """

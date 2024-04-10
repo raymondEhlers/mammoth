@@ -1,4 +1,4 @@
-""" Helpers and utilities.
+"""Helpers and utilities.
 
 .. codeauthor:: Raymond Ehlers <raymond.ehlers@cern.ch>, ORNL
 """

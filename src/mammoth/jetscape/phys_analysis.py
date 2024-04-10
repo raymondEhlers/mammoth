@@ -1,7 +1,8 @@
-""" Analyze JETSCAPE events.
+"""Analyze JETSCAPE events.
 
 .. codeauthor:: Raymond Ehlers <raymond.ehlers@cern.ch>, ORNL
 """
+
 from __future__ import annotations
 
 import logging

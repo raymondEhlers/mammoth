@@ -1,4 +1,4 @@
-""" Determine LEGO train output files to download based on the config.yaml
+"""Determine LEGO train output files to download based on the config.yaml
 
 Ported from jet_substructure (`jet_substructure.base.download_train_with_config.py`).
 The code here is quite bad (so is the pachyderm interface), but it works, and it's

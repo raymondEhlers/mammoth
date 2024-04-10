@@ -1,4 +1,4 @@
-""" Some tests of the jetscape data w/ jet finding
+"""Some tests of the jetscape data w/ jet finding
 
 Update March 2022: This is code left over from very early mammoth development. There
 are basically better ways to handle nearly everything here. However, I keep it around
@@ -7,6 +7,7 @@ a bit of useful functionality inside of all the other stuff (normalizing phi ran
 
 .. codeauthor:: Raymond Ehlers <raymond.ehlers@cern.ch>, ORNL
 """
+
 from __future__ import annotations
 
 from pathlib import Path

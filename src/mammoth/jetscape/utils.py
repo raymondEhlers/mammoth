@@ -2,6 +2,7 @@
 
 ..codeauthor:: Raymond Ehlers <raymond.ehlers@cern.ch>, ORNL
 """
+
 from __future__ import annotations
 
 import awkward as ak

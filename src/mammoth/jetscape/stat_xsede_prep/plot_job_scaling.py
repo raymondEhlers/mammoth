@@ -1,7 +1,8 @@
-""" Plot Stampede2 scaling information.
+"""Plot Stampede2 scaling information.
 
 .. codeauthor:: Raymond Ehlers <raymond.ehlers@cern.ch> ORNL
 """
+
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence

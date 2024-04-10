@@ -1,4 +1,4 @@
-""" Uproot4 + awkward1 substructure methods.
+"""Uproot4 + awkward1 substructure methods.
 
 .. codeauthor:: Raymond Ehlers <raymond.ehlers@cern.ch>, LBNL/UCB
 """
@@ -35,13 +35,11 @@ DISTANCE_DELTA: Final[float] = 0.01
 @typing.overload
 def _dynamical_hardness_measure(
     delta_R: AwkwardArray[Scalar], z: AwkwardArray[Scalar], parent_pt: AwkwardArray[Scalar], R: float, a: float
-) -> AwkwardArray[Scalar]:
-    ...
+) -> AwkwardArray[Scalar]: ...
 
 
 @typing.overload
-def _dynamical_hardness_measure(delta_R: float, z: float, parent_pt: float, R: float, a: float) -> float:
-    ...
+def _dynamical_hardness_measure(delta_R: float, z: float, parent_pt: float, R: float, a: float) -> float: ...
 
 
 def _dynamical_hardness_measure(delta_R, z, parent_pt, R, a):  # type: ignore[no-untyped-def]
@@ -215,12 +213,10 @@ class SubjetCommon:
     constituents_indices: AwkwardArray[int]
 
     @typing.overload
-    def parent_splitting(self, splittings: AwkwardArray[JetSplittingArray]) -> JetSplittingArray:
-        ...
+    def parent_splitting(self, splittings: AwkwardArray[JetSplittingArray]) -> JetSplittingArray: ...
 
     @typing.overload
-    def parent_splitting(self, splittings: JetSplittingArray) -> JetSplitting:
-        ...
+    def parent_splitting(self, splittings: JetSplittingArray) -> JetSplitting: ...
 
     def parent_splitting(self, splittings):  # type: ignore[no-untyped-def]
         """Retrieve the parent splitting of this subjet.

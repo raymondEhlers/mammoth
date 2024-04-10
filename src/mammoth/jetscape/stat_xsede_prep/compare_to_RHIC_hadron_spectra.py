@@ -1,7 +1,8 @@
-""" Calculate hadron spectra for a given input
+"""Calculate hadron spectra for a given input
 
 .. codeauthor:: Raymond Ehlers <raymond.ehlers@cern.ch>, ORNL
 """
+
 from __future__ import annotations
 
 import logging

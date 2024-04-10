@@ -1,4 +1,4 @@
-""" Output utilities
+"""Output utilities
 
 .. codeauthor:: Raymond Ehlers <raymond.ehlers@cern.ch>, LBL/UCB
 """

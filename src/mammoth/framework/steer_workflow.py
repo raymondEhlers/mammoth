@@ -38,8 +38,7 @@ class SetupTasks(Protocol):
         *,
         prod: production.ProductionSettings,
         execution_settings: job_utils.ExecutionSettings,
-    ) -> list[Future[framework_task.Output]]:
-        ...
+    ) -> list[Future[framework_task.Output]]: ...
 
 
 class PreprocessArguments(Protocol):
@@ -48,8 +47,7 @@ class PreprocessArguments(Protocol):
     def __call__(
         self,
         **analysis_arguments: Any,
-    ) -> dict[str, Any]:
-        ...
+    ) -> dict[str, Any]: ...
 
 
 def no_op_preprocess_arguments(
@@ -65,8 +63,7 @@ class OutputIdentifier(Protocol):
     def __call__(
         self,
         **analysis_arguments: Any,
-    ) -> str:
-        ...
+    ) -> str: ...
 
 
 def no_op_output_identifier(
@@ -113,8 +110,7 @@ class SetupSteeringTask(Protocol):
         preprocess_arguments: PreprocessArguments | None = None,
         output_identifier: OutputIdentifier | None = None,
         metadata_for_labeling: framework_task.CustomizeMetadataForLabeling | None = None,
-    ) -> SetupTasks:
-        ...
+    ) -> SetupTasks: ...
 
 
 def safe_slug_from_relative_path_of_input_filename(

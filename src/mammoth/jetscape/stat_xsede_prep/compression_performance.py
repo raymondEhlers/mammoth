@@ -1,6 +1,5 @@
-""" Compression tests.
+"""Compression tests."""
 
-"""
 from __future__ import annotations
 
 import itertools
