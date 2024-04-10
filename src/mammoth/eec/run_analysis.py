@@ -112,7 +112,7 @@ def define_productions() -> list[production.ProductionSettings]:
                 number=75,
                 specialization=EECProductionSpecialization(),
                 track_skim_config_filename=config_filename,
-                base_output_dir="/rstorage/rehlers/trains",
+                base_output_dir=Path("/rstorage/rehlers/trains"),
             ),
         ]
     )
