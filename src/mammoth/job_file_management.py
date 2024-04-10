@@ -7,6 +7,7 @@ Based on the rsync provider. Modifications include:
 
 .. codeauthor:: Raymond Ehlers <raymond.ehlers@cern.ch>, ORNL
 """
+
 from __future__ import annotations
 
 import concurrent.futures
@@ -45,12 +46,13 @@ class FileStagingSettings:
         node_work_dir: Work directory on the worker node for storing files with the unique ID.
         _node_work_dir: Work directory on the worker node for storing files without the unique ID.
             You usually want it **with** the unique ID (hence this being a private attribute).
-        _unique_id: Unique ID for the node work directory.
+        _unique_id: Unique ID for the node work directory. Unless you have good reason, leave this to
+            the default value! Otherwise you risk having jobs conflict with each other!
     """
 
     permanent_work_dir: Path
     _node_work_dir: Path
-    _unique_id: str = attrs.field(init=False, factory=lambda: str(uuid.uuid4())[:10])
+    _unique_id: str = attrs.field(kw_only=True, factory=lambda: str(uuid.uuid4())[:10])
 
     @property
     def node_work_dir(self) -> Path:
@@ -63,7 +65,7 @@ class FileStagingSettings:
             expand_env_vars_in_node_work_dir: Whether to expand environment variables in the node work dir.
                 Usually, you'll want to save this for when you're on the worker node.
         Returns:
-            A new `FileStagingPaths` object with a unique ID.
+            A new `FileStagingSettings` object with a unique ID.
         """
         # NOTE: We intentionally retrieve the node work dir without the unique ID, since we want
         #       a new value in the copy.
@@ -400,8 +402,7 @@ class FileStagingManager:
         return self
 
     @overload
-    def __exit__(self, exc_type: None, exc_val: None, exc_tb: None) -> None:
-        ...
+    def __exit__(self, exc_type: None, exc_val: None, exc_tb: None) -> None: ...
 
     @overload
     def __exit__(
@@ -409,8 +410,7 @@ class FileStagingManager:
         exc_type: type[BaseException],
         exc_val: BaseException,
         exc_tb: TracebackType,
-    ) -> None:
-        ...
+    ) -> None: ...
 
     def __exit__(
         self,
@@ -451,10 +451,18 @@ class FileStagingManager:
 
         sys.exit(0)
 
-    def _clean_up_staged_in_files_after_task(self) -> None:
-        """Clean up the staged in files after the task completes."""
+    def _clean_up_staged_in_files_on_node(self, files_on_node_to_clean_up: list[Path]) -> None:
+        """Clean up the staged in files that are on the node.
+
+        Basically, this handles cleanup for any given set of files that were staged in.
+
+        Args:
+            files_on_node_to_clean_up: Files to clean up. The paths must be those on the worker node.
+        Returns:
+            None.
+        """
         if self.file_stager:
-            for f in self._input_files_post_stage_in:
+            for f in files_on_node_to_clean_up:
                 f.unlink()
             # NOTE: Although we've remove the files, this still leaves the whole directory structure,
             #       so we also want to remove the input directory itself. This will only fail on
@@ -484,6 +492,14 @@ class FileStagingManager:
                 )
                 logger.warning(msg)
 
+    def _clean_up_staged_in_files_after_task(self) -> None:
+        """Clean up the staged in files after the task completes.
+
+        This explicitly uses the files that we've track to be staged in.
+        """
+        if self.file_stager:
+            # Clean up the files
+            self._clean_up_staged_in_files_on_node(files_on_node_to_clean_up=self._input_files_post_stage_in)
             # And clear the list since we're done.
             self._input_files_post_stage_in = []
 

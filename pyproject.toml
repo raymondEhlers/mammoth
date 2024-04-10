@@ -102,6 +102,7 @@ dev = [
 
 [project.scripts]
 shadd = "mammoth.framework.io.output_utils:shit_hadd"
+handle_files_from_failed_jobs = "mammoth.job_file_management_utils:steer_handle_files_from_failed_jobs"
 
 [project.urls]
 Homepage = "https://github.com/raymondEhlers/mammoth"
