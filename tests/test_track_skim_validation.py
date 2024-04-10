@@ -2,6 +2,7 @@
 
 .. codeauthor:: Raymond Ehlers <raymond.ehlers@cern.ch>, LBNL/UCB
 """
+
 from __future__ import annotations
 
 import logging

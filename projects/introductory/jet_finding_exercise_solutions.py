@@ -1,4 +1,4 @@
-""" Template for running pythia with jet finding.
+"""Template for running pythia with jet finding.
 
 Intentionally left as an exercise for the reader to fill in the details. To do this,
 you'll need to install the pythia8mc and fastjet packages. You can do this via pip:

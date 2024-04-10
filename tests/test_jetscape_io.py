@@ -1,7 +1,8 @@
-""" Tests for v2 parser.
+"""Tests for v2 parser.
 
 .. codeauthor:: Raymond Ehlers <raymond.ehlers@cern.ch>, ORNL
 """
+
 from __future__ import annotations
 
 import logging

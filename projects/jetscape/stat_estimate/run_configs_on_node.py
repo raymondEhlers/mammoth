@@ -1,9 +1,10 @@
-""" Run multiple configurations on a single node.
+"""Run multiple configurations on a single node.
 
 This is more efficient than requesting individual jobs.
 
 .. codeauthor:: Raymond Ehlers <raymond.ehlers@cern.ch>, ORNL
 """
+
 from __future__ import annotations
 
 import os.path

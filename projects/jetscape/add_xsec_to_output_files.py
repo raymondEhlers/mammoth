@@ -1,9 +1,10 @@
-""" Add jetscape cross section values to v1 FinalState* outputs
+"""Add jetscape cross section values to v1 FinalState* outputs
 
 This could be brought in separately, but this is way more convenient and is pretty easy to do.
 
 .. codeauthor:: Raymond Ehlers <raymond.ehlers@cern.ch>, ORNL
 """
+
 from __future__ import annotations
 
 from pathlib import Path

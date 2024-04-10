@@ -4,6 +4,7 @@ Basically, the goal here is to confirm that we do the same thing as ROOT!
 
 .. codeauthor:: Raymond Ehlers <raymond.ehlers@cern.ch>, LBL/UCB
 """
+
 from __future__ import annotations
 
 import logging

@@ -1,4 +1,4 @@
-""" Tests for array helpers
+"""Tests for array helpers
 
 .. codeauthor:: Raymond Ehlers <raymond.ehlers@cern.ch>, UCB/LBL
 """

@@ -1,7 +1,8 @@
-""" Tests for jet finding
+"""Tests for jet finding
 
 .. codeauthor:: Raymond Ehlers <raymond.ehlers@cern.ch>, ORNL
 """
+
 from __future__ import annotations
 
 import logging

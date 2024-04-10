@@ -1,4 +1,4 @@
-""" Extract the average JEWEL event weight from the jet extractor.
+"""Extract the average JEWEL event weight from the jet extractor.
 
 This provides a single weight (the mean of the event weight) that we can use to reweight
 each JEWEL pt hat bin. This is basically a hack so we can reweight after having done the
@@ -18,6 +18,7 @@ JEWEL 0-10% no recoils provides:
 
 .. codeauthor:: Raymond Ehlers <raymond.ehlers@cern.ch>, ORNL
 """
+
 from __future__ import annotations
 
 import logging

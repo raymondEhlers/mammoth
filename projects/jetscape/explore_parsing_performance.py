@@ -1,9 +1,10 @@
-""" Tests related to parsing
+"""Tests related to parsing
 
 They're not really up to unit tests yet - this is just for me to take a look at performance
 
 .. codeauthor:: Raymond Ehlers <raymond.ehlers@cern.ch>, ORNL
 """
+
 from __future__ import annotations
 
 import timeit

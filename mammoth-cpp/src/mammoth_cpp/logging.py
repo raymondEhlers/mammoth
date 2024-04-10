@@ -1,7 +1,8 @@
-""" Logging objects and utilities for use with c++ extensions
+"""Logging objects and utilities for use with c++ extensions
 
 .. codeauthor:: Raymond Ehlers <raymond.ehlers@cern.ch>, LBL/UCB
 """
+
 from __future__ import annotations
 
 import logging
