@@ -275,7 +275,7 @@ class FileStager:
                 raise RuntimeError(msg)
             # If there aren't any files left, then we're all good to remove the directory
             shutil.rmtree(self.settings.node_work_dir_output)
-        except (RuntimeError, OSError) as e:
+        except (RuntimeError, OSError, FileNotFoundError) as e:
             # If this fails, it doesn't prevent further operations, so we just log it and move on.
             logger.exception(e)
             # Add some additional information, so we can figure out how it went wrong in the future.
@@ -482,7 +482,7 @@ class FileStagingManager:
                     raise RuntimeError(msg)
                 # If there aren't any files left, then we're all good to remove the directory
                 shutil.rmtree(self.file_stager.settings.node_work_dir_input)
-            except (RuntimeError, OSError) as e:
+            except (RuntimeError, OSError, FileNotFoundError) as e:
                 # If this fails, it doesn't prevent further operations, so we just log it and move on.
                 logger.exception(e)
                 # Add some additional information, so we can figure out how it went wrong in the future.
