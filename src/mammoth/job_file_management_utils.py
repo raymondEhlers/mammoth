@@ -34,50 +34,51 @@ def check_if_file_is_valid(p: Path, settings: job_file_management.FileStagingSet
     """
     # Validation. This shouldn't be an issue here, but best to check
     if not p.exists():
-        logger.info(f"doesn't exist: {p}")
+        logger.debug(f"{p}: Node file doesn't exist. Wat?")
         return False
 
     permanent_path = settings.translate_output_node_to_permanent_path(p)
     if permanent_path.exists():
-        logger.warning(f"Permanent path already exists. {p}")
+        logger.warning(f"{p}: Permanent path already exists")
         return False
 
     match p.suffix:
         case ".empty":
-            # If empty, it is by definition valid
-            logger.info(f"Empty: {p}")
+            # If empty as defined by the extension, it is by definition valid
+            logger.debug(f"{p}: Empty extension")
             return True
         case ".parquet":
             # Check if file can be opened.
             try:
-                arrays = ak.from_parquet(p)
-                # If so, cleanup and return
-                del arrays
-                logger.info(f"Read by parquet: {p}")
+                # We don't want to get into what's provided - just that it's something.
+                _ = ak.from_parquet(p)
+                logger.debug(f"{p}: Successful read by parquet")
                 return True
             except Exception:
-                logger.info(f"Failed reading by parquet: {p}")
+                logger.debug(f"{p}: Failed reading by parquet")
                 return False
         case ".root":
             # Check if the file can be opened.
-            #try:
-            with uproot.open(p) as f:
-                keys = f.keys()
-                has_keys = len(list(keys)) > 0
-                logger.info(f"Read by uproot. has keys: {has_keys}, keys: {list(f.keys())} {p}")
-                if has_keys:
-                    num_entries = f[next(iter(keys))].num_entries
+            try:
+                with uproot.open(p) as f:
+                    # Take whatever keys are available
+                    keys = f.keys()
+                    logger.debug(f"{p}: Read by uproot with keys: {list(keys)}")
+
+                    # If there are no entries, then there may be an issue with the file
+                    if len(list(keys)) == 0:
+                        return False
+
+                    # Finally, if there are keys, check for a non-zero number of entries
+                    num_entries: int = f[next(iter(keys))].num_entries
                     has_entries = num_entries > 0
-                    #arrays = f[next(iter(keys))].arrays()
-                    logger.info(f"Read array by uproot. {has_entries=} {p}")
-                    #del arrays
+                    logger.debug(f"{p}: Read array by uproot with {num_entries=}")
                     return has_entries
-                return has_keys
-            #except Exception:
-            #    logger.info(f"Failed reading by uproot. {p}")
-            #    return False
+            except Exception:
+                logger.debug(f"{p}: Failed reading by uproot.")
+                return False
         case _:
-            logger.info(f"Unrecognized output file: {p}")
+            logger.warning(f"{p}: Unrecognized output file")
             return False
 
 
@@ -117,57 +118,38 @@ def steer_handle_files_from_failed_jobs(node_work_dir: Path, permanent_work_dir:
         )
         # Help out mypy...
         assert manager.file_stager is not None
-        input_files = sorted([
-            v for v in manager.file_stager.settings.node_work_dir_input.rglob("*") if v.is_file()
-        ])
-        output_files = sorted([
-            v for v in manager.file_stager.settings.node_work_dir_output.rglob("*") if v.is_file()
-        ])
+        input_files = sorted([v for v in manager.file_stager.settings.node_work_dir_input.rglob("*") if v.is_file()])
+        output_files = sorted([v for v in manager.file_stager.settings.node_work_dir_output.rglob("*") if v.is_file()])
         logger.info(f"{input_files=}")
         logger.info(f"{output_files=}")
 
         # Clean up the input files
         # NOTE: Yes, I'm breaking the API. I don't really want to expose this in most
         #       cases, but it makes sense here.
-        #manager._clean_up_staged_in_files_on_node(files_on_node_to_clean_up=input_files)
+        # manager._clean_up_staged_in_files_on_node(files_on_node_to_clean_up=input_files)
 
         # Check that the output files are valid
         valid_output_files = [v for v in output_files if check_if_file_is_valid(v, settings=settings)]
-        logger.info(f"Valid output_files: {output_files=}")
+        logger.debug(f"Valid output_files: {output_files=}")
         invalid_output_files_per_work_dir[work_dir] = set(output_files) - set(valid_output_files)
         # Warn if there are output files that do not appear to be valid.
         if len(invalid_output_files_per_work_dir[work_dir]) > 0:
             msg = (
-                f"There are output files that are invalid to be transfered to permanent storage!"
+                f"There are output files that are invalid to be transferred to permanent storage!"
                 f"\nFiles: {invalid_output_files_per_work_dir[work_dir]}"
             )
             logger.warning(msg)
 
         ## Transfer the output files
-        #manager.file_stager.stage_files_out(files_to_stage_out=valid_output_files)
+        # manager.file_stager.stage_files_out(files_to_stage_out=valid_output_files)
         ## And then the work dir
-        #manager.file_stager.settings.node_work_dir.rmdir()
+        # manager.file_stager.settings.node_work_dir.rmdir()
 
-        ## Find the files to move
-        # files_to_move = [
-        #    v for v in work_dir.glob("*") if v.is_file()
-        # ]
-
-        ## Check if the files are valid
-        # valid_files = [v for v in files_to_move if check_if_file_is_valid(v)]
-
-        ## Move the valid files
-        # for valid_file in valid_files:
-        #    sync_files_back_from_worker(
-        #        node_work_dir=node_work_dir,
-        #        permanent_work_dir=permanent_work_dir,
-        #        files_to_move=valid_file,
-        #    )
-
-        ## Cleanup the work directory
-        # for file_to_remove in files_to_move:
-        #    file_to_remove.unlink()
-
+    # Print for the user to see the problem files:
+    if invalid_output_files_per_work_dir:
+        logger.info("Found invalid output files - check on these!")
+        for work_dir, invalid_files in invalid_output_files_per_work_dir.items():
+            logger.info(f"Invalid output files in {work_dir}: {invalid_files}")
 
 
 def steer_handle_files_from_failed_jobs_entry_point() -> None:
@@ -186,15 +168,20 @@ def steer_handle_files_from_failed_jobs_entry_point() -> None:
     import mammoth.helpers
 
     # Setup
-    mammoth.helpers.setup_logging(level=logging.INFO)
     parser = argparse.ArgumentParser(description="Sync files from filed jobs.", formatter_class=RichHelpFormatter)
 
     parser.add_argument("-n", "--node-work-dir", required=True, type=Path, help="Node work directory")
     parser.add_argument("-p", "--permanent-work-dir", required=True, type=Path, help="Permanent work directory")
+    parser.add_argument("-d", "--debug", type=bool, help="Show debug level messages")
 
     args = parser.parse_args()
     node_work_dir: Path = args.node_work_dir
     permanent_work_dir: Path = args.permanent_work_dir
+    debug: bool = args.debug
+    logging_level = logging.INFO
+    if debug:
+        logging_level = logging.DEBUG
+    mammoth.helpers.setup_logging(level=logging_level)
 
     steer_handle_files_from_failed_jobs(
         node_work_dir=node_work_dir,
