@@ -137,7 +137,7 @@ def steer_handle_files_from_failed_jobs(node_work_dir: Path, permanent_work_dir:
             # Clean up the input files
             # NOTE: Yes, I'm breaking the API. I don't really want to expose this in most
             #       cases, but it makes sense here.
-            # manager._clean_up_staged_in_files_on_node(files_on_node_to_clean_up=input_files)
+            manager._clean_up_staged_in_files_on_node(files_on_node_to_clean_up=input_files)
 
             # Check that the output files are valid
             valid_output_files = [v for v in output_files if check_if_file_is_valid(v, settings=settings)]
@@ -151,10 +151,11 @@ def steer_handle_files_from_failed_jobs(node_work_dir: Path, permanent_work_dir:
                 )
                 logger.warning(msg)
 
-            ## Transfer the output files
-            # manager.file_stager.stage_files_out(files_to_stage_out=valid_output_files)
-            ## And then the work dir
-            # manager.file_stager.settings.node_work_dir.rmdir()
+            # Transfer the output files
+            manager.file_stager.stage_files_out(files_to_stage_out=valid_output_files)
+            # And then clean up the work dir
+            manager.file_stager.settings.node_work_dir.rmdir()
+            # And update the process
             progress.update(track_results, advance=1)
 
     # Print for the user to see the problem files:
@@ -162,6 +163,8 @@ def steer_handle_files_from_failed_jobs(node_work_dir: Path, permanent_work_dir:
         logger.warning("Found invalid output files - check on these!")
         for work_dir, invalid_files in invalid_output_files_per_work_dir.items():
             logger.warning(f"{work_dir}: {invalid_files}")
+    else:
+        logger.info("Successfully moved all files!")
 
 
 def steer_handle_files_from_failed_jobs_entry_point() -> None:
