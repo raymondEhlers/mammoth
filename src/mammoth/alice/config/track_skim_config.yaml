@@ -550,7 +550,7 @@ analysis_settings:
       correlator_type: "one_particle"
       # In GeV
       min_track_pt:
-        data: 1.
+        data: 0.15
 
     pp_MC: &analysis_settings_EEC_pp_MC
       <<: *_base_analysis_settings_E1C
@@ -560,8 +560,8 @@ analysis_settings:
       correlator_type: "one_particle"
       # In GeV
       min_track_pt:
-        part_level: 1.
-        det_level: 1.
+        part_level: 0.15
+        det_level: 0.15
       # By default, don't apply any additional reduction
       det_level_artificial_tracking_efficiency: 1.0
 
@@ -573,7 +573,7 @@ analysis_settings:
       correlator_type: "one_particle"
       # In GeV
       min_track_pt:
-        data: 1.
+        data: 0.15
 
     embed: &analysis_settings_EEC_embed
       <<: *_base_analysis_settings_E1C
@@ -583,9 +583,9 @@ analysis_settings:
       correlator_type: "one_particle"
       # In GeV
       min_track_pt:
-        part_level: 1.
-        det_level: 1.
-        hybrid_level: 1.
+        part_level: 0.15
+        det_level: 0.15
+        hybrid_level: 0.15
 
   # NOTE: We don't need an explicit one for embedding into a thermal model - we can
   #       just take the standard embedding analysis settings
