@@ -338,6 +338,7 @@ def calculate_correlators(
     # Analysis parameters
     correlator_type: str,
     min_track_pt: float,
+    max_delta_phi_from_axis: float,
     momentum_weight_exponent: int | float,
     combinatorics_chunk_size: int,
     scale_factor: float,
@@ -356,6 +357,8 @@ def calculate_correlators(
         event_selection_mask: The mask to apply to the event selection.
         correlator_type: The type of correlator to calculate.
         min_track_pt: The minimum track pt to use for the analysis.
+        max_delta_phi_from_axis: The maximum delta phi of the correlator particles
+            from the axis to consider.
         momentum_weight_exponent: The exponent to use for the momentum weighting.
         combinatorics_chunk_size: The size of the chunk to use for calculating the combinatorics.
         scale_factor: The scale factor to apply to the histograms.
@@ -533,6 +536,7 @@ def analyze_chunk_one_input_level(
     correlator_type: str,
     trigger_parameters: TriggerParameters,
     min_track_pt: dict[str, float],
+    max_delta_phi_from_axis: float,
     momentum_weight_exponent: int | float,
     combinatorics_chunk_size: int,
     # Injected analysis arguments (when appropriate)
@@ -595,6 +599,7 @@ def analyze_chunk_one_input_level(
             event_selection_mask=event_selection_mask[trigger_name],
             correlator_type=correlator_type,
             min_track_pt=min_track_pt[level],
+            max_delta_phi_from_axis=max_delta_phi_from_axis,
             momentum_weight_exponent=momentum_weight_exponent,
             combinatorics_chunk_size=combinatorics_chunk_size,
             scale_factor=scale_factors[pt_hat_bin],
@@ -629,6 +634,7 @@ def analyze_chunk_two_input_level(
     trigger_parameters: TriggerParameters,
     correlator_type: str,
     min_track_pt: dict[str, float],
+    max_delta_phi_from_axis: float,
     momentum_weight_exponent: int | float,
     combinatorics_chunk_size: int,
     det_level_artificial_tracking_efficiency: float | analysis_tracking.PtDependentTrackingEfficiencyParameters,
@@ -714,6 +720,7 @@ def analyze_chunk_two_input_level(
                 event_selection_mask=event_selection_mask[level][trigger_name],
                 correlator_type=correlator_type,
                 min_track_pt=min_track_pt[level],
+                max_delta_phi_from_axis=max_delta_phi_from_axis,
                 momentum_weight_exponent=momentum_weight_exponent,
                 combinatorics_chunk_size=combinatorics_chunk_size,
                 scale_factor=scale_factors[pt_hat_bin],
@@ -745,6 +752,7 @@ def analyze_chunk_three_input_level(
     trigger_parameters: TriggerParameters,
     correlator_type: str,
     min_track_pt: dict[str, float],
+    max_delta_phi_from_axis: float,
     momentum_weight_exponent: int | float,
     combinatorics_chunk_size: int,
     scale_factor: float,
@@ -820,6 +828,7 @@ def analyze_chunk_three_input_level(
                 event_selection_mask=event_selection_mask[level][trigger_name],
                 correlator_type=correlator_type,
                 min_track_pt=min_track_pt[level],
+                max_delta_phi_from_axis=max_delta_phi_from_axis,
                 momentum_weight_exponent=momentum_weight_exponent,
                 combinatorics_chunk_size=combinatorics_chunk_size,
                 background_index_identifier=source_index_identifiers["background"],
@@ -1023,6 +1032,7 @@ def minimal_test() -> None:
             min_track_pt={
                 "data": 1.0,
             },
+            max_delta_phi_from_axis=np.pi / 2,
             momentum_weight_exponent=1,
             combinatorics_chunk_size=500,
             scale_factor=1,

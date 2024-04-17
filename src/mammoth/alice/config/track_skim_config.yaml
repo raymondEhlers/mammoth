@@ -482,9 +482,16 @@ analysis_settings:
   # Energy-energy correlators
   ########################3
   _EEC_analysis_settings:
-    # Base settings for EEC -- applied to all EEC analyses
-    base_analysis_settings: &_base_analysis_settings_EEC
+    # Base settings for E1C and EEC -- applied to all analyses of the particular class
+    one_particle_correlator_settings: &_base_analysis_settings_E1C
       momentum_weight_exponent: 1
+      # In the way that we've implemented it as of April 2024, this is the maximum delta
+      # phi from the trigger recoil axis
+      max_delta_phi_from_axis: 1.570796326794897 # pi/2
+
+    two_particle_correlator_settings: &_base_analysis_settings_EEC
+      momentum_weight_exponent: 1
+      max_delta_phi_from_axis: 1.570796326794897 # pi/2
 
     # We don't want to automatically apply these settings, but only take use selectively
     default_parameters:
@@ -536,7 +543,7 @@ analysis_settings:
           write_merged_hists: true
 
     pp: &analysis_settings_EEC_pp
-      <<: *_base_analysis_settings_EEC
+      <<: *_base_analysis_settings_E1C
       analysis_input_levels: ["data"]
       trigger_parameters:
         <<: *analysis_settings_EEC_trigger_hadron
@@ -546,7 +553,7 @@ analysis_settings:
         data: 1.
 
     pp_MC: &analysis_settings_EEC_pp_MC
-      <<: *_base_analysis_settings_EEC
+      <<: *_base_analysis_settings_E1C
       analysis_input_levels: ["det_level", "part_level"]
       trigger_parameters:
         <<: *analysis_settings_EEC_trigger_hadron
@@ -559,7 +566,7 @@ analysis_settings:
       det_level_artificial_tracking_efficiency: 1.0
 
     PbPb: &analysis_settings_EEC_PbPb
-      <<: *_base_analysis_settings_EEC
+      <<: *_base_analysis_settings_E1C
       analysis_input_levels: ["data"]
       trigger_parameters:
         <<: *analysis_settings_EEC_trigger_hadron
@@ -569,7 +576,7 @@ analysis_settings:
         data: 1.
 
     embed: &analysis_settings_EEC_embed
-      <<: *_base_analysis_settings_EEC
+      <<: *_base_analysis_settings_E1C
       analysis_input_levels: ["hybrid_level", "det_level", "part_level"]
       trigger_parameters:
         <<: *analysis_settings_EEC_trigger_hadron
