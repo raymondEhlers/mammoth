@@ -403,7 +403,7 @@ def calculate_correlators(
         particle_pt_mask = event_selected_array.pt > min_track_pt
         event_selected_array = event_selected_array[particle_pt_mask]
         logger.debug(f"{level}, {trigger_name}: About to find particles within recoil cone")
-        within_hemisphere = recoil_direction.deltaphi(event_selected_array) < np.pi / 4
+        within_hemisphere = np.abs(recoil_direction.deltaphi(event_selected_array)) < max_delta_phi_from_axis
         eec_particles = event_selected_array[within_hemisphere]
 
         if return_skim and combinatorics_chunk_size < 0:
