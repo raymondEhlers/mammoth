@@ -106,24 +106,25 @@ def _setup_base_hists(levels: list[str], trigger_parameters: TriggerParameters) 
     # EECs
     for level in levels:
         for trigger_name, trigger_range_tuple in trigger_parameters.classes.items():
+            rl_bin_args = (400, 1e-4, 6)
             trigger_pt_bin_args = (round((trigger_range_tuple[1] - trigger_range_tuple[0]) * 4), *trigger_range_tuple)
             hists[f"{level}_{trigger_name}_eec"] = hist.Hist(
                 *[
-                    hist.axis.Regular(200, 1e-4, 1.5, label="R_L"),
+                    hist.axis.Regular(*rl_bin_args, label="R_L"),
                     hist.axis.Regular(*trigger_pt_bin_args, label="trigger_pt"),
                 ],
                 storage=hist.storage.Weight(),
             )
             hists[f"{level}_{trigger_name}_eec_unweighted"] = hist.Hist(
                 *[
-                    hist.axis.Regular(200, 1e-4, 1.5, label="ln(R_L)", transform=hist.axis.transform.log),
+                    hist.axis.Regular(*rl_bin_args, label="ln(R_L)", transform=hist.axis.transform.log),
                     hist.axis.Regular(*trigger_pt_bin_args, label="trigger_pt"),
                 ],
                 storage=hist.storage.Weight(),
             )
             # hists[f"{level}_{trigger_name}_eec_log"] = hist.Hist(
             #    *[
-            #        hist.axis.Regular(200, 1e-4, 1.5, label="ln(R_L)", transform=hist.axis.transform.log),
+            #        hist.axis.Regular(*rl_bin_args, label="ln(R_L)", transform=hist.axis.transform.log),
             #        hist.axis.Regular(*trigger_pt_bin_args, label="trigger_pt"),
             #    ],
             #    storage=hist.storage.Weight()
@@ -131,21 +132,21 @@ def _setup_base_hists(levels: list[str], trigger_parameters: TriggerParameters) 
             if level == "hybrid_level":
                 hists[f"{level}_{trigger_name}_eec_bg_only"] = hist.Hist(
                     *[
-                        hist.axis.Regular(200, 1e-4, 1.5, label="R_L"),
+                        hist.axis.Regular(*rl_bin_args, label="R_L"),
                         hist.axis.Regular(*trigger_pt_bin_args, label="trigger_pt"),
                     ],
                     storage=hist.storage.Weight(),
                 )
                 hists[f"{level}_{trigger_name}_eec_unweighted_bg_only"] = hist.Hist(
                     *[
-                        hist.axis.Regular(200, 1e-4, 1.5, label="R_L"),
+                        hist.axis.Regular(*rl_bin_args, label="R_L"),
                         hist.axis.Regular(*trigger_pt_bin_args, label="trigger_pt"),
                     ],
                     storage=hist.storage.Weight(),
                 )
                 # hists[f"{level}_{trigger_name}_eec_log_bg_only"] = hist.Hist(
                 #    *[
-                #        hist.axis.Regular(200, 1e-4, 1.5, label="ln(R_L)", transform=hist.axis.transform.log),
+                #        hist.axis.Regular(*rl_bin_args, label="ln(R_L)", transform=hist.axis.transform.log),
                 #        hist.axis.Regular(*trigger_pt_bin_args, label="trigger_pt"),
                 #    ],
                 #    storage=hist.storage.Weight()
@@ -539,6 +540,7 @@ def analyze_chunk_one_input_level(
     max_delta_phi_from_axis: float,
     momentum_weight_exponent: int | float,
     combinatorics_chunk_size: int,
+    level_name: str = "data",
     # Injected analysis arguments (when appropriate)
     pt_hat_bin: int = -1,
     scale_factors: dict[int, float] | None = None,
@@ -564,9 +566,7 @@ def analyze_chunk_one_input_level(
         scale_factors = {-1: 1.0}
 
     # Setup
-    # TODO: Make this configurable, probably
-    level = "data"
-    hists = _setup_one_input_level_hists(level_names=[level], trigger_parameters=trigger_parameters)
+    hists = _setup_one_input_level_hists(level_names=[level_name], trigger_parameters=trigger_parameters)
     trigger_skim_output: dict[str, ak.Array] = {}
 
     # Event selection
@@ -581,7 +581,7 @@ def analyze_chunk_one_input_level(
     # Find trigger(s)
     logger.debug("Finding trigger(s)")
     triggers_dict, event_selection_mask = _find_triggers(
-        level=level,
+        level=level_name,
         arrays=arrays,
         trigger_parameters=trigger_parameters,
         scale_factor=scale_factors[pt_hat_bin],
@@ -592,13 +592,13 @@ def analyze_chunk_one_input_level(
     # Calculate correlators
     for trigger_name, _ in trigger_parameters.classes.items():
         res = calculate_correlators(
-            level=level,
+            level=level_name,
             trigger_name=trigger_name,
             triggers=triggers_dict[trigger_name],
-            arrays=arrays[level],
+            arrays=arrays[level_name],
             event_selection_mask=event_selection_mask[trigger_name],
             correlator_type=correlator_type,
-            min_track_pt=min_track_pt[level],
+            min_track_pt=min_track_pt[level_name],
             max_delta_phi_from_axis=max_delta_phi_from_axis,
             momentum_weight_exponent=momentum_weight_exponent,
             combinatorics_chunk_size=combinatorics_chunk_size,
@@ -641,6 +641,7 @@ def analyze_chunk_two_input_level(
     # Injected analysis arguments
     pt_hat_bin: int,
     scale_factors: dict[int, float],
+    level_names: list[str] | None = None,
     # Default analysis arguments
     validation_mode: bool = False,
     return_skim: bool = False,
@@ -655,10 +656,10 @@ def analyze_chunk_two_input_level(
             f"Requested to return the skim, but the combination chunk size is {combinatorics_chunk_size} (> 0), which won't work. So we disable it."
         )
         return_skim = False
+    if level_names is None:
+        level_names = ["part_level", "det_level"]
 
     # Setup
-    # TODO: Make this configurable, probably
-    level_names = ["part_level", "det_level"]
     hists = _setup_two_input_level_hists(level_names=level_names, trigger_parameters=trigger_parameters)
     trigger_skim_output: dict[str, ak.Array] = {}
 
