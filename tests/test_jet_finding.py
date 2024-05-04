@@ -541,23 +541,23 @@ def test_negative_energy_recombiner(caplog: Any) -> None:
     input_particles = ak.zip(
         {
             "px": [
-                [99.0, 4.0, -99.0],
+                [99.0, 2.0, 4.0, -99.0],
                 [0.1, -0.1, 0],
             ],
             "py": [
-                [0.1, -0.1, 0],
+                [0.1, 0.0, -0.1, 0],
                 [99.0, 4.0, -99.0],
             ],
             "pz": [
-                [0, 0, 0],
+                [0, 0, 0, 0],
                 [0, 0, 0],
             ],
             "E": [
-                [100.0, 5.0, 99.0],
+                [100.0, 2.0, 5.0, 99.0],
                 [100.0, 5.0, 99.0],
             ],
             "user_index": [
-                [4, -5, 6],
+                [4, -8, -5, 6],
                 [7, -8, 9],
             ],
         },
@@ -573,7 +573,8 @@ def test_negative_energy_recombiner(caplog: Any) -> None:
             algorithm="anti-kt",
             # Use pp settings to speed it up. I don't think I need much detail (and as of April 2023,
             # AA equally works the same)
-            area_settings=jet_finding.AreaPP(),
+            # area_settings=jet_finding.AreaPP(),
+            area_settings=None,
             pt_range=jet_finding.pt_range(),
             eta_range=jet_finding.eta_range(jet_R=0.7, fiducial_acceptance=False, eta_min=-5.0, eta_max=5.0),
             recombiner=jet_finding.NegativeEnergyRecombiner(identifier_index=-123456),
@@ -585,7 +586,7 @@ def test_negative_energy_recombiner(caplog: Any) -> None:
     expected_jets = ak.zip(
         {
             "px": [
-                [-99.0, 95],
+                [-99.0, 93],
                 [0.0, 0.2],
             ],
             "py": [
@@ -597,14 +598,12 @@ def test_negative_energy_recombiner(caplog: Any) -> None:
                 [0.0, 0.0],
             ],
             "E": [
-                [99.0, 95.0],
+                [99.0, 93.0],
                 [99.0, 95.0],
             ],
         },
         with_name="Momentum4D",
     )
-
-    # import IPython; IPython.embed()
 
     logger.info(f"input_particles: {input_particles.to_list()}")
     logger.info("jets:")
@@ -630,8 +629,166 @@ def test_negative_energy_recombiner(caplog: Any) -> None:
     # NOTE: The order of the constituents appears to be susceptible to whether there are ghosts included or not,
     #       so we figured out the right assignments, and then just adjusted the order as needed. Hopefully this will
     #       be reasonably repeatable and stable.
-    expected_user_index = [[[6], [4, -5]], [[9], [7, -8]]]
+    expected_user_index = [[[6], [-5, 4, -8]], [[9], [7, -8]]]
     assert jets.constituents.user_index.to_list() == expected_user_index
+
+    # only for testing - we want to see any fastjet warnings
+    # assert False
+
+
+def test_reclustering(caplog: Any) -> None:
+    """Test reclustering
+
+    Requires running the jet finding code first, and then reclustering together afterwards.
+
+    Note:
+        This will be more of an integration test, since there's limits to what I'm willing
+        to calculate for a splitting tree
+    """
+    # Setup
+    caplog.set_level(logging.DEBUG)
+    caplog.set_level(logging.INFO, logger="numba")
+    vector.register_awkward()
+
+    # an event with three particles
+    # First event is an event that I made up. It consists of:
+    """
+    Splittings tree with energies (which are approximate) as label
+    Splittings generation:
+    1.  2.      3.      4.
+    --------------------------
+    200 -> 150  -> 100  -> 105
+                        -> -5 (a hole)
+                -> 50
+        -> 50   -> 25
+                -> 25
+    """
+    # while the second event is the standard with px <-> py.
+    # The output jets should be the same as well, but with px <-> py.
+    input_particles = ak.zip(
+        {
+            "px": [
+                [50.0, 105.0, 25.0, 25.0, 5.0],
+                [0.5, -0.5, 4.75, 5.25, 0.0],
+            ],
+            "py": [
+                [0.5, -0.5, 4.75, 5.25, 0.0],
+                [50.0, 105.0, 25.0, 25.0, 5.0],
+            ],
+            "pz": [
+                [0, 0, 0, 0, 0],
+                [0, 0, 0, 0, 0],
+            ],
+            "E": [
+                [50.0, 105.0, 25.0, 25.0, 5.0],
+                [50.0, 105.0, 25.0, 25.0, 5.0],
+            ],
+            "source_index": [
+                [1, 2, 3, 4, 5],
+                [6, 7, 8, 9, 10],
+            ],
+        },
+        with_name="Momentum4D",
+    )
+    # Encode some hole like user_index structure
+    # Here, 0 corresponds to the hole particle
+    values_to_encode = ak.Array([[1, 1, 1, 1, 0], [1, 1, 1, 1, 0]])
+    mask_to_encode_with_negative = values_to_encode == 0
+    user_index = jet_finding.calculate_user_index_with_encoded_sign_info(
+        particles=input_particles,
+        mask_to_encode_with_negative=mask_to_encode_with_negative,
+    )
+    input_particles["user_index"] = user_index
+    logger.info(f"input particles array type: {ak.type(input_particles)}")
+
+    jets = jet_finding.find_jets(
+        particles=input_particles,
+        jet_finding_settings=jet_finding.JetFindingSettings(
+            R=0.7,
+            algorithm="anti-kt",
+            # Use pp settings to speed it up. I don't think I need much detail (and as of April 2023,
+            # AA equally works the same)
+            # area_settings=jet_finding.AreaPP(),
+            area_settings=None,
+            pt_range=jet_finding.pt_range(),
+            eta_range=jet_finding.eta_range(jet_R=0.7, fiducial_acceptance=False, eta_min=-5.0, eta_max=5.0),
+            recombiner=jet_finding.NegativeEnergyRecombiner(identifier_index=-123456),
+        ),
+    )
+
+    # NOTE: These values were extracted by running the code! Since these weren't calculated independently,
+    #       this is more of a regression test than a full integration test.
+    expected_jets = ak.zip(
+        {
+            "px": [
+                [200.0],
+                [10.0],
+            ],
+            "py": [
+                [10.0],
+                [200.0],
+            ],
+            "pz": [
+                [0.0],
+                [0.0],
+            ],
+            "E": [
+                [200.0],
+                [200.0],
+            ],
+        },
+        with_name="Momentum4D",
+    )
+
+    logger.info(f"input_particles: {input_particles.to_list()}")
+    logger.info("jets:")
+    import io
+
+    _s = io.StringIO()
+    jets[["px", "py", "pz", "E"]].show(stream=_s)
+    logger.info(f"{_s}")
+    logger.info(f"expected_jets: {expected_jets.to_list()}")
+
+    # Check four momenta
+    assert all(
+        np.allclose(np.asarray(measured.px), np.asarray(expected.px))
+        and np.allclose(np.asarray(measured.py), np.asarray(expected.py))
+        and np.allclose(np.asarray(measured.pz), np.asarray(expected.pz))
+        and np.allclose(np.asarray(measured.E), np.asarray(expected.E))
+        for event, event_expected in zip(jets, expected_jets, strict=True)
+        for measured, expected in zip(event, event_expected, strict=True)
+    )
+
+    # Check additional label fields
+    # 1. user index of constituents.
+    # These should be passed through, so we want to verify that actually happened correctly.
+    # NOTE: The order of the constituents appears to be susceptible to whether there are ghosts included or not,
+    #       so we figured out the right assignments, and then just adjusted the order as needed. Hopefully this will
+    #       be reasonably repeatable and stable.
+    expected_user_index = [[[0, 1, -4, 2, 3]], [[0, 1, -4, 2, 3]]]
+    assert jets.constituents.user_index.to_list() == expected_user_index
+    # 2. The source index
+    # These should be passed through - nothing fancy.
+    # The order is dictated by how fastjet clusters, as above with the user index.
+    expected_source_index = [[[1, 2, 5, 3, 4]], [[6, 7, 10, 8, 9]]]
+    assert jets.constituents.source_index.to_list() == expected_source_index
+
+    ####################################
+    # Now that we've completed the jet finding, we go onto the reclustering
+    ####################################
+    logger.info("Reclustering jets...")
+    reclustering_jets = jet_finding.recluster_jets(
+        jets=jets,
+        jet_finding_settings=jet_finding.ReclusteringJetFindingSettings(
+            area_settings=jet_finding.AreaSubstructure(),
+        ),
+        store_recursive_splittings=True,
+    )
+    import IPython
+
+    IPython.embed()
+
+    logger.info(f"reclustering_jets: {reclustering_jets.to_list()}")
 
     # only for testing - we want to see any fastjet warnings
     # assert False
