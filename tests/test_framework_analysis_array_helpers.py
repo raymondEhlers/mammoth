@@ -26,7 +26,7 @@ def test_random_choice_jagged(caplog: Any, random_seed: int | None) -> None:
 
     if random_seed is None:
         # We don't know the exact values since we didn't set the seed, but we can check the shape
-        assert ak.count(array[mask], axis=-1).to_list() == [1, 1, 0, 1]
+        assert ak.num(array[mask], axis=-1).to_list() == [1, 1, 0, 1]
     else:
         assert array[mask].to_list() == [[2], [1], [], [4]]
 
