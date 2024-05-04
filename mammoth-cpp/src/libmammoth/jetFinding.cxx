@@ -482,9 +482,11 @@ std::string BackgroundSubtraction::to_string() const {
 }
 
 std::vector<std::vector<int>> constituentIndicesFromJets(
+  const JetFindingSettings & jetFindingSettings,
   const std::vector<fastjet::PseudoJet> & jets
 )
 {
+  const bool ghostsArePossible = jetFindingSettings.areaSettings ? true : false;
   std::vector<std::vector<int>> indices;
   unsigned int i = 0;
   for (auto jet : jets) {
@@ -492,8 +494,15 @@ std::vector<std::vector<int>> constituentIndicesFromJets(
     unsigned int j = 0;
     for (auto constituent : jet.constituents()) {
       std::cout << "jet " << i << ", constituent " << j << ": index: " << constituent.user_index() << "\n";
-      // We want to avoid ghosts, which have index -1
-      if (constituent.user_index() != -1) {
+      // We want to avoid returning ghosts. Historically, we would look for index -1. However, we may have
+      // index -1 for other reasons (e.g. if we are encoding information into a user provided user_index),
+      // so better to use the `is_pure_ghost` method when it's available. I couldn't figure out exactly how
+      // it works (my quick look in May 2024 suggests that it's quite circular, but they may just be tracking
+      // them manually), but it seems to work as hoped without relying on the index. So good enough!
+      // NOTE: We can only do this check if we have valid area settings and an active CS. We check for the area
+      //       settings, but rely on the user to ensure that the CS is still active. If you use it in the
+      //       standard way as of May 2024, then it should be active, and all will be fine.
+      if (!ghostsArePossible || (ghostsArePossible && !constituent.is_pure_ghost())) {
         constituentIndicesInJet.push_back(constituent.user_index());
       }
       j++;

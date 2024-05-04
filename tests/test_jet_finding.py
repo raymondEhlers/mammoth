@@ -417,6 +417,7 @@ def test_jet_finding_with_constituent_subtraction_does_something_multiple_events
     """
     # Setup
     caplog.set_level(logging.DEBUG)
+    caplog.set_level(logging.INFO, logger="numba")
     vector.register_awkward()
 
     # an event with three particles
@@ -515,6 +516,13 @@ def test_jet_finding_with_constituent_subtraction_does_something_multiple_events
         for measured, expected in zip(event, event_expected, strict=True)
     )
 
+    if use_custom_user_index:
+        # import IPython; IPython.embed()
+        # NOTE: The order of the constituents appears to be susceptible to whether there are ghosts included or not,
+        #       so we figured out the right assignments, and then just adjusted the order as needed. Hopefully this will
+        #       be reasonably repeatable and stable.
+        assert [[[4, -5], [6]], [[-8, 7], [9]]] == jets.constituents.user_index.to_list()
+
     # only for testing - we want to see any fastjet warnings
     # assert False
 
@@ -523,6 +531,7 @@ def test_negative_energy_recombiner(caplog: Any) -> None:
     """Jet finding with negative energy recombiner for multiple events."""
     # Setup
     caplog.set_level(logging.DEBUG)
+    caplog.set_level(logging.INFO, logger="numba")
     vector.register_awkward()
 
     # an event with three particles
@@ -595,6 +604,8 @@ def test_negative_energy_recombiner(caplog: Any) -> None:
         with_name="Momentum4D",
     )
 
+    # import IPython; IPython.embed()
+
     logger.info(f"input_particles: {input_particles.to_list()}")
     logger.info("jets:")
     import io
@@ -613,6 +624,14 @@ def test_negative_energy_recombiner(caplog: Any) -> None:
         for event, event_expected in zip(jets, expected_jets, strict=True)
         for measured, expected in zip(event, event_expected, strict=True)
     )
+
+    # Check user indices of constituents.
+    # These should be passed through, so we want to verify that actually happened correctly.
+    # NOTE: The order of the constituents appears to be susceptible to whether there are ghosts included or not,
+    #       so we figured out the right assignments, and then just adjusted the order as needed. Hopefully this will
+    #       be reasonably repeatable and stable.
+    expected_user_index = [[[6], [4, -5]], [[9], [7, -8]]]
+    assert jets.constituents.user_index.to_list() == expected_user_index
 
     # only for testing - we want to see any fastjet warnings
     # assert False

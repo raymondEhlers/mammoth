@@ -538,8 +538,8 @@ def find_constituent_indices_via_user_index(user_indices: ak.Array, constituents
         number_of_constituents=ak.count(constituents_user_index),
     )
 
-    first_step = ak.unflatten(res, ak.count(user_indices, axis=1))
-    return ak.unflatten(first_step, ak.flatten(ak.count(constituents_user_index, axis=1)), axis=1)
+    first_step = ak.unflatten(res, ak.num(user_indices, axis=1))
+    return ak.unflatten(first_step, ak.flatten(ak.num(constituents_user_index, axis=-1)), axis=1)
 
 
 @nb.njit  # type: ignore[misc]
@@ -582,7 +582,7 @@ def find_unsubtracted_constituent_index_from_subtracted_index_via_user_index(
         number_of_subtracted_constituents=ak.count(subtracted_index_to_unsubtracted_user_index),
     )
 
-    return ak.unflatten(res, ak.count(subtracted_index_to_unsubtracted_user_index, axis=1))
+    return ak.unflatten(res, ak.num(subtracted_index_to_unsubtracted_user_index, axis=1))
 
 
 def calculate_user_index_with_encoded_sign_info(

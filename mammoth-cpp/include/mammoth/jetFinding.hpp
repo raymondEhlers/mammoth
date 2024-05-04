@@ -681,6 +681,7 @@ std::vector<T> extractJetsArea(
  * @return std::vector<std::vector<int>> The indices of all constituents in all jets.
  */
 std::vector<std::vector<int>> constituentIndicesFromJets(
+  const JetFindingSettings & jetFindingSettings,
   const std::vector<fastjet::PseudoJet> & jets
 );
 
@@ -1211,7 +1212,7 @@ OutputWrapper<T> findJets(
   T rhoValue = backgroundEstimator ? backgroundEstimator->rho() : 0;
   // Finally, we need to associate the constituents with the jets. To do so, we store one vector per jet,
   // with the vector containing the user_index assigned earlier in the jet finding process.
-  auto constituentIndices = constituentIndicesFromJets(jets);
+  auto constituentIndices = constituentIndicesFromJets(mainJetFinder, jets);
 
   if (backgroundSubtraction.type == BackgroundSubtraction_t::eventWiseCS ||
       backgroundSubtraction.type == BackgroundSubtraction_t::jetWiseCS) {
