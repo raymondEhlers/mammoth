@@ -26,6 +26,11 @@ std::ostream& operator<<(std::ostream& in, const fastjet::PseudoJet & p);
  *   - If particle has positive user_index: +1 (i.e. add its four-vector)
  *   - If particle has negative user_index: -1 (i.e. subtract its four-vector)
  *
+ * NOTE: At first glance, the user_index reassignment looks troublesome for keeping track of indices which
+ *       are being propagated. However, the new user_index is assigned at the **subjet** level, not the
+ *       constituent level. So when we ask for the constituents, we can still get the original user_index
+ *       that we wanted to propagate (i.e. the constituent user_index).
+ *
  * Original idea + code from Yasuki Tachibana, with some further changes from James Mulligan
  */
 class FJNegativeEnergyRecombiner : public fastjet::JetDefinition::Recombiner {

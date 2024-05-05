@@ -111,6 +111,16 @@ def eta_range(
     return float(eta_min), float(eta_max)
 
 
+def _validate_recombiner_settings(jet_finding_settings: JetFindingSettings, particles_fields: list[str]) -> None:
+    if (
+        jet_finding_settings.recombiner is not None
+        and isinstance(jet_finding_settings.recombiner, NegativeEnergyRecombiner)  # type: ignore[redundant-expr]
+        and "user_index" not in particles_fields
+    ):
+        _msg = "The Negative Energy Recombiner requires you to encode the relevant info into the user index and pass them to the jet finder."
+        raise ValueError(_msg)
+
+
 @nb.njit  # type: ignore[misc]
 def _shared_momentum_fraction_for_flat_array_implementation(
     generator_like_jet_pts: ak.Array,
@@ -733,13 +743,7 @@ def find_jets(
     # Validation
     if background_subtraction is None:
         background_subtraction = BackgroundSubtraction(type=BackgroundSubtractionType.disabled)
-    if (
-        jet_finding_settings.recombiner is not None
-        and isinstance(jet_finding_settings.recombiner, NegativeEnergyRecombiner)  # type: ignore[redundant-expr]
-        and "user_index" not in ak.fields(particles)
-    ):
-        _msg = "The Negative Energy Recombiner requires you to encode the relevant info into the user index and pass them to the jet finder."
-        raise ValueError(_msg)
+    _validate_recombiner_settings(jet_finding_settings=jet_finding_settings, particles_fields=ak.fields(particles))
 
     logger.info(f"Jet finding settings: {jet_finding_settings}")
     logger.info(f"Background subtraction settings: {background_subtraction}")
@@ -1008,10 +1012,22 @@ def recluster_jets(
     jet_finding_settings: JetFindingSettings,
     store_recursive_splittings: bool,
 ) -> ak.Array:
+    """Handle jet reclustering
+
+    Args:
+        jets: Jets for reclustering, of the form returned by the `find_jets` function.
+        jet_findings_settings: Jet finding settings.
+        store_recursive_splittings: Whether to store the splittings for each jet.
+    Returns:
+        Reclustered jets, of the form expected for reclustering.
+    """
     # Validation. There must be jets
     if len(jets) == 0:
         _msg = "No jets present for reclustering!"
         raise ValueError(_msg)
+    _validate_recombiner_settings(
+        jet_finding_settings=jet_finding_settings, particles_fields=ak.fields(jets.constituents)
+    )
 
     # To iterate over the constituents in an efficient manner, we need to flatten them and
     # their four-momenta. To make this more manageable, we want to determine the constituent
@@ -1047,6 +1063,13 @@ def recluster_jets(
     py = np.asarray(ak.flatten(jets.constituents.py, axis=None), dtype=np.float64)
     pz = np.asarray(ak.flatten(jets.constituents.pz, axis=None), dtype=np.float64)
     E = np.asarray(ak.flatten(jets.constituents.E, axis=None), dtype=np.float64)
+    # Provide this value only if it's available in the array
+    user_index = (
+        np.asarray(ak.flatten(jets.constituents.user_index, axis=None), dtype=np.int64)
+        if "user_index" in ak.fields(jets.constituents)
+        else None
+    )
+    # logger.info(f"User_index: {user_index}")
 
     event_splittings = _splittings_output()
     event_subjets = _subjets_output()
@@ -1060,6 +1083,7 @@ def recluster_jets(
                 pz=pz[lower:upper],
                 E=E[lower:upper],
                 jet_finding_settings=jet_finding_settings,
+                user_index=user_index[lower:upper] if user_index is not None else None,
                 store_recursive_splittings=store_recursive_splittings,
                 release_gil=True,
             )

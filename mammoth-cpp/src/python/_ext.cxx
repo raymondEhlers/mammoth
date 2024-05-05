@@ -287,6 +287,7 @@ mammoth::JetSubstructure::JetSubstructureSplittings reclusterJet(
   const py::array_t<T, py::array::c_style | py::array::forcecast> & pzIn,
   const py::array_t<T, py::array::c_style | py::array::forcecast> & EIn,
   const mammoth::JetFindingSettings & jetFindingSettings,
+  const std::optional<py::array_t<T, py::array::c_style | py::array::forcecast>> userIndexIn,
   const bool storeRecursiveSplittings,
   const bool releaseGil
 )
@@ -300,6 +301,12 @@ mammoth::JetSubstructure::JetSubstructureSplittings reclusterJet(
 
   // Convert from python -> cpp types
   auto fourVectors = numpyToColumnFourVector<T>(pxIn, pyIn, pzIn, EIn);
+  // NOTE: These may be empty. If they are, the user index is generated automatically with the index of the array.
+  //       We have to be a bit careful here because we pass a nullptr by default, which will break if passed naively.
+  std::vector<int> userIndex;
+  if (userIndexIn.has_value()) {
+    userIndex = numpyToUserIndexVector<int>(userIndexIn.value());
+  }
 
   if (releaseGil) {
     mammoth::JetSubstructure::JetSubstructureSplittings result;
@@ -315,7 +322,7 @@ mammoth::JetSubstructure::JetSubstructureSplittings reclusterJet(
       // Now that we're done with grabbing information from python, we can release the GIL and
       // actually run the calculation
       py::gil_scoped_release release;
-      result = mammoth::jetReclustering(fourVectors, jetFindingSettings, storeRecursiveSplittings);
+      result = mammoth::jetReclustering(fourVectors, userIndex, jetFindingSettings, storeRecursiveSplittings);
       // Once finished, reacquire the GIL to be able to access python objects
       // NOTE: As of April 2023, I think this may be redundant, but I don't think it will hurt anything.
       py::gil_scoped_acquire acquire;
@@ -345,7 +352,7 @@ mammoth::JetSubstructure::JetSubstructureSplittings reclusterJet(
   // If not releasing the GIL, then just run the calculation as usual with the standard logging
   mammoth::python::JetFindingLoggingStdout outputCoutPythonLogging;
   mammoth::python::JetFindingLoggingStderr outputCerrPythonLogging;
-  return mammoth::jetReclustering(fourVectors, jetFindingSettings, storeRecursiveSplittings);
+  return mammoth::jetReclustering(fourVectors, userIndex, jetFindingSettings, storeRecursiveSplittings);
 }
 
 /**
@@ -575,12 +582,14 @@ PYBIND11_MODULE(_ext, m) {
   m.def("recluster_jet", &reclusterJet<float>, "px"_a, "py"_a, "pz"_a, "E"_a,
                                                py::kw_only(),
                                                "jet_finding_settings"_a,
+                                               "user_index"_a = std::nullopt,
                                                "store_recursive_splittings"_a = true,
                                                "release_gil"_a = false,
                                                "Recluster the given jet");
   m.def("recluster_jet", &reclusterJet<double>, "px"_a, "py"_a, "pz"_a, "E"_a,
                                                py::kw_only(),
                                                "jet_finding_settings"_a,
+                                               "user_index"_a = std::nullopt,
                                                "store_recursive_splittings"_a = true,
                                                "release_gil"_a = false,
                                                "Recluster the given jet");

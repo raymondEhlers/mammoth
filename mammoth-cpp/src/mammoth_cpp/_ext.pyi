@@ -223,6 +223,7 @@ def recluster_jet(
     pz: npt.NDArray[np.float32],
     E: npt.NDArray[np.float32],
     jet_finding_settings: JetFindingSettings,
+    user_index: npt.NDArray[np.int64] | None,
     store_recursive_splittings: bool = ...,
     release_gil: bool = ...,
 ) -> JetSubstructureSplittings: ...
@@ -233,6 +234,7 @@ def recluster_jet(
     pz: npt.NDArray[np.float64],
     E: npt.NDArray[np.float64],
     jet_finding_settings: JetFindingSettings,
+    user_index: npt.NDArray[np.int64] | None,
     store_recursive_splittings: bool = ...,
     release_gil: bool = ...,
 ) -> JetSubstructureSplittings: ...

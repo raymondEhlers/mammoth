@@ -1229,6 +1229,7 @@ OutputWrapper<T> findJets(
 template<typename T>
 JetSubstructure::JetSubstructureSplittings jetReclustering(
   FourVectorTuple<T> & columnFourVectors,
+  std::vector<int> & columnUserIndices,
   const JetFindingSettings & mainJetFinder,
   const bool storeRecursiveSplittings
 )
@@ -1238,11 +1239,12 @@ JetSubstructure::JetSubstructureSplittings jetReclustering(
   // and set the setting to disabled
   FourVectorTuple<T> backgroundEstimatorFourVectors = {{}, {}, {}, {}};
   BackgroundSubtraction backgroundSubtraction{BackgroundSubtraction_t::disabled, nullptr, nullptr};
-  // We don't care about passing a custom user index for the background subtraction calculation because
-  // the need to pass them is related to MC, where we shouldn't need background subtraction
-  std::vector<int> columnFourVectorsUserIndices = {};
+  // NOTE: We want to pass a custom user index because we may want to encode information there
+  //       (e.g. for the negative recombiner). If the user doesn't provide one, an empty one will
+  //       be passed to this function and `findJetsImplementation` will take care of the appropriate
+  //       definition of user_index values.
   auto && [cs, backgroundEstimator, jets, particlePseudoJets, subtractedToUnsubtractedIndices] = findJetsImplementation(
-    columnFourVectors, columnFourVectorsUserIndices, mainJetFinder, backgroundEstimatorFourVectors, backgroundSubtraction
+    columnFourVectors, columnUserIndices, mainJetFinder, backgroundEstimatorFourVectors, backgroundSubtraction
   );
 
   // Now that we're done with the jet finding, we just need to extract the splittings and
