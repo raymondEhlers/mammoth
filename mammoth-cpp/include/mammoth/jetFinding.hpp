@@ -756,7 +756,7 @@ namespace JetSubstructure {
 struct ColumnarSubjets {
   std::vector<unsigned short> splittingNodeIndex;                     ///<  Index of the parent splitting node.
   std::vector<bool> partOfIterativeSplitting;                         ///<  True if the splitting is follow an iterative splitting.
-  std::vector<std::vector<unsigned short>> constituentIndices;        ///<  Constituent jet indices (ie. indexed by the stored jet constituents, not the global index).
+  std::vector<std::vector<int>> constituentIndices;        ///<  Constituent jet indices (ie. indexed by the stored jet constituents, not the global index). Careful! In practice, this is the user_index and the type here is different than in AliPhysics to account for encoding details (e.g. holes or recoils) into the user_index! It should be remapped to actual constituent indices afterwards.
 };
 
 /**
@@ -783,10 +783,10 @@ class Subjets {
 
   // Getters and setters
   void AddSubjet(const unsigned short splittingNodeIndex, const bool partOfIterativeSplitting,
-          const std::vector<unsigned short>& constituentIndices);
-  std::tuple<unsigned short, bool, const std::vector<unsigned short>> GetSubjet(int i) const;
+          const std::vector<int>& constituentIndices);
+  std::tuple<unsigned short, bool, const std::vector<int>> GetSubjet(int i) const;
   ColumnarSubjets GetSubjets() { return ColumnarSubjets{fSplittingNodeIndex, fPartOfIterativeSplitting, fConstituentIndices}; }
-  //std::tuple<std::vector<unsigned short> &, std::vector<bool> &, std::vector<std::vector<unsigned short>> &> GetSubjets() { return ; }
+  //std::tuple<std::vector<unsigned short> &, std::vector<bool> &, std::vector<std::vector<int>> &> GetSubjets() { return ; }
 
   // Printing
   std::string to_string() const;
@@ -795,7 +795,7 @@ class Subjets {
  protected:
   std::vector<unsigned short> fSplittingNodeIndex;        ///<  Index of the parent splitting node.
   std::vector<bool> fPartOfIterativeSplitting;            ///<  True if the splitting is follow an iterative splitting.
-  std::vector<std::vector<unsigned short>> fConstituentIndices;        ///<  Constituent jet indices (ie. indexed by the stored jet constituents, not the global index).
+  std::vector<std::vector<int>> fConstituentIndices;        ///<  Constituent jet indices (ie. indexed by the stored jet constituents, not the global index).
 };
 
 /**
@@ -878,10 +878,10 @@ class JetSubstructureSplittings {
   // Setters
   void AddSplitting(float kt, float deltaR, float z, float tau, short parentIndex);
   void AddSubjet(const unsigned short splittingNodeIndex, const bool partOfIterativeSplitting,
-          const std::vector<unsigned short>& constituentIndices);
+          const std::vector<int>& constituentIndices);
   // Getters
   std::tuple<float, float, float, float, short> GetSplitting(int i) const;
-  std::tuple<unsigned short, bool, const std::vector<unsigned short>> GetSubjet(int i) const;
+  std::tuple<unsigned short, bool, const std::vector<int>> GetSubjet(int i) const;
   unsigned int GetNumberOfSplittings() { return fJetSplittings.GetNumberOfSplittings(); }
   JetSubstructure::JetSplittings & GetSplittings() { return fJetSplittings; }
   JetSubstructure::Subjets & GetSubjets() { return fSubjets; }

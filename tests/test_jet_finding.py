@@ -665,14 +665,16 @@ def test_reclustering(caplog: Any) -> None:
     """
     # while the second event is the standard with px <-> py.
     # The output jets should be the same as well, but with px <-> py.
+    # NOTE: We put the hole nearest to the 105.0 particle to ensure that it's stably selected
+    #       for combination together in the e.g. Cambridge/Aachen case.
     input_particles = ak.zip(
         {
             "px": [
                 [50.0, 105.0, 25.0, 25.0, 5.0],
-                [0.5, -0.5, 4.75, 5.25, 0.0],
+                [0.5, -0.5, 4.75, 5.25, -0.05],
             ],
             "py": [
-                [0.5, -0.5, 4.75, 5.25, 0.0],
+                [0.5, -0.5, 4.75, 5.25, -0.05],
                 [50.0, 105.0, 25.0, 25.0, 5.0],
             ],
             "pz": [
@@ -722,10 +724,10 @@ def test_reclustering(caplog: Any) -> None:
         {
             "px": [
                 [200.0],
-                [10.0],
+                [10.05],
             ],
             "py": [
-                [10.0],
+                [10.05],
                 [200.0],
             ],
             "pz": [
@@ -777,18 +779,40 @@ def test_reclustering(caplog: Any) -> None:
     # Now that we've completed the jet finding, we go onto the reclustering
     ####################################
     logger.info("Reclustering jets...")
+    # First, using the user_index
+    # TODO: Re-enable jet area calculation! (It was just disabled for testing)
     reclustering_jets = jet_finding.recluster_jets(
         jets=jets,
         jet_finding_settings=jet_finding.ReclusteringJetFindingSettings(
-            area_settings=jet_finding.AreaSubstructure(),
+            #area_settings=jet_finding.AreaSubstructure(),
+            area_settings=None,
+            recombiner=jet_finding.NegativeEnergyRecombiner(identifier_index=-123456),
         ),
         store_recursive_splittings=True,
     )
-    import IPython
-
-    IPython.embed()
-
+    # And then without the user_index
+    jets_without_user_index = ak.copy(jets)
+    # Remove the "user_index" field
+    del jets_without_user_index["constituents", "user_index"]
+    # And do the reclustering without the user_index
+    reclustering_jets_without_user_index = jet_finding.recluster_jets(
+        jets=jets_without_user_index,
+        jet_finding_settings=jet_finding.ReclusteringJetFindingSettings(
+            #area_settings=jet_finding.AreaSubstructure(),
+            area_settings=None,
+        ),
+        store_recursive_splittings=True,
+    )
     logger.info(f"reclustering_jets: {reclustering_jets.to_list()}")
+    logger.info(f"reclustering_jets_without_user_index: {reclustering_jets_without_user_index.to_list()}")
+
+    #import IPython
+
+    #IPython.embed()
+    assert reclustering_jets.subjets.constituent_indices.to_list() == ak.Array([
+        [[[0, 1, 2], [3, 4], [1, 2], [0], [1], [2], [4], [3]]],
+        [[[0, 1, 2], [3, 4], [1, 2], [0], [1], [2], [4], [3]]]
+    ]).to_list()
 
     # only for testing - we want to see any fastjet warnings
-    # assert False
+    assert False

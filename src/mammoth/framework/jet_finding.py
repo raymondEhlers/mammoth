@@ -552,6 +552,59 @@ def find_constituent_indices_via_user_index(user_indices: ak.Array, constituents
     return ak.unflatten(first_step, ak.flatten(ak.num(constituents_user_index, axis=-1)), axis=1)
 
 
+#@nb.njit  # type: ignore[misc]
+def _find_constituent_indices_via_user_index_for_subjets(
+    input_particles_user_indices: ak.Array, constituents_user_index: ak.Array, number_of_constituents: int
+) -> ak.Array:
+    output = np.ones(number_of_constituents, dtype=np.int64) * -1
+    output_counter = 0
+    for event_user_index, event_constituents_user_index in zip(input_particles_user_indices, constituents_user_index):  # noqa: B905
+        for input_jets_user_index, jet_constituents_user_index in zip(event_user_index, event_constituents_user_index):  # noqa: B905
+            #for jet_constituents_user_index in event_constituents_user_index:
+            for subjet_constituents_user_index in jet_constituents_user_index:
+                # TODO: Something from here and below (or so) can and should be shared with the above...
+                for jet_constituent_index in subjet_constituents_user_index:
+                    # for constituent_index in jet_constituents_user_index:
+                    print(f"{jet_constituent_index=}, {event_user_index=}")
+                    #for i_original_constituent, user_index in enumerate(event_user_index):
+                    for i_original_constituent, user_index in enumerate(input_jets_user_index):
+                        if jet_constituent_index == user_index:
+                            # print(f"Found match for {jet_constituent_index} at original index {i_original_constituent}")
+                            output[output_counter] = i_original_constituent
+                            output_counter += 1
+                            break
+                    else:
+                        _msg = "Could not find match " + str(jet_constituent_index)
+                        print(_msg)  # noqa: T201
+                        # NOTE: Can't pass the message directly with numba since it would have to be a compile time constant (as of Mar 2023).
+                        #       As an alternative, we print the message, and then we raise the exception. As long as we don't catch it, it
+                        #       achieves basically the same thing.
+                        raise ValueError
+
+    # Make sure we've found a match everywhere.
+    # assert np.all(output_counter != -1)
+    return output
+
+
+def find_constituent_indices_via_user_index_for_subjets(user_indices: ak.Array, constituents_user_index: ak.Array) -> ak.Array:
+    res = _find_constituent_indices_via_user_index_for_subjets(
+        input_particles_user_indices=user_indices,
+        constituents_user_index=constituents_user_index,
+        number_of_constituents=ak.count(constituents_user_index),
+    )
+
+    #import IPython; IPython.embed()
+
+    sum_counts_axis_minus_1 = ak.sum(ak.num(constituents_user_index, axis=-1), axis=1)
+    step_one = ak.unflatten(res, ak.sum(sum_counts_axis_minus_1, axis=1))
+    step_two = ak.unflatten(step_one, ak.flatten(sum_counts_axis_minus_1), axis=1)
+    step_three = ak.unflatten(step_two, ak.num(constituents_user_index, axis=1))
+    #step_one =  ak.unflatten(res, ak.sum(ak.sum(ak.num(constituents_user_index, axis=-1), axis=1), axis=1))
+    #step_two = ak.unflatten(step_one, ak.flatten(sum_counts_axis_minus_1), axis=1)
+    #step_three = ak.unflatten(step_two, ak.num(constituents_user_index, axis=1))
+    return step_three
+
+
 @nb.njit  # type: ignore[misc]
 def _find_unsubtracted_constituent_index_from_subtracted_index_via_user_index(
     user_indices: ak.Array,
@@ -919,6 +972,7 @@ def find_jets(
         )
     else:
         if user_index is not None:
+            #print("Handling user_index mapping")
             # If we passed the user_index, then the constituent_indices which are returned (which are just the user_index
             # from fastjet) won't actually be indices of particles (ie. it may be a label, rather than an index we can use
             # in the array to find the right constituents). So here, we match up the user_index that was passed with the
@@ -927,6 +981,9 @@ def find_jets(
                 user_indices=particles.user_index,
                 constituents_user_index=_constituents_user_index_awkward,
             )
+            #if jet_finding_settings.recombiner:
+            #    print("Right after find_constituent_indices_via_user_index, needing a recombiner...")
+            #    import IPython; IPython.embed()
         else:
             # Nothing needs to be done here. Just assign for the next step
             _constituent_indices_awkward = _constituents_user_index_awkward
@@ -944,6 +1001,9 @@ def find_jets(
         array_to_expand=_particles_for_constituents,
         constituent_indices=_constituent_indices_awkward,
     )
+    #if jet_finding_settings.recombiner:
+    #    print("Right after output_constituents, needing a recombiner...")
+    #    import IPython; IPython.embed()
 
     """
     NOTE: We don't need the constituent indices themselves since we've already mapped the constituents
@@ -1096,7 +1156,30 @@ def recluster_jets(
             jets_splittings["parent_index"].append(_temp_splittings.parent_index)
             jets_subjets["splitting_node_index"].append(_temp_subjets.splitting_node_index)
             jets_subjets["part_of_iterative_splitting"].append(_temp_subjets.part_of_iterative_splitting)
+            # NOTE: These "constituent_indices" are actually the user_index! We need to translate them back
+            #       to actually be constituent indices.
+            # TODO: Actually do this...
             jets_subjets["constituent_indices"].append(_temp_subjets.constituent_indices)
+
+        # if user_index is not None:
+        #     # NOTE: The returned "constituent_indices" are actually the user_index! We need to translate
+        #     #       them back to actually be constituent indices.
+        #     import IPython; IPython.embed()
+
+        #     # Copied from the jet finder. We need to adapt as appropriate, because it's currently not correct (I think)
+        #     # since it's being done at different levels (2 levels here vs 1 for the original jet finding)
+        #     #print("Handling user_index mapping")
+        #     # If we passed the user_index, then the constituent_indices which are returned (which are just the user_index
+        #     # from fastjet) won't actually be indices of particles (ie. it may be a label, rather than an index we can use
+        #     # in the array to find the right constituents). So here, we match up the user_index that was passed with the
+        #     # user_index that was returned, allowing us to map the returned user_index to proper indices.
+        #     _constituent_indices_awkward = find_constituent_indices_via_user_index(
+        #         user_indices=particles.user_index,
+        #         constituents_user_index=ak.Array(jets_subjets["constituent_indices"]),
+        #     )
+        #     #if jet_finding_settings.recombiner:
+        #     #    print("Right after find_constituent_indices_via_user_index, needing a recombiner...")
+        #     #    import IPython; IPython.embed()
 
         # Now, move to the overall output objects.
         # NOTE: We want to fill this even if we didn't perform any reclustering to ensure that
@@ -1106,7 +1189,7 @@ def recluster_jets(
         for k in event_subjets:
             event_subjets[k].append(jets_subjets[k])
 
-    return ak.zip(
+    return_obj = ak.zip(
         {
             "jet_splittings": ak.zip(event_splittings),
             "subjets": ak.zip(
@@ -1117,3 +1200,18 @@ def recluster_jets(
         },
         depth_limit=2,
     )
+
+    if user_index is not None:
+        import IPython; IPython.embed()
+
+        _constituent_indices_reorganized = find_constituent_indices_via_user_index_for_subjets(
+            user_indices=jets.constituents.user_index,
+            constituents_user_index=return_obj.subjets.constituent_indices,
+        )
+        # Add back in...
+        return_obj["subjets", "constituent_indices"] = _constituent_indices_reorganized
+
+        import IPython; IPython.embed()
+
+    return return_obj
+

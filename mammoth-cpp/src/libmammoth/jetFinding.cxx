@@ -493,7 +493,7 @@ std::vector<std::vector<int>> constituentIndicesFromJets(
     std::vector<int> constituentIndicesInJet;
     unsigned int j = 0;
     for (auto constituent : jet.constituents()) {
-      std::cout << "jet " << i << ", constituent " << j << ": index: " << constituent.user_index() << "\n";
+      std::cout << "jet " << i << ", constituent " << j << ": user_index: " << constituent.user_index() << "\n";
       // We want to avoid returning ghosts. Historically, we would look for index -1. However, we may have
       // index -1 for other reasons (e.g. if we are encoding information into a user provided user_index),
       // so better to use the `is_pure_ghost` method when it's available. I couldn't figure out exactly how
@@ -585,12 +585,12 @@ bool Subjets::Clear()
   return true;
 }
 
-std::tuple<unsigned short, bool, const std::vector<unsigned short>> Subjets::GetSubjet(int i) const
+std::tuple<unsigned short, bool, const std::vector<int>> Subjets::GetSubjet(int i) const
 {
   return std::make_tuple(fSplittingNodeIndex.at(i), fPartOfIterativeSplitting.at(i), fConstituentIndices.at(i));
 }
 
-void Subjets::AddSubjet(const unsigned short splittingNodeIndex, const bool partOfIterativeSplitting, const std::vector<unsigned short> & constituentIndices)
+void Subjets::AddSubjet(const unsigned short splittingNodeIndex, const bool partOfIterativeSplitting, const std::vector<int> & constituentIndices)
 {
   fSplittingNodeIndex.emplace_back(splittingNodeIndex);
   // NOTE: emplace_back isn't supported for std::vector<bool> until c++14.
@@ -793,7 +793,7 @@ void JetSubstructureSplittings::AddSplitting(float kt, float deltaR, float z, fl
  * @param[in] part Constituent to be added.
  */
 void JetSubstructureSplittings::AddSubjet(const unsigned short splittingNodeIndex, const bool partOfIterativeSplitting,
-                     const std::vector<unsigned short>& constituentIndices)
+                     const std::vector<int>& constituentIndices)
 {
   return fSubjets.AddSubjet(splittingNodeIndex, partOfIterativeSplitting, constituentIndices);
 }
@@ -803,7 +803,7 @@ std::tuple<float, float, float, float, short> JetSubstructureSplittings::GetSpli
   return fJetSplittings.GetSplitting(i);
 }
 
-std::tuple<unsigned short, bool, const std::vector<unsigned short>> JetSubstructureSplittings::GetSubjet(int i) const
+std::tuple<unsigned short, bool, const std::vector<int>> JetSubstructureSplittings::GetSubjet(int i) const
 {
   return fSubjets.GetSubjet(i);
 }
@@ -891,7 +891,7 @@ void ExtractJetSplittings(
     // by -1 to stay within the array).
     splittingNodeIndex = jetSplittings.GetNumberOfSplittings() - 1;
     // Store the subjets
-    std::vector<unsigned short> j1ConstituentIndices, j2ConstituentIndices;
+    std::vector<int> j1ConstituentIndices, j2ConstituentIndices;
     for (auto constituent: j1.constituents()) {
         j1ConstituentIndices.emplace_back(constituent.user_index());
     }
