@@ -517,7 +517,6 @@ def test_jet_finding_with_constituent_subtraction_does_something_multiple_events
     )
 
     if use_custom_user_index:
-        # import IPython; IPython.embed()
         # NOTE: The order of the constituents appears to be susceptible to whether there are ghosts included or not,
         #       so we figured out the right assignments, and then just adjusted the order as needed. Hopefully this will
         #       be reasonably repeatable and stable.
@@ -574,8 +573,7 @@ def test_negative_energy_recombiner(caplog: Any) -> None:
             algorithm="anti-kt",
             # Use pp settings to speed it up. I don't think I need much detail (and as of April 2023,
             # AA equally works the same)
-            # area_settings=jet_finding.AreaPP(),
-            area_settings=None,
+            area_settings=jet_finding.AreaPP(),
             pt_range=jet_finding.pt_range(),
             eta_range=jet_finding.eta_range(jet_R=0.7, fiducial_acceptance=False, eta_min=-5.0, eta_max=5.0),
             recombiner=jet_finding.NegativeEnergyRecombiner(identifier_index=-123456),
@@ -793,12 +791,10 @@ def test_reclustering(caplog: Any) -> None:
     ####################################
     logger.info("Reclustering jets...")
     # First, using the user_index
-    # TODO: Re-enable jet area calculation! (It was just disabled for testing)
     reclustering_jets = jet_finding.recluster_jets(
         jets=jets,
         jet_finding_settings=jet_finding.ReclusteringJetFindingSettings(
-            # area_settings=jet_finding.AreaSubstructure(),
-            area_settings=None,
+            area_settings=jet_finding.AreaSubstructure(random_seed=jet_finding.VALIDATION_MODE_RANDOM_SEED),
             recombiner=jet_finding.NegativeEnergyRecombiner(identifier_index=-123456),
         ),
         store_recursive_splittings=True,
@@ -811,8 +807,7 @@ def test_reclustering(caplog: Any) -> None:
     reclustering_jets_without_user_index = jet_finding.recluster_jets(
         jets=jets_without_user_index,
         jet_finding_settings=jet_finding.ReclusteringJetFindingSettings(
-            # area_settings=jet_finding.AreaSubstructure(),
-            area_settings=None,
+            area_settings=jet_finding.AreaSubstructure(random_seed=jet_finding.VALIDATION_MODE_RANDOM_SEED),
         ),
         store_recursive_splittings=True,
     )
@@ -821,7 +816,8 @@ def test_reclustering(caplog: Any) -> None:
 
     # Check the substructure properties.
     # Note that these are just extracted from the calculation and check for regression...
-    # TODO: Check the calculations of the substructure properties e.g. kt!
+    # We could check more properties, but the kt is enough, since it's directly impacted by the
+    # subtraction vs addition of the negative energy particles.
     expected_kt = ak.Array(
         [
             [
@@ -833,7 +829,6 @@ def test_reclustering(caplog: Any) -> None:
     )
     assert ak.all(reclustering_jets.jet_splittings.kt == expected_kt)
 
-    # import IPython; IPython.embed()
     # Check the constituent indices to ensure that we they provide the expected results.
     # It's easy to e.g. get the overall jet correct but then mess up the constituents,
     # so we need to check carefully.
