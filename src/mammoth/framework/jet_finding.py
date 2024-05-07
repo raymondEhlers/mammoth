@@ -28,6 +28,7 @@ from mammoth_cpp._ext import (  # noqa: F401
     BackgroundSubtraction,
     DEFAULT_RAPIDITY_MAX,
 )
+from mammoth.framework.analysis import array_helpers
 
 logger = logging.getLogger(__name__)
 
@@ -484,7 +485,15 @@ def _apply_constituent_indices_to_expanded_array(array_to_expand: ak.Array, cons
 
 
 def area_percentage(percentage: float, jet_R: float) -> float:
-    """Calculate jet R area percentage (for cuts)."""
+    """Calculate jet R area percentage (for cuts).
+
+    Args:
+        percentage: Percentage of the jet area to use for the cut. Jets without area below
+            this value will be removed.
+        jet_R: Jet radius.
+    Returns:
+        The absolute jet area cut value
+    """
     # Validation
     if percentage < 1:
         _msg = f"Did you pass a fraction? Passed {percentage}. Check it!"
@@ -512,9 +521,52 @@ def _indices_for_event_boundaries(array: ak.Array) -> npt.NDArray[np.int64]:
 
 
 @nb.njit  # type: ignore[misc]
-def _find_constituent_indices_via_user_index(
+def _find_constituent_indices_via_user_index_kernel(
+    ref_particles_user_index: ak.Array,
+    jet_constituents_user_index: ak.Array,
+    output: npt.NDArray[np.int64],
+    output_counter: int,
+) -> int:
+    """Convert indices to true constituent indices based on matching user index
+
+    Note:
+        This is only the kernel - it's designed for working with a single jet-like object: looping
+        over the constituents in that jet, matching the user_index in those constituents with
+        some particle array, and then storing the index in the particle array where they are located.
+
+    Args:
+        ref_particles_user_index: User index of reference particles, which we want to index off of.
+        jets_user_index: User index of the jet constituents which we want to match to the reference constituents.
+        output: Output array to store the constituent indices.
+        output_counter: Where to (start) storing the output. (Named counter since already use "index" _a lot_)
+    Returns:
+        The output index, updated to where we currently are in the array. (The output array will be modified in place)
+    """
+    # for jet_constituents_ref_user_index in jets_constituents_ref_user_index:
+    #    for jet_constituents_user_index in jets_constituents_user_index:
+    for jet_const_user_index in jet_constituents_user_index:
+        for i_const_ref, jet_const_ref_user_index in enumerate(ref_particles_user_index):
+            if jet_const_user_index == jet_const_ref_user_index:
+                # print(f"Found match for {jet_constituent_index} at original index {i_original_constituent}")
+                output[output_counter] = i_const_ref
+                output_counter += 1
+                break
+        else:
+            _msg = "Could not find match " + str(jet_const_user_index)
+            print(_msg)  # noqa: T201
+            # NOTE: Can't pass the message directly with numba since it would have to be a compile time constant (as of Mar 2023).
+            #       As an alternative, we print the message, and then we raise the exception. As long as we don't catch it, it
+            #       achieves basically the same thing.
+            raise ValueError
+
+    return output_counter
+
+
+@nb.njit  # type: ignore[misc]
+def _find_constituent_indices_via_user_index_old(
     user_indices: ak.Array, constituents_user_index: ak.Array, number_of_constituents: int
 ) -> ak.Array:
+    # TODO: Remove when done validating the new version!
     output = np.ones(number_of_constituents, dtype=np.int64) * -1
     output_counter = 0
     for event_user_index, event_constituents_user_index in zip(user_indices, constituents_user_index):  # noqa: B905
@@ -542,20 +594,42 @@ def _find_constituent_indices_via_user_index(
 
 
 @nb.njit  # type: ignore[misc]
-def _find_constituent_indices_via_user_index_new(
-    event_level_particles_ref_ui: ak.Array, event_level_jets_constituents_ui: ak.Array, number_of_constituents: int
+def _find_constituent_indices_via_user_index(
+    event_structured_particles_ref_ui: ak.Array,
+    event_structured_jets_constituents_ui: ak.Array,
+    number_of_constituents: int,
 ) -> ak.Array:
+    """Find the true constituent indices of jets by matching to the event-structured particles via the user index.
+
+    Note:
+        For this function, ui == "user_index"
+
+    Note:
+        Keep a close eye on plural vs singular - this indicates what is contained in the loop variables.
+
+    Args:
+        event_structured_particles_ref_ui: user_index values for an event-structured array of particles.
+        event_structured_jets_constituents_ui: Event-structured array of jets containing constituents. i.e. this is
+            the constituents_user_index
+        number_of_constituents: Number of constituents contained in the `event_structured_jets_constituents_ui`.
+            Used to set the output array size.
+
+    Returns:
+        Array of the true constituent indices to store in the jets, pointing to those in the particles array.
+    """
     output = np.ones(number_of_constituents, dtype=np.int64) * -1
     output_counter = 0
     # Event loop
     for event_ref_particles_ui, jets_constituents_ui in zip(  # noqa: B905
-        event_level_particles_ref_ui, event_level_jets_constituents_ui,
+        event_structured_particles_ref_ui,
+        event_structured_jets_constituents_ui,
     ):
         # Jet loop
-        for jet_constituents_user_index in jets_constituents_ui:
+        for jet_constituents_ui in jets_constituents_ui:
+            # And finally we can do the matching
             output_counter = _find_constituent_indices_via_user_index_kernel(
                 ref_particles_user_index=event_ref_particles_ui,
-                jet_constituents_user_index=jet_constituents_user_index,
+                jet_constituents_user_index=jet_constituents_ui,
                 output=output,
                 output_counter=output_counter,
             )
@@ -565,25 +639,54 @@ def _find_constituent_indices_via_user_index_new(
     return output
 
 
-def find_constituent_indices_via_user_index(user_indices: ak.Array, constituents_user_index: ak.Array) -> ak.Array:
+def find_constituent_indices_via_user_index(
+    event_structured_particles_ref_user_index: ak.Array, event_structured_jets_constituents_user_index: ak.Array
+) -> ak.Array:
+    """Find the true constituent indices of jets by matching to the event-structured particles via the user index.
+
+    To explain "true constituent index": Instead of return the entire constituent four-vector + additional information,
+    we return an index pointing to the constituent in the original particle array. This index is the user_index, which
+    may encode additional information. Certain operations can mess this correspondence up (e.g. constituent subtraction),
+    so we need to be able to re-establish that correspondence. This function does that by matching the user_index of the
+    constituents in the jets to the user index of the particles. Then, the index of the particle in the original particle
+    is stored so the jet can be updated to point back to the original particle.
+
+    Note:
+        For this function, we sometimes abbreviate "user_index" as "ui" to make it more readable.
+
+    Args:
+        event_structured_particles_ref_user_index: user_index values for an event-structured array of particles.
+        event_structured_jets_constituents_user_index: Event-structured array of jets containing constituents. i.e. this is
+            the constituents_user_index
+
+    Returns:
+        Array of the true constituent indices to store in the jets, pointing to those in the particles array.
+    """
+    # TODO: Cleanup!
+    res_old = _find_constituent_indices_via_user_index_old(
+        user_indices=event_structured_particles_ref_user_index,
+        constituents_user_index=event_structured_jets_constituents_user_index,
+        number_of_constituents=ak.count(event_structured_jets_constituents_user_index),
+    )
+    step_one = ak.unflatten(res_old, ak.num(event_structured_particles_ref_user_index, axis=1))
+    step_two = ak.unflatten(
+        step_one, ak.flatten(ak.num(event_structured_jets_constituents_user_index, axis=-1)), axis=1
+    )
+
     res = _find_constituent_indices_via_user_index(
-        user_indices=user_indices,
-        constituents_user_index=constituents_user_index,
-        number_of_constituents=ak.count(constituents_user_index),
+        event_structured_particles_ref_ui=event_structured_particles_ref_user_index,
+        event_structured_jets_constituents_ui=event_structured_jets_constituents_user_index,
+        number_of_constituents=ak.count(event_structured_jets_constituents_user_index),
     )
-    res_new = _find_constituent_indices_via_user_index_new(
-        event_level_particles_ref_ui=user_indices,
-        event_level_jets_constituents_ui=constituents_user_index,
-        number_of_constituents=ak.count(constituents_user_index),
+    assert ak.all(res_old == res)
+    res_shaped = array_helpers.shape_like(
+        flat_array=res, array_with_desired_structure=event_structured_jets_constituents_user_index
     )
-    print("Called!")
-    assert ak.all(res == res_new)
-
-    first_step = ak.unflatten(res, ak.num(user_indices, axis=1))
-    return ak.unflatten(first_step, ak.flatten(ak.num(constituents_user_index, axis=-1)), axis=1)
+    assert ak.all(step_two == res_shaped)
+    return res_shaped
 
 
-# @nb.njit  # type: ignore[misc]
+@nb.njit  # type: ignore[misc]
 def _find_constituent_indices_via_user_index_for_subjets_old(
     input_particles_user_indices: ak.Array, constituents_user_index: ak.Array, number_of_constituents: int
 ) -> ak.Array:
@@ -596,7 +699,7 @@ def _find_constituent_indices_via_user_index_for_subjets_old(
                 # TODO: Something from here and below (or so) can and should be shared with the above...
                 for jet_constituent_index in subjet_constituents_user_index:
                     # for constituent_index in jet_constituents_user_index:
-                    print(f"{jet_constituent_index=}, {event_user_index=}")
+                    # print(f"jet_constituent_index={jet_constituent_index}, event_user_index={event_user_index}")
                     # for i_original_constituent, user_index in enumerate(event_user_index):
                     for i_original_constituent, user_index in enumerate(input_jets_user_index):
                         if jet_constituent_index == user_index:
@@ -618,82 +721,52 @@ def _find_constituent_indices_via_user_index_for_subjets_old(
 
 
 @nb.njit  # type: ignore[misc]
-def _find_constituent_indices_via_user_index_kernel(
-    ref_particles_user_index: ak.Array,
-    jet_constituents_user_index: ak.Array,
-    output: npt.NDArray[np.int64],
-    output_counter: int,
-) -> int:
-    """Convert indices to true constituent indices based on matching user index
-
-    Note:
-        This is only the kernel - it's designed for dealing with a single jets and finding the indices
-        for an array of particles
-
-    Args:
-        ref_particles_user_index: User index of reference particles, which we want to index off of.
-        jets_user_index: User index of the jet constituents which we want to match to the reference constituents.
-        output: Output array to store the constituent indices.
-        output_counter: Where to (start) storing the output. (Named counter since already use "index" _a lot_)
-    Returns:
-        The output index, updated to where we currently are in the array
-    """
-    # for jet_constituents_ref_user_index in jets_constituents_ref_user_index:
-    #    for jet_constituents_user_index in jets_constituents_user_index:
-    for jet_const_user_index in jet_constituents_user_index:
-        for i_original_constituent, jet_const_ref_user_index in enumerate(ref_particles_user_index):
-            if jet_const_user_index == jet_const_ref_user_index:
-                # print(f"Found match for {jet_constituent_index} at original index {i_original_constituent}")
-                output[output_counter] = i_original_constituent
-                output_counter += 1
-                break
-        else:
-            _msg = "Could not find match " + str(jet_const_user_index)
-            print(_msg)  # noqa: T201
-            # NOTE: Can't pass the message directly with numba since it would have to be a compile time constant (as of Mar 2023).
-            #       As an alternative, we print the message, and then we raise the exception. As long as we don't catch it, it
-            #       achieves basically the same thing.
-            raise ValueError
-
-    return output_counter
-
-
-@nb.njit  # type: ignore[misc]
-def _find_constituent_indices_via_user_index_for_subjets_new(
-    event_level_jets_ref_constituents_ui: ak.Array,
-    event_level_jets_with_subjets_constituents_ui: ak.Array,
+def _find_constituent_indices_via_user_index_for_subjets(
+    event_structured_jets_ref_constituents_ui: ak.Array,
+    event_structured_jets_with_subjets_constituents_ui: ak.Array,
     number_of_constituents: int,
 ) -> ak.Array:
     """Find the true constituent indices of jets containing subjets by matching via the user index.
 
+    We need to loop over the array structures, so we use numba. Thus, this provides the main
+    implementation of the function.
+
     Note:
         For this function, ui == "user_index"
 
+    Note:
+        Keep a close eye on plural vs singular - this indicates what is contained in the loop variables.
+
     Args:
-        event_level_jets_ref_constituents_ui: Event-structure array of jets containing constituents.
-        event_level_jets_with_subjets_constituents_ui: Event-structured array of jets containing subjets, which in turn contain
-            constituent indices. i.e. this is the constituents_user_index
-        number_of_constituents: Number of constituents contained in the `event_level_jets_with_subjets_constituents_ui`. Used to
+        event_structured_jets_ref_constituents_ui: user_index of an event-structured array of jets containing constituents.
+        event_structured_jets_with_subjets_constituents_ui: Event-structured array of jets containing subjets, which in turn contain
+            user_index values (but are called constituent indices. i.e. this is the constituents_user_index)
+        number_of_constituents: Number of constituents contained in the `event_structured_jets_with_subjets_constituents_ui`. Used to
             set the output array size.
+
+    Returns:
+        Array of the true constituent indices stored in the subjets, pointing to those in the jets.
     """
     output = np.ones(number_of_constituents, dtype=np.int64) * -1
     output_counter = 0
     # Loop at the event level
     for jets_ref_constituents_ui, jets_constituents_ui in zip(  # noqa: B905
-        event_level_jets_ref_constituents_ui, event_level_jets_with_subjets_constituents_ui,
+        event_structured_jets_ref_constituents_ui,
+        event_structured_jets_with_subjets_constituents_ui,
     ):
         # Loop at the jet level
         # print(f"input_jets_constituents={input_jets_constituents}, event_constituents_user_index={event_constituents_user_index}")
-        for input_jet_constituents_user_index, jet_constituents_user_index in zip(  # noqa: B905
-            jets_ref_constituents_ui, jets_constituents_ui,
+        for input_jet_constituents_ui, jet_constituents_user_index in zip(  # noqa: B905
+            jets_ref_constituents_ui,
+            jets_constituents_ui,
         ):
-            # print(f"input_jet_constituents_user_index={input_jet_constituents_user_index}, jet_constituents_user_index={jet_constituents_user_index}")
             # Loop at the subjet level
-            for subjet_constituents_user_index in jet_constituents_user_index:
-                # print(f"Output_counter={output_counter}, subjet_constituents_user_index={subjet_constituents_user_index}")
+            # print(f"input_jet_constituents_user_index={input_jet_constituents_user_index}, jet_constituents_user_index={jet_constituents_user_index}")
+            for subjet_constituents_ui in jet_constituents_user_index:
+                # And finally we can do the matching
                 output_counter = _find_constituent_indices_via_user_index_kernel(
-                    ref_particles_user_index=input_jet_constituents_user_index,
-                    jet_constituents_user_index=subjet_constituents_user_index,
+                    ref_particles_user_index=input_jet_constituents_ui,
+                    jet_constituents_user_index=subjet_constituents_ui,
                     output=output,
                     output_counter=output_counter,
                 )
@@ -704,32 +777,52 @@ def _find_constituent_indices_via_user_index_for_subjets_new(
 
 
 def find_constituent_indices_via_user_index_for_subjets(
-    user_indices: ak.Array, constituents_user_index: ak.Array
+    event_structured_jets_ref_constituents_user_index: ak.Array,
+    event_structured_jets_with_subjets_constituents_user_index: ak.Array,
 ) -> ak.Array:
-    res = _find_constituent_indices_via_user_index_for_subjets_old(
-        input_particles_user_indices=user_indices,
-        constituents_user_index=constituents_user_index,
-        number_of_constituents=ak.count(constituents_user_index),
-    )
-    # For cross check...
-    res_new = _find_constituent_indices_via_user_index_for_subjets_new(
-        event_level_jets_ref_constituents_ui=user_indices,
-        event_level_jets_with_subjets_constituents_ui=constituents_user_index,
-        number_of_constituents=ak.count(constituents_user_index),
-    )
-    assert ak.all(res == res_new)
-    # Remove crosscheck when finished...
+    """Find the true constituent indices of jets containing subjets by matching via the user index.
 
-    # import IPython; IPython.embed()
+    For an explanation of what "true constituent indices" means, so `find_constituent_indices_via_user_index`.
+    The concept is exactly the same, but instead, we're matching the constituent indices of subjets back to
+    index of the jet constituents.
 
-    sum_counts_axis_minus_1 = ak.sum(ak.num(constituents_user_index, axis=-1), axis=1)
-    step_one = ak.unflatten(res, ak.sum(sum_counts_axis_minus_1, axis=1))
+    Args:
+        event_structured_jets_ref_constituents_ui: user_index of an event-structured array of jets containing constituents.
+        event_structured_jets_with_subjets_constituents_ui: Event-structured array of jets containing subjets, which in turn contain
+            user_index values (but are called "constituent indices". i.e. this is the constituents_user_index).
+        number_of_constituents: Number of constituents contained in the `event_structured_jets_with_subjets_constituents_ui`. Used to
+            set the output array size.
+    Returns:
+    """
+    # For cross ...
+    res_old = _find_constituent_indices_via_user_index_for_subjets_old(
+        input_particles_user_indices=event_structured_jets_ref_constituents_user_index,
+        constituents_user_index=event_structured_jets_with_subjets_constituents_user_index,
+        number_of_constituents=ak.count(event_structured_jets_with_subjets_constituents_user_index),
+    )
+
+    sum_counts_axis_minus_1 = ak.sum(
+        ak.num(event_structured_jets_with_subjets_constituents_user_index, axis=-1), axis=1
+    )
+    step_one = ak.unflatten(res_old, ak.sum(sum_counts_axis_minus_1, axis=1))
     step_two = ak.unflatten(step_one, ak.flatten(sum_counts_axis_minus_1), axis=1)
-    step_three = ak.unflatten(step_two, ak.num(constituents_user_index, axis=1))
+    step_three = ak.unflatten(step_two, ak.num(event_structured_jets_with_subjets_constituents_user_index, axis=1))
     # step_one =  ak.unflatten(res, ak.sum(ak.sum(ak.num(constituents_user_index, axis=-1), axis=1), axis=1))
     # step_two = ak.unflatten(step_one, ak.flatten(sum_counts_axis_minus_1), axis=1)
     # step_three = ak.unflatten(step_two, ak.num(constituents_user_index, axis=1))
-    return step_three
+    # TODO: Remove crosscheck when finished...
+
+    res = _find_constituent_indices_via_user_index_for_subjets(
+        event_structured_jets_ref_constituents_ui=event_structured_jets_ref_constituents_user_index,
+        event_structured_jets_with_subjets_constituents_ui=event_structured_jets_with_subjets_constituents_user_index,
+        number_of_constituents=ak.count(event_structured_jets_with_subjets_constituents_user_index),
+    )
+    res_shaped = array_helpers.shape_like(
+        flat_array=res, array_with_desired_structure=event_structured_jets_with_subjets_constituents_user_index
+    )
+    assert ak.all(res_old == res)
+    assert ak.all(step_three == res_shaped)
+    return res_shaped
 
 
 @nb.njit  # type: ignore[misc]
@@ -766,6 +859,10 @@ def find_unsubtracted_constituent_index_from_subtracted_index_via_user_index(
     user_indices: ak.Array,
     subtracted_index_to_unsubtracted_user_index: ak.Array,
 ) -> ak.Array:
+    """Find the unsubtracted constituent index from the subtracted index via the user index.
+
+    Args:
+    """
     res = _find_unsubtracted_constituent_index_from_subtracted_index_via_user_index(
         user_indices=user_indices,
         subtracted_index_to_unsubtracted_user_index=subtracted_index_to_unsubtracted_user_index,
@@ -1105,8 +1202,8 @@ def find_jets(
             # in the array to find the right constituents). So here, we match up the user_index that was passed with the
             # user_index that was returned, allowing us to map the returned user_index to proper indices.
             _constituent_indices_awkward = find_constituent_indices_via_user_index(
-                user_indices=particles.user_index,
-                constituents_user_index=_constituents_user_index_awkward,
+                event_structured_particles_ref_user_index=particles.user_index,
+                event_structured_jets_constituents_user_index=_constituents_user_index_awkward,
             )
             # if jet_finding_settings.recombiner:
             #    print("Right after find_constituent_indices_via_user_index, needing a recombiner...")
@@ -1283,30 +1380,9 @@ def recluster_jets(
             jets_splittings["parent_index"].append(_temp_splittings.parent_index)
             jets_subjets["splitting_node_index"].append(_temp_subjets.splitting_node_index)
             jets_subjets["part_of_iterative_splitting"].append(_temp_subjets.part_of_iterative_splitting)
-            # NOTE: These "constituent_indices" are actually the user_index! We need to translate them back
-            #       to actually be constituent indices.
-            # TODO: Actually do this...
+            # NOTE: In the case that we provide the user_index, the constituent_indices are actually the user_index!
+            #       We will then translate these back to true constituent_indices below as appropriate.
             jets_subjets["constituent_indices"].append(_temp_subjets.constituent_indices)
-
-        # if user_index is not None:
-        #     # NOTE: The returned "constituent_indices" are actually the user_index! We need to translate
-        #     #       them back to actually be constituent indices.
-        #     import IPython; IPython.embed()
-
-        #     # Copied from the jet finder. We need to adapt as appropriate, because it's currently not correct (I think)
-        #     # since it's being done at different levels (2 levels here vs 1 for the original jet finding)
-        #     #print("Handling user_index mapping")
-        #     # If we passed the user_index, then the constituent_indices which are returned (which are just the user_index
-        #     # from fastjet) won't actually be indices of particles (ie. it may be a label, rather than an index we can use
-        #     # in the array to find the right constituents). So here, we match up the user_index that was passed with the
-        #     # user_index that was returned, allowing us to map the returned user_index to proper indices.
-        #     _constituent_indices_awkward = find_constituent_indices_via_user_index(
-        #         user_indices=particles.user_index,
-        #         constituents_user_index=ak.Array(jets_subjets["constituent_indices"]),
-        #     )
-        #     #if jet_finding_settings.recombiner:
-        #     #    print("Right after find_constituent_indices_via_user_index, needing a recombiner...")
-        #     #    import IPython; IPython.embed()
 
         # Now, move to the overall output objects.
         # NOTE: We want to fill this even if we didn't perform any reclustering to ensure that
@@ -1316,6 +1392,8 @@ def recluster_jets(
         for k in event_subjets:
             event_subjets[k].append(jets_subjets[k])
 
+    # We can blindly return if we didn't provide the user_index. However, if we do, we need to
+    # take care of the constituent_indices.
     return_obj = ak.zip(
         {
             "jet_splittings": ak.zip(event_splittings),
@@ -1329,19 +1407,11 @@ def recluster_jets(
     )
 
     if user_index is not None:
-        import IPython
-
-        IPython.embed()
-
-        _constituent_indices_reorganized = find_constituent_indices_via_user_index_for_subjets(
-            user_indices=jets.constituents.user_index,
-            constituents_user_index=return_obj.subjets.constituent_indices,
+        # In this case, the returned constituent_indices are actually the user_index!
+        # We need to translate them back to actually be constituent indices.
+        return_obj["subjets", "constituent_indices"] = find_constituent_indices_via_user_index_for_subjets(
+            event_structured_jets_ref_constituents_user_index=jets.constituents.user_index,
+            event_structured_jets_with_subjets_constituents_user_index=return_obj.subjets.constituent_indices,
         )
-        # Add back in...
-        return_obj["subjets", "constituent_indices"] = _constituent_indices_reorganized
-
-        import IPython
-
-        IPython.embed()
 
     return return_obj
