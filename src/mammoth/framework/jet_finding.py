@@ -561,37 +561,6 @@ def _find_constituent_indices_via_user_index_kernel(
 
 
 @nb.njit  # type: ignore[misc]
-def _find_constituent_indices_via_user_index_old(
-    user_indices: ak.Array, constituents_user_index: ak.Array, number_of_constituents: int
-) -> ak.Array:
-    # TODO: Remove when done validating the new version!
-    output = np.ones(number_of_constituents, dtype=np.int64) * -1
-    output_counter = 0
-    for event_user_index, event_constituents_user_index in zip(user_indices, constituents_user_index):  # noqa: B905
-        for jet_constituents_user_index in event_constituents_user_index:
-            for jet_constituent_index in jet_constituents_user_index:
-                # for constituent_index in jet_constituents_user_index:
-                # print(f"{jet_constituent_index=}, {event_user_index=}")
-                for i_original_constituent, user_index in enumerate(event_user_index):
-                    if jet_constituent_index == user_index:
-                        # print(f"Found match for {jet_constituent_index} at original index {i_original_constituent}")
-                        output[output_counter] = i_original_constituent
-                        output_counter += 1
-                        break
-                else:
-                    _msg = "Could not find match " + str(jet_constituent_index)
-                    print(_msg)  # noqa: T201
-                    # NOTE: Can't pass the message directly with numba since it would have to be a compile time constant (as of Mar 2023).
-                    #       As an alternative, we print the message, and then we raise the exception. As long as we don't catch it, it
-                    #       achieves basically the same thing.
-                    raise ValueError
-
-    # Make sure we've found a match everywhere.
-    # assert np.all(output_counter != -1)
-    return output
-
-
-@nb.njit  # type: ignore[misc]
 def _find_constituent_indices_via_user_index(
     event_structured_particles_ref_ui: ak.Array,
     event_structured_jets_constituents_ui: ak.Array,
@@ -660,62 +629,14 @@ def find_constituent_indices_via_user_index(
     Returns:
         Array of the true constituent indices to store in the jets, pointing to those in the particles array.
     """
-    # TODO: Cleanup!
-    res_old = _find_constituent_indices_via_user_index_old(
-        user_indices=event_structured_particles_ref_user_index,
-        constituents_user_index=event_structured_jets_constituents_user_index,
-        number_of_constituents=ak.count(event_structured_jets_constituents_user_index),
-    )
-    step_one = ak.unflatten(res_old, ak.num(event_structured_particles_ref_user_index, axis=1))
-    step_two = ak.unflatten(
-        step_one, ak.flatten(ak.num(event_structured_jets_constituents_user_index, axis=-1)), axis=1
-    )
-
     res = _find_constituent_indices_via_user_index(
         event_structured_particles_ref_ui=event_structured_particles_ref_user_index,
         event_structured_jets_constituents_ui=event_structured_jets_constituents_user_index,
         number_of_constituents=ak.count(event_structured_jets_constituents_user_index),
     )
-    assert ak.all(res_old == res)
-    res_shaped = array_helpers.shape_like(
+    return array_helpers.shape_like(
         flat_array=res, array_with_desired_structure=event_structured_jets_constituents_user_index
     )
-    assert ak.all(step_two == res_shaped)
-    return res_shaped
-
-
-@nb.njit  # type: ignore[misc]
-def _find_constituent_indices_via_user_index_for_subjets_old(
-    input_particles_user_indices: ak.Array, constituents_user_index: ak.Array, number_of_constituents: int
-) -> ak.Array:
-    output = np.ones(number_of_constituents, dtype=np.int64) * -1
-    output_counter = 0
-    for event_user_index, event_constituents_user_index in zip(input_particles_user_indices, constituents_user_index):  # noqa: B905
-        for input_jets_user_index, jet_constituents_user_index in zip(event_user_index, event_constituents_user_index):  # noqa: B905
-            # for jet_constituents_user_index in event_constituents_user_index:
-            for subjet_constituents_user_index in jet_constituents_user_index:
-                # TODO: Something from here and below (or so) can and should be shared with the above...
-                for jet_constituent_index in subjet_constituents_user_index:
-                    # for constituent_index in jet_constituents_user_index:
-                    # print(f"jet_constituent_index={jet_constituent_index}, event_user_index={event_user_index}")
-                    # for i_original_constituent, user_index in enumerate(event_user_index):
-                    for i_original_constituent, user_index in enumerate(input_jets_user_index):
-                        if jet_constituent_index == user_index:
-                            # print(f"Found match for {jet_constituent_index} at original index {i_original_constituent}")
-                            output[output_counter] = i_original_constituent
-                            output_counter += 1
-                            break
-                    else:
-                        _msg = "Could not find match " + str(jet_constituent_index)
-                        print(_msg)  # noqa: T201
-                        # NOTE: Can't pass the message directly with numba since it would have to be a compile time constant (as of Mar 2023).
-                        #       As an alternative, we print the message, and then we raise the exception. As long as we don't catch it, it
-                        #       achieves basically the same thing.
-                        raise ValueError
-
-    # Make sure we've found a match everywhere.
-    # assert np.all(output_counter != -1)
-    return output
 
 
 @nb.njit  # type: ignore[misc]
@@ -792,35 +713,14 @@ def find_constituent_indices_via_user_index_for_subjets(
             set the output array size.
     Returns:
     """
-    # For cross ...
-    res_old = _find_constituent_indices_via_user_index_for_subjets_old(
-        input_particles_user_indices=event_structured_jets_ref_constituents_user_index,
-        constituents_user_index=event_structured_jets_with_subjets_constituents_user_index,
-        number_of_constituents=ak.count(event_structured_jets_with_subjets_constituents_user_index),
-    )
-
-    # sum_counts_axis_minus_1 = ak.sum(
-    #    ak.num(event_structured_jets_with_subjets_constituents_user_index, axis=-1), axis=1
-    # )
-    # step_one = ak.unflatten(res_old, ak.sum(sum_counts_axis_minus_1, axis=1))
-    # step_two = ak.unflatten(step_one, ak.flatten(sum_counts_axis_minus_1), axis=1)
-    # step_three = ak.unflatten(step_two, ak.num(event_structured_jets_with_subjets_constituents_user_index, axis=1))
-    # step_one =  ak.unflatten(res, ak.sum(ak.sum(ak.num(constituents_user_index, axis=-1), axis=1), axis=1))
-    # step_two = ak.unflatten(step_one, ak.flatten(sum_counts_axis_minus_1), axis=1)
-    # step_three = ak.unflatten(step_two, ak.num(constituents_user_index, axis=1))
-    # TODO: Remove crosscheck when finished...
-
     res = _find_constituent_indices_via_user_index_for_subjets(
         event_structured_jets_ref_constituents_ui=event_structured_jets_ref_constituents_user_index,
         event_structured_jets_with_subjets_constituents_ui=event_structured_jets_with_subjets_constituents_user_index,
         number_of_constituents=ak.count(event_structured_jets_with_subjets_constituents_user_index),
     )
-    res_shaped = array_helpers.shape_like(
+    return array_helpers.shape_like(
         flat_array=res, array_with_desired_structure=event_structured_jets_with_subjets_constituents_user_index
     )
-    assert ak.all(res_old == res)
-    # assert ak.all(step_three == res_shaped)
-    return res_shaped
 
 
 @nb.njit  # type: ignore[misc]
@@ -901,19 +801,12 @@ def find_unsubtracted_constituent_index_from_subtracted_index_via_user_index(
     Returns:
         Map from subtracted constituent index to unsubtracted constituent index.
     """
-    res_old = _find_unsubtracted_constituent_index_from_subtracted_index_via_user_index_old(
-        user_indices=user_indices,
-        subtracted_index_to_unsubtracted_user_index=subtracted_index_to_unsubtracted_user_index,
-        number_of_subtracted_constituents=ak.count(subtracted_index_to_unsubtracted_user_index),
-    )
     res = _find_unsubtracted_constituent_index_from_subtracted_index_via_user_index(
         event_structured_particles_ref_ui=user_indices,
         event_structured_subtracted_index_to_unsubtracted_ui=subtracted_index_to_unsubtracted_user_index,
         number_of_subtracted_constituents=ak.count(subtracted_index_to_unsubtracted_user_index),
     )
-    assert ak.all(res_old == res)
-
-    return ak.unflatten(res, ak.num(subtracted_index_to_unsubtracted_user_index, axis=1))
+    return array_helpers.shape_like(res, subtracted_index_to_unsubtracted_user_index)
 
 
 def calculate_user_index_with_encoded_sign_info(
