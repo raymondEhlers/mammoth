@@ -542,8 +542,6 @@ def _find_constituent_indices_via_user_index_kernel(
     Returns:
         The output index, updated to where we currently are in the array. (The output array will be modified in place)
     """
-    # for jet_constituents_ref_user_index in jets_constituents_ref_user_index:
-    #    for jet_constituents_user_index in jets_constituents_user_index:
     for jet_const_user_index in jet_constituents_user_index:
         for i_const_ref, jet_const_ref_user_index in enumerate(ref_particles_user_index):
             if jet_const_user_index == jet_const_ref_user_index:
@@ -801,12 +799,12 @@ def find_constituent_indices_via_user_index_for_subjets(
         number_of_constituents=ak.count(event_structured_jets_with_subjets_constituents_user_index),
     )
 
-    sum_counts_axis_minus_1 = ak.sum(
-        ak.num(event_structured_jets_with_subjets_constituents_user_index, axis=-1), axis=1
-    )
-    step_one = ak.unflatten(res_old, ak.sum(sum_counts_axis_minus_1, axis=1))
-    step_two = ak.unflatten(step_one, ak.flatten(sum_counts_axis_minus_1), axis=1)
-    step_three = ak.unflatten(step_two, ak.num(event_structured_jets_with_subjets_constituents_user_index, axis=1))
+    # sum_counts_axis_minus_1 = ak.sum(
+    #    ak.num(event_structured_jets_with_subjets_constituents_user_index, axis=-1), axis=1
+    # )
+    # step_one = ak.unflatten(res_old, ak.sum(sum_counts_axis_minus_1, axis=1))
+    # step_two = ak.unflatten(step_one, ak.flatten(sum_counts_axis_minus_1), axis=1)
+    # step_three = ak.unflatten(step_two, ak.num(event_structured_jets_with_subjets_constituents_user_index, axis=1))
     # step_one =  ak.unflatten(res, ak.sum(ak.sum(ak.num(constituents_user_index, axis=-1), axis=1), axis=1))
     # step_two = ak.unflatten(step_one, ak.flatten(sum_counts_axis_minus_1), axis=1)
     # step_three = ak.unflatten(step_two, ak.num(constituents_user_index, axis=1))
@@ -821,12 +819,42 @@ def find_constituent_indices_via_user_index_for_subjets(
         flat_array=res, array_with_desired_structure=event_structured_jets_with_subjets_constituents_user_index
     )
     assert ak.all(res_old == res)
-    assert ak.all(step_three == res_shaped)
+    # assert ak.all(step_three == res_shaped)
     return res_shaped
 
 
 @nb.njit  # type: ignore[misc]
 def _find_unsubtracted_constituent_index_from_subtracted_index_via_user_index(
+    event_structured_particles_ref_ui: ak.Array,
+    event_structured_subtracted_index_to_unsubtracted_ui: ak.Array,
+    number_of_subtracted_constituents: int,
+) -> ak.Array:
+    output = np.ones(number_of_subtracted_constituents, dtype=np.int64) * -1
+    output_counter = 0
+
+    # Event loop
+    for event_ref_particles_ui, event_subtracted_index_to_unsubtracted_ui in zip(  # noqa: B905
+        event_structured_particles_ref_ui,
+        event_structured_subtracted_index_to_unsubtracted_ui,
+    ):
+        # NOTE: We only have one subtracted index to unsubtracted index mapping per event,
+        #       so our loop here just needs to be them on the same event level, and then
+        #       we can do the matching. This means that we pass the `event_subtracted_index_to_unsubtracted_ui`
+        #       to a slightly confusing argument: `jet_constituents_user_index`. This is because the name
+        #       in the argument is slightly misleading - all it really means is that the "jet_constituents"
+        #       are the array that will be looped over in the loop. That's exactly what we want here!
+        output_counter = _find_constituent_indices_via_user_index_kernel(
+            ref_particles_user_index=event_ref_particles_ui,
+            jet_constituents_user_index=event_subtracted_index_to_unsubtracted_ui,
+            output=output,
+            output_counter=output_counter,
+        )
+
+    return output
+
+
+@nb.njit  # type: ignore[misc]
+def _find_unsubtracted_constituent_index_from_subtracted_index_via_user_index_old(
     user_indices: ak.Array,
     subtracted_index_to_unsubtracted_user_index: ak.Array,
     number_of_subtracted_constituents: int,
@@ -859,15 +887,31 @@ def find_unsubtracted_constituent_index_from_subtracted_index_via_user_index(
     user_indices: ak.Array,
     subtracted_index_to_unsubtracted_user_index: ak.Array,
 ) -> ak.Array:
-    """Find the unsubtracted constituent index from the subtracted index via the user index.
+    """Find the unsubtracted constituent index from the user index of the subtracted particle.
+
+    We have the user index of the subtracted particle, and we want to match it to the user_index
+    of the unsubtracted particle, finally storing the index of the unsubtracted particle.
 
     Args:
+        user_indices: Event-structured list of the user_index of the unsubtracted particles.
+        subtracted_index_to_unsubtracted_user_index: Event-structured list of the user_index of the unsubtracted particles,
+            at the index of the subtracted particle. i.e. it is event-based jagged array, where the index in the array is
+            the subtracted particle index, and the value is the user_index of the unsubtracted particle.
+
+    Returns:
+        Map from subtracted constituent index to unsubtracted constituent index.
     """
-    res = _find_unsubtracted_constituent_index_from_subtracted_index_via_user_index(
+    res_old = _find_unsubtracted_constituent_index_from_subtracted_index_via_user_index_old(
         user_indices=user_indices,
         subtracted_index_to_unsubtracted_user_index=subtracted_index_to_unsubtracted_user_index,
         number_of_subtracted_constituents=ak.count(subtracted_index_to_unsubtracted_user_index),
     )
+    res = _find_unsubtracted_constituent_index_from_subtracted_index_via_user_index(
+        event_structured_particles_ref_ui=user_indices,
+        event_structured_subtracted_index_to_unsubtracted_ui=subtracted_index_to_unsubtracted_user_index,
+        number_of_subtracted_constituents=ak.count(subtracted_index_to_unsubtracted_user_index),
+    )
+    assert ak.all(res_old == res)
 
     return ak.unflatten(res, ak.num(subtracted_index_to_unsubtracted_user_index, axis=1))
 
