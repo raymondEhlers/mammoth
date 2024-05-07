@@ -150,7 +150,7 @@ def analyze_chunk_two_input_level(
     *,
     collision_system: str,
     arrays: ak.Array,
-    input_metadata: dict[str, Any],  # noqa: ARG001
+    input_metadata: framework_task.InputMetadata,
     # Analysis arguments
     pt_hat_bin: int,
     scale_factors: dict[int, float],
@@ -202,6 +202,7 @@ def analyze_chunk_two_input_level(
     # Two track collections (part and det level)
     jets = analyze_chunk.analyze_track_skim_and_recluster_MC(
         arrays=arrays,
+        input_metadata=input_metadata,
         jet_R=jet_R,
         min_jet_pt=min_jet_pt,
         reclustering_settings=reclustering_settings,
@@ -237,11 +238,12 @@ def analyze_chunk_two_input_level(
     )
 
 
+
 def analyze_chunk_one_input_level(
     *,
     collision_system: str,
     arrays: ak.Array,
-    input_metadata: dict[str, Any],  # noqa: ARG001
+    input_metadata: framework_task.InputMetadata,
     # Analysis arguments
     track_skim_to_flat_skim_level_names: Mapping[str, str],
     jet_R: float,
@@ -265,6 +267,7 @@ def analyze_chunk_one_input_level(
     jets = analyze_chunk.analyze_track_skim_and_recluster_data(
         collision_system=collision_system,
         arrays=arrays,
+        input_metadata=input_metadata,
         jet_R=jet_R,
         min_jet_pt=min_jet_pt,
         background_subtraction_settings=background_subtraction_settings,
@@ -340,7 +343,7 @@ def analyze_chunk_three_input_level(
     *,
     source_index_identifiers: Mapping[str, int],
     arrays: ak.Array,
-    input_metadata: dict[str, Any],  # noqa: ARG001
+    input_metadata: framework_task.InputMetadata,
     # Analysis arguments
     scale_factor: float,
     track_skim_to_flat_skim_level_names: Mapping[str, str],
@@ -365,6 +368,7 @@ def analyze_chunk_three_input_level(
     jets = analyze_chunk.analyze_track_skim_and_recluster_embedding(
         source_index_identifiers=source_index_identifiers,
         arrays=arrays,
+        input_metadata=input_metadata,
         jet_R=jet_R,
         min_jet_pt=min_jet_pt,
         background_subtraction_settings=background_subtraction_settings,

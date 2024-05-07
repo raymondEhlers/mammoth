@@ -15,6 +15,7 @@ import numpy as np
 from mammoth import helpers
 from mammoth.alice import helpers as alice_helpers
 from mammoth.framework import jet_finding
+from mammoth.framework import task as framework_task
 from mammoth.framework.analysis import jets as analysis_jets
 from mammoth.framework.analysis import tracking as analysis_tracking
 
@@ -25,6 +26,7 @@ def analyze_track_skim_and_recluster_data(
     *,
     collision_system: str,
     arrays: ak.Array,
+    input_metadata: framework_task.InputMetadata,
     # Analysis arguments
     jet_R: float,
     min_jet_pt: Mapping[str, float],
@@ -35,6 +37,7 @@ def analyze_track_skim_and_recluster_data(
     validation_mode: bool = False,
 ) -> ak.Array:
     """Analyze the track skim through reclustering for data
+
     NOTE:
         Since we nearly always need to convert this further to a flat skim, we need to wrap
         this function to do so, and thus we don't fully implement the Analysis interface.
@@ -154,6 +157,7 @@ def analyze_track_skim_and_recluster_data(
 def analyze_track_skim_and_recluster_MC(
     *,
     arrays: ak.Array,
+    input_metadata: framework_task.InputMetadata,
     # Analysis arguments
     jet_R: float,
     min_jet_pt: Mapping[str, float],
@@ -163,6 +167,7 @@ def analyze_track_skim_and_recluster_MC(
     validation_mode: bool = False,
 ) -> ak.Array:
     """Analyze the track skim through reclustering for MC
+
     NOTE:
         Since we nearly always need to convert this further to a flat skim, we need to wrap
         this function to do so, and thus we don't fully implement the Analysis interface.
@@ -308,6 +313,8 @@ def analyze_track_skim_and_recluster_embedding(
     *,
     source_index_identifiers: Mapping[str, int],
     arrays: ak.Array,
+    input_metadata: framework_task.InputMetadata,
+    # Analysis arguments
     jet_R: float,
     min_jet_pt: Mapping[str, float],
     background_subtraction_settings: Mapping[str, Any] | None = None,
@@ -316,6 +323,13 @@ def analyze_track_skim_and_recluster_embedding(
     det_level_artificial_tracking_efficiency: float | analysis_tracking.PtDependentTrackingEfficiencyParameters = 1.0,
     reclustering_settings: Mapping[str, Any] | None = None,
 ) -> ak.Array:
+    """Analyze the track skim through reclustering for embedding
+
+    NOTE:
+        Since we nearly always need to convert this further to a flat skim, we need to wrap
+        this function to do so, and thus we don't fully implement the Analysis interface.
+        If this use case became important, we could easily adapt it.
+    """
     # Validation
     if background_subtraction_settings is None:
         background_subtraction_settings = {}
@@ -511,6 +525,7 @@ def run_some_standalone_experiments() -> None:
     #        collision_system=collision_system,
     #        rename_levels={"data": "data"} if collision_system != "pp_MC" else {"data": "det_level"},
     #    ),
+    #    input_metadata={},
     #    jet_R=0.2,
     #    min_jet_pt={"data": 20.0 if collision_system == "pp" else 20.0},
     #    background_subtraction_settings={"r_max": 0.1},
@@ -533,6 +548,7 @@ def run_some_standalone_experiments() -> None:
         jets = analyze_track_skim_and_recluster_embedding(  # noqa: F841
             source_index_identifiers=source_index_identifiers,
             arrays=arrays,
+            input_metadata={},
             jet_R=0.2,
             min_jet_pt={
                 "hybrid_level": 20,
