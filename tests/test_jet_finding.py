@@ -25,8 +25,8 @@ def test_find_constituent_indices_via_user_index(caplog: Any) -> None:
     _user_index = ak.Array([[4, -5, 6], [7, -8, 9]])
     _constituents_user_index_awkward = ak.Array([[[4, -5], [6]], [[-8, 7], [9]]])
     _constituent_indices_awkward = jet_finding.find_constituent_indices_via_user_index(
-        user_indices=_user_index,
-        constituents_user_index=_constituents_user_index_awkward,
+        event_structured_particles_ref_user_index=_user_index,
+        event_structured_jets_constituents_user_index=_constituents_user_index_awkward,
     )
 
     assert _constituent_indices_awkward.to_list() == [[[0, 1], [2]], [[1, 0], [2]]]
@@ -463,7 +463,7 @@ def test_jet_finding_with_constituent_subtraction_does_something_multiple_events
         jet_finding_settings=jet_finding.JetFindingSettings(
             R=0.7,
             algorithm="anti-kt",
-            area_settings=jet_finding.AreaAA(),
+            area_settings=jet_finding.AreaAA(random_seed=jet_finding.VALIDATION_MODE_RANDOM_SEED),
             pt_range=jet_finding.pt_range(),
             eta_range=jet_finding.eta_range(jet_R=0.7, fiducial_acceptance=False, eta_min=-5.0, eta_max=5.0),
         ),
@@ -521,7 +521,8 @@ def test_jet_finding_with_constituent_subtraction_does_something_multiple_events
         # NOTE: The order of the constituents appears to be susceptible to whether there are ghosts included or not,
         #       so we figured out the right assignments, and then just adjusted the order as needed. Hopefully this will
         #       be reasonably repeatable and stable.
-        assert [[[4, -5], [6]], [[-8, 7], [9]]] == jets.constituents.user_index.to_list()
+        expected_user_index = [[[-5, 4], [6]], [[7, -8], [9]]]
+        assert expected_user_index == jets.constituents.user_index.to_list()
 
     # only for testing - we want to see any fastjet warnings
     # assert False
@@ -662,6 +663,9 @@ def test_reclustering(caplog: Any) -> None:
                 -> 50
         -> 50   -> 25
                 -> 25
+
+    We then include a second jet rotated by 90 degrees from the first just to
+    double check that one doesn't interfere with the other.
     """
     # while the second event is the standard with px <-> py.
     # The output jets should be the same as well, but with px <-> py.
@@ -670,23 +674,32 @@ def test_reclustering(caplog: Any) -> None:
     input_particles = ak.zip(
         {
             "px": [
-                [50.0, 105.0, 25.0, 25.0, 5.0],
+                [50.0, 105.0, 25.0, 25.0, 5.0, 0.0, 0.1, 0.19],
                 [0.5, -0.5, 4.75, 5.25, -0.05],
             ],
             "py": [
-                [0.5, -0.5, 4.75, 5.25, -0.05],
+                [
+                    0.5,
+                    -0.5,
+                    4.75,
+                    5.25,
+                    -0.05,
+                    49.0,
+                    100.0,
+                    49.0,
+                ],
                 [50.0, 105.0, 25.0, 25.0, 5.0],
             ],
             "pz": [
-                [0, 0, 0, 0, 0],
+                [0, 0, 0, 0, 0, 0, 0, 0],
                 [0, 0, 0, 0, 0],
             ],
             "E": [
-                [50.0, 105.0, 25.0, 25.0, 5.0],
+                [50.0, 105.0, 25.0, 25.0, 5.0, 49.0, 100.0, 49.0],
                 [50.0, 105.0, 25.0, 25.0, 5.0],
             ],
             "source_index": [
-                [1, 2, 3, 4, 5],
+                [1, 2, 3, 4, 5, 6, 7, 8],
                 [6, 7, 8, 9, 10],
             ],
         },
@@ -694,7 +707,7 @@ def test_reclustering(caplog: Any) -> None:
     )
     # Encode some hole like user_index structure
     # Here, 0 corresponds to the hole particle
-    values_to_encode = ak.Array([[1, 1, 1, 1, 0], [1, 1, 1, 1, 0]])
+    values_to_encode = ak.Array([[1, 1, 1, 1, 0, 1, 1, 1], [1, 1, 1, 1, 0]])
     mask_to_encode_with_negative = values_to_encode == 0
     user_index = jet_finding.calculate_user_index_with_encoded_sign_info(
         particles=input_particles,
@@ -723,19 +736,19 @@ def test_reclustering(caplog: Any) -> None:
     expected_jets = ak.zip(
         {
             "px": [
-                [200.0],
+                [200.0, 0.29],
                 [10.05],
             ],
             "py": [
-                [10.05],
+                [10.05, 198.0],
                 [200.0],
             ],
             "pz": [
-                [0.0],
+                [0.0, 0.0],
                 [0.0],
             ],
             "E": [
-                [200.0],
+                [200.0, 198.0],
                 [200.0],
             ],
         },
@@ -767,12 +780,12 @@ def test_reclustering(caplog: Any) -> None:
     # NOTE: The order of the constituents appears to be susceptible to whether there are ghosts included or not,
     #       so we figured out the right assignments, and then just adjusted the order as needed. Hopefully this will
     #       be reasonably repeatable and stable.
-    expected_user_index = [[[0, 1, -4, 2, 3]], [[0, 1, -4, 2, 3]]]
+    expected_user_index = [[[0, 1, -4, 2, 3], [7, 5, 6]], [[0, 1, -4, 2, 3]]]
     assert jets.constituents.user_index.to_list() == expected_user_index
     # 2. The source index
     # These should be passed through - nothing fancy.
     # The order is dictated by how fastjet clusters, as above with the user index.
-    expected_source_index = [[[1, 2, 5, 3, 4]], [[6, 7, 10, 8, 9]]]
+    expected_source_index = [[[1, 2, 5, 3, 4], [8, 6, 7]], [[6, 7, 10, 8, 9]]]
     assert jets.constituents.source_index.to_list() == expected_source_index
 
     ####################################
@@ -784,7 +797,7 @@ def test_reclustering(caplog: Any) -> None:
     reclustering_jets = jet_finding.recluster_jets(
         jets=jets,
         jet_finding_settings=jet_finding.ReclusteringJetFindingSettings(
-            #area_settings=jet_finding.AreaSubstructure(),
+            # area_settings=jet_finding.AreaSubstructure(),
             area_settings=None,
             recombiner=jet_finding.NegativeEnergyRecombiner(identifier_index=-123456),
         ),
@@ -798,7 +811,7 @@ def test_reclustering(caplog: Any) -> None:
     reclustering_jets_without_user_index = jet_finding.recluster_jets(
         jets=jets_without_user_index,
         jet_finding_settings=jet_finding.ReclusteringJetFindingSettings(
-            #area_settings=jet_finding.AreaSubstructure(),
+            # area_settings=jet_finding.AreaSubstructure(),
             area_settings=None,
         ),
         store_recursive_splittings=True,
@@ -806,13 +819,50 @@ def test_reclustering(caplog: Any) -> None:
     logger.info(f"reclustering_jets: {reclustering_jets.to_list()}")
     logger.info(f"reclustering_jets_without_user_index: {reclustering_jets_without_user_index.to_list()}")
 
-    #import IPython
+    # Check the substructure properties.
+    # Note that these are just extracted from the calculation and check for regression...
+    # TODO: Check the calculations of the substructure properties e.g. kt!
+    expected_kt = ak.Array(
+        [
+            [
+                [10.031998634338379, 0.7249953746795654, 0.026190893724560738, 0.49901485443115234],
+                [0.15711446106433868, 0.048999983817338943],
+            ],
+            [[10.031998634338379, 0.7249953746795654, 0.026190893724560738, 0.49901485443115234]],
+        ]
+    )
+    assert ak.all(reclustering_jets.jet_splittings.kt == expected_kt)
 
-    #IPython.embed()
-    assert reclustering_jets.subjets.constituent_indices.to_list() == ak.Array([
-        [[[0, 1, 2], [3, 4], [1, 2], [0], [1], [2], [4], [3]]],
-        [[[0, 1, 2], [3, 4], [1, 2], [0], [1], [2], [4], [3]]]
-    ]).to_list()
+    # import IPython; IPython.embed()
+    # Check the constituent indices to ensure that we they provide the expected results.
+    # It's easy to e.g. get the overall jet correct but then mess up the constituents,
+    # so we need to check carefully.
+    # The expected values are somewhat calculated by hand and somewhat empirical
+    expected_constituent_indices = ak.Array(
+        [
+            [[[0, 1, 2], [3, 4], [1, 2], [0], [1], [2], [4], [3]], [[1, 2], [0], [2], [1]]],
+            [[[0, 1, 2], [3, 4], [1, 2], [0], [1], [2], [4], [3]]],
+        ]
+    )
+    assert reclustering_jets.subjets.constituent_indices.to_list() == expected_constituent_indices.to_list()
+
+    # And compare between the reclustering with and without the user_index
+    kt_splittings_are_close = ak.isclose(
+        reclustering_jets.jet_splittings.kt, reclustering_jets_without_user_index.jet_splittings.kt
+    )
+    # The reasoning for the expected values is as follows:
+    # For the first jet,
+    # - The 0th splitting is impacted by the NegativeEnergyRecombiner, so it's different
+    # - The 1st splitting is similarly impacted because it the negative particle is still contained in one of the constituent subjet
+    # - The 2nd splitting contains the negative particle, but since the kt is calculated between the two subjets (of which one is the
+    #    negative particle), the splitting calculation is not impacted by the subtraction rather than addition (ie. but the preceding
+    #    subjets are) I think this is the right behavior.
+    # - The 3rd splitting doesn't contain any negative particles, so it should trivially agree.
+    # For the second jet, there are no negative particles, so the kt splittings should agree.
+    expected_kt_splittings_are_close = ak.Array(
+        [[[False, False, True, True], [True, True]], [[False, False, True, True]]]
+    )
+    assert kt_splittings_are_close.to_list() == expected_kt_splittings_are_close.to_list()
 
     # only for testing - we want to see any fastjet warnings
-    assert False
+    # assert False
