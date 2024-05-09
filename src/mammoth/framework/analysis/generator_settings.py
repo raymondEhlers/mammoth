@@ -135,6 +135,8 @@ def configure_generator_options_before_starting_analysis(
 
     # We want to support this option for each generator, so we define it generally.
     # Anything down below can customize it further
+    # NOTE: We'll default to selecting charged particles since I default to charged analysis
+    #       and I'm far more likely to forget to enable it than to need to disable it.
     if generator.analysis_arguments.get("selected_charged_particles", True):
         track_selection_kwargs["columns_to_explicitly_select_charged_particles"] = list(levels)
     if generator.analysis_arguments.get("custom_charged_hadron_PIDs"):
