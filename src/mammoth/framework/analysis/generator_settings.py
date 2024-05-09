@@ -6,6 +6,7 @@ plugin points where we can configure how analysis is handled. As of May 2024, th
 include:
 
 - Immediately before starting the analysis (i.e. right before event and track selection)
+- Immediately after the standard track selection (i.e. for e.g. charged track selection)
 - Immediately before starting jet finding (i.e. for configuring jet finding settings, background
   subtraction, etc).
 
@@ -116,8 +117,8 @@ def configure_generator_options_before_starting_analysis(
     generator: GeneratorSettings,
     collision_system: str,  # noqa: ARG001
     arrays: ak.Array,  # noqa: ARG001
-    levels: list[str],  # noqa: ARG001
-) -> None:
+    levels: list[str],
+) -> dict[str, Any]:
     """Configure generator specific before starting the analysis.
 
     Args:
@@ -127,9 +128,19 @@ def configure_generator_options_before_starting_analysis(
         levels: The levels in the arrays to be analyzed.
 
     Returns:
-        None
+        track_selection_kwargs: Additional arguments to be passed to the track selection.
     """
     # Determine what to do (if anything) for each generator
+    track_selection_kwargs: dict[str, Any] = {}
+
+    # We want to support this option for each generator, so we define it generally.
+    # Anything down below can customize it further
+    if generator.analysis_arguments.get("selected_charged_particles", True):
+        track_selection_kwargs["columns_to_explicitly_select_charged_particles"] = list(levels)
+    if generator.analysis_arguments.get("custom_charged_hadron_PIDs"):
+        track_selection_kwargs["charged_hadron_PIDs"] = generator.analysis_arguments.get("custom_charged_hadron_PIDs")
+
+    # Customize for the generator
     match generator.name:
         case "jewel":
             ...
@@ -142,6 +153,8 @@ def configure_generator_options_before_starting_analysis(
         case _:
             _msg = f"Unrecognized generator: {generator}"
             raise ValueError(_msg)
+
+    return track_selection_kwargs
 
 
 def _negative_energy_recombiner_for_generator(

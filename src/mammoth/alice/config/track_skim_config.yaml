@@ -354,6 +354,13 @@ skimmed_datasets:
     files:
       - "PbPb_MC/996432/files.txt"
 
+generator_arguments:
+  _default_pp_MC: &generator_arguments_default_pp_MC
+    selected_charged_particles: true
+
+  _default_PbPb_MC: &generator_arguments_default_PbPb_MC
+    selected_charged_particles: true
+
 dataset_metadata_settings:
   _base:
     _pp: &base_metadata_pp
@@ -1197,6 +1204,7 @@ productions:
         # And disable artificial tracking efficiency
         det_level_artificial_tracking_efficiency: 1.0
         generator_arguments:
+          <<: *generator_arguments_default_PbPb_MC
           name: "jewel"
           background_subtraction: "constituent_subtraction"
           background_treatment: null
