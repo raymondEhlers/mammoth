@@ -159,7 +159,8 @@ def analyze_chunk_two_input_level(
     min_jet_pt: dict[str, float],
     iterative_splittings: bool,
     det_level_artificial_tracking_efficiency: float | analysis_tracking.PtDependentTrackingEfficiencyParameters,
-    reclustering_settings: Mapping[str, Any] | None = None,
+    reclustering_settings: dict[str, Any] | None = None,
+    generator_analysis_arguments: framework_task.GeneratorAnalysisArguments | None = None,
     selected_grooming_methods: list[str] | None = None,
     # Default analysis arguments
     validation_mode: bool = False,
@@ -201,12 +202,14 @@ def analyze_chunk_two_input_level(
 
     # Two track collections (part and det level)
     jets = analyze_chunk.analyze_track_skim_and_recluster_MC(
+        collision_system=collision_system,
         arrays=arrays,
         input_metadata=input_metadata,
         jet_R=jet_R,
         min_jet_pt=min_jet_pt,
         reclustering_settings=reclustering_settings,
         det_level_artificial_tracking_efficiency=det_level_artificial_tracking_efficiency,
+        generator_analysis_arguments=generator_analysis_arguments,
         validation_mode=validation_mode,
     )
 
@@ -238,7 +241,6 @@ def analyze_chunk_two_input_level(
     )
 
 
-
 def analyze_chunk_one_input_level(
     *,
     collision_system: str,
@@ -251,7 +253,8 @@ def analyze_chunk_one_input_level(
     iterative_splittings: bool,
     particle_column_name: str = "data",
     background_subtraction_settings: Mapping[str, Any] | None = None,
-    reclustering_settings: Mapping[str, Any] | None = None,
+    reclustering_settings: dict[str, Any] | None = None,
+    generator_analysis_arguments: framework_task.GeneratorAnalysisArguments | None = None,
     selected_grooming_methods: list[str] | None = None,
     # Default analysis arguments
     validation_mode: bool = False,
@@ -273,6 +276,7 @@ def analyze_chunk_one_input_level(
         background_subtraction_settings=background_subtraction_settings,
         reclustering_settings=reclustering_settings,
         particle_column_name=particle_column_name,
+        generator_analysis_arguments=generator_analysis_arguments,
         validation_mode=validation_mode,
     )
 
@@ -352,7 +356,8 @@ def analyze_chunk_three_input_level(
     iterative_splittings: bool,
     det_level_artificial_tracking_efficiency: float | analysis_tracking.PtDependentTrackingEfficiencyParameters,
     background_subtraction_settings: Mapping[str, Any] | None = None,
-    reclustering_settings: Mapping[str, Any] | None = None,
+    reclustering_settings: dict[str, Any] | None = None,
+    generator_analysis_arguments: framework_task.GeneratorAnalysisArguments | None = None,
     selected_grooming_methods: list[str] | None = None,
     # Default analysis arguments
     validation_mode: bool = False,
@@ -374,6 +379,7 @@ def analyze_chunk_three_input_level(
         background_subtraction_settings=background_subtraction_settings,
         det_level_artificial_tracking_efficiency=det_level_artificial_tracking_efficiency,
         reclustering_settings=reclustering_settings,
+        generator_analysis_arguments=generator_analysis_arguments,
         validation_mode=validation_mode,
     )
 

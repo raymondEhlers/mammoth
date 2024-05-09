@@ -109,7 +109,7 @@ def standard_track_selection(
 
     NOTE:
         Since the HF Tree and TrackSkim tasks use track containers, the min pt is usually applied
-        by default.  However, we apply it explicitly to be certain.
+        by default. However, we apply it explicitly to be certain.
 
     Args:
         arrays: Input particle level arrays

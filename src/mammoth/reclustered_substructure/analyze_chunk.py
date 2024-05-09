@@ -51,22 +51,24 @@ def analyze_track_skim_and_recluster_data(
     if reclustering_settings is None:
         reclustering_settings = {}
 
+    logger.info("Start analyzing")
+
     # Setup
-    # TODO: Implement for the MC functions! (And fail loudly for embedded, where it doesn't make so much sense...)
     gen_settings = generator_settings.create_generator_settings_if_valid(
         input_source_config=input_metadata["signal_source_config"],
         generator_analysis_arguments=generator_analysis_arguments,
     )
+    track_selection_additional_kwargs = {}
     if gen_settings:
         # Generator is valid
-        generator_settings.configure_generator_options_before_starting_analysis(
+        _res = generator_settings.configure_generator_options_before_starting_analysis(
             generator=gen_settings,
             collision_system=collision_system,
             arrays=arrays,
             levels=[particle_column_name],
         )
+        track_selection_additional_kwargs.update(_res)
 
-    logger.info("Start analyzing")
     # Event selection
     arrays = alice_helpers.standard_event_selection(arrays=arrays)
 
@@ -75,6 +77,7 @@ def analyze_track_skim_and_recluster_data(
         arrays=arrays,
         require_at_least_one_particle_in_each_collection_per_event=False,
         selected_particle_column_name=particle_column_name,
+        **track_selection_additional_kwargs,
     )
 
     # Jet finding
@@ -104,7 +107,8 @@ def analyze_track_skim_and_recluster_data(
     # We need to define some basic kwargs here so we can override them later
     levels = [particle_column_name]
     jet_finding_settings_additional_kwargs: dict[str, dict[str, Any]] = {level: {} for level in levels}
-    # We need to move this
+    # NOTE: This has to be defined here with the all of relevant arguments since we may want
+    #       e.g. override the "particles" argument.
     jet_finding_kwargs = {
         level: {
             "particles": arrays[level],
@@ -157,8 +161,8 @@ def analyze_track_skim_and_recluster_data(
     )
 
     # Reclustering
-    if gen_settings and jet_finding_settings_additional_kwargs:
-        reclustering_settings.update(jet_finding_settings_additional_kwargs)
+    if gen_settings and jet_finding_settings_additional_kwargs[particle_column_name]:
+        reclustering_settings.update(jet_finding_settings_additional_kwargs[particle_column_name])
 
     # If we're out of jets, reclustering will fail. So if we're out of jets, then skip this step
     # NOTE: We need to flatten since we could just have empty events.
@@ -202,17 +206,19 @@ def analyze_track_skim_and_recluster_data(
 
 def analyze_track_skim_and_recluster_MC(
     *,
+    collision_system: str,
     arrays: ak.Array,
-    input_metadata: framework_task.InputMetadata,  # noqa: ARG001
+    input_metadata: framework_task.InputMetadata,
     # Analysis arguments
     jet_R: float,
     min_jet_pt: Mapping[str, float],
     det_level_artificial_tracking_efficiency: float | analysis_tracking.PtDependentTrackingEfficiencyParameters,
     reclustering_settings: dict[str, Any] | None = None,
+    generator_analysis_arguments: framework_task.GeneratorAnalysisArguments | None = None,
     # Default analysis arguments
     validation_mode: bool = False,
 ) -> ak.Array:
-    """Analyze the track skim through reclustering for MC
+    """Analyze the track skim through reclustering for MC (pp_MC or PbPb_MC)
 
     NOTE:
         Since we nearly always need to convert this further to a flat skim, we need to wrap
@@ -224,12 +230,32 @@ def analyze_track_skim_and_recluster_MC(
         reclustering_settings = {}
 
     logger.info("Start analyzing")
+
+    # Setup
+    levels = ["part_level", "det_level"]
+    gen_settings = generator_settings.create_generator_settings_if_valid(
+        input_source_config=input_metadata["signal_source_config"],
+        generator_analysis_arguments=generator_analysis_arguments,
+    )
+    track_selection_additional_kwargs = {}
+    if gen_settings:
+        # Generator is valid
+        _res = generator_settings.configure_generator_options_before_starting_analysis(
+            generator=gen_settings,
+            collision_system=collision_system,
+            arrays=arrays,
+            levels=levels,
+        )
+        track_selection_additional_kwargs.update(_res)
+
     # Event selection
     arrays = alice_helpers.standard_event_selection(arrays=arrays)
 
     # Track cuts
     arrays = alice_helpers.standard_track_selection(
-        arrays=arrays, require_at_least_one_particle_in_each_collection_per_event=True
+        arrays=arrays,
+        require_at_least_one_particle_in_each_collection_per_event=True,
+        **track_selection_additional_kwargs,
     )
 
     # Jet finding
@@ -260,10 +286,43 @@ def analyze_track_skim_and_recluster_MC(
     #       may be dropping some events, which then needs to be reflected in
     det_level_mask = det_level_mask[_events_with_at_least_one_particle]
 
+    # Plug-in point before jet finding for configuring the generator options
+    # We need to define some basic kwargs here so we can override them later
+    jet_finding_settings_additional_kwargs: dict[str, dict[str, Any]] = {level: {} for level in levels}
+    # NOTE: This has to be defined here with the all of relevant arguments since we may want
+    #       e.g. override the "particles" argument.
+    jet_finding_kwargs = {
+        "part_level": {
+            "particles": arrays["part_level"],
+        },
+        "det_level": {
+            "particles": arrays["det_level"],
+        },
+    }
+    if gen_settings:
+        arrays, jet_finding_kwargs_return, jet_finding_settings_kwargs_return = (
+            generator_settings.configure_generator_options_before_jet_finding(
+                generator=gen_settings,
+                collision_system=collision_system,
+                arrays=arrays,
+                levels=levels,
+            )
+        )
+        # Update the relevant jet finding settings
+        for level in levels:
+            jet_finding_kwargs[level].update(jet_finding_kwargs_return[level])
+            jet_finding_settings_additional_kwargs[level].update(jet_finding_settings_kwargs_return[level])
+
+    # Apply the det level mask after (potentially) modifying the input arrays.
+    # NOTE: Nothing particles are being dropped, so this should be safe.
+    #       The only possible issue would be if all particles in an event were identified
+    #       as background, but this should be unphysical, so I'm not worried about it.
+    jet_finding_kwargs["det_level"]["particles"] = jet_finding_kwargs["det_level"]["particles"][det_level_mask]
+
     jets = ak.zip(
         {
             "part_level": jet_finding.find_jets(
-                particles=arrays["part_level"],
+                **jet_finding_kwargs["part_level"],
                 jet_finding_settings=jet_finding.JetFindingSettings(
                     R=jet_R,
                     algorithm="anti-kt",
@@ -282,16 +341,18 @@ def analyze_track_skim_and_recluster_MC(
                         fiducial_acceptance=False,
                     ),
                     area_settings=jet_finding.AreaPP(**area_kwargs),
+                    **jet_finding_settings_additional_kwargs["part_level"],
                 ),
             ),
             "det_level": jet_finding.find_jets(
-                particles=arrays["det_level"][det_level_mask],
+                **jet_finding_kwargs["det_level"],
                 jet_finding_settings=jet_finding.JetFindingSettings(
                     R=jet_R,
                     algorithm="anti-kt",
                     pt_range=jet_finding.pt_range(pt_min=min_jet_pt["det_level"]),
                     eta_range=jet_finding.eta_range(jet_R=jet_R, fiducial_acceptance=True),
                     area_settings=jet_finding.AreaPP(**area_kwargs),
+                    **jet_finding_settings_additional_kwargs["det_level"],
                 ),
             ),
         },
@@ -303,7 +364,7 @@ def analyze_track_skim_and_recluster_MC(
     jets = alice_helpers.standard_jet_selection(
         jets=jets,
         jet_R=jet_R,
-        collision_system="pp_MC",
+        collision_system=collision_system,
         substructure_constituent_requirements=True,
     )
     logger.info(f"all jet cuts n accepted: {np.count_nonzero(np.asarray(ak.flatten(jets['det_level'].px, axis=None)))}")
@@ -328,6 +389,9 @@ def analyze_track_skim_and_recluster_MC(
         reclustering_kwargs = {**reclustering_settings}
         if level != "part_level":
             reclustering_kwargs["area_settings"] = jet_finding.AreaSubstructure(**area_kwargs)
+        # Add in the generator specific customizations
+        if gen_settings and jet_finding_settings_additional_kwargs[level]:
+            reclustering_settings.update(jet_finding_settings_additional_kwargs[level])
         logger.info(f"Reclustering {level} jets with {reclustering_kwargs}...")
         jets[level, "reclustering"] = jet_finding.recluster_jets(
             jets=jets[level],
@@ -367,6 +431,7 @@ def analyze_track_skim_and_recluster_embedding(
     shared_momentum_fraction_min: float = 0.5,
     det_level_artificial_tracking_efficiency: float | analysis_tracking.PtDependentTrackingEfficiencyParameters = 1.0,
     reclustering_settings: dict[str, Any] | None = None,
+    generator_analysis_arguments: framework_task.GeneratorAnalysisArguments | None = None,
     # Default analysis arguments
     validation_mode: bool = False,
 ) -> ak.Array:
@@ -382,6 +447,9 @@ def analyze_track_skim_and_recluster_embedding(
         background_subtraction_settings = {}
     if reclustering_settings is None:
         reclustering_settings = {}
+    if generator_analysis_arguments is not None:
+        msg = "Provided generator analysis arguments, but they are not yet supported in embedding. Check your use case! (If valid, you'll need to implement it)"
+        raise ValueError(msg)
 
     # Event selection
     # This would apply to the signal events, because this is what we propagate from the embedding transform
