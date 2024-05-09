@@ -92,7 +92,7 @@ class FileSource:
             source = sources.ParquetSource(
                 filename=self._filename,
             )
-            if self.metadata.get("legacy_skim", False):
+            if self.metadata.get("skim_parameters", {}).get("legacy_skim", False):
                 # Legacy skims need additional transformation to confirm to expected source outputs.
                 # NOTE: The renaming of the overall "particles" field to something else could be handled
                 #       via the `rename_levels` argument in load_data, but it's easier to do it here since
