@@ -35,6 +35,7 @@ logger = logging.getLogger(__name__)
 
 Metadata = dict[str, Any]
 InputMetadata = dict[str, Any]
+GeneratorAnalysisArguments = dict[str, Any]
 
 
 def description_from_metadata(metadata: Metadata) -> str:

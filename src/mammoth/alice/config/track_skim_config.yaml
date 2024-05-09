@@ -54,6 +54,7 @@ skimmed_datasets:
     collision_system: "pythia"
     generator:
       name: "pythia"
+      identifier: "pythia"
       parameters: {}
     sqrt_s: 5020
     period: "LHC18b8"
@@ -121,6 +122,7 @@ skimmed_datasets:
     collision_system: "pythia"
     generator:
       name: "pythia"
+      identifier: "pythia_fastsim"
       parameters:
         fastsim: true
     sqrt_s: 5020
@@ -148,6 +150,7 @@ skimmed_datasets:
     # Generator config at: `pyjetty/pyjetty/alice_analysis/generation/herwig/herwig_slurm.sh`
     generator:
       name: "herwig"
+      identifier: "herwig_fastsim"
       parameters:
         fastsim: true
     sqrt_s: 5020
@@ -295,6 +298,7 @@ skimmed_datasets:
     collision_system: "PbPb_MC"
     generator:
       name: "jewel"
+      identifier: "jewel__wo_recoils_fastsim"
       parameters:
         recoils: false
         fastsim: true
@@ -325,6 +329,7 @@ skimmed_datasets:
     collision_system: "PbPb_MC"
     generator:
       name: "jewel"
+      identifier: "jewel__w_recoils_fastsim"
       parameters:
         fastsim: true
         recoils: true
