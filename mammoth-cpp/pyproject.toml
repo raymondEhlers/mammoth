@@ -7,7 +7,7 @@ build-backend = "scikit_build_core.build"
 
 [project]
 name = "mammoth_cpp"
-version = "0.2.0"
+version = "0.3.0"
 description = "c++ code supporting mostly columnar based physics analyses"
 requires-python = ">=3.8"
 authors = [{name ="Raymond Ehlers", email = "raymond.ehlers@gmail.com"}]
