@@ -5,7 +5,9 @@
 
 from __future__ import annotations
 
+import copy
 import functools
+import logging
 import operator
 from collections.abc import Generator, Mapping, MutableMapping
 from pathlib import Path
@@ -17,15 +19,29 @@ import numpy as np
 
 from mammoth.framework import sources, utils
 
+logger = logging.getLogger(__name__)
+
 
 @attrs.frozen
 class Columns:
+    """Define the columns of interest for the HF tree track skim.
+
+    For each set of columns, we map from input_column_name -> output_column_name.
+    The one exception is the _particle_modifications, since it includes an additional
+    "level" layer, which allows us to customize the particle columns for each level.
+    """
+
     identifiers: dict[str, str]
-    event_level: dict[str, str]
-    _particle_level: dict[str, str]
+    event: dict[str, str]
+    _particle_base: dict[str, str]
+    _particle_modifications: dict[str, dict[str, str]] = attrs.field(factory=dict)
 
     @classmethod
-    def create(cls, collision_system: str, missing_particle_PID: bool = False) -> Columns:
+    def create(
+        cls,
+        collision_system: str,
+        particle_column_modifications: dict[str, dict[str, str]],
+    ) -> Columns:
         # Identifiers for reconstructing the event structure
         # According to James:
         # Both data and MC need run_number and ev_id.
@@ -51,37 +67,95 @@ class Columns:
         }
 
         # Particle columns and names.
-        particle_level_columns = {
+        particle_level_base_columns = {
             **identifiers,
             "ParticlePt": "pt",
             "ParticleEta": "eta",
             "ParticlePhi": "phi",
+            "ParticlePID": "particle_ID",
+            # This is a JEWEL only field, so we handle adding it in those cases.
+            # "Status": "identifier",
         }
-        # This field is only available at particle level, and usually is also
-        # dropped for the FastSim.
-        if not missing_particle_PID:
-            particle_level_columns["ParticlePID"] = "particle_ID"
 
         return cls(
             identifiers=identifiers,
-            event_level=event_level_columns,
-            particle_level=particle_level_columns,
+            event=event_level_columns,
+            particle_base=particle_level_base_columns,
+            particle_modifications=particle_column_modifications,
         )
 
-    def particle_level(self, data_fields_only: bool = True) -> dict[str, str]:
-        fields_to_exclude: list[str] = []
-        if data_fields_only:
-            fields_to_exclude.append("ParticlePID")
-        return {k: v for k, v in self._particle_level.items() if k not in fields_to_exclude}
+    def particle_level(self, level: str) -> dict[str, str]:
+        """Return the particle columns for the given level, including more basic identifiers.
 
-    def standardized_particle_names(self, data_fields_only: bool = True) -> dict[str, str]:
-        return {
-            k: v for k, v in self.particle_level(data_fields_only=data_fields_only).items() if k not in self.identifiers
-        }
+        These more basic identifiers are necessary for reconstructing the event structure,
+        but the user generally isn't interested in them.
+
+        Args:
+            level: The level for which to return the particle columns.
+
+        Returns:
+            The particle columns for the given level.
+        """
+        particle_columns = copy.deepcopy(self._particle_base)
+        # Modify the base column list to add or remove columns as needed
+        particle_columns.update(self._particle_modifications.get(level, {}))
+        # Remove columns without a map
+        particle_columns_to_remove = {k for k, v in particle_columns.items() if v}
+        for k in particle_columns_to_remove:
+            particle_columns.pop(k)
+        return particle_columns
+
+    def standardized_particle_names(self, level: str) -> dict[str, str]:
+        """The particle columns for the given level.
+
+        Here, we remove the identifiers, since we don't really want to propagate those
+        to the users. They don't need to care about them, and once we've reconstructed
+        the event structure, they're not needed.
+
+        Args:
+            level: The level for which to return the particle columns.
+
+        Returns:
+            The particle columns for the given level.
+        """
+        return {k: v for k, v in self.particle_level(level=level).items() if k not in self.identifiers}
 
 
 @attrs.define
 class FileSource:
+    """HF Tree file source.
+
+    Note:
+        This is heavily dependent on the input metadata. It must be defined and included.
+
+    An example of the relevant metadata of a JEWEL fastsim with recoils:
+
+    ```yaml
+    some_dataset:
+      name: "..."
+      collision_system: "..."
+      ...
+      generator:
+        name: "jewel"
+        parameters:
+          recoils: true
+          fastsim: true
+      skim_type: "HF_tree_at_LBL"
+      skim_parameters:
+        levels: ["part_level", "det_level"]
+        column_modifications:
+          # To add: define the input column name -> output column name.
+          #         NOTE: This also covers modifying the default column mapping.
+          # To remove: Define the input column name -> empty string
+          # In this example, this adds the "Status" -> "identifier" map
+          part_level:
+            "Status": "identifier"
+          det_level:
+            "Status": "identifier"
+    ```
+
+    """
+
     _filename: Path = attrs.field(converter=Path)
     _collision_system: str = attrs.field()
     _default_chunk_size: sources.T_ChunkSize = attrs.field(default=sources.ChunkSizeSentinel.FULL_SOURCE)
@@ -96,29 +170,67 @@ class FileSource:
             Iterable containing chunk size data in an awkward array.
         """
         # Setup
-        # In the case of the FastSim, it looks like they usually drop the ParticlePID column
-        fastsim_output = "FastSim" in self._filename.name
+        # Use the metadata to determine what we need to include.
+        # NOTE: We're using the metadata that is provided by the user to avoid having to peek
+        #       at the file itself. This may not be the ideal balance (since it shifts the burden
+        #       to the user), but it's a reasonable starting point. We can always adjust it later.
+        parameters = self.metadata["skim_parameters"]
+        # Determine what we're working with
+        levels = parameters["levels"]
+        is_data = "data" in levels
+        is_one_level_MC = "part_level" in levels and "det_level" not in levels
+        is_two_level_MC = "part_level" in levels and "det_level" in levels
+        # FastSim is a special case, so we need to handle it separately
+        is_fastsim = parameters.get("fastsim", False)
+        # Particle columns modifications
+        # Dict of dict: {level: {column_input_name: column_normalized_name}}
+        # To add: define the input column name -> output column name.
+        #         NOTE: This also covers modifying the default column mapping.
+        # To remove: Define the input column name -> empty string
+        particle_column_modifications: dict[str, dict[str, str]] = parameters.get("column_modifications", {})
+        tree_prefix_override = parameters.get("tree_prefix")
+
+        # Validation
+        if is_data and (is_one_level_MC or is_two_level_MC):
+            msg = "Data and MC levels are mutually exclusive. Please select only one."
+            raise ValueError(msg)
+        # This is more of a crosscheck, since this isn't a hard and fast rule
+        # We may not need to remove it from every column, but it probably needs to be removed
+        # from at least one of the particle columns
+        if is_fastsim and all(
+            "ParticlePID" not in list(modifications.keys()) for modifications in particle_column_modifications.values()
+        ):
+            msg = "FastSim files rarely have the ParticlePID column - you probably want to remove it"
+            logger.warning(msg)
 
         # NOTE: We can only load a whole file and chunk it afterwards since the event boundaries
         #       are not known otherwise. Unfortunately, it's hacky, but it seems like the best
         #       bet for now as of Feb 2023.
-        columns = Columns.create(collision_system=self._collision_system, missing_particle_PID=fastsim_output)
-        _both_part_and_det_level_available = self._collision_system in ["pythia", "pp_MC"] or fastsim_output
+        columns = Columns.create(
+            collision_system=self._collision_system,
+            particle_column_modifications=particle_column_modifications,
+        )
+        # The logic here is:
+        # - If we have both part and det level available, we need to grab both trees.
+        # - If we have a fastsim, then we necessarily
+        _both_part_and_det_level_available = self._collision_system in ["pythia", "pp_MC"] or is_fastsim
 
         # There is a prefix for the original HF tree creator, but not one for the FastSim
-        tree_prefix = "" if fastsim_output else "PWGHF_TreeCreator/"
+        tree_prefix = "" if is_fastsim else "PWGHF_TreeCreator/"
+        if tree_prefix_override is not None:
+            tree_prefix = tree_prefix_override
 
         # Grab the various trees. It's less efficient, but we'll have to grab the trees
         # with separate file opens since adding more trees to the UprootSource would be tricky.
         event_properties_source: sources.Source = sources.UprootSource(
             filename=self._filename,
             tree_name=f"{tree_prefix}tree_event_char",
-            columns=list(columns.event_level),
+            columns=list(columns.event),
         )
         data_source = sources.UprootSource(
             filename=self._filename,
             tree_name=f"{tree_prefix}tree_Particle",
-            columns=list(columns.particle_level(data_fields_only=True)),
+            columns=list(columns.particle_level(level="data")),
         )
         # NOTE: This is where we're defining the "det_level", "part_level", or "data" fields
         data_sources = {
@@ -129,7 +241,7 @@ class FileSource:
             data_sources["part_level"] = sources.UprootSource(
                 filename=self._filename,
                 tree_name=f"{tree_prefix}tree_Particle_gen",
-                columns=list(columns.particle_level(data_fields_only=False)),
+                columns=list(columns.particle_level(level="part_level")),
             )
 
         _transformed_data = _transform_output(
@@ -157,9 +269,6 @@ def _transform_output(
     columns: Columns,
     _both_part_and_det_level_available: bool,
 ) -> Generator[ak.Array, sources.T_ChunkSize | None, None]:
-    # Setup
-    _standardized_particle_names = columns.standardized_particle_names()
-
     try:
         data = {k: next(v) for k, v in gen_data.items()}
         while True:
@@ -262,7 +371,7 @@ def _transform_output(
                                 {
                                     v: event_data_in_jagged_format[particle_collection_name][k]
                                     for k, v in columns.standardized_particle_names(
-                                        data_fields_only=particle_collection_name != "part_level"
+                                        level=particle_collection_name
                                     ).items()
                                 }
                             )
@@ -284,7 +393,7 @@ def _transform_output(
                         "data": ak.zip(
                             {
                                 v: event_data_in_jagged_format["data"][k]
-                                for k, v in columns.standardized_particle_names(data_fields_only=True).items()
+                                for k, v in columns.standardized_particle_names(level="data").items()
                             }
                         ),
                         **dict(

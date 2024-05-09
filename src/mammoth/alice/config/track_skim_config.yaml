@@ -52,6 +52,9 @@ skimmed_datasets:
   LHC18b8_AOD_2619: &LHC18b8_pythia
     name: "LHC18b8_AOD_2619"
     collision_system: "pythia"
+    generator:
+      name: "pythia"
+      parameters: {}
     sqrt_s: 5020
     period: "LHC18b8"
     anchor_period: ["LHC17p", "LHC17q"]
@@ -71,7 +74,9 @@ skimmed_datasets:
   LHC23a3_AOD_2907: &LHC23a3_pythia
     name: "LHC23a3_AOD_2907"
     collision_system: "pp_MC"
-    generator: "pythia"
+    generator:
+      name: "pythia"
+      parameters: {}
     sqrt_s: 5020
     period: "LHC23a3"
     anchor_period: ["LHC17p", "LHC17q"]
@@ -92,6 +97,9 @@ skimmed_datasets:
   LHC20g4_AOD_2640: &LHC20g4_pythia
     name: "LHC20g4_AOD_2640"
     collision_system: "pythia"
+    generator:
+      name: "pythia"
+      parameters: {}
     sqrt_s: 5020
     period: "LHC20g4"
     anchor_period: ["LHC18q", "LHC18r"]
@@ -111,12 +119,17 @@ skimmed_datasets:
   LBL20_Pythia_FastSim_1_258314: &LBL20_Pythia_FastSim_1_17pq
     name: "LBL20_Pythia_FastSim_1_258314"
     collision_system: "pythia"
-    generator: "pythia"
+    generator:
+      name: "pythia"
+      parameters:
+        fastsim: true
     sqrt_s: 5020
     period: "LBL20_Pythia_FastSim_1"
     anchor_period: ["LHC17p", "LHC17q"]
     # Keep track of the skim type for documentation
     skim_type: "HF_tree_at_LBL"
+    skim_parameters:
+      levels: ["part_level", "det_level"]
     # NOTE: The scale factors need to be copied to the appropriate production directory
     # Binning is the standard binning for LHC18b8
     n_pt_hat_bins: 20
@@ -133,12 +146,17 @@ skimmed_datasets:
     name: "LBL20_Herwig_FastSim_1_266374"
     collision_system: "pythia"
     # Generator config at: `pyjetty/pyjetty/alice_analysis/generation/herwig/herwig_slurm.sh`
-    generator: "herwig"
+    generator:
+      name: "herwig"
+      parameters:
+        fastsim: true
     sqrt_s: 5020
     period: "LBL20_Herwig_FastSim_1"
     anchor_period: ["LHC17p", "LHC17q"]
     # Keep track of the skim type for documentation
     skim_type: "HF_tree_at_LBL"
+    skim_parameters:
+      levels: ["part_level", "det_level"]
     # NOTE: The scale factors need to be copied to the appropriate production directory
     # Binning: (5 7 9 12 16 21 28 36 45 57 70 85 99 115 132 150 169 190 212 235 260)
     n_pt_hat_bins: 20
@@ -153,11 +171,16 @@ skimmed_datasets:
   JETSCAPE_PP19_1: &JETSCAPE_PP19
     name: "JETSCAPE_PP19_1"
     collision_system: "pp_MC"
+    generator:
+      name: "jetscape"
+      parameters: {}
     sqrt_s: 5020
     period: ""
     # Keep track of the skim type for documentation
     skim_type: "jetscape"
-    legacy_skim: true
+    skim_parameters:
+      levels: ["part_level"]
+      legacy_skim: true
     # Parameters of the output
     n_pt_hat_bins: 66
     files:
@@ -167,11 +190,15 @@ skimmed_datasets:
   LBL21_JEWEL_823890: &LBL21_JEWEL_pp_1
     name: "LBL21_JEWEL_823890"
     collision_system: "pp_MC"
-    generator: "jewel"
+    generator:
+      name: "jewel"
+      parameters: {}
     sqrt_s: 5020
     period: "LBL21_JEWEL_pp_1"
     # Keep track of the skim type for documentation
     skim_type: "HF_tree_at_LBL"
+    skim_parameters:
+      levels: ["part_level"]
     # NOTE: The scale factors need to be copied to the appropriate production directory
     # Binning: (5 7 9 12 16 21 28 36 45 57 70 85 99 115 132 150 169 190 212 235 260)
     n_pt_hat_bins: 20
@@ -262,14 +289,27 @@ skimmed_datasets:
       - "PbPb/570/files.txt"
 
   # PbPb_MC
+  # TODO: Define the datasets without the fastsim too!
   LBL21_JEWEL_NoRecoils_FastSim_1_798301: &LBL21_JEWEL_NoRecoils_FastSim_1
     name: "LBL21_JEWEL_NoRecoils_FastSim_1_798301"
     collision_system: "PbPb_MC"
-    generator: "jewel"
+    generator:
+      name: "jewel"
+      parameters:
+        recoils: false
+        fastsim: true
     sqrt_s: 5020
     period: "LBL21_JEWEL_NoRecoils_FastSim_1"
     # Keep track of the skim type for documentation
     skim_type: "HF_tree_at_LBL"
+    skim_parameters:
+      levels: ["part_level", "det_level"]
+      column_modifications:
+        # NOTE: The "Status" is removed since it's only available with recoils
+        part_level:
+          "Status": ""
+        det_level:
+          "Status": ""
     # NOTE: The scale factors need to be copied to the appropriate production directory
     # Binning: (5 7 9 12 16 21 28 36 45 57 70 85 99 115 132 150 169 190 212 235 260)
     n_pt_hat_bins: 20
@@ -283,11 +323,22 @@ skimmed_datasets:
   LBL21_JEWEL_Recoils_FastSim_1_996432: &LBL21_JEWEL_Recoils_FastSim_1
     name: "LBL21_JEWEL_Recoils_FastSim_1_996432"
     collision_system: "PbPb_MC"
-    generator: "jewel"
+    generator:
+      name: "jewel"
+      parameters:
+        fastsim: true
+        recoils: true
     sqrt_s: 5020
     period: "LBL21_JEWEL_Recoils_FastSim_1"
     # Keep track of the skim type for documentation
     skim_type: "HF_tree_at_LBL"
+    skim_parameters:
+      levels: ["part_level", "det_level"]
+      column_modifications:
+        part_level:
+          "Status": "identifier"
+        det_level:
+          "Status": "identifier"
     # NOTE: The scale factors need to be copied to the appropriate production directory
     # Binning: (5 7 9 12 16 21 28 36 45 57 70 85 99 115 132 150 169 190 212 235 260)
     n_pt_hat_bins: 20
@@ -1140,6 +1191,10 @@ productions:
         # No background subtraction
         # And disable artificial tracking efficiency
         det_level_artificial_tracking_efficiency: 1.0
+        generator_arguments:
+          name: "jewel"
+          background_subtraction: "constituent_subtraction"
+          background_treatment: null
 
   embed_pythia:
     2:
