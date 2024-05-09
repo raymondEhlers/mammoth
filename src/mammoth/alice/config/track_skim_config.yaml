@@ -292,13 +292,74 @@ skimmed_datasets:
       - "PbPb/570/files.txt"
 
   # PbPb_MC
-  # TODO: Define the datasets without the fastsim too!
-  LBL21_JEWEL_NoRecoils_FastSim_1_798301: &LBL21_JEWEL_NoRecoils_FastSim_1
-    name: "LBL21_JEWEL_NoRecoils_FastSim_1_798301"
+  ##########
+  # Standard
+  ##########
+  LBL21_JEWEL_NoRecoils_Central_1_746611: &LBL21_JEWEL_NoRecoils_Central_1
+    name: "LBL21_JEWEL_NoRecoils_Central_1_746611"
     collision_system: "PbPb_MC"
     generator:
       name: "jewel"
-      identifier: "jewel__wo_recoils_fastsim"
+      identifier: "jewel__central__wo_recoils"
+      parameters:
+        recoils: false
+        fastsim: false
+    sqrt_s: 5020
+    period: "LBL21_JEWEL_NoRecoils_1"
+    # Keep track of the skim type for documentation
+    skim_type: "HF_tree_at_LBL"
+    skim_parameters:
+      levels: ["part_level"]
+      column_modifications:
+        # NOTE: The "Status" is removed since it's only available with recoils
+        part_level:
+          "Status": ""
+    # NOTE: The scale factors need to be copied to the appropriate production directory
+    # Binning: (5 7 9 12 16 21 28 36 45 57 70 85 99 115 132 150 169 190 212 235 260)
+    n_pt_hat_bins: 20
+    number_of_parent_directories_to_pt_hat_bin: 2
+    # Number of parent directories to go up to create the relative output filename
+    # NOTE: Only needed if the inputs are not in the trains directory, as is the cause on hiccup
+    number_of_parent_directories_for_relative_output_filename: 3
+    files:
+      #- "PbPb_MC/746611/files.txt"
+      - "PbPb_MC/746611/files_test.txt"
+  LBL21_JEWEL_Recoils_Central_1_851894: &LBL21_JEWEL_Recoils_Central_1
+    name: "LBL21_JEWEL_Recoils_1_851894"
+    collision_system: "PbPb_MC"
+    generator:
+      name: "jewel"
+      identifier: "jewel__central__w_recoils"
+      parameters:
+        fastsim: false
+        recoils: true
+    sqrt_s: 5020
+    period: "LBL21_JEWEL_Recoils_1"
+    # Keep track of the skim type for documentation
+    skim_type: "HF_tree_at_LBL"
+    skim_parameters:
+      levels: ["part_level"]
+      column_modifications:
+        part_level:
+          "Status": "identifier"
+    # NOTE: The scale factors need to be copied to the appropriate production directory
+    # Binning: (5 7 9 12 16 21 28 36 45 57 70 85 99 115 132 150 169 190 212 235 260)
+    n_pt_hat_bins: 20
+    number_of_parent_directories_to_pt_hat_bin: 2
+    # Number of parent directories to go up to create the relative output filename
+    # NOTE: Only needed if the inputs are not in the trains directory, as is the cause on hiccup
+    number_of_parent_directories_for_relative_output_filename: 3
+    files:
+      - "PbPb_MC/851894/files.txt"
+  #########
+  # FastSim
+  #########
+  LBL21_JEWEL_NoRecoils_Central_FastSim_1_798301: &LBL21_JEWEL_NoRecoils_Central_FastSim_1
+    name: "LBL21_JEWEL_NoRecoils_Central_FastSim_1_798301"
+    collision_system: "PbPb_MC"
+    generator:
+      name: "jewel"
+      identifier: "jewel__central__wo_recoils_fastsim"
       parameters:
         recoils: false
         fastsim: true
@@ -324,12 +385,12 @@ skimmed_datasets:
     files:
       #- "PbPb_MC/798301/files.txt"
       - "PbPb_MC/798301/files_test.txt"
-  LBL21_JEWEL_Recoils_FastSim_1_996432: &LBL21_JEWEL_Recoils_FastSim_1
+  LBL21_JEWEL_Recoils_Central_FastSim_1_996432: &LBL21_JEWEL_Recoils_Central_FastSim_1
     name: "LBL21_JEWEL_Recoils_FastSim_1_996432"
     collision_system: "PbPb_MC"
     generator:
       name: "jewel"
-      identifier: "jewel__w_recoils_fastsim"
+      identifier: "jewel__central__w_recoils_fastsim"
       parameters:
         fastsim: true
         recoils: true
@@ -1190,7 +1251,7 @@ productions:
     2:
       metadata:
         <<: *base_metadata_PbPb_MC
-        dataset: *LBL21_JEWEL_NoRecoils_FastSim_1
+        dataset: *LBL21_JEWEL_NoRecoils_Central_FastSim_1
         # Equivalent to train number, but a more general term makes more sense here.
         production_number: 2
         label: "central"
