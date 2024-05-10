@@ -100,7 +100,7 @@ class Columns:
         # Modify the base column list to add or remove columns as needed
         particle_columns.update(self._particle_modifications.get(level, {}))
         # Remove columns without a map
-        particle_columns_to_remove = {k for k, v in particle_columns.items() if v}
+        particle_columns_to_remove = {k for k, v in particle_columns.items() if v == ""}
         for k in particle_columns_to_remove:
             particle_columns.pop(k)
         return particle_columns
@@ -210,10 +210,6 @@ class FileSource:
             collision_system=self._collision_system,
             particle_column_modifications=particle_column_modifications,
         )
-        # The logic here is:
-        # - If we have both part and det level available, we need to grab both trees.
-        # - If we have a fastsim, then we necessarily
-        _both_part_and_det_level_available = self._collision_system in ["pythia", "pp_MC"] or is_fastsim
 
         # There is a prefix for the original HF tree creator, but not one for the FastSim
         tree_prefix = "" if is_fastsim else "PWGHF_TreeCreator/"
@@ -222,23 +218,26 @@ class FileSource:
 
         # Grab the various trees. It's less efficient, but we'll have to grab the trees
         # with separate file opens since adding more trees to the UprootSource would be tricky.
-        event_properties_source: sources.Source = sources.UprootSource(
-            filename=self._filename,
-            tree_name=f"{tree_prefix}tree_event_char",
-            columns=list(columns.event),
-        )
-        data_source = sources.UprootSource(
-            filename=self._filename,
-            tree_name=f"{tree_prefix}tree_Particle",
-            columns=list(columns.particle_level(level="data")),
-        )
-        # NOTE: This is where we're defining the "det_level", "part_level", or "data" fields
-        data_sources = {
-            "event_level": event_properties_source,
-            "det_level" if _both_part_and_det_level_available else "data": data_source,
+        all_sources: dict[str, sources.Source] = {
+            "event_level": sources.UprootSource(
+                filename=self._filename,
+                tree_name=f"{tree_prefix}tree_event_char",
+                columns=list(columns.event),
+            ),
         }
-        if _both_part_and_det_level_available:
-            data_sources["part_level"] = sources.UprootSource(
+        # NOTE: This is also where we're defining the "det_level", "part_level", or "data" fields
+        if is_data or is_two_level_MC:
+            k = "det_level" if is_two_level_MC else "data"
+            all_sources[k] = sources.UprootSource(
+                filename=self._filename,
+                tree_name=f"{tree_prefix}tree_Particle",
+                columns=list(columns.particle_level(level="data" if is_data else "det_level")),
+            )
+        if is_one_level_MC or is_two_level_MC:
+            # If we want to rename - e.g. if we're only analyzing this level alone,
+            # we can use `loading_data_rename_levels` to change it to `data``.
+            k = "part_level"
+            all_sources[k] = sources.UprootSource(
                 filename=self._filename,
                 tree_name=f"{tree_prefix}tree_Particle_gen",
                 columns=list(columns.particle_level(level="part_level")),
@@ -251,10 +250,10 @@ class FileSource:
             #       the boundaries of events, giving unexpected behavior. So we load it
             #       all now and add on the chunking afterwards. It's less efficient in terms
             #       of memory, but much more straightforward.
-            gen_data={k: s.gen_data(chunk_size=sources.ChunkSizeSentinel.FULL_SOURCE) for k, s in data_sources.items()},
+            gen_data={k: s.gen_data(chunk_size=sources.ChunkSizeSentinel.FULL_SOURCE) for k, s in all_sources.items()},
             collision_system=self._collision_system,
             columns=columns,
-            _both_part_and_det_level_available=_both_part_and_det_level_available,
+            levels=levels,
         )
         return sources.generator_from_existing_data(
             data=next(_transformed_data),
@@ -267,7 +266,7 @@ def _transform_output(
     gen_data: Mapping[str, Generator[ak.Array, sources.T_ChunkSize | None, None]],
     collision_system: str,  # noqa: ARG001
     columns: Columns,
-    _both_part_and_det_level_available: bool,
+    levels: list[str],
 ) -> Generator[ak.Array, sources.T_ChunkSize | None, None]:
     try:
         data = {k: next(v) for k, v in gen_data.items()}
@@ -360,51 +359,30 @@ def _transform_output(
                 k: v[masks_for_combining_levels[k]] for k, v in event_data_in_jagged_format.items()
             }
 
-            if _both_part_and_det_level_available:
-                # Now, some rearranging the field names for uniformity.
-                # Apparently, the array will simplify to associate the three fields together. I assumed that a zip
-                # would be required, but apparently not.
-                _result = yield ak.Array(
-                    {
-                        **{
-                            particle_collection_name: ak.zip(
-                                {
-                                    v: event_data_in_jagged_format[particle_collection_name][k]
-                                    for k, v in columns.standardized_particle_names(
-                                        level=particle_collection_name
-                                    ).items()
-                                }
-                            )
-                            for particle_collection_name in ["det_level", "part_level"]
-                        },
-                        **dict(
-                            zip(
-                                ak.fields(event_data_in_jagged_format["event_level"]),
-                                ak.unzip(event_data_in_jagged_format["event_level"]),
-                                strict=True,
-                            )
-                        ),
-                    },
-                )
-            else:
-                # NOTE: The return values are formatted in this manner to avoid unnecessary copies of the data.
-                _result = yield ak.Array(
-                    {
-                        "data": ak.zip(
+            # Now, some rearranging the field names for uniformity.
+            # Apparently, the array will simplify to associate the three fields together. I assumed that a zip
+            # would be required, but apparently not.
+            # NOTE: The return values are formatted in this manner to avoid unnecessary copies of the data.
+            _result = yield ak.Array(
+                {
+                    **{
+                        level: ak.zip(
                             {
-                                v: event_data_in_jagged_format["data"][k]
-                                for k, v in columns.standardized_particle_names(level="data").items()
+                                v: event_data_in_jagged_format[level][k]
+                                for k, v in columns.standardized_particle_names(level=level).items()
                             }
-                        ),
-                        **dict(
-                            zip(
-                                ak.fields(event_data_in_jagged_format["event_level"]),
-                                ak.unzip(event_data_in_jagged_format["event_level"]),
-                                strict=True,
-                            )
-                        ),
+                        )
+                        for level in levels
                     },
-                )
+                    **dict(
+                        zip(
+                            ak.fields(event_data_in_jagged_format["event_level"]),
+                            ak.unzip(event_data_in_jagged_format["event_level"]),
+                            strict=True,
+                        )
+                    ),
+                },
+            )
 
             # Update for next step
             data = {k: v.send(_result) for k, v in gen_data.items()}
