@@ -359,6 +359,14 @@ def _transform_output(
                 k: v[masks_for_combining_levels[k]] for k, v in event_data_in_jagged_format.items()
             }
 
+            # We need to update some types:
+            # Particle_PID and identifier should be integers
+            def _values_as_type(key: str, array: ak.Array) -> ak.Array:
+                # We use the standardized key names
+                if key in ["particle_ID", "identifier"]:
+                    return ak.values_astype(array, to=np.int32)
+                return array
+
             # Now, some rearranging the field names for uniformity.
             # Apparently, the array will simplify to associate the three fields together. I assumed that a zip
             # would be required, but apparently not.
@@ -368,7 +376,7 @@ def _transform_output(
                     **{
                         level: ak.zip(
                             {
-                                v: event_data_in_jagged_format[level][k]
+                                v: _values_as_type(key=v, array=event_data_in_jagged_format[level][k])
                                 for k, v in columns.standardized_particle_names(level=level).items()
                             }
                         )
