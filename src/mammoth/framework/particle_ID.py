@@ -95,7 +95,7 @@ def particle_masses_from_particle_ID(arrays: ak.Array, particle_ID_column_name: 
 def build_PID_selection_mask(
     arrays: ak.Array,
     absolute_pids: Sequence[int] | None = None,
-    single_pids: Sequence[int] | None = None,
+    individual_pids: Sequence[int] | None = None,
     particle_ID_column_name: str = "particle_ID",
 ) -> ak.Array:
     """Build selection for particles based on particle ID.
@@ -103,7 +103,8 @@ def build_PID_selection_mask(
     Args:
         arrays: Particle collection, over which we will build the mask.
         absolute_pids: PIDs which are selected using their absolute values.
-        single_pids: PIDs which are selected only for the given values.
+        individual_pids: PIDs which are selected only for the given values. (ie. we don't use
+            their absolute value).
         particle_ID_column_name: Name of the particle ID column. Default: "particle_ID"
 
     Returns:
@@ -112,13 +113,14 @@ def build_PID_selection_mask(
     # Validation
     if absolute_pids is None:
         absolute_pids = []
-    if single_pids is None:
-        single_pids = []
+    if individual_pids is None:
+        individual_pids = []
 
     # Since it's unclear how to do an `in` test for a list in a vectorized way, and we
     # aren't likely to have _so_ many PIDS, we'll just take the hit and iterate over them.
-    pid_cuts = [np.abs(arrays[particle_ID_column_name]) == pid for pid in absolute_pids]
-    pid_cuts.extend([arrays[particle_ID_column_name] == pid for pid in single_pids])
+    abs_pid = np.abs(arrays[particle_ID_column_name])
+    pid_cuts = [abs_pid == pid for pid in absolute_pids]
+    pid_cuts.extend([arrays[particle_ID_column_name] == pid for pid in individual_pids])
     # To combine them, we want an OR here - if the particle is selected by any of the PIDs,
     # we want to keep it
     return functools.reduce(operator.or_, pid_cuts)
