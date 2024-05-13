@@ -19,6 +19,7 @@ from mammoth.framework import jet_finding, particle_ID
 logger = logging.getLogger(__name__)
 
 
+# (e-, mu-, pi+, K+, p+, Sigma+, Sigma-, Xi-, Omega-)
 _DEFAULT_CHARGED_HADRON_PIDs: Final[list[int]] = [11, 13, 211, 321, 2212, 3222, 3112, 3312, 3334]
 
 
