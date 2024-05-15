@@ -970,9 +970,14 @@ def find_jets(
     #       However, this is left as a user preprocessing step to avoid surprising users!
     event_with_no_particles = sum_counts[1:] == sum_counts[:-1]
     if np.any(event_with_no_particles):
-        _msg = f"There are some events with zero particles. This could have an impact on alignment - not sure. The 0s are at {np.where(event_with_no_particles)}"
+        # NOTE: In the early code base for the jet finding, I added this check, but testing in May 2024,
+        #       it seems to work fine. I suspect that it was a remnant of how I previously tried to handle
+        #       the event-by-event structure (i.e. unflattening using offsets) vs what I do now (storing in
+        #       lists of lists and then using awkward to handle the structure). However, I'm not 100% confident
+        #       that the tests aren't overlooking something, so I'm leaving the warning here in case it becomes
+        #       an issue in the future.
+        _msg = f"There are some events with zero particles. If issues, check here. The 0s are at {np.where(event_with_no_particles)}"
         logger.warning(_msg)
-        # As of May 2024, I removed this exception, since it appears to work.
         # raise ValueError(_msg)
 
     # Now, deal with the particles themselves.
@@ -1003,9 +1008,11 @@ def find_jets(
         # Validate that there is at least one particle per event
         event_with_no_particles = background_sum_counts[1:] == background_sum_counts[:-1]
         if np.any(event_with_no_particles):
-            _msg = f"There are some background events with zero particles. This could have an impact on alignment - not sure. The 0s are at {np.where(event_with_no_particles)}"
+            # See the note above about requiring at least one particle per event above.
+            # Long story short, I think this isn't required as of May 2024, but we leave it
+            # as a warning out of an abundance of caution.
+            _msg = f"There are some events with zero particles. If issues, check here. The 0s are at {np.where(event_with_no_particles)}"
             logger.warning(_msg)
-        #    raise ValueError(_msg)
 
         # Now, deal with the particles themselves.
         # This will flatten the awkward array contents while keeping the record names.

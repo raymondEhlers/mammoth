@@ -316,7 +316,7 @@ def test_jet_finding_basic_multiple_events(caplog: Any, calculate_area: bool, al
     "separate_background_particles_arg", [True, False], ids=["Standard", "Separate background particles argument"]
 )
 @pytest.mark.parametrize("use_custom_user_index", [True, False])
-def test_jet_finding_with_subtraction_multiple_events(
+def test_jet_finding_with_rho_subtraction_and_multiple_events(
     caplog: Any, separate_background_particles_arg: bool, use_custom_user_index: bool
 ) -> None:
     """Jet finding with subtraction for multiple events.
@@ -324,16 +324,18 @@ def test_jet_finding_with_subtraction_multiple_events(
     Note:
         These include empty events, so we can check that the offsets are correctly calculated.
 
-    Note that the subtraction doesn't do anything here because rho is 0.
-    It's just testing that the software interface vaguely works.
+    Note that the subtraction doesn't do anything here because rho is 0 (i.e. since there aren't
+    enough jets to make a meaningful background). It's just testing that the software interface
+    works when subtraction is enabled.
     """
     # Setup
     caplog.set_level(logging.DEBUG)
     vector.register_awkward()
 
-    # an event with three particles
+    # An event with three particles
     # First event is the standard fastjet test particles,
-    # while the second event is the standard with px <-> py.
+    # the second is an empty event,
+    # while the third event is the standard with px <-> py.
     # The output jets should be the same as well, but with px <-> py.
     additional_fields = {}
     if use_custom_user_index:
@@ -376,7 +378,10 @@ def test_jet_finding_with_subtraction_multiple_events(
     logger.info(f"input particles array type: {ak.type(input_particles)}")
     extra_kwargs = {}
     if separate_background_particles_arg:
-        # Test out having any empty background event too
+        # NOTE: We'll include testing out having any empty background event too
+        # NOTE: We intentionally don't want to match all of the empty events with
+        #       the input particles to try to test for further issues.
+        #       (This is to say, event 3 is empty when the input particles are not)
         more_fields = {}
         if use_custom_user_index:
             more_fields["user_index"] = [
@@ -487,8 +492,12 @@ def test_jet_finding_with_constituent_subtraction_does_something_multiple_events
     """Jet finding with constituent subtraction modifies the jets somehow for multiple events.
 
     NOTE:
-        This doesn't test that CS gives a particular expected result - just that it modifies the jets.
-        This is because there's no simple reference. So we have to validate elsewhere.
+        This doesn't really properly test the CS subtraction since rho will be 0 (and mocking up
+        a consistent background such that rho is non-zero would be a pain). So here, we don't
+        look for a particular result - just that the jets are modified in some way (which appears
+        to be mostly due to the transition of the input particles -> subtracted, even though it
+        shouldn't have any real impact). In any case, there is no simple reference, so we have to
+        validate in other ways in other tests (i.e. using the track skim validation).
     """
     # Setup
     caplog.set_level(logging.DEBUG)
@@ -496,9 +505,10 @@ def test_jet_finding_with_constituent_subtraction_does_something_multiple_events
     vector.register_awkward()
 
     # an event with three particles
-    # First event is the standard fastjet test particles,
-    # while the second event is the standard with px <-> py.
-    # The output jets should be the same as well, but with px <-> py.
+    # First event is the standard fastjet test particles
+    # the second event is empty,
+    # and the third event is the standard with px <-> py
+    # The output jets should be similar, but with px <-> py.
     additional_fields = {}
     if use_custom_user_index:
         additional_fields["user_index"] = [
@@ -589,9 +599,16 @@ def test_jet_finding_with_constituent_subtraction_does_something_multiple_events
 
     # Check four momenta
     # Here, we expect it _not_ to agree with the "expected jets" from above because
-    # constituent subtraction has modified the four vectors. We don't have a simple
-    # and convenient reference, so we effectively require that it is changed _somehow_
-    # by the constituent subtraction. It will have to be validated elsewhere.
+    # constituent subtraction has modified the four vectors.
+    # NOTE: Since rho is 0, the biggest change appears to be just due to rewriting
+    #       the constituents from the input particles to the subtracted constituents.
+    #       However, at some level, this is fine - we just want to see that things have
+    #       changed. Since we don't have a simple and convenient reference, it will have
+    #       to be validated elsewhere via the track skim.
+    # NOTE: Why are thy changed at all? I **think** this is due to CS renormalizing particles
+    #       to be massless. If we check, input_particles.E**2 != input_particles.p**2, but
+    #       jets.constituents.E ** 2 == jets.constituents.p ** 2, as expected. So I think
+    #       that's the reason!
     assert not all(
         np.allclose(np.asarray(measured.px), np.asarray(expected.px))
         and np.allclose(np.asarray(measured.py), np.asarray(expected.py))
@@ -603,8 +620,8 @@ def test_jet_finding_with_constituent_subtraction_does_something_multiple_events
 
     if use_custom_user_index:
         # NOTE: The order of the constituents appears to be susceptible to whether there are ghosts included or not,
-        #       so we figured out the right assignments, and then just adjusted the order as needed. Hopefully this will
-        #       be reasonably repeatable and stable.
+        #       so we figured out the right assignments by hand, and then just adjusted the order as needed based on
+        #       what result the code returned. Hopefully this will be reasonably repeatable and stable.
         expected_user_index = [[[-5, 4], [6]], [], [[7, -8], [9]]]
         assert expected_user_index == jets.constituents.user_index.to_list()
 
