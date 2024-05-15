@@ -970,8 +970,10 @@ def find_jets(
     #       However, this is left as a user preprocessing step to avoid surprising users!
     event_with_no_particles = sum_counts[1:] == sum_counts[:-1]
     if np.any(event_with_no_particles):
-        _msg = f"There are some events with zero particles, which is going to mess up the alignment. Check the input! 0s are at {np.where(event_with_no_particles)}"
-        raise ValueError(_msg)
+        _msg = f"There are some events with zero particles. This could have an impact on alignment - not sure. The 0s are at {np.where(event_with_no_particles)}"
+        logger.warning(_msg)
+        # As of May 2024, I removed this exception, since it appears to work.
+        # raise ValueError(_msg)
 
     # Now, deal with the particles themselves.
     # This will flatten the awkward array contents while keeping the record names.
@@ -1001,8 +1003,9 @@ def find_jets(
         # Validate that there is at least one particle per event
         event_with_no_particles = background_sum_counts[1:] == background_sum_counts[:-1]
         if np.any(event_with_no_particles):
-            _msg = f"There are some background events with zero particles, which is going to mess up the alignment. Check the input! 0s are at {np.where(event_with_no_particles)}"
-            raise ValueError(_msg)
+            _msg = f"There are some background events with zero particles. This could have an impact on alignment - not sure. The 0s are at {np.where(event_with_no_particles)}"
+            logger.warning(_msg)
+        #    raise ValueError(_msg)
 
         # Now, deal with the particles themselves.
         # This will flatten the awkward array contents while keeping the record names.
@@ -1032,11 +1035,12 @@ def find_jets(
 
     # Validate that the number of background events match the number of signal events
     if len(sum_counts) != len(background_sum_counts):
-        _msg = f"Mismatched between number of events for signal and background. Signal: {len(sum_counts) -1}, background: {len(background_sum_counts) - 1}"
+        # -1 because we always start counting at 0, which is to say, one event would have sum_counts = [0, n_particles]
+        _msg = f"Mismatched between number of events for signal and background. Signal: {len(sum_counts) - 1}, background: {len(background_sum_counts) - 1}"
         raise ValueError(_msg)
 
     # Keep track of the jet four vector components. Although this will have to be converted later,
-    # it seems that this is good enough enough to start.
+    # it seems that this is good enough to start.
     # NOTE: If this gets too slow, we can do the jet finding over multiple events in c++ like what
     #       is done in the new fj bindings. I skip this for now because my existing code seems to
     #       be good enough.
@@ -1133,7 +1137,6 @@ def find_jets(
         )
     else:
         if user_index is not None:
-            # print("Handling user_index mapping")
             # If we passed the user_index, then the constituent_indices which are returned (which are just the user_index
             # from fastjet) won't actually be indices of particles (ie. it may be a label, rather than an index we can use
             # in the array to find the right constituents). So here, we match up the user_index that was passed with the
@@ -1142,9 +1145,6 @@ def find_jets(
                 event_structured_particles_ref_user_index=particles.user_index,
                 event_structured_jets_constituents_user_index=_constituents_user_index_awkward,
             )
-            # if jet_finding_settings.recombiner:
-            #    print("Right after find_constituent_indices_via_user_index, needing a recombiner...")
-            #    import IPython; IPython.embed()
         else:
             # Nothing needs to be done here. Just assign for the next step
             _constituent_indices_awkward = _constituents_user_index_awkward
@@ -1162,9 +1162,6 @@ def find_jets(
         array_to_expand=_particles_for_constituents,
         constituent_indices=_constituent_indices_awkward,
     )
-    # if jet_finding_settings.recombiner:
-    #    print("Right after output_constituents, needing a recombiner...")
-    #    import IPython; IPython.embed()
 
     """
     NOTE: We don't need the constituent indices themselves since we've already mapped the constituents

@@ -49,6 +49,25 @@ def test_find_unsubtracted_constituent_index_from_subtracted_index_via_user_inde
     assert result.to_list() == [[0, 1, 2, 3], [2, 1, 0], [1, 2, 0]]
 
 
+def test_find_unsubtracted_constituent_index_from_subtracted_index_via_user_index_with_empty_events(
+    caplog: Any,
+) -> None:
+    """Test relating the unsubtracted constituent index to the"""
+    # Setup
+    caplog.set_level(logging.DEBUG)
+
+    # NOTE: This user_index permutations are probably more general than we'll see in data, but better to test fully
+    _user_index = ak.Array([[1, -2, 3, 4], [], [6, -5, 4], [9, 7, -8]])
+    _subtracted_index_to_unsubtracted_user_index_awkward = ak.Array([[1, -2, 3, 4], [], [4, -5, 6], [7, -8, 9]])
+
+    result = jet_finding.find_unsubtracted_constituent_index_from_subtracted_index_via_user_index(
+        user_indices=_user_index,
+        subtracted_index_to_unsubtracted_user_index=_subtracted_index_to_unsubtracted_user_index_awkward,
+    )
+
+    assert result.to_list() == [[0, 1, 2, 3], [], [2, 1, 0], [1, 2, 0]]
+
+
 def test_calculate_user_index_with_encoded_sign_info(caplog: Any) -> None:
     """Test calculating a custom user_index where we encode sign info."""
     # Setup
@@ -300,7 +319,14 @@ def test_jet_finding_basic_multiple_events(caplog: Any, calculate_area: bool, al
 def test_jet_finding_with_subtraction_multiple_events(
     caplog: Any, separate_background_particles_arg: bool, use_custom_user_index: bool
 ) -> None:
-    """Jet finding with subtraction for multiple events."""
+    """Jet finding with subtraction for multiple events.
+
+    Note:
+        These include empty events, so we can check that the offsets are correctly calculated.
+
+    Note that the subtraction doesn't do anything here because rho is 0.
+    It's just testing that the software interface vaguely works.
+    """
     # Setup
     caplog.set_level(logging.DEBUG)
     vector.register_awkward()
@@ -313,28 +339,34 @@ def test_jet_finding_with_subtraction_multiple_events(
     if use_custom_user_index:
         additional_fields["user_index"] = [
             [4, -5, 6],
+            [],
             [7, -8, 9],
         ]
     input_particles = ak.zip(
         {
             "px": [
                 [99.0, 4.0, -99.0],
+                [],
                 [0.1, -0.1, 0],
             ],
             "py": [
                 [0.1, -0.1, 0],
+                [],
                 [99.0, 4.0, -99.0],
             ],
             "pz": [
                 [0, 0, 0],
+                [],
                 [0, 0, 0],
             ],
             "E": [
                 [100.0, 5.0, 99.0],
+                [],
                 [100.0, 5.0, 99.0],
             ],
             "source_index": [
                 [4, 5, 6],
+                [],
                 [7, 8, 9],
             ],
             **additional_fields,
@@ -344,7 +376,46 @@ def test_jet_finding_with_subtraction_multiple_events(
     logger.info(f"input particles array type: {ak.type(input_particles)}")
     extra_kwargs = {}
     if separate_background_particles_arg:
-        extra_kwargs = {"background_particles": input_particles}
+        # Test out having any empty background event too
+        more_fields = {}
+        if use_custom_user_index:
+            more_fields["user_index"] = [
+                [4, -5, 6],
+                [],
+                [],
+            ]
+        background_particles = ak.zip(
+            {
+                "px": [
+                    [99.0, 4.0, -99.0],
+                    [],
+                    [],
+                ],
+                "py": [
+                    [0.1, -0.1, 0],
+                    [],
+                    [],
+                ],
+                "pz": [
+                    [0, 0, 0],
+                    [],
+                    [],
+                ],
+                "E": [
+                    [100.0, 5.0, 99.0],
+                    [],
+                    [],
+                ],
+                "source_index": [
+                    [4, 5, 6],
+                    [],
+                    [],
+                ],
+                **more_fields,
+            },
+            with_name="Momentum4D",
+        )
+        extra_kwargs = {"background_particles": background_particles}
 
     jets = jet_finding.find_jets(
         particles=input_particles,
@@ -369,18 +440,22 @@ def test_jet_finding_with_subtraction_multiple_events(
         {
             "px": [
                 [103.0, -99.0],
+                [],
                 [0.0, 0.0],
             ],
             "py": [
                 [0.0, 0.0],
+                [],
                 [103.0, -99.0],
             ],
             "pz": [
                 [0.0, 0.0],
+                [],
                 [0.0, 0.0],
             ],
             "E": [
                 [105.0, 99.0],
+                [],
                 [105.0, 99.0],
             ],
         },
@@ -428,28 +503,34 @@ def test_jet_finding_with_constituent_subtraction_does_something_multiple_events
     if use_custom_user_index:
         additional_fields["user_index"] = [
             [4, -5, 6],
+            [],
             [7, -8, 9],
         ]
     input_particles = ak.zip(
         {
             "px": [
                 [99.0, 4.0, -99.0],
+                [],
                 [0.1, -0.1, 0],
             ],
             "py": [
                 [0.1, -0.1, 0],
+                [],
                 [99.0, 4.0, -99.0],
             ],
             "pz": [
                 [0, 0, 0],
+                [],
                 [0, 0, 0],
             ],
             "E": [
                 [100.0, 5.0, 99.0],
+                [],
                 [100.0, 5.0, 99.0],
             ],
             "source_index": [
                 [1, 2, 3],
+                [],
                 [4, 5, 6],
             ],
             **additional_fields,
@@ -480,18 +561,22 @@ def test_jet_finding_with_constituent_subtraction_does_something_multiple_events
         {
             "px": [
                 [103.0, -99.0],
+                [],
                 [0.0, 0.0],
             ],
             "py": [
                 [0.0, 0.0],
+                [],
                 [103.0, -99.0],
             ],
             "pz": [
                 [0.0, 0.0],
+                [],
                 [0.0, 0.0],
             ],
             "E": [
                 [105.0, 99.0],
+                [],
                 [105.0, 99.0],
             ],
         },
@@ -520,7 +605,7 @@ def test_jet_finding_with_constituent_subtraction_does_something_multiple_events
         # NOTE: The order of the constituents appears to be susceptible to whether there are ghosts included or not,
         #       so we figured out the right assignments, and then just adjusted the order as needed. Hopefully this will
         #       be reasonably repeatable and stable.
-        expected_user_index = [[[-5, 4], [6]], [[7, -8], [9]]]
+        expected_user_index = [[[-5, 4], [6]], [], [[7, -8], [9]]]
         assert expected_user_index == jets.constituents.user_index.to_list()
 
     # only for testing - we want to see any fastjet warnings
