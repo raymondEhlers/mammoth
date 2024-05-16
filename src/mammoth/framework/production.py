@@ -189,7 +189,13 @@ class ProductionSettings:
     config: dict[str, Any]
     specialization: ProductionSpecialization
     _manual_analysis_parameter_keys: list[str] = attrs.field(
-        default=["jet_R", "min_jet_pt", "background_subtraction", "analysis_input_levels"]
+        default=[
+            "generator_analysis_arguments",
+            "analysis_input_levels",
+            "jet_R",
+            "min_jet_pt",
+            "background_subtraction",
+        ]
     )
     _base_output_dir: Path = attrs.field(default=Path("trains"))
 
@@ -199,7 +205,7 @@ class ProductionSettings:
         return f"{self.number:04}"
 
     @functools.cached_property
-    def identifier(self) -> str:
+    def identifier(self) -> str:  # noqa: C901
         name = ""
         # First, handle the case of possible embedding
         signal_dataset = self.config["metadata"].get("signal_dataset")
@@ -217,6 +223,27 @@ class ProductionSettings:
         _analysis_settings = self.config["settings"]
         # We want particular handling for some analysis settings, so we do those by hand.
         # The rest are included automatically
+        # Generator-specific analysis settings
+        generator_analysis_arguments = _analysis_settings.get("generator_analysis_arguments", {})
+        if generator_analysis_arguments:
+            # pop the value
+            name += f"_generator_{generator_analysis_arguments['name']}"
+            if generator_analysis_arguments.get("selected_charged_particles", False):
+                name += "_charged_particles"
+            # Generator background subtraction settings
+            name += "_background_treatment"
+            background_treatment = generator_analysis_arguments.get("background_treatment", "")
+            if background_treatment:
+                name += f"_{background_treatment}"
+            else:
+                name += "_none"
+            # Even if there is a custom particle selection, it's too detailed for the name, so we omit it.
+
+            # Finally, differentiate it a bit further - these are somewhat different settings
+            name += "_"
+
+        # We skip the analysis_input_levels. We just don't need them, and the polluted the identifier
+
         # Jet R
         jet_R_value = _analysis_settings.get("jet_R", None)
         if jet_R_value is not None:
@@ -228,16 +255,15 @@ class ProductionSettings:
             for k, v in _min_jet_pt.items():
                 name += f"_{k}_{round(v)}"
         # Background subtraction
-        name += "_background_subtraction"
+        name += "_analysis_background_subtraction"
         _background_subtraction_settings = _analysis_settings.get("background_subtraction", {})
         if not _background_subtraction_settings:
             name += "_none"
         else:
             for k, v in _background_subtraction_settings.items():
                 name += f"_{k}_{v!s}"
-        # Skip the analysis_input_levels. We just don't need them, and the polluted the identifier
         # Allow for customization
-        # NOTE: Remember to pop keys here - otherwise they will be repeated when trying to
+        # NOTE: Remember to pop keys in the customization - otherwise they will be repeated when trying to
         #       iterate and record the remaining settings.
         _analysis_settings_copy = copy.deepcopy(_analysis_settings)
         name += self.specialization.customize_identifier(analysis_settings=_analysis_settings_copy)
