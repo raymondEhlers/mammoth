@@ -422,6 +422,14 @@ generator_arguments:
   _default_PbPb_MC: &generator_arguments_default_PbPb_MC
     selected_charged_particles: true
 
+  _default_JEWEL_PbPb_MC: &generator_arguments_default_JEWEL_PbPb_MC
+    selected_charged_particles: true
+    # Default is (e-, mu-, pi+, K+, p+, Sigma+, Sigma-, Xi-, Omega-), but then we need to
+    # add [2, 21] (u, g) for holes. We also add [d, s, c, b, u] = [1, 3, 4, 5, 6] since the
+    # specification isn't specific, to my knowledge. It shouldn't hurt anything to have the rest
+    # of the quarks
+    custom_charged_hadron_PIDs: [1, 2, 3, 4, 5, 6, 21, 11, 13, 211, 321, 2212, 3222, 3112, 3312, 3334]
+
 dataset_metadata_settings:
   _base:
     _pp: &base_metadata_pp
@@ -1248,12 +1256,11 @@ productions:
 
   PbPb_MC:
     # Testing with JEWEL no recoils
-    2:
+    3:
       metadata:
         <<: *base_metadata_PbPb_MC
-        dataset: *LBL21_JEWEL_NoRecoils_Central_FastSim_1
-        # Equivalent to train number, but a more general term makes more sense here.
-        production_number: 2
+        dataset: *LBL21_JEWEL_Recoils_Central_1
+        production_number: 3
         label: "central"
       settings:
         <<: *analysis_settings_hardest_kt_PbPb_R02
@@ -1264,11 +1271,11 @@ productions:
         # No background subtraction
         # And disable artificial tracking efficiency
         det_level_artificial_tracking_efficiency: 1.0
-        generator_arguments:
-          <<: *generator_arguments_default_PbPb_MC
+        generator_analysis_arguments:
+          <<: *generator_arguments_default_JEWEL_PbPb_MC
           name: "jewel"
-          background_subtraction: "constituent_subtraction"
-          background_treatment: null
+          background_treatment: "constituent_subtraction"
+          #background_treatment: null
 
   embed_pythia:
     2:
