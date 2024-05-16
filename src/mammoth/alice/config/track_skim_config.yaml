@@ -324,7 +324,7 @@ skimmed_datasets:
     files:
       - "PbPb_MC/746611/files.txt"
   LBL21_JEWEL_Recoils_Central_1_851894: &LBL21_JEWEL_Recoils_Central_1
-    name: "LBL21_JEWEL_Recoils_1_851894"
+    name: "LBL21_JEWEL_Recoils_Central_1_851894"
     collision_system: "PbPb_MC"
     generator:
       name: "jewel"
@@ -384,7 +384,7 @@ skimmed_datasets:
     files:
       - "PbPb_MC/798301/files.txt"
   LBL21_JEWEL_Recoils_Central_FastSim_1_996432: &LBL21_JEWEL_Recoils_Central_FastSim_1
-    name: "LBL21_JEWEL_Recoils_FastSim_1_996432"
+    name: "LBL21_JEWEL_Recoils_Central_FastSim_1_996432"
     collision_system: "PbPb_MC"
     generator:
       name: "jewel"
