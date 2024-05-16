@@ -369,11 +369,16 @@ skimmed_datasets:
     skim_parameters:
       levels: ["part_level", "det_level"]
       column_modifications:
-        # NOTE: The "Status" is removed since it's only available with recoils
+        # NOTE: The "Status" is removed since it's only available with recoils.
+        #       (Strictly speaking, we don't need to remove it here, since it's
+        #       not included by default, but since this is new, it's good to have
+        #       some explicit examples.)
         part_level:
           "Status": ""
+          "ParticlePID": ""
         det_level:
           "Status": ""
+          "ParticlePID": ""
     # NOTE: The scale factors need to be copied to the appropriate production directory
     # Binning: (5 7 9 12 16 21 28 36 45 57 70 85 99 115 132 150 169 190 212 235 260)
     n_pt_hat_bins: 20
@@ -399,10 +404,13 @@ skimmed_datasets:
     skim_parameters:
       levels: ["part_level", "det_level"]
       column_modifications:
+        # NOTE: "ParticlePID" tends not be available for fastsim outputs
         part_level:
           "Status": "identifier"
+          "ParticlePID": ""
         det_level:
           "Status": "identifier"
+          "ParticlePID": ""
     # NOTE: The scale factors need to be copied to the appropriate production directory
     # Binning: (5 7 9 12 16 21 28 36 45 57 70 85 99 115 132 150 169 190 212 235 260)
     n_pt_hat_bins: 20
@@ -421,12 +429,19 @@ generator_arguments:
     selected_charged_particles: true
 
   _default_JEWEL_PbPb_MC: &generator_arguments_default_JEWEL_PbPb_MC
+    name: "jewel"
     selected_charged_particles: true
     # Default is (e-, mu-, pi+, K+, p+, Sigma+, Sigma-, Xi-, Omega-), but then we need to
     # add [2, 21] (u, g) for holes. We also add [d, s, c, b, u] = [1, 3, 4, 5, 6] since the
     # specification isn't specific, to my knowledge. It shouldn't hurt anything to have the rest
     # of the quarks
     custom_charged_hadron_PIDs: [1, 2, 3, 4, 5, 6, 21, 11, 13, 211, 321, 2212, 3222, 3112, 3312, 3334]
+  _default_JEWEL_PbPb_MC_fastsim: &generator_arguments_default_JEWEL_PbPb_MC_fastsim
+    name: "jewel"
+    # NOTE: We cannot make any selections here since we don't usually have the PID information.
+    #       We rely on the production to have made the right selections.
+    #       Due to the code conventions, we have to explicitly turn it off here to remind ourselves.
+    selected_charged_particles: false
 
 dataset_metadata_settings:
   _base:
@@ -484,6 +499,11 @@ dataset_metadata_settings:
       # Map from value -> key of how prefixes should be renamed when loading data
       loading_data_rename_levels:
         data: "part_level"
+    _PbPb_MC_two_level: &base_metadata_PbPb_MC_two_level
+      # Parameters relevant for loading the dataset
+      # Map from value -> key of how prefixes should be renamed when loading data
+      # NOTE: This isn't necessary here!
+      loading_data_rename_levels: {}
 
 analysis_settings:
   # This is the base - ie. the default - settings for reclustered substructure
@@ -537,7 +557,9 @@ analysis_settings:
       splittings_selection: "iterative"
       # In GeV
       # We don't want to restrict the part_level
-      min_jet_pt: { "det_level": 20 }
+      # NOTE: We dropped the det_level to a smaller value than the PbPb data because we want
+      #       to be able to see the trends over a larger range. It should still be a manageable output size.
+      min_jet_pt: { "det_level": 10 }
       # By default, don't apply any additional reduction
       det_level_artificial_tracking_efficiency: 1.0
 
@@ -1287,7 +1309,6 @@ productions:
         det_level_artificial_tracking_efficiency: 1.0
         generator_analysis_arguments:
           <<: *generator_arguments_default_JEWEL_PbPb_MC
-          name: "jewel"
           background_treatment: "constituent_subtraction"
           #background_treatment: null
     60:
@@ -1307,7 +1328,6 @@ productions:
         det_level_artificial_tracking_efficiency: 1.0
         generator_analysis_arguments:
           <<: *generator_arguments_default_JEWEL_PbPb_MC
-          name: "jewel"
           background_treatment: "constituent_subtraction"
     61:
       # JEWEL w/out recoils particle-level, hardest kt
@@ -1326,12 +1346,11 @@ productions:
         det_level_artificial_tracking_efficiency: 1.0
         generator_analysis_arguments:
           <<: *generator_arguments_default_JEWEL_PbPb_MC
-          name: "jewel"
           background_treatment: null
     62:
       # JEWEL w/ recoils fastsim, hardest kt
       metadata:
-        <<: *base_metadata_PbPb_MC
+        <<: *base_metadata_PbPb_MC_two_level
         dataset: *LBL21_JEWEL_Recoils_Central_FastSim_1
         production_number: 62
         label: "central"
@@ -1344,13 +1363,12 @@ productions:
         # And disable artificial tracking efficiency
         det_level_artificial_tracking_efficiency: 1.0
         generator_analysis_arguments:
-          <<: *generator_arguments_default_JEWEL_PbPb_MC
-          name: "jewel"
+          <<: *generator_arguments_default_JEWEL_PbPb_MC_fastsim
           background_treatment: "constituent_subtraction"
     63:
       # JEWEL w/out recoils fastsim, hardest kt
       metadata:
-        <<: *base_metadata_PbPb_MC
+        <<: *base_metadata_PbPb_MC_two_level
         dataset: *LBL21_JEWEL_NoRecoils_Central_FastSim_1
         production_number: 63
         label: "central"
@@ -1363,8 +1381,7 @@ productions:
         # And disable artificial tracking efficiency
         det_level_artificial_tracking_efficiency: 1.0
         generator_analysis_arguments:
-          <<: *generator_arguments_default_JEWEL_PbPb_MC
-          name: "jewel"
+          <<: *generator_arguments_default_JEWEL_PbPb_MC_fastsim
           background_treatment: null
 
   embed_pythia:

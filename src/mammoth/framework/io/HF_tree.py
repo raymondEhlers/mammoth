@@ -180,6 +180,7 @@ class FileSource:
         is_data = "data" in levels
         is_one_level_MC = "part_level" in levels and "det_level" not in levels
         is_two_level_MC = "part_level" in levels and "det_level" in levels
+        logger.debug(f"{is_data=}, {is_one_level_MC=}, {is_two_level_MC=}")
         # FastSim is a special case, so we need to handle it separately
         is_fastsim = self.metadata.get("generator", {}).get("parameters", {}).get("fastsim", False)
         # Particle columns modifications
@@ -200,7 +201,7 @@ class FileSource:
         if is_fastsim and all(
             "ParticlePID" not in list(modifications.keys()) for modifications in particle_column_modifications.values()
         ):
-            msg = "FastSim files rarely have the ParticlePID column - you probably want to remove it"
+            msg = "FastSim files rarely have the ParticlePID column - you probably want to remove it for at least some levels. Check your config!"
             logger.warning(msg)
 
         # NOTE: We can only load a whole file and chunk it afterwards since the event boundaries
