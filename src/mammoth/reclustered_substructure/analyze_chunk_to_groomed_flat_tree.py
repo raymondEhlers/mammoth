@@ -256,6 +256,9 @@ def analyze_chunk_one_input_level(
     reclustering_settings: dict[str, Any] | None = None,
     generator_analysis_arguments: framework_task.GeneratorAnalysisArguments | None = None,
     selected_grooming_methods: list[str] | None = None,
+    # Injected analysis arguments (when appropriate)
+    pt_hat_bin: int = -1,
+    scale_factors: dict[int, float] | None = None,
     # Default analysis arguments
     validation_mode: bool = False,
     return_skim: bool = False,  # noqa: ARG001
@@ -297,6 +300,8 @@ def analyze_chunk_one_input_level(
         iterative_splittings=iterative_splittings,
         track_skim_to_flat_skim_level_names=track_skim_to_flat_skim_level_names,
         selected_grooming_methods=selected_grooming_methods,
+        scale_factors=scale_factors,
+        pt_hat_bin=pt_hat_bin,
     )
 
     # NOTE: We don't look at return_skim here because the skim is the only possible output for this analysis.
