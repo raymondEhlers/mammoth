@@ -79,7 +79,19 @@ def normalize_for_one_input_level(
         data["identifier"] = data["source_index"]
     # Only add the mass if either mass or energy aren't already present
     if "m" not in ak.fields(data) and "E" not in ak.fields(data):
-        data["m"] = data["pt"] * 0 + mass_hypotheses["data"]
+        # The HFTreeCreator FastSim may not have the particle_ID information available, so we need to be
+        # to workaround this case. The simplest thing we can do is just use the a fixed mass hypothesis as
+        # we do at detector level.
+        if "particle_ID" not in ak.fields(data):
+            # NOTE: This value can be customized if desired!
+            logger.warning("No particle ID info is available, so using mass hypothesis for particle level!")
+            data["m"] = data["pt"] * 0 + mass_hypotheses["data"]
+        else:
+            # Since we have truth level info, construct the part level mass based on the particle_ID
+            # rather than a fixed mass hypothesis.
+            # NOTE: At this point, the input data should have been normalized to use "particle_ID" for
+            #       the particle ID column name, so we shouldn't need to change the column name here.
+            data["m"] = particle_ID.particle_masses_from_particle_ID(arrays=data)
     # NOTE: This is fully equivalent because we registered vector:
     #       >>> data = ak.with_name(data, name="Momentum4D")
     data = vector.Array(data)
