@@ -322,8 +322,7 @@ skimmed_datasets:
     # NOTE: Only needed if the inputs are not in the trains directory, as is the cause on hiccup
     number_of_parent_directories_for_relative_output_filename: 3
     files:
-      #- "PbPb_MC/746611/files.txt"
-      - "PbPb_MC/746611/files_test.txt"
+      - "PbPb_MC/746611/files.txt"
   LBL21_JEWEL_Recoils_Central_1_851894: &LBL21_JEWEL_Recoils_Central_1
     name: "LBL21_JEWEL_Recoils_1_851894"
     collision_system: "PbPb_MC"
@@ -383,8 +382,7 @@ skimmed_datasets:
     # NOTE: Only needed if the inputs are not in the trains directory, as is the cause on hiccup
     number_of_parent_directories_for_relative_output_filename: 3
     files:
-      #- "PbPb_MC/798301/files.txt"
-      - "PbPb_MC/798301/files_test.txt"
+      - "PbPb_MC/798301/files.txt"
   LBL21_JEWEL_Recoils_Central_FastSim_1_996432: &LBL21_JEWEL_Recoils_Central_FastSim_1
     name: "LBL21_JEWEL_Recoils_FastSim_1_996432"
     collision_system: "PbPb_MC"
