@@ -181,7 +181,7 @@ class FileSource:
         is_one_level_MC = "part_level" in levels and "det_level" not in levels
         is_two_level_MC = "part_level" in levels and "det_level" in levels
         # FastSim is a special case, so we need to handle it separately
-        is_fastsim = parameters.get("fastsim", False)
+        is_fastsim = self.metadata.get("generator", {}).get("parameters", {}).get("fastsim", False)
         # Particle columns modifications
         # Dict of dict: {level: {column_input_name: column_normalized_name}}
         # To add: define the input column name -> output column name.
