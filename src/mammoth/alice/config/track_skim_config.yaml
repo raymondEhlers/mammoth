@@ -531,6 +531,18 @@ analysis_settings:
       # In GeV
       min_jet_pt: { "data": 20 }
 
+    _PbPb_MC: &_reclustered_substructure_settings_PbPb_MC
+      track_skim_to_flat_skim_level_names: # Map from track_skim level -> level of the structured jet substructure format
+        det_level: "data"
+        part_level: "true"
+      analysis_input_levels: ["det_level", "part_level"]
+      splittings_selection: "iterative"
+      # In GeV
+      # We don't want to restrict the part_level
+      min_jet_pt: { "det_level": 20 }
+      # By default, don't apply any additional reduction
+      det_level_artificial_tracking_efficiency: 1.0
+
     _embed: &_reclustered_substructure_settings_embed
       track_skim_to_flat_skim_level_names: # Map from track_skim level -> level of the structured jet substructure format
         hybrid_level: "hybrid"
@@ -573,6 +585,11 @@ analysis_settings:
 
     PbPb_R02: &analysis_settings_hardest_kt_PbPb_R02
       <<: *_reclustered_substructure_settings_PbPb
+      jet_R: 0.2
+      selected_grooming_methods: *hardest_kt_selected_grooming_methods
+
+    PbPb_MC_R02: &analysis_settings_hardest_kt_PbPb_MC_R02
+      <<: *_reclustered_substructure_settings_PbPb_MC
       jet_R: 0.2
       selected_grooming_methods: *hardest_kt_selected_grooming_methods
 
@@ -1268,7 +1285,6 @@ productions:
           # Utilize the time reclustering output settings for convenience in testing
           <<: *reclustered_substructure_output_settings
         event_activity: "central"
-        # No background subtraction
         # And disable artificial tracking efficiency
         det_level_artificial_tracking_efficiency: 1.0
         generator_analysis_arguments:
@@ -1276,6 +1292,82 @@ productions:
           name: "jewel"
           background_treatment: "constituent_subtraction"
           #background_treatment: null
+    60:
+      # JEWEL w/ recoils particle-level, hardest kt
+      metadata:
+        <<: *base_metadata_PbPb_MC
+        dataset: *LBL21_JEWEL_Recoils_Central_1
+        production_number: 60
+        label: "central"
+      settings:
+        <<: *analysis_settings_hardest_kt_PbPb_R02
+        output_settings:
+          # Utilize the time reclustering output settings for convenience in testing
+          <<: *reclustered_substructure_output_settings
+        event_activity: "central"
+        # And disable artificial tracking efficiency
+        det_level_artificial_tracking_efficiency: 1.0
+        generator_analysis_arguments:
+          <<: *generator_arguments_default_JEWEL_PbPb_MC
+          name: "jewel"
+          background_treatment: "constituent_subtraction"
+    61:
+      # JEWEL w/out recoils particle-level, hardest kt
+      metadata:
+        <<: *base_metadata_PbPb_MC
+        dataset: *LBL21_JEWEL_NoRecoils_Central_1
+        production_number: 61
+        label: "central"
+      settings:
+        <<: *analysis_settings_hardest_kt_PbPb_R02
+        output_settings:
+          # Utilize the time reclustering output settings for convenience in testing
+          <<: *reclustered_substructure_output_settings
+        event_activity: "central"
+        # And disable artificial tracking efficiency
+        det_level_artificial_tracking_efficiency: 1.0
+        generator_analysis_arguments:
+          <<: *generator_arguments_default_JEWEL_PbPb_MC
+          name: "jewel"
+          background_treatment: null
+    62:
+      # JEWEL w/ recoils fastsim, hardest kt
+      metadata:
+        <<: *base_metadata_PbPb_MC
+        dataset: *LBL21_JEWEL_Recoils_Central_FastSim_1
+        production_number: 62
+        label: "central"
+      settings:
+        <<: *analysis_settings_hardest_kt_PbPb_MC_R02
+        output_settings:
+          # Utilize the time reclustering output settings for convenience in testing
+          <<: *reclustered_substructure_output_settings
+        event_activity: "central"
+        # And disable artificial tracking efficiency
+        det_level_artificial_tracking_efficiency: 1.0
+        generator_analysis_arguments:
+          <<: *generator_arguments_default_JEWEL_PbPb_MC
+          name: "jewel"
+          background_treatment: "constituent_subtraction"
+    63:
+      # JEWEL w/out recoils fastsim, hardest kt
+      metadata:
+        <<: *base_metadata_PbPb_MC
+        dataset: *LBL21_JEWEL_NoRecoils_Central_FastSim_1
+        production_number: 63
+        label: "central"
+      settings:
+        <<: *analysis_settings_hardest_kt_PbPb_MC_R02
+        output_settings:
+          # Utilize the time reclustering output settings for convenience in testing
+          <<: *reclustered_substructure_output_settings
+        event_activity: "central"
+        # And disable artificial tracking efficiency
+        det_level_artificial_tracking_efficiency: 1.0
+        generator_analysis_arguments:
+          <<: *generator_arguments_default_JEWEL_PbPb_MC
+          name: "jewel"
+          background_treatment: null
 
   embed_pythia:
     2:
