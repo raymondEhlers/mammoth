@@ -92,6 +92,7 @@ def standard_track_selection(
     selected_particle_column_name: str = "",
     columns_to_explicitly_select_charged_particles: Sequence[str] | None = None,
     charged_hadron_PIDs: Sequence[int] | None = None,
+    columns_to_skip_min_pt_requirement: Sequence[str] | None = None,
 ) -> ak.Array:
     """ALICE standard track selection
 
@@ -120,10 +121,15 @@ def standard_track_selection(
         columns_to_explicitly_select_charged_particles: If specified, apply the charged particle selection
             on these columns. This requires the particle ID to be available.
         charged_hadron_PIDs: Charged hadron PIDs to select. If not specified, use the default ALICE selection.
+        columns_to_skip_min_pt_requirement: List of columns that should skip the minimum pt requirement.
+            This is used if we need to do some fancier selection externally (e.g. for generators). Default: None.
+            (e.g. apply the min pt to all columns)
     Returns:
         The array with the track selection applied.
     """
     # Validation
+    if columns_to_skip_min_pt_requirement is None:
+        columns_to_skip_min_pt_requirement = []
     particle_columns = _determine_particle_column_names(
         arrays=arrays, selected_particle_column_name=selected_particle_column_name
     )
@@ -140,7 +146,11 @@ def standard_track_selection(
     logger.debug("Track level cuts")
     for column_name in particle_columns:
         # Uniformly apply min pt cut of 150 MeV
-        particle_mask = arrays[column_name].pt >= 0.150
+        min_pt_value = 0.150
+        if column_name in columns_to_skip_min_pt_requirement:
+            logger.debug(f'Skipping the min pt requirement for "{column_name}"')
+            min_pt_value = 0.0
+        particle_mask = arrays[column_name].pt >= min_pt_value
         # Optionally apply selection of only charged particles if requested
         if column_name in columns_to_explicitly_select_charged_particles:
             if "particle_ID" not in ak.fields(arrays[column_name]):

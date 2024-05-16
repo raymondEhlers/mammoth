@@ -116,9 +116,9 @@ def create_generator_settings_if_valid(
 def configure_generator_options_before_starting_analysis(
     generator: GeneratorSettings,
     collision_system: str,  # noqa: ARG001
-    arrays: ak.Array,  # noqa: ARG001
+    arrays: ak.Array,
     levels: list[str],
-) -> dict[str, Any]:
+) -> tuple[ak.Array, dict[str, Any]]:
     """Configure generator specific before starting the analysis.
 
     Args:
@@ -128,7 +128,7 @@ def configure_generator_options_before_starting_analysis(
         levels: The levels in the arrays to be analyzed.
 
     Returns:
-        track_selection_kwargs: Additional arguments to be passed to the track selection.
+        (arrays, track_selection_kwargs): arrays (possible modified), additional arguments to be passed to the track selection.
     """
     # Determine what to do (if anything) for each generator
     track_selection_kwargs: dict[str, Any] = {}
@@ -142,10 +142,27 @@ def configure_generator_options_before_starting_analysis(
     if generator.analysis_arguments.get("custom_charged_hadron_PIDs"):
         track_selection_kwargs["charged_hadron_PIDs"] = generator.analysis_arguments.get("custom_charged_hadron_PIDs")
 
-    # Customize for the generator
+    # Customize for each generator
     match generator.name:
         case "jewel":
-            ...
+            # NOTE: The JEWEL production at LBL doesn't have any e.g. eta cuts. I don't apply them here
+            #       because the jet finding will implicitly cut them. However, it's important to keep them
+            #       in mind if we're using the tracks for something else.
+            # Requirements:
+            # Uniformly apply min pt cut of 150 MeV, except for the recoils. We keep all of them
+            # since a cut of them seems unphysical (because they're just a model detail).
+            # We also apply an eta requirement that is quite large, but cuts down on fastjet
+            # warnings about empty jets (and also speeds things up).
+            for column_name in levels:
+                # Selection is >= 150 MeV or a recoil
+                particle_mask = (arrays[column_name].pt >= 0.150) | (arrays[column_name].identifier == 3)
+                # Apply the mask
+                arrays[column_name] = arrays[column_name][particle_mask]
+
+                # And note to skip the pt selection in the standard track selection
+                if "columns_to_skip_min_pt_requirement" not in track_selection_kwargs:
+                    track_selection_kwargs["columns_to_skip_min_pt_requirement"] = []
+                track_selection_kwargs["columns_to_skip_min_pt_requirement"].append(column_name)
         case "jetscape":
             ...
         case "pythia":
@@ -156,7 +173,11 @@ def configure_generator_options_before_starting_analysis(
             _msg = f"Unrecognized generator: {generator}"
             raise ValueError(_msg)
 
-    return track_selection_kwargs
+    logger.info(
+        f"Generator customization analysis arguments: {generator.analysis_arguments=} -> {track_selection_kwargs=}"
+    )
+
+    return arrays, track_selection_kwargs
 
 
 def _negative_energy_recombiner_for_generator(
@@ -337,6 +358,8 @@ def _handle_jewel_options_before_jet_finding(  # noqa: C901
                 # And then pick out the recoil particles, passing them as the explicit background subtraction
                 jet_finding_kwargs[level]["background_particles"] = arrays[level][recoil_particles_mask]
         elif background_treatment_options["background_subtraction"] == "4mon_subtraction":
+            # NOTE: The "dummy" particle may already be filtered out in the track selection.
+            #       This should be checked if we implement this option.
             msg = "4mon subtraction is not yet implemented"
             # NOTE: Need to filter both the signal and background particles
             raise NotImplementedError(msg)

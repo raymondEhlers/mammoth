@@ -60,8 +60,8 @@ def analyze_track_skim_and_recluster_data(
     )
     track_selection_additional_kwargs = {}
     if gen_settings:
-        # Generator is valid
-        _res = generator_settings.configure_generator_options_before_starting_analysis(
+        # Generator is valid - time to customize
+        arrays, _res = generator_settings.configure_generator_options_before_starting_analysis(
             generator=gen_settings,
             collision_system=collision_system,
             arrays=arrays,
@@ -239,8 +239,8 @@ def analyze_track_skim_and_recluster_MC(
     )
     track_selection_additional_kwargs = {}
     if gen_settings:
-        # Generator is valid
-        _res = generator_settings.configure_generator_options_before_starting_analysis(
+        # Generator is valid - time to customize
+        arrays, _res = generator_settings.configure_generator_options_before_starting_analysis(
             generator=gen_settings,
             collision_system=collision_system,
             arrays=arrays,
