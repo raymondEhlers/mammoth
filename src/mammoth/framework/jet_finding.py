@@ -1011,7 +1011,7 @@ def find_jets(
             # See the note above about requiring at least one particle per event above.
             # Long story short, I think this isn't required as of May 2024, but we leave it
             # as a warning out of an abundance of caution.
-            _msg = f"There are some events with zero particles. If issues, check here. The 0s are at {np.where(event_with_no_particles)}"
+            _msg = f"There are some background events with zero particles. If issues, check here. The 0s are at {np.where(event_with_no_particles)}"
             logger.warning(_msg)
 
         # Now, deal with the particles themselves.
