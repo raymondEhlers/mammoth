@@ -115,7 +115,7 @@ def create_generator_settings_if_valid(
 
 def configure_generator_options_before_starting_analysis(
     generator: GeneratorSettings,
-    collision_system: str,  # noqa: ARG001
+    collision_system: str,
     arrays: ak.Array,
     levels: list[str],
 ) -> tuple[ak.Array, dict[str, Any]]:
@@ -153,16 +153,18 @@ def configure_generator_options_before_starting_analysis(
             # since a cut of them seems unphysical (because they're just a model detail).
             # We also apply an eta requirement that is quite large, but cuts down on fastjet
             # warnings about empty jets (and also speeds things up).
-            for column_name in levels:
-                # Selection is >= 150 MeV or a recoil
-                particle_mask = (arrays[column_name].pt >= 0.150) | (arrays[column_name].identifier == 3)
-                # Apply the mask
-                arrays[column_name] = arrays[column_name][particle_mask]
+            if collision_system in ["PbPb_MC"]:
+                for column_name in levels:
+                    # Selection is >= 150 MeV or a recoil
+                    # NOTE: If there are no recoils, then the selection of identifier == 3 won't change anything
+                    particle_mask = (arrays[column_name].pt >= 0.150) | (arrays[column_name].identifier == 3)
+                    # Apply the mask
+                    arrays[column_name] = arrays[column_name][particle_mask]
 
-                # And note to skip the pt selection in the standard track selection
-                if "columns_to_skip_min_pt_requirement" not in track_selection_kwargs:
-                    track_selection_kwargs["columns_to_skip_min_pt_requirement"] = []
-                track_selection_kwargs["columns_to_skip_min_pt_requirement"].append(column_name)
+                    # And note to skip the pt selection in the standard track selection
+                    if "columns_to_skip_min_pt_requirement" not in track_selection_kwargs:
+                        track_selection_kwargs["columns_to_skip_min_pt_requirement"] = []
+                    track_selection_kwargs["columns_to_skip_min_pt_requirement"].append(column_name)
         case "jetscape":
             ...
         case "pythia":

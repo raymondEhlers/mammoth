@@ -202,6 +202,7 @@ skimmed_datasets:
     skim_type: "HF_tree_at_LBL"
     skim_parameters:
       levels: ["part_level"]
+      column_modifications: {}
     # NOTE: The scale factors need to be copied to the appropriate production directory
     # Binning: (5 7 9 12 16 21 28 36 45 57 70 85 99 115 132 150 169 190 212 235 260)
     n_pt_hat_bins: 20
@@ -451,6 +452,11 @@ dataset_metadata_settings:
       loading_data_rename_levels:
         data: "data"
 
+    _pp_MC_one_level: &base_metadata_pp_MC_one_level
+      # Parameters relevant for loading the dataset
+      # Map from value -> key of how prefixes should be renamed when loading data
+      loading_data_rename_levels:
+        data: "part_level"
     _pythia: &base_metadata_pythia
       # Parameters relevant for loading the dataset
       # Map from value -> key of how prefixes should be renamed when loading data
@@ -1085,6 +1091,23 @@ productions:
         combinatorics_chunk_size: 1000
         output_settings:
           <<: *EEC_output_settings_hadron_trigger_two_input_level
+    77:
+      # JEWEL pp hardest kt
+      metadata:
+        <<: *base_metadata_pp_MC_one_level
+        dataset: *LBL21_JEWEL_pp_1
+        production_number: 77
+        label: ""
+      settings:
+        <<: *analysis_settings_hardest_kt_pp_R02
+        output_settings:
+          # Utilize the time reclustering output settings for convenience in testing
+          <<: *reclustered_substructure_output_settings
+        # And disable artificial tracking efficiency
+        det_level_artificial_tracking_efficiency: 1.0
+        generator_analysis_arguments:
+          <<: *generator_arguments_default_pp_MC
+          name: "jewel"
 
   PbPb:
     2:
