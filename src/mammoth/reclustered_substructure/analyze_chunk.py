@@ -383,24 +383,36 @@ def analyze_track_skim_and_recluster_MC(
     )
 
     # Reclustering
-    logger.info("Reclustering jets...")
-    for level in ["part_level", "det_level"]:
-        # We only do the area calculation for data.
-        reclustering_kwargs = {**reclustering_settings}
-        if level != "part_level":
-            reclustering_kwargs["area_settings"] = jet_finding.AreaSubstructure(**area_kwargs)
-        # Add in the generator specific customizations
-        if gen_settings and jet_finding_settings_additional_kwargs[level]:
-            reclustering_settings.update(jet_finding_settings_additional_kwargs[level])
-        logger.info(f"Reclustering {level} jets with {reclustering_kwargs}...")
-        jets[level, "reclustering"] = jet_finding.recluster_jets(
-            jets=jets[level],
-            jet_finding_settings=jet_finding.ReclusteringJetFindingSettings(
-                **reclustering_kwargs,
-            ),
-            store_recursive_splittings=True,
-        )
-    logger.info("Done with reclustering")
+    # If we're out of jets, reclustering will fail. So if we're out of jets, then skip this step
+    # NOTE: We need to select a level to use for checking jets. We select the part_level arbitrarily
+    #       (it shouldn't matter overly much because we've required jet matching at this point)
+    # NOTE: We need to flatten since we could just have empty events.
+    # NOTE: Further, we need to access some variable to avoid flattening into a record, so we select px arbitrarily.
+    # NOTE: We have to use pt because of awkward #2207 (https://github.com/scikit-hep/awkward/issues/2207)
+    _there_are_jets_left = len(ak.flatten(jets["part_level"].pt, axis=None)) > 0
+    # Now, we actually run the reclustering if possible
+    if not _there_are_jets_left:
+        logger.warning("No jets left for reclustering. Skipping reclustering...")
+    else:
+        logger.info("Reclustering jets...")
+        for level in ["part_level", "det_level"]:
+            # We only do the area calculation for data.
+            reclustering_kwargs = {**reclustering_settings}
+            if level != "part_level":
+                reclustering_kwargs["area_settings"] = jet_finding.AreaSubstructure(**area_kwargs)
+            # Add in the generator specific customizations
+            if gen_settings and jet_finding_settings_additional_kwargs[level]:
+                reclustering_settings.update(jet_finding_settings_additional_kwargs[level])
+            logger.info(f"Reclustering {level} jets with {reclustering_kwargs}...")
+            jets[level, "reclustering"] = jet_finding.recluster_jets(
+                jets=jets[level],
+                jet_finding_settings=jet_finding.ReclusteringJetFindingSettings(
+                    **reclustering_kwargs,
+                ),
+                store_recursive_splittings=True,
+            )
+
+        logger.info("Done with reclustering")
 
     logger.info(f"n events: {len(jets)}")
     logger.info(f"n jets accepted: {np.count_nonzero(np.asarray(ak.flatten(jets['det_level'].px, axis=None)))}")
