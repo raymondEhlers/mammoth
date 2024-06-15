@@ -149,7 +149,7 @@ def hardest_kt_data_skim(
                 jet_R=jet_R,
                 min_jet_pt=min_jet_pt,
                 validation_mode=validation_mode,
-                background_subtraction_settings=background_subtraction,
+                background_subtraction=background_subtraction,
             )
         elif collision_system in ["pythia", "pp_MC"]:
             # Validation
@@ -333,7 +333,7 @@ def hardest_kt_embed_thermal_model_skim(  # noqa: C901
                 arrays=arrays,
                 jet_R=jet_R,
                 min_jet_pt=min_jet_pt,
-                background_subtraction_settings=background_subtraction,
+                background_subtraction=background_subtraction,
                 det_level_artificial_tracking_efficiency=det_level_artificial_tracking_efficiency,
                 validation_mode=validation_mode,
             )
@@ -498,7 +498,7 @@ def hardest_kt_embedding_skim(  # noqa: C901
                 arrays=arrays,
                 jet_R=jet_R,
                 min_jet_pt=min_jet_pt,
-                background_subtraction_settings=background_subtraction,
+                background_subtraction=background_subtraction,
                 det_level_artificial_tracking_efficiency=det_level_artificial_tracking_efficiency,
                 validation_mode=validation_mode,
             )

@@ -31,7 +31,7 @@ def analyze_track_skim_and_recluster_data(
     # Analysis arguments
     jet_R: float,
     min_jet_pt: Mapping[str, float],
-    background_subtraction_settings: Mapping[str, Any] | None = None,
+    background_subtraction: Mapping[str, Any] | None = None,
     reclustering_settings: dict[str, Any] | None = None,
     particle_column_name: str = "data",
     generator_analysis_arguments: framework_task.GeneratorAnalysisArguments | None = None,
@@ -46,8 +46,8 @@ def analyze_track_skim_and_recluster_data(
         If this use case became important, we could easily adapt it.
     """
     # Validation
-    if background_subtraction_settings is None:
-        background_subtraction_settings = {}
+    if background_subtraction is None:
+        background_subtraction = {}
     if reclustering_settings is None:
         reclustering_settings = {}
 
@@ -99,7 +99,7 @@ def analyze_track_skim_and_recluster_data(
                 )
             ),
             subtractor=jet_finding.ConstituentSubtractor(
-                r_max=background_subtraction_settings.get("r_max", 0.25),
+                r_max=background_subtraction["r_max"],
             ),
         )
 
@@ -435,11 +435,11 @@ def analyze_track_skim_and_recluster_embedding(
     *,
     source_index_identifiers: Mapping[str, int],
     arrays: ak.Array,
-    input_metadata: framework_task.InputMetadata,  # noqa: ARG001
+    input_metadata: framework_task.InputMetadata,
     # Analysis arguments
     jet_R: float,
     min_jet_pt: Mapping[str, float],
-    background_subtraction_settings: Mapping[str, Any] | None = None,
+    background_subtraction: Mapping[str, Any],
     shared_momentum_fraction_min: float = 0.5,
     det_level_artificial_tracking_efficiency: float | analysis_tracking.PtDependentTrackingEfficiencyParameters = 1.0,
     reclustering_settings: dict[str, Any] | None = None,
@@ -453,15 +453,31 @@ def analyze_track_skim_and_recluster_embedding(
         Since we nearly always need to convert this further to a flat skim, we need to wrap
         this function to do so, and thus we don't fully implement the Analysis interface.
         If this use case became important, we could easily adapt it.
+
+    Args:
+        background_subtraction: Background subtraction settings. If you don't want anything, then pass any empty dict.
     """
     # Validation
-    if background_subtraction_settings is None:
-        background_subtraction_settings = {}
     if reclustering_settings is None:
         reclustering_settings = {}
-    if generator_analysis_arguments is not None:
-        msg = "Provided generator analysis arguments, but they are not yet supported in embedding. Check your use case! (If valid, you'll need to implement it)"
-        raise ValueError(msg)
+
+    # Setup
+    levels = ["part_level", "det_level", "hybrid_level"]
+    collision_system = "embed_pythia"
+    gen_settings = generator_settings.create_generator_settings_if_valid(
+        input_source_config=input_metadata["signal_source_config"],
+        generator_analysis_arguments=generator_analysis_arguments,
+    )
+    track_selection_additional_kwargs = {}
+    if gen_settings:
+        # Generator is valid - time to customize
+        arrays, _res = generator_settings.configure_generator_options_before_starting_analysis(
+            generator=gen_settings,
+            collision_system=collision_system,
+            arrays=arrays,
+            levels=levels,
+        )
+        track_selection_additional_kwargs.update(_res)
 
     # Event selection
     # This would apply to the signal events, because this is what we propagate from the embedding transform
@@ -469,7 +485,9 @@ def analyze_track_skim_and_recluster_embedding(
 
     # Track cuts
     arrays = alice_helpers.standard_track_selection(
-        arrays=arrays, require_at_least_one_particle_in_each_collection_per_event=True
+        arrays=arrays,
+        require_at_least_one_particle_in_each_collection_per_event=True,
+        **track_selection_additional_kwargs,
     )
 
     # Jet finding
@@ -478,6 +496,15 @@ def analyze_track_skim_and_recluster_embedding(
     area_kwargs = {}
     if validation_mode:
         area_kwargs["random_seed"] = jet_finding.VALIDATION_MODE_RANDOM_SEED
+
+    if gen_settings:
+        if gen_settings.parameters.get("recoils"):
+            # We don't yet support recoils, so raise an error if they are present
+            msg = "Recoils are not yet supported in the embedding analysis."
+            raise ValueError(msg)
+        if gen_settings.analysis_arguments.get("background_treatment"):
+            msg = "Background treatment is not yet supported in the embedding analysis."
+            raise ValueError(msg)
 
     # Calculate the relevant masks for hybrid level particles:
     # 1. We may need to mask the hybrid level particles to apply an artificial tracking inefficiency
@@ -537,7 +564,7 @@ def analyze_track_skim_and_recluster_embedding(
                         )
                     ),
                     subtractor=jet_finding.ConstituentSubtractor(
-                        r_max=background_subtraction_settings.get("r_max", 0.25),
+                        r_max=background_subtraction["r_max"],
                     ),
                 ),
             ),
@@ -655,7 +682,7 @@ def run_some_standalone_experiments() -> None:
     #    input_metadata={},
     #    jet_R=0.2,
     #    min_jet_pt={"data": 20.0 if collision_system == "pp" else 20.0},
-    #    background_subtraction_settings={"r_max": 0.1},
+    #    background_subtraction={"r_max": 0.1},
     # )
 
     source_index_identifiers, iter_arrays = load_data.embedding(
@@ -680,7 +707,7 @@ def run_some_standalone_experiments() -> None:
             min_jet_pt={
                 "hybrid_level": 20,
             },
-            background_subtraction_settings={"r_max": 0.1},
+            background_subtraction={"r_max": 0.1},
             det_level_artificial_tracking_efficiency=0.99,
         )
 

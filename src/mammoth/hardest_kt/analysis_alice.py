@@ -172,11 +172,11 @@ def analysis_data(
     min_jet_pt: Mapping[str, float],
     particle_column_name: str = "data",
     validation_mode: bool = False,
-    background_subtraction_settings: Mapping[str, Any] | None = None,
+    background_subtraction: Mapping[str, Any] | None = None,
 ) -> ak.Array:
     # Validation
-    if background_subtraction_settings is None:
-        background_subtraction_settings = {}
+    if background_subtraction is None:
+        background_subtraction = {}
 
     logger.info("Start analyzing")
     # Event selection
@@ -208,7 +208,7 @@ def analysis_data(
                 )
             ),
             subtractor=jet_finding.ConstituentSubtractor(
-                r_max=background_subtraction_settings.get("r_max", 0.25),
+                r_max=background_subtraction["r_max"],
             ),
         )
 
@@ -286,15 +286,11 @@ def analysis_embedding(
     arrays: ak.Array,
     jet_R: float,
     min_jet_pt: Mapping[str, float],
-    background_subtraction_settings: Mapping[str, Any] | None = None,
+    background_subtraction: Mapping[str, Any],
     validation_mode: bool = False,
     shared_momentum_fraction_min: float = 0.5,
     det_level_artificial_tracking_efficiency: float | analysis_tracking.PtDependentTrackingEfficiencyParameters = 1.0,
 ) -> ak.Array:
-    # Validation
-    if background_subtraction_settings is None:
-        background_subtraction_settings = {}
-
     # Event selection
     # This would apply to the signal events, because this is what we propagate from the embedding transform
     arrays = alice_helpers.standard_event_selection(arrays=arrays)
@@ -369,7 +365,7 @@ def analysis_embedding(
                         )
                     ),
                     subtractor=jet_finding.ConstituentSubtractor(
-                        r_max=background_subtraction_settings.get("r_max", 0.25),
+                        r_max=background_subtraction["r_max"],
                     ),
                 ),
             ),
@@ -552,7 +548,7 @@ if __name__ == "__main__":
     #    ),
     #    jet_R=0.2,
     #    min_jet_pt={"data": 20.0 if collision_system == "pp" else 20.0},
-    #    background_subtraction_settings={"r_max": 0.1},
+    #    background_subtraction={"r_max": 0.1},
     # )
 
     source_index_identifiers, iter_arrays = load_data.embedding(
@@ -576,7 +572,7 @@ if __name__ == "__main__":
             min_jet_pt={
                 "hybrid_level": 20,
             },
-            background_subtraction_settings={"r_max": 0.1},
+            background_subtraction={"r_max": 0.1},
             det_level_artificial_tracking_efficiency=0.99,
         )
 

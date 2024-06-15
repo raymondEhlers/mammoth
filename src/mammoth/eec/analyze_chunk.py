@@ -943,7 +943,6 @@ def minimal_test() -> None:
     #    ),
     #    jet_R=0.2,
     #    min_jet_pt={"data": 20.0 if collision_system == "pp" else 20.0},
-    #    background_subtraction_settings={"r_max": 0.1},
     # )
 
     # source_index_identifiers, iter_arrays = load_data.embedding(
