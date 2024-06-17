@@ -399,6 +399,7 @@ skimmed_datasets:
     number_of_parent_directories_for_relative_output_filename: 3
     files:
       - "PbPb_MC/798301/files.txt"
+      # - "PbPb_MC/798301/files_test.txt"
   LBL21_JEWEL_Recoils_Central_FastSim_1_996432: &LBL21_JEWEL_Recoils_Central_FastSim_1
     name: "LBL21_JEWEL_Recoils_Central_FastSim_1_996432"
     collision_system: "PbPb_MC"
@@ -1821,8 +1822,7 @@ productions:
       # pythia fastsim embedded into central, r_max = 0.1.
       metadata:
         <<: *base_metadata_embed
-        # TODO: Switch to LHC18qr_PbPb_central_at_LBL
-        dataset: *LHC18qr_PbPb_semi_central
+        dataset: *LHC18qr_PbPb_central_at_LBL
         signal_dataset: *LBL20_Pythia_FastSim_1_17pq
         production_number: 79
         label: "embed_pythia_fastsim_central"
@@ -1843,8 +1843,7 @@ productions:
       # JEWEL no recoils fastsim embedded into central, r_max = 0.1.
       metadata:
         <<: *base_metadata_embed
-        # TODO: Switch to LHC18qr_PbPb_central_at_LBL
-        dataset: *LHC18qr_PbPb_semi_central
+        dataset: *LHC18qr_PbPb_central_at_LBL
         signal_dataset: *LBL21_JEWEL_NoRecoils_Central_FastSim_1
         production_number: 80
         label: "embed_jewel_NoRecoils_fastsim_central"

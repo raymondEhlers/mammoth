@@ -35,7 +35,7 @@ setup_standard_workflow, setup_embed_workflow = steer_workflow.setup_framework_d
 def define_productions() -> list[production.ProductionSettings]:
     # We want to provide the opportunity to run multiple productions at once.
     # We'll do so by defining each production below and then iterating over them below
-    productions = []
+    productions: list[production.ProductionSettings] = []
 
     # Create and store production information
     _here = Path(__file__).parent
@@ -44,8 +44,9 @@ def define_productions() -> list[production.ProductionSettings]:
         [
             # Debug
             # production.ProductionSettings.read_config(
-            #     collision_system="embed_pythia", number=3,
-            #     specialization=HardestKtProductionSpecialization(),
+            #     collision_system="embed_pythia",
+            #     number=79,
+            #     specialization=grooming_workflow.ProductionSpecialization(),
             #     track_skim_config_filename=config_filename,
             # ),
             # Production
@@ -81,8 +82,8 @@ def define_productions() -> list[production.ProductionSettings]:
             #    track_skim_config_filename=config_filename,
             # ),
             production.ProductionSettings.read_config(
-                collision_system="pp_MC",
-                number=6,
+                collision_system="embed_pythia",
+                number=79,
                 specialization=grooming_workflow.ProductionSpecialization(),
                 track_skim_config_filename=config_filename,
             ),
@@ -169,7 +170,25 @@ def run(job_framework: job_utils.JobFramework) -> list[Future[Any]]:
     log_level = logging.INFO
     walltime = "24:00:00"
     override_minimize_IO_as_possible = None
-    debug_mode = True
+    debug_mode = False
+    # debug_mode: dict[str | int, Any] = {11: [Path("trains/PbPb_MC/851894/run_by_run/tree_gen/851894/11/380/jewel.root")]}
+    # debug_mode: dict[str | int, Any] = {6: [Path("trains/PbPb_MC/798301/sim/746611/6/75/AnalysisResultsFastSim.root")]}
+    # debug_mode: dict[str | int, Any] = {1: [Path("trains/PbPb_MC/798301/sim/746611/1/86/AnalysisResultsFastSim.root")]}
+    # debug_mode: dict[str | int, Any] = {18: [Path("trains/pp_MC/823890/run_by_run/tree_gen/823890/18/281/jewel.root")]}
+    # debug_mode: dict[str | int, Any] = {
+    #    "signal_input_files_per_pt_hat": {
+    #        # PYTHIA standard
+    #        #20: [Path("trains/pythia/2640/run_by_run/LHC20g4/296244/20/AnalysisResults.20g4.011.root")]
+    #        # PYTHIA fastsim
+    #        9: [Path("trains/pp_MC/258314/run_by_run/258314/LHC18b8/520/child_1/TrainOutput/9/282146/0002/AnalysisResultsFastSim.root")],
+    #        # JEWEL no recoils fastsim
+    #        #6: [Path("trains/PbPb_MC/798301/sim/746611/6/75/AnalysisResultsFastSim.root")]
+    #    },
+    #    "background_input_files": [
+    #        #Path("trains/PbPb/645/run_by_run/LHC18r/297595/AnalysisResults.18r.511.root"),
+    #        Path("trains/PbPb/645/run_by_run/LHC18r/296749/AnalysisResults.18r.106.root"),
+    #    ],
+    # }
     if debug_mode:
         # Usually, we want to run in the short queue
         target_n_tasks_to_run_simultaneously = 2
