@@ -1860,6 +1860,47 @@ productions:
         generator_analysis_arguments:
           <<: *generator_arguments_default_JEWEL_PbPb_MC_fastsim
           background_treatment: null
+    # There was a bug in passing the background subtraction r_max to the task settings
+    # in productions 77 and 78 (it was a mismatch in the naming). Therefore, we create new productions here.
+    # They're identical configurations but I want new production numbers for bookkeeping.
+    81:
+      # Tracking efficiency systematic with pt dependence for semi-central, r_max = 0.1. Added 17 June 2024.
+      # This includes a bug fix for passing the background subtraction r_max
+      metadata:
+        <<: *base_metadata_embed
+        dataset: *LHC18qr_PbPb_semi_central
+        signal_dataset: *LHC20g4_pythia
+        production_number: 81
+        label: "embed_pythia_semi_central"
+      settings:
+        <<: *analysis_settings_hardest_kt_embed_R02
+        output_settings:
+          <<: *reclustered_substructure_output_settings
+        event_activity: "semi_central"
+        chunk_size: 4000
+        background_subtraction:
+          r_max: 0.1
+        det_level_artificial_tracking_efficiency: 0.99
+        apply_pt_dependent_tracking_efficiency_uncertainty: true
+    82:
+      # Tracking efficiency systematic with pt dependence for central, r_max = 0.1. Added 17 June 2024.
+      # This includes a bug fix for passing the background subtraction r_max
+      metadata:
+        <<: *base_metadata_embed
+        dataset: *LHC18qr_PbPb_central_at_LBL
+        signal_dataset: *LHC20g4_pythia
+        production_number: 82
+        label: "embed_pythia_central"
+      settings:
+        <<: *analysis_settings_hardest_kt_embed_R02
+        output_settings:
+          <<: *reclustered_substructure_output_settings
+        event_activity: "central"
+        chunk_size: 4000
+        background_subtraction:
+          r_max: 0.1
+        det_level_artificial_tracking_efficiency: 0.98
+        apply_pt_dependent_tracking_efficiency_uncertainty: true
 
   embed_thermal_model:
     2:
