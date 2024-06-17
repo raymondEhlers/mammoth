@@ -318,6 +318,7 @@ def _structured_skim_to_flat_skim_for_three_track_collections(
     track_skim_to_flat_skim_level_names: Mapping[str, str],
     scale_factor: float,
     selected_grooming_methods: list[str] | None = None,
+    match_det_level_true_using_distance: bool = False,
 ) -> groomed_substructure_skim_to_flat_tree.T_GroomingResults:
     """Convert the structured skim output to a flat skim using grooming methods.
 
@@ -345,6 +346,7 @@ def _structured_skim_to_flat_skim_for_three_track_collections(
         jet_R=jet_R,
         scale_factor=scale_factor,
         selected_grooming_methods=selected_grooming_methods,
+        match_det_level_true_using_distance=match_det_level_true_using_distance,
     )
 
 
@@ -364,6 +366,7 @@ def analyze_chunk_three_input_level(
     reclustering_settings: dict[str, Any] | None = None,
     generator_analysis_arguments: framework_task.GeneratorAnalysisArguments | None = None,
     selected_grooming_methods: list[str] | None = None,
+    match_det_level_true_using_distance: bool = False,
     # Default analysis arguments
     validation_mode: bool = False,
     return_skim: bool = False,  # noqa: ARG001
@@ -405,6 +408,7 @@ def analyze_chunk_three_input_level(
         track_skim_to_flat_skim_level_names=track_skim_to_flat_skim_level_names,
         scale_factor=scale_factor,
         selected_grooming_methods=selected_grooming_methods,
+        match_det_level_true_using_distance=match_det_level_true_using_distance,
     )
 
     # NOTE: We don't look at return_skim here because the skim is the only possible output for this analysis.

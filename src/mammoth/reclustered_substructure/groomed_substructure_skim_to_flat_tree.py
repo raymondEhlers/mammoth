@@ -779,6 +779,7 @@ def calculate_three_input_level_skim_impl(
     create_friend_tree: bool = False,
     draw_example_splittings_to_filename: Path | None = None,
     selected_grooming_methods: list[str] | None = None,
+    match_det_level_true_using_distance: bool = False,
 ) -> T_GroomingResults:
     """Calculate the flat skim based on the all_jets input for three input levels.
 
@@ -795,6 +796,8 @@ def calculate_three_input_level_skim_impl(
         draw_example_splittings: If True, draw a few interesting splitting graphs. Default: False.
         selected_grooming_methods: Select a subset of grooming methods. Default: None, which
             includes all grooming methods.
+        match_det_level_true_using_distance: If True, match using distance. Otherwise, match
+            using the stored label. Default: False (i.e. use label)
 
     Returns:
         Grooming results.
@@ -964,7 +967,7 @@ def calculate_three_input_level_skim_impl(
                 generator_like_jets_calculation=calculations["true"],
                 generator_like_jets_label="true",
                 grooming_method=func_name,
-                match_using_distance=False,
+                match_using_distance=match_det_level_true_using_distance,
             )
             grooming_results.update(det_level_true_matching_results)
             logger.debug("Done with second prong matching")

@@ -624,6 +624,18 @@ analysis_settings:
       jet_R: 0.2
       selected_grooming_methods: *hardest_kt_selected_grooming_methods
 
+    embed_R02_fastsim: &analysis_settings_hardest_kt_embed_R02_fastsim
+      <<: *_reclustered_substructure_settings_embed
+      jet_R: 0.2
+      selected_grooming_methods: *hardest_kt_selected_grooming_methods
+      # In the case of a fastsim, we usually don't have identifiers between part_level and det_level.
+      # Consequently, we can't rely on the identifier for matching. Instead, we have to use distance matching.
+      # NOTE: The det_level and hybrid usually still work, since it's basically just matching the
+      #       det_level identifier that we generate back to itself. If this becomes an issue later,
+      #       we'll have to add another setting.
+      # NOTE: To be 100% clear, this is due to the signal dataset, not the background dataset!
+      match_det_level_true_using_distance: true
+
   _time_reclustering_settings:
     reclustering_settings: &_time_reclustering_reclustering_settings
       algorithm: "generalized_kt"
