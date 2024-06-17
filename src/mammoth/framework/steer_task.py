@@ -98,6 +98,17 @@ def steer_task_execution(  # noqa: C901
                     logger.info(f"Skipping already processed chunk {i_chunk}: {res}")
                     # Setup for next loop
                     i_chunk += 1
+                    # And skip over the corresponding data. Ideally, we could skip this to save the reading,
+                    # but if we don't go through to exhaust the iterator, then we'll just repeat reading the
+                    # data and add more chunks on afterwards.
+                    # i.e. If there are 3 chunks,
+                    #       - In the case without reading the iter, we'll skip over the three chunks due
+                    #         due to the existence of the files, but then we'll read the array chunks and add
+                    #         3 more chunks.
+                    #       - In the case with reading the iter, we'll skip over the three chunks due to the
+                    #         existence of the files and read the array each time. So when we get to the fourth
+                    #         iteration, the iterator will be exhausted, and we won't create more chunks.
+                    _ = next(iter_arrays)
                     continue
 
             continue_on_to_write_output = True
