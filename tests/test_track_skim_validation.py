@@ -674,6 +674,7 @@ def test_track_skim_validation(  # noqa: C901
                 scale_factors=scale_factors,
                 pt_hat_bin=_analysis_parameters.pt_hat_bin,
                 validation_mode=True,
+                background_subtraction={"r_max": 0.25} if collision_system == "PbPb" else None,
             )
         else:
             # Help out typing...
