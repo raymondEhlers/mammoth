@@ -142,8 +142,11 @@ def test_manual_data_embedding(
         assert len(arrays) > 0
 
 
+@pytest.mark.parametrize("collision_system", ["pythia", "pp_MC"])
 @pytest.mark.parametrize("chunk_size", [2000, 1000])
-def test_chunk_generation_from_existing_data_with_fixed_chunk_size(caplog: Any, chunk_size: int) -> None:
+def test_chunk_generation_from_existing_data_with_fixed_chunk_size(
+    caplog: Any, collision_system: str, chunk_size: int
+) -> None:
     """Test chunk size generation when using an existing data input
 
     Usually, this would be via an uproot source. Here, I'm using the track skim for some extra convenience,
@@ -163,7 +166,7 @@ def test_chunk_generation_from_existing_data_with_fixed_chunk_size(caplog: Any, 
     #       chunk generation from existing data.
     pythia_source = track_skim.FileSource(
         filename=_input_filename,
-        collision_system="pythia",
+        collision_system=collision_system,
     )
     # We need the full size to figure out the expect values.
     # NOTE: This is inefficient, but it's not the end of the world. We could always set it manually if becomes a problem
@@ -187,6 +190,7 @@ def test_chunk_generation_from_existing_data_with_fixed_chunk_size(caplog: Any, 
         assert len(data) < chunk_size
 
 
+@pytest.mark.parametrize("collision_system", ["pythia", "pp_MC"])
 @pytest.mark.parametrize(
     "chunk_size",
     [
@@ -195,7 +199,9 @@ def test_chunk_generation_from_existing_data_with_fixed_chunk_size(caplog: Any, 
         [11000, 358, 200],
     ],
 )
-def test_chunk_generation_from_existing_data_with_variable_chunk_size(caplog: Any, chunk_size: Sequence[int]) -> None:
+def test_chunk_generation_from_existing_data_with_variable_chunk_size(
+    caplog: Any, collision_system: str, chunk_size: Sequence[int]
+) -> None:
     """Test chunk size generation when using an existing data input for variable chunk sizes.
 
     Usually, this would be via an uproot source. Here, I'm using the track skim for some extra convenience,
@@ -215,7 +221,7 @@ def test_chunk_generation_from_existing_data_with_variable_chunk_size(caplog: An
     #       chunk generation from existing data.
     pythia_source = track_skim.FileSource(
         filename=_input_filename,
-        collision_system="pythia",
+        collision_system=collision_system,
     )
     # We need the full size to figure out the expect values.
     # NOTE: This is inefficient, but it's not the end of the world. We could always set it manually if becomes a problem
@@ -276,7 +282,7 @@ def test_multi_source_source_fixed_size_chunks(caplog: Any, chunk_size: int, num
         sources=[
             track_skim.FileSource(
                 filename=_track_skim_base_path / "reference" / "AnalysisResults__pythia__jet_R020.root",
-                collision_system="pythia",
+                collision_system="pp_MC",
             )
             for _ in range(number_of_repeated_files)
         ]
@@ -285,7 +291,7 @@ def test_multi_source_source_fixed_size_chunks(caplog: Any, chunk_size: int, num
     # We need to know the full size to figure out the expected values.
     pythia_source_ref = track_skim.FileSource(
         filename=_input_filename,
-        collision_system="pythia",
+        collision_system="pp_MC",
     )
     # NOTE: This is inefficient, but it's not the end of the world. We could always set it manually if becomes a problem
     # NOTE: For reference, it's 11358
@@ -341,7 +347,7 @@ def test_multi_source_source_variable_size_chunks(
         sources=[
             track_skim.FileSource(
                 filename=_input_filename,
-                collision_system="pythia",
+                collision_system="pp_MC",
             )
             for _ in range(number_of_repeated_files)
         ]
