@@ -118,5 +118,7 @@ def read_extracted_scale_factors(
         # Standard track skim production
         return {pt_hard_bin: v.value() for pt_hard_bin, v in scale_factors.items()}
     # We already have the map of [int, float], so just pass it on. For example,
-    # from the HF_tree. We wrap it in dict to convert from the ruamel.yaml map
-    return dict(scale_factors)
+    # from the HF_tree.
+    # NOTE: Wrapped in int + float using a dict comprehension to ensure it doesn't come
+    #       out as a ruamel.yaml map or use ScalarFloat
+    return {int(pt_hat_bin): float(v) for pt_hat_bin, v in scale_factors.items()}
