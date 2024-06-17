@@ -119,7 +119,7 @@ skimmed_datasets:
   # This is a FastSim of the LHC18b8 Pythia production anchored to 17pq
   LBL20_Pythia_FastSim_1_258314: &LBL20_Pythia_FastSim_1_17pq
     name: "LBL20_Pythia_FastSim_1_258314"
-    collision_system: "pythia"
+    collision_system: "pp_MC"
     generator:
       name: "pythia"
       identifier: "pythia_fastsim"
@@ -132,6 +132,11 @@ skimmed_datasets:
     skim_type: "HF_tree_at_LBL"
     skim_parameters:
       levels: ["part_level", "det_level"]
+      column_modifications:
+        part_level:
+          "ParticlePID": ""
+        det_level:
+          "ParticlePID": ""
     # NOTE: The scale factors need to be copied to the appropriate production directory
     # Binning is the standard binning for LHC18b8
     n_pt_hat_bins: 20
@@ -142,11 +147,11 @@ skimmed_datasets:
     #       overwrite each other unless we known which child train output they are from.
     number_of_parent_directories_for_relative_output_filename: 5
     files:
-      - "pythia/258314/files.txt"
+      - "pp_MC/258314/files.txt"
   # Anchored is unclear, but I suspect that it's LHC17pq (?)
   LBL20_Herwig_FastSim_1_266374: &LBL20_Herwig_FastSim_1_17pq
     name: "LBL20_Herwig_FastSim_1_266374"
-    collision_system: "pythia"
+    collision_system: "pp_MC"
     # Generator config at: `pyjetty/pyjetty/alice_analysis/generation/herwig/herwig_slurm.sh`
     generator:
       name: "herwig"
@@ -160,6 +165,11 @@ skimmed_datasets:
     skim_type: "HF_tree_at_LBL"
     skim_parameters:
       levels: ["part_level", "det_level"]
+      column_modifications:
+        part_level:
+          "ParticlePID": ""
+        det_level:
+          "ParticlePID": ""
     # NOTE: The scale factors need to be copied to the appropriate production directory
     # Binning: (5 7 9 12 16 21 28 36 45 57 70 85 99 115 132 150 169 190 212 235 260)
     n_pt_hat_bins: 20
@@ -423,8 +433,16 @@ skimmed_datasets:
       - "PbPb_MC/996432/files.txt"
 
 generator_arguments:
+  # NOTE: Need to provide generator name!
   _default_pp_MC: &generator_arguments_default_pp_MC
     selected_charged_particles: true
+
+  # NOTE: Need to provide generator name!
+  _default_pp_MC_fastsim: &generator_arguments_default_pp_MC_fastsim
+    # NOTE: We cannot make any selections here since we don't usually have the PID information.
+    #       We rely on the production to have made the right selections.
+    #       Due to the code conventions, we have to explicitly turn it off here to remind ourselves.
+    selected_charged_particles: false
 
   _default_PbPb_MC: &generator_arguments_default_PbPb_MC
     selected_charged_particles: true
@@ -478,7 +496,9 @@ dataset_metadata_settings:
       input_constrained_source: "signal"
       input_handling:
         signal_parameters:
-          collision_system: "pythia"
+          # NOTE: Now these are extracted from the actual dataset configs. Comment is left here
+          #       for reference.
+          # collision_system: "pythia"
           constrained_source: # ie. signal is the constraint
             n_files_to_use_per_task: 1
           unconstrained_source:
@@ -489,7 +509,9 @@ dataset_metadata_settings:
             # This ensures some additional diversity if we end up with a very small signal file
             n_files_to_use_per_task: 3
         background_parameters:
-          collision_system: "PbPb"
+          # NOTE: Now these are extracted from the actual dataset configs. Comment is left here
+          #       for reference.
+          # collision_system: "PbPb"
           constrained_source: # ie. background is the constraint
             n_files_to_use_per_task: 1
           unconstrained_source:
@@ -1800,7 +1822,7 @@ productions:
       metadata:
         <<: *base_metadata_embed
         # TODO: Switch to LHC18qr_PbPb_central_at_LBL
-        dataset: *LHC18qr_PbPb_central
+        dataset: *LHC18qr_PbPb_semi_central
         signal_dataset: *LBL20_Pythia_FastSim_1_17pq
         production_number: 79
         label: "embed_pythia_fastsim_central"
@@ -1814,6 +1836,9 @@ productions:
           r_max: 0.1
         det_level_artificial_tracking_efficiency: 0.98
         apply_pt_dependent_tracking_efficiency_uncertainty: false
+        generator_analysis_arguments:
+          <<: *generator_arguments_default_pp_MC_fastsim
+          name: "pythia"
     80:
       # JEWEL no recoils fastsim embedded into central, r_max = 0.1.
       metadata:
