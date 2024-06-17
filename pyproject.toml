@@ -139,8 +139,8 @@ filterwarnings = [
   # NOTE: It is coming from dateutil, which is used by matplotlib + pandas
   "ignore:datetime.datetime.utcfromtimestamp:DeprecationWarning:dateutil.tz.tz",
 ]
-log_level = "INFO"
-log_cli_level = "INFO"
+#log_level = "INFO"
+#log_cli_level = "DEBUG"
 testpaths = [
   "tests",
 ]
