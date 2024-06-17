@@ -58,7 +58,9 @@ class Columns:
             column.format(prefix="particle_data"): field_name for column, field_name in _base_particle_columns.items()
         }
         # Pick up the extra columns in the case of pythia
-        if collision_system in ["pythia", "pp_MC"]:
+        # NOTE: This will cause issues if we ever do PbPb_MC without a fastsim. So far (June 2024), we haven't done this,
+        #       but adding this note in case it becomes an issue in the future.
+        if collision_system in ["pythia", "pp_MC", "PbPb_MC"]:
             particle_columns.update(
                 {
                     column.format(prefix="particle_data"): field_name
@@ -128,7 +130,9 @@ def _transform_output(
     try:
         data = next(gen_data)
         while True:
-            if collision_system in ["pythia", "pp_MC"]:
+            # NOTE: This will cause issues if we ever do PbPb_MC without a fastsim. So far (June 2024), we haven't done this,
+            #       but adding this note in case it becomes an issue in the future.
+            if collision_system in ["pythia", "pp_MC", "PbPb_MC"]:
                 # NOTE: The return values are formatted in this manner to avoid unnecessary copies of the data.
                 particle_gen_columns = {c: v for c, v in _columns.particle_level.items() if "particle_gen" in c}
                 _result = yield ak.Array(
