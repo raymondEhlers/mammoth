@@ -683,8 +683,12 @@ def setup_framework_embed_workflow(  # noqa: C901
         _background_is_constrained_source: bool = _metadata_config["input_constrained_source"].lower() != "signal"
         source_input_options = {
             "background_is_constrained_source": _background_is_constrained_source,
-            "signal_source_collision_system": _input_handling_config["signal_parameters"]["collision_system"],
-            "background_source_collision_system": _input_handling_config["background_parameters"]["collision_system"],
+            # In June 2024, we switched from grabbing the statically defined collision system in the configuration
+            # to actually grabbing it from the metadata of the input datasets.
+            # "signal_source_collision_system": _input_handling_config["signal_parameters"]["collision_system"],
+            # "background_source_collision_system": _input_handling_config["background_parameters"]["collision_system"],
+            "signal_source_collision_system": _metadata_config["signal_dataset"]["collision_system"],
+            "background_source_collision_system": _metadata_config["dataset"]["collision_system"],
             "minimize_IO_as_possible": execution_settings.minimize_IO_as_possible,
         }
         _analysis_config: dict[str, Any] = copy.deepcopy(prod.config["settings"])
