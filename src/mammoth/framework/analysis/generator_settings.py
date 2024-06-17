@@ -26,6 +26,7 @@ from typing import Any, Protocol
 
 import attrs
 import awkward as ak
+import numpy as np
 
 from mammoth.framework.task import GeneratorAnalysisArguments
 
@@ -149,15 +150,18 @@ def configure_generator_options_before_starting_analysis(
             #       because the jet finding will implicitly cut them. However, it's important to keep them
             #       in mind if we're using the tracks for something else.
             # Requirements:
-            # Uniformly apply min pt cut of 150 MeV, except for the recoils. We keep all of them
-            # since a cut of them seems unphysical (because they're just a model detail).
-            # We also apply an eta requirement that is quite large, but cuts down on fastjet
-            # warnings about empty jets (and also speeds things up).
-            if collision_system in ["PbPb_MC"]:
+            # - Uniformly apply min pt cut of 150 MeV, except for the recoils. We keep all of them
+            #   since a cut of them seems unphysical (because they're just a model detail).
+            # - An optional eta range requirement. Default: 2.0 (just to cut down on the needed processing time)
+            if collision_system in ["PbPb_MC", "embed_pythia"]:
+                eta_range = generator.analysis_arguments.get("eta_range", 2.0)
                 for column_name in levels:
                     # Selection is >= 150 MeV or a recoil
                     # NOTE: If there are no recoils, then the selection of identifier == 3 won't change anything
                     particle_mask = (arrays[column_name].pt >= 0.150) | (arrays[column_name].identifier == 3)
+                    if eta_range:
+                        particle_mask = particle_mask & (np.abs(arrays[column_name].eta) < eta_range)
+
                     # Apply the mask
                     arrays[column_name] = arrays[column_name][particle_mask]
 
