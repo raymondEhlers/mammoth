@@ -448,6 +448,9 @@ class ProductionSettings:
         #       are actually stored in the base_output_dir. If that's not the case, then
         #       we'll just go back to the full path
         input_files = self.input_files()
+        if len(input_files) == 0:
+            msg = f"No input files found for the **main** dataset! Check you have the right dataset and that files are defined + available on your system.\n  Production: {self.identifier}."
+            raise ValueError(msg)
         if _check_if_relative_path_is_possible(p=input_files[0], base_output_dir=self.base_output_dir):
             output["input_filenames"] = [str(p.relative_to(self.base_output_dir)) for p in input_files]
         else:
