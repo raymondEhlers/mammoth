@@ -686,15 +686,14 @@ def setup_source_for_embedding_task(
     # Inputs
     signal_input: Path | Sequence[Path],
     signal_source: sources.SourceFromFilename | sources.DelayedSource,
+    signal_source_collision_system: str,
     background_input: Path | Sequence[Path],
     background_source: sources.SourceFromFilename | sources.DelayedSource,
+    background_source_collision_system: str,
     background_is_constrained_source: bool,
     # Outputs
     output_settings: task.OutputSettings,
-    # Repeat categories as above, but with default arguments
-    # Inputs
-    signal_source_collision_system: str = "pythia",
-    background_source_collision_system: str = "PbPb",
+    # Repeat categories as above, but with default arguments (as needed)
 ) -> tuple[dict[str, int], Iterator[ak.Array]]:
     """Setup embed MC source for a analysis task.
 
@@ -708,8 +707,10 @@ def setup_source_for_embedding_task(
         task_metadata: Task metadata.
         signal_input: Input signal file(s).
         signal_source: Source for the signal.
+        signal_source_collision_system: Collision system of the signal source.
         background_input: Input background file(s).
         background_source: Source for the background.
+        background_source_collision_system: Collision system of the background source.
         background_is_constrained_source: Whether the background is the constrained source.
         minimize_IO_as_possible: Whether to minimize IO as much as possible.
         output_settings: Output settings.
@@ -788,12 +789,11 @@ def setup_source_for_embedding_thermal_model_task(
     # Inputs
     signal_input: Path | Sequence[Path],
     signal_source: sources.SourceFromFilename | sources.DelayedSource,
+    signal_source_collision_system: str,
     thermal_model_parameters: sources.ThermalModelParameters,
     # Outputs
     output_settings: task.OutputSettings,
-    # Repeat categories as above, but with default arguments
-    # Inputs
-    signal_source_collision_system: str = "pythia",
+    # Repeat categories as above, but with default arguments (as needed)
 ) -> tuple[dict[str, int], Iterator[ak.Array]]:
     """Setup embed MC into thermal model source for a analysis task.
 
@@ -803,9 +803,9 @@ def setup_source_for_embedding_thermal_model_task(
         minimize_IO_as_possible: Whether to minimize IO as much as possible.
         signal_input: Input signal file(s).
         signal_source: Source for the signal.
+        signal_source_collision_system: Collision system of the signal source.
         thermal_model_parameters: Parameters for the thermal model.
         output_settings: Output settings.
-        signal_source_collision_system: Collision system of the signal source.
     Returns:
         (source_index_identifiers, iter_arrays), where:
             source_index_identifiers: Mapping of source index to identifier.
