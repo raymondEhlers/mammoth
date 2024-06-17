@@ -443,6 +443,7 @@ generator_arguments:
     #       We rely on the production to have made the right selections.
     #       Due to the code conventions, we have to explicitly turn it off here to remind ourselves.
     selected_charged_particles: false
+    eta_range: 1.0
 
 dataset_metadata_settings:
   _base:
@@ -1790,6 +1791,51 @@ productions:
           r_max: 0.1
         det_level_artificial_tracking_efficiency: 0.98
         apply_pt_dependent_tracking_efficiency_uncertainty: true
+    # For kt model dependence, we need central nominal, r_max = 0.1 for
+    # - pythia_fastsim embedded
+    # - jewel no recoils embedded
+    # - jewel recoils embedded (ideally, but probably not worth the effort...)
+    79:
+      # pythia fastsim embedded into central, r_max = 0.1.
+      metadata:
+        <<: *base_metadata_embed
+        # TODO: Switch to LHC18qr_PbPb_central_at_LBL
+        dataset: *LHC18qr_PbPb_central
+        signal_dataset: *LBL20_Pythia_FastSim_1_17pq
+        production_number: 79
+        label: "embed_pythia_fastsim_central"
+      settings:
+        <<: *analysis_settings_hardest_kt_embed_R02_fastsim
+        output_settings:
+          <<: *reclustered_substructure_output_settings
+        event_activity: "central"
+        chunk_size: 4000
+        background_subtraction:
+          r_max: 0.1
+        det_level_artificial_tracking_efficiency: 0.98
+        apply_pt_dependent_tracking_efficiency_uncertainty: false
+    80:
+      # JEWEL no recoils fastsim embedded into central, r_max = 0.1.
+      metadata:
+        <<: *base_metadata_embed
+        # TODO: Switch to LHC18qr_PbPb_central_at_LBL
+        dataset: *LHC18qr_PbPb_semi_central
+        signal_dataset: *LBL21_JEWEL_NoRecoils_Central_FastSim_1
+        production_number: 80
+        label: "embed_jewel_NoRecoils_fastsim_central"
+      settings:
+        <<: *analysis_settings_hardest_kt_embed_R02_fastsim
+        output_settings:
+          <<: *reclustered_substructure_output_settings
+        event_activity: "central"
+        chunk_size: 4000
+        background_subtraction:
+          r_max: 0.1
+        det_level_artificial_tracking_efficiency: 0.98
+        apply_pt_dependent_tracking_efficiency_uncertainty: false
+        generator_analysis_arguments:
+          <<: *generator_arguments_default_JEWEL_PbPb_MC_fastsim
+          background_treatment: null
 
   embed_thermal_model:
     2:
