@@ -292,6 +292,8 @@ skimmed_datasets:
     period: ["LHC18q", "LHC18r"]
     # Keep track of the skim type for documentation
     skim_type: "HF_tree_at_LBL"
+    skim_parameters:
+      levels: ["data"]
     # Number of parent directories to go up to create the relative output filename
     # NOTE: We go up to 5 since we want to get to a period label. It's slightly redundant,
     #       but I'm concerned that leading with a train number will look quite odd to my eyes.
