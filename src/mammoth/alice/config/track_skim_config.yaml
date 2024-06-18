@@ -294,13 +294,15 @@ skimmed_datasets:
     skim_type: "HF_tree_at_LBL"
     skim_parameters:
       levels: ["data"]
+      column_modifications:
+        # ParticlePID isn't available in data.
+        data:
+          "ParticlePID": ""
     # Number of parent directories to go up to create the relative output filename
     # NOTE: We go up to 5 since we want to get to a period label. It's slightly redundant,
     #       but I'm concerned that leading with a train number will look quite odd to my eyes.
     #       Better to have a slightly longer filename that will avoid confusion.
     number_of_parent_directories_for_relative_output_filename: 5
-    levels_in_output_file:
-      - "data"
     files:
       - "PbPb/570/files.txt"
 
