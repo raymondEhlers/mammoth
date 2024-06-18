@@ -392,7 +392,7 @@ def setup_framework_standard_workflow(  # noqa: C901
     )
     # Note: We'll handle metadata_for_labeling possibly being None in the python app
 
-    def wrap_setup(
+    def wrap_setup(  # noqa: C901
         prod: production.ProductionSettings,
         execution_settings: job_utils.ExecutionSettings,
     ) -> list[Future[framework_task.Output]]:
@@ -541,6 +541,10 @@ def setup_framework_standard_workflow(  # noqa: C901
 
                 # NOTE: The extension will be customized in the app....
                 output_filename = output_dir / f"{output_identifier}.dummy_ext"
+
+                if _file_counter == 0:
+                    logger.warning(f"First loop: {output_identifier}\n{analysis_arguments_with_pt_hat_scale_factor=}")
+
                 # if _file_counter % 100 == 0:
                 #    import IPython; IPython.embed()
                 # And create the tasks
@@ -848,6 +852,9 @@ def setup_framework_embed_workflow(  # noqa: C901
                 str(_filename) for _filename in background_input
             ]
 
+            if _file_counter == 0:
+                logger.warning(f"First loop: {output_identifier}\n{analysis_arguments_with_pt_hat_scale_factor=}")
+
             # And create the tasks
             results.append(
                 python_app_func(
@@ -1023,6 +1030,10 @@ def setup_framework_embed_workflow(  # noqa: C901
 
                 # NOTE: The extension will be customized in the app....
                 output_filename = output_dir / f"{output_identifier}.dummy_ext"
+
+                if _file_counter == 0:
+                    logger.warning(f"First loop: {output_identifier}\n{analysis_arguments_with_pt_hat_scale_factor=}")
+
                 # And create the tasks
                 results.append(
                     python_app_func(
