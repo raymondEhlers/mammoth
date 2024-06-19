@@ -1245,9 +1245,17 @@ def process_futures(
     # Also allows for a summary at the end.
     # By taking only the first two, it just tells use the status and a quick message.
     # Otherwise, we can overwhelm with trying to print large objects
-    if job_framework != job_utils.JobFramework.immediate_execution_debug:
-        res = [r.result().success for r in all_results]
-    else:
-        res = [r.success for r in all_results]  # type: ignore[attr-defined]
+    res = []
+    for r in all_results:
+        try:
+            if job_framework != job_utils.JobFramework.immediate_execution_debug:
+                _res = r.result().success
+            else:
+                _res = r.success  # type: ignore[attr-defined]
+            res.append(_res)
+        except FileNotFoundError:
+            # Apparently if the file isn't found, it will show up here, so best if we catch it
+            # and note that it was unsuccessful
+            res.append(False)
 
     logger.info(res)
