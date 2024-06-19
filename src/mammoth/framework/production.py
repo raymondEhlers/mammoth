@@ -227,7 +227,7 @@ class ProductionSettings:
         generator_analysis_arguments = _analysis_settings.get("generator_analysis_arguments", {})
         if generator_analysis_arguments:
             # pop the value
-            name += f"_generator_{generator_analysis_arguments['name']}"
+            name += "_generator_analysis_settings"
             if generator_analysis_arguments.get("selected_charged_particles", False):
                 name += "_charged_particles"
             # Generator background subtraction settings

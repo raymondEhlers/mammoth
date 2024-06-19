@@ -438,30 +438,32 @@ skimmed_datasets:
       - "PbPb_MC/996432/files.txt"
 
 generator_arguments:
-  # NOTE: Need to provide generator name!
   _default_pp_MC: &generator_arguments_default_pp_MC
-    selected_charged_particles: true
+    select_charged_particles: true
 
-  # NOTE: Need to provide generator name!
   _default_pp_MC_fastsim: &generator_arguments_default_pp_MC_fastsim
     # NOTE: We cannot make any selections here since we don't usually have the PID information.
     #       We rely on the production to have made the right selections.
     #       Due to the code conventions, we have to explicitly turn it off here to remind ourselves.
-    selected_charged_particles: false
+    select_charged_particles: false
+
+  _default_pp_ALICE_production: &generator_arguments_default_pp_MC_alice_production
+    # NOTE: Detector level for ALICE productions does not include PID information.
+    #       Consequently, we rely on the production to make the right selections.
+    #       Due to the code conventions, we have to explicitly turn it off here to remind ourselves.
+    select_charged_particles: false
 
   _default_PbPb_MC: &generator_arguments_default_PbPb_MC
-    selected_charged_particles: true
+    select_charged_particles: true
 
   _default_JEWEL_PbPb_MC: &generator_arguments_default_JEWEL_PbPb_MC
-    name: "jewel"
-    selected_charged_particles: true
+    select_charged_particles: true
     # Default is (e-, mu-, pi+, K+, p+, Sigma+, Sigma-, Xi-, Omega-), but then we need to
     # add [2, 21] (u, g) for holes. We also add [d, s, c, b, u] = [1, 3, 4, 5, 6] since the
     # specification isn't specific, to my knowledge. It shouldn't hurt anything to have the rest
     # of the quarks
     custom_charged_hadron_PIDs: [1, 2, 3, 4, 5, 6, 21, 11, 13, 211, 321, 2212, 3222, 3112, 3312, 3334]
   _default_JEWEL_PbPb_MC_fastsim: &generator_arguments_default_JEWEL_PbPb_MC_fastsim
-    name: "jewel"
     # NOTE: We cannot make any selections here since we don't usually have the PID information.
     #       We rely on the production to have made the right selections.
     #       Due to the code conventions, we have to explicitly turn it off here to remind ourselves.
@@ -1886,6 +1888,8 @@ productions:
           r_max: 0.1
         det_level_artificial_tracking_efficiency: 0.99
         apply_pt_dependent_tracking_efficiency_uncertainty: true
+        generator_analysis_arguments:
+          <<: *generator_arguments_default_pp_MC_alice_production
     82:
       # Tracking efficiency systematic with pt dependence for central, r_max = 0.1. Added 17 June 2024.
       # This includes a bug fix for passing the background subtraction r_max
@@ -1905,6 +1909,8 @@ productions:
           r_max: 0.1
         det_level_artificial_tracking_efficiency: 0.98
         apply_pt_dependent_tracking_efficiency_uncertainty: true
+        generator_analysis_arguments:
+          <<: *generator_arguments_default_pp_MC_alice_production
 
   embed_thermal_model:
     2:
