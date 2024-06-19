@@ -968,7 +968,7 @@ def _cancel_future(job: concurrent.futures.Future[Any]) -> None:
 _T = TypeVar("_T")
 
 
-def provide_results_as_completed(
+def provide_results_as_completed(  # noqa: C901
     input_futures: Sequence[concurrent.futures.Future[_T]],
     timeout: float | None = None,
     running_with_parsl: bool = False,
@@ -1013,6 +1013,8 @@ def provide_results_as_completed(
                         logger.warning(f"Lost worker: {e}")
                     except ManagerLost as e:
                         logger.warning(f"Manager lost: {e}")
+                    except FileNotFoundError as e:
+                        logger.exception(e)
             except KeyboardInterrupt as e:
                 for job in futures:
                     _cancel_future(job)
