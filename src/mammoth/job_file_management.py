@@ -420,10 +420,12 @@ class FileStagingManager:
     ) -> None:
         """Exiting the context manager, staging out files if appropriate."""
         if self.file_stager:
-            # First, clean up the staged in files so we don't forget.
-            self._clean_up_staged_in_files_after_task()
-            # And stage out, using the provided output files if appropriate.
+            # First, stage out the output files, using the provided output files if appropriate.
+            # NOTE: We want to do this before the cleanup since we're more worried
+            #       about keeping the output files than cleaning up the input files.
             self.file_stager.stage_files_out(files_to_stage_out=self._output_files)
+            # Next, clean up the staged in files so we don't forget.
+            self._clean_up_staged_in_files_after_task()
             # And then the last bit of cleanup - removing the node work dir itself
             try:
                 self.file_stager.settings.node_work_dir.rmdir()
