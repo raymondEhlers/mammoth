@@ -465,7 +465,12 @@ class FileStagingManager:
         """
         if self.file_stager:
             for f in files_on_node_to_clean_up:
-                f.unlink()
+                try:
+                    f.unlink()
+                except FileNotFoundError as e:
+                    msg = "File to clean up was not found. It may have already been cleaned up?"
+                    logger.warning(msg)
+                    logger.exception(e)
             # NOTE: Although we've remove the files, this still leaves the whole directory structure,
             #       so we also want to remove the input directory itself. This will only fail on
             #       read-only files, so it would be easy to lose important data if we're not careful.
