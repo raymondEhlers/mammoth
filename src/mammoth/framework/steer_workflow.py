@@ -946,6 +946,7 @@ def setup_framework_embed_workflow(  # noqa: C901
         _analysis_config = copy.deepcopy(prod.config["settings"])
         _output_settings_config = _analysis_config.pop("output_settings")
         _input_options_for_load_data_setup_source = {
+            "signal_source_collision_system": _metadata_config["dataset"]["collision_system"],
             "minimize_IO_as_possible": execution_settings.minimize_IO_as_possible,
         }
         # Thermal model parameters
@@ -1044,6 +1045,7 @@ def setup_framework_embed_workflow(  # noqa: C901
                         # I/O
                         # Inputs
                         thermal_model_parameters=thermal_model_parameters,
+                        input_source_config=_metadata_config["dataset"],
                         input_options_for_load_data_setup_source=_input_options_for_load_data_setup_source,
                         # Output
                         output_settings_config=_output_settings_config,
