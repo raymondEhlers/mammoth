@@ -1,6 +1,6 @@
 [build-system]
 requires = [
-    "scikit_build_core[pyproject] >= 0.4.5",
+    "scikit_build_core[pyproject] >= 0.9",
     "pybind11 >= 2.10",
 ]
 build-backend = "scikit_build_core.build"
@@ -15,10 +15,16 @@ license = {text = "BSD-3-Clause"}
 dependencies = []
 
 [tool.scikit-build]
+minimum-version = "build-system.requires"
 sdist.include = ["src/mammoth_cpp/fastjet"]
 sdist.exclude = [
     "build",
     "external/fastjet",
     "external/install",
 ]
+sdist.reproducible = true
 build-dir = "build/{wheel_tag}"
+
+[[tool.scikit-build.overrides]]
+if.platform-system = "darwin"
+cmake.version = ">=3.29"

@@ -1,9 +1,17 @@
-cmake_minimum_required(VERSION 3.15..3.24)
+cmake_minimum_required(VERSION 3.15..3.30)
 project("${SKBUILD_PROJECT_NAME}" LANGUAGES CXX VERSION "${SKBUILD_PROJECT_VERSION}")
 
 ##########################
 # Step 1: Project settings
 ##########################
+# Cross check from awkward-cpp
+if(CMAKE_CXX_COMPILER_ID MATCHES AppleClang AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL
+                                                15)
+  if(CMAKE_VERSION VERSION_LESS 3.29)
+    message(WARNING "CMake should be 3.29+ to support AppleClang 15+. Trying anyway.")
+  endif()
+  set(CMAKE_LINKER_TYPE APPLE_CLASSIC)
+endif()
 
 # Ensure c++17
 # Selected 17 because we use std::optional
