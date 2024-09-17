@@ -2073,9 +2073,14 @@ productions:
         post_embedding_rename_levels:
           hybrid_level: "data"
         dataset: *LHC20g4_pythia
+        # We only use a fraction for expediency. We shouldn't need the full stats...
+        sample_dataset_fraction: 0.2
         production_number: 63
         label: "embed_pythia_central"
       settings:
+        # These PbPb settings are what defines that we'll only handle the data, as opposed
+        # to the usual embedding. The renaming done above is necessary for this to work
+        # (but the metadata renaming is not sufficient - it also needs these PbPb settings).
         <<: *analysis_settings_hardest_kt_PbPb_R02
         output_settings:
           <<: *reclustered_substructure_output_settings
