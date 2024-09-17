@@ -47,6 +47,7 @@ def test_embedding_load_data_source_fixed_size_chunks(
         background_input=[background_input_filename] * _n_repeat_background,
         background_source=partial(track_skim.FileSource, collision_system="PbPb"),
         background_is_constrained_source=background_is_constrained_source,
+        post_embedding_rename_levels={},
         chunk_size=chunk_size,
     )
 

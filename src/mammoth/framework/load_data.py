@@ -140,7 +140,7 @@ def normalize_for_two_input_level(
         particle_columns = _default_particle_columns
     # Validation
     # Since we require the rename_levels to define what prefixes to work with, if it's passed as an
-    # empty mapping, we should treat it as is None was actually passed.
+    # empty mapping, we should treat it as if None was actually passed.
     if rename_levels is None or not rename_levels:
         rename_levels = {
             "part_level": "part_level",
@@ -274,9 +274,10 @@ def data(
     )
 
 
-def normalize_for_three_input_level(
+def normalize_for_three_input_level(  # noqa: C901
     arrays: ak.Array,
     source_index_identifiers: Mapping[str, int],
+    post_embedding_rename_levels: dict[str, str] | None = None,
     mass_hypothesis: float | Mapping[str, float] = 0.139,
     particle_columns: Mapping[str, npt.DTypeLike] | None = None,
     fixed_background_index_value: int | None = None,
@@ -294,6 +295,12 @@ def normalize_for_three_input_level(
     Args:
         arrays: Input arrays
         source_index_identifiers: Index offset map for each source.
+        post_embedding_rename_levels: Prefix to map the standard embedding level names to custom names.
+           Note: the mapping goes from key -> value, unlike the loading_data rename prefix!
+           Default: "part_level" -> "part_level", "det_level" -> "det_level", "hybrid_level" -> "hybrid_level".
+           NOTE: This is different than for the other two normalize functions because we already
+           have full control of the standard names. So here we rename **after** loading the data,
+           rather than as part of loading the data. Since they are distinct purposes, we select different names.
         mass_hypothesis: Mass hypothesis for either all three prefixes, or individually. Default: 0.139 GeV
             for all particle collections.
         particle_columns: dtypes for particle columns (unused as of July 2021).
@@ -313,6 +320,34 @@ def normalize_for_three_input_level(
         mass_hypotheses = {p: float(mass_hypothesis) for p in _mass_hypothesis_prefixes}
     else:
         mass_hypotheses = dict(mass_hypothesis)
+    # Since we require the post_embedding_rename_levels to define what prefixes to work with,
+    # if it's passed as an empty mapping, we should treat it as if None was actually passed.
+    if post_embedding_rename_levels is None or not post_embedding_rename_levels:
+        post_embedding_rename_levels = {
+            "part_level": "part_level",
+            "det_level": "det_level",
+            "hybrid_level": "hybrid_level",
+        }
+    # Ensure that every level is defined if the user only passed a subset
+    # NOTE: This can be a bit dangerous, since it avoid a ValueError if the user forgets.
+    #       However, it's really convenient, so better to include it...
+    # NOTE: This will modify this dict in place! This is actually kind of nice here because
+    #       this step will only do something on the first time through and then it will have the
+    #       correct values going forward. But just be aware - this may not be what is expected.
+    #       If this becomes an issue, we can always just copy the dict here.
+    rename_level_warnings = ""
+    for k in ["part_level", "det_level", "hybrid_level"]:
+        if k not in post_embedding_rename_levels:
+            post_embedding_rename_levels[k] = k
+            if rename_level_warnings:
+                rename_level_warnings += "\n"
+            rename_level_warnings += (
+                f"Adding missing post embedding level '{k}' to the rename levels - ensure this is what you want!"
+            )
+    if rename_level_warnings:
+        logger.warning(rename_level_warnings)
+
+    logger.warning(f"{post_embedding_rename_levels=}")
 
     # Transform various track collections.
     # 1) Add a source index, to identify where the particles came from.
@@ -368,14 +403,14 @@ def normalize_for_three_input_level(
     logger.debug("Embedding...")
     return ak.Array(
         {
-            "part_level": part_level,
-            "det_level": det_level,
+            post_embedding_rename_levels["part_level"]: part_level,
+            post_embedding_rename_levels["det_level"]: det_level,
             # Practically, this is where we are performing the embedding
             # Need to re-zip so it applies the vector at the same level as the other collections
             # (ie. we want `var * Momentum4D[...]`, but without the zip, we have `Momentum4D[var * ...]`)
             # NOTE: For some reason, ak.concatenate returns float64 here. I'm not sure why, but for now
             #       it's not diving into.
-            "hybrid_level": vector.zip(
+            post_embedding_rename_levels["hybrid_level"]: vector.zip(
                 dict(
                     zip(
                         particle_columns.keys(),
@@ -395,10 +430,12 @@ def normalize_for_three_input_level(
             # Include the rest of the non particle related fields (ie. event level info)
             # NOTE: We don't need to exclude the "hybrid_level" key from below because we're
             #       generating it here for the first time.
+            # NOTE: We also intentionally skip the name of the keys associated with post_embedding_rename_level
+            #       to avoid copying both the original and the renamed into the same array.
             **{
                 k: v
                 for k, v in zip(ak.fields(arrays["signal"]), ak.unzip(arrays["signal"]), strict=True)
-                if k not in ["det_level", "part_level"]
+                if k not in ["det_level", "part_level", *list(post_embedding_rename_levels.keys())]
             },
         }
     )
@@ -407,9 +444,18 @@ def normalize_for_three_input_level(
 def _event_select_and_transform_embedding(
     gen_data: sources.T_GenData,
     source_index_identifiers: Mapping[str, int],
+    post_embedding_rename_levels: dict[str, str],
     use_alice_standard_event_selection_on_background: bool = True,
 ) -> sources.T_GenData:
     """Perform event selection and normalization for embedding
+
+    Args:
+        gen_data: Generator of arrays to process.
+        source_index_identifiers: Index offset map for each source.
+        post_embedding_rename_levels: Prefix to map the standard embedding level names to custom names.
+            See: `normalize_for_three_input_level`.
+        use_alice_standard_event_selection_on_background: Whether to use the ALICE standard event
+            selection on the background source. Default: True.
 
     Throws:
         sources.NoDataAvailableError: Raised if the array is empty
@@ -447,7 +493,11 @@ def _event_select_and_transform_embedding(
         arrays = arrays[(mask & background_event_selection)]  # noqa: PLW2901
 
         logger.info("Transforming embedded")
-        yield normalize_for_three_input_level(arrays=arrays, source_index_identifiers=source_index_identifiers)
+        yield normalize_for_three_input_level(
+            arrays=arrays,
+            source_index_identifiers=source_index_identifiers,
+            post_embedding_rename_levels=post_embedding_rename_levels,
+        )
 
 
 def embedding(
@@ -455,6 +505,7 @@ def embedding(
     signal_source: sources.SourceFromFilename,
     background_input: Path | Sequence[Path],
     background_source: sources.SourceFromFilename,
+    post_embedding_rename_levels: dict[str, str],
     chunk_size: sources.T_ChunkSize = sources.ChunkSizeSentinel.FULL_SOURCE,
     repeat_unconstrained_when_needed_for_statistics: bool = True,
     background_is_constrained_source: bool = True,
@@ -543,6 +594,7 @@ def embedding(
     _transform_data_iter = _event_select_and_transform_embedding(
         gen_data=combined_source.gen_data(chunk_size=chunk_size),
         source_index_identifiers=source_index_identifiers,
+        post_embedding_rename_levels=post_embedding_rename_levels,
         use_alice_standard_event_selection_on_background=use_alice_standard_event_selection_on_background,
     )
     return (
@@ -559,6 +611,7 @@ def embedding_thermal_model(
     signal_input: Path | Sequence[Path],
     signal_source: sources.SourceFromFilename,
     thermal_model_parameters: sources.ThermalModelParameters,
+    post_embedding_rename_levels: dict[str, str],
     chunk_size: sources.T_ChunkSize = sources.ChunkSizeSentinel.FULL_SOURCE,
 ) -> tuple[dict[str, int], ak.Array] | tuple[dict[str, int], Iterator[ak.Array]]:
     # Setup
@@ -577,6 +630,7 @@ def embedding_thermal_model(
             _accept_filename_no_op_for_thermal_model,
             thermal_model_parameters=thermal_model_parameters,
         ),
+        post_embedding_rename_levels=post_embedding_rename_levels,
         chunk_size=chunk_size,
         # Since we will set the chunk size for the thermal model, there's no need to repeat
         # the background thermal model for more statistics - it will always be the right size.
@@ -691,6 +745,7 @@ def setup_source_for_embedding_task(
     background_source: sources.SourceFromFilename | sources.DelayedSource,
     background_source_collision_system: str,
     background_is_constrained_source: bool,
+    post_embedding_rename_levels: dict[str, str],
     # Outputs
     output_settings: task.OutputSettings,
     # Repeat categories as above, but with default arguments (as needed)
@@ -754,6 +809,7 @@ def setup_source_for_embedding_task(
             background_input=background_input_filenames,
             background_source=partial(background_source, collision_system=background_source_collision_system),
             background_is_constrained_source=background_is_constrained_source,
+            post_embedding_rename_levels=post_embedding_rename_levels,
             chunk_size=task_settings.chunk_size,
         )
     except sources.NoDataAvailableError as e:
@@ -791,6 +847,7 @@ def setup_source_for_embedding_thermal_model_task(
     signal_source: sources.SourceFromFilename | sources.DelayedSource,
     signal_source_collision_system: str,
     thermal_model_parameters: sources.ThermalModelParameters,
+    post_embedding_rename_levels: dict[str, str],
     # Outputs
     output_settings: task.OutputSettings,
     # Repeat categories as above, but with default arguments (as needed)
@@ -840,6 +897,7 @@ def setup_source_for_embedding_thermal_model_task(
             signal_input=signal_input_filenames,
             signal_source=partial(signal_source, collision_system=signal_source_collision_system),
             thermal_model_parameters=thermal_model_parameters,
+            post_embedding_rename_levels=post_embedding_rename_levels,
             chunk_size=task_settings.chunk_size,
         )
     except sources.NoDataAvailableError as e:

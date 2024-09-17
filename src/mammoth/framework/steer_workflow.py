@@ -693,6 +693,7 @@ def setup_framework_embed_workflow(  # noqa: C901
             # "background_source_collision_system": _input_handling_config["background_parameters"]["collision_system"],
             "signal_source_collision_system": _metadata_config["signal_dataset"]["collision_system"],
             "background_source_collision_system": _metadata_config["dataset"]["collision_system"],
+            "post_embedding_rename_levels": _metadata_config.get("post_embedding_rename_levels", {}),
             "minimize_IO_as_possible": execution_settings.minimize_IO_as_possible,
         }
         _analysis_config: dict[str, Any] = copy.deepcopy(prod.config["settings"])
@@ -947,6 +948,7 @@ def setup_framework_embed_workflow(  # noqa: C901
         _output_settings_config = _analysis_config.pop("output_settings")
         _input_options_for_load_data_setup_source = {
             "signal_source_collision_system": _metadata_config["dataset"]["collision_system"],
+            "post_embedding_rename_levels": _metadata_config.get("post_embedding_rename_levels", {}),
             "minimize_IO_as_possible": execution_settings.minimize_IO_as_possible,
         }
         # Thermal model parameters

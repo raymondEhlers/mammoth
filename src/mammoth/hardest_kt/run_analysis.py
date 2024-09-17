@@ -82,10 +82,11 @@ def define_productions() -> list[production.ProductionSettings]:
             #    track_skim_config_filename=config_filename,
             # ),
             production.ProductionSettings.read_config(
-                collision_system="embed_pythia",
-                number=79,
+                collision_system="embed_thermal_model",
+                number=63,
                 specialization=grooming_workflow.ProductionSpecialization(),
                 track_skim_config_filename=config_filename,
+                # base_output_dir=Path("/rstorage"),
             ),
         ]
     )
@@ -175,12 +176,15 @@ def run(job_framework: job_utils.JobFramework) -> list[Future[Any]]:
     # debug_mode: dict[str | int, Any] = {6: [Path("trains/PbPb_MC/798301/sim/746611/6/75/AnalysisResultsFastSim.root")]}
     # debug_mode: dict[str | int, Any] = {1: [Path("trains/PbPb_MC/798301/sim/746611/1/86/AnalysisResultsFastSim.root")]}
     # debug_mode: dict[str | int, Any] = {18: [Path("trains/pp_MC/823890/run_by_run/tree_gen/823890/18/281/jewel.root")]}
+    # thermal_model
+    # debug_mode: dict[str | int, Any] = {20: [Path("trains/pythia/2640/run_by_run/LHC20g4/296244/20/AnalysisResults.20g4.011.root")] }
+    # embed_pythia
     # debug_mode: dict[str | int, Any] = {
     #    "signal_input_files_per_pt_hat": {
     #        # PYTHIA standard
-    #        #20: [Path("trains/pythia/2640/run_by_run/LHC20g4/296244/20/AnalysisResults.20g4.011.root")]
+    #        20: [Path("trains/pythia/2640/run_by_run/LHC20g4/296244/20/AnalysisResults.20g4.011.root")]
     #        # PYTHIA fastsim
-    #        9: [Path("trains/pp_MC/258314/run_by_run/258314/LHC18b8/520/child_1/TrainOutput/9/282146/0002/AnalysisResultsFastSim.root")],
+    #        #9: [Path("trains/pp_MC/258314/run_by_run/258314/LHC18b8/520/child_1/TrainOutput/9/282146/0002/AnalysisResultsFastSim.root")],
     #        # JEWEL no recoils fastsim
     #        #6: [Path("trains/PbPb_MC/798301/sim/746611/6/75/AnalysisResultsFastSim.root")]
     #    },
@@ -193,8 +197,8 @@ def run(job_framework: job_utils.JobFramework) -> list[Future[Any]]:
         # Usually, we want to run in the short queue
         target_n_tasks_to_run_simultaneously = 2
         walltime = "1:59:00"
-    facility: job_utils.FACILITIES = "hiccup_std" if job_utils.hours_in_walltime(walltime) >= 2 else "hiccup_quick"
-    # facility: job_utils.FACILITIES = "rehlers_mbp_m1pro"
+    # facility: job_utils.FACILITIES = "hiccup_std" if job_utils.hours_in_walltime(walltime) >= 2 else "hiccup_quick"
+    facility: job_utils.FACILITIES = "rehlers_mbp_m1pro"
 
     # Keep the job executor just to keep it alive
     job_executor, _job_framework_config, execution_settings = setup_job_framework(

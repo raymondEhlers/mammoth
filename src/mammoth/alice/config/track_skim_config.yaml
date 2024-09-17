@@ -500,6 +500,9 @@ dataset_metadata_settings:
       # Map from value -> key of how prefixes should be renamed when loading data
       # For embedding, this isn't necessary since it has a dedicated function for loading embedding data
       loading_data_rename_levels: {}
+      # This functionality maps the standard embedding level names to custom ones. e.g. use this to
+      # analyze the hybrid as standard data.
+      post_embedding_rename_levels: {}
       input_constrained_source: "signal"
       input_handling:
         signal_parameters:
@@ -1990,6 +1993,26 @@ productions:
           return_merged_hists: false
           write_chunk_hists: false
           write_merged_hists: true
+    6:
+      # Nominal - test for comparison to 63...
+      metadata:
+        <<: *base_metadata_embed_thermal_model
+        dataset: *LHC20g4_pythia
+        production_number: 6
+        label: "embed_pythia_central"
+      settings:
+        <<: *analysis_settings_hardest_kt_embed_R02
+        output_settings:
+          <<: *reclustered_substructure_output_settings
+        event_activity: "central"
+        chunk_size: 4000
+        background_subtraction:
+          r_max: 0.1
+        det_level_artificial_tracking_efficiency: 0.98
+        generator_analysis_arguments:
+          # We don't need to select charged particles since it's an ALICE production.
+          # All good
+          select_charged_particles: false
 
     60:
       metadata:
@@ -2040,3 +2063,28 @@ productions:
         background_subtraction:
           r_max: 0.1
         det_level_artificial_tracking_efficiency: 0.98
+    63:
+      # Extract **just** the hybrid level as data, such that we don't require matching,
+      # giving us a full sample with combinatorics.
+      metadata:
+        # NOTE: We decide to directly define what is usually in the base metadata here,
+        #       so we don't need the usual reference to it.
+        # Map from key -> value of how prefixes should be renamed after embedding
+        post_embedding_rename_levels:
+          hybrid_level: "data"
+        dataset: *LHC20g4_pythia
+        production_number: 63
+        label: "embed_pythia_central"
+      settings:
+        <<: *analysis_settings_hardest_kt_PbPb_R02
+        output_settings:
+          <<: *reclustered_substructure_output_settings
+        event_activity: "central"
+        chunk_size: 4000
+        background_subtraction:
+          r_max: 0.1
+        det_level_artificial_tracking_efficiency: 0.98
+        generator_analysis_arguments:
+          # We don't need to select charged particles since it's an ALICE production.
+          # All good
+          select_charged_particles: false

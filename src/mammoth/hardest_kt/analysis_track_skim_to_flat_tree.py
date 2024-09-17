@@ -294,6 +294,7 @@ def hardest_kt_embed_thermal_model_skim(  # noqa: C901
             signal_input=signal_input_filenames,
             signal_source=partial(track_skim.FileSource, collision_system="pythia"),
             thermal_model_parameters=thermal_model_parameters,
+            post_embedding_rename_levels={},
             chunk_size=chunk_size,
         )
     except sources.NoDataAvailableError as e:
@@ -459,6 +460,7 @@ def hardest_kt_embedding_skim(  # noqa: C901
             background_input=background_input_filenames,
             background_source=partial(track_skim.FileSource, collision_system="PbPb"),
             background_is_constrained_source=background_is_constrained_source,
+            post_embedding_rename_levels={},
             chunk_size=chunk_size,
         )
     except sources.NoDataAvailableError as e:

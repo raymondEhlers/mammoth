@@ -695,6 +695,7 @@ def run_some_standalone_experiments() -> None:
         background_source=partial(track_skim.FileSource, collision_system="PbPb"),
         background_is_constrained_source=False,
         chunk_size=2500,
+        post_embedding_rename_levels={},
     )
 
     for i_chunk, arrays in enumerate(iter_arrays):
