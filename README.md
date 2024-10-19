@@ -2,11 +2,6 @@
 
 [![Actions Status][actions-badge]][actions-link]
 [![Documentation Status][rtd-badge]][rtd-link]
-
-[![PyPI version][pypi-version]][pypi-link]
-[![Conda-Forge][conda-badge]][conda-link]
-[![PyPI platforms][pypi-platforms]][pypi-link]
-
 [![GitHub Discussion][github-discussions-badge]][github-discussions-link]
 
 <!-- SPHINX-START -->
@@ -26,20 +21,36 @@
 
 <!-- prettier-ignore-end -->
 
+Mammoth is a package for analysis and interpretation of heavy-ion collision data.
+Analyses are performed using a (predominately) columnar based paradigm.
+The main analysis framework contains a collection of python based functionality, as well as c++ code bound to python (e.g. for jet finding via fastjet).
+I/O adapters for a variety of formats are implemented, enabling analysis of real measure data, as well as outputs from Monte Carlo generators.
+
+This package has been used for a variety of analyses, and the framework is fully validated to reproduce e.g. the ALICE analysis framework.
+For example, mammoth was used for the measurement recently released from the ALICE collaboration to [search for quasi-particle (i.e. Moliere) scattering using jet substructure](https://arxiv.org/abs/2409.12837).
+
+<p align="center"><img alt="Figure from ALICE quasi-particle scattering paper" src="docs/images/unfolded_kt_pp_PbPb_ratios_only_R02_dynamical_kt_soft_drop_z_cut_02.png" width="70%" /></p>
+
+> [!IMPORTANT]
+> This package is developed for my own use. Framework and code is subject to change, and documentation is quite limited!
+
 ## Installation
 
-Easiest is to use `pdm`, which will handle dependencies correctly. Just install with `pdm install -d` to include the dev dependencies.
+Easiest is to use `pdm`, which will handle dependencies correctly (the lock file is committed in the repo). Just install with `pdm install -d` to include the dev dependencies.
 
 <!-- insert detail collapsible block -->
 
 <details>
- <summary>Old `pip` method: Install for other projects</summary>
+ <summary>Old `pip` method: Now used to install mammoth for other projects</summary>
 
-> First, remove `pachyderm` from the dependencies, because it probably won't be picked up correctly by pip.
+> In practice, getting the right compiled bindings was initially tricky.
+> I think this is less critical in 2024 after I moved to the cookie-cutter repo, but I haven't tested it again recently, so I maintain this information for now
+>
+> First, remove `pachyderm` from the dependencies, because it's usually installed locally and it most likely won't be picked up correctly by pip.
 > Next, run
 >
 > ```bash
-> # Actually build the extensions...
+> # Actually build the compiled binding extensions...
 > $ pip install --use-feature=in-tree-build ../mammoth
 >
 > # We've built in the tree, so now we need to do an editable install so it can find the extensions...
