@@ -1,7 +1,7 @@
 [build-system]
 requires = [
-    "scikit_build_core[pyproject] >= 0.9",
-    "pybind11 >= 2.10",
+    "scikit_build_core >= 0.10.7",
+    "pybind11 >= 2.12",
 ]
 build-backend = "scikit_build_core.build"
 
