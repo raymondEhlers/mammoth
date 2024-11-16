@@ -406,7 +406,7 @@ class PythiaSource:
     _default_chunk_size: int | ChunkSizeSentinel = attrs.field(default=ChunkSizeSentinel.FIXED_SIZE)
     metadata: MutableMapping[str, Any] = attrs.Factory(dict)
 
-    def gen_data(self, chunk_size: T_ChunkSize = ChunkSizeSentinel.SOURCE_DEFAULT) -> T_GenData:  # noqa: ARG002
+    def gen_data(self, chunk_size: T_ChunkSize = ChunkSizeSentinel.SOURCE_DEFAULT) -> T_GenData:
         _msg = "Working on it..."
         raise NotImplementedError(_msg)
 

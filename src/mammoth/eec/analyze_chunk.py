@@ -220,14 +220,14 @@ def _calculate_weight_for_plotting_two_particle_correlator(
 
 def _find_jet_triggers(
     *,
-    level: str,  # noqa: ARG001
-    arrays: ak.Array,  # noqa: ARG001
+    level: str,
+    arrays: ak.Array,
     # Analysis arguments
-    trigger_parameters: TriggerParameters,  # noqa: ARG001
-    scale_factor: float,  # noqa: ARG001
-    validation_mode: bool,  # noqa: ARG001
+    trigger_parameters: TriggerParameters,
+    scale_factor: float,
+    validation_mode: bool,
     # Outputs
-    hists: dict[str, hist.Hist],  # noqa: ARG001
+    hists: dict[str, hist.Hist],
 ) -> tuple[dict[str, ak.Array], dict[str, ak.Array]]:
     msg = "Jet trigger isn't yet implemented for embedding analysis."
     raise NotImplementedError(msg)

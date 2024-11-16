@@ -1790,7 +1790,7 @@ def run(
         embed_input_filename = Path("embedding/embedding_file_list.txt")
         f_temp = None
         if embed_input_files:
-            f_temp = tempfile.NamedTemporaryFile("w+")
+            f_temp = tempfile.NamedTemporaryFile("w+")  # noqa: SIM115
             embed_input_filename = Path(f_temp.name)
             # Write the filenames, one per line
             [f_temp.write(str(p)) for p in embed_input_files]
