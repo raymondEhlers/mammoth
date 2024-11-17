@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.15..3.30)
+cmake_minimum_required(VERSION 3.15...3.30)
 project("${SKBUILD_PROJECT_NAME}" LANGUAGES CXX VERSION "${SKBUILD_PROJECT_VERSION}")
 
 ##########################
