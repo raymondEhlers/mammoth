@@ -126,7 +126,7 @@ def determine_additional_worker_init_conda(
         for task in tasks
     ):
         _load_conda_env = True
-        # Assume that we're using a local install of mammoth. As of Nov 2022, I don't forsee any case
+        # Assume that we're using a local install of mammoth. As of Nov 2022, I don't foresee any case
         # where I won't do this so I think this is a reasonable assumption.
         _here = Path(__file__).parent
         _software_to_load.append(f"source {_here.parent.parent.parent / 'external' / 'setup_roounfold.sh'}")
