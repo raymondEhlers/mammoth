@@ -31,7 +31,7 @@ _display_name = {
 }
 
 
-def run(n_variations: int = 97) -> None:
+def run(n_variations: int = 97) -> None:  # noqa: ARG001
     q2 = 100
     x = np.logspace(-4, 0, 100, endpoint=False)
     output_dir = Path()
@@ -42,7 +42,7 @@ def run(n_variations: int = 97) -> None:
         for (
             n_PDF_name,
             proton_pdf_name,
-            n_variations,
+            _n_variations,
         ) in [  # ("nNNPDF20_nlo_as_0118_Au197", "NNPDF40_nnlo_as_01180", 250)]:
             ("nNNPDF20_nlo_as_0118_Au197", "nNNPDF20_nlo_as_0118_N1", 250),
             ("EPPS16nlo_CT14nlo_Au197", "CT14nlo", 97),
@@ -53,7 +53,7 @@ def run(n_variations: int = 97) -> None:
             logger.info(
                 f"proton_pdf {proton_pdf_name} limits: x=({proton_pdf.xMin}, {proton_pdf.xMax}), Q2=({proton_pdf.q2Min}, {proton_pdf.q2Max})"
             )
-            for variation in range(n_variations):
+            for variation in range(_n_variations):
                 n_pdf = lhapdf.mkPDF(n_PDF_name, variation)
                 if first_loop:
                     logger.info(

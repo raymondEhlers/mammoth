@@ -421,7 +421,6 @@ list(hists.keys())
 # <img src="output/raw_EEC__embed_thermal_model__hybrid_reference_eec_unweighted_hybrid_signal_eec_unweighted.svg" width="48.5%"/>
 # <img src="output/raw_EEC__embed_thermal_model__hybrid_reference_eec_unweighted_hybrid_signal_eec_unweighted__norm_prob.svg" width="48.5%"/>
 
-#
 
 # #### Det level reference vs signal
 #
@@ -437,5 +436,3 @@ list(hists.keys())
 #
 # <img src="output/raw_EEC__embed_thermal_model__det_level_reference_eec_unweighted_det_level_signal_eec_unweighted.svg" width="48.5%"/>
 # <img src="output/raw_EEC__embed_thermal_model__det_level_reference_eec_unweighted_det_level_signal_eec_unweighted__norm_prob.svg" width="48.5%"/>
-
-#
