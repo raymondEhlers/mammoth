@@ -16,7 +16,7 @@ repos:
     rev: "1.19.1"
     hooks:
       - id: blacken-docs
-        additional_dependencies: [black==23.*]
+        additional_dependencies: [black==24.*]
 
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: "v5.0.0"
@@ -58,6 +58,13 @@ repos:
       - id: ruff
         args: ["--fix", "--show-fixes"]
       - id: ruff-format
+
+  # Give ssome dumb error about metal. Doesn't make sense, but not worth my effort to fix
+  #- repo: https://github.com/pre-commit/mirrors-clang-format
+  #  rev: "v19.1.3"
+  #  hooks:
+  #    - id: clang-format
+  #      types_or: [c++, c, cuda]
 
   #- repo: https://github.com/pre-commit/mirrors-mypy
   #  rev: "v1.8.0"
@@ -119,6 +126,11 @@ repos:
         language: pygrep
         entry: PyBind|Numpy|Cmake|CCache|Github|PyTest
         exclude: .pre-commit-config.yaml
+
+  - repo: https://github.com/cheshirekow/cmake-format-precommit
+    rev: "v0.6.13"
+    hooks:
+      - id: cmake-format
 
   - repo: https://github.com/abravalheri/validate-pyproject
     rev: "v0.23"
