@@ -87,15 +87,15 @@ def analyze_track_skim_and_recluster_data(
     if validation_mode:
         area_kwargs["random_seed"] = jet_finding.VALIDATION_MODE_RANDOM_SEED
 
-    area_settings = jet_finding.AreaPP(**area_kwargs)
+    area_settings = jet_finding.AreaPP(**area_kwargs)  # type: ignore[arg-type]
     additional_kwargs: dict[str, Any] = {}
     if collision_system in ["PbPb", "embedPythia", "embed_pythia", "embed_thermal_model"]:
-        area_settings = jet_finding.AreaAA(**area_kwargs)
+        area_settings = jet_finding.AreaAA(**area_kwargs)  # type: ignore[arg-type]
         additional_kwargs["background_subtraction"] = jet_finding.BackgroundSubtraction(
             type=jet_finding.BackgroundSubtractionType.event_wise_constituent_subtraction,
             estimator=jet_finding.JetMedianBackgroundEstimator(
                 jet_finding_settings=jet_finding.JetMedianJetFindingSettings(
-                    area_settings=jet_finding.AreaAA(**area_kwargs)
+                    area_settings=jet_finding.AreaAA(**area_kwargs)  # type: ignore[arg-type]
                 )
             ),
             subtractor=jet_finding.ConstituentSubtractor(
@@ -178,7 +178,7 @@ def analyze_track_skim_and_recluster_data(
             jets=jets[particle_column_name],
             jet_finding_settings=jet_finding.ReclusteringJetFindingSettings(
                 # We perform the area calculation here since we're dealing with data, as is done in the AliPhysics DyG task
-                area_settings=jet_finding.AreaSubstructure(**area_kwargs),
+                area_settings=jet_finding.AreaSubstructure(**area_kwargs),  # type: ignore[arg-type]
                 # Rest of analysis settable parameters, including algorithms, etc
                 **reclustering_settings,
             ),
@@ -530,7 +530,7 @@ def analyze_track_skim_and_recluster_embedding(
                     pt_range=jet_finding.pt_range(pt_min=min_jet_pt.get("part_level", 1.0)),
                     # NOTE: We only want fiducial acceptance at the "data" level (ie. hybrid)
                     eta_range=jet_finding.eta_range(jet_R=jet_R, fiducial_acceptance=False),
-                    area_settings=jet_finding.AreaPP(**area_kwargs),
+                    area_settings=jet_finding.AreaPP(**area_kwargs),  # type: ignore[arg-type]
                 ),
             ),
             "det_level": jet_finding.find_jets(
@@ -543,7 +543,7 @@ def analyze_track_skim_and_recluster_embedding(
                     pt_range=jet_finding.pt_range(pt_min=min_jet_pt.get("det_level", 1.0)),
                     # NOTE: We only want fiducial acceptance at the "data" level (ie. hybrid)
                     eta_range=jet_finding.eta_range(jet_R=jet_R, fiducial_acceptance=False),
-                    area_settings=jet_finding.AreaPP(**area_kwargs),
+                    area_settings=jet_finding.AreaPP(**area_kwargs),  # type: ignore[arg-type]
                 ),
             ),
             "hybrid_level": jet_finding.find_jets(
@@ -553,14 +553,14 @@ def analyze_track_skim_and_recluster_embedding(
                     algorithm="anti-kt",
                     pt_range=jet_finding.pt_range(pt_min=min_jet_pt["hybrid_level"]),
                     eta_range=jet_finding.eta_range(jet_R=jet_R, fiducial_acceptance=True),
-                    area_settings=jet_finding.AreaAA(**area_kwargs),
+                    area_settings=jet_finding.AreaAA(**area_kwargs),  # type: ignore[arg-type]
                 ),
                 background_particles=arrays["hybrid_level"][background_only_particles_mask],
                 background_subtraction=jet_finding.BackgroundSubtraction(
                     type=jet_finding.BackgroundSubtractionType.event_wise_constituent_subtraction,
                     estimator=jet_finding.JetMedianBackgroundEstimator(
                         jet_finding_settings=jet_finding.JetMedianJetFindingSettings(
-                            area_settings=jet_finding.AreaAA(**area_kwargs)
+                            area_settings=jet_finding.AreaAA(**area_kwargs)  # type: ignore[arg-type]
                         )
                     ),
                     subtractor=jet_finding.ConstituentSubtractor(
@@ -610,7 +610,7 @@ def analyze_track_skim_and_recluster_embedding(
             # We only do the area calculation for data.
             reclustering_kwargs = {**reclustering_settings}
             if level != "part_level":
-                reclustering_kwargs["area_settings"] = jet_finding.AreaSubstructure(**area_kwargs)
+                reclustering_kwargs["area_settings"] = jet_finding.AreaSubstructure(**area_kwargs)  # type: ignore[arg-type]
             logger.info(f"Reclustering {level} jets with {reclustering_kwargs}...")
             jets[level, "reclustering"] = jet_finding.recluster_jets(
                 jets=jets[level],

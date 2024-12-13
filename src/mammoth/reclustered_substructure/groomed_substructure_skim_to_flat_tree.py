@@ -148,38 +148,38 @@ def _define_calculation_functions(
     functions: dict[
         str, functools.partial[tuple[npt.NDArray[Scalar], AwkwardArray[int], AwkwardArray[AwkwardArray[int]]]]
     ] = {
-        "dynamical_core": functools.partial(analysis_jet_substructure.JetSplittingArray.dynamical_core, R=jet_R),
-        "dynamical_z": functools.partial(analysis_jet_substructure.JetSplittingArray.dynamical_z, R=jet_R),
-        "dynamical_kt": functools.partial(analysis_jet_substructure.JetSplittingArray.dynamical_kt, R=jet_R),
-        "dynamical_time": functools.partial(analysis_jet_substructure.JetSplittingArray.dynamical_time, R=jet_R),
-        "dynamical_core_z_cut_02": functools.partial(
+        "dynamical_core": functools.partial(analysis_jet_substructure.JetSplittingArray.dynamical_core, R=jet_R),  # type: ignore[dict-item]
+        "dynamical_z": functools.partial(analysis_jet_substructure.JetSplittingArray.dynamical_z, R=jet_R),  # type: ignore[dict-item]
+        "dynamical_kt": functools.partial(analysis_jet_substructure.JetSplittingArray.dynamical_kt, R=jet_R),  # type: ignore[dict-item]
+        "dynamical_time": functools.partial(analysis_jet_substructure.JetSplittingArray.dynamical_time, R=jet_R),  # type: ignore[dict-item]
+        "dynamical_core_z_cut_02": functools.partial(  # type: ignore[dict-item]
             analysis_jet_substructure.JetSplittingArray.dynamical_core,
             z_cutoff=0.2,
             R=jet_R,
         ),
-        "dynamical_kt_z_cut_02": functools.partial(
+        "dynamical_kt_z_cut_02": functools.partial(  # type: ignore[dict-item]
             analysis_jet_substructure.JetSplittingArray.dynamical_kt,
             z_cutoff=0.2,
             R=jet_R,
         ),
-        "dynamical_time_z_cut_02": functools.partial(
+        "dynamical_time_z_cut_02": functools.partial(  # type: ignore[dict-item]
             analysis_jet_substructure.JetSplittingArray.dynamical_time,
             z_cutoff=0.2,
             R=jet_R,
         ),
-        "leading_kt": functools.partial(
+        "leading_kt": functools.partial(  # type: ignore[dict-item]
             analysis_jet_substructure.JetSplittingArray.leading_kt,
         ),
-        "leading_kt_z_cut_02": functools.partial(analysis_jet_substructure.JetSplittingArray.leading_kt, z_cutoff=0.2),
-        "leading_kt_z_cut_04": functools.partial(analysis_jet_substructure.JetSplittingArray.leading_kt, z_cutoff=0.4),
+        "leading_kt_z_cut_02": functools.partial(analysis_jet_substructure.JetSplittingArray.leading_kt, z_cutoff=0.2),  # type: ignore[dict-item]
+        "leading_kt_z_cut_04": functools.partial(analysis_jet_substructure.JetSplittingArray.leading_kt, z_cutoff=0.4),  # type: ignore[dict-item]
     }
     # NOTE: This currently only works for iterative splittings...
     #       Calculating recursive is way harder in any array-like manner.
     if iterative_splittings:
-        functions["soft_drop_z_cut_02"] = functools.partial(
+        functions["soft_drop_z_cut_02"] = functools.partial(  # type: ignore[assignment]
             analysis_jet_substructure.JetSplittingArray.soft_drop, z_cutoff=0.2
         )
-        functions["soft_drop_z_cut_04"] = functools.partial(
+        functions["soft_drop_z_cut_04"] = functools.partial(  # type: ignore[assignment]
             analysis_jet_substructure.JetSplittingArray.soft_drop, z_cutoff=0.4
         )
     # Only apply the selected grooming methods if meaningful
@@ -992,7 +992,7 @@ def calculate_three_input_level_skim_impl(
                 and ak.any((hybrid_det_level_leading_matching == 1) & (hybrid_det_level_subleading_matching == 3))
             ):
                 from jet_substructure.analysis import draw_splitting  # pyright: ignore [reportMissingImports]
-                from networkx.drawing.nx_pylab import draw  # noqa: F401
+                from networkx.drawing.nx_pylab import draw  # pyright: ignore [reportMissingModuleSource] # noqa: F401
 
                 # Find a sufficiently interesting jet (ie high enough pt)
                 mask_jets_of_interest = (

@@ -170,8 +170,8 @@ def _chunks_for_combinatorics(combinatorics_chunk_size: int, array_length: int) 
     """
     # Validation + short circuit
     if combinatorics_chunk_size <= 0:
-        # IF we don't want to chunk, then just return the full range.
-        return None, None
+        # If we don't want to chunk, then just return the full range.
+        return (None, None)  # type: ignore[return-value]
 
     start = 0
     continue_iterating = True

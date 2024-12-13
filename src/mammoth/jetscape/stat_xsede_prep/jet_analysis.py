@@ -367,7 +367,7 @@ def angular_distribution_around_jet(
             hist.axes[0].bin_edges.T,
             hist.axes[1].bin_edges.T,
             hist.values.T,
-            norm=mpl.colors.Normalize(**z_axis_range),
+            norm=mpl.colors.Normalize(**z_axis_range),  # type: ignore[arg-type]
         )
         fig_eta_phi.colorbar(mesh, pad=0.02)
 

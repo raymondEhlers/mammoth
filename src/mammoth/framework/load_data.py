@@ -656,7 +656,7 @@ def setup_source_for_data_or_MC_task(
     minimize_IO_as_possible: bool,
     # Inputs
     signal_input: Path | Sequence[Path],
-    signal_source: sources.SourceFromFilename | sources.DelayedSource,
+    signal_source: sources.DelayedSource,
     loading_data_rename_levels: Mapping[str, str],
     # Outputs
     output_settings: task.OutputSettings,
@@ -739,10 +739,10 @@ def setup_source_for_embedding_task(
     minimize_IO_as_possible: bool,
     # Inputs
     signal_input: Path | Sequence[Path],
-    signal_source: sources.SourceFromFilename | sources.DelayedSource,
+    signal_source: sources.DelayedSource,
     signal_source_collision_system: str,
     background_input: Path | Sequence[Path],
-    background_source: sources.SourceFromFilename | sources.DelayedSource,
+    background_source: sources.DelayedSource,
     background_source_collision_system: str,
     background_is_constrained_source: bool,
     post_embedding_rename_levels: dict[str, str],
@@ -844,7 +844,7 @@ def setup_source_for_embedding_thermal_model_task(
     minimize_IO_as_possible: bool,
     # Inputs
     signal_input: Path | Sequence[Path],
-    signal_source: sources.SourceFromFilename | sources.DelayedSource,
+    signal_source: sources.DelayedSource,
     signal_source_collision_system: str,
     thermal_model_parameters: sources.ThermalModelParameters,
     post_embedding_rename_levels: dict[str, str],
