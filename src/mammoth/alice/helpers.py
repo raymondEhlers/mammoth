@@ -236,7 +236,7 @@ def standard_jet_selection(
     }
 
     # Apply jet level cuts.
-    for column_name in masks:
+    for column_name in masks:  # noqa: PLC0206
         # Cross check - if there are no entries at all, then this masking won't do anything,
         # and there's no point in continuing
         if len(ak.flatten(jets[column_name].pt)) == 0:
