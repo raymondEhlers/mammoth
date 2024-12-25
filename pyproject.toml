@@ -227,6 +227,7 @@ exclude = [
     'build',
     'dist',
     "src/*/_version.py",
+    "projects/jetscape/summer_school_2022",
 ]
 
 [tool.ruff.lint]

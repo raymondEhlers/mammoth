@@ -259,8 +259,8 @@ def data_distribution(
         verticalalignment="top",
         multialignment="left",
     )
-    ax.set_ylim([0, None])
-    ax.set_xlim([0, 6])
+    ax.set_ylim((0, None))  # type: ignore[arg-type]
+    ax.set_xlim((0, 6))
     # ax.set_xscale("log")
     ax.set_ylabel("kb / event")
     ax.set_xlabel(r"$p_{\text{T}}$ (GeV/c)")

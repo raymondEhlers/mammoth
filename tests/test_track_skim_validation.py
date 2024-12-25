@@ -767,7 +767,7 @@ def test_track_skim_validation(  # noqa: C901
             )
         # Check the results ran
         for task_res in workflow_results:
-            assert task_res.success, f"Failed to run workflow: {task_res}"
+            assert task_res.success, f"Failed to run workflow: {task_res}"  # type: ignore[attr-defined]
         # Finally, we set the output file to the expected location for comparison
         # NOTE: We originally considered copying the skim files to the expected locations.
         #       However, this isn't thread-safe, so we avoid it.

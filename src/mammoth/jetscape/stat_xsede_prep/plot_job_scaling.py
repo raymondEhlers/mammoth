@@ -107,8 +107,8 @@ def plot(scaling: Mapping[int, tuple[np.float64, np.float64, np.float64, np.floa
     # )
 
     ax.axhline(y=1, color="black", linestyle="dashed", zorder=1)
-    ax.set_xlim([0, 50])
-    ax.set_ylim([0, 1.5])
+    ax.set_xlim((0, 50))
+    ax.set_ylim((0, 1.5))
 
     ax.set_xlabel("$N$ Skylake cores")
     ax.set_ylabel("Event rate compared to $N=1$")

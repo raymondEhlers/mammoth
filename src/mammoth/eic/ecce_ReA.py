@@ -372,7 +372,7 @@ def _plot_n_PDF_variations(
             color=_okabe_ito_colors[_jet_R_to_color_index[k.jet_R_value]],
             alpha=0.075,
             marker="",
-            **extra_kwargs,
+            **extra_kwargs,  # type: ignore[arg-type]
         )
 
     if is_ReA_related:
@@ -386,7 +386,9 @@ def _plot_n_PDF_variations(
 
     # Ensure the legend is visible
     # See: https://stackoverflow.com/a/42403471/12907985
-    for lh in ax.get_legend().legendHandles:
+    for lh in ax.get_legend().legend_handles:
+        # Help out mypy
+        assert lh is not None
         lh.set_alpha(1)
 
     filename = f"{plot_config.name}"

@@ -126,7 +126,7 @@ def run(n_variations: int = 97) -> None:  # noqa: ARG001
         # ax_ratio.yaxis.set_major_locator(matplotlib.ticker.MultipleLocator(base=0.2))
         # Ensure the legend is visible
         # See: https://stackoverflow.com/a/42403471/12907985
-        for lh in ax.get_legend().legendHandles:
+        for lh in ax.get_legend().legend_handles:
             lh.set_alpha(1)
 
         filename = f"{plot_config.name}"

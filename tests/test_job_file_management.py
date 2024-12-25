@@ -161,6 +161,8 @@ def test_integration(staging_options: str) -> None:
                 settings=settings, input_files=permanent_files
             ) as staging_manager:
                 translated_input_files = staging_manager.translate_input_paths(paths=permanent_files)
+                # Help out mypy...
+                assert staging_manager.file_stager is not None
                 node_path_files_to_stage_out = generate_output_files(
                     input_files=translated_input_files,
                     # NOTE: It's important that we pass the staging_manager settings here rather than the
@@ -274,6 +276,8 @@ def test_staging_manager(actually_stage_files: bool) -> None:
             translated_output_files = staging_manager.translate_output_paths([permanent_work_dir])
 
             if actually_stage_files:
+                # Help out mypy...
+                assert staging_manager.file_stager is not None
                 # NOTE: It's important that we use the settings in the staging_manager here rather than the
                 #       general settings because `from_settings` will create a unique settings object,
                 #       which won't match up with the standard settings object. We update the settings to use

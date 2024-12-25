@@ -323,7 +323,7 @@ def plot_qt(
         mean_x=means[p_range_for_mean_label]["x"], mean_Q2=means[p_range_for_mean_label]["Q2"]
     )
     ax.set_xlabel(r"$q_{\text{T}}\:(\text{GeV}/c)$", fontsize=20)
-    ax.set_xlim([-0.25, max_qt * 1.05])
+    ax.set_xlim((-0.25, max_qt * 1.05))
     ax.set_ylabel(r"$1/N_{\text{jets}}\:\text{d}N/\text{d}q_{\text{T}}\:(\text{GeV}/c)^{-1}$", fontsize=20)
     ax.legend(
         loc="upper right",
@@ -467,7 +467,7 @@ def plot_qt_pt_as_function_of_p(
                 linestyle="",
                 linewidth=4,
                 label=plot_label,
-                **kwargs,
+                **kwargs,  # type: ignore[arg-type]
             )
             # mplhep plays tricks with the legend marker, such that it doesn't increase the legend linewidth
             # when it increases in the plot. I think it's because it uses the errorbar as the marker, but
@@ -496,9 +496,9 @@ def plot_qt_pt_as_function_of_p(
         min_x = -0.025
         if debug_fit:
             min_x = -0.1
-        ax.set_xlim([min_x, 0.4])
+        ax.set_xlim((min_x, 0.4))
         # Ensure we stop at 0, so it displays the same as a step plot.
-        ax.set_ylim([0, None])
+        ax.set_ylim((0, None))  # type: ignore[arg-type]
         ax.legend(
             loc="upper right",
             frameon=False,
@@ -562,7 +562,7 @@ def plot_qt_pt_comparison(
         ax.set_xlabel(r"$q_{\text{T}} / p_{\text{T}}^{\text{X}}$", fontsize=20)
         ax.set_ylabel(r"$1/N_{\text{X}}\:\text{d}N/\text{d}(q_{\text{T}}/p_{\text{T}}^{\text{X}})$", fontsize=20)
         # Focus on range of interest.
-        ax.set_xlim([-0.025, 0.4])
+        ax.set_xlim((-0.025, 0.4))
         ax.legend(
             loc="upper right",
             frameon=False,
