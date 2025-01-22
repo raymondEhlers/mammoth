@@ -5,7 +5,7 @@
 groups = ["default", "dev", "docs", "test"]
 strategy = []
 lock_version = "4.5.0"
-content_hash = "sha256:5cc8f21274b7b6907fe6605fa67f008cab65d569a16e3e8d395587911046181c"
+content_hash = "sha256:f36ba96390cb23f08fedc306ad66943fec16866f4b0a3b114ec9937437c41767"
 
 [[metadata.targets]]
 requires_python = ">=3.10"
@@ -2907,6 +2907,15 @@ dependencies = [
 files = [
     {file = "stack_data-0.6.3-py3-none-any.whl", hash = "sha256:d5558e0c25a4cb0853cddad3d77da9891a08cb85dd9f9f91b9f8cd66e511e695"},
     {file = "stack_data-0.6.3.tar.gz", hash = "sha256:836a778de4fec4dcd1dcd89ed8abff8a221f58308462e1c4aa2a3cf30148f0b9"},
+]
+
+[[package]]
+name = "strenum"
+version = "0.4.15"
+summary = "An Enum that inherits from str."
+files = [
+    {file = "StrEnum-0.4.15-py3-none-any.whl", hash = "sha256:a30cda4af7cc6b5bf52c8055bc4bf4b2b6b14a93b574626da33df53cf7740659"},
+    {file = "StrEnum-0.4.15.tar.gz", hash = "sha256:878fb5ab705442070e4dd1929bb5e2249511c0bcf2b0eeacf3bcd80875c82eff"},
 ]
 
 [[package]]

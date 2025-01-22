@@ -5,7 +5,12 @@
 
 from __future__ import annotations
 
-import enum
+try:
+    # Python 3.11+ (need the mypy ignore since it's targeted at 3.10)
+    from enum import StrEnum  # type: ignore[attr-defined]
+except ImportError:
+    # Backport for Python 3.10
+    from strenum import StrEnum  # pyright: ignore[reportMissingImports]
 import functools
 import logging
 import operator
@@ -184,7 +189,7 @@ def standard_track_selection(
     return arrays
 
 
-class JetRejectionReason(enum.StrEnum):  # type: ignore[name-defined,misc]
+class JetRejectionReason(StrEnum):  # type: ignore[name-defined,misc]
     n_initial = "n_initial"
     n_accepted = "n_accepted"
     constituents_max_pt = "constituents_max_pt"

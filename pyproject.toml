@@ -65,6 +65,7 @@ dependencies = [
     "dask[distributed,diagnostics]>=2022.12.0",
     "dask-jobqueue>=0.8.1",
     "rich-argparse>=1.4.0",
+    "strenum>=0.4.15; python_version < \"3.11\"",
 ]
 
 [project.optional-dependencies]
@@ -194,6 +195,7 @@ module = [
     "seaborn",
     "scipy.interpolate",
     "scipy",
+    "strenum",  # Only for python 3.10 and below
     "uproot",
     "pyhepmc",
     "awkward",
