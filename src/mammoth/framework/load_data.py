@@ -83,8 +83,13 @@ def normalize_for_one_input_level(
         # to workaround this case. The simplest thing we can do is just use the a fixed mass hypothesis as
         # we do at detector level.
         if "particle_ID" not in ak.fields(data):
+            # NOTE: There's no point in throwing this warning unless we would actually care about
+            #       the particle ID namely, if there's particle level data involved. We can check
+            #       by looking for "part_level" on either side of the rename fields. Otherwise,
+            #       it's entirely expected to use the mass hypothesis e.g. for real data.
+            if "part_level" in rename_levels or "part_level" in list(rename_levels.values()):
+                logger.warning("No particle ID info is available, so using mass hypothesis")
             # NOTE: This value can be customized if desired!
-            logger.warning("No particle ID info is available, so using mass hypothesis for particle level!")
             data["m"] = data["pt"] * 0 + mass_hypotheses["data"]
         else:
             # Since we have truth level info, construct the part level mass based on the particle_ID
