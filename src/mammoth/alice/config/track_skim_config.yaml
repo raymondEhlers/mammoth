@@ -1358,6 +1358,19 @@ productions:
         event_activity: "central"
         background_subtraction:
           r_max: 0.50
+    73:
+      # Nominal, central, r_max = 0.1, 10% fraction of data to check how many jets
+      # are removed by the jet cuts. Added 8 Jan 2025
+      metadata:
+        <<: *base_metadata_PbPb
+        dataset: *LHC18qr_PbPb_central
+        production_number: 73
+        label: "central"
+      settings:
+        <<: *analysis_settings_hardest_kt_PbPb_R02
+        event_activity: "central"
+        background_subtraction:
+          r_max: 0.1
 
   PbPb_MC:
     # Testing with JEWEL no recoils

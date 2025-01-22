@@ -5,6 +5,7 @@
 
 from __future__ import annotations
 
+import enum
 import functools
 import logging
 import operator
@@ -12,6 +13,7 @@ from collections.abc import Mapping, Sequence
 from typing import Final
 
 import awkward as ak
+import hist
 import numpy as np
 
 from mammoth.framework import jet_finding, particle_ID
@@ -182,6 +184,44 @@ def standard_track_selection(
     return arrays
 
 
+class JetRejectionReason(enum.StrEnum):  # type: ignore[name-defined,misc]
+    n_initial = "n_initial"
+    n_accepted = "n_accepted"
+    constituents_max_pt = "constituents_max_pt"
+    minimum_area = "minimum_area"
+    substructure_n_constituents = "substructure_n_constituents"
+
+
+def create_jet_selection_QA_hists(particle_columns: list[str]) -> dict[str, hist.Hist]:
+    """Jet selection QA hists."""
+    hists = {}
+    for level in particle_columns:
+        # Acceptance reason
+        hists[f"{level}_jet_n_accepted"] = hist.Hist(
+            hist.axis.StrCategory([str(v) for v in list(JetRejectionReason)], growth=True),
+            label="Jet acceptance",
+            storage=hist.storage.Weight(),
+        )
+
+    return hists
+
+
+def fill_jet_qa_reason(
+    reason: str,
+    hists: dict[str, hist.Hist],
+    masks: ak.Array,
+    column_name: str,
+) -> None:
+    """Fill Jet QA reason hists.
+
+    hists are modified in place.
+    """
+    # Jets which pass, cumulatively
+    hists["f{column_name}_{reason}"].fill(
+        reason, np.count_nonzero(np.asarray(ak.flatten(masks[column_name], axis=None)))
+    )
+
+
 def standard_jet_selection(
     jets: ak.Array,
     jet_R: float,
@@ -189,7 +229,7 @@ def standard_jet_selection(
     substructure_constituent_requirements: bool,
     selected_particle_column_name: str = "",
     max_constituent_pt_values: Mapping[str, float] | None = None,
-) -> ak.Array:
+) -> tuple[ak.Array, dict[str, hist.Hist]]:
     """Standard ALICE jet selection
 
     Includes selections on:
@@ -210,7 +250,7 @@ def standard_jet_selection(
             100 GeV for det level and hybrid, 1000 GeV for part level.
 
     Returns:
-        Jets array with the jet selection applied.
+        Jets array with the jet selection applied, QA hists
     """
     # Validation
     particle_columns = _determine_particle_column_names(
@@ -223,6 +263,9 @@ def standard_jet_selection(
         _max_constituent_pt_values = {
             "part_level": 1000.0,
         }
+
+    # Setup
+    hists = create_jet_selection_QA_hists(particle_columns=particle_columns)
 
     # Start with all true mask
     masks = {
@@ -247,6 +290,9 @@ def standard_jet_selection(
             )
             continue
 
+        # Record initial number of jets.
+        fill_jet_qa_reason(JetRejectionReason.n_initial, hists, masks, column_name)
+
         # **************
         # Remove detector level jets with constituents with pt > 100 GeV
         # Those tracks are almost certainly fake at detector level.
@@ -260,6 +306,8 @@ def standard_jet_selection(
         logger.info(
             f"{column_name}: max track constituent max accepted: {np.count_nonzero(np.asarray(ak.flatten(masks[column_name] == True, axis=None)))}"  # noqa: E712
         )
+        # Jets which pass, cumulatively
+        fill_jet_qa_reason(JetRejectionReason.constituents_max_pt, hists, masks, column_name)
         # **************
         # Apply area cut
         # Requires at least 60% of possible area.
@@ -269,6 +317,8 @@ def standard_jet_selection(
         logger.info(
             f"{column_name}: add area cut n accepted: {np.count_nonzero(np.asarray(ak.flatten(masks[column_name] == True, axis=None)))}"  # noqa: E712
         )
+        # Jets which pass, cumulatively
+        fill_jet_qa_reason(JetRejectionReason.minimum_area, hists, masks, column_name)
 
         # *************
         # Require more than one constituent at detector level (or in data) if we're not in PbPb.
@@ -288,9 +338,12 @@ def standard_jet_selection(
                 logger.info(
                     f"{column_name}: require more than one constituent n accepted: {np.count_nonzero(np.asarray(ak.flatten(masks[column_name] == True, axis=None)))}"  # noqa: E712
                 )
+        # Jets which pass, cumulatively
+        # NOTE: We put it here since in the case that the cut is disabled, we want to be clear that nothing was selected here!
+        fill_jet_qa_reason(JetRejectionReason.substructure_n_constituents, hists, masks, column_name)
 
     # Actually apply the masks
     for column_name, mask in masks.items():
         jets[column_name] = jets[column_name][mask]
 
-    return jets
+    return jets, hists

@@ -112,7 +112,7 @@ def analysis_MC(
     logger.info(f"Found det_level n jets: {np.count_nonzero(np.asarray(ak.flatten(jets['det_level'].px, axis=None)))}")
 
     # Apply jet level cuts.
-    jets = alice_helpers.standard_jet_selection(
+    jets, _qa_hists = alice_helpers.standard_jet_selection(
         jets=jets,
         jet_R=jet_R,
         collision_system="pp_MC",
@@ -234,7 +234,7 @@ def analysis_data(
     )
 
     # Apply jet level cuts.
-    jets = alice_helpers.standard_jet_selection(
+    jets, _qa_hists = alice_helpers.standard_jet_selection(
         jets=jets,
         jet_R=jet_R,
         collision_system=collision_system,
@@ -374,7 +374,7 @@ def analysis_embedding(
     )
 
     # Apply jet level cuts.
-    jets = alice_helpers.standard_jet_selection(
+    jets, _qa_hists = alice_helpers.standard_jet_selection(
         jets=jets,
         jet_R=jet_R,
         collision_system="embed_pythia",

@@ -10,6 +10,7 @@ from collections.abc import Mapping
 from typing import Any
 
 import awkward as ak
+import hist
 import numpy as np
 
 from mammoth import helpers
@@ -21,6 +22,13 @@ from mammoth.framework.analysis import jets as analysis_jets
 from mammoth.framework.analysis import tracking as analysis_tracking
 
 logger = logging.getLogger(__name__)
+
+
+def _setup_base_hists(levels: list[str]) -> dict[str, hist.Hist]:  # noqa: ARG001
+    """Setup the basic histograms for the analysis."""
+    hists: dict[str, hist.Hist] = {}
+    # N/A
+    return hists
 
 
 def analyze_track_skim_and_recluster_data(
@@ -37,8 +45,8 @@ def analyze_track_skim_and_recluster_data(
     generator_analysis_arguments: framework_task.GeneratorAnalysisArguments | None = None,
     # Default analysis arguments
     validation_mode: bool = False,
-) -> ak.Array:
-    """Analyze the track skim through reclustering for data
+) -> tuple[ak.Array, dict[str, hist.Hist]]:
+    """Analyze the track skim through reclustering for data (and one level of MC)
 
     NOTE:
         Since we nearly always need to convert this further to a flat skim, we need to wrap
@@ -51,9 +59,11 @@ def analyze_track_skim_and_recluster_data(
     if reclustering_settings is None:
         reclustering_settings = {}
 
+    # Setup
     logger.info("Start analyzing")
 
     # Setup
+    hists = _setup_base_hists(levels=[particle_column_name])
     gen_settings = generator_settings.create_generator_settings_if_valid(
         input_source_config=input_metadata["signal_source_config"],
         generator_analysis_arguments=generator_analysis_arguments,
@@ -152,13 +162,14 @@ def analyze_track_skim_and_recluster_data(
     )
 
     # Apply jet level cuts.
-    jets = alice_helpers.standard_jet_selection(
+    jets, _qa_hists = alice_helpers.standard_jet_selection(
         jets=jets,
         jet_R=jet_R,
         collision_system=collision_system,
         substructure_constituent_requirements=True,
         selected_particle_column_name=particle_column_name,
     )
+    hists.update(_qa_hists)
 
     # Reclustering
     if gen_settings and jet_finding_settings_additional_kwargs[particle_column_name]:
@@ -200,8 +211,7 @@ def analyze_track_skim_and_recluster_data(
 
     logger.warning(f"n jets: {len(jets)}")
 
-    # Now, the final transformation into a form that can be used to skim into a flat tree.
-    return jets
+    return jets, hists
 
 
 def analyze_track_skim_and_recluster_MC(
@@ -217,8 +227,8 @@ def analyze_track_skim_and_recluster_MC(
     generator_analysis_arguments: framework_task.GeneratorAnalysisArguments | None = None,
     # Default analysis arguments
     validation_mode: bool = False,
-) -> ak.Array:
-    """Analyze the track skim through reclustering for MC (pp_MC or PbPb_MC)
+) -> tuple[ak.Array, dict[str, hist.Hist]]:
+    """Analyze the track skim through reclustering for two level MC (pp_MC or PbPb_MC)
 
     NOTE:
         Since we nearly always need to convert this further to a flat skim, we need to wrap
@@ -233,6 +243,7 @@ def analyze_track_skim_and_recluster_MC(
 
     # Setup
     levels = ["part_level", "det_level"]
+    hists = _setup_base_hists(levels=levels)
     gen_settings = generator_settings.create_generator_settings_if_valid(
         input_source_config=input_metadata["signal_source_config"],
         generator_analysis_arguments=generator_analysis_arguments,
@@ -361,12 +372,13 @@ def analyze_track_skim_and_recluster_MC(
     logger.info(f"Found det_level n jets: {np.count_nonzero(np.asarray(ak.flatten(jets['det_level'].px, axis=None)))}")
 
     # Apply jet level cuts.
-    jets = alice_helpers.standard_jet_selection(
+    jets, _qa_hists = alice_helpers.standard_jet_selection(
         jets=jets,
         jet_R=jet_R,
         collision_system=collision_system,
         substructure_constituent_requirements=True,
     )
+    hists.update(_qa_hists)
     logger.info(f"all jet cuts n accepted: {np.count_nonzero(np.asarray(ak.flatten(jets['det_level'].px, axis=None)))}")
 
     # Jet matching
@@ -428,7 +440,7 @@ def analyze_track_skim_and_recluster_MC(
     )
 
     # Now, the final transformation into a form that can be used to skim into a flat tree.
-    return jets  # noqa: RET504
+    return jets, hists
 
 
 def analyze_track_skim_and_recluster_embedding(
@@ -446,7 +458,7 @@ def analyze_track_skim_and_recluster_embedding(
     generator_analysis_arguments: framework_task.GeneratorAnalysisArguments | None = None,
     # Default analysis arguments
     validation_mode: bool = False,
-) -> ak.Array:
+) -> tuple[ak.Array, dict[str, hist.Hist]]:
     """Analyze the track skim through reclustering for embedding
 
     NOTE:
@@ -461,9 +473,12 @@ def analyze_track_skim_and_recluster_embedding(
     if reclustering_settings is None:
         reclustering_settings = {}
 
+    logger.info("Start analyzing")
+
     # Setup
     levels = ["part_level", "det_level", "hybrid_level"]
     collision_system = "embed_pythia"
+    hists = _setup_base_hists(levels=levels)
     gen_settings = generator_settings.create_generator_settings_if_valid(
         input_source_config=input_metadata["signal_source_config"],
         generator_analysis_arguments=generator_analysis_arguments,
@@ -573,12 +588,13 @@ def analyze_track_skim_and_recluster_embedding(
     )
 
     # Apply jet level cuts.
-    jets = alice_helpers.standard_jet_selection(
+    jets, _qa_hists = alice_helpers.standard_jet_selection(
         jets=jets,
         jet_R=jet_R,
-        collision_system="embed_pythia",
+        collision_system=collision_system,
         substructure_constituent_requirements=True,
     )
+    hists.update(_qa_hists)
 
     # Jet matching
     # NOTE: There is small departure from the AliPhysics approach here because we apply the jet cuts
@@ -651,8 +667,7 @@ def analyze_track_skim_and_recluster_embedding(
         )
         jets = jets[shared_momentum_fraction_mask]
 
-    # Now, the final transformation into a form that can be used to skim into a flat tree.
-    return jets
+    return jets, hists
 
 
 def run_some_standalone_experiments() -> None:
@@ -669,7 +684,7 @@ def run_some_standalone_experiments() -> None:
 
     # collision_system = "PbPb"
     # logger.info(f'Analyzing "{collision_system}"')
-    # jets = reclustered_substructure.analyze_track_skim_and_recluster_data(
+    # jets, hists = reclustered_substructure.analyze_track_skim_and_recluster_data(
     #    collision_system=collision_system,
     #    arrays=load_data.data(
     #        data_input=Path(

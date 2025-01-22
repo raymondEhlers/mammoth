@@ -191,7 +191,7 @@ def analyze_chunk_two_input_level(
         #    det_level_artificial_tracking_efficiency, 1.0
         # ), f"Det level tracking efficiency should almost certainly be 1.0. Passed: {det_level_artificial_tracking_efficiency}"
 
-        # jets = reclustered_substructure.analyze_track_skim_and_recluster_data(
+        # jets, hists = reclustered_substructure.analyze_track_skim_and_recluster_data(
         #    collision_system=collision_system,
         #    arrays=arrays,
         #    jet_R=jet_R,
@@ -201,7 +201,7 @@ def analyze_chunk_two_input_level(
         # )
 
     # Two track collections (part and det level)
-    jets = analyze_chunk.analyze_track_skim_and_recluster_MC(
+    jets, hists = analyze_chunk.analyze_track_skim_and_recluster_MC(
         collision_system=collision_system,
         arrays=arrays,
         input_metadata=input_metadata,
@@ -238,6 +238,7 @@ def analyze_chunk_two_input_level(
     #       If we didn't return it, then all of the processing is useless.
     return framework_task.AnalysisOutput(
         skim=jets,
+        hists=hists,
     )
 
 
@@ -270,7 +271,7 @@ def analyze_chunk_one_input_level(
 
     This implements the Analysis interface.
     """
-    jets = analyze_chunk.analyze_track_skim_and_recluster_data(
+    jets, hists = analyze_chunk.analyze_track_skim_and_recluster_data(
         collision_system=collision_system,
         arrays=arrays,
         input_metadata=input_metadata,
@@ -308,6 +309,7 @@ def analyze_chunk_one_input_level(
     #       If we didn't return it, then all of the processing is useless.
     return framework_task.AnalysisOutput(
         skim=jets,
+        hists=hists,
     )
 
 
@@ -378,7 +380,7 @@ def analyze_chunk_three_input_level(
 
     This implements the Analysis interface.
     """
-    jets = analyze_chunk.analyze_track_skim_and_recluster_embedding(
+    jets, hists = analyze_chunk.analyze_track_skim_and_recluster_embedding(
         source_index_identifiers=source_index_identifiers,
         arrays=arrays,
         input_metadata=input_metadata,
@@ -415,6 +417,7 @@ def analyze_chunk_three_input_level(
     #       If we didn't return it, then all of the processing is useless.
     return framework_task.AnalysisOutput(
         skim=jets,
+        hists=hists,
     )
 
 
