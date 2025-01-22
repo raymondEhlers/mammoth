@@ -211,7 +211,7 @@ def create_jet_selection_QA_hists(particle_columns: list[str]) -> dict[str, hist
     return hists
 
 
-def fill_jet_qa_reason(
+def fill_jet_QA_reason(
     reason: str,
     hists: dict[str, hist.Hist],
     masks: ak.Array,
@@ -219,11 +219,20 @@ def fill_jet_qa_reason(
 ) -> None:
     """Fill Jet QA reason hists.
 
-    hists are modified in place.
+    Args:
+        reason: Acceptance / rejection reason.
+        hists: Dict containing QA hists.
+        masks: Selection masks.
+        column_name: Name of column / level which we are recording for.
+
+    Returns:
+        None. The histogram is modified in place.
     """
-    # Jets which pass, cumulatively
-    hists["f{column_name}_{reason}"].fill(
-        reason, np.count_nonzero(np.asarray(ak.flatten(masks[column_name], axis=None)))
+    # Since we use the general mask, this will store the cumulative number of jets
+    # (i.e. it depends on the selection order). However, this is probably good enough
+    # for these purposes.
+    hists[f"{column_name}_jet_n_accepted"].fill(
+        reason, weight=np.count_nonzero(np.asarray(ak.flatten(masks[column_name], axis=None)))
     )
 
 
@@ -296,7 +305,7 @@ def standard_jet_selection(
             continue
 
         # Record initial number of jets.
-        fill_jet_qa_reason(JetRejectionReason.n_initial, hists, masks, column_name)
+        fill_jet_QA_reason(JetRejectionReason.n_initial, hists, masks, column_name)
 
         # **************
         # Remove detector level jets with constituents with pt > 100 GeV
@@ -312,7 +321,7 @@ def standard_jet_selection(
             f"{column_name}: max track constituent max accepted: {np.count_nonzero(np.asarray(ak.flatten(masks[column_name] == True, axis=None)))}"  # noqa: E712
         )
         # Jets which pass, cumulatively
-        fill_jet_qa_reason(JetRejectionReason.constituents_max_pt, hists, masks, column_name)
+        fill_jet_QA_reason(JetRejectionReason.constituents_max_pt, hists, masks, column_name)
         # **************
         # Apply area cut
         # Requires at least 60% of possible area.
@@ -323,7 +332,7 @@ def standard_jet_selection(
             f"{column_name}: add area cut n accepted: {np.count_nonzero(np.asarray(ak.flatten(masks[column_name] == True, axis=None)))}"  # noqa: E712
         )
         # Jets which pass, cumulatively
-        fill_jet_qa_reason(JetRejectionReason.minimum_area, hists, masks, column_name)
+        fill_jet_QA_reason(JetRejectionReason.minimum_area, hists, masks, column_name)
 
         # *************
         # Require more than one constituent at detector level (or in data) if we're not in PbPb.
@@ -345,7 +354,7 @@ def standard_jet_selection(
                 )
         # Jets which pass, cumulatively
         # NOTE: We put it here since in the case that the cut is disabled, we want to be clear that nothing was selected here!
-        fill_jet_qa_reason(JetRejectionReason.substructure_n_constituents, hists, masks, column_name)
+        fill_jet_QA_reason(JetRejectionReason.substructure_n_constituents, hists, masks, column_name)
 
     # Actually apply the masks
     for column_name, mask in masks.items():
