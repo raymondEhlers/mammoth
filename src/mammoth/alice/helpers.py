@@ -203,7 +203,7 @@ def create_jet_selection_QA_hists(particle_columns: list[str]) -> dict[str, hist
     for level in particle_columns:
         # Acceptance reason
         hists[f"{level}_jet_n_accepted"] = hist.Hist(
-            hist.axis.StrCategory([str(v) for v in list(JetRejectionReason)], growth=True),
+            hist.axis.StrCategory([str(v) for v in list(JetRejectionReason)], growth=True, name="Jet N Accepted"),
             label="Jet acceptance",
             storage=hist.storage.Weight(),
         )
