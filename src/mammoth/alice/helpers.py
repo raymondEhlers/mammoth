@@ -191,10 +191,10 @@ def standard_track_selection(
 
 class JetRejectionReason(StrEnum):  # type: ignore[name-defined,misc]
     n_initial = "n_initial"
-    n_accepted = "n_accepted"
     constituents_max_pt = "constituents_max_pt"
     minimum_area = "minimum_area"
     substructure_n_constituents = "substructure_n_constituents"
+    n_accepted = "n_accepted"
 
 
 def create_jet_selection_QA_hists(particle_columns: list[str]) -> dict[str, hist.Hist]:
@@ -320,7 +320,6 @@ def standard_jet_selection(
         logger.info(
             f"{column_name}: max track constituent max accepted: {np.count_nonzero(np.asarray(ak.flatten(masks[column_name] == True, axis=None)))}"  # noqa: E712
         )
-        # Jets which pass, cumulatively
         fill_jet_QA_reason(JetRejectionReason.constituents_max_pt, hists, masks, column_name)
         # **************
         # Apply area cut
@@ -331,7 +330,6 @@ def standard_jet_selection(
         logger.info(
             f"{column_name}: add area cut n accepted: {np.count_nonzero(np.asarray(ak.flatten(masks[column_name] == True, axis=None)))}"  # noqa: E712
         )
-        # Jets which pass, cumulatively
         fill_jet_QA_reason(JetRejectionReason.minimum_area, hists, masks, column_name)
 
         # *************
@@ -352,9 +350,12 @@ def standard_jet_selection(
                 logger.info(
                     f"{column_name}: require more than one constituent n accepted: {np.count_nonzero(np.asarray(ak.flatten(masks[column_name] == True, axis=None)))}"  # noqa: E712
                 )
-        # Jets which pass, cumulatively
         # NOTE: We put it here since in the case that the cut is disabled, we want to be clear that nothing was selected here!
         fill_jet_QA_reason(JetRejectionReason.substructure_n_constituents, hists, masks, column_name)
+
+        # All done - make sure we get a final count (this may be trivial in some cases,
+        # but I'd rather be clear).
+        fill_jet_QA_reason(JetRejectionReason.n_accepted, hists, masks, column_name)
 
     # Actually apply the masks
     for column_name, mask in masks.items():
