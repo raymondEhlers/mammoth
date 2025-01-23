@@ -558,7 +558,7 @@ analysis_settings:
       explode_skim_fields_to_separate_directories: false
       return_merged_hists: false
       write_chunk_hists: false
-      write_merged_hists: false
+      write_merged_hists: true
 
     _pp: &_reclustered_substructure_settings_pp
       track_skim_to_flat_skim_level_names: # Map from track_skim level -> level of the structured jet substructure format
@@ -1146,7 +1146,6 @@ productions:
       settings:
         <<: *analysis_settings_hardest_kt_pp_R02
         output_settings:
-          # Utilize the time reclustering output settings for convenience in testing
           <<: *reclustered_substructure_output_settings
         # And disable artificial tracking efficiency
         det_level_artificial_tracking_efficiency: 1.0
@@ -1368,6 +1367,8 @@ productions:
         label: "central"
       settings:
         <<: *analysis_settings_hardest_kt_PbPb_R02
+        output_settings:
+          <<: *reclustered_substructure_output_settings
         event_activity: "central"
         background_subtraction:
           r_max: 0.1
@@ -1383,7 +1384,6 @@ productions:
       settings:
         <<: *analysis_settings_hardest_kt_PbPb_R02
         output_settings:
-          # Utilize the time reclustering output settings for convenience in testing
           <<: *reclustered_substructure_output_settings
         event_activity: "central"
         # And disable artificial tracking efficiency
@@ -1402,7 +1402,6 @@ productions:
       settings:
         <<: *analysis_settings_hardest_kt_PbPb_R02
         output_settings:
-          # Utilize the time reclustering output settings for convenience in testing
           <<: *reclustered_substructure_output_settings
         event_activity: "central"
         # And disable artificial tracking efficiency
@@ -1420,7 +1419,6 @@ productions:
       settings:
         <<: *analysis_settings_hardest_kt_PbPb_R02
         output_settings:
-          # Utilize the time reclustering output settings for convenience in testing
           <<: *reclustered_substructure_output_settings
         event_activity: "central"
         # And disable artificial tracking efficiency
@@ -1438,7 +1436,6 @@ productions:
       settings:
         <<: *analysis_settings_hardest_kt_PbPb_MC_R02
         output_settings:
-          # Utilize the time reclustering output settings for convenience in testing
           <<: *reclustered_substructure_output_settings
         event_activity: "central"
         # And disable artificial tracking efficiency
@@ -1456,7 +1453,6 @@ productions:
       settings:
         <<: *analysis_settings_hardest_kt_PbPb_MC_R02
         output_settings:
-          # Utilize the time reclustering output settings for convenience in testing
           <<: *reclustered_substructure_output_settings
         event_activity: "central"
         # And disable artificial tracking efficiency
