@@ -183,13 +183,18 @@ def steer_task_execution(  # noqa: C901
     # Write hists
     if output_settings.write_merged_hists:
         # Cross check that we have something to write
-        assert list(task_hists.keys()), "No hists to write!"
-
-        # And then actually write it
-        output_hist_filename = output_utils.task_output_path_hist(output_filename=output_settings.output_filename)
-        output_hist_filename.parent.mkdir(parents=True, exist_ok=True)
-        with uproot.recreate(output_hist_filename) as f:
-            output_utils.write_hists_to_file(hists=task_hists, f=f)
+        if list(task_hists.keys()):
+            # And actually write it
+            logger.info("Writing hists from merged chunks...")
+            output_hist_filename = output_utils.task_output_path_hist(output_filename=output_settings.output_filename)
+            output_hist_filename.parent.mkdir(parents=True, exist_ok=True)
+            with uproot.recreate(output_hist_filename) as f:
+                output_utils.write_hists_to_file(hists=task_hists, f=f)
+        else:
+            msg = "Heads up: there are no hists merged together from chunks to write! May be due to no usable outputs (i.e. no jets in all of the chunks) or may be a configuration error. Double check your outputs"
+            logger.warning(msg)
+            # And make sure this is passed back too
+            _nonstandard_processing_outcome.append((True, msg))
 
     # Cleanup
     if not output_settings.return_merged_hists:
