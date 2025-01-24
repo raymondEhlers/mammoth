@@ -1,4 +1,12 @@
 cmake_minimum_required(VERSION 3.15...3.30)
+
+# Help out running the case that we're not using scikit-build-core (e.g. we're trying to use vscode)
+# If we're using scikit-build, this will do nothing.
+if(NOT DEFINED SKBUILD)
+  set(SKBUILD_PROJECT_NAME mammoth_cpp)
+  set(SKBUILD_PROJECT_VERSION 0.0.0)
+endif()
+
 project("${SKBUILD_PROJECT_NAME}" LANGUAGES CXX VERSION "${SKBUILD_PROJECT_VERSION}")
 
 ##########################
