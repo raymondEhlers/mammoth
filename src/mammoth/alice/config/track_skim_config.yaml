@@ -1363,6 +1363,7 @@ productions:
       metadata:
         <<: *base_metadata_PbPb
         dataset: *LHC18qr_PbPb_central
+        sample_dataset_fraction: 0.1
         production_number: 73
         label: "central"
       settings:
