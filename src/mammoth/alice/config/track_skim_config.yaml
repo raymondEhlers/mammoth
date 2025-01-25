@@ -1362,7 +1362,7 @@ productions:
       # are removed by the jet cuts. Added 8 Jan 2025
       metadata:
         <<: *base_metadata_PbPb
-        dataset: *LHC18qr_PbPb_central
+        dataset: *LHC18qr_PbPb_central_at_LBL
         sample_dataset_fraction: 0.1
         production_number: 73
         label: "central"
