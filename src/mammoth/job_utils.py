@@ -149,10 +149,13 @@ class Facility:
     name: str
     node_spec: NodeSpec
     partition_name: str
+    use_qos_instead_of_partition: bool = attrs.field(default=False)
+    constraint: str | None = attrs.field(default=None)
     # Number of cores to target allocating. Default: Full node.
     _target_allocate_n_cores: int | None = attrs.field(default=None)
     allocation_account: str = attrs.field(default="")
     task_configs: dict[str, TaskConfig] = attrs.Factory(dict)
+    scheduler_options: List[str] = attrs.Factory(list)
     node_work_dir: Path = attrs.field(default=Path("."))  # noqa: PTH201
     storage_work_dir: Path = attrs.field(
         converter=_expand_vars_in_work_dir,
@@ -164,6 +167,7 @@ class Facility:
     launcher: Callable[[], Launcher] = attrs.field(default=SrunLauncher)
     parsl_config_additional_options: dict[str, Any] = attrs.Factory(dict)
     nodes_to_exclude: list[str] = attrs.Factory(list)
+    cmd_timeout: int = attrs.field(default=10)
     staging_storage_classes: list[Staging] = attrs.Factory(list)
     _minimize_IO_as_possible: bool = attrs.field(default=False)
 
@@ -297,6 +301,60 @@ _facilities_configs.update(
             minimize_IO_as_possible=True,
         )
         for queue in ["quick", "std", "long", "test"]
+    }
+)
+ # Perlmutter
+_facilities_configs.update(
+    {
+        f"perlmutter_{queue}": Facility(
+            name="perlmutter",
+            node_spec=NodeSpec(n_cores=128, memory=256),
+            # Queues here: https://docs.nersc.gov/jobs/policy/#perlmutter-cpu
+            # Shared max seems to be only 32 cores with one node total, so doesn't seem so useful.
+            partition_name=queue,
+            use_qos_instead_of_partition=True,
+            constraint="cpu",
+            allocation_account="alice",
+            # Allocate full node:
+            target_allocate_n_cores=128,
+            # Allocate by core:
+            # target_allocate_n_cores=1,
+            launcher=SingleNodeLauncher,
+            cmd_timeout=120,
+            #node_work_dir=Path("$PSCRATCH/parsl"),
+            #storage_work_dir=Path("/global/cfs/projectdirs/alice/alicepro/hiccup/rehlers"),
+            nodes_to_exclude=[],
+            worker_init_script="module load python/3.11 gcc/12.2.0",
+            minimize_IO_as_possible=True,
+        )
+        for queue in ["regular", "debug"]
+    }
+)
+ # Perlmutter with staging
+_facilities_configs.update(
+    {
+        f"perlmutter_staging_{queue}": Facility(
+            name="perlmutter_staging",
+            node_spec=NodeSpec(n_cores=128, memory=256),
+            # Queues here: https://docs.nersc.gov/jobs/policy/#perlmutter-cpu
+            # Shared max seems to be only 32 cores with one node total, so doesn't seem so useful.
+            partition_name=queue,
+            use_qos_instead_of_partition=True,
+            constraint="cpu",
+            allocation_account="alice",
+            # Allocate full node:
+            target_allocate_n_cores=128,
+            # Allocate by core:
+            # target_allocate_n_cores=1,
+            launcher=SingleNodeLauncher,
+            cmd_timeout=60,
+            node_work_dir=Path("$PSCRATCH/parsl"),
+            storage_work_dir=Path("/global/cfs/projectdirs/alice/alicepro/hiccup/rehlers"),
+            nodes_to_exclude=[],
+            worker_init_script="module load python/3.11 gcc/12.2.0",
+            minimize_IO_as_possible=True,
+        )
+        for queue in ["regular", "debug"]
     }
 )
 
@@ -787,6 +845,19 @@ def _define_parsl_config(
             launcher=facility.launcher(),
         )
     else:
+        scheduler_options = ""
+        if facility.scheduler_options:
+            scheduler_options += "\n".join([f"#SBATCH {opt}" for opt in facility.scheduler_options])
+        if facility.nodes_to_exclude:
+            scheduler_options += f"\n#SBATCH --exclude={','.join(facility.nodes_to_exclude)}"
+
+        slurm_kwargs = {}
+        if facility.use_qos_instead_of_partition:
+            slurm_kwargs["qos"] = facility.partition_name
+        else:
+            slurm_kwargs["partition"] = facility.partition_name
+        slurm_kwargs.update(facility.slurm_provider_additional_options)
+
         provider = SlurmProvider(
             # This is how many cores and how much memory we'll request per node.
             cores_per_node=n_cores_to_allocate_per_block,
@@ -798,13 +869,11 @@ def _define_parsl_config(
             min_blocks=0,
             max_blocks=n_blocks,
             init_blocks=n_blocks,
-            partition=facility.partition_name,
             account=facility.allocation_account,
+            constraint=facility.constraint,
             # string to prepend to #SBATCH blocks in the submit
             # Can add additional options directly to scheduler.
-            scheduler_options=f"#SBATCH --exclude={','.join(facility.nodes_to_exclude)}"
-            if facility.nodes_to_exclude
-            else "",
+            scheduler_options=scheduler_options,
             # Command to be run before starting a worker, such as:
             # 'module load Anaconda; source activate parsl_env'.
             worker_init=f"{facility.worker_init_script}; {additional_worker_init_script}"
@@ -812,18 +881,22 @@ def _define_parsl_config(
             else additional_worker_init_script,
             launcher=facility.launcher(),
             walltime=walltime,
+            cmd_timeout=facility.cmd_timeout,
             # If we're allocating full nodes, then we should request exclusivity.
-            exclusive=facility.allocate_full_node,
-            **facility.slurm_provider_additional_options,
+            #exclusive=facility.allocate_full_node,
+            **slurm_kwargs,
         )
 
+    # TEST for perlmutter
+    config_kwargs["run_dir"] = "/pscratch/sd/r/rehlers/runinfo"
+    # END TEST
     config = Config(
         executors=[
             HighThroughputExecutor(
                 label=f"{facility.name}_HTEX",
                 # For some reason, parsl doesn't seem to like address_by_hostname on hiccup. Maybe it's hiccup or maybe it's parsl.
                 # In any case, this is a workaround
-                address=address_by_hostname() if "hiccup" not in facility.name else address_by_route(),
+                #address=address_by_hostname() if "hiccup" not in facility.name else address_by_route(),
                 cores_per_worker=task_config.n_cores_per_task,
                 # cores_per_worker=round(n_cores_per_node / n_workers_per_node),
                 # NOTE: We don't want to set the `max_workers` because we want the number of workers to

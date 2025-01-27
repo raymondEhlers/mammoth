@@ -239,6 +239,22 @@ skimmed_datasets:
     files:
       - "PbPb/642/run_by_run/LHC18q/*/AnalysisResults.18q.*.root"
       - "PbPb/642/run_by_run/LHC18r/*/AnalysisResults.18r.*.root"
+  LHC18qr_pass3_AOD252_central_642_Perlmutter: &LHC18qr_PbPb_central_at_Perlmutter
+    name: "LHC18qr_pass3_AOD252_central_642_Perlmutter"
+    collision_system: "PbPb"
+    sqrt_s: 5020
+    period: ["LHC18q", "LHC18r"]
+    # Keep track of the skim type for documentation
+    skim_type: "track_skim"
+    # Parameters of the output
+    list_name: "AliAnalysisTaskTrackSkim_PbPb_central"
+    tree_name: "AliAnalysisTaskTrackSkim_PbPb_central_tree"
+    levels_in_output_file:
+      - "data"
+    files:
+      # NOTE: Must be called `files.txt` by convention!
+      #- "PbPb/642/files_perlmutter.txt"
+      - "PbPb/642/files.txt"
   LHC18qr_pass3_AOD252_semi_central_645: &LHC18qr_PbPb_semi_central
     name: "LHC18qr_pass3_AOD252_semi_central_645"
     collision_system: "PbPb"
@@ -1358,12 +1374,12 @@ productions:
         background_subtraction:
           r_max: 0.50
     73:
-      # Nominal, central, r_max = 0.1, 10% fraction of data to check how many jets
+      # Nominal, central, r_max = 0.1, 20% fraction of data to check how many jets
       # are removed by the jet cuts. Added 8 Jan 2025
       metadata:
         <<: *base_metadata_PbPb
-        dataset: *LHC18qr_PbPb_central_at_LBL
-        sample_dataset_fraction: 0.1
+        dataset: *LHC18qr_PbPb_central_at_Perlmutter
+        #sample_dataset_fraction: 0.2
         production_number: 73
         label: "central"
       settings:

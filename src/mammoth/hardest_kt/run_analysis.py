@@ -82,11 +82,11 @@ def define_productions() -> list[production.ProductionSettings]:
             #    track_skim_config_filename=config_filename,
             # ),
             production.ProductionSettings.read_config(
-                collision_system="embed_thermal_model",
-                number=63,
+                collision_system="PbPb",
+                number=73,
                 specialization=grooming_workflow.ProductionSpecialization(),
                 track_skim_config_filename=config_filename,
-                # base_output_dir=Path("/rstorage"),
+                base_output_dir=Path("/global/cfs/projectdirs/alice/alicepro/hiccup/rehlers/trains"),
             ),
         ]
     )
@@ -165,13 +165,13 @@ def run(job_framework: job_utils.JobFramework) -> list[Future[Any]]:
     # Job execution configuration
     conda_environment_name = ""
     task_config = job_utils.TaskConfig(name=task_name, n_cores_per_task=1, memory_per_task=4)
-    target_n_tasks_to_run_simultaneously = 120
+    target_n_tasks_to_run_simultaneously = 128
     # target_n_tasks_to_run_simultaneously = 110
     # target_n_tasks_to_run_simultaneously = 60
     log_level = logging.INFO
     walltime = "24:00:00"
     override_minimize_IO_as_possible = None
-    debug_mode = False
+    debug_mode = True
     # debug_mode: dict[str | int, Any] = {11: [Path("trains/PbPb_MC/851894/run_by_run/tree_gen/851894/11/380/jewel.root")]}
     # debug_mode: dict[str | int, Any] = {6: [Path("trains/PbPb_MC/798301/sim/746611/6/75/AnalysisResultsFastSim.root")]}
     # debug_mode: dict[str | int, Any] = {1: [Path("trains/PbPb_MC/798301/sim/746611/1/86/AnalysisResultsFastSim.root")]}
@@ -196,9 +196,12 @@ def run(job_framework: job_utils.JobFramework) -> list[Future[Any]]:
     if debug_mode:
         # Usually, we want to run in the short queue
         target_n_tasks_to_run_simultaneously = 2
-        walltime = "1:59:00"
+        walltime = "00:29:00"
+        #walltime = "1:00:00"
+        #walltime = "1:59:00"
     # facility: job_utils.FACILITIES = "hiccup_std" if job_utils.hours_in_walltime(walltime) >= 2 else "hiccup_quick"
-    facility: job_utils.FACILITIES = "rehlers_mbp_m1pro"
+    facility: job_utils.FACILITIES = "perlmutter_debug"
+    #facility: job_utils.FACILITIES = "perlmutter_staging_regular"
 
     # Keep the job executor just to keep it alive
     job_executor, _job_framework_config, execution_settings = setup_job_framework(
