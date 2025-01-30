@@ -81,12 +81,33 @@ def define_productions() -> list[production.ProductionSettings]:
             #    specialization=groomed_substructure_steering.ProductionSpecialization(),
             #    track_skim_config_filename=config_filename,
             # ),
+            # production.ProductionSettings.read_config(
+            #    collision_system="embed_pythia",
+            #    number=79,
+            #    specialization=grooming_workflow.ProductionSpecialization(),
+            #    track_skim_config_filename=config_filename,
+            #    base_output_dir=Path("/rstorage/rehlers/trains"),
+            # ),
+            # production.ProductionSettings.read_config(
+            #    collision_system="embed_pythia",
+            #    number=80,
+            #    specialization=grooming_workflow.ProductionSpecialization(),
+            #    track_skim_config_filename=config_filename,
+            #    base_output_dir=Path("/rstorage/rehlers/trains"),
+            # ),
+            # production.ProductionSettings.read_config(
+            #    collision_system="embed_pythia",
+            #    number=81,
+            #    specialization=grooming_workflow.ProductionSpecialization(),
+            #    track_skim_config_filename=config_filename,
+            #    base_output_dir=Path("/rstorage/rehlers/trains"),
+            # ),
             production.ProductionSettings.read_config(
                 collision_system="PbPb",
                 number=73,
                 specialization=grooming_workflow.ProductionSpecialization(),
                 track_skim_config_filename=config_filename,
-                base_output_dir=Path("/global/cfs/projectdirs/alice/alicepro/hiccup/rehlers/trains"),
+                base_output_dir=Path("/rstorage/rehlers/trains"),
             ),
         ]
     )
@@ -168,7 +189,8 @@ def run(job_framework: job_utils.JobFramework) -> list[Future[Any]]:
     # Job execution configuration
     conda_environment_name = ""
     task_config = job_utils.TaskConfig(name=task_name, n_cores_per_task=1, memory_per_task=4)
-    target_n_tasks_to_run_simultaneously = 128
+    # target_n_tasks_to_run_simultaneously = 130
+    target_n_tasks_to_run_simultaneously = 80
     # target_n_tasks_to_run_simultaneously = 110
     # target_n_tasks_to_run_simultaneously = 60
     log_level = logging.INFO
@@ -201,8 +223,7 @@ def run(job_framework: job_utils.JobFramework) -> list[Future[Any]]:
 
     # Facility
     facility: job_utils.FACILITIES = "rehlers_mbp_m1pro"
-    # facility: job_utils.FACILITIES = "hiccup_std"
-    # facility: job_utils.FACILITIES = "hiccup_std" if job_utils.hours_in_walltime(walltime) >= 2 else "hiccup_quick"
+    # facility: job_utils.FACILITIES = "hiccup_staging_std"
     # facility: job_utils.FACILITIES = "perlmutter_staging_regular"
     if debug_mode:
         # Target a small number of tasks. However, to test the full chain, better to have more than one
@@ -222,7 +243,9 @@ def run(job_framework: job_utils.JobFramework) -> list[Future[Any]]:
     # Update for convenience
     if "hiccup" in facility and job_utils.hours_in_walltime(walltime) >= 2:
         logger.info("Short job - updating queue to 'hiccup_quick'")
-        facility = "hiccup_quick"
+        # NOTE: We don't do a direct assignment since it could be "hiccup_std" or "hiccup_staging_std".
+        #       Instead, better to replace the partition name itself.
+        facility = facility.replace("std", "quick")
 
     # Keep the job executor just to keep it alive
     job_executor, _job_framework_config, execution_settings = setup_job_framework(
