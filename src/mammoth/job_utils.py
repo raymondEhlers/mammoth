@@ -21,7 +21,7 @@ import attrs
 import dask
 import dask.distributed
 import parsl
-from parsl.addresses import address_by_hostname, address_by_route
+from parsl.addresses import get_all_addresses
 from parsl.app.app import python_app as parsl_python_app
 from parsl.config import Config
 from parsl.data_provider.staging import Staging
@@ -53,6 +53,10 @@ FACILITIES = Literal[
     "hiccup_staging_std",
     "hiccup_staging_long",
     "hiccup_staging_test",
+    "perlmutter_debug",
+    "perlmutter_regular",
+    "perlmutter_staging_debug",
+    "perlmutter_staging_regular",
 ]
 
 
@@ -72,10 +76,24 @@ def hours_in_walltime(walltime: str) -> int:
     return int(walltime.split(":")[0])
 
 
-def _expand_vars_in_work_dir(
+def _expand_env_vars_in_path(
     value: str | Path,
 ) -> Path:
-    """Validate work dir."""
+    """Expand env vars in a path."""
+    _p = os.path.expandvars(str(value))
+    p = Path(_p)
+    return p  # noqa: RET504
+
+
+def _expand_env_vars_in_path_with_possible_none(
+    value: str | Path | None,
+) -> Path | None:
+    """Expand env vars in a path.
+
+    If None, just return.
+    """
+    if value is None:
+        return None
     _p = os.path.expandvars(str(value))
     p = Path(_p)
     return p  # noqa: RET504
@@ -124,24 +142,37 @@ class Facility:
         node_spec: Specification for a single node. This is needed to inform parsl
             about node constraints, what resources to request, and how to schedule jobs.
         partition_name: Name of the partition.
+        use_qos_instead_of_partition: Some systems (e.g. perlmutter) use the qos
+            (quality of service) field rather than the partition. If True, it will
+            pass the value under the partition to the qos argument. Default: False.
+        constraint: Scheduling constraint. Default: None.
         target_allocate_n_cores: Target number of cores to allocate via slurm. This
             may be an entire node, or only part of one. Note that this is separate
             from the number of cores that are required for a particular task. Default: None,
             which corresponds to targeting allocating of the entire node.
+        request_exclusivity_if_applicable: If applicable (i.e. we target to allocate all cores),
+            we should also request exclusivity from slurm. Turning this off can be useful if
+            we can't really use a full node, but there's also no way to allocate less (e.g.
+            if there's no useful shared queue available). Default: True.
         allocation_account: Name of allocation account, to be passed via slurm. Default: "".
         task_configs: Node configurations required for particular tasks. For example,
             for a jet energy loss calculation, or for hydro.
         node_work_dir: Work directory for where jobs are executed. This can be used to execute on
             local storage of a node. Default: Current directory.
-        storage_work_dir: Work directory for where runs are stored. Default: Same as the node_work_dir.
+        storage_work_dir: Work directory for where outputs are stored. Default: Same as the node_work_dir.
         directories_to_mount_in_singularity: Directories to mount in singularity. Default: [].
         worker_init_script: Worker initialization script. Default: "".
         high_throughput_executor_additional_options: Additional keyword options to pass
             directly to the high throughput executor. Default: {}
         launcher: Launcher class to use with the high throughput executor. Default: SrunLauncher.
+        run_info_directory: Location of the run info directory. Default: None, which corresponds
+            to the usual `runinfo` where the job was launched.
         parsl_config_additional_options: Additional keyword options to pass directly to
-            the parsl config. Default: {}
+            the parsl config object. Default: {}
         nodes_to_exclude: Nodes to exclude from the allocation. Default: [].
+        scheduler_options: Additional options to pass to the job scheduler (e.g. slurm). This is a
+            generalization of the nodes_to_exclude option. Default: [].
+        cmd_timeout: Amount of time to wait for a job to timeout. Default: 10 seconds.
         staging_storage_classes: Classes to handle staging files to storage. Default: [], corresponding
             to the default staging classes.
     """
@@ -153,20 +184,25 @@ class Facility:
     constraint: str | None = attrs.field(default=None)
     # Number of cores to target allocating. Default: Full node.
     _target_allocate_n_cores: int | None = attrs.field(default=None)
+    request_exclusivity_if_applicable: bool = attrs.field(default=True)
     allocation_account: str = attrs.field(default="")
     task_configs: dict[str, TaskConfig] = attrs.Factory(dict)
-    scheduler_options: List[str] = attrs.Factory(list)
     node_work_dir: Path = attrs.field(default=Path("."))  # noqa: PTH201
     storage_work_dir: Path = attrs.field(
-        converter=_expand_vars_in_work_dir,
+        converter=_expand_env_vars_in_path,
         default=Path("."),  # noqa: PTH201
     )
     directories_to_mount_in_singularity: list[Path] = attrs.Factory(list)
     worker_init_script: str = attrs.field(default="")
     slurm_provider_additional_options: dict[str, Any] = attrs.Factory(dict)
     launcher: Callable[[], Launcher] = attrs.field(default=SrunLauncher)
+    run_info_directory: Path | None = attrs.field(
+        converter=_expand_env_vars_in_path_with_possible_none,
+        default=None,
+    )
     parsl_config_additional_options: dict[str, Any] = attrs.Factory(dict)
     nodes_to_exclude: list[str] = attrs.Factory(list)
+    scheduler_options: list[str] = attrs.Factory(list)
     cmd_timeout: int = attrs.field(default=10)
     staging_storage_classes: list[Staging] = attrs.Factory(list)
     _minimize_IO_as_possible: bool = attrs.field(default=False)
@@ -303,57 +339,65 @@ _facilities_configs.update(
         for queue in ["quick", "std", "long", "test"]
     }
 )
- # Perlmutter
+# Perlmutter
+# This facility is tricky because the encouraged software location () is not writable from workers.
+# Thus, we need to move the rundir to somewhere that is writable (e.g. for logs).
 _facilities_configs.update(
     {
         f"perlmutter_{queue}": Facility(
             name="perlmutter",
+            # Node info: https://docs.nersc.gov/systems/perlmutter/architecture/#cpu-nodes
             node_spec=NodeSpec(n_cores=128, memory=256),
-            # Queues here: https://docs.nersc.gov/jobs/policy/#perlmutter-cpu
-            # Shared max seems to be only 32 cores with one node total, so doesn't seem so useful.
             partition_name=queue,
             use_qos_instead_of_partition=True,
             constraint="cpu",
             allocation_account="alice",
             # Allocate full node:
             target_allocate_n_cores=128,
+            request_exclusivity_if_applicable=False,
             # Allocate by core:
             # target_allocate_n_cores=1,
             launcher=SingleNodeLauncher,
             cmd_timeout=120,
-            #node_work_dir=Path("$PSCRATCH/parsl"),
-            #storage_work_dir=Path("/global/cfs/projectdirs/alice/alicepro/hiccup/rehlers"),
+            run_info_directory=Path("/pscratch/sd/r/rehlers/runinfo"),
+            # node_work_dir=Path("$PSCRATCH/parsl"),
+            storage_work_dir=Path("/global/cfs/projectdirs/alice/alicepro/hiccup/rehlers"),
             nodes_to_exclude=[],
             worker_init_script="module load python/3.11 gcc/12.2.0",
             minimize_IO_as_possible=True,
         )
+        # Queues here: https://docs.nersc.gov/jobs/policy/#perlmutter-cpu
+        # Shared max seems to be only 32 cores with one node total, so doesn't seem so useful.
         for queue in ["regular", "debug"]
     }
 )
- # Perlmutter with staging
+# Perlmutter with staging
 _facilities_configs.update(
     {
         f"perlmutter_staging_{queue}": Facility(
             name="perlmutter_staging",
+            # Node info: https://docs.nersc.gov/systems/perlmutter/architecture/#cpu-nodes
             node_spec=NodeSpec(n_cores=128, memory=256),
-            # Queues here: https://docs.nersc.gov/jobs/policy/#perlmutter-cpu
-            # Shared max seems to be only 32 cores with one node total, so doesn't seem so useful.
             partition_name=queue,
             use_qos_instead_of_partition=True,
             constraint="cpu",
             allocation_account="alice",
             # Allocate full node:
             target_allocate_n_cores=128,
+            request_exclusivity_if_applicable=False,
             # Allocate by core:
             # target_allocate_n_cores=1,
             launcher=SingleNodeLauncher,
-            cmd_timeout=60,
+            cmd_timeout=120,
+            run_info_directory=Path("/pscratch/sd/r/rehlers/runinfo"),
             node_work_dir=Path("$PSCRATCH/parsl"),
             storage_work_dir=Path("/global/cfs/projectdirs/alice/alicepro/hiccup/rehlers"),
             nodes_to_exclude=[],
             worker_init_script="module load python/3.11 gcc/12.2.0",
             minimize_IO_as_possible=True,
         )
+        # Queues here: https://docs.nersc.gov/jobs/policy/#perlmutter-cpu
+        # Shared max seems to be only 32 cores with one node total, so doesn't seem so useful.
         for queue in ["regular", "debug"]
     }
 )
@@ -752,6 +796,32 @@ def _define_dask_distributed_cluster(
     return cluster, []
 
 
+def _get_addresses_for_parsl(need_one_address: bool = False) -> str:
+    """Retrieve the communication addresses needed for parsl.
+
+    Based loosely on the idea behind get_all_addresses, just adapted to my needs.
+
+    Args:
+        need_one_address: If True, return the first available address. For example, the monitoring
+            only accepts one address. Default: False.
+    Returns:
+        str containing available addresses to access the main parsl process / monitoring.
+    """
+    # Start with the parsl helper to retrieve everything.
+    all_addresses = get_all_addresses()
+    # Now, we need to filter down to what is actually useful.
+    # e.g. fully local addresses aren't helpful... Basically, we're watching out for this on
+    # hiccup because address_by_hostname() on hiccup gives 127.0.0.1. The previous workaround was:
+    # address=address_by_hostname() if "hiccup" not in facility.name else address_by_route()
+    # NOTE: The additional not startswith condition is added because hiccup also returns "127.0.1.1"
+    #       in addition to 127.0.0.1. So better to remove everything that is in the local loopback.
+    all_addresses = {addr for addr in all_addresses if addr not in ["localhost"] and not addr.startswith("127")}
+    if need_one_address:
+        # NOTE: sets don't support indexing, so need to just retrieve the first value.
+        return next(iter(all_addresses))
+    return ",".join(all_addresses)
+
+
 def _default_parsl_config_kwargs(
     facility: Facility, workflow_name: str, enable_monitoring: bool = True
 ) -> dict[str, Any]:
@@ -780,14 +850,14 @@ def _default_parsl_config_kwargs(
         # justify their funding.
         "usage_tracking": True,
     }
+    if facility.run_info_directory is not None:
+        config_kwargs["run_dir"] = str(facility.run_info_directory)
 
     # Setup
     # Monitoring Information
     if enable_monitoring:
         config_kwargs["monitoring"] = MonitoringHub(
-            # For some reason, parsl doesn't seem to like address_by_hostname on hiccup. Maybe it's hiccup or maybe it's parsl.
-            # In any case, this is a workaround
-            hub_address=address_by_hostname() if "hiccup" not in facility.name else address_by_route(),
+            hub_address=_get_addresses_for_parsl(need_one_address=True),
             monitoring_debug=False,
             resource_monitoring_interval=10,
             workflow_name=workflow_name,
@@ -845,17 +915,17 @@ def _define_parsl_config(
             launcher=facility.launcher(),
         )
     else:
+        # Define the scheduler options. Include generic options (from scheduler_options) and specific node exclusions
         scheduler_options = ""
         if facility.scheduler_options:
             scheduler_options += "\n".join([f"#SBATCH {opt}" for opt in facility.scheduler_options])
         if facility.nodes_to_exclude:
             scheduler_options += f"\n#SBATCH --exclude={','.join(facility.nodes_to_exclude)}"
 
-        slurm_kwargs = {}
+        # General additional arguments for slurm
+        slurm_kwargs: dict[str, Any] = {"partition": facility.partition_name}
         if facility.use_qos_instead_of_partition:
-            slurm_kwargs["qos"] = facility.partition_name
-        else:
-            slurm_kwargs["partition"] = facility.partition_name
+            slurm_kwargs["qos"] = slurm_kwargs.pop("partition")
         slurm_kwargs.update(facility.slurm_provider_additional_options)
 
         provider = SlurmProvider(
@@ -883,20 +953,19 @@ def _define_parsl_config(
             walltime=walltime,
             cmd_timeout=facility.cmd_timeout,
             # If we're allocating full nodes, then we should request exclusivity.
-            #exclusive=facility.allocate_full_node,
+            exclusive=facility.allocate_full_node and facility.request_exclusivity_if_applicable,
             **slurm_kwargs,
         )
 
-    # TEST for perlmutter
-    config_kwargs["run_dir"] = "/pscratch/sd/r/rehlers/runinfo"
-    # END TEST
     config = Config(
         executors=[
             HighThroughputExecutor(
                 label=f"{facility.name}_HTEX",
                 # For some reason, parsl doesn't seem to like address_by_hostname on hiccup. Maybe it's hiccup or maybe it's parsl.
                 # In any case, this is a workaround
-                #address=address_by_hostname() if "hiccup" not in facility.name else address_by_route(),
+                # address=address_by_hostname() if "hiccup" not in facility.name else address_by_route(),
+                # address=None defaults to get_all_addresses(), which will automatically find the addresses available.
+                address=None,
                 cores_per_worker=task_config.n_cores_per_task,
                 # cores_per_worker=round(n_cores_per_node / n_workers_per_node),
                 # NOTE: We don't want to set the `max_workers` because we want the number of workers to
