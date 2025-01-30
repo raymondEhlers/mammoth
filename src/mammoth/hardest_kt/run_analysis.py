@@ -90,6 +90,9 @@ def define_productions() -> list[production.ProductionSettings]:
             ),
         ]
     )
+    # base_output_dir for various systems:
+    # Hiccup: base_output_dir=Path("/rstorage/rehlers/trains"),
+    # Perlmutter: base_output_dir=Path("/global/cfs/projectdirs/alice/alicepro/hiccup/rehlers/trains"),
 
     # Write out the production settings
     for production_settings in productions:
@@ -171,10 +174,12 @@ def run(job_framework: job_utils.JobFramework) -> list[Future[Any]]:
     log_level = logging.INFO
     walltime = "24:00:00"
     override_minimize_IO_as_possible = None
-    debug_mode = True
+    debug_mode = False
+    # PbPb_MC
     # debug_mode: dict[str | int, Any] = {11: [Path("trains/PbPb_MC/851894/run_by_run/tree_gen/851894/11/380/jewel.root")]}
     # debug_mode: dict[str | int, Any] = {6: [Path("trains/PbPb_MC/798301/sim/746611/6/75/AnalysisResultsFastSim.root")]}
     # debug_mode: dict[str | int, Any] = {1: [Path("trains/PbPb_MC/798301/sim/746611/1/86/AnalysisResultsFastSim.root")]}
+    # pp_MC
     # debug_mode: dict[str | int, Any] = {18: [Path("trains/pp_MC/823890/run_by_run/tree_gen/823890/18/281/jewel.root")]}
     # thermal_model
     # debug_mode: dict[str | int, Any] = {20: [Path("trains/pythia/2640/run_by_run/LHC20g4/296244/20/AnalysisResults.20g4.011.root")] }
@@ -193,15 +198,31 @@ def run(job_framework: job_utils.JobFramework) -> list[Future[Any]]:
     #        Path("trains/PbPb/645/run_by_run/LHC18r/296749/AnalysisResults.18r.106.root"),
     #    ],
     # }
-    if debug_mode:
-        # Usually, we want to run in the short queue
-        target_n_tasks_to_run_simultaneously = 2
-        walltime = "00:29:00"
-        #walltime = "1:00:00"
-        #walltime = "1:59:00"
+
+    # Facility
+    facility: job_utils.FACILITIES = "rehlers_mbp_m1pro"
+    # facility: job_utils.FACILITIES = "hiccup_std"
     # facility: job_utils.FACILITIES = "hiccup_std" if job_utils.hours_in_walltime(walltime) >= 2 else "hiccup_quick"
-    facility: job_utils.FACILITIES = "perlmutter_debug"
-    #facility: job_utils.FACILITIES = "perlmutter_staging_regular"
+    # facility: job_utils.FACILITIES = "perlmutter_staging_regular"
+    if debug_mode:
+        # Target a small number of tasks. However, to test the full chain, better to have more than one
+        target_n_tasks_to_run_simultaneously = 2
+
+        # https://stackoverflow.com/a/74378359
+        class ContainsFacilityName(str):
+            def __eq__(self, other: Any) -> bool:
+                return self.__contains__(other)
+
+        match ContainsFacilityName(facility):
+            case "perlmutter":
+                walltime = "00:29:00"
+            case "hiccup":
+                walltime = "1:59:00"
+
+    # Update for convenience
+    if "hiccup" in facility and job_utils.hours_in_walltime(walltime) >= 2:
+        logger.info("Short job - updating queue to 'hiccup_quick'")
+        facility = "hiccup_quick"
 
     # Keep the job executor just to keep it alive
     job_executor, _job_framework_config, execution_settings = setup_job_framework(
