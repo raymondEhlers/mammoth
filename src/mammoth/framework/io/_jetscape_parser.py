@@ -45,6 +45,7 @@ class HeaderInfo:
     event_plane_angle: float
     n_particles: int
     event_weight: float = attrs.field(default=-1)
+    centrality: float = attrs.field(default=-1)
     pt_hat: float = attrs.field(default=-1)
     vertex_x: float = attrs.field(default=-999)
     vertex_y: float = attrs.field(default=-999)
@@ -149,6 +150,43 @@ def _extract_x_sec_and_error(f: typing.TextIO, read_chunk_size: int = 100) -> Cr
     return None
 
 
+def _parse_optional_header_values(optional_values: list[str]) -> tuple[float, float]:
+    """Parse optional header values.
+
+    As of April 2025, the centrality and pt_hat are optionally included in the output.
+    The centrality will always be
+
+    Args:
+        optional_values: Optional values parsed from splitting the lines. It is expected
+            to contain both the name of the arguments *AND* the values themselves. So if
+            the file contains one optional values, it will translate to `len(optional_values) == 2`.
+
+    Returns:
+        The optional values: (centrality, pt_hat). If they weren't provided in the values,
+            they will be their default values.
+    """
+    pt_hat = -1.0
+    centrality = -1.0
+
+    n_optional_values = len(optional_values)
+
+    if n_optional_values == 4:
+        # Both centrality and pt_hat are present
+        if optional_values[-4] == "centrality":
+            centrality = float(optional_values[-3])
+        if optional_values[-2] == "pt_hat":
+            pt_hat = float(optional_values[-1])
+    elif n_optional_values == 2:
+        # Only one of centrality or pt_hat is present
+        if optional_values[-2] == "centrality":
+            centrality = float(optional_values[-1])
+        elif optional_values[-2] == "pt_hat":
+            pt_hat = float(optional_values[-1])
+    # If there are no optional values, then there's nothing to be done!
+
+    return centrality, pt_hat
+
+
 def _parse_header_line_format_unspecified(line: str) -> HeaderInfo:
     """Parse line that is expected to be a header.
 
@@ -245,18 +283,25 @@ def _parse_header_line_format_v2(line: str) -> HeaderInfo:
         # As of 22 June 2021, the formatting of the header is as follows:
         # This function was developed to parse it.
         # The header is defined as follows, with each entry separated by a `\t` character:
-        # `# Event 1 weight 0.129547 EPangle 0.0116446 N_hadrons 236 (pt_hat 47)`
-        #  0 1     2 3      4        5       6         7         8
-        # NOTE: pt_hat is optional
+        # `# Event 1 weight 0.129547 EPangle 0.0116446 N_hadrons 236 (centrality 12.5) (pt_hat 47)`
+        #  0 1     2 3      4        5       6         7         8    9          10     11     12
+        # NOTE: pt_hat and centrality are optional (centrality added in Jan. 2025)
         #
-        pt_hat = -1.0
-        if values[-2] == "pt_hat":
-            pt_hat = float(values[-1])
+        # The base length (i.e. with no optional values) is 9
+        _base_line_length = 9
+
+        # Extract optional values. They will be any beyond the base line length
+        centrality, pt_hat = _parse_optional_header_values(
+            optional_values=values[_base_line_length:],
+        )
+
+        # And store...
         info = HeaderInfo(
             event_number=int(values[2]),  # Event number
             event_plane_angle=float(values[6]),  # EP angle
             n_particles=int(values[8]),  # Number of particles
             event_weight=float(values[4]),  # Event weight
+            centrality=centrality,  # centrality
             pt_hat=pt_hat,  # pt hat
         )
     elif len(values) == 5 and values[1] == "sigmaGen":
@@ -298,14 +343,20 @@ def _parse_header_line_format_v3(line: str) -> HeaderInfo:
         # format including the vertex position and pt_hat
         # This function was developed to parse it.
         # The header is defined as follows, with each entry separated by a `\t` character:
-        #  # Event 1 weight  1 EPangle 0 N_hadrons 169 vertex_x  0.6 vertex_y  -1.2  vertex_z  0 (pt_hat  11.564096)
-        #  0 1     2 3       4 5       6 7         8   9         10  11        12    13        1415      16
+        #  # Event 1 weight  1 EPangle 0 N_hadrons 169 vertex_x  0.6 vertex_y  -1.2  vertex_z  0 (centrality 12.5) (pt_hat  11.564096)
+        #  0 1     2 3       4 5       6 7         8   9         10  11        12    13        14 15         16     17      18
         #
-        # NOTE: pt_hat is optional
+        # NOTE: pt_hat and centrality are optional (centrality added in Jan. 2025)
         #
-        pt_hat = -1.0
-        if values[-2] == "pt_hat":
-            pt_hat = float(values[-1])
+        # The base length (i.e. with no optional values) is 15
+        _base_line_length = 15
+
+        # Extract optional values. They will be any beyond the base line length
+        centrality, pt_hat = _parse_optional_header_values(
+            optional_values=values[_base_line_length:],
+        )
+
+        # And store...
         info = HeaderInfo(
             event_number=int(values[2]),  # Event number
             event_plane_angle=float(values[6]),  # EP angle
@@ -314,6 +365,7 @@ def _parse_header_line_format_v3(line: str) -> HeaderInfo:
             vertex_x=float(values[10]),  # x vertex
             vertex_y=float(values[12]),  # y vertex
             vertex_z=float(values[14]),  # z vertex
+            centrality=centrality,  # centrality
             pt_hat=pt_hat,  # pt hat
         )
     elif len(values) == 5 and values[1] == "sigmaGen":
@@ -710,6 +762,10 @@ def read(filename: Path | str, events_per_chunk: int, parser: str = "pandas") ->
             if chunk_generator.headers[0].event_weight > -1:
                 header_level_info["event_weight"] = np.array(
                     [header.event_weight for header in chunk_generator.headers], np.float32
+                )
+            if chunk_generator.headers[0].centrality > -1:
+                header_level_info["centrality"] = np.array(
+                    [header.centrality for header in chunk_generator.headers], np.float32
                 )
             if chunk_generator.headers[0].pt_hat > -1:
                 header_level_info["pt_hat"] = np.array(
