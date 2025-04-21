@@ -296,7 +296,7 @@ def run() -> None:  # noqa: C901
             logger.info(f"plot_input_specs: {plot_part_input_specs}")
 
             # Skip if we didn't load the data
-            if not len(plot_part_input_specs):
+            if not plot_part_input_specs:
                 continue
 
             for i in region_indices:
@@ -402,7 +402,7 @@ def run() -> None:  # noqa: C901
                         plot_input_specs.append(input_spec)
 
                 # Skip if we didn't load the data
-                if not len(plot_input_specs):
+                if not plot_input_specs:
                     continue
 
                 label_input_spec = plot_input_specs[0]

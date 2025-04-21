@@ -137,9 +137,6 @@ addopts = ["-ra", "--showlocals", "--strict-markers", "--strict-config"]
 xfail_strict = true
 filterwarnings = [
   "error",
-  # Temporarily until this is resolved: https://github.com/dateutil/dateutil/issues/1314
-  # NOTE: It is coming from dateutil, which is used by matplotlib + pandas
-  "ignore:datetime.datetime.utcfromtimestamp:DeprecationWarning:dateutil.tz.tz",
 ]
 #log_level = "INFO"
 #log_cli_level = "DEBUG"
@@ -175,6 +172,11 @@ disallow_untyped_defs = true
 disallow_incomplete_defs = true
 
 [[tool.mypy.overrides]]
+# From: https://github.com/python/mypy/issues/12664#issuecomment-2742484522
+module = "ruamel.yaml"
+follow_imports = "skip"
+
+[[tool.mypy.overrides]]
 module = [
     "boost_histogram",
     "coloredlogs",
@@ -199,7 +201,6 @@ module = [
     "uproot",
     "pyhepmc",
     "awkward",
-    "ruamel.*",
     "dask_jobqueue",
     "rich_argparse",
     # NOTE: Many of these are not direct dependencies, but implicit dependencies of actual dependencies.
@@ -266,6 +267,7 @@ ignore = [
   "G004",     # Logging format string. This isn't best practices, but I use it too much to change for now
   "PLC0414",  # Messes with the re-export of imports needed from mypy
   "PD011",    # Calls to `.values` are usually for histograms, not pandas. This is getting picked up as a false positive
+  "C420",     # I find `dict.fromkeys` to be less idiomatic than doing a dict comprehension
 ]
 
 [tool.ruff.lint.per-file-ignores]
