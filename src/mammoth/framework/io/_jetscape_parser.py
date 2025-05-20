@@ -627,7 +627,7 @@ def _parse_with_pandas(chunk_generator: Iterator[str]) -> npt.NDArray[Any]:
 
     return pd.read_csv(  # type: ignore[no-any-return]
         FileLikeGenerator(chunk_generator),
-        # NOTE: If the field is missing (such as eta and phi), they will exist, but they will be filled with NaN
+        # NOTE: If the field is missing (such as eta and phi), they will exist, but they will be filled with NaN.
         #       We actively take advantage of this so we don't have to change the parsing for header v1 (which
         #       includes eta and phi) vs header v2 (which does not)
         names=["particle_index", "particle_ID", "status", "E", "px", "py", "pz", "eta", "phi"],

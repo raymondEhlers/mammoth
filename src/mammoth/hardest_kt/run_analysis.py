@@ -245,7 +245,7 @@ def run(job_framework: job_utils.JobFramework) -> list[Future[Any]]:
         logger.info("Short job - updating queue to 'hiccup_quick'")
         # NOTE: We don't do a direct assignment since it could be "hiccup_std" or "hiccup_staging_std".
         #       Instead, better to replace the partition name itself.
-        facility = facility.replace("std", "quick")
+        facility = str(facility).replace("std", "quick")  # type: ignore[assignment]
 
     # Keep the job executor just to keep it alive
     job_executor, _job_framework_config, execution_settings = setup_job_framework(

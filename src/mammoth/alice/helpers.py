@@ -189,7 +189,7 @@ def standard_track_selection(
     return arrays
 
 
-class JetRejectionReason(StrEnum):  # type: ignore[name-defined,misc]
+class JetRejectionReason(StrEnum):  # type: ignore[misc]
     n_initial = "n_initial"
     constituents_max_pt = "constituents_max_pt"
     minimum_area = "minimum_area"
