@@ -68,7 +68,7 @@ jobs:
 
       # Build mammoth-cpp (adapted from awkward-cpp)
       # First, we want a cache for fastjet builds
-      - name: Cache fastjet build arifacts
+      - name: Cache fastjet build artifacts
         id: cache-fastjet-build
         uses: actions/cache@v4
         with:
