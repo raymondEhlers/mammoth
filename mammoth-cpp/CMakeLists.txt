@@ -78,16 +78,8 @@ if(NOT FastJet_FOUND)
     #       But it's easy enough to build, so good enough for now
     execute_process(
         COMMAND ${PROJECT_SOURCE_DIR}/external/install_fastjet.sh
-        RESULT_VARIABLE cmd_result
-        OUTPUT_VARIABLE cmd_output
-        ERROR_VARIABLE cmd_error
-        OUTPUT_STRIP_TRAILING_WHITESPACE
-        ERROR_STRIP_TRAILING_WHITESPACE
+        COMMAND_ERROR_IS_FATAL ANY
     )
-    if(NOT cmd_result EQUAL 0)
-        message(FATAL_ERROR "Installing fastjet failed with return code: ${cmd_result}\nOutput: ${cmd_output}\nError: ${cmd_error}")
-    endif()
-
     # Now it must be there - find it.
     find_package(FastJet REQUIRED)
 endif()
@@ -155,10 +147,6 @@ target_link_libraries(_ext PUBLIC mammoth)
 target_include_directories(_ext PUBLIC mammoth)
 
 add_custom_command(TARGET _ext POST_BUILD
-    # Provide explicit notification if the command fails
-    COMMAND_ERROR_IS_FATAL ANY
-    # Apparently this is best practices to avoid any unexpected issues.
-    VERBATIM
     # Copy the fastjet libraries to the mammoth install dir (ie. mammoth-cpp/fastjet)
     # By doing so, we can add it via the sdist inclusion, and then pip will manage it in site-packages.
     # After all of these steps, fj libs should always be accessible for our libraries.
@@ -169,6 +157,8 @@ add_custom_command(TARGET _ext POST_BUILD
     #       If we want to provide access, we should provide an entry point that wraps this script.
     #       As of November 2022, this isn't a high priority, so we leave it as is
     COMMAND bash -c "${PROJECT_SOURCE_DIR}/external/repair_fastjet_config_path.sh ${PROJECT_SOURCE_DIR}/src/${SKBUILD_PROJECT_NAME}/fastjet/bin/fastjet-config"
+    # Apparently this is best practices to avoid any unexpected issues.
+    VERBATIM
 )
 
 # And finally install the bindings
