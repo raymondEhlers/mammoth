@@ -32,54 +32,83 @@ For example, mammoth was used for the measurement recently released from the ALI
 <p align="center"><img alt="Figure from ALICE quasi-particle scattering paper" src="docs/images/unfolded_kt_pp_PbPb_ratios_only_R02_dynamical_kt_soft_drop_z_cut_02.png" width="70%" /></p>
 
 > [!IMPORTANT]
-> This package is developed for my own use. Framework and code is subject to change, and documentation is quite limited!
+> This package is developed for my own use. Framework and code is subject to change, and documentation is limited!
 
-## Installation
+# Installation
 
-Easiest is to use `pdm`, which will handle dependencies correctly (the lock file is committed in the repo). Just install with `pdm install -d` to include the dev dependencies.
+To install mammoth, we have to 1) install the dependencies, and then 2) actually install the package.
 
-<!-- insert detail collapsible block -->
+## Dependencies
 
-<details>
- <summary>Old `pip` method: Now used to install mammoth for other projects</summary>
+Although this is a python package, we also use c++ code, so we need to setup the proper dependencies (it's used for e.g. jet finding, that is then wrapped in python for use). This requires a compiler which supports c++17. We also have some setup steps that ease development. I'll assume you've setup your environment correctly, but you can also [check this quick reference](https://www.rehlers.com/posts/2025/software-2025-edition/) for some pointers.
 
-> In practice, getting the right compiled bindings was initially tricky.
-> I think this is less critical in 2024 after I moved to the cookie-cutter repo, but I haven't tested it again recently, so I maintain this information for now
->
-> First, remove `pachyderm` from the dependencies, because it's usually installed locally and it most likely won't be picked up correctly by pip.
-> Next, run
->
-> ```bash
-> # Actually build the compiled binding extensions...
-> $ pip install --use-feature=in-tree-build ../mammoth
->
-> # We've built in the tree, so now we need to do an editable install so it can find the extensions...
-> $ pip install -e ../mammoth
-> ```
+We'll need to install:
 
-</details>
+1. pachyderm [python support package useful for development]
+2. FastJet [c++ package for jet finding]
+3. RooUnfold [optional - requires ROOT. Probably best to skip unless you know you need it]
 
-## Helpers with vscode
+### Pachyderm
 
-To get the CMake plugin for vscode to play nicely with this package, I explored a few options:
+Pachyderm is a python physics support library that I maintain. When installing mammoth in development mode, pachyderm needs to be available in the `external` directory. You can do this via:
 
-- [Manually configure CMake in vscode](#manually-configure-vscode) as necessary. It takes a little work
-  and isn't especially robust, but isn't terrible.
-- Create a new venv via `nox`, adapted from [here](https://github.com/scikit-build/scikit-build-core/issues/635).
-  This isn't the nicest because it can mix python versions, etc. It may still work, but use with care!
-
-### Manually configure vscode
-
-You need to add these values to your `.vscode/settings.json`:
-
-```json
-    "cmake.sourceDirectory": "${workspaceFolder}/mammoth-cpp",
-    "cmake.configureSettings": {
-        "CMAKE_PREFIX_PATH":"${workspaceRoot}/.venv-3.11/lib/python3.11/site-packages/pybind11/share/cmake/pybind11",
-    },
-    "cmake.configureArgs": [
-        "-DSKBUILD_PROJECT_NAME=mammoth-cpp"
-    ],
+```bash
+$ cd external; git clone https://github.com/raymondEhlers/pachyderm.git; cd -
 ```
 
-You'll have to adapt the virtualenv path as appropriate. This should allow the cmake plugin to configure properly.
+### FastJet
+
+FastJet is the standard package for jet finding. It should be automatically installed when you install mammoth (see [below](#installing-mammoth)). However, if that fails for some reason, your first step should be to ensure that fastjet is installed correctly. There's a dedicated script to install it:
+
+```bash
+$ ./mammoth-cpp/external/install_fastjet.sh
+```
+
+### RooUnfold
+
+RooUnfold is used for unfolding. If you're not familiar with this, you can ignore this dependency. RooUnfold requires boost and ROOT to be installed and available in your environment. You can install RooUnfold via:
+
+```bash
+$ ./external/install_roounfold.sh
+```
+
+## Installing mammoth
+
+The easiest way to install mammoth for development is to use `pdm`. `pdm` is preferred because it handles local dependencies better than most other build managers, which is particularly useful for development. Once you've setup the dependencies, you can install mammoth with:
+
+```bash
+$ pdm install -d
+```
+
+Note that the `pdm` lock file (`pdm.lock`) is included in the repository, ensuring a reproducible environment.
+
+# Development helpers
+
+## Playing nicely with VSCode
+
+VSCode is a helpful tool, but requires some configuration to make it useful for development. For example, it won't know how to access the pybind11 headers. I document a few possible approaches here to address these kinds of problems - you can try them out to see what works best for you (this has gotten easier with time - I expect the first option will be enough).
+
+- [Manually configure CMake for VSCode](#manually-configure-cmake).
+- [Dedicated virtualenv for headers via `nox`](#dedicated-virtualenv-for-headers)
+
+### Manually configure CMake
+
+Here, we'll configure VSCode to pick up some package info (e.g., the `pybind11` headers used for accessing c++ functionality in python), which will make development easier. It takes a bit of work and isn't especially robust, but isn't terrible. To set this up, you will need to add these values to your `.vscode/settings.json`:
+
+```json
+"cmake.sourceDirectory": "${workspaceFolder}/mammoth-cpp",
+"cmake.configureSettings": {
+    "CMAKE_PREFIX_PATH":"${workspaceRoot}/.venv-3.13/lib/python3.13/site-packages/pybind11/share/cmake/pybind11",
+},
+"cmake.configureArgs": [
+    "-DSKBUILD_PROJECT_NAME=mammoth-cpp"
+],
+```
+
+You will need to adjust the virtualenv path in `CMAKE_PREFIX_PATH` (part of `cmake.configureSettings`) as necessary. This should allow the CMake plugin to configure properly[^1]. This is the approach RJE uses as of May 2025.
+
+[^1]: Configuring with CMake used to fail due to missing scikit-build-core variables, but they're now defined in the `CMakeLists.txt` when needed, so this is not an issue anymore.
+
+### Dedicated virtualenv for headers
+
+Alternatively, you can create a dedicated virtualenv to contain the pybind11 headers. You can do this via `nox` (also useful for testing across python versions). An example is available at [this issue](https://github.com/scikit-build/scikit-build-core/issues/635), which you will have to adapt for this project.
