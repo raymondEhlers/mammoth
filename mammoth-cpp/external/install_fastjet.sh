@@ -15,9 +15,14 @@ cd "${currentDir}" || exit 1
 
 # Setup
 export CXXFLAGS="-std=c++17 -O2"
+# Specify the fastjet and fjcontrib versions.
 # NOTE: Validated 3.4.0 (fj) and 1.048 (contrib) in pp, pythia, and rho subtracted PbPb vs 3.3.3_1.042 in AliPhysics, giving the same results
-fastjet_version=3.4.1
-fjcontrib_version=1.051
+# FastJet:
+fastjet_version=3.4.3
+# NOTE: Can also install a fastjet tag (experimental as of May 2025)
+#fastjet_version=73a1c97478ed9ac4f517492c523c20e09bee3ec9
+# FJContrib:
+fjcontrib_version=1.101
 prefix=$PWD/install/fastjet
 
 # Build in a new folder
@@ -25,11 +30,27 @@ mkdir -p fastjet
 cd fastjet || exit 1
 
 if [ ! -d fastjet-${fastjet_version} ]; then
-    curl -O -J -L http://fastjet.fr/repo/fastjet-${fastjet_version}.tar.gz
-    tar xfz fastjet-${fastjet_version}.tar.gz
+    # Contains a ".", which would indicate a specific version
+    if [ "${fastjet_version}" != "${fastjet_version/./}" ]; then
+        echo "Using fastjet tag: ${fastjet_version}"
+        curl -O -J -L http://fastjet.fr/repo/fastjet-${fastjet_version}.tar.gz
+        tar xfz fastjet-${fastjet_version}.tar.gz
+    else
+        echo "Checking out fastjet from gitlab: ${fastjet_version}"
+        git clone --depth 1 https://gitlab.com/fastjet/fastjet.git fastjet-${fastjet_version}
+        cd fastjet-${fastjet_version} || exit 1
+        # Grab the desired fastjet version
+        git checkout ${fastjet_version}
+        # Setup siscone
+        git submodule init
+        git submodule update
+        # And all done - go back
+        cd - || exit 1
+    fi
 fi
 
 if [ ! -d fjcontrib-${fjcontrib_version} ]; then
+    echo "Using fj-contrib tag: ${fjcontrib_version}"
     curl -O -J -L http://fastjet.hepforge.org/contrib/downloads/fjcontrib-${fjcontrib_version}.tar.gz
     tar xfz fjcontrib-${fjcontrib_version}.tar.gz
 fi
@@ -46,12 +67,31 @@ fi
 export LDFLAGS="-Wl,-rpath,${rpathOrigin}/fastjet/lib -Wl,-rpath,${prefix}/lib ${LDFLAGS}"
 
 # fastjet
+pwd
 cd "fastjet-${fastjet_version}" || exit 1
 make clean
 # NOTE: Only reconfigure if we haven't configured before
 if [[ ! -f "config.status" ]]; then
     # NOTE: Need to disable autoptr because we're using c++17
-    ./configure --prefix="${prefix}" --enable-allcxxplugins --enable-all-plugins --disable-auto-ptr --enable-thread-safety
+    # NOTE: We use limited thread safety since we 1) it supports a more safe mode of operation, especially if fastjet is used
+    #       in ways that are not yet anticipated, and 2) it has a limited impact on performance, which is critical since we're
+    #       not actually using threading as of May 2025
+    # NOTE: Need to disable the d0runiicone since there's a bug in 3.4.3 as of May 2025. It's fixed, but there's no release yet.
+    configureArgs=(
+        "--prefix=${prefix}"
+        "--enable-allcxxplugins"
+        "--enable-all-plugins"
+        "--disable-auto-ptr"
+        "--enable-limited-thread-safety"
+        "--disable-d0runiicone"
+    )
+    # Needed in the case of a cloned git repo (from fastjet INSTALL txt file). Apparently it also runs configure...?
+    if [ "${fastjet_version}" == "${fastjet_version/./}" ]; then
+        # NOTE: This needs GNU libtool and libtoolize. On macOS, need to install these via homebrew.
+        ./autogen.sh "${configureArgs[@]}"
+    else
+        ./configure "${configureArgs[@]}"
+    fi
 else
     echo "Skipping configuration for fastjet due to existing build"
 fi
