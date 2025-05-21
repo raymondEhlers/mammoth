@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.15...3.30)
+cmake_minimum_required(VERSION 3.19...3.30)
 
 # Help out running the case that we're not using scikit-build-core (e.g. we're trying to use vscode)
 # If we're using scikit-build, this will do nothing.
@@ -56,7 +56,7 @@ else()
 endif()
 
 # Path to additional cmake modules
-set(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake")
+set(CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake")
 
 # Let the user know the build type
 message(STATUS "Build type: ${CMAKE_BUILD_TYPE}")
@@ -76,7 +76,18 @@ if(NOT FastJet_FOUND)
     # Install using our install script if it's not already installed.
     # NOTE: As of Nov 2022, this doesn't seem to pick up the right compiler on macOS.
     #       But it's easy enough to build, so good enough for now
-    execute_process(COMMAND ${CMAKE_SOURCE_DIR}/external/install_fastjet.sh)
+    execute_process(
+        COMMAND ${PROJECT_SOURCE_DIR}/external/install_fastjet.sh
+        RESULT_VARIABLE cmd_result
+        OUTPUT_VARIABLE cmd_output
+        ERROR_VARIABLE cmd_error
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+        ERROR_STRIP_TRAILING_WHITESPACE
+    )
+    if(NOT cmd_result EQUAL 0)
+        message(FATAL_ERROR "Installing fastjet failed with return code: ${cmd_result}\nOutput: ${cmd_output}\nError: ${cmd_error}")
+    endif()
+
     # Now it must be there - find it.
     find_package(FastJet REQUIRED)
 endif()
@@ -144,16 +155,20 @@ target_link_libraries(_ext PUBLIC mammoth)
 target_include_directories(_ext PUBLIC mammoth)
 
 add_custom_command(TARGET _ext POST_BUILD
+    # Provide explicit notification if the command fails
+    COMMAND_ERROR_IS_FATAL ANY
+    # Apparently this is best practices to avoid any unexpected issues.
+    VERBATIM
     # Copy the fastjet libraries to the mammoth install dir (ie. mammoth-cpp/fastjet)
     # By doing so, we can add it via the sdist inclusion, and then pip will manage it in site-packages.
     # After all of these steps, fj libs should always be accessible for our libraries.
-    COMMAND ${CMAKE_COMMAND} -E copy_directory "${FastJet_LIB_DIRS}/../.." "${CMAKE_SOURCE_DIR}/src/${SKBUILD_PROJECT_NAME}"
+    COMMAND ${CMAKE_COMMAND} -E copy_directory "${FastJet_LIB_DIRS}/../.." "${PROJECT_SOURCE_DIR}/src/${SKBUILD_PROJECT_NAME}"
     # Address the fact that fastjet-config unfortunately provides the wrong path (providing where it was actually built
     # rather than the new location), so we update the script.
     # NOTE: We don't yet provide access to this script, and it apparently isn't marked as executable.
     #       If we want to provide access, we should provide an entry point that wraps this script.
     #       As of November 2022, this isn't a high priority, so we leave it as is
-    COMMAND bash -c "${CMAKE_SOURCE_DIR}/external/repair_fastjet_config_path.sh ${CMAKE_SOURCE_DIR}/src/${SKBUILD_PROJECT_NAME}/fastjet/bin/fastjet-config"
+    COMMAND bash -c "${PROJECT_SOURCE_DIR}/external/repair_fastjet_config_path.sh ${PROJECT_SOURCE_DIR}/src/${SKBUILD_PROJECT_NAME}/fastjet/bin/fastjet-config"
 )
 
 # And finally install the bindings
