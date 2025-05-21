@@ -279,7 +279,7 @@ class ProductionSettings:
         # The production number itself
         name += f"_production_{self.number}"
         # The date for good measure
-        name += f"_{datetime.datetime.utcnow().strftime('%Y_%m_%d')}"
+        name += f"_{datetime.datetime.now(datetime.timezone.utc).strftime('%Y_%m_%d')}"
         return name
 
     def input_files(self) -> list[Path]:
@@ -436,7 +436,7 @@ class ProductionSettings:
 
         output: dict[str, Any] = {}
         output["identifier"] = self.identifier
-        output["date"] = datetime.datetime.utcnow().strftime("%Y-%m-%d")
+        output["date"] = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%d")
         output["config"] = dict(self.config)
         # NOTE: We write relative to the base_output_dir to ensure that the outputs are
         #       approximately system independent. In practice, we're unlikely to try to
