@@ -44,9 +44,9 @@ Although this is a python package, we also use c++ code, so we need to setup the
 
 We'll need to install:
 
-1. pachyderm [python support package useful for development]
-2. FastJet [c++ package for jet finding]
-3. RooUnfold [optional - requires ROOT. Probably best to skip unless you know you need it]
+1. [pachyderm](#pachyderm) [python support package useful for development]
+2. [FastJet](#fastjet) [c++ package for jet finding]
+3. [RooUnfold](#roounfold-optional) [optional - requires ROOT. Probably best to skip unless you know you need it]
 
 ### Pachyderm
 
@@ -64,7 +64,7 @@ FastJet is the standard package for jet finding. It should be automatically inst
 $ ./mammoth-cpp/external/install_fastjet.sh
 ```
 
-### RooUnfold
+### RooUnfold [Optional]
 
 RooUnfold is used for unfolding. If you're not familiar with this, you can ignore this dependency. RooUnfold requires boost and ROOT to be installed and available in your environment. You can install RooUnfold via:
 
@@ -93,7 +93,7 @@ VSCode is a helpful tool, but requires some configuration to make it useful for 
 
 ### Manually configure CMake
 
-Here, we'll configure VSCode to pick up some package info (e.g., the `pybind11` headers used for accessing c++ functionality in python), which will make development easier. It takes a bit of work and isn't especially robust, but isn't terrible. To set this up, you will need to add these values to your `.vscode/settings.json`:
+Here, we'll configure VSCode to pick up some package info (e.g., the `pybind11` headers used for accessing c++ functionality in python), which will make development easier. We'll also configure it to play nicely with `scikit-build-core`. It takes a bit of work and is a bit fragile, but isn't terrible. To set this up, you will need to add these values to your `.vscode/settings.json`:
 
 ```json
 "cmake.sourceDirectory": "${workspaceFolder}/mammoth-cpp",
@@ -107,7 +107,7 @@ Here, we'll configure VSCode to pick up some package info (e.g., the `pybind11` 
 
 You will need to adjust the virtualenv path in `CMAKE_PREFIX_PATH` (part of `cmake.configureSettings`) as necessary. This should allow the CMake plugin to configure properly[^1]. This is the approach RJE uses as of May 2025.
 
-[^1]: Configuring with CMake used to fail due to missing scikit-build-core variables, but they're now defined in the `CMakeLists.txt` when needed, so this is not an issue anymore.
+[^1]: Configuring with CMake used to fail due to missing scikit-build-core variables, but they're now (May 2025) defined in the `CMakeLists.txt` when needed, so this should not be an issue anymore.
 
 ### Dedicated virtualenv for headers
 
