@@ -41,7 +41,7 @@ if [ ! -d fastjet-${fastjet_version} ]; then
         cd fastjet-${fastjet_version} || exit 1
         # Grab the desired fastjet version
         git checkout ${fastjet_version}
-        # Setup siscone
+        # Setup SISCone
         git submodule init
         git submodule update
         # And all done - go back
