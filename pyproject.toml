@@ -259,6 +259,7 @@ extend-select = [
   "EXE",      # flake8-executable
   "NPY",      # NumPy specific rules
   "PD",       # pandas-vet
+  "TD",       # Don't miss TODO comments!
 ]
 ignore = [
   "PLR09",    # Too many <...>
@@ -270,6 +271,7 @@ ignore = [
   "PLC0414",  # Messes with the re-export of imports needed from mypy
   "PD011",    # Calls to `.values` are usually for histograms, not pandas. This is getting picked up as a false positive
   "C420",     # I find `dict.fromkeys` to be less idiomatic than doing a dict comprehension
+  "TD003",    # Unlikely to have issues to link for all of these
 ]
 
 [tool.ruff.lint.per-file-ignores]
