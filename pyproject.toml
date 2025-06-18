@@ -68,6 +68,7 @@ dependencies = [
     "rich-argparse>=1.4.0",
     "strenum>=0.4.15; python_version < \"3.11\"",
     "polars>=1.29.0",
+    "pythia8mc>=8.314.0",
 ]
 
 [project.optional-dependencies]

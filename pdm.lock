@@ -5,7 +5,7 @@
 groups = ["default", "dev", "docs", "test"]
 strategy = []
 lock_version = "4.5.0"
-content_hash = "sha256:6fb27e79d4a8ec25ac339368946a0fc52596661593ae59c2d766462bffa1686d"
+content_hash = "sha256:367b860f8b8faff1303e6fb1ad3977fcf56a855dbae351467251af212a9c3a11"
 
 [[metadata.targets]]
 requires_python = ">=3.10"
@@ -2469,6 +2469,19 @@ dependencies = [
 files = [
     {file = "pytest_xdist-3.6.1-py3-none-any.whl", hash = "sha256:9ed4adfb68a016610848639bb7e02c9352d5d9f03d04809919e2dafc3be4cca7"},
     {file = "pytest_xdist-3.6.1.tar.gz", hash = "sha256:ead156a4db231eec769737f57668ef58a2084a34b2e55c4a8fa20d861107300d"},
+]
+
+[[package]]
+name = "pythia8mc"
+version = "8.314.0"
+summary = "General purpose particle physics Monte Carlo generator."
+files = [
+    {file = "pythia8mc-8.314.0-cp310-cp310-macosx_14_0_arm64.whl", hash = "sha256:aa8bdf2fa338ae4cd5ed7e275ce5d3ed658be88bcb598324ff437da401c03b21"},
+    {file = "pythia8mc-8.314.0-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:d08bca4f1f64207191614c4e2ab92a943f2619cbc311935ad0cc5831581058eb"},
+    {file = "pythia8mc-8.314.0-cp311-cp311-macosx_11_0_arm64.whl", hash = "sha256:2f6dbcab4f2d811f7766edcc8c3865869ae5401453b48714c9b62be7130716d6"},
+    {file = "pythia8mc-8.314.0-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:57b7b0f9897a9ac98874233817e03a28826ac02b5f275576f03407bbb615e610"},
+    {file = "pythia8mc-8.314.0-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:d01b856c2320dc31a59b7b07efa34b7b6ddc55216cb31e7bcd580de92092ab6c"},
+    {file = "pythia8mc-8.314.0-pp310-pypy310_pp73-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:1fa9ea12be7e81f3d5b79f8ee9cfb35fedcd19636903142b40a264085dc5b17a"},
 ]
 
 [[package]]
