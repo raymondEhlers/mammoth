@@ -42,7 +42,7 @@ def test_hist_profile_round_trip() -> None:
 
     This isn't guaranteed by uproot, so we need to confirm it all works.
     """
-    # TODO: Conditionally create the TProfile. We should normally save it...
+    # TODO(RJE): Conditionally create the TProfile. We should normally save it...
     ROOT = pytest.importorskip("ROOT")
     # Create the TProfile
     profile_root = _generate_profile_with_root(ROOT)
@@ -60,7 +60,7 @@ def test_hist_merged_profile_round_trip() -> None:
 
     This isn't guaranteed by uproot, so we need to confirm it all works.
     """
-    # TODO: Conditionally create the TProfile. We should normally save it...
+    # TODO(RJE): Conditionally create the TProfile. We should normally save it...
     ROOT = pytest.importorskip("ROOT")
     # Create the TProfile
     profile_root = _generate_profile_with_root(ROOT)
@@ -99,7 +99,7 @@ def test_hist_merged_profile_round_trip() -> None:
     #    output_file.seek(0)
 
 
-# TODO: To be implemented...
+# TODO(RJE): To be implemented...
 # def test_shadd() -> None:
 #    """Test shadd, comparing to a known result from hadd."""
 #    ...
