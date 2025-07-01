@@ -279,7 +279,7 @@ def _parse_header_line_format_v2(line: str) -> HeaderInfo:
     # Compare by length first so we can short circuit immediately if it doesn't match, which should
     # save some string comparisons.
     info: HeaderInfo | CrossSection
-    if (len(values) == 9 or len(values) == 11) and values[1] == "Event":
+    if (len(values) == 9 or len(values) == 11 or len(values) == 13) and values[1] == "Event":
         ##########################
         # Header v2 specification:
         ##########################
