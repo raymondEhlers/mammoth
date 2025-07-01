@@ -21,6 +21,9 @@ import numpy.typing as npt
 logger = logging.getLogger(__name__)
 
 
+DEFAULT_EVENTS_PER_CHUNK_SIZE = int(1e5)
+
+
 class ReachedEndOfFileException(Exception):
     """Indicates that we've somehow hit the end of the file.
 
@@ -35,15 +38,15 @@ class ReachedXSecAtEndOfFileException(ReachedEndOfFileException):
 
 @attrs.frozen
 class CrossSection:
-    value: float
-    error: float
+    value: float = attrs.field()
+    error: float = attrs.field()
 
 
 @attrs.frozen
 class HeaderInfo:
-    event_number: int
-    event_plane_angle: float
-    n_particles: int
+    event_number: int = attrs.field()
+    event_plane_angle: float = attrs.field()
+    n_particles: int = attrs.field()
     event_weight: float = attrs.field(default=-1)
     centrality: float = attrs.field(default=-1)
     pt_hat: float = attrs.field(default=-1)
@@ -432,8 +435,8 @@ class ChunkGenerator:
             was defined, and it will try it's best to guess the format.
     """
 
-    g: Iterator[str]
-    _events_per_chunk: int
+    g: Iterator[str] = attrs.field()
+    _events_per_chunk: int = attrs.field()
     cross_section: CrossSection | None = attrs.field(default=None)
     _file_format_version: int = attrs.field(default=-1)
     _headers: list[HeaderInfo] = attrs.Factory(list)
@@ -512,9 +515,6 @@ class ChunkGenerator:
                 break
             # NOTE: If we somehow reached StopIteration, it's also fine - just
             #       allow it to propagate through and end the for loop.
-
-
-DEFAULT_EVENTS_PER_CHUNK_SIZE = int(1e5)
 
 
 def read_events_in_chunks(
