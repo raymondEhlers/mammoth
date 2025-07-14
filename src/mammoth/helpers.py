@@ -15,6 +15,7 @@ import rich
 import rich.progress
 from rich.console import Console
 from rich.logging import RichHandler
+from rich_argparse import RichHelpFormatter as RichHelpFormatter
 
 logger = logging.getLogger(__name__)
 

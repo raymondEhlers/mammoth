@@ -115,10 +115,10 @@ def count_events_in_track_skim_entry_point() -> None:
     # Delayed import since this is self contained
     import argparse
 
-    from rich_argparse import RichHelpFormatter
-
     # Setup
-    parser = argparse.ArgumentParser(description="Sync files from filed jobs.", formatter_class=RichHelpFormatter)
+    parser = argparse.ArgumentParser(
+        description="Sync files from filed jobs.", formatter_class=mammoth.helpers.RichHelpFormatter
+    )
 
     parser.add_argument(
         "-t", "--trains-directory", type=Path, default=Path("trains"), help="Base path to the trains directory"

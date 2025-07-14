@@ -1833,7 +1833,9 @@ def run(
 
 def entry_point() -> None:
     mammoth.helpers.setup_logging()
-    parser = argparse.ArgumentParser(description="Execute the run macro")
+    parser = argparse.ArgumentParser(
+        description="Execute the run macro", formatter_class=mammoth.helpers.RichHelpFormatter
+    )
 
     parser.add_argument(
         "-a",

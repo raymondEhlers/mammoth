@@ -334,14 +334,12 @@ def shit_hadd() -> None:
     # Delayed import since this is self contained
     import argparse
 
-    from rich_argparse import RichHelpFormatter
-
     import mammoth.helpers
 
     # Setup
     mammoth.helpers.setup_logging(level=logging.INFO)
     parser = argparse.ArgumentParser(
-        description="shadd: Shi^H^H^HSimple hadd replacement", formatter_class=RichHelpFormatter
+        description="shadd: Shi^H^H^HSimple hadd replacement", formatter_class=mammoth.helpers.RichHelpFormatter
     )
 
     parser.add_argument("-i", "--input", required=True, nargs="+", type=Path, help="Input filename(s)")

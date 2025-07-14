@@ -178,10 +178,10 @@ def steer_handle_files_from_failed_jobs_entry_point() -> None:
     # Delayed import since this is self contained
     import argparse
 
-    from rich_argparse import RichHelpFormatter
-
     # Setup
-    parser = argparse.ArgumentParser(description="Sync files from filed jobs.", formatter_class=RichHelpFormatter)
+    parser = argparse.ArgumentParser(
+        description="Sync files from filed jobs.", formatter_class=mammoth.helpers.RichHelpFormatter
+    )
 
     parser.add_argument("-n", "--node-work-dir", required=True, type=Path, help="Node work directory")
     parser.add_argument("-p", "--permanent-work-dir", required=True, type=Path, help="Permanent work directory")
