@@ -49,9 +49,9 @@ class PtDependentTrackingEfficiencyParameters:
         values = np.mean(possible_values, axis=0)
 
         # Validate values vs pt bin
-        assert len(values) + 1 == len(
-            bin_edges
-        ), f"Bin edges don't match up to values. {len(bin_edges)=}, {len(values)=}"
+        assert len(values) + 1 == len(bin_edges), (
+            f"Bin edges don't match up to values. {len(bin_edges)=}, {len(values)=}"
+        )
 
         return cls(
             bin_edges=bin_edges,

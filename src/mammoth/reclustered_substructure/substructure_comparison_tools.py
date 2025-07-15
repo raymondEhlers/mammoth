@@ -335,7 +335,7 @@ def compare_flat_substructure(  # noqa: C901
                 # sort it out. So continue the comparison instead of stopping here.
                 pass
 
-    output_dir = base_output_dir / f"{collision_system}__jet_R{round(jet_R*100):03}"
+    output_dir = base_output_dir / f"{collision_system}__jet_R{round(jet_R * 100):03}"
     output_dir.mkdir(parents=True, exist_ok=True)
 
     all_success = True

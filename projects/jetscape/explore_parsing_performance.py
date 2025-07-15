@@ -17,7 +17,7 @@ import pandas as pd
 from mammoth.framework.io import _jetscape_parser
 
 
-def test_read(filename: str | Path, events_per_chunk: int, max_chunks: int = 1) -> None:
+def test_read(filename: str | Path, events_per_chunk: int, max_chunks: int = 1) -> None:  # noqa: PT028
     # Validation
     filename = Path(filename)
 

@@ -606,9 +606,9 @@ def _define_config(
         n_tasks_per_block = round(n_cores_to_allocate_per_block / task_config.n_cores_per_task)
 
         # Cross check
-        assert (
-            n_tasks_per_block * n_blocks >= target_n_tasks_to_run_simultaneously
-        ), f"Too many tasks per block. n_tasks_per_block: {n_tasks_per_block}, n_blocks: {n_blocks}, n_tasks: {target_n_tasks_to_run_simultaneously}"
+        assert n_tasks_per_block * n_blocks >= target_n_tasks_to_run_simultaneously, (
+            f"Too many tasks per block. n_tasks_per_block: {n_tasks_per_block}, n_blocks: {n_blocks}, n_tasks: {target_n_tasks_to_run_simultaneously}"
+        )
 
     # Calculate the memory required per block
     # NOTE: type ignore because mypy apparently can't figure out that this is not None, even though the check is right there...

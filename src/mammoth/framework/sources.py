@@ -134,9 +134,9 @@ def validate_chunk_size(chunk_size: T_ChunkSize, source_default_chunk_size: T_Ch
     # Initial validation
     if chunk_size is ChunkSizeSentinel.SOURCE_DEFAULT:
         chunk_size = source_default_chunk_size
-        assert (
-            chunk_size is not ChunkSizeSentinel.SOURCE_DEFAULT
-        ), "The default chunk size for a source cannot be SOURCE_DEFAULT"
+        assert chunk_size is not ChunkSizeSentinel.SOURCE_DEFAULT, (
+            "The default chunk size for a source cannot be SOURCE_DEFAULT"
+        )
 
     # Full validation
     # Perform the rest of the validation now that we know the chunk size input

@@ -148,7 +148,7 @@ class TrackSkimValidationFilenames:
         collision_system = self.collision_system
         if extra_collision_system_label:
             collision_system = f"{collision_system}-{extra_collision_system_label}"
-        return f"{collision_system}__jet_R{round(self.jet_R*100):03}"
+        return f"{collision_system}__jet_R{round(self.jet_R * 100):03}"
 
     def analysis_output(self, extra_collision_system_label: str = "") -> Path:
         return (
@@ -342,7 +342,7 @@ def _reference_aliphysics_tree_name(collision_system: str, jet_R: float) -> str:
         "PbPb": "ConstSub_RawTree_Data_EventSub_Incl",
         "embed_pythia": "ConstSub_RawTree_EventSub_Incl",
     }
-    return f"AliAnalysisTaskJetDynamicalGrooming_{_jet_labels[collision_system]}_AKTChargedR{round(jet_R*100):03}_tracks_pT0150_E_scheme{_tags[collision_system]}"
+    return f"AliAnalysisTaskJetDynamicalGrooming_{_jet_labels[collision_system]}_AKTChargedR{round(jet_R * 100):03}_tracks_pT0150_E_scheme{_tags[collision_system]}"
 
 
 def _get_scale_factors_for_test() -> dict[int, float]:
@@ -471,8 +471,8 @@ def test_track_skim_validation(  # noqa: C901
     jet_R: float,
     collision_system: str,
     steering_version: str,
-    iterative_splittings: bool = True,
-    write_aliphysics_reference_logs_to_file: bool = False,
+    iterative_splittings: bool = True,  # noqa: PT028
+    write_aliphysics_reference_logs_to_file: bool = False,  # noqa: PT028
 ) -> None:
     # NOTE: There's some inefficiency since we store the same track skim info with the
     #       R = 0.2 and R = 0.4 outputs. However, it's much simpler conceptually, so we

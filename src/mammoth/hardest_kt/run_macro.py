@@ -301,7 +301,7 @@ def run_dynamical_grooming(  # noqa: C901
     if analysis_mode == AnalysisMode.PbPb:
         logger.info(f"Centrality range: {centrality_min}-{centrality_max}")
     # jet R needs to be formatted as a string too
-    jet_R_str = f"{round(jet_R*100):03}"
+    jet_R_str = f"{round(jet_R * 100):03}"
     # Setup for validation mode
     particle_level_min_pt = 0.0
     if validation_mode:
@@ -309,7 +309,7 @@ def run_dynamical_grooming(  # noqa: C901
         # skims tend to go down to 150 MeV even at track level to keep the data volume reasonable. For the sake
         # of validation, we set the AliPhysics tasks to go a min of 150 MeV, and can consider a re-skim later.
         particle_level_min_pt = 0.15
-    particle_level_min_pt_str = f"{round(particle_level_min_pt*1000):04}"
+    particle_level_min_pt_str = f"{round(particle_level_min_pt * 1000):04}"
 
     # Basic setup (analysis manager and input handler).
     analysis_manager = ROOT.AliAnalysisManager(task_name)
@@ -1040,7 +1040,7 @@ def run_dynamical_grooming_embedding(  # noqa: C901
         centrality_min, centrality_max = 30, 50
     logger.info(f"Centrality range: {centrality_min}-{centrality_max}")
     # jet R needs to be formatted as a string too
-    jet_R_str = f"{round(jet_R*100):03}"
+    jet_R_str = f"{round(jet_R * 100):03}"
     # Setup for validation mode
     particle_level_min_pt = 0.0
     if validation_mode:
@@ -1048,7 +1048,7 @@ def run_dynamical_grooming_embedding(  # noqa: C901
         # skims tend to go down to 150 MeV even at track level to keep the data volume reasonable. For the sake
         # of validation, we set the AliPhysics tasks to go a min of 150 MeV, and can consider a re-skim later.
         particle_level_min_pt = 0.15
-    particle_level_min_pt_str = f"{round(particle_level_min_pt*1000):04}"
+    particle_level_min_pt_str = f"{round(particle_level_min_pt * 1000):04}"
 
     # Basic setup (analysis manager and input handler).
     analysis_manager = ROOT.AliAnalysisManager(task_name)
