@@ -230,7 +230,7 @@ def run(job_framework: job_utils.JobFramework) -> list[Future[Any]]:
         target_n_tasks_to_run_simultaneously = 2
 
         # https://stackoverflow.com/a/74378359
-        class ContainsFacilityName(str):
+        class ContainsFacilityName(str):  # noqa: PLW1641
             def __eq__(self, other: Any) -> bool:
                 return self.__contains__(other)
 

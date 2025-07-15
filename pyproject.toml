@@ -273,6 +273,7 @@ ignore = [
   "PD011",    # Calls to `.values` are usually for histograms, not pandas. This is getting picked up as a false positive
   "C420",     # I find `dict.fromkeys` to be less idiomatic than doing a dict comprehension
   "TD003",    # Unlikely to have issues to link for all of these
+  "PLC0415",  # Wants all imports at the top of file, but it's often very convenient to delay them
 ]
 
 [tool.ruff.lint.per-file-ignores]

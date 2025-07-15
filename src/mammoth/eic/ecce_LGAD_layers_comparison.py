@@ -553,7 +553,7 @@ def run() -> None:  # noqa: C901
                             plot_input_specs.append(input_spec)
 
                     # Skip if we didn't load the data
-                    if not len(plot_input_specs):
+                    if not plot_input_specs:
                         continue
                     _jet_output_dir = output_dir / "jets"
                     _jet_output_dir.mkdir(parents=True, exist_ok=True)

@@ -20,7 +20,7 @@ from pachyderm import binned_data
 logger = logging.getLogger(__name__)
 
 
-@attrs.frozen
+@attrs.frozen()
 class ScaleFactor:
     """Store scale factors for a particular pt hard bin.
 
@@ -58,6 +58,15 @@ class ScaleFactor:
         agreement = [np.allclose(getattr(self, a), getattr(other, a)) for a in attributes]
         # All arrays and the metadata must agree.
         return all(agreement)
+
+    def __hash__(self) -> int:
+        """Hash of the object.
+
+        Note:
+            I defined __hash__ since we defined __eq__ by hand. I'm not sure this the best way to do it
+            as of July 2025, but it seems to be reasonable.
+        """
+        return hash((self.cross_section, self.n_trials_total, self.n_entries, self.n_accepted_events))
 
     def value(self) -> float:
         """Value of the scale factor.
