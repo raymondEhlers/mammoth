@@ -7,7 +7,9 @@ from __future__ import annotations
 
 import argparse
 import io
+import itertools
 import logging
+from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
 
@@ -151,9 +153,28 @@ class ObservableInfo:
 
         return "\n".join(lines)
 
+    def to_csv_like(self, separator: str = "\t") -> str:
+        """Convert observable into a csv-like entries.
+
+        If there are multiple parameters that would justify multiple entries,
+        then multiple lines are provided.
+
+        Args:
+            separator:
+        Returns:
+            Lines formatted suitably for a csv-like.
+        """
+
 
 def write_observables(observables: dict[str, dict[str, ObservableInfo]], stream: io.TextIO) -> bool:
-    """Write the observables in a clear, organized, and readable format."""
+    """Write the observables in a clear, organized, and readable format.
+
+    Args:
+        observables: All observables
+        stream: Output stream
+    Returns:
+        True if successful.
+    """
     for sqrt_s in sorted(observables.keys()):
         stream.write(rf"# $\sqrt{{s_{{NN}}}}$ = {sqrt_s} GeV" + "\n\n")
         # Group by observable class
@@ -169,6 +190,117 @@ def write_observables(observables: dict[str, dict[str, ObservableInfo]], stream:
             stream.write("\n")
         stream.write("\n")
     return True
+
+
+def base_parameter_generator(config: dict[str, Any]) -> Iterator[list[str]]:
+    """Generator for base parameters."""
+    values = {"centrality": []}
+    centrality = config["centrality"]
+    for cent_low, cent_high in centrality:
+        values["centrality"].append(f"{cent_low}-{cent_high}%")
+
+    # Get all combinations
+    yield from list(itertools.product(*values.values()))
+
+
+def pt_dependence_generator(config: dict[str, Any]) -> Iterator[list[str]]:
+    values = []
+    if "pt" in config and len(config["pt"]) > 2:
+        pt_values = config["pt"]
+        for pt_low, pt_high in itertools.pairwise(pt_values):
+            values.append(f"pt=[{pt_low}, {pt_high}]")
+    elif "pt_min" in config:
+        values.append(f"pt > {config['pt_min']}")
+
+    yield from values
+
+
+def jet_parameters_gen(config: dict[str, Any]) -> Iterator[list[str]]:
+    values = {
+        "jet_R": [],
+        "kappa": [],
+        "axis": [],
+        "soft_drop": [],
+        "dyg": [],
+    }
+    # jet R
+    if "jet_R" in config:
+        for R in config["jet_R"]:
+            values["jet_R"].append(f"R={R}")
+    # kappa
+    if "kappa" in config:
+        for k in config["kappa"]:
+            values["kappa"].append(f"ang. kappa={k}")
+    # axis
+    if "axis" in config:
+        for parameters in config["axis"]:
+            description = f"{parameters['type']}"
+            if "grooming_settings" in parameters:
+                description += (
+                    f", z_cut={parameters['grooming_settings']['zcut']}, beta={parameters['grooming_settings']['beta']}"
+                )
+            values["axis"].append(description)
+    # Grooming
+    # Soft Drop
+    if "SoftDrop" in config:
+        for parameters in config["SoftDrop"]:
+            values["soft_drop"].append(f"SD z_cut={parameters['zcut']}, beta={parameters['beta']}")
+    # DyG
+    if "dynamical_grooming_a" in config:
+        values["dyg"].extend(f"DyG a={a}" for a in config["dynamical_grooming_a"])
+
+    # Drop values which aren't relevant (i.e. empty)
+    values = {k: v for k, v in values.items() if v}
+
+    # Get all combinations
+    combinations = list(itertools.product(*values.values()))
+
+    # If you want them as dictionaries with parameter names
+    # param_combinations = [
+    #    dict(zip(values.keys(), combo, strict=True))
+    #    for combo in combinations
+    # ]
+
+    yield from combinations
+
+
+def write_observable_names_csv(observables: dict[str, dict[str, ObservableInfo]], stream: io.TextIO) -> bool:
+    """Write the observables in a CSV format for help with organizing HEPdata table names.
+
+    Args:
+        observables: All observables
+        stream: Output stream
+    Returns:
+        True if successful.
+    """
+    for sqrt_s in sorted(observables.keys()):
+        output_line_base = f"{sqrt_s}"
+        # Group by observable class
+        class_to_obs = {}
+        for obs in observables[sqrt_s].values():
+            class_to_obs.setdefault(obs.observable_class, []).append(obs)
+        for obs_class_name, obs_class in class_to_obs.items():
+            # TODO(RJE): Centrality
+            for obs in sorted(obs_class, key=lambda o: o.name):
+                # TODO(RJE): What is the right set of parameters? Depends on the observable...
+                base_values = [output_line_base, obs_class_name, obs.name]
+                # Base generator
+                for base_parameters in base_parameter_generator(obs.config):
+                    # Inclusive jet case
+                    if "jet_R" in obs.config:
+                        # TODO(RJE): Generator seems like it would be helpful...
+                        for parameters in jet_parameters_gen(obs.config):
+                            # parameters = f"R = {v!s}"
+                            # parameters = ", ".join([*base_parameters, *parameters])
+                            parameters = ", ".join([*parameters])  # noqa: PLW2901
+                            for pt_dependence in pt_dependence_generator(obs.config):
+                                full_parameters = parameters
+                                if pt_dependence:
+                                    full_parameters = f"{full_parameters}, {pt_dependence}"
+
+                                stream.write("\t".join([*base_values, *base_parameters, full_parameters]) + "\n")
+                    else:
+                        stream.write("\t".join([*base_values, *base_parameters, "Parameters"]) + "\n")
 
 
 def main(jetscape_analysis_config_path: Path) -> None:
@@ -195,37 +327,26 @@ def main(jetscape_analysis_config_path: Path) -> None:
         observables[sqrt_s] = {}
         for observable_class in observable_classes[sqrt_s]:
             for observable_key in config[observable_class]:
-                if "v2" in observable_key and observable_class != "dijet":
-                    # need to go a level deeper for the v2 since they're nested...
-                    for sub_observable_key in config[observable_class][observable_key]:
-                        observable_info = config[observable_class][observable_key][sub_observable_key]
-
-                        # Move the experiment to the end of the name to match the convention
-                        *base_observable_name, experiment_name = observable_key.split("_")
-                        observable_name = "_".join(base_observable_name)
-                        observable_name += f"_{sub_observable_key}_{experiment_name}"
-
-                        observables[sqrt_s][f"{observable_class}_{observable_key}_{sub_observable_key}"] = (
-                            ObservableInfo(
-                                observable_class=observable_class,
-                                name=observable_name,
-                                config=observable_info,
-                            )
-                        )
-                else:
-                    observable_info = config[observable_class][observable_key]
-                    observables[sqrt_s][f"{observable_class}_{observable_key}"] = ObservableInfo(
-                        observable_class=observable_class,
-                        name=observable_key,
-                        config=observable_info,
-                    )
+                observable_info = config[observable_class][observable_key]
+                observables[sqrt_s][f"{observable_class}_{observable_key}"] = ObservableInfo(
+                    observable_class=observable_class,
+                    name=observable_key,
+                    config=observable_info,
+                )
 
     # import IPython; IPython.embed()
     here = Path(__file__).parent
-    output_file = here / Path("observables.md")
 
+    # PR list
+    output_file = here / Path("observables.md")
     with output_file.open("w") as f:
         write_observables(observables=observables, stream=f)
+
+    # List for help with assigning HEPdata tables to observables
+    output_file_hepdata_list = here / Path("HEPdata_list.tsv")
+    with output_file_hepdata_list.open("w") as f:
+        f.write("# sqrt_s\tobservable class\tobservable names\tcentrality\tparameters" + "\n")
+        write_observable_names_csv(observables=observables, stream=f)
 
 
 if __name__ == "__main__":
