@@ -166,6 +166,9 @@ class Observable:
         # parameters_with_indices = {
         #    p: [(i, v) for i, v in enumerate(values)] for p, values in parameters.items()
         # }
+        # TODO(RJE): Grooming parameters are mutually exclusive, so we need to handle them one-by-one
+        # grooming_parameters
+        # We get the same combinations, but also with the indices.
         indices = {p: list(range(len(values))) for p, values in parameters.items()}
         # Get all combinations
         combinations = itertools.product(*parameters.values())
@@ -324,8 +327,9 @@ class JetParameters:
         # Standardize parameter names
         parameter_names = {
             "jet_R": "jet_R",
-            "kappa": "kappa",
             "axis": "axis",
+            "kappa": "kappa",
+            "r": "subjet_zr",
             "SoftDrop": "soft_drop",
             "dynamical_grooming_a": "dynamical_grooming",
         }
@@ -347,9 +351,6 @@ class JetParameters:
         # pt
         if "pt" in parameters:
             output_parameters.update(PtParameters.format_parameters_for_printing(parameters=parameters))
-        # Kappa
-        if "kappa" in parameters:
-            output_parameters["kappa"] = f"ang. kappa={parameters['kappa']}"
         # Axis
         if "axis" in parameters:
             param = parameters["axis"]
@@ -359,6 +360,12 @@ class JetParameters:
                     f", SD z_cut={param['grooming_settings']['zcut']}, beta={param['grooming_settings']['beta']}"
                 )
             output_parameters["axis"] = description
+        # Kappa
+        if "kappa" in parameters:
+            output_parameters["kappa"] = f"ang. kappa={parameters['kappa']}"
+        # Subjet z
+        if "subjet_zr" in parameters:
+            output_parameters["subjet_zr"] = f"Subjet r={parameters['subjet_zr']}"
         # Grooming
         # Soft Drop
         if "soft_drop" in parameters:
@@ -384,7 +391,7 @@ def _propagate_rest_of_parameters(
     return output_parameters
 
 
-def write_observable_names_csv(observables: dict[str, dict[str, Observable]], stream: io.TextIO) -> bool:
+def write_observable_names_csv(observables: dict[str, dict[str, Observable]], stream: io.TextIO) -> bool:  # noqa: C901
     """Write the observables in a CSV format for help with organizing HEPdata table names.
 
     Args:
@@ -409,8 +416,8 @@ def write_observable_names_csv(observables: dict[str, dict[str, Observable]], st
                     obs.experiment,
                 ]
                 columns_to_print_separately = ["centrality"]
-                parameters = obs.parameters()
-                for parameters, indices in obs.generate_parameters(obs.parameters()):  # noqa: B007
+                full_set_of_parameters = obs.parameters()
+                for parameters, indices in obs.generate_parameters(full_set_of_parameters):
                     formatted_parameters = obs.format_parameters_for_printing(parameters)
                     values = [*base_values]
                     # Print these parameters separately
@@ -423,7 +430,118 @@ def write_observable_names_csv(observables: dict[str, dict[str, Observable]], st
                         formatted_parameters = {"_": "None"}
                     # And then put the rest in the parameters field
                     values.append(", ".join(formatted_parameters.values()))
-                    stream.write("\t".join([*values]) + "\n")
+                    # Next, add in the responsible person field, which will always be empty
+                    values.append("")
+                    # Followed by the pp spectra histogram, if available
+                    # NOTE: Since this is pp, we'll ignore many of the parameters, such as centrality.
+                    pt_suffix = ""
+                    if len(full_set_of_parameters.get("pt", {})) > 1:
+                        pt_suffix = f"_pt{indices['pt']}"
+                    logger.info(f"{pt_suffix=}")
+
+                    # Suffix
+                    suffix = ""
+                    # TODO(RJE): Refactor from here..
+                    # Jet R
+                    if "jet_R" in parameters:
+                        suffix = f"_R{parameters['jet_R']}"
+                    # Grooming
+                    # Soft drop
+                    if "soft_drop" in parameters:
+                        suffix += f"_zcut{parameters['soft_drop']['zcut']}_beta{parameters['soft_drop']['beta']}"
+                    if "dynamical_grooming" in parameters:
+                        suffix += f"_a{parameters['dynamical_grooming']}"
+                    main_suffix = ""
+                    # Jet-axis difference
+                    if "axis" in parameters:
+                        main_suffix += f"_{parameters['axis']['type']}"
+                    # Generalized angularities
+                    if "kappa" in parameters:
+                        main_suffix += f"_k{parameters['kappa']}"
+                    # Subjet z
+                    if "r" in parameters:
+                        main_suffix += f"_r{parameters['r']}"
+                    logger.info(f"{main_suffix=}")
+                    # ENDTODO
+
+                    for system in ["pp", "AA"]:
+                        # system dir name
+                        value_to_store = f"Missing {system} dir"
+                        for hepdata_dir_name in [
+                            f"hepdata_{system}_dir{suffix}",
+                            f"hepdata_{system}_dir{suffix}{pt_suffix}",
+                            f"hepdata_{system}_dir",
+                        ]:
+                            # logger.info(f"{hepdata_dir_name=}")
+                            if hepdata_dir_name in obs.config:
+                                hepdata_dir = obs.config[hepdata_dir_name]
+                                if isinstance(hepdata_dir, list):
+                                    if indices["centrality"] >= len(hepdata_dir):
+                                        value_to_store = "Cent index out of range"
+                                    else:
+                                        value_to_store = hepdata_dir[indices["centrality"]]
+                                else:
+                                    value_to_store = hepdata_dir
+                        values.append(value_to_store)
+
+                        # system graph name
+                        value_to_store = f"Missing {system} graph name"
+                        for hepdata_graph_name in [
+                            f"hepdata_{system}_gname{suffix}",
+                            f"hepdata_{system}_gname{suffix}{pt_suffix}",
+                            f"hepdata_{system}_gname",
+                        ]:
+                            # First try the standard name
+                            if hepdata_graph_name in obs.config:
+                                hepdata_graph = obs.config[hepdata_graph_name]
+                                if isinstance(hepdata_graph, list):
+                                    if indices["centrality"] >= len(hepdata_graph):
+                                        value_to_store = "Cent index out of range"
+                                    else:
+                                        value_to_store = hepdata_graph[indices["centrality"]]
+                                else:
+                                    value_to_store = hepdata_graph
+                        values.append(value_to_store)
+                    # AA spectra distribution
+                    # system dir name
+                    value_to_store = f"Missing {system} distribution dir"
+                    for hepdata_dir_name in [
+                        f"hepdata_{system}_distribution_dir{suffix}",
+                        f"hepdata_{system}_distribution_dir{suffix}{pt_suffix}",
+                        f"hepdata_{system}_distribution_dir",
+                    ]:
+                        # logger.info(f"{hepdata_dir_name=}")
+                        if hepdata_dir_name in obs.config:
+                            hepdata_dir = obs.config[hepdata_dir_name]
+                            if isinstance(hepdata_dir, list):
+                                if indices["centrality"] >= len(hepdata_dir):
+                                    value_to_store = "Cent index out of range"
+                                else:
+                                    value_to_store = hepdata_dir[indices["centrality"]]
+                            else:
+                                value_to_store = hepdata_dir
+                    values.append(value_to_store)
+
+                    # system graph name
+                    value_to_store = f"Missing {system} distribution graph name"
+                    for hepdata_graph_name in [
+                        f"hepdata_{system}_distribution_gname{suffix}",
+                        f"hepdata_{system}_distribution_gname{suffix}{pt_suffix}",
+                        f"hepdata_{system}_distribution_gname",
+                    ]:
+                        # First try the standard name
+                        if hepdata_graph_name in obs.config:
+                            hepdata_graph = obs.config[hepdata_graph_name]
+                            if isinstance(hepdata_graph, list):
+                                if indices["centrality"] >= len(hepdata_graph):
+                                    value_to_store = "Cent index out of range"
+                                else:
+                                    value_to_store = hepdata_graph[indices["centrality"]]
+                            else:
+                                value_to_store = hepdata_graph
+                    values.append(value_to_store)
+
+                    stream.write("\t".join([*values, ""]) + "\n")
 
 
 def main(jetscape_analysis_config_path: Path) -> None:
@@ -469,7 +587,11 @@ def main(jetscape_analysis_config_path: Path) -> None:
     # List for help with assigning HEPdata tables to observables
     output_file_hepdata_list = here / Path("HEPdata_list.tsv")
     with output_file_hepdata_list.open("w") as f:
-        f.write("# sqrt_s\tobservable class\tobservable name\tdisplay name\texperiment\tcentrality\tparameters" + "\n")
+        f.write(
+            "# sqrt_s\tobservable class\tobservable name\tdisplay name\texperiment\tcentrality\tparameters\tperson\tHEPdata pp spectra table\tHEPdata pp spectra entry\tHEPdata AA/pp ratio table\tHEPdata AA/pp ratio entry\tHEPdata AA spectra table\tHEPdata AA spectra table"
+            + "\n"
+        )
+        # HEPdata pp spectra table	HEPdata pp spectra entry	HEPdata AA spectra table	HEPdata AA spectra entry	HEPdata AA/pp ratio table	HEPdata AA/pp ratio entry
         write_observable_names_csv(observables=observables, stream=f)
 
 
