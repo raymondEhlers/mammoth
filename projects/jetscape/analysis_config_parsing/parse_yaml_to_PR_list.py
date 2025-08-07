@@ -11,7 +11,7 @@ import itertools
 import logging
 from collections.abc import Iterator
 from pathlib import Path
-from typing import Any
+from typing import Any, Protocol
 
 import attrs
 import yaml
@@ -69,7 +69,8 @@ def pretty_print_name(name: str) -> str:
 
 
 @attrs.define
-class ObservableInfo:
+class Observable:
+    sqrt_s: float = attrs.field()
     observable_class: str = attrs.field()
     name: str = attrs.field()
     config: dict[str, Any] = attrs.field()
@@ -79,11 +80,20 @@ class ObservableInfo:
         return f"{self.observable_class}_{self.name}"
 
     @property
+    def internal_name_without_experiment(self) -> str:
+        *name, _ = self.name.split("_")
+        return "_".join(name)
+
+    @property
     def experiment(self) -> str:
         return self.name.split("_")[-1].upper()
 
+    @property
     def display_name(self) -> str:
-        """Pretty print of the observable name"""
+        """Pretty print of the observable name.
+
+        It's fairly ad-hoc, but at least gives us something to work with.
+        """
         # -1 removes the experiment name
         return pretty_print_name("_".join(self.name.split("_")[:-1]))
 
@@ -111,9 +121,67 @@ class ObservableInfo:
 
         return hepdata_id, int(hepdata_version)
 
+    def parameters(self) -> tuple[list[dict[str, str]], list[dict[str, int]]]:
+        """The parameters that are relevant to the observable.
+
+        Note:
+            The bin indices are not meant to be comprehensive - just those that are
+            relevant for the observable.
+
+        Returns:
+            Parameters, bin indices associated with the parameters (e.g. pt).
+        """
+        _parameters = BaseParameters.construct_parameters(observable=self, config=self.config)
+        if "jet_R" in self.config:
+            _parameters.update(JetParameters.construct_parameters(observable=self, config=self.config))
+        # TODO(RJE): Handle trigger appropriately...
+
+        return _parameters
+
+    def format_parameters_for_printing(self, parameters: dict[str, Any]) -> dict[str, str]:
+        output_parameters = BaseParameters.format_parameters_for_printing(parameters)
+        if "jet_R" in self.config:
+            output_parameters.update(JetParameters.format_parameters_for_printing(parameters))
+        # TODO(RJE): Handle trigger appropriately...
+
+        missing_keys = set(parameters).difference(set(output_parameters))
+        if missing_keys:
+            logger.warning(f"missing formatting for {missing_keys}")
+
+        # NOTE: Wrapped in dict to avoid leaking the defaultdict
+        return dict(output_parameters)
+
+    def generate_parameters(self, parameters: dict[str, list[Any]]) -> Iterator[tuple[str, dict[str, int]]]:
+        """Generate combinations of parameters that are relevant to the observable.
+
+        Note:
+            The bin indices are not meant to be comprehensive - just those that are
+            relevant for the observable.
+
+        Returns:
+            Description of parameters, bins associated with the parameters (e.g. pt).
+        """
+        # Add indices before each parameters:
+        # e.g. "pt": [[1, 2], [2, 3]] -> [(0, [1,2]), (1, [2,3])]
+        # parameters_with_indices = {
+        #    p: [(i, v) for i, v in enumerate(values)] for p, values in parameters.items()
+        # }
+        indices = {p: list(range(len(values))) for p, values in parameters.items()}
+        # Get all combinations
+        combinations = itertools.product(*parameters.values())
+        indices_combinations = itertools.product(*indices.values())
+
+        # And then return them labeled by the parameter name
+        # We want: ({"pt": [], ...], {"pt": }})
+        yield from zip(
+            (dict(zip(parameters.keys(), values, strict=True)) for values in combinations),
+            (dict(zip(parameters.keys(), values, strict=True)) for values in indices_combinations),
+            strict=True,
+        )
+
     def to_markdown(self, name_prefix: str | None = None) -> str:  # noqa: C901
         """Return a pretty, formatted markdown string for this observable."""
-        display_name = self.display_name()
+        display_name = self.display_name
         if name_prefix is not None:
             display_name = f"{name_prefix} {display_name}"
         lines = [f"- **Name:** {display_name}", f"  - **Experiment:** {self.experiment}"]
@@ -160,13 +228,13 @@ class ObservableInfo:
         then multiple lines are provided.
 
         Args:
-            separator:
+            separator: Separator used to differentiate fields. Default: `\t`.
         Returns:
             Lines formatted suitably for a csv-like.
         """
 
 
-def write_observables(observables: dict[str, dict[str, ObservableInfo]], stream: io.TextIO) -> bool:
+def write_observables(observables: dict[str, dict[str, Observable]], stream: io.TextIO) -> bool:
     """Write the observables in a clear, organized, and readable format.
 
     Args:
@@ -192,79 +260,131 @@ def write_observables(observables: dict[str, dict[str, ObservableInfo]], stream:
     return True
 
 
-def base_parameter_generator(config: dict[str, Any]) -> Iterator[list[str]]:
-    """Generator for base parameters."""
-    values = {"centrality": []}
-    centrality = config["centrality"]
-    for cent_low, cent_high in centrality:
-        values["centrality"].append(f"{cent_low}-{cent_high}%")
+class ParameterGroup(Protocol):
+    """Group of parameters.
 
-    # Get all combinations
-    yield from list(itertools.product(*values.values()))
+    This is an interface that each group of parameters must implement.
+    """
 
+    def construct_parameters(observable: Observable, config: dict[str, Any]) -> dict[str, list[Any]]: ...
 
-def pt_dependence_generator(config: dict[str, Any]) -> Iterator[list[str]]:
-    values = []
-    if "pt" in config and len(config["pt"]) > 2:
-        pt_values = config["pt"]
-        for pt_low, pt_high in itertools.pairwise(pt_values):
-            values.append(f"pt=[{pt_low}, {pt_high}]")
-    elif "pt_min" in config:
-        values.append(f"pt > {config['pt_min']}")
-
-    yield from values
+    def format_parameters_for_printing(parameters: dict[str, list[Any]]) -> dict[str, list[str]]: ...
 
 
-def jet_parameters_gen(config: dict[str, Any]) -> Iterator[list[str]]:
-    values = {
-        "jet_R": [],
-        "kappa": [],
-        "axis": [],
-        "soft_drop": [],
-        "dyg": [],
-    }
-    # jet R
-    if "jet_R" in config:
-        for R in config["jet_R"]:
-            values["jet_R"].append(f"R={R}")
-    # kappa
-    if "kappa" in config:
-        for k in config["kappa"]:
-            values["kappa"].append(f"ang. kappa={k}")
-    # axis
-    if "axis" in config:
-        for parameters in config["axis"]:
-            description = f"{parameters['type']}"
-            if "grooming_settings" in parameters:
+class BaseParameters:
+    def construct_parameters(observable: Observable, config: dict[str, Any]) -> dict[str, list[Any]]:
+        base_parameters = {}
+        # Centrality
+        base_parameters["centrality"] = [tuple(v) for v in config["centrality"]]
+        return base_parameters
+
+    def format_parameters_for_printing(parameters: dict[str, list[Any]]) -> dict[str, list[str]]:
+        # output_parameters = collections.defaultdict(list)
+        output_parameters = {}
+        # Centrality
+        cent_low, cent_high = parameters["centrality"]
+        output_parameters["centrality"] = f"{cent_low}-{cent_high}%"
+
+        return output_parameters
+
+
+class PtParameters:
+    def construct_parameters(observable: Observable, config: dict[str, Any]) -> dict[str, list[Any]]:
+        values = []
+        if "pt" in config:
+            pt_values = config["pt"]
+            values = [(pt_low, pt_high) for pt_low, pt_high in itertools.pairwise(pt_values)]
+        elif "pt_min" in config:
+            values = [(config["pt_min"], -1)]
+
+        if values:
+            # Wrap it in a "pt" key to handle it similarly to the other parameters
+            return {"pt": values}
+        # Nothing to construct out of this
+        return {}
+
+    def format_parameters_for_printing(parameters: dict[str, list[Any]]) -> dict[str, list[str]]:
+        # output_parameters = collections.defaultdict(list)
+        output_parameters = {}
+        if "pt" in parameters:
+            pt_low, pt_high = parameters["pt"]
+            if pt_high == -1:
+                output_parameters["pt"] = f"pt > {pt_low}"
+            else:
+                output_parameters["pt"] = f"{pt_low} < pt < {pt_high}"
+        # return _propagate_rest_of_parameters(output_parameters=output_parameters, parameters=parameters)
+        return output_parameters
+
+
+class JetParameters:
+    def construct_parameters(observable: Observable, config: dict[str, Any]) -> dict[str, list[Any]]:
+        values = {}
+
+        # Handle standard cases first
+        # Standardize parameter names
+        parameter_names = {
+            "jet_R": "jet_R",
+            "kappa": "kappa",
+            "axis": "axis",
+            "SoftDrop": "soft_drop",
+            "dynamical_grooming_a": "dynamical_grooming",
+        }
+        for input_name, output_name in parameter_names.items():
+            if input_name in config:
+                values[output_name] = config[input_name]
+        # Finally, handle special cases:
+        # i.e. the pt
+        values.update(PtParameters.construct_parameters(observable=observable, config=config))
+
+        return values
+
+    def format_parameters_for_printing(parameters: dict[str, list[Any]]) -> dict[str, list[str]]:
+        # output_parameters = collections.defaultdict(list)
+        output_parameters = {}
+        # Jet R
+        if "jet_R" in parameters:
+            output_parameters["jet_R"] = f"R={parameters['jet_R']}"
+        # pt
+        if "pt" in parameters:
+            output_parameters.update(PtParameters.format_parameters_for_printing(parameters=parameters))
+        # Kappa
+        if "kappa" in parameters:
+            output_parameters["kappa"] = f"ang. kappa={parameters['kappa']}"
+        # Axis
+        if "axis" in parameters:
+            param = parameters["axis"]
+            description = f"{param['type']}"
+            if "grooming_settings" in param:
                 description += (
-                    f", z_cut={parameters['grooming_settings']['zcut']}, beta={parameters['grooming_settings']['beta']}"
+                    f", SD z_cut={param['grooming_settings']['zcut']}, beta={param['grooming_settings']['beta']}"
                 )
-            values["axis"].append(description)
-    # Grooming
-    # Soft Drop
-    if "SoftDrop" in config:
-        for parameters in config["SoftDrop"]:
-            values["soft_drop"].append(f"SD z_cut={parameters['zcut']}, beta={parameters['beta']}")
-    # DyG
-    if "dynamical_grooming_a" in config:
-        values["dyg"].extend(f"DyG a={a}" for a in config["dynamical_grooming_a"])
+            output_parameters["axis"] = description
+        # Grooming
+        # Soft Drop
+        if "soft_drop" in parameters:
+            # output_parameters["soft_drop"].extend(f"SD z_cut={param['zcut']}, beta={param['beta']}" for param in parameters["soft_drop"])
+            param = parameters["soft_drop"]
+            output_parameters["soft_drop"] = f"SD z_cut={param['zcut']}, beta={param['beta']}"
+        # DyG
+        if "dynamical_grooming" in parameters:
+            # output_parameters["dynamical_grooming"].extend(f"DyG a={a}" for a in parameters["dynamical_grooming"])
+            output_parameters["dynamical_grooming"] = f"DyG a={parameters['dynamical_grooming']}"
 
-    # Drop values which aren't relevant (i.e. empty)
-    values = {k: v for k, v in values.items() if v}
-
-    # Get all combinations
-    combinations = list(itertools.product(*values.values()))
-
-    # If you want them as dictionaries with parameter names
-    # param_combinations = [
-    #    dict(zip(values.keys(), combo, strict=True))
-    #    for combo in combinations
-    # ]
-
-    yield from combinations
+        return output_parameters
 
 
-def write_observable_names_csv(observables: dict[str, dict[str, ObservableInfo]], stream: io.TextIO) -> bool:
+def _propagate_rest_of_parameters(
+    output_parameters: dict[str, list[str]], parameters: dict[str, list[Any]]
+) -> dict[str, list[str]]:
+    # Ensure we keep the remaining keys!
+    formatted_keys = list(output_parameters)
+    for k, v in parameters.items():
+        if k not in formatted_keys:
+            output_parameters[k] = v
+    return output_parameters
+
+
+def write_observable_names_csv(observables: dict[str, dict[str, Observable]], stream: io.TextIO) -> bool:
     """Write the observables in a CSV format for help with organizing HEPdata table names.
 
     Args:
@@ -276,31 +396,34 @@ def write_observable_names_csv(observables: dict[str, dict[str, ObservableInfo]]
     for sqrt_s in sorted(observables.keys()):
         output_line_base = f"{sqrt_s}"
         # Group by observable class
-        class_to_obs = {}
+        class_to_obs: dict[str, list[Observable]] = {}
         for obs in observables[sqrt_s].values():
             class_to_obs.setdefault(obs.observable_class, []).append(obs)
         for obs_class_name, obs_class in class_to_obs.items():
-            # TODO(RJE): Centrality
             for obs in sorted(obs_class, key=lambda o: o.name):
-                # TODO(RJE): What is the right set of parameters? Depends on the observable...
-                base_values = [output_line_base, obs_class_name, obs.name]
-                # Base generator
-                for base_parameters in base_parameter_generator(obs.config):
-                    # Inclusive jet case
-                    if "jet_R" in obs.config:
-                        # TODO(RJE): Generator seems like it would be helpful...
-                        for parameters in jet_parameters_gen(obs.config):
-                            # parameters = f"R = {v!s}"
-                            # parameters = ", ".join([*base_parameters, *parameters])
-                            parameters = ", ".join([*parameters])  # noqa: PLW2901
-                            for pt_dependence in pt_dependence_generator(obs.config):
-                                full_parameters = parameters
-                                if pt_dependence:
-                                    full_parameters = f"{full_parameters}, {pt_dependence}"
-
-                                stream.write("\t".join([*base_values, *base_parameters, full_parameters]) + "\n")
-                    else:
-                        stream.write("\t".join([*base_values, *base_parameters, "Parameters"]) + "\n")
+                base_values = [
+                    output_line_base,
+                    obs_class_name,
+                    obs.internal_name_without_experiment,
+                    obs.display_name,
+                    obs.experiment,
+                ]
+                columns_to_print_separately = ["centrality"]
+                parameters = obs.parameters()
+                for parameters, indices in obs.generate_parameters(obs.parameters()):  # noqa: B007
+                    formatted_parameters = obs.format_parameters_for_printing(parameters)
+                    values = [*base_values]
+                    # Print these parameters separately
+                    for c in columns_to_print_separately:
+                        v = formatted_parameters.pop(c)
+                        if v:
+                            values.append(v)
+                    # Give a heads up if there's nothing else to include.
+                    if not formatted_parameters:
+                        formatted_parameters = {"_": "None"}
+                    # And then put the rest in the parameters field
+                    values.append(", ".join(formatted_parameters.values()))
+                    stream.write("\t".join([*values]) + "\n")
 
 
 def main(jetscape_analysis_config_path: Path) -> None:
@@ -328,7 +451,8 @@ def main(jetscape_analysis_config_path: Path) -> None:
         for observable_class in observable_classes[sqrt_s]:
             for observable_key in config[observable_class]:
                 observable_info = config[observable_class][observable_key]
-                observables[sqrt_s][f"{observable_class}_{observable_key}"] = ObservableInfo(
+                observables[sqrt_s][f"{observable_class}_{observable_key}"] = Observable(
+                    sqrt_s=sqrt_s,
                     observable_class=observable_class,
                     name=observable_key,
                     config=observable_info,
@@ -345,11 +469,15 @@ def main(jetscape_analysis_config_path: Path) -> None:
     # List for help with assigning HEPdata tables to observables
     output_file_hepdata_list = here / Path("HEPdata_list.tsv")
     with output_file_hepdata_list.open("w") as f:
-        f.write("# sqrt_s\tobservable class\tobservable names\tcentrality\tparameters" + "\n")
+        f.write("# sqrt_s\tobservable class\tobservable name\tdisplay name\texperiment\tcentrality\tparameters" + "\n")
         write_observable_names_csv(observables=observables, stream=f)
 
 
 if __name__ == "__main__":
+    import mammoth.helpers
+
+    mammoth.helpers.setup_logging(level=logging.DEBUG)
+
     parser = argparse.ArgumentParser(
         description="Convert JETSCAPE-analysis YAML configuration files to a list for PR purposes."
     )
