@@ -68,6 +68,10 @@ def pretty_print_name(name: str) -> str:
     return working_str.replace("_", " ")
 
 
+Parameters = list[dict[str, Any]]
+Indices = list[dict[str, int]]
+
+
 @attrs.define
 class Observable:
     sqrt_s: float = attrs.field()
@@ -121,7 +125,7 @@ class Observable:
 
         return hepdata_id, int(hepdata_version)
 
-    def parameters(self) -> tuple[list[dict[str, str]], list[dict[str, int]]]:
+    def parameters(self) -> tuple[Parameters, Indices]:
         """The parameters that are relevant to the observable.
 
         Note:
@@ -132,9 +136,12 @@ class Observable:
             Parameters, bin indices associated with the parameters (e.g. pt).
         """
         _parameters = BaseParameters.construct_parameters(observable=self, config=self.config)
+        # TODO(RJE): Handle trigger appropriately...
+        if "trigger" in self.observable_class:
+            ...
+
         if "jet_R" in self.config:
             _parameters.update(JetParameters.construct_parameters(observable=self, config=self.config))
-        # TODO(RJE): Handle trigger appropriately...
 
         return _parameters
 
@@ -432,6 +439,9 @@ def write_observable_names_csv(observables: dict[str, dict[str, Observable]], st
                     values.append(", ".join(formatted_parameters.values()))
                     # Next, add in the responsible person field, which will always be empty
                     values.append("")
+                    # InpsireHEP and HEPdata links
+                    values.append(obs.config["urls"]["inspire_hep"])
+                    values.append(obs.config["urls"]["hepdata"])
                     # Followed by the pp spectra histogram, if available
                     # NOTE: Since this is pp, we'll ignore many of the parameters, such as centrality.
                     pt_suffix = ""
@@ -466,7 +476,8 @@ def write_observable_names_csv(observables: dict[str, dict[str, Observable]], st
 
                     for system in ["pp", "AA"]:
                         # system dir name
-                        value_to_store = f"Missing {system} dir"
+                        # value_to_store = f"Missing {system} dir"
+                        value_to_store = ""
                         for hepdata_dir_name in [
                             f"hepdata_{system}_dir{suffix}",
                             f"hepdata_{system}_dir{suffix}{pt_suffix}",
@@ -485,7 +496,8 @@ def write_observable_names_csv(observables: dict[str, dict[str, Observable]], st
                         values.append(value_to_store)
 
                         # system graph name
-                        value_to_store = f"Missing {system} graph name"
+                        # value_to_store = f"Missing {system} graph name"
+                        value_to_store = ""
                         for hepdata_graph_name in [
                             f"hepdata_{system}_gname{suffix}",
                             f"hepdata_{system}_gname{suffix}{pt_suffix}",
@@ -504,7 +516,8 @@ def write_observable_names_csv(observables: dict[str, dict[str, Observable]], st
                         values.append(value_to_store)
                     # AA spectra distribution
                     # system dir name
-                    value_to_store = f"Missing {system} distribution dir"
+                    # value_to_store = f"Missing {system} distribution dir"
+                    value_to_store = ""
                     for hepdata_dir_name in [
                         f"hepdata_{system}_distribution_dir{suffix}",
                         f"hepdata_{system}_distribution_dir{suffix}{pt_suffix}",
@@ -523,7 +536,8 @@ def write_observable_names_csv(observables: dict[str, dict[str, Observable]], st
                     values.append(value_to_store)
 
                     # system graph name
-                    value_to_store = f"Missing {system} distribution graph name"
+                    # value_to_store = f"Missing {system} distribution graph name"
+                    value_to_store = ""
                     for hepdata_graph_name in [
                         f"hepdata_{system}_distribution_gname{suffix}",
                         f"hepdata_{system}_distribution_gname{suffix}{pt_suffix}",
@@ -542,6 +556,17 @@ def write_observable_names_csv(observables: dict[str, dict[str, Observable]], st
                     values.append(value_to_store)
 
                     stream.write("\t".join([*values, ""]) + "\n")
+
+
+def hepdata_suffix() -> str: ...
+
+
+def pt_suffix(full_set_of_parameters: Parameters, indices: Indices) -> str:
+    """Determine pt bin suffix based on parameters."""
+    pt_suffix = ""
+    if len(full_set_of_parameters.get("pt", {})) > 1:
+        pt_suffix = f"_pt{indices['pt']}"
+    return pt_suffix
 
 
 def main(jetscape_analysis_config_path: Path) -> None:
@@ -588,7 +613,7 @@ def main(jetscape_analysis_config_path: Path) -> None:
     output_file_hepdata_list = here / Path("HEPdata_list.tsv")
     with output_file_hepdata_list.open("w") as f:
         f.write(
-            "# sqrt_s\tobservable class\tobservable name\tdisplay name\texperiment\tcentrality\tparameters\tperson\tHEPdata pp spectra table\tHEPdata pp spectra entry\tHEPdata AA/pp ratio table\tHEPdata AA/pp ratio entry\tHEPdata AA spectra table\tHEPdata AA spectra table"
+            "# sqrt_s\tobservable class\tobservable name\tdisplay name\texperiment\tcentrality\tparameters\tperson\tInspireHEP link\tHEPdata link\tHEPdata pp spectra table\tHEPdata pp spectra entry\tHEPdata AA/pp ratio table\tHEPdata AA/pp ratio entry\tHEPdata AA spectra table\tHEPdata AA spectra table"
             + "\n"
         )
         # HEPdata pp spectra table	HEPdata pp spectra entry	HEPdata AA spectra table	HEPdata AA spectra entry	HEPdata AA/pp ratio table	HEPdata AA/pp ratio entry
