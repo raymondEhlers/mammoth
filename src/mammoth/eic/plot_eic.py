@@ -35,8 +35,8 @@ mpl.rcParams["ytick.minor.right"] = True
 
 
 def _gaussian(
-    x: npt.NDArray[np.float64] | float, mean: float, sigma: float, amplitude: float
-) -> npt.NDArray[np.float64] | float:
+    x: npt.NDArray[np.floating] | float, mean: float, sigma: float, amplitude: float
+) -> npt.NDArray[np.floating] | float:
     r"""Extended gaussian.
 
     .. math::

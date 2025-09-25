@@ -557,7 +557,7 @@ def prong_matching_numba_wrapper(
         Matching and subleading matching values.
     """
     # Matching
-    grooming_results = {}
+    grooming_results: dict[str, npt.NDArray[np.int16]] = {}
     logger.info(f"Performing {measured_like_jets_label}-{generator_like_jets_label} matching for {grooming_method}")
     # If there are only single particle jets, awkward cannot determine the proper type for the input_splittings,
     # which then causes numba compilation to fail. To workaround this issue, we look for "unknown" in the type,
@@ -704,7 +704,7 @@ def generator_subjet_momentum_fraction_in_measured_jet_numba_wrapper(
     generator_like_jets_label: str,
     grooming_method: str,
 ) -> dict[str, npt.NDArray[np.float32]]:
-    grooming_results = {}
+    grooming_results: dict[str, npt.NDArray[np.float32]] = {}
 
     _contains_only_single_particle_jets = {
         generator_like_jets_label: "unknown" in str(ak.type(generator_like_jets_calculation.input_splittings)),

@@ -24,8 +24,8 @@ mpl.rcParams["ytick.minor.right"] = True
 
 
 def error_prop_divide(
-    num_value: np.float64, num_delta: np.float64, denom_value: np.float64, denom_delta: np.float64
-) -> tuple[np.float64, np.float64]:
+    num_value: np.floating, num_delta: np.floating, denom_value: np.floating, denom_delta: np.floating
+) -> tuple[np.floating, np.floating]:
     val = num_value / denom_value
     delta = val * np.sqrt((num_delta / num_value) ** 2 + (denom_delta / denom_value) ** 2)
     return (val, delta)
@@ -33,10 +33,12 @@ def error_prop_divide(
 
 def determine_scaling_values(
     scaling_info: Mapping[str, Mapping[str, Sequence[float]]],
-) -> tuple[dict[int, tuple[np.float64, np.float64]], dict[int, tuple[np.float64, np.float64, np.float64, np.float64]]]:
+) -> tuple[
+    dict[int, tuple[np.floating, np.floating]], dict[int, tuple[np.floating, np.floating, np.floating, np.floating]]
+]:
     model = "matter_lbt"
 
-    values: dict[int, tuple[np.float64, np.float64]] = {}
+    values: dict[int, tuple[np.floating, np.floating]] = {}
     # Extract the values
     for n_cores in [1, 6, 20, 36, 42, 48]:
         # This is the runtime in seconds.
@@ -58,7 +60,7 @@ def determine_scaling_values(
     return values, normalized_values
 
 
-def plot(scaling: Mapping[int, tuple[np.float64, np.float64, np.float64, np.float64]]) -> None:
+def plot(scaling: Mapping[int, tuple[np.floating, np.floating, np.floating, np.floating]]) -> None:
     # Extract values
     x_values = list(scaling.keys())
     y_values = [v[0] for v in scaling.values()]
