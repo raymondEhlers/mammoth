@@ -1,0 +1,3 @@
+# Just use the .py files from jupytext
+plot_hadron_sensitivity.ipynb
+plot_jet_sensitivity.ipynb
