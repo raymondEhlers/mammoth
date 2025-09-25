@@ -16,16 +16,18 @@
 # %%
 from __future__ import annotations
 
+import pickle  # noqa: F401
 from pathlib import Path
 
 import matplotlib.pyplot as plt
 import numpy as np
-
-from SALib.sample import saltelli
-from SALib.analyze import sobol
 import pandas as pd
-import seaborn as sns
-import pickle
+import seaborn as sns  # noqa: F401
+
+# from SALib.analyze import sobol
+# from SALib.sample import saltelli
+
+base_path = Path("projects/hetgp/sensitivity")
 
 # %%
 filenameindex = ["100.0_177.0", "177.0_281.0", "281.0_999.0"]
@@ -86,46 +88,44 @@ def plot(HF, HetGP, HFerr, HetGPerr, plotname) -> None:
     plt.close(fig)
 
 
-
-
 # %%
 # global total index
 for index in range(len(filenameindex)):
-    filename_HF = "HFGP/Jet aggregate/Global_TotalIndex_" + filenameindex[index] + ".csv"
+    filename_HF = base_path / "HFGP/Jet_aggregate/Global_TotalIndex_" + filenameindex[index] + ".csv"
     HFdatabyaggbin = pd.read_csv(filename_HF)
-    HF = np.array(HFdatabyaggbin['STagg'])
-    HFerr = np.array(HFdatabyaggbin['ST_confagg'])
-    filename_HetGP = "HetGP/Jet aggregate/Global_TotalIndex_" + filenameindex[index] + ".csv"
+    HF = np.array(HFdatabyaggbin["STagg"])
+    HFerr = np.array(HFdatabyaggbin["ST_confagg"])
+    filename_HetGP = base_path / "HetGP/Jet_aggregate/Global_TotalIndex_" + filenameindex[index] + ".csv"
     HetGPdatabyaggbin = pd.read_csv(filename_HetGP)
-    HetGP = np.array(HetGPdatabyaggbin['STagg'])
-    HetGPerr = np.array(HetGPdatabyaggbin['ST_confagg'])
-    plotname = "Figures/Jet_Global_TotalIndex_aggbin_" + filenameindex[index] + ".pdf"
+    HetGP = np.array(HetGPdatabyaggbin["STagg"])
+    HetGPerr = np.array(HetGPdatabyaggbin["ST_confagg"])
+    plotname = base_path / "figures/Jet_Global_TotalIndex_aggbin_" + filenameindex[index] + ".pdf"
     plot(HF, HetGP, HFerr, HetGPerr, plotname)
 
 # %%
 # local 5-95 total index
 for index in range(len(filenameindex)):
-    filename_HF = "HFGP/Jet aggregate/Local_5_95_TotalIndex_" + filenameindex[index] + ".csv"
+    filename_HF = base_path / "HFGP/Jet_aggregate/Local_5_95_TotalIndex_" + filenameindex[index] + ".csv"
     HFdatabyaggbin = pd.read_csv(filename_HF)
-    HF = np.array(HFdatabyaggbin['STagg'])
-    HFerr = np.array(HFdatabyaggbin['ST_confagg'])
-    filename_HetGP = "HetGP/Jet aggregate/Local_5_95_TotalIndex_" + filenameindex[index] + ".csv"
+    HF = np.array(HFdatabyaggbin["STagg"])
+    HFerr = np.array(HFdatabyaggbin["ST_confagg"])
+    filename_HetGP = base_path / "HetGP/Jet_aggregate/Local_5_95_TotalIndex_" + filenameindex[index] + ".csv"
     HetGPdatabyaggbin = pd.read_csv(filename_HetGP)
-    HetGP = np.array(HetGPdatabyaggbin['STagg'])
-    HetGPerr = np.array(HetGPdatabyaggbin['ST_confagg'])
-    plotname = "Figures/Jet_Local_5_95_TotalIndex_aggbin_" + filenameindex[index] + ".pdf"
+    HetGP = np.array(HetGPdatabyaggbin["STagg"])
+    HetGPerr = np.array(HetGPdatabyaggbin["ST_confagg"])
+    plotname = base_path / "figures/Jet_Local_5_95_TotalIndex_aggbin_" + filenameindex[index] + ".pdf"
     plot(HF, HetGP, HFerr, HetGPerr, plotname)
 
 # %%
 # local 1-99 total index
 for index in range(len(filenameindex)):
-    filename_HF = "HFGP/Jet aggregate/Local_1_99_TotalIndex_" + filenameindex[index] + ".csv"
+    filename_HF = base_path / "HFGP/Jet_aggregate/Local_1_99_TotalIndex_" + filenameindex[index] + ".csv"
     HFdatabyaggbin = pd.read_csv(filename_HF)
-    HF = np.array(HFdatabyaggbin['STagg'])
-    HFerr = np.array(HFdatabyaggbin['ST_confagg'])
-    filename_HetGP = "HetGP/Jet aggregate/Local_1_99_TotalIndex_" + filenameindex[index] + ".csv"
+    HF = np.array(HFdatabyaggbin["STagg"])
+    HFerr = np.array(HFdatabyaggbin["ST_confagg"])
+    filename_HetGP = base_path / "HetGP/Jet aggregate/Local_1_99_TotalIndex_" + filenameindex[index] + ".csv"
     HetGPdatabyaggbin = pd.read_csv(filename_HetGP)
-    HetGP = np.array(HetGPdatabyaggbin['STagg'])
-    HetGPerr = np.array(HetGPdatabyaggbin['ST_confagg'])
-    plotname = "Figures/Jet_Local_1_99_TotalIndex_aggbin_" + filenameindex[index] + ".pdf"
+    HetGP = np.array(HetGPdatabyaggbin["STagg"])
+    HetGPerr = np.array(HetGPdatabyaggbin["ST_confagg"])
+    plotname = base_path / "figures/Jet_Local_1_99_TotalIndex_aggbin_" + filenameindex[index] + ".pdf"
     plot(HF, HetGP, HFerr, HetGPerr, plotname)
