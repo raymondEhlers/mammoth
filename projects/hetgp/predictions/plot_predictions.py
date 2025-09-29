@@ -187,7 +187,6 @@ for column, styling in method_styles.items():
     print(f"Plotting column '{column}'")
     styling_kwargs = styling.kwargs_for_plot_errorbar()
     styling_kwargs["linestyle"] = "-"
-    print(styling_kwargs)
     ax.plot(compare_df[column].index, compare_df[column], label=styling.label, **styling_kwargs)
     # ax.plot(compare_df[column].index, compare_df[column], label=styling.label)
 # compare_df.plot(kind="line", style={k: v.kwargs_for_plot_errorbar() for k, v in method_styles.items()}, ax=ax)
@@ -198,6 +197,7 @@ plot_config.apply(fig, ax=ax)
 # plt.grid(True)
 
 # TODO(RJE): Need to recall exactly what this budget means, and figure out how to translate it for the audience...
+# TODO(RJE): Is "predictions" really the right name? I'm not so sure... It's the residual error of the predictions, I suppose...?
 
 # %%
 compare_df["hetgp"]
