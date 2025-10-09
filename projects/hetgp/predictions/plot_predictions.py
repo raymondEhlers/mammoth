@@ -91,7 +91,12 @@ class MethodStyle:
 
 method_styles = {
     "hetgp": MethodStyle(
-        color="#2980b9",
+        # Middle blue
+        # color="#2980b9",
+        # Light blue
+        # color="#4bafd0",
+        # Orange
+        color="#FF8301",
         marker="o",
         fillstyle="full",
         label="VarP-GP",
@@ -99,11 +104,12 @@ method_styles = {
         zorder=10,
     ),
     "high_fidelity": MethodStyle(
-        color="#FF8301",
+        # Purple
+        color="#845cba",
         marker="s",
         fillstyle="full",
-        label="High fidelity",
-        label_short="HF",
+        label="High fidelity GP",
+        label_short="HF-GP",
         zorder=4,
     ),
 }
@@ -112,18 +118,16 @@ method_styles = {
 budget_list = np.array([3500, 4000, 4500, 5000, 5500])
 
 # %% [markdown]
+# # Hadrons
+#
 # Hadron - HetGP
 
 # %%
+# HetGP
 hetGPMSE = pd.read_csv(base_path / "Hadron_HETGP_Prediction_by_bin.csv")
-hetGPMSE
-
-# %% [markdown]
-# Hadron - HFGP
-
-# %%
+# High fidelity
 HFGPMSE = pd.read_csv(base_path / "Hadron_HFGP_Prediction_by_bin.csv")
-HFGPMSE
+hetGPMSE, HFGPMSE
 
 # %%
 # Irene's original...
@@ -149,30 +153,38 @@ compare_df = pd.DataFrame({"high_fidelity": sum_HFGPMSE, "hetgp": sum_hetGPMSE})
 
 text_font_size = 22
 
-text = r"Hadron $R_{\text{AA}}$"
+# TODO(RJE): Note the pt range, collaboration, etc
+# I considered including everything here (e.g. sqrt_s), but it doesn't matter overly much
+# for the purposes of this exercise. To just highlight the important information, I'm going to cut down to the minimal.
+text = r"Trained on JETSCAPE (MATTER + LBT)"
+text += "\n" + r"corresponding to CMS, $\textit{JHEP 04 (2017) 039}$"
+text += "\n" + r"Hadron $R_{\text{AA}}$, $\sqrt{s_{\text{NN}}} = 5.02\:\text{TeV}$"
+text += "\n" + r"$4.8 < p_{\text{T}} < 400\:\text{GeV}/c$"
 plot_config = pb.PlotConfig(
-    name="predictions_hadron",
+    name="budget_residual_error_hadron",
     panels=[
         # Main panel
         pb.Panel(
             axes=[
                 pb.AxisConfig(
                     "x",
-                    label="Budget",
+                    label="Training data computational budget",
                     font_size=text_font_size,
                     use_major_axis_multiple_locator_with_base=1,
                 ),
                 pb.AxisConfig(
                     "y",
-                    label="MSE",  # TODO(RJE): To be updated with a better name...
+                    label=r"$\sum_{i \in p_{\text{T}}\:\text{bins},\:j \in \text{design pts.}}$ MSE$_{i,j}$",
                     font_size=text_font_size,
+                    range=(0.076, 0.155),
+                    # range=(0.044, 0.155),
                 ),
             ],
-            text=pb.TextConfig(x=0.95, y=0.775, text=text, font_size=22),
+            text=pb.TextConfig(x=0.95, y=0.81, text=text, font_size=18),
             legend=pb.LegendConfig(location="upper right", anchor=(0.95, 0.95), font_size=22),
         ),
     ],
-    figure=pb.Figure(edge_padding={"left": 0.13, "bottom": 0.06}),
+    figure=pb.Figure(edge_padding={"left": 0.11, "bottom": 0.11}),
 )
 
 fig, ax = plt.subplots(
@@ -196,8 +208,12 @@ plot_config.apply(fig, ax=ax)
 # plt.ylabel("Sum of MSE")
 # plt.grid(True)
 
+_output_path = base_path / "figures"
+_output_path.mkdir(parents=True, exist_ok=True)
+fig.savefig(_output_path / f"{plot_config.name}.pdf")
+plt.close(fig)
+
 # TODO(RJE): Need to recall exactly what this budget means, and figure out how to translate it for the audience...
-# TODO(RJE): Is "predictions" really the right name? I'm not so sure... It's the residual error of the predictions, I suppose...?
 
 # %%
 compare_df["hetgp"]
@@ -223,20 +239,19 @@ plt.legend(title="DataFrame")
 plt.show()
 
 # %% [markdown]
+# # Jets
+#
 # Jet - HetGP
 
 # %%
+# HetGP
 hetGPMSE = pd.read_csv(base_path / "Jet_HETGP_Prediction_by_bin.csv")
-hetGPMSE
-
-# %% [markdown]
-# Jet - HFGP
-
-# %%
+# High fidelity
 HFGPMSE = pd.read_csv(base_path / "Jet_HFGP_Prediction_by_bin.csv")
-HFGPMSE
+hetGPMSE, HFGPMSE
 
 # %%
+# Irene's original figure
 sum_HFGPMSE = HFGPMSE.sum()
 sum_hetGPMSE = hetGPMSE.sum()
 compare_df = pd.DataFrame({"HF": sum_HFGPMSE, "HetGP": sum_hetGPMSE})
@@ -250,6 +265,75 @@ plt.grid(True)
 plt.xticks(rotation=0)
 plt.tight_layout()
 plt.show()
+
+# %%
+# Raymond's revised jet figure
+sum_HFGPMSE = HFGPMSE.sum()
+sum_hetGPMSE = hetGPMSE.sum()
+compare_df = pd.DataFrame({"high_fidelity": sum_HFGPMSE, "hetgp": sum_hetGPMSE})
+
+text_font_size = 22
+
+# TODO(RJE): Note the pt range, collaboration, etc
+# I considered including everything here (e.g. sqrt_s), but it doesn't matter overly much
+# for the purposes of this exercise. To just highlight the important information, I'm going to cut down to the minimal.
+text = r"Trained on JETSCAPE (MATTER + LBT)"
+text += "\n" + r"corresponding to ATLAS, $\textit{PLB 790 (2019) 108-128}$"
+text += "\n" + r"$R = 0.4$ inclusive jet $R_{\text{AA}}$, $\sqrt{s_{\text{NN}}} = 5.02\:\text{TeV}$"
+text += "\n" + r"$100 < p_{\text{T}} < 1000\:\text{GeV}/c$"
+plot_config = pb.PlotConfig(
+    name="budget_residual_error_jet",
+    panels=[
+        # Main panel
+        pb.Panel(
+            axes=[
+                pb.AxisConfig(
+                    "x",
+                    label="Training data computational budget",
+                    font_size=text_font_size,
+                    use_major_axis_multiple_locator_with_base=1,
+                ),
+                pb.AxisConfig(
+                    "y",
+                    label=r"$\sum_{i \in p_{\text{T}}\:\text{bins},\:j \in \text{design pts.}}$ MSE$_{i,j}$",
+                    font_size=text_font_size,
+                    range=(0.044, 0.155),
+                ),
+            ],
+            text=pb.TextConfig(x=0.95, y=0.81, text=text, font_size=18),
+            legend=pb.LegendConfig(location="upper right", anchor=(0.95, 0.95), font_size=22),
+        ),
+    ],
+    figure=pb.Figure(edge_padding={"left": 0.11, "bottom": 0.11}),
+)
+
+fig, ax = plt.subplots(
+    1,
+    1,
+    figsize=(10, 6.25),
+    sharex=True,
+)
+
+# Plot using line plot
+for column, styling in method_styles.items():
+    print(f"Plotting column '{column}'")
+    styling_kwargs = styling.kwargs_for_plot_errorbar()
+    styling_kwargs["linestyle"] = "-"
+    ax.plot(compare_df[column].index, compare_df[column], label=styling.label, **styling_kwargs)
+    # ax.plot(compare_df[column].index, compare_df[column], label=styling.label)
+# compare_df.plot(kind="line", style={k: v.kwargs_for_plot_errorbar() for k, v in method_styles.items()}, ax=ax)
+plot_config.apply(fig, ax=ax)
+# plt.title("MSE (sum over bins) by budget")
+# plt.xlabel("Budget")
+# plt.ylabel("Sum of MSE")
+# plt.grid(True)
+
+_output_path = base_path / "figures"
+_output_path.mkdir(parents=True, exist_ok=True)
+fig.savefig(_output_path / f"{plot_config.name}.pdf")
+plt.close(fig)
+
+# TODO(RJE): Need to recall exactly what this budget means, and figure out how to translate it for the audience...
 
 # %%
 # Melt both DataFrames and add a 'Source' label
