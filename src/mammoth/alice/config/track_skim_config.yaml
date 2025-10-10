@@ -822,6 +822,48 @@ analysis_settings:
         det_level: 0.15
         hybrid_level: 0.15
 
+  ########################3
+  # Entropy-based correlators
+  ########################3
+  _EBC_analysis_settings:
+    default_parameters:
+      default_output_settings: &EBC_output_settings
+        primary_output:
+          type: "skim"
+          reference_name: "tree"
+          container_name: ""
+        return_skim: false
+        write_chunk_skim: true
+        write_skim_extension: "root"
+        explode_skim_fields_to_separate_directories: false
+        return_merged_hists: false
+        write_chunk_hists: false
+        write_merged_hists: true
+
+    pp: &analysis_settings_EBC_pp
+      trigger_parameters_jet: &analysis_settings_EBC_dijet_trigger
+        classes:
+          leading: [20., 140.]
+          subleading: [10., 140.]
+        parameters:
+          jet_R: 0.4
+      analysis_input_levels: ["data"]
+      # In the way that we've implemented it as of Oct 2025, this is the maximum delta
+      # phi from the trigger recoil axis
+      max_delta_phi_from_axis: 1.570796326794897 # pi/2
+      # In GeV
+      min_track_pt:
+        data: 0.15
+
+    pp_MC: &analysis_settings_EBC_pp_MC
+      analysis_input_levels: ["det_level", "part_level"]
+      # In GeV
+      min_track_pt:
+        part_level: 0.15
+        det_level: 0.15
+      # By default, don't apply any additional reduction
+      det_level_artificial_tracking_efficiency: 1.0
+
   # NOTE: We don't need an explicit one for embedding into a thermal model - we can
   #       just take the standard embedding analysis settings
 
