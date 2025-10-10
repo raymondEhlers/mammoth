@@ -102,7 +102,11 @@ class FileSource:
             columns = Columns.create(collision_system=self._collision_system)
             source: sources.Source = sources.UprootSource(
                 filename=self._filename,
-                tree_name=self.metadata.get("tree_name", "AliAnalysisTaskTrackSkim_*_tree"),
+                # NOTE: We add a second star at the end of the default value because later versions of the track skim
+                #       add a version (e.g. v3) at the end of the tree name. So without it, we would miss those.
+                #       In the case of earlier versions, the extra wildcard won't cause any issues - it will
+                #       still find the existing tree.
+                tree_name=self.metadata.get("tree_name", "AliAnalysisTaskTrackSkim_*_tree*"),
                 columns=list(columns.event_level) + list(columns.particle_level),
             )
             return _transform_output(
