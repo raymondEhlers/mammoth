@@ -226,11 +226,8 @@ def dijet_selection(
         # **************
         # Apply pt selections to the two leading jets
         # **************
-        # TODO(RJE): Need to be careful with the indexing here. I need to mask out events without two jets,
-        #            but somehow apply that mask properly...
-        # New method
         # First, select the two leading jets in an event
-        # NOTE: Ascending is important because we're clipping everything but the two leading for this check.
+        # NOTE: Ascending is important because we're clipping everything but the two leading for many checks.
         sorted_by_pt_indices = ak.argsort(jets[column_name].pt, axis=1, ascending=False)
         leading_two_jets_indices = sorted_by_pt_indices[:, :2]
         # And retrieve their pt. To allow the projection into the leading and subleading, we'll fill a sentinel value (-1000)
@@ -238,15 +235,9 @@ def dijet_selection(
         leading_two_jets_pt = ak.fill_none(
             ak.pad_none(jets[column_name][leading_two_jets_indices].pt, 2, axis=-1), -1000
         )
-        #
-        # Old method
-        # leading_two_jets_mask = ak.argsort(jets[column_name].pt, axis=1)[:, :2]
-        # leading_two_jets = jets[column_name][leading_two_jets_mask]
-        # leading_two_jets_pt = leading_two_jets.pt
-        # TODO(RJE): Remove the old method once done...
         masks[column_name] = (masks[column_name]) & (
-            ak.any(leading_two_jets_pt[:, 0] > leading_jet_pt_range[0], axis=-1)
-            & ak.any(leading_two_jets_pt[:, 1:] > subleading_jet_pt_range[0], axis=-1)
+            (leading_two_jets_pt[:, 0] > leading_jet_pt_range[0])
+            & (leading_two_jets_pt[:, 1] > subleading_jet_pt_range[0])
         )
         logger.info(
             f"{column_name}: dijet pt selection: {np.count_nonzero(np.asarray(ak.flatten(masks[column_name] == True, axis=None)))}"  # noqa: E712
@@ -257,12 +248,11 @@ def dijet_selection(
         # Require two jets with |delta_phi| >= c * pi from the dijet axis
         # **************
         # Since we've already only selected the leading two, we can just sum them together as four vectors to get the dijet axis.
+        # TODO(RJE): I'm not sure this is really the right definition of the dijet axis...
         dijet_axis = ak.sum(jets[column_name][leading_two_jets_indices], axis=-1)
         # NOTE: We only want to select on phi!
-        #       But sort by the leading pt (at least as of Oct 2025)
+        #       But sort by the leading pt to ease making the comparison below (at least as of Oct 2025)
         delta_phi_from_dijet_axis = dijet_axis.deltaphi(jets[column_name][sorted_by_pt_indices])
-        # leading_two_jets_phi = ak.fill_none(ak.pad_none(jets[column_name][leading_two_jets_indices].phi, 2, axis=-1), -1000)
-        # dijet_axis_broadcast, _ = ak.broadcast_arrays(dijet_axis, leading_two_jets_phi)
         masks[column_name] = (masks[column_name]) & (
             # Require that the two leading jets ([:, :2]) are less than max_delta_phi_from_axis
             ak.all(np.abs(delta_phi_from_dijet_axis[:, :2]) < max_delta_phi_from_axis, axis=1)
@@ -843,20 +833,20 @@ def minimal_test() -> None:
     #    )
     #    merged_hists = output_utils.merge_results(merged_hists, analysis_output.hists)
 
+    # iter_arrays = load_data.data(
+    #    data_source=partial(track_skim.FileSource, collision_system="pp"),
+    #    collision_system="pp",
+    #    rename_levels={"data": "data"},
+    #    chunk_size=1000,
+    # )
     iter_arrays = load_data.data(
-        data_input=[Path("trains/pp/2351/run_by_run/LHC17p_FAST/282341/AnalysisResults.17p.553.root")],
-        data_source=partial(track_skim.FileSource, collision_system="pp"),
-        collision_system="pp",
-        rename_levels={"data": "data"},
+        # data_input=[Path("trains/pythia/2640/run_by_run/LHC20g4/296415/4/AnalysisResults.20g4.011.root")],
+        data_input=[Path("trains/pythia/2640/run_by_run/LHC20g4/296244/20/AnalysisResults.20g4.011.root")],
+        data_source=partial(track_skim.FileSource, collision_system="pp_MC"),
+        collision_system="pp_MC",
+        rename_levels={"data": "part_level"},
         chunk_size=1000,
     )
-    # iter_arrays = load_data.data(
-    #     data_input=[Path("trains/pythia/2640/run_by_run/LHC20g4/296415/4/AnalysisResults.20g4.011.root")],
-    #     data_source=partial(track_skim.FileSource, collision_system="pp_MC"),
-    #     collision_system="pp_MC",
-    #     rename_levels={"data": "part_level"},
-    #     chunk_size=1000,
-    # )
     # NOTE: Just for quick testing
     merged_hists: dict[str, hist.Hist] = {}
     for i_chunk, arrays in enumerate(iter_arrays):
