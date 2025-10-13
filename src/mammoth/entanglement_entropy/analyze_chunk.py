@@ -111,6 +111,7 @@ def _setup_base_hists(levels: list[str], trigger_parameters: TriggerParameters) 
 
 class DijetRejectionReason(StrEnum):  # type: ignore[misc]
     n_initial = "n_initial"
+    not_enough_jets = "not_enough_jets"
     pt_selection = "jet_pt_selection"
     delta_phi_selection = "delta_phi_selection"
     n_accepted = "n_accepted"
@@ -121,7 +122,7 @@ def create_dijet_selection_QA_hists(particle_columns: list[str]) -> dict[str, hi
     hists = {}
     for level in particle_columns:
         # Acceptance reason
-        hists[f"{level}_jet_n_accepted"] = hist.Hist(
+        hists[f"{level}_dijet_n_accepted"] = hist.Hist(
             hist.axis.StrCategory([str(v) for v in list(DijetRejectionReason)], growth=True, name="Dijet N Accepted"),
             label="Dijet acceptance",
             storage=hist.storage.Weight(),
@@ -150,7 +151,7 @@ def fill_dijet_QA_reason(
     # Since we use the general mask, this will store the cumulative number of jets
     # (i.e. it depends on the selection order). However, this is probably good enough
     # for these purposes.
-    hists[f"{column_name}_jet_n_accepted"].fill(
+    hists[f"{column_name}_dijet_n_accepted"].fill(
         reason, weight=np.count_nonzero(np.asarray(ak.flatten(masks[column_name], axis=None)))
     )
 
@@ -162,6 +163,7 @@ def dijet_selection(
     trigger_parameters: TriggerParameters,
     particle_columns: list[str],
     max_delta_phi_from_axis: float,
+    require_exclusive_leading_dijets: bool = False,
 ) -> tuple[ak.Array, dict[str, hist.Hist]]:
     """Di-jet selections for EBC analysis
 
@@ -176,6 +178,9 @@ def dijet_selection(
         trigger_parameter: Trigger parameters.
         level_names: Names of the level (i.e. particle) columns to apply these selections.
         max_delta_phi_from_axis: Max delta_phi from the dijet axis.
+        require_exclusive_leading_dijets: If True, only the two leading dijets will be
+            returned. If False, all inclusive jets that pass out inclusive conditions
+            which are in an event passing our dijet conditions are returned. Default: False.
     Returns:
         Jets array with the jet selection applied, QA hists
     """
@@ -213,28 +218,71 @@ def dijet_selection(
         fill_dijet_QA_reason(DijetRejectionReason.n_initial, hists, masks, column_name)
 
         # **************
+        # Must have at least two jets in the first place
+        # **************
+        masks[column_name] = (masks[column_name]) & (ak.num(jets[column_name], axis=1) >= 2)
+        fill_dijet_QA_reason(DijetRejectionReason.not_enough_jets, hists, masks, column_name)
+
+        # **************
         # Apply pt selections to the two leading jets
         # **************
-        leading_two_jets_mask = ak.argsort(jets[column_name].pt, axis=1)[:, :2]
-        leading_two_jets = jets[column_name][leading_two_jets_mask]
-        # import IPython; IPython.embed()
-        leading_two_jet_pt = leading_two_jets.pt
+        # TODO(RJE): Need to be careful with the indexing here. I need to mask out events without two jets,
+        #            but somehow apply that mask properly...
+        # New method
+        # First, select the two leading jets in an event
+        # NOTE: Ascending is important because we're clipping everything but the two leading for this check.
+        sorted_by_pt_indices = ak.argsort(jets[column_name].pt, axis=1, ascending=False)
+        leading_two_jets_indices = sorted_by_pt_indices[:, :2]
+        # And retrieve their pt. To allow the projection into the leading and subleading, we'll fill a sentinel value (-1000)
+        # when we don't have sufficient jets available. Given that value, it will evaluate to false
+        leading_two_jets_pt = ak.fill_none(
+            ak.pad_none(jets[column_name][leading_two_jets_indices].pt, 2, axis=-1), -1000
+        )
+        #
+        # Old method
+        # leading_two_jets_mask = ak.argsort(jets[column_name].pt, axis=1)[:, :2]
+        # leading_two_jets = jets[column_name][leading_two_jets_mask]
+        # leading_two_jets_pt = leading_two_jets.pt
+        # TODO(RJE): Remove the old method once done...
         masks[column_name] = (masks[column_name]) & (
-            ak.any(leading_two_jet_pt[:, 0] > leading_jet_pt_range[0], axis=-1)
-            & ak.any(leading_two_jet_pt[:, 1:] > subleading_jet_pt_range[0], axis=-1)
+            ak.any(leading_two_jets_pt[:, 0] > leading_jet_pt_range[0], axis=-1)
+            & ak.any(leading_two_jets_pt[:, 1:] > subleading_jet_pt_range[0], axis=-1)
+        )
+        logger.info(
+            f"{column_name}: dijet pt selection: {np.count_nonzero(np.asarray(ak.flatten(masks[column_name] == True, axis=None)))}"  # noqa: E712
         )
         fill_dijet_QA_reason(DijetRejectionReason.pt_selection, hists, masks, column_name)
 
         # **************
         # Require two jets with |delta_phi| >= c * pi from the dijet axis
         # **************
-        dijet_axis = leading_two_jets[:, 0] + leading_two_jets[:, 1]
+        # Since we've already only selected the leading two, we can just sum them together as four vectors to get the dijet axis.
+        dijet_axis = ak.sum(jets[column_name][leading_two_jets_indices], axis=-1)
+        # NOTE: We only want to select on phi!
+        #       But sort by the leading pt (at least as of Oct 2025)
+        delta_phi_from_dijet_axis = dijet_axis.deltaphi(jets[column_name][sorted_by_pt_indices])
+        # leading_two_jets_phi = ak.fill_none(ak.pad_none(jets[column_name][leading_two_jets_indices].phi, 2, axis=-1), -1000)
+        # dijet_axis_broadcast, _ = ak.broadcast_arrays(dijet_axis, leading_two_jets_phi)
         masks[column_name] = (masks[column_name]) & (
-            (np.abs(dijet_axis.deltaphi(leading_two_jets[:, 0])) < max_delta_phi_from_axis)
-            & (np.abs(dijet_axis.deltaphi(leading_two_jets[:, 1])) < max_delta_phi_from_axis)
+            # Require that the two leading jets ([:, :2]) are less than max_delta_phi_from_axis
+            ak.all(np.abs(delta_phi_from_dijet_axis[:, :2]) < max_delta_phi_from_axis, axis=1)
+            # If there are no dijets to sum, it will have all fields (including E) to be identically 0,
+            # so we use having non-zero E as a proxy for actually have something (i.e. so that we don't
+            # miss a real jet that actually has phi = 0).
+            & ~ak.isclose(dijet_axis.E, 0.0)
         )
-        # Record initial number of jets.
+        logger.info(
+            f"{column_name}: dijet eta selection: {np.count_nonzero(np.asarray(ak.flatten(masks[column_name] == True, axis=None)))}"  # noqa: E712
+        )
         fill_dijet_QA_reason(DijetRejectionReason.delta_phi_selection, hists, masks, column_name)
+
+        # NOTE: As of Oct 2025, by default we don't want exclusive dijets. Instead, we apply the dijet
+        #       conditions to the event, and if it passes, we'll take **ALL** jets in that event which
+        #       pass our inclusive jet cuts. Since this is called after our inclusive jet cuts, we don't
+        #       need to apply any stricter selection on jets. However, we also add an option for exclusive
+        #       leading dijets if so inclined.
+        if require_exclusive_leading_dijets:
+            jets[column_name] = jets[column_name][leading_two_jets_indices]
 
         # All done - make sure we get a final count (this may be trivial in some cases,
         # but I'd rather be clear).
