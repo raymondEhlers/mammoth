@@ -224,7 +224,7 @@ def dijet_selection(
         fill_dijet_QA_reason(DijetRejectionReason.not_enough_jets, hists, masks, column_name)
 
         # **************
-        # Apply pt selections to the two leading jets
+        # Apply pt selections based on the two leading jets
         # **************
         # First, select the two leading jets in an event
         # NOTE: Ascending is important because we're clipping everything but the two leading for many checks.
@@ -245,34 +245,32 @@ def dijet_selection(
         fill_dijet_QA_reason(DijetRejectionReason.pt_selection, hists, masks, column_name)
 
         # **************
-        # Require two jets with |delta_phi| >= c * pi from the dijet axis
+        # Require a jet with |delta_phi| <= c from the recoil axis
         # **************
-        # Since we've already only selected the leading two, we can just sum them together as four vectors to get the dijet axis.
-        # TODO(RJE): I'm not sure this is really the right definition of the dijet axis...
-        dijet_axis = ak.sum(jets[column_name][leading_two_jets_indices], axis=-1)
+        # First, we need the recoil axis, which is the recoil from the leading jet.
+        recoil_axis = -1 * jets[column_name][sorted_by_pt_indices][:, :1]
+        # This is much easier to calculate if it's in a regular array, so we'll pad None.
+        # NOTE: By using pad_none, delta_phi will work despite not having entries for each event.
+        recoil_axis = ak.to_regular(ak.pad_none(recoil_axis, 1, axis=1))
+        # Also need to keep track of the index of the leading jet for constructing the delta_phi mask later.
+        leading_jet_index = ak.to_regular(ak.pad_none(sorted_by_pt_indices[:, :1], 1, axis=1))
         # NOTE: We only want to select on phi!
         #       But sort by the leading pt to ease making the comparison below (at least as of Oct 2025)
-        delta_phi_from_dijet_axis = dijet_axis.deltaphi(jets[column_name][sorted_by_pt_indices])
-        masks[column_name] = (masks[column_name]) & (
-            # Require that the two leading jets ([:, :2]) are less than max_delta_phi_from_axis
-            ak.all(np.abs(delta_phi_from_dijet_axis[:, :2]) < max_delta_phi_from_axis, axis=1)
-            # If there are no dijets to sum, it will have all fields (including E) to be identically 0,
-            # so we use having non-zero E as a proxy for actually have something (i.e. so that we don't
-            # miss a real jet that actually has phi = 0).
-            & ~ak.isclose(dijet_axis.E, 0.0)
+        delta_phi_from_recoil_axis = recoil_axis.deltaphi(jets[column_name])
+        # Keep jets that are within max_delta_phi of the recoil axis.
+        # NOTE: We calculate the recoil for every jet, including the leading jet.
+        #       Obviously we don't want to mask out the leading jet, so specifically assign True
+        #       when we get to that index.
+        delta_phi_mask = ak.where(
+            ak.local_index(delta_phi_from_recoil_axis, axis=1) == leading_jet_index,
+            True,
+            np.abs(delta_phi_from_recoil_axis) <= max_delta_phi_from_axis,
         )
+        masks[column_name] = masks[column_name] & delta_phi_mask
         logger.info(
             f"{column_name}: dijet eta selection: {np.count_nonzero(np.asarray(ak.flatten(masks[column_name] == True, axis=None)))}"  # noqa: E712
         )
         fill_dijet_QA_reason(DijetRejectionReason.delta_phi_selection, hists, masks, column_name)
-
-        # NOTE: As of Oct 2025, by default we don't want exclusive dijets. Instead, we apply the dijet
-        #       conditions to the event, and if it passes, we'll take **ALL** jets in that event which
-        #       pass our inclusive jet cuts. Since this is called after our inclusive jet cuts, we don't
-        #       need to apply any stricter selection on jets. However, we also add an option for exclusive
-        #       leading dijets if so inclined.
-        if require_exclusive_leading_dijets:
-            jets[column_name] = jets[column_name][leading_two_jets_indices]
 
         # All done - make sure we get a final count (this may be trivial in some cases,
         # but I'd rather be clear).
@@ -281,6 +279,25 @@ def dijet_selection(
     # Actually apply the masks
     for column_name, mask in masks.items():
         jets[column_name] = jets[column_name][mask]
+
+    # Now that we've applied the mask, we can take the exclusive leading dijets if we want.
+    # NOTE: It's better to apply it here rather than above because it allows us to take a sub-sub-leading
+    #       jet which still passes the pt cut and the eta cut. If we take just the leading and subleading,
+    #       and the subleading doesn't pass the eta cut, then we lose the event.
+    # NOTE: As of Oct 2025, by default we don't want exclusive dijets. Instead, we apply the dijet
+    #       conditions to the event, and if it passes, we'll take **ALL** jets in that event which
+    #       pass our inclusive jet cuts. Since this is called after our inclusive jet cuts, we don't
+    #       need to apply any stricter selection on jets. However, we also add an option for exclusive
+    #       leading dijets if so inclined.
+    if require_exclusive_leading_dijets:
+        for column_name in particle_columns:
+            # Keep the leading two jets that survived the selections!
+            sorted_by_pt_indices = ak.argsort(jets[column_name].pt, axis=1, ascending=False)
+            jets[column_name] = jets[column_name][sorted_by_pt_indices][:, :2]
+            # NOTE: We don't yet require that there are only two jets because this would remove events,
+            #       which will mess up the existing `jets` awkward array. We'll need to flatten later
+            #       to handle that correctly.
+            # jets[column_name] = jets[column_name][ak.num(jets[column_name], axis=1) == 2]
 
     return jets, hists
 
@@ -447,6 +464,7 @@ def analyze_chunk_one_input_level(
         trigger_parameters=trigger_parameters,
         particle_columns=[level_name],
         max_delta_phi_from_axis=max_delta_phi_from_axis,
+        require_exclusive_leading_dijets=True,
     )
 
     return framework_task.AnalysisOutput(
