@@ -158,7 +158,7 @@ text_font_size = 22
 # for the purposes of this exercise. To just highlight the important information, I'm going to cut down to the minimal.
 text = r"Trained on JETSCAPE (MATTER + LBT)"
 text += "\n" + r"corresponding to CMS, $\textit{JHEP 04 (2017) 039}$"
-text += "\n" + r"Hadron $R_{\text{AA}}$, $\sqrt{s_{\text{NN}}} = 5.02\:\text{TeV}$"
+text += "\n" + r"0-5\%, Hadron $R_{\text{AA}}$, $\sqrt{s_{\text{NN}}} = 5.02\:\text{TeV}$"
 text += "\n" + r"$4.8 < p_{\text{T}} < 400\:\text{GeV}/c$"
 plot_config = pb.PlotConfig(
     name="budget_residual_error_hadron",
@@ -279,7 +279,7 @@ text_font_size = 22
 # for the purposes of this exercise. To just highlight the important information, I'm going to cut down to the minimal.
 text = r"Trained on JETSCAPE (MATTER + LBT)"
 text += "\n" + r"corresponding to ATLAS, $\textit{PLB 790 (2019) 108-128}$"
-text += "\n" + r"$R = 0.4$ inclusive jet $R_{\text{AA}}$, $\sqrt{s_{\text{NN}}} = 5.02\:\text{TeV}$"
+text += "\n" + r"0-10\%, $R = 0.4$ inclusive jet $R_{\text{AA}}$, $\sqrt{s_{\text{NN}}} = 5.02\:\text{TeV}$"
 text += "\n" + r"$100 < p_{\text{T}} < 1000\:\text{GeV}/c$"
 plot_config = pb.PlotConfig(
     name="budget_residual_error_jet",
@@ -335,7 +335,13 @@ plt.close(fig)
 
 # TODO(RJE): Need to recall exactly what this budget means, and figure out how to translate it for the audience...
 
+# %% [markdown]
+# ## Boxplot
+#
+# ### Irene
+
 # %%
+# Irene's
 # Melt both DataFrames and add a 'Source' label
 HFGPMSE_melted = HFGPMSE.melt(var_name="Variable", value_name="Value")
 HFGPMSE_melted["Source"] = "HF"
@@ -357,5 +363,106 @@ plt.show()
 
 # %%
 hetGPMSE_melted
+
+# %% [markdown]
+# ### Raymond
+
+# %%
+# Melt both DataFrames and add a 'Source' label
+HFGPMSE_melted = HFGPMSE.melt(var_name="Variable", value_name="Value")
+HFGPMSE_melted["Source"] = "High Fidelity GP"
+
+hetGPMSE_melted = hetGPMSE.melt(var_name="Variable", value_name="Value")
+hetGPMSE_melted["Source"] = "VarP-GP"
+
+# Combine both for plotting
+df_combined = pd.concat([hetGPMSE_melted, HFGPMSE_melted])
+
+text_font_size = 20
+
+for log in [False, True]:
+    # I considered including everything here (e.g. sqrt_s), but it doesn't matter overly much
+    # for the purposes of this exercise. To just highlight the important information, I'm going to cut down to the minimal.
+    text = r"Trained on JETSCAPE (MATTER + LBT)"
+    text += "\n" + r"corresponding to ATLAS, $\textit{PLB 790 (2019) 108-128}$"
+    text += "\n" + r"0-10\%, $R = 0.4$ inclusive jet $R_{\text{AA}}$, $\sqrt{s_{\text{NN}}} = 5.02\:\text{TeV}$"
+    text += "\n" + r"$100 < p_{\text{T}} < 1000\:\text{GeV}/c$"
+    plot_config = pb.PlotConfig(
+        name=f"budget_residual_error_design_point_dist_jet{'_log' if log else ''}",
+        panels=[
+            # Main panel
+            pb.Panel(
+                axes=[
+                    pb.AxisConfig(
+                        "x",
+                        label="Training data computational budget",
+                        font_size=text_font_size,
+                        use_major_axis_multiple_locator_with_base=1,
+                    ),
+                    pb.AxisConfig(
+                        "y",
+                        label=r"$\sum_{p_{\text{T}}\:\text{bins}}$ MSE",
+                        font_size=text_font_size,
+                        # range=(-0.0005, 0.038),
+                        log=log,
+                        range=(0.0005, 0.08) if log else (-0.0005, 0.038),
+                    ),
+                ],
+                text=pb.TextConfig(x=0.63, y=0.97, text=text, font_size=18),
+                legend=pb.LegendConfig(location="upper right", anchor=(0.975, 0.95), font_size=22),
+            ),
+        ],
+        figure=pb.Figure(edge_padding={"left": 0.12, "bottom": 0.11}),
+    )
+
+    fig, ax = plt.subplots(
+        1,
+        1,
+        figsize=(10, 6.25),
+        sharex=True,
+    )
+
+    # First is VarP-GP and second is High fidelity GP
+    colors = ["#FF8301", "#845cba"]
+
+    # Plot
+    sns.boxplot(
+        x="Variable",
+        y="Value",
+        hue="Source",
+        palette=colors,
+        saturation=1.0,
+        ax=ax,
+        width=0.6,
+        medianprops={"linewidth": 3},
+        whiskerprops={"linewidth": 2},
+        capprops={"linewidth": 2},
+        flierprops={
+            "marker": "o",
+            "markersize": 5,
+            "markeredgecolor": "black",
+            "markeredgewidth": 0.3,
+        },
+        data=df_combined,
+    )
+    # plt.show()
+
+    # Apply colors to fliers based on their position
+    # We can identify the fliers based on them not using lines
+    lines = [line for line in ax.lines if line.get_linestyle() == "None"]
+    for i, line in enumerate(lines):
+        # Determine which hue group this outlier belongs to
+        # NOTE: This depends on the data structure. If there were more sources,
+        #       we would need to adjust
+        color_idx = i % len(colors)
+        # Set just the facecolor - we'll keep the black edges
+        line.set_markerfacecolor(colors[color_idx])
+
+    plot_config.apply(fig, ax=ax)
+
+    _output_path = base_path / "figures"
+    _output_path.mkdir(parents=True, exist_ok=True)
+    fig.savefig(_output_path / f"{plot_config.name}.pdf")
+    plt.close(fig)
 
 # %%
