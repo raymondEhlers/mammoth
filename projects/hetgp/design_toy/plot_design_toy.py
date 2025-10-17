@@ -42,35 +42,44 @@ data
 
 
 # %%
-def plot(df: pl.DataFrame, plot_config: pb.PlotConfig) -> None:
+def plot(df: pl.DataFrame, plot_config: pb.PlotConfig, select_data: list[str] | None = None) -> None:
+    if select_data is None:
+        select_data = ["simple", "optimal"]
+    single_selection = len(select_data) == 1
+
     fig, ax = plt.subplots(
         1,
         1,
-        figsize=(10, 6.25),
+        # The single selection is smaller than I usually like, but it makes it easier to get the
+        # text/labels to be a reasonable size with just one plot_config. Plus, it's a pdf so I can
+        # always just enlarge it in e.g. a presentation
+        figsize=(10, 6.25) if not single_selection else (6, 4.8),
         sharex=True,
     )
 
-    jitter = 0.0075
-    ax.plot(
-        df["x"] - jitter,
-        df["simple"],
-        marker="s",
-        markersize=15,
-        linestyle="",
-        color="#4bafd0",
-        alpha=0.9,
-        label="Simple",
-    )
-    ax.plot(
-        df["x"] + jitter,
-        df["optimal"],
-        marker="o",
-        markersize=15,
-        linestyle="",
-        color="#FF8301",
-        alpha=0.9,
-        label="Optimized",
-    )
+    jitter = 0.0075 if len(select_data) > 1 else 0
+    if "simple" in select_data:
+        ax.plot(
+            df["x"] - jitter,
+            df["simple"],
+            marker="s",
+            markersize=15,
+            linestyle="",
+            color="#4bafd0",
+            alpha=1.0 if single_selection else 0.9,
+            label="Simple",
+        )
+    if "optimal" in select_data:
+        ax.plot(
+            df["x"] + jitter,
+            df["optimal"],
+            marker="o",
+            markersize=15,
+            linestyle="",
+            color="#FF8301",
+            alpha=1.0 if single_selection else 0.9,
+            label="Optimized",
+        )
 
     plot_config.apply(fig, ax=ax)
     # Tweak presentation
@@ -88,32 +97,44 @@ def plot(df: pl.DataFrame, plot_config: pb.PlotConfig) -> None:
 # I considered including everything here (e.g. sqrt_s), but it doesn't matter overly much
 # for the purposes of this exercise. To just highlight the important information, I'm going to cut down to the minimal.
 text = ""
-plot_config = pb.PlotConfig(
-    name="design_toy",
-    panels=[
-        # Main panel
-        pb.Panel(
-            axes=[
-                pb.AxisConfig(
-                    "x",
-                    label="x",
-                    font_size=text_font_size,
-                    use_major_axis_multiple_locator_with_base=1,
+for select_data in [["simple"], ["optimal"]]:
+    single_selection = len(select_data) == 1
+    name = "combined"
+    if single_selection:
+        name = select_data[0]
+    plot_config = pb.PlotConfig(
+        name=f"design_toy_{name}",
+        panels=[
+            # Main panel
+            pb.Panel(
+                axes=[
+                    pb.AxisConfig(
+                        "x",
+                        label="x",
+                        # NOTE: Added extra size since the x looks quite small for a single selection
+                        font_size=text_font_size * 1.2 if single_selection else text_font_size,
+                        use_major_axis_multiple_locator_with_base=1,
+                    ),
+                    pb.AxisConfig(
+                        "y",
+                        label="Precision M (arb units)",
+                        font_size=text_font_size,
+                        range=(15, 110),
+                    ),
+                ],
+                text=pb.TextConfig(x=0.95, y=0.81, text=text, font_size=18),
+                legend=pb.LegendConfig(
+                    location="upper left", anchor=(0.05, 0.95), font_size=22, marker_label_spacing=0.1
                 ),
-                pb.AxisConfig(
-                    "y",
-                    label="Precision M (arb units)",
-                    font_size=text_font_size,
-                    range=(15, 110),
-                ),
-            ],
-            text=pb.TextConfig(x=0.95, y=0.81, text=text, font_size=18),
-            legend=pb.LegendConfig(location="upper left", anchor=(0.05, 0.95), font_size=22, marker_label_spacing=0.1),
+            ),
+        ],
+        figure=(
+            pb.Figure(edge_padding={"left": 0.15, "bottom": 0.15})
+            if single_selection
+            else pb.Figure(edge_padding={"left": 0.09, "bottom": 0.105})
         ),
-    ],
-    figure=pb.Figure(edge_padding={"left": 0.09, "bottom": 0.105}),
-)
+    )
 
-plot(df=data, plot_config=plot_config)
+    plot(df=data, select_data=select_data, plot_config=plot_config)
 
 # %%
