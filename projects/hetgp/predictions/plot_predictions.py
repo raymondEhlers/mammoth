@@ -30,6 +30,9 @@ base_path = Path("projects/hetgp/predictions")
 
 pb.configure()
 
+# %%
+budget_list = np.array([3500, 4000, 4500, 5000, 5500])
+
 
 # %%
 @attrs.define
@@ -114,8 +117,114 @@ method_styles = {
     ),
 }
 
+
+# %% [markdown]
+# ## Figure definitions
+
 # %%
-budget_list = np.array([3500, 4000, 4500, 5000, 5500])
+# Raymond's revised figures
+# TODO(RJE): Need to recall exactly what this budget means, and figure out how to translate it for the audience...
+
+
+# Plot showing the fully integrated residual error
+def plot_residual(HFGPMSE: pd.DataFrame, hetGPMSE: pd.DataFrame, plot_config: pb.PlotConfig) -> None:
+    # Setup data
+    sum_HFGPMSE = HFGPMSE.sum()
+    sum_hetGPMSE = hetGPMSE.sum()
+    compare_df = pd.DataFrame({"high_fidelity": sum_HFGPMSE, "hetgp": sum_hetGPMSE})
+
+    fig, ax = plt.subplots(
+        1,
+        1,
+        figsize=(10, 6.25),
+        sharex=True,
+    )
+
+    # Plot using line plot
+    # NOTE: reversed so the high_fidelity will be plotted first, which looks nicer in the legend since
+    #       it matches the order of the displayed data
+    for column, styling in reversed(method_styles.items()):
+        print(f"Plotting column '{column}'")
+        styling_kwargs = styling.kwargs_for_plot_errorbar()
+        styling_kwargs["linestyle"] = "-"
+        ax.plot(compare_df[column].index, compare_df[column], label=styling.label, **styling_kwargs)
+
+    plot_config.apply(fig, ax=ax)
+
+    _output_path = base_path / "figures"
+    _output_path.mkdir(parents=True, exist_ok=True)
+    fig.savefig(_output_path / f"{plot_config.name}.pdf")
+    plt.close(fig)
+
+
+# %%
+# Plot showing the box plot of a distribution
+# For the paper, we look at the pt distribution integrated over the design points
+def boxplot(HFGPMSE: pd.DataFrame, hetGPMSE: pd.DataFrame, plot_config: pb.PlotConfig) -> None:
+    # Melt both DataFrames and add a 'Source' label
+    HFGPMSE_melted = HFGPMSE.melt(var_name="Variable", value_name="Value")
+    HFGPMSE_melted["Source"] = "High Fidelity GP"
+
+    hetGPMSE_melted = hetGPMSE.melt(var_name="Variable", value_name="Value")
+    hetGPMSE_melted["Source"] = "VarP-GP"
+
+    # Combine both for plotting
+    df_combined = pd.concat([hetGPMSE_melted, HFGPMSE_melted])
+
+    fig, ax = plt.subplots(
+        1,
+        1,
+        figsize=(10, 6.25),
+        sharex=True,
+    )
+
+    # We match the order to the construction of the DataFrame, where we have hetGP first.
+    colors = [method_styles["hetgp"].color, method_styles["high_fidelity"].color]
+
+    # Plot
+    sns.boxplot(
+        x="Variable",
+        y="Value",
+        hue="Source",
+        palette=colors,
+        saturation=1.0,
+        ax=ax,
+        width=0.6,
+        medianprops={"linewidth": 3},
+        whiskerprops={"linewidth": 2},
+        capprops={"linewidth": 2},
+        boxprops={
+            "linewidth": 2,
+        },
+        flierprops={
+            "marker": "o",
+            "markersize": 5,
+            "markeredgecolor": "black",
+            "markeredgewidth": 0.3,
+        },
+        data=df_combined,
+    )
+
+    # Apply colors to fliers based on their position
+    # We can identify the fliers based on them not using lines
+    # NOTE: They classes are plotted one at a time - e.g. HetGP first, so we set
+    #       the colors based on the first half (HetGP) and the second half (HFGP)
+    lines = [line for line in ax.lines if line.get_linestyle() == "None"]
+    for i, line in enumerate(lines):
+        # Determine which hue group this outlier belongs to
+        # NOTE: This depends on the data structure. If there were more sources,
+        #       we would need to adjust
+        color_idx = 0 if i < len(lines) / 2 else 1
+        # Set just the facecolor - we'll keep the black edges
+        line.set_markerfacecolor(colors[color_idx])
+
+    plot_config.apply(fig, ax=ax)
+
+    _output_path = base_path / "figures"
+    _output_path.mkdir(parents=True, exist_ok=True)
+    fig.savefig(_output_path / f"{plot_config.name}.pdf")
+    plt.close(fig)
+
 
 # %% [markdown]
 # # Hadrons
@@ -128,6 +237,11 @@ hetGPMSE = pd.read_csv(base_path / "Hadron_HETGP_Prediction_by_bin.csv")
 # High fidelity
 HFGPMSE = pd.read_csv(base_path / "Hadron_HFGP_Prediction_by_bin.csv")
 hetGPMSE, HFGPMSE
+
+# %% [markdown]
+# ## Residual
+#
+# ### Irene
 
 # %%
 # Irene's original...
@@ -145,12 +259,10 @@ plt.xticks(rotation=0)
 plt.tight_layout()
 plt.show()
 
-# %%
-# Raymond's revised figure
-sum_HFGPMSE = HFGPMSE.sum()
-sum_hetGPMSE = hetGPMSE.sum()
-compare_df = pd.DataFrame({"high_fidelity": sum_HFGPMSE, "hetgp": sum_hetGPMSE})
+# %% [markdown]
+# ### Raymond
 
+# %%
 text_font_size = 22
 
 # TODO(RJE): Note the pt range, collaboration, etc
@@ -174,7 +286,7 @@ plot_config = pb.PlotConfig(
                 ),
                 pb.AxisConfig(
                     "y",
-                    label=r"$\sum_{i \in p_{\text{T}}\:\text{bins},\:j \in \text{design pts.}}$ MSE$_{i,j}$",
+                    label=r"$\sum_{p_{\text{T,}}\:\text{design}}$ MSE",
                     font_size=text_font_size,
                     range=(0.076, 0.155),
                     # range=(0.044, 0.155),
@@ -187,33 +299,7 @@ plot_config = pb.PlotConfig(
     figure=pb.Figure(edge_padding={"left": 0.11, "bottom": 0.11}),
 )
 
-fig, ax = plt.subplots(
-    1,
-    1,
-    figsize=(10, 6.25),
-    sharex=True,
-)
-
-# Plot using line plot
-for column, styling in method_styles.items():
-    print(f"Plotting column '{column}'")
-    styling_kwargs = styling.kwargs_for_plot_errorbar()
-    styling_kwargs["linestyle"] = "-"
-    ax.plot(compare_df[column].index, compare_df[column], label=styling.label, **styling_kwargs)
-    # ax.plot(compare_df[column].index, compare_df[column], label=styling.label)
-# compare_df.plot(kind="line", style={k: v.kwargs_for_plot_errorbar() for k, v in method_styles.items()}, ax=ax)
-plot_config.apply(fig, ax=ax)
-# plt.title("MSE (sum over bins) by budget")
-# plt.xlabel("Budget")
-# plt.ylabel("Sum of MSE")
-# plt.grid(True)
-
-_output_path = base_path / "figures"
-_output_path.mkdir(parents=True, exist_ok=True)
-fig.savefig(_output_path / f"{plot_config.name}.pdf")
-plt.close(fig)
-
-# TODO(RJE): Need to recall exactly what this budget means, and figure out how to translate it for the audience...
+plot_residual(HFGPMSE=HFGPMSE, hetGPMSE=hetGPMSE, plot_config=plot_config)
 
 # %%
 compare_df["hetgp"]
@@ -247,18 +333,7 @@ plt.show()
 # ### Raymond
 
 # %%
-# Melt both DataFrames and add a 'Source' label
-HFGPMSE_melted = HFGPMSE.melt(var_name="Variable", value_name="Value")
-HFGPMSE_melted["Source"] = "High Fidelity GP"
-
-hetGPMSE_melted = hetGPMSE.melt(var_name="Variable", value_name="Value")
-hetGPMSE_melted["Source"] = "VarP-GP"
-
-# Combine both for plotting
-df_combined = pd.concat([hetGPMSE_melted, HFGPMSE_melted])
-
 text_font_size = 20
-
 for log in [False, True]:
     # I considered including everything here (e.g. sqrt_s), but it doesn't matter overly much
     # for the purposes of this exercise. To just highlight the important information, I'm going to cut down to the minimal.
@@ -294,60 +369,7 @@ for log in [False, True]:
         figure=pb.Figure(edge_padding={"left": 0.12, "bottom": 0.11}),
     )
 
-    fig, ax = plt.subplots(
-        1,
-        1,
-        figsize=(10, 6.25),
-        sharex=True,
-    )
-
-    # First is VarP-GP and second is High fidelity GP
-    colors = ["#FF8301", "#845cba"]
-
-    # Plot
-    sns.boxplot(
-        x="Variable",
-        y="Value",
-        hue="Source",
-        palette=colors,
-        saturation=1.0,
-        ax=ax,
-        width=0.6,
-        medianprops={"linewidth": 3},
-        whiskerprops={"linewidth": 2},
-        capprops={"linewidth": 2},
-        boxprops={
-            "linewidth": 2,
-        },
-        flierprops={
-            "marker": "o",
-            "markersize": 5,
-            "markeredgecolor": "black",
-            "markeredgewidth": 0.3,
-        },
-        data=df_combined,
-    )
-    # plt.show()
-
-    # Apply colors to fliers based on their position
-    # We can identify the fliers based on them not using lines
-    # NOTE: They classes are plotted one at a time - e.g. HetGP first, so we set
-    #       the colors based on the first half (HetGP) and the second half (HFGP)
-    lines = [line for line in ax.lines if line.get_linestyle() == "None"]
-    for i, line in enumerate(lines):
-        # Determine which hue group this outlier belongs to
-        # NOTE: This depends on the data structure. If there were more sources,
-        #       we would need to adjust
-        color_idx = 0 if i < len(lines) / 2 else 1
-        # Set just the facecolor - we'll keep the black edges
-        line.set_markerfacecolor(colors[color_idx])
-
-    plot_config.apply(fig, ax=ax)
-
-    _output_path = base_path / "figures"
-    _output_path.mkdir(parents=True, exist_ok=True)
-    fig.savefig(_output_path / f"{plot_config.name}.pdf")
-    plt.close(fig)
+    boxplot(HFGPMSE=HFGPMSE, hetGPMSE=hetGPMSE, plot_config=plot_config)
 
 # %%
 hetGPMSE_melted[:30]
@@ -363,6 +385,11 @@ hetGPMSE = pd.read_csv(base_path / "Jet_HETGP_Prediction_by_bin.csv")
 # High fidelity
 HFGPMSE = pd.read_csv(base_path / "Jet_HFGP_Prediction_by_bin.csv")
 hetGPMSE, HFGPMSE
+
+# %% [markdown]
+# ## Residual
+#
+# ### Irene
 
 # %%
 # Irene's original figure
@@ -380,12 +407,10 @@ plt.xticks(rotation=0)
 plt.tight_layout()
 plt.show()
 
-# %%
-# Raymond's revised jet figure
-sum_HFGPMSE = HFGPMSE.sum()
-sum_hetGPMSE = hetGPMSE.sum()
-compare_df = pd.DataFrame({"high_fidelity": sum_HFGPMSE, "hetgp": sum_hetGPMSE})
+# %% [markdown]
+# ### Raymond
 
+# %%
 text_font_size = 22
 
 # TODO(RJE): Note the pt range, collaboration, etc
@@ -409,7 +434,7 @@ plot_config = pb.PlotConfig(
                 ),
                 pb.AxisConfig(
                     "y",
-                    label=r"$\sum_{i \in p_{\text{T}}\:\text{bins},\:j \in \text{design pts.}}$ MSE$_{i,j}$",
+                    label=r"$\sum_{p_{\text{T,}}\:\text{design}}$ MSE",
                     font_size=text_font_size,
                     range=(0.044, 0.155),
                 ),
@@ -421,33 +446,7 @@ plot_config = pb.PlotConfig(
     figure=pb.Figure(edge_padding={"left": 0.11, "bottom": 0.11}),
 )
 
-fig, ax = plt.subplots(
-    1,
-    1,
-    figsize=(10, 6.25),
-    sharex=True,
-)
-
-# Plot using line plot
-for column, styling in method_styles.items():
-    print(f"Plotting column '{column}'")
-    styling_kwargs = styling.kwargs_for_plot_errorbar()
-    styling_kwargs["linestyle"] = "-"
-    ax.plot(compare_df[column].index, compare_df[column], label=styling.label, **styling_kwargs)
-    # ax.plot(compare_df[column].index, compare_df[column], label=styling.label)
-# compare_df.plot(kind="line", style={k: v.kwargs_for_plot_errorbar() for k, v in method_styles.items()}, ax=ax)
-plot_config.apply(fig, ax=ax)
-# plt.title("MSE (sum over bins) by budget")
-# plt.xlabel("Budget")
-# plt.ylabel("Sum of MSE")
-# plt.grid(True)
-
-_output_path = base_path / "figures"
-_output_path.mkdir(parents=True, exist_ok=True)
-fig.savefig(_output_path / f"{plot_config.name}.pdf")
-plt.close(fig)
-
-# TODO(RJE): Need to recall exactly what this budget means, and figure out how to translate it for the audience...
+plot_residual(HFGPMSE=HFGPMSE, hetGPMSE=hetGPMSE, plot_config=plot_config)
 
 # %% [markdown]
 # ## Boxplot
@@ -482,18 +481,7 @@ hetGPMSE_melted
 # ### Raymond
 
 # %%
-# Melt both DataFrames and add a 'Source' label
-HFGPMSE_melted = HFGPMSE.melt(var_name="Variable", value_name="Value")
-HFGPMSE_melted["Source"] = "High Fidelity GP"
-
-hetGPMSE_melted = hetGPMSE.melt(var_name="Variable", value_name="Value")
-hetGPMSE_melted["Source"] = "VarP-GP"
-
-# Combine both for plotting
-df_combined = pd.concat([hetGPMSE_melted, HFGPMSE_melted])
-
 text_font_size = 20
-
 for log in [False, True]:
     # I considered including everything here (e.g. sqrt_s), but it doesn't matter overly much
     # for the purposes of this exercise. To just highlight the important information, I'm going to cut down to the minimal.
@@ -519,7 +507,7 @@ for log in [False, True]:
                         font_size=text_font_size,
                         # range=(-0.0005, 0.038),
                         log=log,
-                        range=(0.0005, 0.08) if log else (-0.0005, 0.038),
+                        range=(0.0005, 0.12) if log else (-0.0005, 0.0385),
                     ),
                 ],
                 text=pb.TextConfig(x=0.63, y=0.97, text=text, font_size=18),
@@ -529,59 +517,6 @@ for log in [False, True]:
         figure=pb.Figure(edge_padding={"left": 0.12, "bottom": 0.11}),
     )
 
-    fig, ax = plt.subplots(
-        1,
-        1,
-        figsize=(10, 6.25),
-        sharex=True,
-    )
-
-    # First is VarP-GP and second is High fidelity GP
-    colors = ["#FF8301", "#845cba"]
-
-    # Plot
-    sns.boxplot(
-        x="Variable",
-        y="Value",
-        hue="Source",
-        palette=colors,
-        saturation=1.0,
-        ax=ax,
-        width=0.6,
-        medianprops={"linewidth": 3},
-        whiskerprops={"linewidth": 2},
-        capprops={"linewidth": 2},
-        boxprops={
-            "linewidth": 2,
-        },
-        flierprops={
-            "marker": "o",
-            "markersize": 5,
-            "markeredgecolor": "black",
-            "markeredgewidth": 0.3,
-        },
-        data=df_combined,
-    )
-    # plt.show()
-
-    # Apply colors to fliers based on their position
-    # We can identify the fliers based on them not using lines
-    # NOTE: They classes are plotted one at a time - e.g. HetGP first, so we set
-    #       the colors based on the first half (HetGP) and the second half (HFGP)
-    lines = [line for line in ax.lines if line.get_linestyle() == "None"]
-    for i, line in enumerate(lines):
-        # Determine which hue group this outlier belongs to
-        # NOTE: This depends on the data structure. If there were more sources,
-        #       we would need to adjust
-        color_idx = 0 if i < len(lines) / 2 else 1
-        # Set just the facecolor - we'll keep the black edges
-        line.set_markerfacecolor(colors[color_idx])
-
-    plot_config.apply(fig, ax=ax)
-
-    _output_path = base_path / "figures"
-    _output_path.mkdir(parents=True, exist_ok=True)
-    fig.savefig(_output_path / f"{plot_config.name}.pdf")
-    plt.close(fig)
+    boxplot(HFGPMSE=HFGPMSE, hetGPMSE=hetGPMSE, plot_config=plot_config)
 
 # %%
