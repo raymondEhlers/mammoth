@@ -305,97 +305,105 @@ def plot_compare_hetgp_hf_hadron(
 # Hadron, combined figure
 text_font_size = 22
 in_figure_font_size = 20
-# I considered including everything here (e.g. sqrt_s), but it doesn't matter overly much
-# for the purposes of this exercise. To just highlight the important information, I'm going to cut down to the minimal.
-text = "Sobol' sensitivity, full design space"
-text += "\n" r"Trained on JETSCAPE (MATTER + LBT)"
-text += "\n" + r"Representing CMS, $\textit{JHEP 04 (2017) 039}$"
-text += ", " + r"0-5\%, Hadron $R_{\text{AA}}$, $\sqrt{s_{\text{NN}}} = 5.02\:\text{TeV}$"
 
-pt_labels = []
-for k in hadron_data["global"]:
-    hadron_low, hadron_high = map(float, k.split("_"))
-    pt_labels.append(rf"${hadron_low:g} < p_{{\text{{T}}}} < {hadron_high:g}\:\text{{GeV}}/c$")
+for selected_space in ["global", "posterior"]:
+    # I considered including everything here (e.g. sqrt_s), but it doesn't matter overly much
+    # for the purposes of this exercise. To just highlight the important information, I'm going to cut down to the minimal.
+    text = "Sobol' sensitivity, "
+    if selected_space == "global":
+        text += "full design space"
+    else:
+        text += r"1-99\% posterior"
+    text += "\n" r"Trained on JETSCAPE (MATTER + LBT)"
+    text += "\n" + r"Representing CMS, $\textit{JHEP 04 (2017) 039}$"
+    text += ", " + r"0-5\%, Hadron $R_{\text{AA}}$, $\sqrt{s_{\text{NN}}} = 5.02\:\text{TeV}$"
 
-plot_config = pb.PlotConfig(
-    name="sensitivity_hadron_global_combined",
-    panels=[
-        # Header
-        pb.Panel(
-            axes=[],
-            text=pb.TextConfig(x=0.01, y=1.08, text=text, font_size=18),
-        ),
-        # Main panel
-        pb.Panel(
-            axes=[
-                pb.AxisConfig(
-                    "y",
-                    label="Relative Sobol' index",
-                    font_size=text_font_size,
-                    range=(0, 1),
-                ),
-            ],
-            text=pb.TextConfig(x=0.95, y=0.95, text=pt_labels[0], font_size=in_figure_font_size),
-            # legend=pb.LegendConfig(location="upper right", anchor=(0.95, 0.95), font_size=22),
-        ),
-        pb.Panel(
-            axes=[
-                pb.AxisConfig(
-                    "y",
-                    range=(0, 1),
-                ),
-            ],
-            text=[
-                pb.TextConfig(x=0.95, y=0.95, text=pt_labels[1], font_size=in_figure_font_size),
-                pb.TextConfig(x=0.99, y=0.17, text="Equal sensitivity", font_size=18),
-            ],
-            legend=pb.LegendConfig(
-                location="upper right", anchor=(0.95, 0.80), font_size=text_font_size, marker_label_spacing=0.3
+    pt_labels = []
+    for k in hadron_data["global"]:
+        hadron_low, hadron_high = map(float, k.split("_"))
+        pt_labels.append(rf"${hadron_low:g} < p_{{\text{{T}}}} < {hadron_high:g}\:\text{{GeV}}/c$")
+
+    plot_config = pb.PlotConfig(
+        name=f"sensitivity_hadron_{selected_space}_combined",
+        panels=[
+            # Header
+            pb.Panel(
+                axes=[],
+                text=pb.TextConfig(x=0.01, y=1.08, text=text, font_size=18),
             ),
-        ),
-        pb.Panel(
-            axes=[
-                pb.AxisConfig(
-                    "x",
-                    label="Parameter",
-                    font_size=text_font_size,
-                    use_major_axis_multiple_locator_with_base=1,
+            # Main panel
+            pb.Panel(
+                axes=[
+                    pb.AxisConfig(
+                        "y",
+                        label="Relative Sobol' index",
+                        font_size=text_font_size,
+                        range=(0, 1),
+                    ),
+                ],
+                text=pb.TextConfig(x=0.95, y=0.95, text=pt_labels[0], font_size=in_figure_font_size),
+                # legend=pb.LegendConfig(location="upper right", anchor=(0.95, 0.95), font_size=22),
+            ),
+            pb.Panel(
+                axes=[
+                    pb.AxisConfig(
+                        "y",
+                        range=(0, 1),
+                    ),
+                ],
+                text=[
+                    pb.TextConfig(x=0.95, y=0.95, text=pt_labels[1], font_size=in_figure_font_size),
+                    pb.TextConfig(x=0.99, y=0.17, text="Equal sensitivity", font_size=18),
+                ],
+                legend=pb.LegendConfig(
+                    location="upper right", anchor=(0.95, 0.80), font_size=text_font_size, marker_label_spacing=0.3
                 ),
-                pb.AxisConfig(
-                    "y",
-                    label="Relative Sobol' index",
-                    font_size=text_font_size,
-                    range=(0, 0.995),
-                ),
-            ],
-            text=pb.TextConfig(x=0.95, y=0.95, text=pt_labels[2], font_size=in_figure_font_size),
-            # legend=pb.LegendConfig(location="upper right", anchor=(0.95, 0.95), font_size=22),
-        ),
-        pb.Panel(
-            axes=[
-                pb.AxisConfig(
-                    "x",
-                    label="Parameter",
-                    font_size=text_font_size,
-                    use_major_axis_multiple_locator_with_base=1,
-                ),
-                pb.AxisConfig(
-                    "y",
-                    range=(0, 0.995),
-                ),
-            ],
-            text=[
-                pb.TextConfig(x=0.95, y=0.95, text=pt_labels[3], font_size=in_figure_font_size),
-                pb.TextConfig(x=0.99, y=0.17, text="Equal sensitivity", font_size=18),
-            ],
-            # legend=pb.LegendConfig(location="upper right", anchor=(0.95, 0.95), font_size=22),
-        ),
-    ],
-    figure=pb.Figure(edge_padding={"left": 0.09, "bottom": 0.09}),
-)
+            ),
+            pb.Panel(
+                axes=[
+                    pb.AxisConfig(
+                        "x",
+                        label="Parameter",
+                        font_size=text_font_size,
+                        use_major_axis_multiple_locator_with_base=1,
+                    ),
+                    pb.AxisConfig(
+                        "y",
+                        label="Relative Sobol' index",
+                        font_size=text_font_size,
+                        range=(0, 0.995),
+                    ),
+                ],
+                text=pb.TextConfig(x=0.95, y=0.95, text=pt_labels[2], font_size=in_figure_font_size),
+                # legend=pb.LegendConfig(location="upper right", anchor=(0.95, 0.95), font_size=22),
+            ),
+            pb.Panel(
+                axes=[
+                    pb.AxisConfig(
+                        "x",
+                        label="Parameter",
+                        font_size=text_font_size,
+                        use_major_axis_multiple_locator_with_base=1,
+                    ),
+                    pb.AxisConfig(
+                        "y",
+                        range=(0, 0.995),
+                    ),
+                ],
+                text=[
+                    pb.TextConfig(x=0.95, y=0.95, text=pt_labels[3], font_size=in_figure_font_size),
+                    pb.TextConfig(x=0.99, y=0.17, text="Equal sensitivity", font_size=18),
+                ],
+                # legend=pb.LegendConfig(location="upper right", anchor=(0.95, 0.95), font_size=22),
+            ),
+        ],
+        figure=pb.Figure(edge_padding={"left": 0.09, "bottom": 0.09}),
+    )
 
-# plot(HF, HetGP, HFerr, HetGPerr, plotname)
-plot_compare_hetgp_hf_hadron(hadron_data_by_pt=hadron_data["global"], plot_config=plot_config)
+    # plot(HF, HetGP, HFerr, HetGPerr, plotname)
+    plot_compare_hetgp_hf_hadron(
+        hadron_data_by_pt=hadron_data["global" if selected_space == "global" else "1_99"], plot_config=plot_config
+    )
 
 
 # %% [markdown]
@@ -453,88 +461,94 @@ def plot_compare_hetgp_hf_jet(
 # Jet, combined figure
 text_font_size = 22
 in_figure_font_size = 20
-# I considered including everything here (e.g. sqrt_s), but it doesn't matter overly much
-# for the purposes of this exercise. To just highlight the important information, I'm going to cut down to the minimal.
-text = "Sobol' sensitivity, full design space"
-text_details = r"Trained on JS (MATTER + LBT)"
-text_details += "\n" + r"ATLAS, $\textit{PLB 790 (2019) 108-128}$"
-text_details += "\n" + r"0-10\%, $\sqrt{s_{\text{NN}}} = 5.02\:\text{TeV}$"
-text_details += "\n" + r"$R = 0.4$ inclusive jet $R_{\text{AA}}$"
+for selected_space in ["global", "posterior"]:
+    # I considered including everything here (e.g. sqrt_s), but it doesn't matter overly much
+    # for the purposes of this exercise. To just highlight the important information, I'm going to cut down to the minimal.
+    text = "Sobol' sensitivity, "
+    if selected_space == "global":
+        text += "full design space"
+    else:
+        text += r"1-99\% posterior"
+    text_details = r"Trained on JS (MATTER + LBT)"
+    text_details += "\n" + r"ATLAS, $\textit{PLB 790 (2019) 108-128}$"
+    text_details += "\n" + r"0-10\%, $\sqrt{s_{\text{NN}}} = 5.02\:\text{TeV}$"
+    text_details += "\n" + r"$R = 0.4$ inclusive jet $R_{\text{AA}}$"
 
-pt_labels = []
-for k in jet_data["global"]:
-    low, high = map(float, k.split("_"))
-    # It's actually 1 TeV, so better to just rewrite it properly...
-    if high == 999:
-        high = 1000
-    pt_labels.append(rf"${low:g} < p_{{\text{{T}}}} < {high:g}\:\text{{GeV}}/c$")
+    pt_labels = []
+    for k in jet_data["global"]:
+        low, high = map(float, k.split("_"))
+        # It's actually 1 TeV, so better to just rewrite it properly...
+        if high == 999:
+            high = 1000
+        pt_labels.append(rf"${low:g} < p_{{\text{{T}}}} < {high:g}\:\text{{GeV}}/c$")
 
-plot_config = pb.PlotConfig(
-    name="sensitivity_jet_global_combined",
-    panels=[
-        # Main panel
-        pb.Panel(
-            axes=[
-                pb.AxisConfig(
-                    "y",
-                    label="Relative Sobol' index",
-                    font_size=text_font_size,
-                    range=(0, 1),
-                ),
-            ],
-            text=pb.TextConfig(x=0.95, y=0.95, text=pt_labels[0], font_size=in_figure_font_size),
-            # legend=pb.LegendConfig(location="upper right", anchor=(0.95, 0.95), font_size=22),
-        ),
-        pb.Panel(
-            axes=[
-                pb.AxisConfig(
-                    "y",
-                    range=(0, 1),
-                ),
-            ],
-            text=[
-                pb.TextConfig(x=0.95, y=0.95, text=pt_labels[1], font_size=in_figure_font_size),
-                pb.TextConfig(x=0.99, y=0.17, text="Equal sensitivity", font_size=18),
-            ],
-            legend=pb.LegendConfig(
-                location="upper right", anchor=(0.95, 0.80), font_size=text_font_size, marker_label_spacing=0.3
+    plot_config = pb.PlotConfig(
+        name=f"sensitivity_jet_{selected_space}_combined",
+        panels=[
+            # Main panel
+            pb.Panel(
+                axes=[
+                    pb.AxisConfig(
+                        "y",
+                        label="Relative Sobol' index",
+                        font_size=text_font_size,
+                        range=(0, 1),
+                    ),
+                ],
+                text=pb.TextConfig(x=0.95, y=0.95, text=pt_labels[0], font_size=in_figure_font_size),
+                # legend=pb.LegendConfig(location="upper right", anchor=(0.95, 0.95), font_size=22),
             ),
-        ),
-        pb.Panel(
-            axes=[
-                pb.AxisConfig(
-                    "x",
-                    label="Parameter",
-                    font_size=text_font_size,
-                    use_major_axis_multiple_locator_with_base=1,
+            pb.Panel(
+                axes=[
+                    pb.AxisConfig(
+                        "y",
+                        range=(0, 1),
+                    ),
+                ],
+                text=[
+                    pb.TextConfig(x=0.95, y=0.95, text=pt_labels[1], font_size=in_figure_font_size),
+                    pb.TextConfig(x=0.99, y=0.17, text="Equal sensitivity", font_size=18),
+                ],
+                legend=pb.LegendConfig(
+                    location="upper right", anchor=(0.95, 0.80), font_size=text_font_size, marker_label_spacing=0.3
                 ),
-                pb.AxisConfig(
-                    "y",
-                    label="Relative Sobol' index",
-                    font_size=text_font_size,
-                    range=(0, 0.995),
-                ),
-            ],
-            text=[
-                pb.TextConfig(x=0.95, y=0.95, text=pt_labels[2], font_size=in_figure_font_size),
-                pb.TextConfig(x=0.99, y=0.17, text="Equal sensitivity", font_size=18),
-            ],
-            # legend=pb.LegendConfig(location="upper right", anchor=(0.95, 0.95), font_size=22),
-        ),
-        # Header
-        pb.Panel(
-            axes=[],
-            text=[
-                pb.TextConfig(x=0.05, y=0.65, text=text, font_size=18),
-                pb.TextConfig(x=0.05, y=0.58, text=text_details, font_size=14),
-            ],
-        ),
-    ],
-    figure=pb.Figure(edge_padding={"left": 0.105, "bottom": 0.09}),
-)
+            ),
+            pb.Panel(
+                axes=[
+                    pb.AxisConfig(
+                        "x",
+                        label="Parameter",
+                        font_size=text_font_size,
+                        use_major_axis_multiple_locator_with_base=1,
+                    ),
+                    pb.AxisConfig(
+                        "y",
+                        label="Relative Sobol' index",
+                        font_size=text_font_size,
+                        range=(0, 0.995),
+                    ),
+                ],
+                text=[
+                    pb.TextConfig(x=0.95, y=0.95, text=pt_labels[2], font_size=in_figure_font_size),
+                    pb.TextConfig(x=0.99, y=0.17, text="Equal sensitivity", font_size=18),
+                ],
+                # legend=pb.LegendConfig(location="upper right", anchor=(0.95, 0.95), font_size=22),
+            ),
+            # Header
+            pb.Panel(
+                axes=[],
+                text=[
+                    pb.TextConfig(x=0.05, y=0.65, text=text, font_size=18),
+                    pb.TextConfig(x=0.05, y=0.58, text=text_details, font_size=14),
+                ],
+            ),
+        ],
+        figure=pb.Figure(edge_padding={"left": 0.105, "bottom": 0.09}),
+    )
 
-# plot(HF, HetGP, HFerr, HetGPerr, plotname)
-plot_compare_hetgp_hf_jet(jet_data_by_pt=jet_data["global"], plot_config=plot_config)
+    plot_compare_hetgp_hf_jet(
+        jet_data_by_pt=jet_data["global" if selected_space == "global" else "1_99"], plot_config=plot_config
+    )
 
 # %% [markdown]
 # # Older, standalone figures
