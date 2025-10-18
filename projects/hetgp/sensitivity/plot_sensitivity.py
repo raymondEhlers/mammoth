@@ -298,12 +298,16 @@ def plot_compare_hetgp_hf_hadron(
     plt.close(fig)
 
 
+# %% [markdown]
+# ## Hadron, combined sensitivity
+
 # %%
 # Hadron, combined figure
 text_font_size = 22
+in_figure_font_size = 20
 # I considered including everything here (e.g. sqrt_s), but it doesn't matter overly much
 # for the purposes of this exercise. To just highlight the important information, I'm going to cut down to the minimal.
-text = "Full design space Sobol' sensitivity"
+text = "Sobol' sensitivity, full design space"
 text += "\n" r"Trained on JETSCAPE (MATTER + LBT)"
 text += "\n" + r"Representing CMS, $\textit{JHEP 04 (2017) 039}$"
 text += ", " + r"0-5\%, Hadron $R_{\text{AA}}$, $\sqrt{s_{\text{NN}}} = 5.02\:\text{TeV}$"
@@ -331,7 +335,7 @@ plot_config = pb.PlotConfig(
                     range=(0, 1),
                 ),
             ],
-            text=pb.TextConfig(x=0.95, y=0.95, text=pt_labels[0], font_size=text_font_size),
+            text=pb.TextConfig(x=0.95, y=0.95, text=pt_labels[0], font_size=in_figure_font_size),
             # legend=pb.LegendConfig(location="upper right", anchor=(0.95, 0.95), font_size=22),
         ),
         pb.Panel(
@@ -342,7 +346,7 @@ plot_config = pb.PlotConfig(
                 ),
             ],
             text=[
-                pb.TextConfig(x=0.95, y=0.95, text=pt_labels[1], font_size=text_font_size),
+                pb.TextConfig(x=0.95, y=0.95, text=pt_labels[1], font_size=in_figure_font_size),
                 pb.TextConfig(x=0.99, y=0.17, text="Equal sensitivity", font_size=18),
             ],
             legend=pb.LegendConfig(
@@ -364,7 +368,7 @@ plot_config = pb.PlotConfig(
                     range=(0, 0.995),
                 ),
             ],
-            text=pb.TextConfig(x=0.95, y=0.95, text=pt_labels[2], font_size=text_font_size),
+            text=pb.TextConfig(x=0.95, y=0.95, text=pt_labels[2], font_size=in_figure_font_size),
             # legend=pb.LegendConfig(location="upper right", anchor=(0.95, 0.95), font_size=22),
         ),
         pb.Panel(
@@ -381,17 +385,159 @@ plot_config = pb.PlotConfig(
                 ),
             ],
             text=[
-                pb.TextConfig(x=0.95, y=0.95, text=pt_labels[3], font_size=text_font_size),
+                pb.TextConfig(x=0.95, y=0.95, text=pt_labels[3], font_size=in_figure_font_size),
                 pb.TextConfig(x=0.99, y=0.17, text="Equal sensitivity", font_size=18),
             ],
             # legend=pb.LegendConfig(location="upper right", anchor=(0.95, 0.95), font_size=22),
         ),
     ],
-    figure=pb.Figure(edge_padding={"left": 0.11, "bottom": 0.11}),
+    figure=pb.Figure(edge_padding={"left": 0.09, "bottom": 0.09}),
 )
 
 # plot(HF, HetGP, HFerr, HetGPerr, plotname)
 plot_compare_hetgp_hf_hadron(hadron_data_by_pt=hadron_data["global"], plot_config=plot_config)
+
+
+# %% [markdown]
+# ## Jet, combined sensitivity
+
+
+# %%
+def plot_compare_hetgp_hf_jet(
+    jet_data_by_pt: dict[str, Data],
+    plot_config: pb.PlotConfig,
+) -> None:
+    """Specific comparison function for jet pt comparison combined into a single figure.
+
+    NOTE:
+        There's a special function for it since it will have a different axis configuration
+        than jets due to different numbers of pt bins
+    """
+    # Normalize errors and data
+    # NOTE: We need to copy the data first so our normalization doesn't impact the existing data
+    jet_data_by_pt = {k: copy.deepcopy(v) for k, v in jet_data_by_pt.items()}
+    for v in jet_data_by_pt.values():
+        v.normalize()
+
+    # Setup axes with a header where we'll put shared information
+    # Setup
+    # We start with a standard grid, and then we'll modify it to define a header.
+    # This is quite nice because we can utilize gridspec when necessary, but skip over
+    # the complications of it when we don't need it.
+    fig, axes = plt.subplots(
+        2,
+        2,
+        figsize=(8, 8),
+        gridspec_kw={"height_ratios": [6, 6]},
+        # sharex="col",
+        sharex="none",
+        sharey="row",
+    )
+    # NOTE: Will use the last ax slot as the header
+
+    # Plot in the main panel
+    for data, ax in zip(jet_data_by_pt.values(), axes.flatten()[:-1], strict=True):
+        plot_parameters_on_ax(hetgp=data.hetgp, hetgp_err=data.hetgp_err, hf=data.hf, hf_err=data.hf_err, ax=ax)
+
+    plot_config.apply(fig, axes=axes.flatten())
+    # And remove the axis header
+    axes[1, 1].set_axis_off()
+
+    _output_path = base_path / "figures"
+    _output_path.mkdir(parents=True, exist_ok=True)
+    fig.savefig(_output_path / f"{plot_config.name}.pdf")
+    plt.close(fig)
+
+
+# %%
+# Jet, combined figure
+text_font_size = 22
+in_figure_font_size = 20
+# I considered including everything here (e.g. sqrt_s), but it doesn't matter overly much
+# for the purposes of this exercise. To just highlight the important information, I'm going to cut down to the minimal.
+text = "Sobol' sensitivity, full design space"
+text_details = r"Trained on JS (MATTER + LBT)"
+text_details += "\n" + r"ATLAS, $\textit{PLB 790 (2019) 108-128}$"
+text_details += "\n" + r"0-10\%, $\sqrt{s_{\text{NN}}} = 5.02\:\text{TeV}$"
+text_details += "\n" + r"$R = 0.4$ inclusive jet $R_{\text{AA}}$"
+
+pt_labels = []
+for k in jet_data["global"]:
+    low, high = map(float, k.split("_"))
+    # It's actually 1 TeV, so better to just rewrite it properly...
+    if high == 999:
+        high = 1000
+    pt_labels.append(rf"${low:g} < p_{{\text{{T}}}} < {high:g}\:\text{{GeV}}/c$")
+
+plot_config = pb.PlotConfig(
+    name="sensitivity_jet_global_combined",
+    panels=[
+        # Main panel
+        pb.Panel(
+            axes=[
+                pb.AxisConfig(
+                    "y",
+                    label="Relative Sobol' index",
+                    font_size=text_font_size,
+                    range=(0, 1),
+                ),
+            ],
+            text=pb.TextConfig(x=0.95, y=0.95, text=pt_labels[0], font_size=in_figure_font_size),
+            # legend=pb.LegendConfig(location="upper right", anchor=(0.95, 0.95), font_size=22),
+        ),
+        pb.Panel(
+            axes=[
+                pb.AxisConfig(
+                    "y",
+                    range=(0, 1),
+                ),
+            ],
+            text=[
+                pb.TextConfig(x=0.95, y=0.95, text=pt_labels[1], font_size=in_figure_font_size),
+                pb.TextConfig(x=0.99, y=0.17, text="Equal sensitivity", font_size=18),
+            ],
+            legend=pb.LegendConfig(
+                location="upper right", anchor=(0.95, 0.80), font_size=text_font_size, marker_label_spacing=0.3
+            ),
+        ),
+        pb.Panel(
+            axes=[
+                pb.AxisConfig(
+                    "x",
+                    label="Parameter",
+                    font_size=text_font_size,
+                    use_major_axis_multiple_locator_with_base=1,
+                ),
+                pb.AxisConfig(
+                    "y",
+                    label="Relative Sobol' index",
+                    font_size=text_font_size,
+                    range=(0, 0.995),
+                ),
+            ],
+            text=[
+                pb.TextConfig(x=0.95, y=0.95, text=pt_labels[2], font_size=in_figure_font_size),
+                pb.TextConfig(x=0.99, y=0.17, text="Equal sensitivity", font_size=18),
+            ],
+            # legend=pb.LegendConfig(location="upper right", anchor=(0.95, 0.95), font_size=22),
+        ),
+        # Header
+        pb.Panel(
+            axes=[],
+            text=[
+                pb.TextConfig(x=0.05, y=0.65, text=text, font_size=18),
+                pb.TextConfig(x=0.05, y=0.58, text=text_details, font_size=14),
+            ],
+        ),
+    ],
+    figure=pb.Figure(edge_padding={"left": 0.105, "bottom": 0.09}),
+)
+
+# plot(HF, HetGP, HFerr, HetGPerr, plotname)
+plot_compare_hetgp_hf_jet(jet_data_by_pt=jet_data["global"], plot_config=plot_config)
+
+# %% [markdown]
+# # Older, standalone figures
 
 # %%
 # global total index
