@@ -35,6 +35,9 @@ base_path = Path("projects/hetgp/sensitivity")
 
 pb.configure()
 
+# %% [markdown]
+# # Setup
+
 # %%
 hadron_pt_bin_labels = ["4.8_28.8", "28.8_73.6", "73.6_165.0", "165.0_400.0"]
 jet_pt_bin_labels = ["100.0_177.0", "177.0_281.0", "281.0_999.0"]
@@ -116,6 +119,23 @@ def reorder_data(df: pd.DataFrame) -> pd.DataFrame:
     return df.loc[new_order]
 
 
+# Plot parameters
+label_to_display_label = {
+    "alpha_s": r"$\alpha_{\text{s}}$",
+    "Q0": r"$Q_{0}$",
+    "tau0": r"$\tau_{0}$",
+    "C1": "C1",
+    "C2": "C2",
+    "C3": "C3",
+}
+# NOTE: These are matching with those colors used in plot_predictions
+colors = {"hetgp": "#FF8301", "HF": "#845cba"}
+
+
+# %% [markdown]
+# # Plots
+
+
 # %%
 # Original function that RJE provided to Irene
 def plot_original(HF, HetGP, HFerr, HetGPerr, plotname) -> None:
@@ -170,18 +190,6 @@ def plot_original(HF, HetGP, HFerr, HetGPerr, plotname) -> None:
 
     fig.savefig(plotname)
     plt.close(fig)
-
-
-label_to_display_label = {
-    "alpha_s": r"$\alpha_{\text{s}}$",
-    "Q0": r"$Q_{0}$",
-    "tau0": r"$\tau_{0}$",
-    "C1": "C1",
-    "C2": "C2",
-    "C3": "C3",
-}
-# NOTE: These are matching with those colors used in plot_predictions
-colors = {"hetgp": "#FF8301", "HF": "#845cba"}
 
 
 def plot_parameters_on_ax(
@@ -441,7 +449,7 @@ def plot_compare_hetgp_hf_jet(
         sharex="none",
         sharey="row",
     )
-    # NOTE: Will use the last ax slot as the header
+    # NOTE: Will use the last ax as the header
 
     # Plot in the main panel
     for data, ax in zip(jet_data_by_pt.values(), axes.flatten()[:-1], strict=True):
@@ -549,6 +557,144 @@ for selected_space in ["global", "posterior"]:
     plot_compare_hetgp_hf_jet(
         jet_data_by_pt=jet_data["global" if selected_space == "global" else "1_99"], plot_config=plot_config
     )
+
+
+# %% [markdown]
+# ## Pt dependence of parameter (alpha_s)
+
+
+# %%
+def plot_parameter_pt_dependence(
+    data_by_pt: dict[str, Data], selected_parameter: str, plot_config: pb.PlotConfig
+) -> None:
+    """Plot pt dependence of a particular parameter."""
+
+    # Normalize errors and data
+    # NOTE: We need to copy the data first so our normalization doesn't impact the existing data
+    data_by_pt = {k: copy.deepcopy(v) for k, v in data_by_pt.items()}
+    for v in data_by_pt.values():
+        v.normalize()
+
+    # Need to determine where the values are in the array
+    parameter_index = list(label_to_display_label.keys()).index(selected_parameter)
+    pt_labels = list(data_by_pt.keys())
+    hetgp = [data_by_pt[v].hetgp[parameter_index] for v in pt_labels]
+    hetgp_err = [data_by_pt[v].hetgp_err[parameter_index] for v in pt_labels]
+    hf = [data_by_pt[v].hf[parameter_index] for v in pt_labels]
+    hf_err = [data_by_pt[v].hf_err[parameter_index] for v in pt_labels]
+    index = np.arange(len(pt_labels))
+
+    # Setup
+    fig, ax = plt.subplots(
+        1,
+        1,
+        figsize=(10, 6.25),
+        sharex=True,
+    )
+
+    ax.plot()
+
+    bar_width = 0.2
+    # The first is shifted left
+    ax.bar(index - bar_width / 2, hf, bar_width, yerr=hf_err, label="High fidelity GP", color=colors["HF"])
+    # The second is shifted right
+    ax.bar(index + bar_width / 2, hetgp, bar_width, yerr=hetgp_err, label="VarP-GP", color=colors["hetgp"])
+
+    # And then ensure we show the parameter names on the x-axis
+    ax.xaxis.set_ticks(index)
+    axis_labels = []
+    for pt_label in pt_labels:
+        low, high = map(float, pt_label.split("_"))
+        axis_labels.append(f"[{low}, {high}]")
+    ax.xaxis.set_ticklabels(axis_labels)
+
+    # Apply styling
+    plot_config.apply(fig, ax=ax)
+
+    _output_path = base_path / "figures"
+    _output_path.mkdir(parents=True, exist_ok=True)
+    fig.savefig(_output_path / f"{plot_config.name}.pdf")
+    plt.close(fig)
+
+
+# %% [markdown]
+# ### Hadron
+
+# %%
+parameter = "alpha_s"
+text = f"Global Sobol' sensitivity, {label_to_display_label[parameter]} dependence"
+text += "\n" + r"trained on JETSCAPE (MATTER + LBT)"
+text += "\n" + r"corresponding to CMS, $\textit{JHEP 04 (2017) 039}$"
+text += "\n" + r"0-5\%, Hadron $R_{\text{AA}}$, $\sqrt{s_{\text{NN}}} = 5.02\:\text{TeV}$"
+text += "\n" + rf"${hadron_low:g} < p_{{\text{{T}}}} < {hadron_high:g}\:\text{{GeV}}/c$"
+plot_config = pb.PlotConfig(
+    name=f"sensitivity_hadron_global_{parameter}",
+    panels=[
+        # Main panel
+        pb.Panel(
+            axes=[
+                pb.AxisConfig(
+                    "x",
+                    label=r"$p_{\text{T}}$ bin (GeV/$c$)",
+                    font_size=text_font_size,
+                    use_major_axis_multiple_locator_with_base=1,
+                ),
+                pb.AxisConfig(
+                    "y",
+                    label="Relative Sobol' index",
+                    font_size=text_font_size,
+                    range=(0, 1),
+                ),
+            ],
+            text=[
+                pb.TextConfig(x=0.95, y=0.81, text=text, font_size=18),
+            ],
+            legend=pb.LegendConfig(location="upper right", anchor=(0.95, 0.95), font_size=22),
+        ),
+    ],
+    figure=pb.Figure(edge_padding={"left": 0.11, "bottom": 0.11}),
+)
+plot_parameter_pt_dependence(hadron_data["global"], selected_parameter=parameter, plot_config=plot_config)
+
+# %% [markdown]
+# ### Jet
+
+# %%
+parameter = "alpha_s"
+text = f"Global Sobol' sensitivity, {label_to_display_label[parameter]} dependence"
+text += "\n" + r"trained on JETSCAPE (MATTER + LBT)"
+text += "\n" + r"ATLAS, $\textit{PLB 790 (2019) 108-128}$"
+text += "\n" + r"0-10\%, $\sqrt{s_{\text{NN}}} = 5.02\:\text{TeV}$"
+text += "\n" + r"$R = 0.4$ inclusive jet $R_{\text{AA}}$"
+
+plot_config = pb.PlotConfig(
+    name=f"sensitivity_jet_global_{parameter}",
+    panels=[
+        # Main panel
+        pb.Panel(
+            axes=[
+                pb.AxisConfig(
+                    "x",
+                    label=r"$p_{\text{T}}$ bin (GeV/$c$)",
+                    font_size=text_font_size,
+                    use_major_axis_multiple_locator_with_base=1,
+                ),
+                pb.AxisConfig(
+                    "y",
+                    label="Relative Sobol' index",
+                    font_size=text_font_size,
+                    range=(0, 1),
+                ),
+            ],
+            text=[
+                pb.TextConfig(x=0.95, y=0.81, text=text, font_size=18),
+            ],
+            legend=pb.LegendConfig(location="upper right", anchor=(0.95, 0.95), font_size=22),
+        ),
+    ],
+    figure=pb.Figure(edge_padding={"left": 0.11, "bottom": 0.11}),
+)
+plot_parameter_pt_dependence(jet_data["global"], selected_parameter=parameter, plot_config=plot_config)
 
 # %% [markdown]
 # # Older, standalone figures
