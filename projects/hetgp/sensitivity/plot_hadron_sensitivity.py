@@ -16,11 +16,14 @@
 # %%
 from __future__ import annotations
 
-import pickle  # noqa: F401
+import copy
 from pathlib import Path
 
+import attrs
+import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
+import numpy.typing as npt
 import pachyderm.plot as pb
 import pandas as pd
 import seaborn as sns  # noqa: F401
@@ -33,9 +36,68 @@ base_path = Path("projects/hetgp/sensitivity")
 pb.configure()
 
 # %%
-filenameindex = ["4.8_28.8", "28.8_73.6", "73.6_165.0", "165.0_400.0"]
+hadron_pt_bin_labels = ["4.8_28.8", "28.8_73.6", "73.6_165.0", "165.0_400.0"]
+jet_pt_bin_labels = ["100.0_177.0", "177.0_281.0", "281.0_999.0"]
 
 text_font_size = 22
+
+
+# %%
+@attrs.define
+class Data:
+    hetgp: npt.NDArray[np.float64]
+    hetgp_err: npt.NDArray[np.float64]
+    hf: npt.NDArray[np.float64]
+    hf_err: npt.NDArray[np.float64]
+
+    def normalize(self) -> None:
+        hetgp_sum = self.hetgp.sum()
+        self.hetgp /= hetgp_sum
+        self.hetgp_err /= hetgp_sum
+
+        hf_sum = self.hf.sum()
+        self.hf /= hf_sum
+        self.hf_err /= hf_sum
+
+
+_possible_range_labels = ["Global", "Local_5_95", "Local_1_99"]
+
+
+def load_data(pt_bin_labels: list[float], range_label: str, load_hadron_data: bool) -> dict[str, Data]:
+    # Validation
+    if range_label not in _possible_range_labels:
+        msg = f"Range label {range_label} not in available labels: {_possible_range_labels}. Please check your inputs."
+        raise ValueError(msg)
+
+    output = {}
+    for pt_label in pt_bin_labels:
+        observable_label = "hadron" if load_hadron_data else "jet"
+        filename_HF = base_path / f"HFGP/{observable_label}_aggregate/{range_label}_TotalIndex_{pt_label}.csv"
+        HFdatabyaggbin = pd.read_csv(filename_HF)
+        filename_HetGP = base_path / f"HetGP/{observable_label}_aggregate/{range_label}_TotalIndex_{pt_label}.csv"
+        HetGPdatabyaggbin = pd.read_csv(filename_HetGP)
+
+        output[pt_label] = Data(
+            hetgp=np.array(HetGPdatabyaggbin["STagg"]),
+            hetgp_err=np.array(HetGPdatabyaggbin["ST_confagg"]),
+            hf=np.array(HFdatabyaggbin["STagg"]),
+            hf_err=np.array(HFdatabyaggbin["ST_confagg"]),
+        )
+
+    return output
+
+
+# %%
+hadron_data = {
+    "global": load_data(pt_bin_labels=hadron_pt_bin_labels, range_label="Global", load_hadron_data=True),
+    "5_95": load_data(pt_bin_labels=hadron_pt_bin_labels, range_label="Local_5_95", load_hadron_data=True),
+    "1_99": load_data(pt_bin_labels=hadron_pt_bin_labels, range_label="Local_1_99", load_hadron_data=True),
+}
+jet_data = {
+    "global": load_data(pt_bin_labels=jet_pt_bin_labels, range_label="Global", load_hadron_data=False),
+    "5_95": load_data(pt_bin_labels=jet_pt_bin_labels, range_label="Local_5_95", load_hadron_data=False),
+    "1_99": load_data(pt_bin_labels=jet_pt_bin_labels, range_label="Local_1_99", load_hadron_data=False),
+}
 
 
 # %%
@@ -118,87 +180,55 @@ label_to_display_label = {
     "C2": "C2",
     "C3": "C3",
 }
+# NOTE: These are matching with those colors used in plot_predictions
 colors = {"hetgp": "#FF8301", "HF": "#845cba"}
 
 
-def plot(HF, HetGP, HFerr, HetGPerr, plotname) -> None:
-    # Some example data to plot
-    n_points = len(HF)
+def plot_parameters_on_ax(
+    hetgp: npt.NDArray[np.float64],
+    hetgp_err: npt.NDArray[np.float64],
+    hf: npt.NDArray[np.float64],
+    hf_err: npt.NDArray[np.float64],
+    ax: mpl.axes.Axes,
+    bar_width: float = 0.2,
+) -> None:
+    """Plot all parameters on an axis.
 
-    HFerr = HFerr / HF.sum()
-    HetGPerr = HetGPerr / HetGP.sum()
-
-    HF = HF / HF.sum()
-    HetGP = HetGP / HetGP.sum()
-
-    # Define the overall figure layout
-    fig, (ax) = plt.subplots(
-        1,
-        1,
-        figsize=(10, 6),
-        sharex=True,
-    )
-
+    This assumes the inputs are already properly normalized.
+    """
+    # Setup data
+    n_points = len(hetgp)
     # Based on https://stackoverflow.com/a/59421062 and https://matplotlib.org/3.0.0/gallery/statistics/barchart_demo.html
     # Need to define an index, which we will then shift as needed to plot each bar
     index = np.arange(n_points)
-    width = 0.15
 
-    # Plot in the main panel
-    # Group A
-    ax.bar(index, HF, width, yerr=HFerr, label="High fidelity GP", color=colors["HF"])
-    # Group B: shift the next bar over so they sit side-by-side
-    ax.bar(index + width, HetGP, width, yerr=HetGPerr, label="VarP-GP", color=colors["hetgp"])
-    ax.set_ylim([0, 1])
+    # The first is shifted left
+    ax.bar(index - bar_width / 2, hf, bar_width, yerr=hf_err, label="High fidelity GP", color=colors["HF"])
+    # The second is shifted right
+    ax.bar(index + bar_width / 2, hetgp, bar_width, yerr=hetgp_err, label="VarP-GP", color=colors["hetgp"])
+
+    # And then ensure we show the parameter names on the x-axis
     ax.xaxis.set_ticks(range(len(label_to_display_label)))
     ax.xaxis.set_ticklabels(label_to_display_label.values())
-    ax.set_xlabel("Parameter")
-    ax.set_ylabel("Sobol' index")
 
-    ax.legend(loc="upper right", frameon=False)
-
-    # It shouldn't hurt to align the labels if there's only one.
-    fig.align_ylabels()
-
-    # Adjust the layout.
-    # NOTE: The subplots adjust needs to be after tight_layout to remove the inter-axis spacing
-    fig.tight_layout()
-    adjust_args = {
-        # Remove spacing between subplots
-        "hspace": 0,
-        "wspace": 0,
-        # Can manually adjust/reduce the spacing around the edges if desired - just uncomment below.
-        # "left": 0.10,
-        # "bottom": 0.08,
-        # "right": 0.98,
-        # "top": 0.98,
-    }
-    fig.subplots_adjust(**adjust_args)
-
-    fig.savefig(plotname)
-    plt.close(fig)
+    # And then a line to mark equal sensitivity
+    # NOTE: (it relies on the plot_config for the label)
+    ax.axhline(y=1.0 / 6.0, color="black", linestyle="dashed", zorder=0)
 
 
-def plot_new(
-    HF,
-    HetGP,
-    HFerr,
-    HetGPerr,
+def plot_compare_hetgp_hf(
+    hetgp: npt.NDArray[np.float64],
+    hetgp_err: npt.NDArray[np.float64],
+    hf: npt.NDArray[np.float64],
+    hf_err: npt.NDArray[np.float64],
     plot_config: pb.PlotConfig,
-):
-    # Setup for data
-    n_points = len(HF)
-
-    HFerr = HFerr / HF.sum()
-    HetGPerr = HetGPerr / HetGP.sum()
-
-    HF = HF / HF.sum()
-    HetGP = HetGP / HetGP.sum()
-
-    # Based on https://stackoverflow.com/a/59421062 and https://matplotlib.org/3.0.0/gallery/statistics/barchart_demo.html
-    # Need to define an index, which we will then shift as needed to plot each bar
-    index = np.arange(n_points)
-    width = 0.20
+) -> None:
+    """Individual stand-alone figure for one set of data."""
+    # Normalize errors and data
+    hf_err = hf_err / hf.sum()
+    hetgp_err = hetgp_err / hetgp.sum()
+    hf = hf / hf.sum()
+    hetgp = hetgp / hetgp.sum()
 
     fig, ax = plt.subplots(
         1,
@@ -208,15 +238,7 @@ def plot_new(
     )
 
     # Plot in the main panel
-    # Group A
-    ax.bar(index - width / 2, HF, width, yerr=HFerr, label="High fidelity GP", color=colors["HF"])
-    # Group B: shift the next bar over so they sit side-by-side
-    ax.bar(index + width / 2, HetGP, width, yerr=HetGPerr, label="VarP-GP", color=colors["hetgp"])
-    ax.set_ylim([0, 1])
-    ax.xaxis.set_ticks(range(len(label_to_display_label)))
-    ax.xaxis.set_ticklabels(label_to_display_label.values())
-
-    ax.axhline(y=1.0 / 6.0, color="black", linestyle="dashed", zorder=0)
+    plot_parameters_on_ax(hetgp=hetgp, hetgp_err=hetgp_err, hf=hf, hf_err=hf_err, ax=ax)
 
     plot_config.apply(fig, ax=ax)
 
@@ -226,29 +248,174 @@ def plot_new(
     plt.close(fig)
 
 
+def plot_compare_hetgp_hf_hadron(
+    hadron_data_by_pt: dict[str, Data],
+    plot_config: pb.PlotConfig,
+) -> None:
+    """Specific comparison function for hadron pt comparison combined into a single figure.
+
+    NOTE:
+        There's a special function for it since it will have a different axis configuration
+        than jets due to different numbers of pt bins
+    """
+    # Normalize errors and data
+    # NOTE: We need to copy the data first so our normalization doesn't impact the existing data
+    hadron_data_by_pt = {k: copy.deepcopy(v) for k, v in hadron_data_by_pt.items()}
+    for v in hadron_data_by_pt.values():
+        v.normalize()
+
+    # Setup axes with a header where we'll put shared information
+    # Setup
+    # We start with a standard grid, and then we'll modify it to define a header.
+    # This is quite nice because we can utilize gridspec when necessary, but skip over
+    # the complications of it when we don't need it.
+    fig, axes = plt.subplots(
+        3,
+        2,
+        figsize=(10, 8),
+        gridspec_kw={"height_ratios": [1.5, 6, 6]},
+        sharex="col",
+        sharey="row",
+    )
+    # According to gpt, all the axes will return the same gridspec.
+    gs = axes[0, 0].get_gridspec()
+    # Remove the underlying axes
+    for _ax in axes[0, :]:
+        _ax.remove()
+    ax_header = fig.add_subplot(gs[0, :])
+
+    # Plot in the main panel
+    for data, ax in zip(hadron_data_by_pt.values(), axes[1:, :].flatten(), strict=True):
+        plot_parameters_on_ax(hetgp=data.hetgp, hetgp_err=data.hetgp_err, hf=data.hf, hf_err=data.hf_err, ax=ax)
+
+    plot_config.apply(fig, axes=[ax_header, *axes[1:, :].flatten()])
+    # And remove the axis header
+    ax_header.set_axis_off()
+
+    _output_path = base_path / "figures"
+    _output_path.mkdir(parents=True, exist_ok=True)
+    fig.savefig(_output_path / f"{plot_config.name}.pdf")
+    plt.close(fig)
+
+
+# %%
+# Hadron, combined figure
+text_font_size = 22
+# I considered including everything here (e.g. sqrt_s), but it doesn't matter overly much
+# for the purposes of this exercise. To just highlight the important information, I'm going to cut down to the minimal.
+text = "Full design space Sobol' sensitivity"
+text += "\n" r"Trained on JETSCAPE (MATTER + LBT)"
+text += "\n" + r"Representing CMS, $\textit{JHEP 04 (2017) 039}$"
+text += ", " + r"0-5\%, Hadron $R_{\text{AA}}$, $\sqrt{s_{\text{NN}}} = 5.02\:\text{TeV}$"
+
+pt_labels = []
+for k in hadron_data["global"]:
+    hadron_low, hadron_high = map(float, k.split("_"))
+    pt_labels.append(rf"${hadron_low:g} < p_{{\text{{T}}}} < {hadron_high:g}\:\text{{GeV}}/c$")
+
+plot_config = pb.PlotConfig(
+    name="sensitivity_hadron_global_combined",
+    panels=[
+        # Header
+        pb.Panel(
+            axes=[],
+            text=pb.TextConfig(x=0.01, y=1.08, text=text, font_size=18),
+        ),
+        # Main panel
+        pb.Panel(
+            axes=[
+                pb.AxisConfig(
+                    "y",
+                    label="Relative Sobol' index",
+                    font_size=text_font_size,
+                    range=(0, 1),
+                ),
+            ],
+            text=pb.TextConfig(x=0.95, y=0.95, text=pt_labels[0], font_size=text_font_size),
+            # legend=pb.LegendConfig(location="upper right", anchor=(0.95, 0.95), font_size=22),
+        ),
+        pb.Panel(
+            axes=[
+                pb.AxisConfig(
+                    "y",
+                    range=(0, 1),
+                ),
+            ],
+            text=[
+                pb.TextConfig(x=0.95, y=0.95, text=pt_labels[1], font_size=text_font_size),
+                pb.TextConfig(x=0.99, y=0.17, text="Equal sensitivity", font_size=18),
+            ],
+            legend=pb.LegendConfig(
+                location="upper right", anchor=(0.95, 0.80), font_size=text_font_size, marker_label_spacing=0.3
+            ),
+        ),
+        pb.Panel(
+            axes=[
+                pb.AxisConfig(
+                    "x",
+                    label="Parameter",
+                    font_size=text_font_size,
+                    use_major_axis_multiple_locator_with_base=1,
+                ),
+                pb.AxisConfig(
+                    "y",
+                    label="Relative Sobol' index",
+                    font_size=text_font_size,
+                    range=(0, 0.995),
+                ),
+            ],
+            text=pb.TextConfig(x=0.95, y=0.95, text=pt_labels[2], font_size=text_font_size),
+            # legend=pb.LegendConfig(location="upper right", anchor=(0.95, 0.95), font_size=22),
+        ),
+        pb.Panel(
+            axes=[
+                pb.AxisConfig(
+                    "x",
+                    label="Parameter",
+                    font_size=text_font_size,
+                    use_major_axis_multiple_locator_with_base=1,
+                ),
+                pb.AxisConfig(
+                    "y",
+                    range=(0, 0.995),
+                ),
+            ],
+            text=[
+                pb.TextConfig(x=0.95, y=0.95, text=pt_labels[3], font_size=text_font_size),
+                pb.TextConfig(x=0.99, y=0.17, text="Equal sensitivity", font_size=18),
+            ],
+            # legend=pb.LegendConfig(location="upper right", anchor=(0.95, 0.95), font_size=22),
+        ),
+    ],
+    figure=pb.Figure(edge_padding={"left": 0.11, "bottom": 0.11}),
+)
+
+# plot(HF, HetGP, HFerr, HetGPerr, plotname)
+plot_compare_hetgp_hf_hadron(hadron_data_by_pt=hadron_data["global"], plot_config=plot_config)
+
 # %%
 # global total index
-for index in range(len(filenameindex)):
-    filename_HF = base_path / ("HFGP/hadron_aggregate/Global_TotalIndex_" + filenameindex[index] + ".csv")
+for index in range(len(hadron_pt_bin_labels)):
+    filename_HF = base_path / ("HFGP/hadron_aggregate/Global_TotalIndex_" + hadron_pt_bin_labels[index] + ".csv")
     HFdatabyaggbin = reorder_data(pd.read_csv(filename_HF))
     HF = np.array(HFdatabyaggbin["STagg"])
     HFerr = np.array(HFdatabyaggbin["ST_confagg"])
-    filename_HetGP = base_path / ("HetGP/hadron_aggregate/Global_TotalIndex_" + filenameindex[index] + ".csv")
+    filename_HetGP = base_path / ("HetGP/hadron_aggregate/Global_TotalIndex_" + hadron_pt_bin_labels[index] + ".csv")
     HetGPdatabyaggbin = reorder_data(pd.read_csv(filename_HetGP))
     HetGP = np.array(HetGPdatabyaggbin["STagg"])
     HetGPerr = np.array(HetGPdatabyaggbin["ST_confagg"])
-    plotname = base_path / ("figures/hadron_Global_TotalIndex_aggbin_" + filenameindex[index] + ".pdf")
+    plotname = base_path / ("figures/hadron_Global_TotalIndex_aggbin_" + hadron_pt_bin_labels[index] + ".pdf")
 
     # I considered including everything here (e.g. sqrt_s), but it doesn't matter overly much
     # for the purposes of this exercise. To just highlight the important information, I'm going to cut down to the minimal.
-    hadron_low, hadron_high = map(float, filenameindex[index].split("_"))
+    hadron_low, hadron_high = map(float, hadron_pt_bin_labels[index].split("_"))
     text = "Global Sobol' sensitivity"
     text += r", trained on JETSCAPE (MATTER + LBT)"
     text += "\n" + r"corresponding to CMS, $\textit{JHEP 04 (2017) 039}$"
     text += "\n" + r"0-5\%, Hadron $R_{\text{AA}}$, $\sqrt{s_{\text{NN}}} = 5.02\:\text{TeV}$"
     text += "\n" + rf"${hadron_low:g} < p_{{\text{{T}}}} < {hadron_high:g}\:\text{{GeV}}/c$"
     plot_config = pb.PlotConfig(
-        name=f"sensitivity_hadron_global_{filenameindex[index]}",
+        name=f"sensitivity_hadron_global_{hadron_pt_bin_labels[index]}",
         panels=[
             # Main panel
             pb.Panel(
@@ -277,34 +444,33 @@ for index in range(len(filenameindex)):
     )
 
     # plot(HF, HetGP, HFerr, HetGPerr, plotname)
-    plot_new(HF, HetGP, HFerr, HetGPerr, plot_config=plot_config)
-
-# %%
-HetGPdatabyaggbin
+    plot_compare_hetgp_hf(HF, HetGP, HFerr, HetGPerr, plot_config=plot_config)
 
 # %%
 # local 5-95 total index
-for index in range(len(filenameindex)):
-    filename_HF = base_path / ("HFGP/hadron_aggregate/Local_5_95_TotalIndex_" + filenameindex[index] + ".csv")
+for index in range(len(hadron_pt_bin_labels)):
+    filename_HF = base_path / ("HFGP/hadron_aggregate/Local_5_95_TotalIndex_" + hadron_pt_bin_labels[index] + ".csv")
     HFdatabyaggbin = pd.read_csv(filename_HF)
     HF = np.array(HFdatabyaggbin["STagg"])
     HFerr = np.array(HFdatabyaggbin["ST_confagg"])
-    filename_HetGP = base_path / ("HetGP/hadron_aggregate/Local_5_95_TotalIndex_" + filenameindex[index] + ".csv")
+    filename_HetGP = base_path / (
+        "HetGP/hadron_aggregate/Local_5_95_TotalIndex_" + hadron_pt_bin_labels[index] + ".csv"
+    )
     HetGPdatabyaggbin = pd.read_csv(filename_HetGP)
     HetGP = np.array(HetGPdatabyaggbin["STagg"])
     HetGPerr = np.array(HetGPdatabyaggbin["ST_confagg"])
-    plotname = base_path / ("figures/Hadron_Local_5_95_TotalIndex_aggbin_" + filenameindex[index] + ".pdf")
+    plotname = base_path / ("figures/Hadron_Local_5_95_TotalIndex_aggbin_" + hadron_pt_bin_labels[index] + ".pdf")
 
     # I considered including everything here (e.g. sqrt_s), but it doesn't matter overly much
     # for the purposes of this exercise. To just highlight the important information, I'm going to cut down to the minimal.
-    hadron_low, hadron_high = map(float, filenameindex[index].split("_"))
+    hadron_low, hadron_high = map(float, hadron_pt_bin_labels[index].split("_"))
     text = r"5-95\% MAP Sobol' sensitivity"
     text += r", trained on JETSCAPE (MATTER + LBT)"
     text += "\n" + r"corresponding to CMS, $\textit{JHEP 04 (2017) 039}$"
     text += "\n" + r"0-5\%, Hadron $R_{\text{AA}}$, $\sqrt{s_{\text{NN}}} = 5.02\:\text{TeV}$"
     text += "\n" + rf"${hadron_low:g} < p_{{\text{{T}}}} < {hadron_high:g}\:\text{{GeV}}/c$"
     plot_config = pb.PlotConfig(
-        name=f"sensitivity_hadron_5_95_{filenameindex[index]}",
+        name=f"sensitivity_hadron_5_95_{hadron_pt_bin_labels[index]}",
         panels=[
             # Main panel
             pb.Panel(
@@ -333,31 +499,33 @@ for index in range(len(filenameindex)):
     )
 
     # plot(HF, HetGP, HFerr, HetGPerr, plotname)
-    plot_new(HF, HetGP, HFerr, HetGPerr, plot_config=plot_config)
+    plot_compare_hetgp_hf(HF, HetGP, HFerr, HetGPerr, plot_config=plot_config)
 
 # %%
 # local 1-99 total index
-for index in range(len(filenameindex)):
-    filename_HF = base_path / ("HFGP/hadron_aggregate/Local_1_99_TotalIndex_" + filenameindex[index] + ".csv")
+for index in range(len(hadron_pt_bin_labels)):
+    filename_HF = base_path / ("HFGP/hadron_aggregate/Local_1_99_TotalIndex_" + hadron_pt_bin_labels[index] + ".csv")
     HFdatabyaggbin = pd.read_csv(filename_HF)
     HF = np.array(HFdatabyaggbin["STagg"])
     HFerr = np.array(HFdatabyaggbin["ST_confagg"])
-    filename_HetGP = base_path / ("HetGP/hadron_aggregate/Local_1_99_TotalIndex_" + filenameindex[index] + ".csv")
+    filename_HetGP = base_path / (
+        "HetGP/hadron_aggregate/Local_1_99_TotalIndex_" + hadron_pt_bin_labels[index] + ".csv"
+    )
     HetGPdatabyaggbin = pd.read_csv(filename_HetGP)
     HetGP = np.array(HetGPdatabyaggbin["STagg"])
     HetGPerr = np.array(HetGPdatabyaggbin["ST_confagg"])
-    plotname = base_path / ("figures/Hadron_Local_1_99_TotalIndex_aggbin_" + filenameindex[index] + ".pdf")
+    plotname = base_path / ("figures/Hadron_Local_1_99_TotalIndex_aggbin_" + hadron_pt_bin_labels[index] + ".pdf")
 
     # I considered including everything here (e.g. sqrt_s), but it doesn't matter overly much
     # for the purposes of this exercise. To just highlight the important information, I'm going to cut down to the minimal.
-    hadron_low, hadron_high = map(float, filenameindex[index].split("_"))
+    hadron_low, hadron_high = map(float, hadron_pt_bin_labels[index].split("_"))
     text = r"1-99\% MAP sobol sensitivity"
     text += r", trained on JETSCAPE (MATTER + LBT)"
     text += "\n" + r"corresponding to CMS, $\textit{JHEP 04 (2017) 039}$"
     text += "\n" + r"0-5\%, Hadron $R_{\text{AA}}$, $\sqrt{s_{\text{NN}}} = 5.02\:\text{TeV}$"
     text += "\n" + rf"${hadron_low:g} < p_{{\text{{T}}}} < {hadron_high:g}\:\text{{GeV}}/c$"
     plot_config = pb.PlotConfig(
-        name=f"sensitivity_hadron_1_99_{filenameindex[index]}",
+        name=f"sensitivity_hadron_1_99_{hadron_pt_bin_labels[index]}",
         panels=[
             # Main panel
             pb.Panel(
@@ -386,8 +554,6 @@ for index in range(len(filenameindex)):
     )
 
     # plot(HF, HetGP, HFerr, HetGPerr, plotname)
-    plot_new(HF, HetGP, HFerr, HetGPerr, plot_config=plot_config)
+    plot_compare_hetgp_hf(HF, HetGP, HFerr, HetGPerr, plot_config=plot_config)
 
     # plot(HF, HetGP, HFerr, HetGPerr, plotname)
-
-# %%
