@@ -280,7 +280,7 @@ for log in [False, True]:
                     ),
                     pb.AxisConfig(
                         "y",
-                        label=r"$\sum_{p_{\text{T}}\:\text{bins}}$ MSE",
+                        label=r"$\sum_{\text{design}}$ MSE",
                         font_size=text_font_size,
                         # range=(-0.0005, 0.038),
                         log=log,
@@ -331,12 +331,14 @@ for log in [False, True]:
 
     # Apply colors to fliers based on their position
     # We can identify the fliers based on them not using lines
+    # NOTE: They classes are plotted one at a time - e.g. HetGP first, so we set
+    #       the colors based on the first half (HetGP) and the second half (HFGP)
     lines = [line for line in ax.lines if line.get_linestyle() == "None"]
     for i, line in enumerate(lines):
         # Determine which hue group this outlier belongs to
         # NOTE: This depends on the data structure. If there were more sources,
         #       we would need to adjust
-        color_idx = i % len(colors)
+        color_idx = 0 if i < len(lines) / 2 else 1
         # Set just the facecolor - we'll keep the black edges
         line.set_markerfacecolor(colors[color_idx])
 
@@ -346,6 +348,9 @@ for log in [False, True]:
     _output_path.mkdir(parents=True, exist_ok=True)
     fig.savefig(_output_path / f"{plot_config.name}.pdf")
     plt.close(fig)
+
+# %%
+hetGPMSE_melted[:30]
 
 # %% [markdown]
 # # Jets
@@ -510,7 +515,7 @@ for log in [False, True]:
                     ),
                     pb.AxisConfig(
                         "y",
-                        label=r"$\sum_{p_{\text{T}}\:\text{bins}}$ MSE",
+                        label=r"$\sum_{\text{design}}$ MSE",
                         font_size=text_font_size,
                         # range=(-0.0005, 0.038),
                         log=log,
@@ -561,12 +566,14 @@ for log in [False, True]:
 
     # Apply colors to fliers based on their position
     # We can identify the fliers based on them not using lines
+    # NOTE: They classes are plotted one at a time - e.g. HetGP first, so we set
+    #       the colors based on the first half (HetGP) and the second half (HFGP)
     lines = [line for line in ax.lines if line.get_linestyle() == "None"]
     for i, line in enumerate(lines):
         # Determine which hue group this outlier belongs to
         # NOTE: This depends on the data structure. If there were more sources,
         #       we would need to adjust
-        color_idx = i % len(colors)
+        color_idx = 0 if i < len(lines) / 2 else 1
         # Set just the facecolor - we'll keep the black edges
         line.set_markerfacecolor(colors[color_idx])
 
