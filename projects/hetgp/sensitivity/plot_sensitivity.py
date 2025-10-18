@@ -696,6 +696,270 @@ plot_config = pb.PlotConfig(
 )
 plot_parameter_pt_dependence(jet_data["global"], selected_parameter=parameter, plot_config=plot_config)
 
+
+# %% [markdown]
+# ## Hadron vs jet at similar pt
+
+
+# %%
+def plot_hadron_vs_jet_sensitivity(hadron_data: Data, jet_data: Data, plot_config: pb.PlotConfig):
+    # Normalize errors and data
+    # NOTE: We need to copy the data first so our normalization doesn't impact the existing data
+    hadron_data = copy.deepcopy(hadron_data)
+    hadron_data.normalize()
+    jet_data = copy.deepcopy(jet_data)
+    jet_data.normalize()
+
+    index = np.arange(len(hadron_data.hetgp))
+
+    # Setup
+    fig, ax = plt.subplots(
+        1,
+        1,
+        figsize=(10, 6.25),
+        sharex=True,
+    )
+
+    # Darker options. RJE likes these less...
+    # colors = {
+    #     "hetgp": "#FF8301",      # Original orange
+    #     "hetgp_alt": "#CC6900",  # Darker, richer orange
+    #     "HF": "#845cba",         # Original purple
+    #     "HF_alt": "#654494"      # Darker, richer purple
+    # }
+    # Lighter options
+    colors = {
+        "hetgp": "#FF8301",  # Original orange
+        "hetgp_alt": "#FFB347",  # Lighter, softer orange
+        "HF": "#845cba",  # Original purple
+        "HF_alt": "#a47dd4",  # Lighter, softer purple
+    }
+
+    bar_width = 0.2
+    ax.bar(
+        index - bar_width * 3 / 2,
+        hadron_data.hf,
+        bar_width,
+        yerr=hadron_data.hf_err,
+        label="High fidelity GP (Hadron)",
+        color=colors["HF"],
+    )
+    ax.bar(
+        index - bar_width / 2,
+        jet_data.hf,
+        bar_width,
+        yerr=jet_data.hf_err,
+        label="High fidelity GP (Jet)",
+        color=colors["HF_alt"],
+    )
+    # The second is shifted right
+    ax.bar(
+        index + bar_width / 2,
+        hadron_data.hetgp,
+        bar_width,
+        yerr=hadron_data.hetgp_err,
+        label="VarP-GP (Hadron)",
+        color=colors["hetgp"],
+    )
+    ax.bar(
+        index + bar_width * 3 / 2,
+        jet_data.hetgp,
+        bar_width,
+        yerr=jet_data.hetgp_err,
+        label="VarP-GP (Jet)",
+        color=colors["hetgp_alt"],
+    )
+
+    # And then ensure we show the parameter names on the x-axis
+    ax.xaxis.set_ticks(range(len(label_to_display_label)))
+    ax.xaxis.set_ticklabels(label_to_display_label.values())
+
+    # Apply styling
+    plot_config.apply(fig, ax=ax)
+
+    _output_path = base_path / "figures"
+    _output_path.mkdir(parents=True, exist_ok=True)
+    fig.savefig(_output_path / f"{plot_config.name}.pdf")
+    plt.close(fig)
+
+
+text = "Global Sobol' sensitivity"
+text += "\n" + r"trained on JETSCAPE (MATTER + LBT)"
+text += "\n" + r"ATLAS, 0-10\%, $R = 0.4$ Jet $R_{\text{AA}}$, $100 < p_{\text{T}}^{\text{jet}} < 177$ (GeV/$c$)"
+text += "\n" + r"CMS, 0-5\%, Hadron $R_{\text{AA}}$, $73.6 < p_{\text{T}}^{\text{jet}} < 165$ (GeV/$c$)"
+
+plot_config = pb.PlotConfig(
+    name="sensitivity_hadron_vs_jet_global",
+    panels=[
+        # Main panel
+        pb.Panel(
+            axes=[
+                pb.AxisConfig(
+                    "x",
+                    label="Parameters",
+                    font_size=text_font_size,
+                    use_major_axis_multiple_locator_with_base=1,
+                ),
+                pb.AxisConfig(
+                    "y",
+                    label="Relative Sobol' index",
+                    font_size=text_font_size,
+                    range=(0, 1),
+                ),
+            ],
+            text=[
+                pb.TextConfig(x=0.95, y=0.62, text=text, font_size=18),
+            ],
+            legend=pb.LegendConfig(location="upper right", anchor=(0.95, 0.95), font_size=22),
+        ),
+    ],
+    figure=pb.Figure(edge_padding={"left": 0.11, "bottom": 0.11}),
+)
+plot_hadron_vs_jet_sensitivity(
+    hadron_data["global"]["73.6_165.0"], jet_data["global"]["100.0_177.0"], plot_config=plot_config
+)
+
+
+# %% [markdown]
+# ## Global vs local sensitivity in same figure
+
+
+# %%
+def plot_global_vs_local_sensitivity(data: dict[str, dict[str, Data]], pt_label: str, plot_config: pb.PlotConfig):
+    # Normalize errors and data
+    # NOTE: We need to copy the data first so our normalization doesn't impact the existing data
+    data = copy.deepcopy(data)
+    for region in ["global", "1_99"]:
+        for v in data[region].values():
+            v.normalize()
+
+    # The length is the same for everything - it's just the parameters
+    index = np.arange(len(label_to_display_label))
+
+    # Setup
+    fig, ax = plt.subplots(
+        1,
+        1,
+        figsize=(10, 6.25),
+        sharex=True,
+    )
+
+    # Darker options. RJE likes these less...
+    # colors = {
+    #     "hetgp": "#FF8301",      # Original orange
+    #     "hetgp_alt": "#CC6900",  # Darker, richer orange
+    #     "HF": "#845cba",         # Original purple
+    #     "HF_alt": "#654494"      # Darker, richer purple
+    # }
+    # Lighter options
+    colors = {
+        "hetgp": "#FF8301",  # Original orange
+        "hetgp_alt": "#FFB347",  # Lighter, softer orange
+        "HF": "#845cba",  # Original purple
+        "HF_alt": "#a47dd4",  # Lighter, softer purple
+    }
+
+    bar_width = 0.2
+    ax.bar(
+        index - bar_width * 3 / 2,
+        data["global"][pt_label].hf,
+        bar_width,
+        yerr=data["global"][pt_label].hf_err,
+        label="High fidelity GP (Global)",
+        color=colors["HF"],
+    )
+    ax.bar(
+        index - bar_width / 2,
+        data["1_99"][pt_label].hf,
+        bar_width,
+        yerr=data["1_99"][pt_label].hf_err,
+        label=r"High fidelity GP (1-99\%)",
+        color=colors["HF_alt"],
+    )
+    # The second is shifted right
+    ax.bar(
+        index + bar_width / 2,
+        data["global"][pt_label].hetgp,
+        bar_width,
+        yerr=data["global"][pt_label].hetgp_err,
+        label="VarP-GP (Global)",
+        color=colors["hetgp"],
+    )
+    ax.bar(
+        index + bar_width * 3 / 2,
+        data["1_99"][pt_label].hetgp,
+        bar_width,
+        yerr=data["1_99"][pt_label].hetgp_err,
+        label=r"VarP-GP (1-99\%)",
+        color=colors["hetgp_alt"],
+    )
+
+    # And then ensure we show the parameter names on the x-axis
+    ax.xaxis.set_ticks(range(len(label_to_display_label)))
+    ax.xaxis.set_ticklabels(label_to_display_label.values())
+
+    # And then a line to mark equal sensitivity
+    # NOTE: (it relies on the plot_config for the label)
+    ax.axhline(y=1.0 / 6.0, color="black", linestyle="dashed", zorder=0)
+
+    # Apply styling
+    plot_config.apply(fig, ax=ax)
+
+    _output_path = base_path / "figures"
+    _output_path.mkdir(parents=True, exist_ok=True)
+    fig.savefig(_output_path / f"{plot_config.name}.pdf")
+    plt.close(fig)
+
+
+for observable in ["hadron", "jet"]:
+    data = hadron_data if observable == "hadron" else jet_data
+    for pt_label in data["global"]:
+        text = "Sobol' sensitivity"
+        text += "\n" + r"trained on JETSCAPE (MATTER + LBT)"
+        if observable == "hadron":
+            text += "\n" + r"CMS, 0-5\%, Hadron $R_{\text{AA}}$"
+        else:
+            text += "\n" + r"ATLAS, 0-10\%, $R = 0.4$ Jet $R_{\text{AA}}$"
+        # Pt bin
+        low, high = map(float, pt_label.split("_"))
+        # It's actually 1 TeV, so better to just rewrite it properly...
+        if high == 999:
+            high = 1000
+        text += ", " + rf"${low:g} < p_{{\text{{T}}}} < {high:g}\:\text{{GeV}}/c$"
+
+        plot_config = pb.PlotConfig(
+            name=f"sensitivity_global_vs_1_99_{observable}_{pt_label}",
+            panels=[
+                # Main panel
+                pb.Panel(
+                    axes=[
+                        pb.AxisConfig(
+                            "x",
+                            label="Parameters",
+                            font_size=text_font_size,
+                            use_major_axis_multiple_locator_with_base=1,
+                        ),
+                        pb.AxisConfig(
+                            "y",
+                            label="Relative Sobol' index",
+                            font_size=text_font_size,
+                            range=(0, 1),
+                        ),
+                    ],
+                    text=[
+                        pb.TextConfig(x=0.95, y=0.62, text=text, font_size=18),
+                        pb.TextConfig(
+                            x=0.99, y=0.17, text="Equal sensitivity", font_size=18, text_kwargs={"zorder": 0}
+                        ),
+                    ],
+                    legend=pb.LegendConfig(location="upper right", anchor=(0.95, 0.95), font_size=22),
+                ),
+            ],
+            figure=pb.Figure(edge_padding={"left": 0.11, "bottom": 0.11}),
+        )
+        print(f"{observable=}, {pt_label=}")
+        plot_global_vs_local_sensitivity(data=data, pt_label=pt_label, plot_config=plot_config)
+
 # %% [markdown]
 # # Older, standalone figures
 
@@ -741,7 +1005,7 @@ for index in range(len(hadron_pt_bin_labels)):
                 ],
                 text=[
                     pb.TextConfig(x=0.95, y=0.81, text=text, font_size=18),
-                    pb.TextConfig(x=0.99, y=0.17, text="Equal sensitivity", font_size=18),
+                    pb.TextConfig(x=0.99, y=0.17, text="Equal sensitivity", font_size=18, text_kwargs={"zorder": 1}),
                 ],
                 legend=pb.LegendConfig(location="upper right", anchor=(0.95, 0.95), font_size=22),
             ),
