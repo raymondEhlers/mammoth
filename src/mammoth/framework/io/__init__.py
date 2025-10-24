@@ -11,11 +11,12 @@ from functools import partial
 from typing import Any
 
 from mammoth.framework import sources
-from mammoth.framework.io import HF_tree, jet_extractor, jetscape, jewel_from_laura, track_skim
+from mammoth.framework.io import HF_tree, jet_extractor, jetscape, jewel_from_laura, run3_berkeley_skim, track_skim
 
 file_source_registry: dict[str, sources.DelayedSource] = {
     "HF_tree": HF_tree.FileSource,
     "HF_tree_at_LBL": HF_tree.FileSource,
+    "run3_berkeley_skim": run3_berkeley_skim.FileSource,
     "jet_extractor_jewel": jet_extractor.JEWELFileSource,
     "jetscape": jetscape.FileSource,
     "jewel_from_laura": jewel_from_laura.FileSource,

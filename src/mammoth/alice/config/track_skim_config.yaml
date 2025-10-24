@@ -45,6 +45,21 @@ skimmed_datasets:
       # LHC17q
       - "pp/2352/run_by_run/LHC17q_CENT_woSDD/*/AnalysisResults.17q.*.root"
       - "pp/2352/run_by_run/LHC17q_FAST/*/AnalysisResults.17q.*.root"
+  # Run 3
+  # LHC22o
+  LHC22o_pass7_AOD_346364: &LHC22o_pp_pass7
+    name: "LHC22o_pass7_AOD_346364"
+    collision_system: "pp"
+    sqrt_s: 5360
+    period: "LHC22o"
+    # Keep track of the skim type for documentation
+    skim_type: "run3_berkeley_skim"
+    # Parameters of the output
+    tree_name: "AliAnalysisTaskTrackSkim_pp_tree_v3"
+    levels_in_output_file:
+      - "data"
+    files:
+      - "pp/346364/files.txt"
 
   # pp_MC
   # pythia
@@ -850,13 +865,18 @@ analysis_settings:
       analysis_input_levels: ["data"]
       # In the way that we've implemented it as of Oct 2025, this is the maximum delta
       # phi from the trigger recoil axis
-      max_delta_phi_from_axis: 1.570796326794897 # pi/2
+      max_delta_phi_from_axis: 0.7853981633974483 # pi/4
       # In GeV
       min_track_pt:
         data: 0.15
 
     pp_MC: &analysis_settings_EBC_pp_MC
+      trigger_parameters_jet:
+        <<: *analysis_settings_EBC_dijet_trigger
       analysis_input_levels: ["det_level", "part_level"]
+      # In the way that we've implemented it as of Oct 2025, this is the maximum delta
+      # phi from the trigger recoil axis
+      max_delta_phi_from_axis: 0.7853981633974483 # pi/4
       # In GeV
       min_track_pt:
         part_level: 0.15
@@ -889,6 +909,17 @@ productions:
           <<: *reclustered_substructure_output_settings
         selected_grooming_methods:
           - "soft_drop_z_cut_02"
+    4:
+      # Test run for EBC in pp, Run 3
+      metadata:
+        <<: *base_metadata_pp
+        dataset: *LHC22o_pp_pass7
+        production_number: 4
+        label: ""
+      settings:
+        <<: *analysis_settings_EBC_pp
+        output_settings:
+          <<: *EBC_output_settings
     60:
       # R = 0.2 pp production
       metadata:
