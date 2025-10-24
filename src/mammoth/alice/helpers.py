@@ -11,6 +11,7 @@ try:
 except ImportError:
     # Backport for Python 3.10
     from strenum import StrEnum  # pyright: ignore[reportMissingImports]
+import enum
 import functools
 import logging
 import operator
@@ -30,7 +31,48 @@ logger = logging.getLogger(__name__)
 _DEFAULT_CHARGED_HADRON_PIDs: Final[list[int]] = [11, 13, 211, 321, 2212, 3222, 3112, 3312, 3334]
 
 
-def standard_event_selection(arrays: ak.Array, return_mask: bool = False) -> ak.Array:
+def is_bit_set(value: int, n: int) -> bool:
+    """Test if given bit is set.
+
+    Args:
+        value: Value to check the bits of.
+        n: Bit to check.
+    """
+    return (value & (1 << n)) != 0
+
+
+class Run3EventSelection(enum.Enum):
+    sel8 = 0
+    sel7 = 1
+    selKINT7 = 2
+    selTVX = 3
+    selNoTimeFrameBorder = 4
+    selNoITSROFrameBorder = 5
+    selNoSameBunchPileup = 6
+    selIsGoodZvtxFT0vsPV = 7
+    selNoCollInTimeRangeStandard = 8
+    selNoCollInRofStandard = 9
+
+    def is_bit_set(self, value: int) -> bool:
+        return is_bit_set(value=value, n=self.value)
+
+    def to_int(self) -> int:
+        return 1 << self.value  # type: ignore[no-any-return]
+
+    @staticmethod
+    def mask_from_values(values: list[Run3EventSelection]) -> int:
+        return sum([v.to_int() for v in values])
+
+    @staticmethod
+    def all_mask_bits_in_value(value: int, mask: int) -> bool:
+        return (value & mask) == mask
+
+
+def standard_event_selection(
+    arrays: ak.Array,
+    return_mask: bool = False,
+    event_selection_mask: int | None = None,
+) -> ak.Array:
     """ALICE standard event selection
 
     Includes selections on:
@@ -45,6 +87,8 @@ def standard_event_selection(arrays: ak.Array, return_mask: bool = False) -> ak.
         arrays: The array to apply the event selection to. If there are multiple classes (eg. embedding before
             combining), then you can pass the selected array and assign the result.
         return_mask: If True, return the mask rather than applying it to the array.
+        event_selection_mask: Mask to apply based on the event selection values. Build this up
+            with e.g. Run3EventSelection. Default: None.
     Returns:
         The array with the event selection applied, or the mask if return_mask is True.
     """
@@ -55,6 +99,12 @@ def standard_event_selection(arrays: ak.Array, return_mask: bool = False) -> ak.
         event_level_mask = event_level_mask & (arrays["is_ev_rej"] == 0)
     if "z_vtx_reco" in ak.fields(arrays):
         event_level_mask = event_level_mask & (np.abs(arrays["z_vtx_reco"]) < 10)
+    if "event_selection" in ak.fields(arrays) and event_selection_mask is not None:
+        # run 3 event selection
+        logger.info(f"Applying run 3 event selection mask: {event_selection_mask}")
+        event_level_mask = event_level_mask & (
+            (arrays["event_selection"] & event_selection_mask) == event_selection_mask
+        )
 
     # Return early with just the mask if requested.
     if return_mask:
@@ -93,6 +143,27 @@ def _determine_particle_column_names(arrays: ak.Array, selected_particle_column_
     return particle_columns
 
 
+class Run3TrackSelection(enum.Enum):
+    global_tracks = 1
+    quality_tracks = 2
+    quality_tracks_with_DCA = 3
+    hybrid_tracks = 4
+
+    def is_bit_set(self, value: int) -> bool:
+        return is_bit_set(value=value, n=self.value)
+
+    def to_int(self) -> int:
+        return 1 << self.value  # type: ignore[no-any-return]
+
+    @staticmethod
+    def mask_from_values(values: list[Run3EventSelection]) -> int:
+        return sum([v.to_int() for v in values])
+
+    @staticmethod
+    def all_mask_bits_in_value(value: int, mask: int) -> bool:
+        return (value & mask) == mask
+
+
 def standard_track_selection(
     arrays: ak.Array,
     require_at_least_one_particle_in_each_collection_per_event: bool,
@@ -100,6 +171,7 @@ def standard_track_selection(
     columns_to_explicitly_select_charged_particles: Sequence[str] | None = None,
     charged_hadron_PIDs: Sequence[int] | None = None,
     columns_to_skip_min_pt_requirement: Sequence[str] | None = None,
+    track_selection_mask: int | None = None,
 ) -> ak.Array:
     """ALICE standard track selection
 
@@ -130,7 +202,9 @@ def standard_track_selection(
         charged_hadron_PIDs: Charged hadron PIDs to select. If not specified, use the default ALICE selection.
         columns_to_skip_min_pt_requirement: List of columns that should skip the minimum pt requirement.
             This is used if we need to do some fancier selection externally (e.g. for generators). Default: None.
-            (e.g. apply the min pt to all columns)
+            (e.g. apply the min pt to all columns).
+        track_selection_mask: Mask to apply based on the track selection values. Build this up
+            with e.g. Run3TrackSelection. Default: None.
     Returns:
         The array with the track selection applied.
     """
@@ -169,6 +243,11 @@ def standard_track_selection(
                 arrays[column_name], absolute_pids=charged_hadron_PIDs
             )
             particle_mask = particle_mask & charged_particles_mask
+
+        # Apply track selection if provided
+        if track_selection_mask is not None:
+            particle_mask = particle_mask & ((arrays["track_selection"] & track_selection_mask) == track_selection_mask)
+
         # Actually apply the mask
         arrays[column_name] = arrays[column_name][particle_mask]
 
