@@ -920,6 +920,7 @@ productions:
         label: ""
       settings:
         <<: *analysis_settings_EBC_pp
+        chunk_size: 10000
         output_settings:
           <<: *EBC_output_settings
     60:

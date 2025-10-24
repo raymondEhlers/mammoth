@@ -246,7 +246,9 @@ def standard_track_selection(
 
         # Apply track selection if provided
         if track_selection_mask is not None:
-            particle_mask = particle_mask & ((arrays["track_selection"] & track_selection_mask) == track_selection_mask)
+            particle_mask = particle_mask & (
+                (arrays[column_name]["track_selection"] & track_selection_mask) == track_selection_mask
+            )
 
         # Actually apply the mask
         arrays[column_name] = arrays[column_name][particle_mask]
