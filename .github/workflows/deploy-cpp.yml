@@ -18,7 +18,7 @@ jobs:
     name: Make SDist
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
@@ -45,11 +45,11 @@ jobs:
         python-version: ["311"]
 
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
-      - uses: pypa/cibuildwheel@v3.2
+      - uses: pypa/cibuildwheel@v3.3
         env:
           CIBW_BUILD: "${{ matrix.build }}${{matrix.python-version}}*"
           CIBW_ARCHS: ${{ matrix.arch }}
