@@ -246,6 +246,7 @@ def standard_track_selection(
 
         # Apply track selection if provided
         if track_selection_mask is not None:
+            logger.info(f"Applying track selection mask {track_selection_mask}")
             particle_mask = particle_mask & (
                 (arrays[column_name]["track_selection"] & track_selection_mask) == track_selection_mask
             )
