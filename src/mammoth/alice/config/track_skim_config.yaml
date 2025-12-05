@@ -851,7 +851,7 @@ analysis_settings:
           container_name: ""
         return_skim: false
         write_chunk_skim: true
-        write_skim_extension: "root"
+        write_skim_extension: "parquet"
         explode_skim_fields_to_separate_directories: false
         return_merged_hists: false
         write_chunk_hists: false
