@@ -105,6 +105,13 @@ def _setup_base_hists(levels: list[str], trigger_parameters: TriggerParameters) 
         hists[f"{level}_subleading_jet_spectra"] = hist.Hist(
             hist.axis.Regular(151, -0.5, 150.5, label="subleading_jet_pt"), storage=hist.storage.Weight()
         )
+        # N constituents as function of lead jet pt
+        hists[f"{level}_n_constituents_lead_jet_pt"] = hist.Hist(
+            hist.axis.Regular(151, -0.5, 150.5, label="leading_jet_pt"),
+            hist.axis.Regular(50, -0.5, 49, label="n_{const}^{lead}"),
+            hist.axis.Regular(50, -0.5, 49, label="n_{const}^{sublead}"),
+            storage=hist.storage.Weight(),
+        )
 
     return hists
 
@@ -163,7 +170,7 @@ def dijet_selection(
     trigger_parameters: TriggerParameters,
     particle_columns: list[str],
     max_delta_phi_from_axis: float,
-    require_exclusive_leading_dijets: bool = False,
+    require_at_most_two_leading_jets: bool = False,
 ) -> tuple[ak.Array, dict[str, hist.Hist]]:
     """Di-jet selections for EBC analysis
 
@@ -178,7 +185,7 @@ def dijet_selection(
         trigger_parameter: Trigger parameters.
         level_names: Names of the level (i.e. particle) columns to apply these selections.
         max_delta_phi_from_axis: Max delta_phi from the dijet axis.
-        require_exclusive_leading_dijets: If True, only the two leading dijets will be
+        require_at_most_two_leading_jets: If True, the at most two leading dijets will be
             returned. If False, all inclusive jets that pass out inclusive conditions
             which are in an event passing our dijet conditions are returned. Default: False.
     Returns:
@@ -289,9 +296,9 @@ def dijet_selection(
     #       pass our inclusive jet cuts. Since this is called after our inclusive jet cuts, we don't
     #       need to apply any stricter selection on jets. However, we also add an option for exclusive
     #       leading dijets if so inclined.
-    if require_exclusive_leading_dijets:
+    if require_at_most_two_leading_jets:
         for column_name in particle_columns:
-            # Keep the leading two jets that survived the selections!
+            # Keep the at most two leading jets that survived the selections!
             sorted_by_pt_indices = ak.argsort(jets[column_name].pt, axis=1, ascending=False)
             jets[column_name] = jets[column_name][sorted_by_pt_indices][:, :2]
             # NOTE: We don't yet require that there are only two jets because this would remove events,
@@ -322,7 +329,7 @@ def analyze_chunk_one_input_level(
     background_subtraction: Mapping[str, Any] | None = None,
     generator_analysis_arguments: framework_task.GeneratorAnalysisArguments | None = None,
     # Injected analysis arguments (when appropriate)
-    pt_hat_bin: int = -1,  # noqa: ARG001
+    pt_hat_bin: int = -1,
     scale_factors: dict[int, float] | None = None,
     # Default analysis arguments
     validation_mode: bool = False,
@@ -432,7 +439,7 @@ def analyze_chunk_one_input_level(
     # Additional parameters
     jet_R = trigger_parameters.parameters["jet_R"]
     # Take the lowest value of any of the trigger classes, but at least 1 GeV
-    min_jet_pt = min([r[0] for r in trigger_parameters.classes.values()] + [1.0])
+    min_jet_pt = max([min([r[0] for r in trigger_parameters.classes.values()]), 1.0])
     # And run the jet finding
     logger.warning(f"For particle column '{level_name}', additional_kwargs: {additional_kwargs}")
     jets = ak.zip(
@@ -461,6 +468,10 @@ def analyze_chunk_one_input_level(
         selected_particle_column_name=level_name,
     )
     hists.update(_qa_hists)
+    # QA: Inclusive jet spectra
+    hists[f"{level_name}_inclusive_jet_spectra"].fill(
+        ak.flatten(jets[level_name].pt, axis=None), weight=scale_factors[pt_hat_bin]
+    )
 
     # And now the dijet selections
     logger.info("Applying dijet selections")
@@ -471,12 +482,41 @@ def analyze_chunk_one_input_level(
         trigger_parameters=trigger_parameters,
         particle_columns=[level_name],
         max_delta_phi_from_axis=max_delta_phi_from_axis,
-        require_exclusive_leading_dijets=True,
+        require_at_most_two_leading_jets=True,
+    )
+    hists.update(_qa_hists)
+
+    # Now we're interested in just the dijets, so we're going to drop events that don't have exactly two jest
+    events_with_only_two_jets_mask = ak.num(jets[level_name], axis=1) == 2
+    dijets = jets[level_name][events_with_only_two_jets_mask]
+    leading_jets = dijets[:, 0]
+    subleading_jets = dijets[:, 1]
+
+    # QA: dijet spectra
+    hists[f"{level_name}_leading_jet_spectra"].fill(
+        ak.flatten(leading_jets.pt, axis=None), weight=scale_factors[pt_hat_bin]
+    )
+    hists[f"{level_name}_subleading_jet_spectra"].fill(
+        ak.flatten(subleading_jets.pt, axis=None), weight=scale_factors[pt_hat_bin]
+    )
+
+    # N constituents as a function of jet pt
+    hists[f"{level_name}_n_constituents_lead_jet_pt"].fill(
+        ak.flatten(leading_jets.pt, axis=None),
+        ak.flatten(ak.num(leading_jets.constituents, axis=1), axis=None),
+        ak.flatten(ak.num(subleading_jets.constituents, axis=1), axis=None),
+        weight=scale_factors[pt_hat_bin],
     )
 
     return framework_task.AnalysisOutput(
         hists=hists,
-        skim=jets,
+        skim=ak.zip(
+            {
+                f"{level_name}_leading_jet": leading_jets,
+                f"{level_name}_subleading_jet": subleading_jets,
+            },
+            depth_limit=1,
+        ),
     )
 
 
@@ -897,6 +937,8 @@ def minimal_test() -> None:
             return_skim=False,
         )
         merged_hists = output_utils.merge_results(merged_hists, analysis_output.hists)
+        if i_chunk >= 2:
+            break
 
     import IPython
 
@@ -905,7 +947,7 @@ def minimal_test() -> None:
     # Just for quick testing!
     import uproot
 
-    with uproot.recreate("test_eec.root") as f:
+    with uproot.recreate("test_ebc.root") as f:
         output_utils.write_hists_to_file(hists=merged_hists, f=f)
 
 
