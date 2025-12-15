@@ -70,7 +70,7 @@ jobs:
       # First, we want a cache for fastjet builds
       - name: Cache fastjet build artifacts
         id: cache-fastjet-build
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ./mammoth-cpp/external/install/fastjet
           #key: ${{ github.job }}-${{ hashFiles('mammoth-cpp/src/**') }}
@@ -86,7 +86,7 @@ jobs:
       # We also want a cache for mammoth-cpp wheels
       - name: Cache mammoth-cpp wheel
         id: cache-mammoth-cpp-wheel
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ./mammoth-cpp/dist
           key: ${{ github.job }}-${{ runner.os }}-${{ matrix.python-version }}-m-cpp-wheel-${{ hashFiles('mammoth-cpp/**') }}
