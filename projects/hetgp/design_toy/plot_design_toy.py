@@ -67,7 +67,7 @@ def plot(df: pl.DataFrame, plot_config: pb.PlotConfig, select_data: list[str] | 
             linestyle="",
             color="#4bafd0",
             alpha=1.0 if single_selection else 0.9,
-            label="Simple",
+            label="Poor",
         )
     if "optimal" in select_data:
         ax.plot(
@@ -110,28 +110,35 @@ for select_data in [["simple"], ["optimal"]]:
                 axes=[
                     pb.AxisConfig(
                         "x",
-                        label="x",
+                        label="Parameter $x$",
                         # NOTE: Added extra size since the x looks quite small for a single selection
-                        font_size=text_font_size * 1.2 if single_selection else text_font_size,
+                        # font_size=text_font_size * 1.2 if single_selection else text_font_size,
+                        # Now that the label is longer, I'm keeping them both the same size...
+                        font_size=text_font_size,
                         use_major_axis_multiple_locator_with_base=1,
                     ),
                     pb.AxisConfig(
                         "y",
-                        label="Precision M (arb units)",
+                        # label="Target event count (arb.)",
+                        # Treated as if it's a percentage of a target event count.
+                        label=r"Target event count (\%)",
                         font_size=text_font_size,
                         range=(15, 110),
                     ),
                 ],
                 text=pb.TextConfig(x=0.95, y=0.81, text=text, font_size=18),
                 legend=pb.LegendConfig(
-                    location="upper left", anchor=(0.05, 0.95), font_size=22, marker_label_spacing=0.1
+                    location="upper left", anchor=(0.025, 0.96), font_size=22, marker_label_spacing=0.01
+                ),
+                title=pb.TitleConfig(
+                    text="{x} design".format(x="Poor" if name == "simple" else "Optimized"), size=text_font_size
                 ),
             ),
         ],
         figure=(
-            pb.Figure(edge_padding={"left": 0.15, "bottom": 0.15})
+            pb.Figure(edge_padding={"left": 0.15, "bottom": 0.15, "top": 0.92})
             if single_selection
-            else pb.Figure(edge_padding={"left": 0.09, "bottom": 0.105})
+            else pb.Figure(edge_padding={"left": 0.09, "bottom": 0.105, "top": 0.92})
         ),
     )
 
