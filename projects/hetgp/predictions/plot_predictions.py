@@ -13,6 +13,9 @@
 #     name: python3
 # ---
 
+# %% [markdown]
+# # Setup
+
 # %%
 from __future__ import annotations
 
@@ -31,7 +34,8 @@ base_path = Path("projects/hetgp/predictions")
 pb.configure()
 
 # %%
-budget_list = np.array([3500, 4000, 4500, 5000, 5500])
+# NOTE(RJE): This is not actually used anywhere - we grab these values from the csv
+budget_list = np.array([2100, 3500, 4000, 4500, 5000, 5500])
 
 
 # %%
@@ -121,9 +125,11 @@ method_styles = {
 # %% [markdown]
 # ## Figure definitions
 
+# %% [markdown]
+# ### Residual
+
 # %%
 # Raymond's revised figures
-# TODO(RJE): Need to recall exactly what this budget means, and figure out how to translate it for the audience...
 
 
 # Plot showing the fully integrated residual error
@@ -149,12 +155,22 @@ def plot_residual(HFGPMSE: pd.DataFrame, hetGPMSE: pd.DataFrame, plot_config: pb
         styling_kwargs["linestyle"] = "-"
         ax.plot(compare_df[column].index, compare_df[column], label=styling.label, **styling_kwargs)
 
+    # Customize the axis presentation
+    # I want numbers to appear as 10^6, not 10^7
+    ax.ticklabel_format(style="sci", axis="x", scilimits=(6, 6))
+
     plot_config.apply(fig, ax=ax)
 
     _output_path = base_path / "figures"
     _output_path.mkdir(parents=True, exist_ok=True)
     fig.savefig(_output_path / f"{plot_config.name}.pdf")
     plt.close(fig)
+
+    return compare_df
+
+
+# %% [markdown]
+# ### Boxplot
 
 
 # %%
@@ -171,6 +187,11 @@ def boxplot(HFGPMSE: pd.DataFrame, hetGPMSE: pd.DataFrame, plot_config: pb.PlotC
     # Combine both for plotting
     df_combined = pd.concat([hetGPMSE_melted, HFGPMSE_melted])
 
+    # sns.boxplot treats the x-axis as categorical. This causes all kinds of problems.
+    # So we need to handle this by hand, rather than using the built-in functions.
+    # Scale down the x-axis by 10^6, which we have to handle by hand.
+    df_combined["Variable"] = df_combined["Variable"] / 1_000_000
+
     fig, ax = plt.subplots(
         1,
         1,
@@ -182,7 +203,7 @@ def boxplot(HFGPMSE: pd.DataFrame, hetGPMSE: pd.DataFrame, plot_config: pb.PlotC
     colors = [method_styles["hetgp"].color, method_styles["high_fidelity"].color]
 
     # Plot
-    sns.boxplot(
+    p = sns.boxplot(
         x="Variable",
         y="Value",
         hue="Source",
@@ -218,12 +239,29 @@ def boxplot(HFGPMSE: pd.DataFrame, hetGPMSE: pd.DataFrame, plot_config: pb.PlotC
         # Set just the facecolor - we'll keep the black edges
         line.set_markerfacecolor(colors[color_idx])
 
+    # Add the x 10^6 label at the bottom right. As noted above,
+    # we cannot use the usual functionality due to how sns.boxplot creates axes.
+    plot_config.panels[0].text.append(pb.TextConfig(r"$\times 10^6$", 1.0, -0.11, font_size=20))
+
     plot_config.apply(fig, ax=ax)
 
     _output_path = base_path / "figures"
     _output_path.mkdir(parents=True, exist_ok=True)
     fig.savefig(_output_path / f"{plot_config.name}.pdf")
     plt.close(fig)
+
+    return df_combined
+
+
+# %%
+def read_csv(p: Path) -> pd.DataFrame:
+    """Read CSV with consistent types."""
+    df = pd.read_csv(p)  # noqa: PD901
+    # Treat columns as integers, so we can multiply them as expect
+    df.columns = df.columns.astype(np.int64)
+    # And then multiply the axis 5000 events to get the total number of events used for training
+    df.columns = df.columns * 5000
+    return df
 
 
 # %% [markdown]
@@ -233,9 +271,9 @@ def boxplot(HFGPMSE: pd.DataFrame, hetGPMSE: pd.DataFrame, plot_config: pb.PlotC
 
 # %%
 # HetGP
-hetGPMSE = pd.read_csv(base_path / "Hadron_HETGP_Prediction_by_bin.csv")
+hetGPMSE = read_csv(base_path / "Hadron_HETGP_Prediction_by_bin.csv")
 # High fidelity
-HFGPMSE = pd.read_csv(base_path / "Hadron_HFGP_Prediction_by_bin.csv")
+HFGPMSE = read_csv(base_path / "Hadron_HFGP_Prediction_by_bin.csv")
 hetGPMSE, HFGPMSE
 
 # %% [markdown]
@@ -265,13 +303,14 @@ plt.show()
 # %%
 text_font_size = 22
 
-# TODO(RJE): Note the pt range, collaboration, etc
-# I considered including everything here (e.g. sqrt_s), but it doesn't matter overly much
-# for the purposes of this exercise. To just highlight the important information, I'm going to cut down to the minimal.
-text = r"Trained on JETSCAPE (MATTER + LBT)"
-text += "\n" + r"corresponding to CMS, $\textit{JHEP 04 (2017) 039}$"
-text += "\n" + r"0-5\%, Hadron $R_{\text{AA}}$, $\sqrt{s_{\text{NN}}} = 5.02\:\text{TeV}$"
-text += "\n" + r"$4.8 < p_{\text{T}} < 400\:\text{GeV}/c$"
+# Labeling
+# The miniaml text contains only the most important text
+# Everything else (e.g. what is not critical to distringuishing the plots) is kept in the header.
+# I skipped that it was trained on JETSCAPE (MATTER+LBT) - it's bulky, and never varies.
+header_text = r"Emulated: Hadron $R_{\text{AA}}$ in 0-5\% Pb-Pb, $\sqrt{s_{\text{NN}}} = 5.02\:\text{TeV}$,"
+header_text += " " + r"CMS, $\textit{JHEP 04 (2017) 039}$"
+minimal_text = r"Hadron $R_{\text{AA}}$"
+minimal_text += "\n" + r"$4.8 < p_{\text{T}} < 400\:\text{GeV}/c$"
 plot_config = pb.PlotConfig(
     name="budget_residual_error_hadron",
     panels=[
@@ -280,29 +319,34 @@ plot_config = pb.PlotConfig(
             axes=[
                 pb.AxisConfig(
                     "x",
-                    label="Training data computational budget",
+                    label=r"$N_{\text{event}}$ in training data",
                     font_size=text_font_size,
-                    use_major_axis_multiple_locator_with_base=1,
                 ),
                 pb.AxisConfig(
                     "y",
                     label=r"$\sum_{p_{\text{T,}}\:\text{design}}$ MSE",
                     font_size=text_font_size,
-                    range=(0.076, 0.155),
+                    range=(0.076, 0.235),
                     # range=(0.044, 0.155),
                 ),
             ],
-            text=pb.TextConfig(x=0.95, y=0.81, text=text, font_size=18),
-            legend=pb.LegendConfig(location="upper right", anchor=(0.95, 0.95), font_size=22),
+            text=[
+                pb.TextConfig(x=0.5, y=1.03, text=header_text, font_size=18, alignment="center"),
+                pb.TextConfig(x=0.95, y=0.78, text=minimal_text, font_size=text_font_size),
+            ],
+            legend=pb.LegendConfig(location="upper right", anchor=(0.95, 0.95), font_size=text_font_size),
         ),
     ],
-    figure=pb.Figure(edge_padding={"left": 0.11, "bottom": 0.11}),
+    figure=pb.Figure(edge_padding={"left": 0.11, "bottom": 0.11, "top": 0.94}),
 )
 
-plot_residual(HFGPMSE=HFGPMSE, hetGPMSE=hetGPMSE, plot_config=plot_config)
+compare_df = plot_residual(HFGPMSE=HFGPMSE, hetGPMSE=hetGPMSE, plot_config=plot_config)
 
 # %%
-compare_df["hetgp"]
+HFGPMSE.columns.astype(int)
+
+# %%
+compare_df.index
 
 # %% [markdown]
 # ## Boxplot
@@ -335,12 +379,14 @@ plt.show()
 # %%
 text_font_size = 20
 for log in [False, True]:
-    # I considered including everything here (e.g. sqrt_s), but it doesn't matter overly much
-    # for the purposes of this exercise. To just highlight the important information, I'm going to cut down to the minimal.
-    text = r"Trained on JETSCAPE (MATTER + LBT)"
-    text += "\n" + r"corresponding to CMS, $\textit{JHEP 04 (2017) 039}$"
-    text += "\n" + r"0-5\%, Hadron $R_{\text{AA}}$, $\sqrt{s_{\text{NN}}} = 5.02\:\text{TeV}$"
-    text += "\n" + r"$4.8 < p_{\text{T}} < 400\:\text{GeV}/c$"
+    # Labeling
+    # The miniaml text contains only the most important text
+    # Everything else (e.g. what is not critical to distringuishing the plots) is kept in the header.
+    # I skipped that it was trained on JETSCAPE (MATTER+LBT) - it's bulky, and never varies.
+    header_text = r"Emulated: Hadron $R_{\text{AA}}$ in 0-5\% Pb-Pb, $\sqrt{s_{\text{NN}}} = 5.02\:\text{TeV}$,"
+    header_text += " " + r"CMS, $\textit{JHEP 04 (2017) 039}$"
+    minimal_text = r"Hadron $R_{\text{AA}}$"
+    minimal_text += "\n" + r"$4.8 < p_{\text{T}} < 400\:\text{GeV}/c$"
     plot_config = pb.PlotConfig(
         name=f"budget_residual_error_design_point_dist_hadron{'_log' if log else ''}",
         panels=[
@@ -349,9 +395,8 @@ for log in [False, True]:
                 axes=[
                     pb.AxisConfig(
                         "x",
-                        label="Training data computational budget",
+                        label=r"$N_{\text{event}}$ in training data",
                         font_size=text_font_size,
-                        use_major_axis_multiple_locator_with_base=1,
                     ),
                     pb.AxisConfig(
                         "y",
@@ -359,20 +404,23 @@ for log in [False, True]:
                         font_size=text_font_size,
                         # range=(-0.0005, 0.038),
                         log=log,
-                        range=(0.0005, 0.08) if log else (-0.0005, 0.02),
+                        range=(0.0005, 0.08) if log else (-0.0005, 0.0185),
                     ),
                 ],
-                text=pb.TextConfig(x=0.63, y=0.97, text=text, font_size=18),
+                text=[
+                    pb.TextConfig(x=0.5, y=1.03, text=header_text, font_size=18, alignment="center"),
+                    pb.TextConfig(x=0.62, y=0.95, text=minimal_text, font_size=text_font_size),
+                ],
                 legend=pb.LegendConfig(location="upper right", anchor=(0.975, 0.95), font_size=22),
             ),
         ],
-        figure=pb.Figure(edge_padding={"left": 0.12, "bottom": 0.11}),
+        figure=pb.Figure(edge_padding={"left": 0.12, "bottom": 0.11, "top": 0.94}),
     )
 
-    boxplot(HFGPMSE=HFGPMSE, hetGPMSE=hetGPMSE, plot_config=plot_config)
+    r = boxplot(HFGPMSE=HFGPMSE, hetGPMSE=hetGPMSE, plot_config=plot_config)
 
 # %%
-hetGPMSE_melted[:30]
+r
 
 # %% [markdown]
 # # Jets
@@ -381,9 +429,9 @@ hetGPMSE_melted[:30]
 
 # %%
 # HetGP
-hetGPMSE = pd.read_csv(base_path / "Jet_HETGP_Prediction_by_bin.csv")
+hetGPMSE = read_csv(base_path / "Jet_HETGP_Prediction_by_bin.csv")
 # High fidelity
-HFGPMSE = pd.read_csv(base_path / "Jet_HFGP_Prediction_by_bin.csv")
+HFGPMSE = read_csv(base_path / "Jet_HFGP_Prediction_by_bin.csv")
 hetGPMSE, HFGPMSE
 
 # %% [markdown]
@@ -413,13 +461,14 @@ plt.show()
 # %%
 text_font_size = 22
 
-# TODO(RJE): Note the pt range, collaboration, etc
-# I considered including everything here (e.g. sqrt_s), but it doesn't matter overly much
-# for the purposes of this exercise. To just highlight the important information, I'm going to cut down to the minimal.
-text = r"Trained on JETSCAPE (MATTER + LBT)"
-text += "\n" + r"corresponding to ATLAS, $\textit{PLB 790 (2019) 108-128}$"
-text += "\n" + r"0-10\%, $R = 0.4$ inclusive jet $R_{\text{AA}}$, $\sqrt{s_{\text{NN}}} = 5.02\:\text{TeV}$"
-text += "\n" + r"$100 < p_{\text{T}} < 1000\:\text{GeV}/c$"
+# Labeling
+# The miniaml text contains only the most important text
+# Everything else (e.g. what is not critical to distringuishing the plots) is kept in the header.
+# I skipped that it was trained on JETSCAPE (MATTER+LBT) - it's bulky, and never varies.
+header_text = r"Emulated: $R = 0.4$ jet $R_{\text{AA}}$ in 0-10\% Pb-Pb, $\sqrt{s_{\text{NN}}} = 5.02\:\text{TeV}$,"
+header_text += " " + r"ATLAS, $\textit{PLB 790 (2019) 108-128}$"
+minimal_text = r"$R = 0.4$ inclusive jet $R_{\text{AA}}$"
+minimal_text += "\n" + r"$100 < p_{\text{T}} < 1000\:\text{GeV}/c$"
 plot_config = pb.PlotConfig(
     name="budget_residual_error_jet",
     panels=[
@@ -428,22 +477,24 @@ plot_config = pb.PlotConfig(
             axes=[
                 pb.AxisConfig(
                     "x",
-                    label="Training data computational budget",
+                    label=r"$N_{\text{event}}$ in training data",
                     font_size=text_font_size,
-                    use_major_axis_multiple_locator_with_base=1,
                 ),
                 pb.AxisConfig(
                     "y",
                     label=r"$\sum_{p_{\text{T,}}\:\text{design}}$ MSE",
                     font_size=text_font_size,
-                    range=(0.044, 0.155),
+                    range=(0.044, 0.2025),
                 ),
             ],
-            text=pb.TextConfig(x=0.95, y=0.81, text=text, font_size=18),
-            legend=pb.LegendConfig(location="upper right", anchor=(0.95, 0.95), font_size=22),
+            text=[
+                pb.TextConfig(x=0.5, y=1.03, text=header_text, font_size=16, alignment="center"),
+                pb.TextConfig(x=0.95, y=0.78, text=minimal_text, font_size=text_font_size),
+            ],
+            legend=pb.LegendConfig(location="upper right", anchor=(0.95, 0.95), font_size=text_font_size),
         ),
     ],
-    figure=pb.Figure(edge_padding={"left": 0.11, "bottom": 0.11}),
+    figure=pb.Figure(edge_padding={"left": 0.11, "bottom": 0.11, "top": 0.94}),
 )
 
 plot_residual(HFGPMSE=HFGPMSE, hetGPMSE=hetGPMSE, plot_config=plot_config)
@@ -483,12 +534,14 @@ hetGPMSE_melted
 # %%
 text_font_size = 20
 for log in [False, True]:
-    # I considered including everything here (e.g. sqrt_s), but it doesn't matter overly much
-    # for the purposes of this exercise. To just highlight the important information, I'm going to cut down to the minimal.
-    text = r"Trained on JETSCAPE (MATTER + LBT)"
-    text += "\n" + r"corresponding to ATLAS, $\textit{PLB 790 (2019) 108-128}$"
-    text += "\n" + r"0-10\%, $R = 0.4$ inclusive jet $R_{\text{AA}}$, $\sqrt{s_{\text{NN}}} = 5.02\:\text{TeV}$"
-    text += "\n" + r"$100 < p_{\text{T}} < 1000\:\text{GeV}/c$"
+    # Labeling
+    # The miniaml text contains only the most important text
+    # Everything else (e.g. what is not critical to distringuishing the plots) is kept in the header.
+    # I skipped that it was trained on JETSCAPE (MATTER+LBT) - it's bulky, and never varies.
+    header_text = r"Emulated: $R = 0.4$ jet $R_{\text{AA}}$ in 0-10\% Pb-Pb, $\sqrt{s_{\text{NN}}} = 5.02\:\text{TeV}$,"
+    header_text += " " + r"ATLAS, $\textit{PLB 790 (2019) 108-128}$"
+    minimal_text = r"$R = 0.4$ inclusive jet $R_{\text{AA}}$"
+    minimal_text += "\n" + r"$100 < p_{\text{T}} < 1000\:\text{GeV}/c$"
     plot_config = pb.PlotConfig(
         name=f"budget_residual_error_design_point_dist_jet{'_log' if log else ''}",
         panels=[
@@ -497,9 +550,8 @@ for log in [False, True]:
                 axes=[
                     pb.AxisConfig(
                         "x",
-                        label="Training data computational budget",
+                        label=r"$N_{\text{event}}$ in training data",
                         font_size=text_font_size,
-                        use_major_axis_multiple_locator_with_base=1,
                     ),
                     pb.AxisConfig(
                         "y",
@@ -510,11 +562,14 @@ for log in [False, True]:
                         range=(0.0005, 0.12) if log else (-0.0005, 0.0385),
                     ),
                 ],
-                text=pb.TextConfig(x=0.63, y=0.97, text=text, font_size=18),
+                text=[
+                    pb.TextConfig(x=0.5, y=1.03, text=header_text, font_size=16, alignment="center"),
+                    pb.TextConfig(x=0.62, y=0.95, text=minimal_text, font_size=text_font_size),
+                ],
                 legend=pb.LegendConfig(location="upper right", anchor=(0.975, 0.95), font_size=22),
             ),
         ],
-        figure=pb.Figure(edge_padding={"left": 0.12, "bottom": 0.11}),
+        figure=pb.Figure(edge_padding={"left": 0.12, "bottom": 0.11, "top": 0.94}),
     )
 
     boxplot(HFGPMSE=HFGPMSE, hetGPMSE=hetGPMSE, plot_config=plot_config)
