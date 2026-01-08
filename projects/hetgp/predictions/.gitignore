@@ -2,3 +2,11 @@
 
 # Just store the .py
 plot_predictions.ipynb
+
+# Older and unused data
+2025-data/
+precision_distributions/
+
+# Other plots
+Jet - Predictions (3).pdf
+Hadron - Predictions (3).pdf
