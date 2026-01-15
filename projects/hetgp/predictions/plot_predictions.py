@@ -202,45 +202,104 @@ def boxplot(HFGPMSE: pd.DataFrame, hetGPMSE: pd.DataFrame, plot_config: pb.PlotC
     # We match the order to the construction of the DataFrame, where we have hetGP first.
     colors = [method_styles["hetgp"].color, method_styles["high_fidelity"].color]
 
-    # Plot
-    p = sns.boxplot(
-        x="Variable",
-        y="Value",
-        hue="Source",
-        palette=colors,
-        saturation=1.0,
-        ax=ax,
-        width=0.6,
-        medianprops={"linewidth": 3},
-        whiskerprops={"linewidth": 2},
-        capprops={"linewidth": 2},
-        boxprops={
-            "linewidth": 2,
-        },
-        flierprops={
-            "marker": "o",
-            "markersize": 5,
-            "markeredgecolor": "black",
-            "markeredgewidth": 0.3,
-        },
-        data=df_combined,
-    )
+    # Get unique variables and sources
+    variables = sorted(df_combined["Variable"].unique())
+    sources = df_combined["Source"].unique()
 
-    # Apply colors to fliers based on their position
-    # We can identify the fliers based on them not using lines
-    # NOTE: They classes are plotted one at a time - e.g. HetGP first, so we set
-    #       the colors based on the first half (HetGP) and the second half (HFGP)
-    lines = [line for line in ax.lines if line.get_linestyle() == "None"]
-    for i, line in enumerate(lines):
-        # Determine which hue group this outlier belongs to
-        # NOTE: This depends on the data structure. If there were more sources,
-        #       we would need to adjust
-        color_idx = 0 if i < len(lines) / 2 else 1
-        # Set just the facecolor - we'll keep the black edges
-        line.set_markerfacecolor(colors[color_idx])
+    # Define box width and offset for grouping
+    box_width = 0.8
+    # Use the same grey that's used in seaborn for the lines
+    grey_for_lines = (75.0 / 255, 75.0 / 255, 75.0 / 255)
+
+    # Plot for each source
+    for i, source in enumerate(sources):
+        # Calculate positions (offset each source)
+        positions = np.array(variables) + (i - len(sources) / 2 + 0.5) * box_width
+        print(f"{source=}, {positions=}")
+
+        # Prepare data for each variable
+        data = [
+            df_combined[(df_combined["Variable"] == var) & (df_combined["Source"] == source)]["Value"].values
+            for var in variables
+        ]
+
+        bp = ax.boxplot(
+            data,
+            positions=positions,
+            widths=box_width,
+            patch_artist=True,
+            label=source,
+            medianprops={"linewidth": 3, "color": grey_for_lines},
+            whiskerprops={"linewidth": 2, "color": grey_for_lines},
+            capprops={"linewidth": 2, "color": grey_for_lines},
+            boxprops={
+                "facecolor": colors[i],
+                "edgecolor": grey_for_lines,
+                "linewidth": 2,
+            },
+            flierprops={
+                "marker": "o",
+                "markersize": 5,
+                "markeredgecolor": "black",
+                "markeredgewidth": 0.3,
+                "markerfacecolor": colors[i],
+            },
+        )
+
+        # Optional: customize colors
+        for patch in bp["boxes"]:
+            patch.set_facecolor(colors[i])
+
+    # Manually set ticks at regular intervals
+    # We have to do this by hand because the labels are otherwise set at where the boxes are actually positioned
+    # NOTE: It's important to set both the ticks and labels - just one isn't enough since the boxplot
+    #       function sets a bunch of things that we need to undo.
+    tick_positions = np.arange(10.0, 30.0, 2.5)
+    ax.set_xticks(tick_positions)
+    ax.set_xticklabels(tick_positions)
+
+    # # Plot
+    # # Original version, but it's much more restrictive compared to the mpl version
+    # p = sns.boxplot(
+    #     x="Variable",
+    #     y="Value",
+    #     hue="Source",
+    #     palette=colors,
+    #     saturation=1.0,
+    #     ax=ax,
+    #     width=0.6,
+    #     medianprops={"linewidth": 3},
+    #     whiskerprops={"linewidth": 2},
+    #     capprops={"linewidth": 2},
+    #     boxprops={
+    #         "linewidth": 2,
+    #     },
+    #     flierprops={
+    #         "marker": "o",
+    #         "markersize": 5,
+    #         "markeredgecolor": "black",
+    #         "markeredgewidth": 0.3,
+    #     },
+    #     data=df_combined,
+    # )
+
+    ## Apply colors to fliers based on their position
+    ## We can identify the fliers based on them not using lines
+    ## NOTE: They classes are plotted one at a time - e.g. HetGP first, so we set
+    ##       the colors based on the first half (HetGP) and the second half (HFGP)
+    # lines = [line for line in ax.lines if line.get_linestyle() == "None"]
+    # for i, line in enumerate(lines):
+    #    # Determine which hue group this outlier belongs to
+    #    # NOTE: This depends on the data structure. If there were more sources,
+    #    #       we would need to adjust
+    #    color_idx = 0 if i < len(lines) / 2 else 1
+    #    # Set just the facecolor - we'll keep the black edges
+    #    line.set_markerfacecolor(colors[color_idx])
 
     # Add the x 10^6 label at the bottom right. As noted above,
     # we cannot use the usual functionality due to how sns.boxplot creates axes.
+    # n.b. 2026-01-14: I switched to the mpl boxplot function, so may have been able to use a regular
+    #                  axis, but it wasn't worth changing this.
     plot_config.panels[0].text.append(pb.TextConfig(r"$\times 10^6$", 1.0, -0.11, font_size=20))
 
     plot_config.apply(fig, ax=ax)
@@ -397,6 +456,7 @@ for log in [False, True]:
                         "x",
                         label=r"$N_{\text{event}}$ in training data",
                         font_size=text_font_size,
+                        range=(9.25, 28.75),
                     ),
                     pb.AxisConfig(
                         "y",
@@ -552,6 +612,7 @@ for log in [False, True]:
                         "x",
                         label=r"$N_{\text{event}}$ in training data",
                         font_size=text_font_size,
+                        range=(9.25, 28.75),
                     ),
                     pb.AxisConfig(
                         "y",
