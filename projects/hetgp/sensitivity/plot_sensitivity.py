@@ -281,7 +281,7 @@ def plot_compare_hetgp_hf_hadron(
         3,
         2,
         figsize=(10, 8),
-        gridspec_kw={"height_ratios": [1.5, 6, 6]},
+        gridspec_kw={"height_ratios": [0.5, 6, 6]},
         sharex="col",
         sharey="row",
     )
@@ -315,16 +315,17 @@ text_font_size = 22
 in_figure_font_size = 20
 
 for selected_space in ["global", "posterior"]:
-    # I considered including everything here (e.g. sqrt_s), but it doesn't matter overly much
-    # for the purposes of this exercise. To just highlight the important information, I'm going to cut down to the minimal.
-    text = "Sobol' sensitivity, "
+    # Labeling
+    # The miniaml text contains only the most important text
+    # Everything else (e.g. what is not critical to distringuishing the plots) is kept in the header.
+    # I skipped that it was trained on JETSCAPE (MATTER+LBT) - it's bulky, and never varies.
+    text = "Sobol' sensitivity"
     if selected_space == "global":
-        text += "full design space"
+        text += "\n" + "Full design space"
     else:
-        text += r"1-99\% posterior"
-    text += "\n" r"Trained on JETSCAPE (MATTER + LBT)"
-    text += "\n" + r"Representing CMS, $\textit{JHEP 04 (2017) 039}$"
-    text += ", " + r"0-5\%, Hadron $R_{\text{AA}}$, $\sqrt{s_{\text{NN}}} = 5.02\:\text{TeV}$"
+        text += "\n" + r"1-99\% posterior"
+    header_text = "\n" + r"Emulated: Hadron $R_{\text{AA}}$ in 0-5\% Pb-Pb, $\sqrt{s_{\text{NN}}} = 5.02\:\text{TeV}$,"
+    header_text += " " + r"CMS, $\textit{JHEP 04 (2017) 039}$"
 
     pt_labels = []
     for k in hadron_data["global"]:
@@ -337,19 +338,22 @@ for selected_space in ["global", "posterior"]:
             # Header
             pb.Panel(
                 axes=[],
-                text=pb.TextConfig(x=0.01, y=1.08, text=text, font_size=18),
+                text=pb.TextConfig(x=0.01, y=2.0, text=header_text, font_size=18),
             ),
-            # Main panel
+            # Main panels
             pb.Panel(
                 axes=[
                     pb.AxisConfig(
                         "y",
-                        label="Relative Sobol' index",
+                        label="First-order Sobol' index",
                         font_size=text_font_size,
                         range=(0, 1),
                     ),
                 ],
-                text=pb.TextConfig(x=0.95, y=0.95, text=pt_labels[0], font_size=in_figure_font_size),
+                text=[
+                    pb.TextConfig(x=0.95, y=0.80, text=text, font_size=text_font_size),
+                    pb.TextConfig(x=0.95, y=0.95, text=pt_labels[0], font_size=in_figure_font_size),
+                ],
                 # legend=pb.LegendConfig(location="upper right", anchor=(0.95, 0.95), font_size=22),
             ),
             pb.Panel(
@@ -361,7 +365,7 @@ for selected_space in ["global", "posterior"]:
                 ],
                 text=[
                     pb.TextConfig(x=0.95, y=0.95, text=pt_labels[1], font_size=in_figure_font_size),
-                    pb.TextConfig(x=0.99, y=0.17, text="Equal sensitivity", font_size=18),
+                    pb.TextConfig(x=0.98, y=0.19, text="Equal sensitivity", font_size=18, text_kwargs={"zorder": 0}),
                 ],
                 legend=pb.LegendConfig(
                     location="upper right", anchor=(0.95, 0.80), font_size=text_font_size, marker_label_spacing=0.3
@@ -377,7 +381,7 @@ for selected_space in ["global", "posterior"]:
                     ),
                     pb.AxisConfig(
                         "y",
-                        label="Relative Sobol' index",
+                        label="First-order Sobol' index",
                         font_size=text_font_size,
                         range=(0, 0.995),
                     ),
@@ -400,7 +404,7 @@ for selected_space in ["global", "posterior"]:
                 ],
                 text=[
                     pb.TextConfig(x=0.95, y=0.95, text=pt_labels[3], font_size=in_figure_font_size),
-                    pb.TextConfig(x=0.99, y=0.17, text="Equal sensitivity", font_size=18),
+                    pb.TextConfig(x=0.98, y=0.19, text="Equal sensitivity", font_size=18, text_kwargs={"zorder": 0}),
                 ],
                 # legend=pb.LegendConfig(location="upper right", anchor=(0.95, 0.95), font_size=22),
             ),
@@ -477,10 +481,10 @@ for selected_space in ["global", "posterior"]:
         text += "full design space"
     else:
         text += r"1-99\% posterior"
-    text_details = r"Trained on JS (MATTER + LBT)"
-    text_details += "\n" + r"ATLAS, $\textit{PLB 790 (2019) 108-128}$"
+
+    text_details = "\n" + r"Emulated: $R = 0.4$ inclusive jet $R_{\text{AA}}$"
     text_details += "\n" + r"0-10\%, $\sqrt{s_{\text{NN}}} = 5.02\:\text{TeV}$"
-    text_details += "\n" + r"$R = 0.4$ inclusive jet $R_{\text{AA}}$"
+    text_details += "\n" + r"ATLAS, $\textit{PLB 790 (2019) 108-128}$"
 
     pt_labels = []
     for k in jet_data["global"]:
@@ -498,7 +502,7 @@ for selected_space in ["global", "posterior"]:
                 axes=[
                     pb.AxisConfig(
                         "y",
-                        label="Relative Sobol' index",
+                        label="First-order Sobol' index",
                         font_size=text_font_size,
                         range=(0, 1),
                     ),
@@ -515,7 +519,7 @@ for selected_space in ["global", "posterior"]:
                 ],
                 text=[
                     pb.TextConfig(x=0.95, y=0.95, text=pt_labels[1], font_size=in_figure_font_size),
-                    pb.TextConfig(x=0.99, y=0.17, text="Equal sensitivity", font_size=18),
+                    pb.TextConfig(x=0.98, y=0.19, text="Equal sensitivity", font_size=18, text_kwargs={"zorder": 0}),
                 ],
                 legend=pb.LegendConfig(
                     location="upper right", anchor=(0.95, 0.80), font_size=text_font_size, marker_label_spacing=0.3
@@ -531,14 +535,14 @@ for selected_space in ["global", "posterior"]:
                     ),
                     pb.AxisConfig(
                         "y",
-                        label="Relative Sobol' index",
+                        label="First-order Sobol' index",
                         font_size=text_font_size,
                         range=(0, 0.995),
                     ),
                 ],
                 text=[
                     pb.TextConfig(x=0.95, y=0.95, text=pt_labels[2], font_size=in_figure_font_size),
-                    pb.TextConfig(x=0.99, y=0.17, text="Equal sensitivity", font_size=18),
+                    pb.TextConfig(x=0.98, y=0.19, text="Equal sensitivity", font_size=18, text_kwargs={"zorder": 0}),
                 ],
                 # legend=pb.LegendConfig(location="upper right", anchor=(0.95, 0.95), font_size=22),
             ),
@@ -547,7 +551,7 @@ for selected_space in ["global", "posterior"]:
                 axes=[],
                 text=[
                     pb.TextConfig(x=0.05, y=0.65, text=text, font_size=18),
-                    pb.TextConfig(x=0.05, y=0.58, text=text_details, font_size=14),
+                    pb.TextConfig(x=0.05, y=0.62, text=text_details, font_size=14),
                 ],
             ),
         ],
@@ -622,11 +626,11 @@ def plot_parameter_pt_dependence(
 
 # %%
 parameter = "alpha_s"
-text = f"Global Sobol' sensitivity, {label_to_display_label[parameter]} dependence"
-text += "\n" + r"trained on JETSCAPE (MATTER + LBT)"
-text += "\n" + r"corresponding to CMS, $\textit{JHEP 04 (2017) 039}$"
-text += "\n" + r"0-5\%, Hadron $R_{\text{AA}}$, $\sqrt{s_{\text{NN}}} = 5.02\:\text{TeV}$"
-text += "\n" + rf"${hadron_low:g} < p_{{\text{{T}}}} < {hadron_high:g}\:\text{{GeV}}/c$"
+text = f"{label_to_display_label[parameter]} sensitivity (full design space)"
+text += "\n" + r"Hadron $R_{\text{AA}}$"
+# text += ", " + rf"${hadron_low:g} < p_{{\text{{T}}}} < {hadron_high:g}\:\text{{GeV}}/c$"
+header_text = r"Emulated: Hadron $R_{\text{AA}}$ in 0-5\% Pb-Pb, $\sqrt{s_{\text{NN}}} = 5.02\:\text{TeV}$,"
+header_text += " " + r"CMS, $\textit{JHEP 04 (2017) 039}$"
 plot_config = pb.PlotConfig(
     name=f"sensitivity_hadron_global_{parameter}",
     panels=[
@@ -641,18 +645,19 @@ plot_config = pb.PlotConfig(
                 ),
                 pb.AxisConfig(
                     "y",
-                    label="Relative Sobol' index",
+                    label="First-order Sobol' index",
                     font_size=text_font_size,
                     range=(0, 1),
                 ),
             ],
             text=[
-                pb.TextConfig(x=0.95, y=0.81, text=text, font_size=18),
+                pb.TextConfig(x=0.5, y=1.03, text=header_text, font_size=18, alignment="center"),
+                pb.TextConfig(x=0.95, y=0.8, text=text, font_size=text_font_size),
             ],
             legend=pb.LegendConfig(location="upper right", anchor=(0.95, 0.95), font_size=22),
         ),
     ],
-    figure=pb.Figure(edge_padding={"left": 0.11, "bottom": 0.11}),
+    figure=pb.Figure(edge_padding={"left": 0.11, "bottom": 0.115, "top": 0.94}),
 )
 plot_parameter_pt_dependence(hadron_data["global"], selected_parameter=parameter, plot_config=plot_config)
 
@@ -661,11 +666,10 @@ plot_parameter_pt_dependence(hadron_data["global"], selected_parameter=parameter
 
 # %%
 parameter = "alpha_s"
-text = f"Global Sobol' sensitivity, {label_to_display_label[parameter]} dependence"
-text += "\n" + r"trained on JETSCAPE (MATTER + LBT)"
-text += "\n" + r"ATLAS, $\textit{PLB 790 (2019) 108-128}$"
-text += "\n" + r"0-10\%, $\sqrt{s_{\text{NN}}} = 5.02\:\text{TeV}$"
+text = f"{label_to_display_label[parameter]} sensitivity (full design space)"
 text += "\n" + r"$R = 0.4$ inclusive jet $R_{\text{AA}}$"
+header_text = r"Emulated: $R = 0.4$ jet $R_{\text{AA}}$ in 0-10\% Pb-Pb, $\sqrt{s_{\text{NN}}} = 5.02\:\text{TeV}$,"
+header_text += " " + r"ATLAS, $\textit{PLB 790 (2019) 108-128}$"
 
 plot_config = pb.PlotConfig(
     name=f"sensitivity_jet_global_{parameter}",
@@ -681,18 +685,19 @@ plot_config = pb.PlotConfig(
                 ),
                 pb.AxisConfig(
                     "y",
-                    label="Relative Sobol' index",
+                    label="First-order Sobol' index",
                     font_size=text_font_size,
                     range=(0, 1),
                 ),
             ],
             text=[
-                pb.TextConfig(x=0.95, y=0.81, text=text, font_size=18),
+                pb.TextConfig(x=0.505, y=1.03, text=header_text, font_size=16, alignment="center"),
+                pb.TextConfig(x=0.95, y=0.8, text=text, font_size=text_font_size),
             ],
             legend=pb.LegendConfig(location="upper right", anchor=(0.95, 0.95), font_size=22),
         ),
     ],
-    figure=pb.Figure(edge_padding={"left": 0.11, "bottom": 0.11}),
+    figure=pb.Figure(edge_padding={"left": 0.11, "bottom": 0.115, "top": 0.94}),
 )
 plot_parameter_pt_dependence(jet_data["global"], selected_parameter=parameter, plot_config=plot_config)
 
@@ -746,20 +751,20 @@ def plot_hadron_vs_jet_sensitivity(hadron_data: Data, jet_data: Data, plot_confi
     )
     ax.bar(
         index - bar_width / 2,
-        jet_data.hf,
-        bar_width,
-        yerr=jet_data.hf_err,
-        label="High fidelity GP (Jet)",
-        color=colors["HF_alt"],
-    )
-    # The second is shifted right
-    ax.bar(
-        index + bar_width / 2,
         hadron_data.hetgp,
         bar_width,
         yerr=hadron_data.hetgp_err,
         label="VarP-GP (Hadron)",
         color=colors["hetgp"],
+    )
+    # The second is shifted right
+    ax.bar(
+        index + bar_width / 2,
+        jet_data.hf,
+        bar_width,
+        yerr=jet_data.hf_err,
+        label="High fidelity GP (Jet)",
+        color=colors["HF_alt"],
     )
     ax.bar(
         index + bar_width * 3 / 2,
@@ -770,12 +775,35 @@ def plot_hadron_vs_jet_sensitivity(hadron_data: Data, jet_data: Data, plot_confi
         color=colors["hetgp_alt"],
     )
 
+    # And then a line to mark equal sensitivity
+    # NOTE: (it relies on the plot_config for the label)
+    ax.axhline(y=1.0 / 6.0, color="black", linestyle="dashed", zorder=0)
+
     # And then ensure we show the parameter names on the x-axis
     ax.xaxis.set_ticks(range(len(label_to_display_label)))
     ax.xaxis.set_ticklabels(label_to_display_label.values())
 
+    # Modify the legend ordering to group by emulator type.
+    leg_handles, leg_labels = ax.get_legend_handles_labels()
+    new_handles = [
+        # HFGP
+        leg_handles[0],
+        leg_handles[2],
+        # VarP-GP
+        leg_handles[1],
+        leg_handles[3],
+    ]
+    new_labels = [
+        # HFGP
+        leg_labels[0],
+        leg_labels[2],
+        # VarP-GP
+        leg_labels[1],
+        leg_labels[3],
+    ]
+
     # Apply styling
-    plot_config.apply(fig, ax=ax)
+    plot_config.apply(fig, ax=ax, legend_handles=new_handles, legend_labels=new_labels)
 
     _output_path = base_path / "figures"
     _output_path.mkdir(parents=True, exist_ok=True)
@@ -783,10 +811,12 @@ def plot_hadron_vs_jet_sensitivity(hadron_data: Data, jet_data: Data, plot_confi
     plt.close(fig)
 
 
-text = "Global Sobol' sensitivity"
-text += "\n" + r"trained on JETSCAPE (MATTER + LBT)"
-text += "\n" + r"ATLAS, 0-10\%, $R = 0.4$ Jet $R_{\text{AA}}$, $100 < p_{\text{T}}^{\text{jet}} < 177$ (GeV/$c$)"
-text += "\n" + r"CMS, 0-5\%, Hadron $R_{\text{AA}}$, $73.6 < p_{\text{T}}^{\text{jet}} < 165$ (GeV/$c$)"
+header_text = r"Emulated: Central Pb-Pb at $\sqrt{s_{\text{NN}}} = 5.02\:\text{TeV}$"
+header_text += "\n" + r"CMS hadron $R_{\text{AA}}$, $\textit{JHEP 04 (2017) 039}$"
+header_text += "," + r"ATLAS jet $R_{\text{AA}}$, $\textit{PLB 790 (2019) 108-128}$"
+# text = "Full design space"
+text = r"Hadron $R_{\text{AA}}$: $73.6 < p_{\text{T}}^{\text{jet}} < 165$ (GeV/$c$)"
+text += "\n" + r"Jet $R_{\text{AA}}$: $100 < p_{\text{T}}^{\text{jet}} < 177$ (GeV/$c$)"
 
 plot_config = pb.PlotConfig(
     name="sensitivity_hadron_vs_jet_global",
@@ -802,18 +832,21 @@ plot_config = pb.PlotConfig(
                 ),
                 pb.AxisConfig(
                     "y",
-                    label="Relative Sobol' index",
+                    label="First-order Sobol' index",
                     font_size=text_font_size,
                     range=(0, 1),
                 ),
             ],
             text=[
-                pb.TextConfig(x=0.95, y=0.62, text=text, font_size=18),
+                pb.TextConfig(x=0.01, y=1.01, text=header_text, font_size=16, alignment="lower left"),
+                pb.TextConfig(x=0.03, y=0.96, text="Full design space", font_size=text_font_size),
+                pb.TextConfig(x=0.95, y=0.58, text=text, font_size=text_font_size),
+                pb.TextConfig(x=0.98, y=0.20, text="Equal sensitivity", font_size=16, text_kwargs={"zorder": 0}),
             ],
             legend=pb.LegendConfig(location="upper right", anchor=(0.95, 0.95), font_size=22),
         ),
     ],
-    figure=pb.Figure(edge_padding={"left": 0.11, "bottom": 0.11}),
+    figure=pb.Figure(edge_padding={"left": 0.10, "bottom": 0.11, "top": 0.90}),
 )
 plot_hadron_vs_jet_sensitivity(
     hadron_data["global"]["73.6_165.0"], jet_data["global"]["100.0_177.0"], plot_config=plot_config
@@ -913,19 +946,26 @@ def plot_global_vs_local_sensitivity(data: dict[str, dict[str, Data]], pt_label:
 
 for observable in ["hadron", "jet"]:
     data = hadron_data if observable == "hadron" else jet_data
+    if observable == "hadron":
+        header_text = r"Emulated: Hadron $R_{\text{AA}}$ in 0-5\% Pb-Pb, $\sqrt{s_{\text{NN}}} = 5.02\:\text{TeV}$,"
+        header_text += " " + r"CMS, $\textit{JHEP 04 (2017) 039}$"
+    else:
+        header_text = (
+            r"Emulated: $R = 0.4$ jet $R_{\text{AA}}$ in 0-10\% Pb-Pb, $\sqrt{s_{\text{NN}}} = 5.02\:\text{TeV}$,"
+        )
+        header_text += " " + r"ATLAS, $\textit{PLB 790 (2019) 108-128}$"
+
     for pt_label in data["global"]:
-        text = "Sobol' sensitivity"
-        text += "\n" + r"trained on JETSCAPE (MATTER + LBT)"
-        if observable == "hadron":
-            text += "\n" + r"CMS, 0-5\%, Hadron $R_{\text{AA}}$"
-        else:
-            text += "\n" + r"ATLAS, 0-10\%, $R = 0.4$ Jet $R_{\text{AA}}$"
         # Pt bin
         low, high = map(float, pt_label.split("_"))
         # It's actually 1 TeV, so better to just rewrite it properly...
         if high == 999:
             high = 1000
-        text += ", " + rf"${low:g} < p_{{\text{{T}}}} < {high:g}\:\text{{GeV}}/c$"
+        if observable == "hadron":
+            minimal_text = r"Hadron $R_{\text{AA}}$"
+        else:
+            minimal_text = r"$R = 0.4$ inclusive jet $R_{\text{AA}}$"
+        minimal_text += "\n" + rf"${low:g} < p_{{\text{{T}}}} < {high:g}\:\text{{GeV}}/c$"
 
         plot_config = pb.PlotConfig(
             name=f"sensitivity_global_vs_1_99_{observable}_{pt_label}",
@@ -941,21 +981,22 @@ for observable in ["hadron", "jet"]:
                         ),
                         pb.AxisConfig(
                             "y",
-                            label="Relative Sobol' index",
+                            label="First-order Sobol' index",
                             font_size=text_font_size,
                             range=(0, 1),
                         ),
                     ],
                     text=[
-                        pb.TextConfig(x=0.95, y=0.62, text=text, font_size=18),
+                        pb.TextConfig(x=0.01, y=1.01, text=header_text, font_size=16, alignment="lower left"),
+                        pb.TextConfig(x=0.95, y=0.60, text=minimal_text, font_size=text_font_size),
                         pb.TextConfig(
-                            x=0.99, y=0.17, text="Equal sensitivity", font_size=18, text_kwargs={"zorder": 0}
+                            x=0.98, y=0.20, text="Equal sensitivity", font_size=16, text_kwargs={"zorder": 0}
                         ),
                     ],
                     legend=pb.LegendConfig(location="upper right", anchor=(0.95, 0.95), font_size=22),
                 ),
             ],
-            figure=pb.Figure(edge_padding={"left": 0.11, "bottom": 0.11}),
+            figure=pb.Figure(edge_padding={"left": 0.09, "bottom": 0.11, "top": 0.94}),
         )
         print(f"{observable=}, {pt_label=}")
         plot_global_vs_local_sensitivity(data=data, pt_label=pt_label, plot_config=plot_config)
@@ -998,7 +1039,7 @@ for index in range(len(hadron_pt_bin_labels)):
                     ),
                     pb.AxisConfig(
                         "y",
-                        label="Relative Sobol' index",
+                        label="First-order Sobol' index",
                         font_size=text_font_size,
                         range=(0, 1),
                     ),
@@ -1053,7 +1094,7 @@ for index in range(len(hadron_pt_bin_labels)):
                     ),
                     pb.AxisConfig(
                         "y",
-                        label="Relative Sobol' index",
+                        label="First-order Sobol' index",
                         font_size=text_font_size,
                         range=(0, 1),
                     ),
