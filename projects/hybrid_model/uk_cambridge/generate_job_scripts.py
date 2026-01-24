@@ -39,6 +39,7 @@ slurm_template_convert_output_to_parquet = """#!/usr/bin/env bash
 #SBATCH --error={log_dir}/log_%A_%a.stderr
 #SBATCH --time={walltime_in_minutes}
 #SBATCH --partition={partition}
+#SBATCH --account={account}
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task=1
@@ -61,7 +62,9 @@ echo "hybrid_job_index=${{hybrid_job_index}}, job_id_fixed=${{job_id_fixed}}, jo
 
 # Convert the output files to parquet
 # NOTE: HARDCODE: This is the only Cambridge HPC specific part. RJE does not want to deal with generalizing this at the moment (Jan 2026).
-time apptainer exec --cleanenv --no-home -B /rds/project/rds-hCZCEbPdvZ8 -B {local_base_output_dir} {container_path} bash -c "cd /jetscapeOpt/jetscape-analysis/; python3 -m jetscape_analysis.analysis.reader.skim_ascii -i {input_dir}/job-${{hybrid_job_index}}/HYBRID_Hadrons.out -o ${{local_job_output_dir}}/HYBRID_PbPb_${{job_id_fixed}}_final_state_hadrons.parquet -n {n_events_per_parquet_file}"
+# TODO(RJE): Remove the mount of the jetscape-analysis directory after I've created a new container!
+time apptainer exec --cleanenv --no-home -B /rds/project/rds-hCZCEbPdvZ8/rehlers/jetscape-analysis:/jetscapeOpt/jetscape-analysis -B /rds/project/rds-hCZCEbPdvZ8 -B {local_base_output_dir} {container_path} bash -c "cd /jetscapeOpt/jetscape-analysis/; COLUMNS=120 python3 -m jetscape_analysis.analysis.reader.skim_ascii -i {input_dir}/job-${{hybrid_job_index}}/HYBRID_Hadrons.out -o ${{local_job_output_dir}}/HYBRID_PbPb_${{job_id_fixed}}_final_state_hadrons.parquet -n {n_events_per_parquet_file}"
+# ENDTODO(RJE): Remove the mount of the jetscape-analysis directory after I've created a new container!
 
 # Copy all .parquet and .root files from the local job output dir to the job output dir, maintaining directory structure
 # We include the root files because we may have outputs from the post processing, and we do not want to have to update this command
@@ -89,6 +92,7 @@ def convert_to_parquet(
     walltime_in_minutes: int = 60,
     # Customized for the Cambridge HPC system
     partition: str = "cclake",
+    account: str = "IRIS-IP012-CPU",
     local_base_output_dir: Path = Path("/local/hybrid-bayesian"),
 ) -> None:
     # Calculate useful parameters
@@ -114,6 +118,7 @@ def convert_to_parquet(
         n_events_per_parquet_file=n_events_per_parquet_file,
         walltime_in_minutes=walltime_in_minutes,
         partition=partition,
+        account=account,
         start_job_index=start_job_index,
         end_job_index=end_job_index,
         local_base_output_dir=local_base_output_dir.resolve(),
@@ -123,9 +128,7 @@ def convert_to_parquet(
     log_dir.mkdir(parents=True, exist_ok=True)
 
     # Write the slurm script to a file
-    submit_slurm_path = (
-        base_output_dir / f"submit_convert_to_parquet_prod_{production_number}_{run_number_formatted}.slurm"
-    )
+    submit_slurm_path = base_output_dir / f"submit_convert_to_parquet_prod_{production_number}_run_{run_number}.slurm"
     with submit_slurm_path.open("w") as f:
         f.write(slurm_script_simulation_and_analysis)
 
@@ -139,6 +142,7 @@ slurm_template_analysis_only = """#!/usr/bin/env bash
 #SBATCH --error={log_dir}/log_%A_%a.stderr
 #SBATCH --time={walltime_in_minutes}
 #SBATCH --partition={partition}
+#SBATCH --account={account}
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task=1
@@ -159,7 +163,10 @@ mkdir -p "$local_job_output_dir"
 echo "job_id_fixed=${{job_id_fixed}}, job_output_dir=${{job_output_dir}}, local_job_output_dir=${{local_job_output_dir}}"
 
 # Copy the simulation outputs for the particular job
-rsync -avm --include='*${{job_id_fixed}}_final_state_hadrons*.parquet' --exclude='*' ${{job_output_dir}}/ ${{local_job_output_dir}}/
+# NOTE: We need to handle this pattern carefully because we need to wait to expand the wildcard, but we need to evaluate
+#       the variable. By defining it and then passing it, this seems to work
+include_pattern="*${{job_id_fixed}}_final_state_hadrons*.parquet"
+rsync -avm --include="${{include_pattern}}" --exclude='*' ${{job_output_dir}}/ ${{local_job_output_dir}}/
 # Just double check that everything is copied.
 echo "Local job directory contents:"
 ls -la ${{local_job_output_dir}}
@@ -173,7 +180,9 @@ ls -la ${{local_job_output_dir}}
 # After the fourth argument, we pass all of the input filenames (namely, the parquet final state hadron files).
 post_processing_input_filenames=$(find ${{local_job_output_dir}} -name "*final_state_hadrons*.parquet")
 echo "post_processing_input_filenames=${{post_processing_input_filenames}}"
-time apptainer run --cleanenv --no-home -B time apptainer exec --cleanenv --no-home -B /rds/project/rds-hCZCEbPdvZ8 -B {local_base_output_dir} --app post-processing {container_path} /jetscapeOpt/jetscape-analysis/config/STAT_5020.yaml 5020 ${{local_job_output_dir}}/observables ${{local_job_output_dir}}/histograms ${{post_processing_input_filenames[@]}}
+# TODO(RJE): Remove the mount of the jetscape-analysis directory after I've created a new container!
+time apptainer run --cleanenv --no-home -B /rds/project/rds-hCZCEbPdvZ8/rehlers/jetscape-analysis:/jetscapeOpt/jetscape-analysis -B /rds/project/rds-hCZCEbPdvZ8 -B {local_base_output_dir} --app post-processing {container_path} /jetscapeOpt/jetscape-analysis/config/STAT_5020.yaml 5020 ${{local_job_output_dir}}/observables ${{local_job_output_dir}}/histograms ${{post_processing_input_filenames[@]}}
+# ENDTODO(RJE): Remove the mount of the jetscape-analysis directory after I've created a new container!
 
 # Copy all .parquet and .root files from the local job output dir to the job output dir, maintaining directory structure
 # We include the root files because we may have outputs from the post processing, and we do not want to have to update this command
@@ -197,6 +206,7 @@ def analyze_output(
     walltime_in_minutes: int = 240,
     # Customized for the Cambridge HPC system
     partition: str = "cclake",
+    account: str = "IRIS-IP012-CPU",
     local_base_output_dir: Path = Path("/local/hybrid-bayesian"),
 ) -> None:
     # Calculate useful parameters
@@ -215,9 +225,11 @@ def analyze_output(
     slurm_script_analysis_only = slurm_template_analysis_only.format(
         job_name=f"{job_name}_analysis",
         log_dir=log_dir.resolve(),
-        input_dir=input_dir.resolve(),
+        # We read and write from the same directory
+        output_dir=input_dir.resolve(),
         walltime_in_minutes=walltime_in_minutes,
         partition=partition,
+        account=account,
         start_job_index=start_job_index,
         end_job_index=end_job_index,
         local_base_output_dir=local_base_output_dir.resolve(),
@@ -227,7 +239,7 @@ def analyze_output(
     log_dir.mkdir(parents=True, exist_ok=True)
 
     # Write the slurm script to a file
-    submit_slurm_path = base_input_dir / f"submit_analysis_{production_number}_{run_number}.slurm"
+    submit_slurm_path = base_input_dir / f"submit_analysis_prod_{production_number}_run_{run_number}.slurm"
     with submit_slurm_path.open("w") as f:
         f.write(slurm_script_analysis_only)
 
@@ -249,14 +261,13 @@ def main_entry_point() -> None:
         help="Path to the container to be used",
     )
     parser.add_argument(
-        "-h",
         "--hybrid-output-dir",
         action="store",
         type=Path,
         required=False,
         default=Path("unset"),
-        metavar="hybrid_output_directory",
-        help="Base directory where hybrid model outputs are stored.",
+        metavar="hybrid_output_dir",
+        help="Directory where hybrid model for a given design point are stored. e.g. `/rds/project/rds-hCZCEbPdvZ8/peibols/bayesian/runs/0-5/point_5`. Default: Not specified, which will skip generating the parquet conversion script.",
     )
     parser.add_argument(
         "-o",
@@ -264,7 +275,7 @@ def main_entry_point() -> None:
         action="store",
         type=Path,
         required=True,
-        metavar="jetscape_output_directory",
+        metavar="jetscape_output_dir",
         help="Base output directory where analyzed outputs are stored. (e.g. conversion outputs or analysis outputs).",
     )
     parser.add_argument(
@@ -272,6 +283,7 @@ def main_entry_point() -> None:
         "--start-job-index",
         action="store",
         type=int,
+        required=True,
         metavar="start_index",
         default=0,
         help="Start the job index from this value.",
@@ -306,8 +318,14 @@ def main_entry_point() -> None:
 
     args = parser.parse_args()
 
-    logger.info(f"Base hybrid output directory: {args.output_dir}")
-    logger.info(f"Input configuration file: {args.input_config_file}")
+    if args.hybrid_output_dir != Path("unset"):
+        logger.info(f"Hybrid output directory: {args.hybrid_output_dir}")
+    logger.info("Analysis parameters")
+    logger.info(f"\tbase output dir: {args.output_dir}")
+    logger.info(f"\tProduction number: {args.production_number}")
+    logger.info(f"\tRun number: {args.run_number}")
+    logger.info("Job parameters")
+    logger.info(f"\tIndex: {args.start_job_index}-{args.end_job_index}")
     logger.info(f"Container path: {args.container_path}")
 
     # Job script to convert outputs to parquet
@@ -320,7 +338,7 @@ def main_entry_point() -> None:
             # Input parameters from the Hybrid model run
             input_dir=args.hybrid_output_dir,
             # Output parameters
-            base_output_dir=args.jetscape_output_dir,
+            base_output_dir=args.output_dir,
             production_number=args.production_number,
             run_number=args.run_number,
             # Job parameters
@@ -332,9 +350,9 @@ def main_entry_point() -> None:
     # Job script to submit analysis jobs
     analyze_output(
         # Jetscape parameters
-        base_input_dir=args.jetscape_output_dir,
-        base_output_dir=args.jetscape_output_dir,
+        base_input_dir=args.output_dir,
         production_number=args.production_number,
+        run_number=args.run_number,
         # Job parameters
         start_job_index=args.start_job_index,
         end_job_index=args.end_job_index,
