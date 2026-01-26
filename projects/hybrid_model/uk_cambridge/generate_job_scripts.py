@@ -32,6 +32,23 @@ except ImportError:
 
 logger = logging.getLogger(__name__)
 
+
+def _handle_local_jetscape_analysis_dir(local_jetscape_analysis_dir: Path | None = None) -> str:
+    """Handle propagating the local jetscape analysis directory.
+
+    Use this with care! Loading python packages (e.g. a virtualenv) from a HPC shared filesystem with many jobs
+    can be very high load. Use this for testing, but probably best to build a new container when it's all ready.
+
+    Args:
+        local_jetscape_analysis_dir: Local jetscape analysis directory to be loaded in the container.
+    Returns:
+        String that will mount the dir if a local dir was provided.
+    """
+    if local_jetscape_analysis_dir is not None:
+        return f"-B {local_jetscape_analysis_dir}:/jetscapeOpt/jetscape-analysis"
+    return ""
+
+
 slurm_template_convert_output_to_parquet = """#!/usr/bin/env bash
 
 #SBATCH --job-name={job_name}
@@ -62,9 +79,7 @@ echo "hybrid_job_index=${{hybrid_job_index}}, job_id_fixed=${{job_id_fixed}}, jo
 
 # Convert the output files to parquet
 # NOTE: HARDCODE: This is the only Cambridge HPC specific part. RJE does not want to deal with generalizing this at the moment (Jan 2026).
-# TODO(RJE): Remove the mount of the jetscape-analysis directory after I've created a new container!
-time apptainer exec --cleanenv --no-home -B /rds/project/rds-hCZCEbPdvZ8/rehlers/jetscape-analysis:/jetscapeOpt/jetscape-analysis -B /rds/project/rds-hCZCEbPdvZ8 -B {local_base_output_dir} {container_path} bash -c "cd /jetscapeOpt/jetscape-analysis/; COLUMNS=120 python3 -m jetscape_analysis.analysis.reader.skim_ascii -i {input_dir}/job-${{hybrid_job_index}}/HYBRID_Hadrons.out -o ${{local_job_output_dir}}/HYBRID_PbPb_${{job_id_fixed}}_final_state_hadrons.parquet -n {n_events_per_parquet_file}"
-# ENDTODO(RJE): Remove the mount of the jetscape-analysis directory after I've created a new container!
+time apptainer exec --cleanenv --no-home {local_jetscape_analysis_dir} -B /rds/project/rds-hCZCEbPdvZ8 -B {local_base_output_dir} {container_path} bash -c "cd /jetscapeOpt/jetscape-analysis/; COLUMNS=120 python3 -m jetscape_analysis.analysis.reader.skim_ascii -i {input_dir}/job-${{hybrid_job_index}}/HYBRID_Hadrons.out -o ${{local_job_output_dir}}/HYBRID_PbPb_${{job_id_fixed}}_final_state_hadrons.parquet -n {n_events_per_parquet_file}"
 
 # Copy all .parquet and .root files from the local job output dir to the job output dir, maintaining directory structure
 # We include the root files because we may have outputs from the post processing, and we do not want to have to update this command
@@ -90,6 +105,7 @@ def convert_to_parquet(
     n_events_per_parquet_file: int = 5000,
     job_name: str = "hybrid_bayesian",
     walltime_in_minutes: int = 60,
+    local_jetscape_analysis_dir: Path | None = None,
     # Customized for the Cambridge HPC system
     partition: str = "cclake",
     account: str = "IRIS-IP012-CPU",
@@ -121,6 +137,7 @@ def convert_to_parquet(
         account=account,
         start_job_index=start_job_index,
         end_job_index=end_job_index,
+        local_jetscape_analysis_dir=_handle_local_jetscape_analysis_dir(local_jetscape_analysis_dir),
         local_base_output_dir=local_base_output_dir.resolve(),
         container_path=container_path.resolve(),
     )
@@ -180,9 +197,7 @@ ls -la ${{local_job_output_dir}}
 # After the fourth argument, we pass all of the input filenames (namely, the parquet final state hadron files).
 post_processing_input_filenames=$(find ${{local_job_output_dir}} -name "*final_state_hadrons*.parquet")
 echo "post_processing_input_filenames=${{post_processing_input_filenames}}"
-# TODO(RJE): Remove the mount of the jetscape-analysis directory after I've created a new container!
-time apptainer run --cleanenv --no-home -B /rds/project/rds-hCZCEbPdvZ8/rehlers/jetscape-analysis:/jetscapeOpt/jetscape-analysis -B /rds/project/rds-hCZCEbPdvZ8 -B {local_base_output_dir} --app post-processing {container_path} /jetscapeOpt/jetscape-analysis/config/STAT_5020.yaml 5020 ${{local_job_output_dir}}/observables ${{local_job_output_dir}}/histograms ${{post_processing_input_filenames[@]}}
-# ENDTODO(RJE): Remove the mount of the jetscape-analysis directory after I've created a new container!
+time apptainer run --cleanenv --no-home {local_jetscape_analysis_dir} -B /rds/project/rds-hCZCEbPdvZ8 -B {local_base_output_dir} --app post-processing {container_path} /jetscapeOpt/jetscape-analysis/config/STAT_5020.yaml 5020 ${{local_job_output_dir}}/observables ${{local_job_output_dir}}/histograms ${{post_processing_input_filenames[@]}}
 
 # Copy all .parquet and .root files from the local job output dir to the job output dir, maintaining directory structure
 # We include the root files because we may have outputs from the post processing, and we do not want to have to update this command
@@ -204,6 +219,7 @@ def analyze_output(
     container_path: Path,
     job_name: str = "hybrid_bayesian",
     walltime_in_minutes: int = 240,
+    local_jetscape_analysis_dir: Path | None = None,
     # Customized for the Cambridge HPC system
     partition: str = "cclake",
     account: str = "IRIS-IP012-CPU",
@@ -232,6 +248,7 @@ def analyze_output(
         account=account,
         start_job_index=start_job_index,
         end_job_index=end_job_index,
+        local_jetscape_analysis_dir=_handle_local_jetscape_analysis_dir(local_jetscape_analysis_dir),
         local_base_output_dir=local_base_output_dir.resolve(),
         container_path=container_path.resolve(),
     )
@@ -259,6 +276,15 @@ def main_entry_point() -> None:
         required=True,
         metavar="container_path",
         help="Path to the container to be used",
+    )
+    parser.add_argument(
+        "--local-jetscape-analysis-dir",
+        action="store",
+        type=Path,
+        required=False,
+        default=None,
+        metavar="local_dir",
+        help="Directory where your local copy of jetscape-analysis is stored. It will be mounted in the container. (Use with care - it can cause load issues on HPC systems with many jobs. See the function for more info). Default: Not specified, which will use the jetscape-analysis repo already in the container.",
     )
     parser.add_argument(
         "--hybrid-output-dir",
@@ -327,6 +353,8 @@ def main_entry_point() -> None:
     logger.info("Job parameters")
     logger.info(f"\tIndex: {args.start_job_index}-{args.end_job_index}")
     logger.info(f"Container path: {args.container_path}")
+    if args.local_jetsacpe_analysis_dir:
+        logger.info(f"Local jetscape analysis dir: {args.local_jetscape_analysis_dir}")
 
     # Job script to convert outputs to parquet
     # Example:
@@ -345,6 +373,7 @@ def main_entry_point() -> None:
             start_job_index=args.start_job_index,
             end_job_index=args.end_job_index,
             container_path=args.container_path,
+            local_jetscape_analysis_dir=args.local_jetscape_analysis_dir,
         )
 
     # Job script to submit analysis jobs
@@ -357,6 +386,7 @@ def main_entry_point() -> None:
         start_job_index=args.start_job_index,
         end_job_index=args.end_job_index,
         container_path=args.container_path,
+        local_jetscape_analysis_dir=args.local_jetscape_analysis_dir,
     )
 
 
