@@ -319,7 +319,7 @@ for selected_space in ["global", "posterior"]:
     # The miniaml text contains only the most important text
     # Everything else (e.g. what is not critical to distringuishing the plots) is kept in the header.
     # I skipped that it was trained on JETSCAPE (MATTER+LBT) - it's bulky, and never varies.
-    text = "Sobol' sensitivity"
+    text = "Norm. total-effect Sobol' index"
     if selected_space == "global":
         text += "\n" + "Full design space"
     else:
@@ -345,7 +345,7 @@ for selected_space in ["global", "posterior"]:
                 axes=[
                     pb.AxisConfig(
                         "y",
-                        label="First-order Sobol' index",
+                        label="Norm. TE Sobol' index",
                         font_size=text_font_size,
                         range=(0, 1),
                     ),
@@ -381,7 +381,7 @@ for selected_space in ["global", "posterior"]:
                     ),
                     pb.AxisConfig(
                         "y",
-                        label="First-order Sobol' index",
+                        label="Norm. TE Sobol' index",
                         font_size=text_font_size,
                         range=(0, 0.995),
                     ),
@@ -476,13 +476,13 @@ in_figure_font_size = 20
 for selected_space in ["global", "posterior"]:
     # I considered including everything here (e.g. sqrt_s), but it doesn't matter overly much
     # for the purposes of this exercise. To just highlight the important information, I'm going to cut down to the minimal.
-    text = "Sobol' sensitivity, "
+    text = "Norm. total-effect Sobol' index"
     if selected_space == "global":
-        text += "full design space"
+        text += "\n" + "Full design space"
     else:
-        text += r"1-99\% posterior"
+        text += "\n" + r"1-99\% posterior"
 
-    text_details = "\n" + r"Emulated: $R = 0.4$ inclusive jet $R_{\text{AA}}$"
+    text_details = "\n" + r"Emulated: Jet $R_{\text{AA}}$, $R = 0.4$"
     text_details += "\n" + r"0-10\%, $\sqrt{s_{\text{NN}}} = 5.02\:\text{TeV}$"
     text_details += "\n" + r"ATLAS, $\textit{PLB 790 (2019) 108-128}$"
 
@@ -502,7 +502,7 @@ for selected_space in ["global", "posterior"]:
                 axes=[
                     pb.AxisConfig(
                         "y",
-                        label="First-order Sobol' index",
+                        label="Norm. TE Sobol' index",
                         font_size=text_font_size,
                         range=(0, 1),
                     ),
@@ -535,7 +535,7 @@ for selected_space in ["global", "posterior"]:
                     ),
                     pb.AxisConfig(
                         "y",
-                        label="First-order Sobol' index",
+                        label="Norm. TE Sobol' index",
                         font_size=text_font_size,
                         range=(0, 0.995),
                     ),
@@ -550,7 +550,7 @@ for selected_space in ["global", "posterior"]:
             pb.Panel(
                 axes=[],
                 text=[
-                    pb.TextConfig(x=0.05, y=0.65, text=text, font_size=18),
+                    pb.TextConfig(x=0.05, y=0.71, text=text, font_size=18),
                     pb.TextConfig(x=0.05, y=0.62, text=text_details, font_size=14),
                 ],
             ),
@@ -645,7 +645,7 @@ plot_config = pb.PlotConfig(
                 ),
                 pb.AxisConfig(
                     "y",
-                    label="First-order Sobol' index",
+                    label="Norm. total-effect Sobol' index",
                     font_size=text_font_size,
                     range=(0, 1),
                 ),
@@ -667,8 +667,8 @@ plot_parameter_pt_dependence(hadron_data["global"], selected_parameter=parameter
 # %%
 parameter = "alpha_s"
 text = f"{label_to_display_label[parameter]} sensitivity (full design space)"
-text += "\n" + r"$R = 0.4$ inclusive jet $R_{\text{AA}}$"
-header_text = r"Emulated: $R = 0.4$ jet $R_{\text{AA}}$ in 0-10\% Pb-Pb, $\sqrt{s_{\text{NN}}} = 5.02\:\text{TeV}$,"
+text += "\n" + r"Jet $R_{\text{AA}}$, $R = 0.4$"
+header_text = r"Emulated: Jet $R_{\text{AA}}$, $R = 0.4$ in 0-10\% Pb-Pb, $\sqrt{s_{\text{NN}}} = 5.02\:\text{TeV}$,"
 header_text += " " + r"ATLAS, $\textit{PLB 790 (2019) 108-128}$"
 
 plot_config = pb.PlotConfig(
@@ -685,7 +685,7 @@ plot_config = pb.PlotConfig(
                 ),
                 pb.AxisConfig(
                     "y",
-                    label="First-order Sobol' index",
+                    label="Norm. total-effect Sobol' index",
                     font_size=text_font_size,
                     range=(0, 1),
                 ),
@@ -813,7 +813,7 @@ def plot_hadron_vs_jet_sensitivity(hadron_data: Data, jet_data: Data, plot_confi
 
 header_text = r"Emulated: Central Pb-Pb at $\sqrt{s_{\text{NN}}} = 5.02\:\text{TeV}$"
 header_text += "\n" + r"CMS hadron $R_{\text{AA}}$, $\textit{JHEP 04 (2017) 039}$"
-header_text += "," + r"ATLAS jet $R_{\text{AA}}$, $\textit{PLB 790 (2019) 108-128}$"
+header_text += ", " + r"ATLAS jet $R_{\text{AA}}$, $\textit{PLB 790 (2019) 108-128}$"
 # text = "Full design space"
 text = r"Hadron $R_{\text{AA}}$: $73.6 < p_{\text{T}}^{\text{jet}} < 165$ (GeV/$c$)"
 text += "\n" + r"Jet $R_{\text{AA}}$: $100 < p_{\text{T}}^{\text{jet}} < 177$ (GeV/$c$)"
@@ -832,7 +832,7 @@ plot_config = pb.PlotConfig(
                 ),
                 pb.AxisConfig(
                     "y",
-                    label="First-order Sobol' index",
+                    label="Norm. total-effect Sobol' index",
                     font_size=text_font_size,
                     range=(0, 1),
                 ),
@@ -898,7 +898,7 @@ def plot_global_vs_local_sensitivity(data: dict[str, dict[str, Data]], pt_label:
         data["global"][pt_label].hf,
         bar_width,
         yerr=data["global"][pt_label].hf_err,
-        label="High fidelity GP (Global)",
+        label="High fidelity GP (Full design)",
         color=colors["HF"],
     )
     ax.bar(
@@ -915,7 +915,7 @@ def plot_global_vs_local_sensitivity(data: dict[str, dict[str, Data]], pt_label:
         data["global"][pt_label].hetgp,
         bar_width,
         yerr=data["global"][pt_label].hetgp_err,
-        label="VarP-GP (Global)",
+        label="VarP-GP (Full design)",
         color=colors["hetgp"],
     )
     ax.bar(
@@ -951,7 +951,7 @@ for observable in ["hadron", "jet"]:
         header_text += " " + r"CMS, $\textit{JHEP 04 (2017) 039}$"
     else:
         header_text = (
-            r"Emulated: $R = 0.4$ jet $R_{\text{AA}}$ in 0-10\% Pb-Pb, $\sqrt{s_{\text{NN}}} = 5.02\:\text{TeV}$,"
+            r"Emulated: Jet $R_{\text{AA}}$, $R = 0.4$ in 0-10\% Pb-Pb, $\sqrt{s_{\text{NN}}} = 5.02\:\text{TeV}$,"
         )
         header_text += " " + r"ATLAS, $\textit{PLB 790 (2019) 108-128}$"
 
@@ -961,10 +961,10 @@ for observable in ["hadron", "jet"]:
         # It's actually 1 TeV, so better to just rewrite it properly...
         if high == 999:
             high = 1000
-        if observable == "hadron":
+        if observable == "hadron":  # noqa: SIM108
             minimal_text = r"Hadron $R_{\text{AA}}$"
         else:
-            minimal_text = r"$R = 0.4$ inclusive jet $R_{\text{AA}}$"
+            minimal_text = r"Jet $R_{\text{AA}}$, $R = 0.4$"
         minimal_text += "\n" + rf"${low:g} < p_{{\text{{T}}}} < {high:g}\:\text{{GeV}}/c$"
 
         plot_config = pb.PlotConfig(
@@ -981,7 +981,7 @@ for observable in ["hadron", "jet"]:
                         ),
                         pb.AxisConfig(
                             "y",
-                            label="First-order Sobol' index",
+                            label="Norm. total-effect Sobol' index",
                             font_size=text_font_size,
                             range=(0, 1),
                         ),
@@ -1020,7 +1020,7 @@ for index in range(len(hadron_pt_bin_labels)):
     # I considered including everything here (e.g. sqrt_s), but it doesn't matter overly much
     # for the purposes of this exercise. To just highlight the important information, I'm going to cut down to the minimal.
     hadron_low, hadron_high = map(float, hadron_pt_bin_labels[index].split("_"))
-    text = "Global Sobol' sensitivity"
+    text = "Norm. total-effect Sobol' index"
     text += r", trained on JETSCAPE (MATTER + LBT)"
     text += "\n" + r"corresponding to CMS, $\textit{JHEP 04 (2017) 039}$"
     text += "\n" + r"0-5\%, Hadron $R_{\text{AA}}$, $\sqrt{s_{\text{NN}}} = 5.02\:\text{TeV}$"
@@ -1039,7 +1039,7 @@ for index in range(len(hadron_pt_bin_labels)):
                     ),
                     pb.AxisConfig(
                         "y",
-                        label="First-order Sobol' index",
+                        label="Norm. total-effect Sobol' index",
                         font_size=text_font_size,
                         range=(0, 1),
                     ),
@@ -1075,7 +1075,7 @@ for index in range(len(hadron_pt_bin_labels)):
     # I considered including everything here (e.g. sqrt_s), but it doesn't matter overly much
     # for the purposes of this exercise. To just highlight the important information, I'm going to cut down to the minimal.
     hadron_low, hadron_high = map(float, hadron_pt_bin_labels[index].split("_"))
-    text = r"5-95\% MAP Sobol' sensitivity"
+    text = r"5-95\% MAP norm. total-effect Sobol' index"
     text += r", trained on JETSCAPE (MATTER + LBT)"
     text += "\n" + r"corresponding to CMS, $\textit{JHEP 04 (2017) 039}$"
     text += "\n" + r"0-5\%, Hadron $R_{\text{AA}}$, $\sqrt{s_{\text{NN}}} = 5.02\:\text{TeV}$"
@@ -1094,7 +1094,7 @@ for index in range(len(hadron_pt_bin_labels)):
                     ),
                     pb.AxisConfig(
                         "y",
-                        label="First-order Sobol' index",
+                        label="Norm. total-effect Sobol' index",
                         font_size=text_font_size,
                         range=(0, 1),
                     ),
