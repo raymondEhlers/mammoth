@@ -72,7 +72,7 @@ job_id_fixed=$(printf "%04d" $SLURM_ARRAY_TASK_ID)
 job_output_dir={output_dir}
 mkdir -p "$job_output_dir"
 # Local job output dir on the node (we need this to be unique for safety)
-local_job_output_dir={local_base_output_dir}/${{job_id_fixed}}
+local_job_output_dir={local_base_output_dir}/${{SLURM_JOB_ID}}_${{job_id_fixed}}
 mkdir -p "$local_job_output_dir"
 
 echo "hybrid_job_index=${{hybrid_job_index}}, job_id_fixed=${{job_id_fixed}}, job_output_dir=${{job_output_dir}}, local_job_output_dir=${{local_job_output_dir}}"
@@ -83,7 +83,8 @@ time apptainer exec --cleanenv --no-home {local_jetscape_analysis_dir} -B /rds/p
 
 # Copy all .parquet and .root files from the local job output dir to the job output dir, maintaining directory structure
 # We include the root files because we may have outputs from the post processing, and we do not want to have to update this command
-rsync -avm --include='*/' --include='*.parquet' --include='*.root' --exclude='*' ${{local_job_output_dir}}/ ${{job_output_dir}}/
+# NOTE: no-g ensures that the group of my destination folder is consistent.
+rsync -avm --no-g --include='*/' --include='*.parquet' --include='*.root' --exclude='*' ${{local_job_output_dir}}/ ${{job_output_dir}}/
 
 # Cleanup the local job output dir
 rm -rf "${{local_job_output_dir}}"
@@ -102,12 +103,15 @@ def convert_to_parquet(
     end_job_index: int,
     container_path: Path,
     # n_events optimized for PbPb since we already converted the pp sample.
-    n_events_per_parquet_file: int = 5000,
+    # NOTE(RJE): I changed this to 6000 since the PbPb production tends to be slightly more than 5000.
+    #            Bumping slightly cuts the number of files in half, and we're not doing array at a time
+    #            analysis, so we don't need to worry about the memory cost as much.
+    n_events_per_parquet_file: int = 6000,
     job_name: str = "hybrid_bayesian",
     walltime_in_minutes: int = 60,
     local_jetscape_analysis_dir: Path | None = None,
     # Customized for the Cambridge HPC system
-    partition: str = "cclake",
+    partition: str = "icelake",
     account: str = "IRIS-IP012-CPU",
     local_base_output_dir: Path = Path("/local/hybrid-bayesian"),
 ) -> None:
@@ -174,7 +178,7 @@ job_id_fixed=$(printf "%04d" $SLURM_ARRAY_TASK_ID)
 job_output_dir={output_dir}
 mkdir -p "$job_output_dir"
 # Local job output dir
-local_job_output_dir={local_base_output_dir}/${{job_id_fixed}}
+local_job_output_dir={local_base_output_dir}/${{SLURM_JOB_ID}}_${{job_id_fixed}}
 mkdir -p "$local_job_output_dir"
 
 echo "job_id_fixed=${{job_id_fixed}}, job_output_dir=${{job_output_dir}}, local_job_output_dir=${{local_job_output_dir}}"
@@ -197,11 +201,12 @@ ls -la ${{local_job_output_dir}}
 # After the fourth argument, we pass all of the input filenames (namely, the parquet final state hadron files).
 post_processing_input_filenames=$(find ${{local_job_output_dir}} -name "*final_state_hadrons*.parquet")
 echo "post_processing_input_filenames=${{post_processing_input_filenames}}"
-time apptainer run --cleanenv --no-home {local_jetscape_analysis_dir} -B /rds/project/rds-hCZCEbPdvZ8 -B {local_base_output_dir} --app post-processing {container_path} /jetscapeOpt/jetscape-analysis/config/STAT_5020.yaml 5020 ${{local_job_output_dir}}/observables ${{local_job_output_dir}}/histograms ${{post_processing_input_filenames[@]}}
+time apptainer run --cleanenv --no-home {local_jetscape_analysis_dir} -B /rds/project/rds-hCZCEbPdvZ8 -B {local_base_output_dir} --app post-processing {container_path} /jetscapeOpt/jetscape-analysis/config/STAT_5020.yaml 5020 ${{local_job_output_dir}}/observables ${{local_job_output_dir}}/histograms --hadrons ${{post_processing_input_filenames[@]}}
 
 # Copy all .parquet and .root files from the local job output dir to the job output dir, maintaining directory structure
 # We include the root files because we may have outputs from the post processing, and we do not want to have to update this command
-rsync -avm --include='*/' --include='*.parquet' --include='*.root' --exclude='*' ${{local_job_output_dir}}/ ${{job_output_dir}}/
+# NOTE: no-g ensures that the group of my destination folder is consistent.
+rsync -avm --no-g --include='*/' --include='*.parquet' --include='*.root' --exclude='*' ${{local_job_output_dir}}/ ${{job_output_dir}}/
 
 # Cleanup the local job output dir
 rm -rf "${{local_job_output_dir}}"
@@ -221,7 +226,7 @@ def analyze_output(
     walltime_in_minutes: int = 240,
     local_jetscape_analysis_dir: Path | None = None,
     # Customized for the Cambridge HPC system
-    partition: str = "cclake",
+    partition: str = "icelake",
     account: str = "IRIS-IP012-CPU",
     local_base_output_dir: Path = Path("/local/hybrid-bayesian"),
 ) -> None:
@@ -353,7 +358,7 @@ def main_entry_point() -> None:
     logger.info("Job parameters")
     logger.info(f"\tIndex: {args.start_job_index}-{args.end_job_index}")
     logger.info(f"Container path: {args.container_path}")
-    if args.local_jetsacpe_analysis_dir:
+    if args.local_jetscape_analysis_dir:
         logger.info(f"Local jetscape analysis dir: {args.local_jetscape_analysis_dir}")
 
     # Job script to convert outputs to parquet
