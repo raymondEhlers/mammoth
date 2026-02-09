@@ -345,7 +345,7 @@ for selected_space in ["global", "posterior"]:
                 axes=[
                     pb.AxisConfig(
                         "y",
-                        label="Norm. TE Sobol' index",
+                        label="Norm. TE Sobol' index",  # codespell:ignore te
                         font_size=text_font_size,
                         range=(0, 1),
                     ),
@@ -381,7 +381,7 @@ for selected_space in ["global", "posterior"]:
                     ),
                     pb.AxisConfig(
                         "y",
-                        label="Norm. TE Sobol' index",
+                        label="Norm. TE Sobol' index",  # codespell:ignore te
                         font_size=text_font_size,
                         range=(0, 0.995),
                     ),
@@ -502,7 +502,7 @@ for selected_space in ["global", "posterior"]:
                 axes=[
                     pb.AxisConfig(
                         "y",
-                        label="Norm. TE Sobol' index",
+                        label="Norm. TE Sobol' index",  # codespell:ignore te
                         font_size=text_font_size,
                         range=(0, 1),
                     ),
@@ -535,7 +535,7 @@ for selected_space in ["global", "posterior"]:
                     ),
                     pb.AxisConfig(
                         "y",
-                        label="Norm. TE Sobol' index",
+                        label="Norm. TE Sobol' index",  # codespell:ignore te
                         font_size=text_font_size,
                         range=(0, 0.995),
                     ),
