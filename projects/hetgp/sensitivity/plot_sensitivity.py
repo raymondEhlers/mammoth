@@ -163,7 +163,7 @@ def plot_original(HF, HetGP, HFerr, HetGPerr, plotname) -> None:
 
     # Plot in the main panel
     # Group A
-    ax.bar(index, HF, width, yerr=HFerr, label="High fidelity GP")
+    ax.bar(index, HF, width, yerr=HFerr, label="HF-GP")
     # Group B: shift the next bar over so they sit side-by-side
     ax.bar(index + width, HetGP, width, yerr=HetGPerr, label="VarP-GP")
     ax.set_ylim([0, 1])
@@ -211,7 +211,7 @@ def plot_parameters_on_ax(
     index = np.arange(n_points)
 
     # The first is shifted left
-    ax.bar(index - bar_width / 2, hf, bar_width, yerr=hf_err, label="High fidelity GP", color=colors["HF"])
+    ax.bar(index - bar_width / 2, hf, bar_width, yerr=hf_err, label="HF-GP", color=colors["HF"])
     # The second is shifted right
     ax.bar(index + bar_width / 2, hetgp, bar_width, yerr=hetgp_err, label="VarP-GP", color=colors["hetgp"])
 
@@ -600,7 +600,7 @@ def plot_parameter_pt_dependence(
 
     bar_width = 0.2
     # The first is shifted left
-    ax.bar(index - bar_width / 2, hf, bar_width, yerr=hf_err, label="High fidelity GP", color=colors["HF"])
+    ax.bar(index - bar_width / 2, hf, bar_width, yerr=hf_err, label="HF-GP", color=colors["HF"])
     # The second is shifted right
     ax.bar(index + bar_width / 2, hetgp, bar_width, yerr=hetgp_err, label="VarP-GP", color=colors["hetgp"])
 
@@ -746,7 +746,7 @@ def plot_hadron_vs_jet_sensitivity(hadron_data: Data, jet_data: Data, plot_confi
         hadron_data.hf,
         bar_width,
         yerr=hadron_data.hf_err,
-        label="High fidelity GP (Hadron)",
+        label="HF-GP",
         color=colors["HF"],
     )
     ax.bar(
@@ -754,7 +754,7 @@ def plot_hadron_vs_jet_sensitivity(hadron_data: Data, jet_data: Data, plot_confi
         hadron_data.hetgp,
         bar_width,
         yerr=hadron_data.hetgp_err,
-        label="VarP-GP (Hadron)",
+        label="VarP-GP",
         color=colors["hetgp"],
     )
     # The second is shifted right
@@ -763,7 +763,7 @@ def plot_hadron_vs_jet_sensitivity(hadron_data: Data, jet_data: Data, plot_confi
         jet_data.hf,
         bar_width,
         yerr=jet_data.hf_err,
-        label="High fidelity GP (Jet)",
+        label="HF-GP",
         color=colors["HF_alt"],
     )
     ax.bar(
@@ -771,7 +771,7 @@ def plot_hadron_vs_jet_sensitivity(hadron_data: Data, jet_data: Data, plot_confi
         jet_data.hetgp,
         bar_width,
         yerr=jet_data.hetgp_err,
-        label="VarP-GP (Jet)",
+        label="VarP-GP",
         color=colors["hetgp_alt"],
     )
 
@@ -785,25 +785,55 @@ def plot_hadron_vs_jet_sensitivity(hadron_data: Data, jet_data: Data, plot_confi
 
     # Modify the legend ordering to group by emulator type.
     leg_handles, leg_labels = ax.get_legend_handles_labels()
-    new_handles = [
+    # First, setup the hadron legend
+    hadron_legend_handles = [
         # HFGP
         leg_handles[0],
-        leg_handles[2],
         # VarP-GP
         leg_handles[1],
+    ]
+    hadron_legend_labels = [
+        leg_labels[0],
+        leg_labels[1],
+    ]
+    # Manually create the hadron legend, storing a copy of the styling for the jet, and adjust the position
+    legend_style_hadron = copy.deepcopy(plot_config.panels[0].legend)
+    legend_style_hadron.location = "upper right"
+    legend_style_hadron.anchor = (0.64, 0.77)
+    hadron_legend = legend_style_hadron.apply(
+        ax=ax, legend_handles=hadron_legend_handles, legend_labels=hadron_legend_labels
+    )
+    # Adding the artist ensures that both will be rendered.
+    ax.add_artist(hadron_legend)
+
+    # And then we'll handle the jet using the regular styling (I just don't have support for two legends as of Feb 2026)
+    jet_legend_handles = [
+        # HFGP
+        leg_handles[2],
+        # VarP-GP
         leg_handles[3],
     ]
-    new_labels = [
-        # HFGP
-        leg_labels[0],
+    jet_legend_labels = [
         leg_labels[2],
-        # VarP-GP
-        leg_labels[1],
         leg_labels[3],
     ]
+    # new_handles = [
+    # new_handles = [
+    #     leg_handles[2],
+    #     # VarP-GP
+    #     leg_handles[3],
+    # ]
+    # new_labels = [
+    #     # HFGP
+    #     leg_labels[0],
+    #     leg_labels[2],
+    #     # VarP-GP
+    #     leg_labels[1],
+    #     leg_labels[3],
+    # Create the jet legend
 
     # Apply styling
-    plot_config.apply(fig, ax=ax, legend_handles=new_handles, legend_labels=new_labels)
+    plot_config.apply(fig, ax=ax, legend_handles=jet_legend_handles, legend_labels=jet_legend_labels)
 
     _output_path = base_path / "figures"
     _output_path.mkdir(parents=True, exist_ok=True)
@@ -815,8 +845,10 @@ header_text = r"Emulated: Central Pb-Pb at $\sqrt{s_{\text{NN}}} = 5.02\:\text{T
 header_text += "\n" + r"CMS hadron $R_{\text{AA}}$, $\textit{JHEP 04 (2017) 039}$"
 header_text += ", " + r"ATLAS jet $R_{\text{AA}}$, $\textit{PLB 790 (2019) 108-128}$"
 # text = "Full design space"
-text = r"Hadron $R_{\text{AA}}$: $73.6 < p_{\text{T}}^{\text{jet}} < 165$ (GeV/$c$)"
-text += "\n" + r"Jet $R_{\text{AA}}$: $100 < p_{\text{T}}^{\text{jet}} < 177$ (GeV/$c$)"
+text_hadron_obs = r"Hadron $R_{\text{AA}}$"
+text_hadron_pt = r"$73.6 < p_{\text{T}}^{\text{hadron}} < 165$ (GeV/$c$)"
+text_jet_obs = r"Jet $R_{\text{AA}}$"
+text_jet_pt = r"$100 < p_{\text{T}}^{\text{jet}} < 177$ (GeV/$c$)"
 
 plot_config = pb.PlotConfig(
     name="sensitivity_hadron_vs_jet_global",
@@ -832,7 +864,8 @@ plot_config = pb.PlotConfig(
                 ),
                 pb.AxisConfig(
                     "y",
-                    label="Norm. total-effect Sobol' index",
+                    # label="Norm. total-effect Sobol' index",
+                    label=r"$S_{T_{i} (\text{norm})}$",
                     font_size=text_font_size,
                     range=(0, 1),
                 ),
@@ -840,10 +873,17 @@ plot_config = pb.PlotConfig(
             text=[
                 pb.TextConfig(x=0.01, y=1.01, text=header_text, font_size=16, alignment="lower left"),
                 pb.TextConfig(x=0.03, y=0.96, text="Full design space", font_size=text_font_size),
-                pb.TextConfig(x=0.95, y=0.58, text=text, font_size=text_font_size),
                 pb.TextConfig(x=0.98, y=0.20, text="Equal sensitivity", font_size=16, text_kwargs={"zorder": 0}),
+                # Hadron
+                pb.TextConfig(x=0.43, y=0.92, text=text_hadron_obs, font_size=30, alignment="upper left"),
+                # NOTE(RJE): Slight shift down in y to match the jet (I guess because the baseline shifts? Not sure why...)
+                pb.TextConfig(x=0.425, y=0.835, text=text_hadron_pt, font_size=12, alignment="upper left"),
+                # Jet
+                pb.TextConfig(x=0.76, y=0.92, text=text_jet_obs, font_size=30, alignment="upper left"),
+                pb.TextConfig(x=0.73, y=0.84, text=text_jet_pt, font_size=12, alignment="upper left"),
             ],
-            legend=pb.LegendConfig(location="upper right", anchor=(0.95, 0.95), font_size=22),
+            # This is the hadron legend. We'll separately add the jet legend
+            legend=pb.LegendConfig(location="upper right", anchor=(0.94, 0.77), font_size=22, marker_label_spacing=0.2),
         ),
     ],
     figure=pb.Figure(edge_padding={"left": 0.10, "bottom": 0.11, "top": 0.90}),
@@ -898,7 +938,7 @@ def plot_global_vs_local_sensitivity(data: dict[str, dict[str, Data]], pt_label:
         data["global"][pt_label].hf,
         bar_width,
         yerr=data["global"][pt_label].hf_err,
-        label="High fidelity GP (Full design)",
+        label="HF-GP (Full design)",
         color=colors["HF"],
     )
     ax.bar(
@@ -906,7 +946,7 @@ def plot_global_vs_local_sensitivity(data: dict[str, dict[str, Data]], pt_label:
         data["1_99"][pt_label].hf,
         bar_width,
         yerr=data["1_99"][pt_label].hf_err,
-        label=r"High fidelity GP (1-99\%)",
+        label=r"HF-GP (1-99\%)",
         color=colors["HF_alt"],
     )
     # The second is shifted right
