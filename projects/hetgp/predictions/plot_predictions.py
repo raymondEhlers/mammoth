@@ -590,7 +590,8 @@ text_font_size = 22
 # I skipped that it was trained on JETSCAPE (MATTER+LBT) - it's bulky, and never varies.
 header_text = r"Emulated: $R = 0.4$ jet $R_{\text{AA}}$ in 0-10\% Pb-Pb, $\sqrt{s_{\text{NN}}} = 5.02\:\text{TeV}$,"
 header_text += " " + r"ATLAS, $\textit{PLB 790 (2019) 108-128}$"
-minimal_text_obs = r"Jet $R_{\text{AA}}$, $R = 0.4$"
+# minimal_text_obs = r"Jet $R_{\text{AA}}$, $R = 0.4$"
+minimal_text_obs = r"Jet $R_{\text{AA}}$"
 minimal_text_pt = r"$100 < p_{\text{T}} < 1000\:\text{GeV}/c$"
 plot_config = pb.PlotConfig(
     name="budget_residual_error_jet",
@@ -666,7 +667,8 @@ for log in [False, True]:
     # I skipped that it was trained on JETSCAPE (MATTER+LBT) - it's bulky, and never varies.
     header_text = r"Emulated: $R = 0.4$ jet $R_{\text{AA}}$ in 0-10\% Pb-Pb, $\sqrt{s_{\text{NN}}} = 5.02\:\text{TeV}$,"
     header_text += " " + r"ATLAS, $\textit{PLB 790 (2019) 108-128}$"
-    minimal_text_obs = r"Jet $R_{\text{AA}}$, $R = 0.4$"
+    # minimal_text_obs = r"Jet $R_{\text{AA}}$, $R = 0.4$"
+    minimal_text_obs = r"Jet $R_{\text{AA}}$"
     minimal_text_pt = r"$100 < p_{\text{T}} < 1000\:\text{GeV}/c$"
     # y_max = 0.12 if log else 0.033
     y_max = 0.12 if log else 0.031
