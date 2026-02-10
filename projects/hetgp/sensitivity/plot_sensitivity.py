@@ -258,6 +258,7 @@ def plot_compare_hetgp_hf(
 
 def plot_compare_hetgp_hf_hadron(
     hadron_data_by_pt: dict[str, Data],
+    selected_space: str,
     plot_config: pb.PlotConfig,
 ) -> None:
     """Specific comparison function for hadron pt comparison combined into a single figure.
@@ -281,7 +282,7 @@ def plot_compare_hetgp_hf_hadron(
         3,
         2,
         figsize=(10, 8),
-        gridspec_kw={"height_ratios": [0.5, 6, 6]},
+        gridspec_kw={"height_ratios": [0.5 if selected_space == "global" else 0.75, 6, 6]},
         sharex="col",
         sharey="row",
     )
@@ -319,13 +320,14 @@ for selected_space in ["global", "posterior"]:
     # The miniaml text contains only the most important text
     # Everything else (e.g. what is not critical to distringuishing the plots) is kept in the header.
     # I skipped that it was trained on JETSCAPE (MATTER+LBT) - it's bulky, and never varies.
-    text = "Norm. total-effect Sobol' index"
-    if selected_space == "global":
-        text += "\n" + "Full design space"
+    if selected_space == "global":  # noqa: SIM108
+        text = "\n" + "Full design space"
     else:
-        text += "\n" + r"1-99\% posterior"
+        text = "\n" + r"1-99\% posterior"
     header_text = "\n" + r"Emulated: Hadron $R_{\text{AA}}$ in 0-5\% Pb-Pb, $\sqrt{s_{\text{NN}}} = 5.02\:\text{TeV}$,"
     header_text += " " + r"CMS, $\textit{JHEP 04 (2017) 039}$"
+    if selected_space == "posterior":
+        header_text += "\n" + r"Posterior: JETSCAPE, $\textit{PRC 111 (2025) 5, 054913}$"
 
     pt_labels = []
     for k in hadron_data["global"]:
@@ -345,13 +347,12 @@ for selected_space in ["global", "posterior"]:
                 axes=[
                     pb.AxisConfig(
                         "y",
-                        label="Norm. TE Sobol' index",  # codespell:ignore te
+                        label=r"$S_{T_{i} (\text{norm})}$",
                         font_size=text_font_size,
                         range=(0, 1),
                     ),
                 ],
                 text=[
-                    pb.TextConfig(x=0.95, y=0.80, text=text, font_size=text_font_size),
                     pb.TextConfig(x=0.95, y=0.95, text=pt_labels[0], font_size=in_figure_font_size),
                 ],
                 # legend=pb.LegendConfig(location="upper right", anchor=(0.95, 0.95), font_size=22),
@@ -381,7 +382,7 @@ for selected_space in ["global", "posterior"]:
                     ),
                     pb.AxisConfig(
                         "y",
-                        label="Norm. TE Sobol' index",  # codespell:ignore te
+                        label=r"$S_{T_{i} (\text{norm})}$",
                         font_size=text_font_size,
                         range=(0, 0.995),
                     ),
@@ -405,6 +406,8 @@ for selected_space in ["global", "posterior"]:
                 text=[
                     pb.TextConfig(x=0.95, y=0.95, text=pt_labels[3], font_size=in_figure_font_size),
                     pb.TextConfig(x=0.98, y=0.19, text="Equal sensitivity", font_size=18, text_kwargs={"zorder": 0}),
+                    pb.TextConfig(x=0.95, y=0.60, text=r"Hadron $R_{\text{AA}}$", font_size=30),
+                    pb.TextConfig(x=0.95, y=0.53, text=text, font_size=18, alignment="upper right"),
                 ],
                 # legend=pb.LegendConfig(location="upper right", anchor=(0.95, 0.95), font_size=22),
             ),
@@ -414,7 +417,9 @@ for selected_space in ["global", "posterior"]:
 
     # plot(HF, HetGP, HFerr, HetGPerr, plotname)
     plot_compare_hetgp_hf_hadron(
-        hadron_data_by_pt=hadron_data["global" if selected_space == "global" else "1_99"], plot_config=plot_config
+        hadron_data_by_pt=hadron_data["global" if selected_space == "global" else "1_99"],
+        selected_space=selected_space,
+        plot_config=plot_config,
     )
 
 
@@ -476,15 +481,20 @@ in_figure_font_size = 20
 for selected_space in ["global", "posterior"]:
     # I considered including everything here (e.g. sqrt_s), but it doesn't matter overly much
     # for the purposes of this exercise. To just highlight the important information, I'm going to cut down to the minimal.
-    text = "Norm. total-effect Sobol' index"
-    if selected_space == "global":
-        text += "\n" + "Full design space"
+    # text = "Norm. total-effect Sobol' index"
+    text = r"Jet $R_{\text{AA}}$, $R = 0.4$"
+    if selected_space == "global":  # noqa: SIM108
+        text_label = "\n" + "Full design space"
     else:
-        text += "\n" + r"1-99\% posterior"
+        text_label = "\n" + r"1-99\% posterior"
 
-    text_details = "\n" + r"Emulated: Jet $R_{\text{AA}}$, $R = 0.4$"
+    # text_details = "\n" + r"Emulated: Jet $R_{\text{AA}}$, $R = 0.4$"
+    text_details = r"Emulated:"
     text_details += "\n" + r"0-10\%, $\sqrt{s_{\text{NN}}} = 5.02\:\text{TeV}$"
     text_details += "\n" + r"ATLAS, $\textit{PLB 790 (2019) 108-128}$"
+    if selected_space == "posterior":
+        text_details += "\n" + r"Posterior:"
+        text_details += "\n" + r"JETSCAPE, $\textit{PRC 111 (2025) 5, 054913}$"
 
     pt_labels = []
     for k in jet_data["global"]:
@@ -502,7 +512,7 @@ for selected_space in ["global", "posterior"]:
                 axes=[
                     pb.AxisConfig(
                         "y",
-                        label="Norm. TE Sobol' index",  # codespell:ignore te
+                        label=r"$S_{T_{i} (\text{norm})}$",
                         font_size=text_font_size,
                         range=(0, 1),
                     ),
@@ -535,7 +545,7 @@ for selected_space in ["global", "posterior"]:
                     ),
                     pb.AxisConfig(
                         "y",
-                        label="Norm. TE Sobol' index",  # codespell:ignore te
+                        label=r"$S_{T_{i} (\text{norm})}$",
                         font_size=text_font_size,
                         range=(0, 0.995),
                     ),
@@ -550,8 +560,9 @@ for selected_space in ["global", "posterior"]:
             pb.Panel(
                 axes=[],
                 text=[
-                    pb.TextConfig(x=0.05, y=0.71, text=text, font_size=18),
-                    pb.TextConfig(x=0.05, y=0.62, text=text_details, font_size=14),
+                    pb.TextConfig(x=0.05, y=0.71, text=text, font_size=30),
+                    pb.TextConfig(x=0.05, y=0.665, text=text_label, font_size=text_font_size),
+                    pb.TextConfig(x=0.05, y=0.48, text=text_details, font_size=14, alignment="upper left"),
                 ],
             ),
         ],
@@ -930,7 +941,7 @@ def plot_global_vs_local_sensitivity(data: dict[str, dict[str, Data]], pt_label:
         data["global"][pt_label].hf,
         bar_width,
         yerr=data["global"][pt_label].hf_err,
-        label="HF-GP (Full design)",
+        label="HF-GP",
         color=colors["HF"],
     )
     ax.bar(
@@ -938,7 +949,7 @@ def plot_global_vs_local_sensitivity(data: dict[str, dict[str, Data]], pt_label:
         data["1_99"][pt_label].hf,
         bar_width,
         yerr=data["1_99"][pt_label].hf_err,
-        label=r"HF-GP (1-99\%)",
+        label=r"HF-GP",
         color=colors["HF_alt"],
     )
     # The second is shifted right
@@ -947,7 +958,7 @@ def plot_global_vs_local_sensitivity(data: dict[str, dict[str, Data]], pt_label:
         data["global"][pt_label].hetgp,
         bar_width,
         yerr=data["global"][pt_label].hetgp_err,
-        label="VarP-GP (Full design)",
+        label="VarP-GP",
         color=colors["hetgp"],
     )
     ax.bar(
@@ -955,7 +966,7 @@ def plot_global_vs_local_sensitivity(data: dict[str, dict[str, Data]], pt_label:
         data["1_99"][pt_label].hetgp,
         bar_width,
         yerr=data["1_99"][pt_label].hetgp_err,
-        label=r"VarP-GP (1-99\%)",
+        label=r"VarP-GP",
         color=colors["hetgp_alt"],
     )
 
@@ -967,8 +978,43 @@ def plot_global_vs_local_sensitivity(data: dict[str, dict[str, Data]], pt_label:
     # NOTE: (it relies on the plot_config for the label)
     ax.axhline(y=1.0 / 6.0, color="black", linestyle="dashed", zorder=0)
 
+    # Modify the legend ordering to group by emulator type.
+    leg_handles, leg_labels = ax.get_legend_handles_labels()
+    # First, setup the full design legend
+    global_legend_handles = [
+        # HFGP
+        leg_handles[0],
+        # VarP-GP
+        leg_handles[2],
+    ]
+    global_legend_labels = [
+        leg_labels[0],
+        leg_labels[2],
+    ]
+    # Manually create the global legend, storing a copy of the styling for the jet, and adjust the position
+    legend_style_global = copy.deepcopy(plot_config.panels[0].legend)
+    legend_style_global.location = "upper right"
+    legend_style_global.anchor = (0.63, 0.825)
+    global_legend = legend_style_global.apply(
+        ax=ax, legend_handles=global_legend_handles, legend_labels=global_legend_labels
+    )
+    # Adding the artist ensures that both will be rendered.
+    ax.add_artist(global_legend)
+
+    # And then we'll handle the local using the regular styling (I just don't have support for two legends as of Feb 2026)
+    local_legend_handles = [
+        # HFGP
+        leg_handles[1],
+        # VarP-GP
+        leg_handles[3],
+    ]
+    local_legend_labels = [
+        leg_labels[1],
+        leg_labels[3],
+    ]
+
     # Apply styling
-    plot_config.apply(fig, ax=ax)
+    plot_config.apply(fig, ax=ax, legend_handles=local_legend_handles, legend_labels=local_legend_labels)
 
     _output_path = base_path / "figures"
     _output_path.mkdir(parents=True, exist_ok=True)
@@ -986,6 +1032,7 @@ for observable in ["hadron", "jet"]:
             r"Emulated: Jet $R_{\text{AA}}$, $R = 0.4$ in 0-10\% Pb-Pb, $\sqrt{s_{\text{NN}}} = 5.02\:\text{TeV}$,"
         )
         header_text += " " + r"ATLAS, $\textit{PLB 790 (2019) 108-128}$"
+    header_text += "\n" + r"Posterior: JETSCAPE, $\textit{PRC 111 (2025) 5, 054913}$"
 
     for pt_label in data["global"]:
         # Pt bin
@@ -994,10 +1041,11 @@ for observable in ["hadron", "jet"]:
         if high == 999:
             high = 1000
         if observable == "hadron":  # noqa: SIM108
-            minimal_text = r"Hadron $R_{\text{AA}}$"
+            minimal_text_obs = r"Hadron $R_{\text{AA}}$"
         else:
-            minimal_text = r"Jet $R_{\text{AA}}$, $R = 0.4$"
-        minimal_text += "\n" + rf"${low:g} < p_{{\text{{T}}}} < {high:g}\:\text{{GeV}}/c$"
+            # minimal_text_obs = r"Jet $R_{\text{AA}}$, $R = 0.4$"
+            minimal_text_obs = r"Jet $R_{\text{AA}}$"
+        minimal_text_pt = rf"${low:g} < p_{{\text{{T}}}} < {high:g}\:\text{{GeV}}/c$"
 
         plot_config = pb.PlotConfig(
             name=f"sensitivity_global_vs_1_99_{observable}_{pt_label}",
@@ -1013,22 +1061,34 @@ for observable in ["hadron", "jet"]:
                         ),
                         pb.AxisConfig(
                             "y",
-                            label="Norm. total-effect Sobol' index",
+                            label=r"$S_{T_{i} (\text{norm})}$",
                             font_size=text_font_size,
                             range=(0, 1),
                         ),
                     ],
                     text=[
                         pb.TextConfig(x=0.01, y=1.01, text=header_text, font_size=16, alignment="lower left"),
-                        pb.TextConfig(x=0.95, y=0.60, text=minimal_text, font_size=text_font_size),
                         pb.TextConfig(
                             x=0.98, y=0.20, text="Equal sensitivity", font_size=16, text_kwargs={"zorder": 0}
                         ),
+                        # Hadron/jet label
+                        pb.TextConfig(x=0.95, y=0.55, text=minimal_text_obs, font_size=30, alignment="upper right"),
+                        pb.TextConfig(x=0.95, y=0.47, text=minimal_text_pt, font_size=12, alignment="upper right"),
+                        # Global
+                        pb.TextConfig(x=0.43, y=0.92, text="Full design", font_size=28, alignment="upper left"),
+                        # NOTE(RJE): Slight shift down in y to match the jet (I guess because the baseline shifts? Not sure why...)
+                        # pb.TextConfig(x=0.425, y=0.835, text=text_hadron_pt, font_size=12, alignment="upper left"),
+                        # Local
+                        pb.TextConfig(x=0.69, y=0.92, text=r"1-99\% posterior", font_size=28, alignment="upper left"),
+                        # pb.TextConfig(x=0.73, y=0.84, text=text_jet_pt, font_size=12, alignment="upper left"),
                     ],
-                    legend=pb.LegendConfig(location="upper right", anchor=(0.95, 0.95), font_size=22),
+                    # This is the local legend. We'll separately add the global legend
+                    legend=pb.LegendConfig(
+                        location="upper right", anchor=(0.935, 0.82), font_size=22, marker_label_spacing=0.2
+                    ),
                 ),
             ],
-            figure=pb.Figure(edge_padding={"left": 0.09, "bottom": 0.11, "top": 0.94}),
+            figure=pb.Figure(edge_padding={"left": 0.09, "bottom": 0.11, "top": 0.91}),
         )
         print(f"{observable=}, {pt_label=}")
         plot_global_vs_local_sensitivity(data=data, pt_label=pt_label, plot_config=plot_config)
