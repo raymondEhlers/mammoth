@@ -626,8 +626,9 @@ def plot_parameter_pt_dependence(
 
 # %%
 parameter = "alpha_s"
-text = f"{label_to_display_label[parameter]} sensitivity (full design space)"
-text += "\n" + r"Hadron $R_{\text{AA}}$"
+text = f"{label_to_display_label[parameter]} sensitivity"
+# text += "\n" + "(full design space)"
+text_obs = r"Hadron $R_{\text{AA}}$"
 # text += ", " + rf"${hadron_low:g} < p_{{\text{{T}}}} < {hadron_high:g}\:\text{{GeV}}/c$"
 header_text = r"Emulated: Hadron $R_{\text{AA}}$ in 0-5\% Pb-Pb, $\sqrt{s_{\text{NN}}} = 5.02\:\text{TeV}$,"
 header_text += " " + r"CMS, $\textit{JHEP 04 (2017) 039}$"
@@ -645,14 +646,16 @@ plot_config = pb.PlotConfig(
                 ),
                 pb.AxisConfig(
                     "y",
-                    label="Norm. total-effect Sobol' index",
+                    label=r"$S_{T_{i} (\text{norm})}$ " + f"({label_to_display_label[parameter]})",
                     font_size=text_font_size,
                     range=(0, 1),
                 ),
             ],
             text=[
                 pb.TextConfig(x=0.5, y=1.03, text=header_text, font_size=18, alignment="center"),
-                pb.TextConfig(x=0.95, y=0.8, text=text, font_size=text_font_size),
+                pb.TextConfig(x=0.65, y=0.96, text=text, font_size=30),
+                pb.TextConfig(x=0.63, y=0.88, text="(full design space)", font_size=18),
+                pb.TextConfig(x=0.95, y=0.7, text=text_obs, font_size=30),
             ],
             legend=pb.LegendConfig(location="upper right", anchor=(0.95, 0.95), font_size=22),
         ),
@@ -666,8 +669,9 @@ plot_parameter_pt_dependence(hadron_data["global"], selected_parameter=parameter
 
 # %%
 parameter = "alpha_s"
-text = f"{label_to_display_label[parameter]} sensitivity (full design space)"
-text += "\n" + r"Jet $R_{\text{AA}}$, $R = 0.4$"
+text = f"{label_to_display_label[parameter]} sensitivity"
+# text += "\n" + "(full design space)"
+text_obs = r"Jet $R_{\text{AA}}$"
 header_text = r"Emulated: Jet $R_{\text{AA}}$, $R = 0.4$ in 0-10\% Pb-Pb, $\sqrt{s_{\text{NN}}} = 5.02\:\text{TeV}$,"
 header_text += " " + r"ATLAS, $\textit{PLB 790 (2019) 108-128}$"
 
@@ -685,14 +689,16 @@ plot_config = pb.PlotConfig(
                 ),
                 pb.AxisConfig(
                     "y",
-                    label="Norm. total-effect Sobol' index",
+                    label=r"$S_{T_{i} (\text{norm})}$ " + f"({label_to_display_label[parameter]})",
                     font_size=text_font_size,
                     range=(0, 1),
                 ),
             ],
             text=[
                 pb.TextConfig(x=0.505, y=1.03, text=header_text, font_size=16, alignment="center"),
-                pb.TextConfig(x=0.95, y=0.8, text=text, font_size=text_font_size),
+                pb.TextConfig(x=0.65, y=0.96, text=text, font_size=30),
+                pb.TextConfig(x=0.63, y=0.88, text="(full design space)", font_size=18),
+                pb.TextConfig(x=0.95, y=0.7, text=text_obs, font_size=30),
             ],
             legend=pb.LegendConfig(location="upper right", anchor=(0.95, 0.95), font_size=22),
         ),
@@ -817,20 +823,6 @@ def plot_hadron_vs_jet_sensitivity(hadron_data: Data, jet_data: Data, plot_confi
         leg_labels[2],
         leg_labels[3],
     ]
-    # new_handles = [
-    # new_handles = [
-    #     leg_handles[2],
-    #     # VarP-GP
-    #     leg_handles[3],
-    # ]
-    # new_labels = [
-    #     # HFGP
-    #     leg_labels[0],
-    #     leg_labels[2],
-    #     # VarP-GP
-    #     leg_labels[1],
-    #     leg_labels[3],
-    # Create the jet legend
 
     # Apply styling
     plot_config.apply(fig, ax=ax, legend_handles=jet_legend_handles, legend_labels=jet_legend_labels)
