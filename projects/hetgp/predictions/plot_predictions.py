@@ -115,7 +115,7 @@ method_styles = {
         color="#845cba",
         marker="s",
         fillstyle="full",
-        label="High fidelity GP",
+        label="HF-GP",
         label_short="HF-GP",
         zorder=4,
     ),
@@ -177,9 +177,16 @@ def plot_residual(HFGPMSE: pd.DataFrame, hetGPMSE: pd.DataFrame, plot_config: pb
 # Plot showing the box plot of a distribution
 # For the paper, we look at the pt distribution integrated over the design points
 def boxplot(HFGPMSE: pd.DataFrame, hetGPMSE: pd.DataFrame, plot_config: pb.PlotConfig) -> None:
+    """Plot the boxplot.
+
+    Args:
+        HFGPMSE: MSE values of the HF-GP.
+        hetGPMSE: MSE values of the VarP-GP.
+        plot_config: Plot configuration
+    """
     # Melt both DataFrames and add a 'Source' label
     HFGPMSE_melted = HFGPMSE.melt(var_name="Variable", value_name="Value")
-    HFGPMSE_melted["Source"] = "High Fidelity GP"
+    HFGPMSE_melted["Source"] = "HF-GP"
 
     hetGPMSE_melted = hetGPMSE.melt(var_name="Variable", value_name="Value")
     hetGPMSE_melted["Source"] = "VarP-GP"
@@ -192,10 +199,22 @@ def boxplot(HFGPMSE: pd.DataFrame, hetGPMSE: pd.DataFrame, plot_config: pb.PlotC
     # Scale down the x-axis by 10^6, which we have to handle by hand.
     df_combined["Variable"] = df_combined["Variable"] / 1_000_000
 
+    # Check for outliers that are outside of our figure and need to be labeled.
+    # Calculated per source, it should be the count of the number of outliers outside of the y-axis, indexed by their x-axis value.
+    # This will be used to specify labels for outliers off the figure. Default: None.
+    # NOTE: The threshold is the y-axis max
+    threshold = plot_config.panels[0].axes[1].range[1]
+    outliers = (
+        df_combined[df_combined["Value"] > threshold]
+        .pivot_table(index="Source", columns="Variable", aggfunc="size", fill_value=0)
+        .to_dict("index")
+    )
+
     fig, ax = plt.subplots(
         1,
         1,
-        figsize=(10, 6.25),
+        # figsize=(10, 6.25),
+        figsize=(10, 8),
         sharex=True,
     )
 
@@ -229,7 +248,11 @@ def boxplot(HFGPMSE: pd.DataFrame, hetGPMSE: pd.DataFrame, plot_config: pb.PlotC
             widths=box_width,
             patch_artist=True,
             label=source,
-            medianprops={"linewidth": 3, "color": grey_for_lines},
+            medianprops={
+                "linewidth": 4,
+                # "color": grey_for_lines,
+                "color": "black",
+            },
             whiskerprops={"linewidth": 2, "color": grey_for_lines},
             capprops={"linewidth": 2, "color": grey_for_lines},
             boxprops={
@@ -246,9 +269,41 @@ def boxplot(HFGPMSE: pd.DataFrame, hetGPMSE: pd.DataFrame, plot_config: pb.PlotC
             },
         )
 
-        # Optional: customize colors
-        for patch in bp["boxes"]:
-            patch.set_facecolor(colors[i])
+        # And then add a marker at the median
+        # ax.plot(
+        #     positions,
+        #     [np.median(v) for v in data],
+        #     marker="s",
+        #     color="black",
+        #     #color="#2E86C1",
+        #     linestyle="",
+        #     zorder=5,
+        #     markersize=10,
+        # )
+
+        # Check for outliers to put outside of the figure
+
+        source_outliers = outliers.get(source, {})
+        for x_loc, count in source_outliers.items():
+            print(f"Plotting source outlier: {x_loc=}, {count=}")
+            # Need to shift the x_loc to correspond to the variable
+            x_shifted = x_loc + (i - len(sources) / 2 + 0.5) * box_width
+            ax.annotate(
+                # count,
+                # NOTE(RJE): I decided that not to include the count, since I'm not sure it brings another.
+                #            It could if we included more, but since we're only doing this for one particular case,
+                #            I think it's okay to include no label to simplify the figure.
+                "",
+                xy=(x_shifted, threshold),
+                xytext=(x_shifted, threshold * 0.95),
+                # NOTE(RJE): This is a cute trick splitting how the coordinates are interpreted, but
+                #            not worth the extra complexity here.
+                # xytext=(x_shifted, -0.05),
+                # textcoords=("data", "axes fraction"),
+                ha="center",
+                fontsize=12,
+                arrowprops={"arrowstyle": "->", "color": colors[i], "lw": 2},
+            )
 
     # Manually set ticks at regular intervals
     # We have to do this by hand because the labels are otherwise set at where the boxes are actually positioned
@@ -368,8 +423,8 @@ text_font_size = 22
 # I skipped that it was trained on JETSCAPE (MATTER+LBT) - it's bulky, and never varies.
 header_text = r"Emulated: Hadron $R_{\text{AA}}$ in 0-5\% Pb-Pb, $\sqrt{s_{\text{NN}}} = 5.02\:\text{TeV}$,"
 header_text += " " + r"CMS, $\textit{JHEP 04 (2017) 039}$"
-minimal_text = r"Hadron $R_{\text{AA}}$"
-minimal_text += "\n" + r"$4.8 < p_{\text{T}} < 400\:\text{GeV}/c$"
+minimal_text_obs = r"Hadron $R_{\text{AA}}$"
+minimal_text_pt = r"$4.8 < p_{\text{T}} < 400\:\text{GeV}/c$"
 plot_config = pb.PlotConfig(
     name="budget_residual_error_hadron",
     panels=[
@@ -378,20 +433,23 @@ plot_config = pb.PlotConfig(
             axes=[
                 pb.AxisConfig(
                     "x",
-                    label=r"$N_{\text{event}}$ in training data",
+                    label=r"Training data $N_{\text{event}}$",
                     font_size=text_font_size,
                 ),
                 pb.AxisConfig(
                     "y",
-                    label=r"$\sum_{p_{\text{T,}}\:\text{design}}$ MSE",
+                    # label=r"$\sum_{p_{\text{T,}}\:\text{design}}$ MSE",
+                    label=r"Aggregated MSE",
                     font_size=text_font_size,
-                    range=(0.076, 0.235),
+                    range=(0.035, 0.24),
+                    # range=(0.076, 0.235),
                     # range=(0.044, 0.155),
                 ),
             ],
             text=[
                 pb.TextConfig(x=0.5, y=1.03, text=header_text, font_size=18, alignment="center"),
-                pb.TextConfig(x=0.95, y=0.78, text=minimal_text, font_size=text_font_size),
+                pb.TextConfig(x=0.95, y=0.70, text=minimal_text_obs, font_size=28),
+                pb.TextConfig(x=0.94, y=0.62, text=minimal_text_pt, font_size=12),
             ],
             legend=pb.LegendConfig(location="upper right", anchor=(0.95, 0.95), font_size=text_font_size),
         ),
@@ -444,8 +502,9 @@ for log in [False, True]:
     # I skipped that it was trained on JETSCAPE (MATTER+LBT) - it's bulky, and never varies.
     header_text = r"Emulated: Hadron $R_{\text{AA}}$ in 0-5\% Pb-Pb, $\sqrt{s_{\text{NN}}} = 5.02\:\text{TeV}$,"
     header_text += " " + r"CMS, $\textit{JHEP 04 (2017) 039}$"
-    minimal_text = r"Hadron $R_{\text{AA}}$"
-    minimal_text += "\n" + r"$4.8 < p_{\text{T}} < 400\:\text{GeV}/c$"
+    minimal_text_obs = r"Hadron $R_{\text{AA}}$"
+    minimal_text_pt = r"$4.8 < p_{\text{T}} < 400\:\text{GeV}/c$"
+    y_max = 0.12 if log else 0.031
     plot_config = pb.PlotConfig(
         name=f"budget_residual_error_design_point_dist_hadron{'_log' if log else ''}",
         panels=[
@@ -454,7 +513,7 @@ for log in [False, True]:
                 axes=[
                     pb.AxisConfig(
                         "x",
-                        label=r"$N_{\text{event}}$ in training data",
+                        label=r"Training data $N_{\text{event}}$",
                         font_size=text_font_size,
                         range=(9.25, 28.75),
                     ),
@@ -464,12 +523,16 @@ for log in [False, True]:
                         font_size=text_font_size,
                         # range=(-0.0005, 0.038),
                         log=log,
-                        range=(0.0005, 0.08) if log else (-0.0005, 0.0185),
+                        # range=(0.0005, 0.08) if log else (-0.0005, 0.0185),
+                        range=(0.0005, y_max) if log else (-0.0005, y_max),
                     ),
                 ],
                 text=[
                     pb.TextConfig(x=0.5, y=1.03, text=header_text, font_size=18, alignment="center"),
-                    pb.TextConfig(x=0.62, y=0.95, text=minimal_text, font_size=text_font_size),
+                    # pb.TextConfig(x=0.5, y=0.95, text=minimal_text_obs, font_size=30),
+                    # pb.TextConfig(x=0.48, y=0.88, text=minimal_text_pt, font_size=12, alignment="upper right"),
+                    pb.TextConfig(x=0.05, y=0.90, text=minimal_text_obs, font_size=30),
+                    pb.TextConfig(x=0.05, y=0.83, text=minimal_text_pt, font_size=12),
                 ],
                 legend=pb.LegendConfig(location="upper right", anchor=(0.975, 0.95), font_size=22),
             ),
@@ -527,8 +590,8 @@ text_font_size = 22
 # I skipped that it was trained on JETSCAPE (MATTER+LBT) - it's bulky, and never varies.
 header_text = r"Emulated: $R = 0.4$ jet $R_{\text{AA}}$ in 0-10\% Pb-Pb, $\sqrt{s_{\text{NN}}} = 5.02\:\text{TeV}$,"
 header_text += " " + r"ATLAS, $\textit{PLB 790 (2019) 108-128}$"
-minimal_text = r"$R = 0.4$ inclusive jet $R_{\text{AA}}$"
-minimal_text += "\n" + r"$100 < p_{\text{T}} < 1000\:\text{GeV}/c$"
+minimal_text_obs = r"Jet $R_{\text{AA}}$, $R = 0.4$"
+minimal_text_pt = r"$100 < p_{\text{T}} < 1000\:\text{GeV}/c$"
 plot_config = pb.PlotConfig(
     name="budget_residual_error_jet",
     panels=[
@@ -537,19 +600,22 @@ plot_config = pb.PlotConfig(
             axes=[
                 pb.AxisConfig(
                     "x",
-                    label=r"$N_{\text{event}}$ in training data",
+                    label=r"Training data $N_{\text{event}}$",
                     font_size=text_font_size,
                 ),
                 pb.AxisConfig(
                     "y",
-                    label=r"$\sum_{p_{\text{T,}}\:\text{design}}$ MSE",
+                    # label=r"$\sum_{p_{\text{T,}}\:\text{design}}$ MSE",
+                    label=r"Aggregated MSE",
                     font_size=text_font_size,
-                    range=(0.044, 0.2025),
+                    # range=(0.044, 0.2025),
+                    range=(0.035, 0.24),
                 ),
             ],
             text=[
                 pb.TextConfig(x=0.5, y=1.03, text=header_text, font_size=16, alignment="center"),
-                pb.TextConfig(x=0.95, y=0.78, text=minimal_text, font_size=text_font_size),
+                pb.TextConfig(x=0.95, y=0.70, text=minimal_text_obs, font_size=28),
+                pb.TextConfig(x=0.94, y=0.62, text=minimal_text_pt, font_size=12),
             ],
             legend=pb.LegendConfig(location="upper right", anchor=(0.95, 0.95), font_size=text_font_size),
         ),
@@ -600,8 +666,10 @@ for log in [False, True]:
     # I skipped that it was trained on JETSCAPE (MATTER+LBT) - it's bulky, and never varies.
     header_text = r"Emulated: $R = 0.4$ jet $R_{\text{AA}}$ in 0-10\% Pb-Pb, $\sqrt{s_{\text{NN}}} = 5.02\:\text{TeV}$,"
     header_text += " " + r"ATLAS, $\textit{PLB 790 (2019) 108-128}$"
-    minimal_text = r"$R = 0.4$ inclusive jet $R_{\text{AA}}$"
-    minimal_text += "\n" + r"$100 < p_{\text{T}} < 1000\:\text{GeV}/c$"
+    minimal_text_obs = r"Jet $R_{\text{AA}}$, $R = 0.4$"
+    minimal_text_pt = r"$100 < p_{\text{T}} < 1000\:\text{GeV}/c$"
+    # y_max = 0.12 if log else 0.033
+    y_max = 0.12 if log else 0.031
     plot_config = pb.PlotConfig(
         name=f"budget_residual_error_design_point_dist_jet{'_log' if log else ''}",
         panels=[
@@ -610,7 +678,7 @@ for log in [False, True]:
                 axes=[
                     pb.AxisConfig(
                         "x",
-                        label=r"$N_{\text{event}}$ in training data",
+                        label=r"Training data $N_{\text{event}}$",
                         font_size=text_font_size,
                         range=(9.25, 28.75),
                     ),
@@ -620,12 +688,15 @@ for log in [False, True]:
                         font_size=text_font_size,
                         # range=(-0.0005, 0.038),
                         log=log,
-                        range=(0.0005, 0.12) if log else (-0.0005, 0.0385),
+                        # range=(0.0005, 0.12) if log else (-0.0005, 0.0385),
+                        # range=(0.0005, 0.12) if log else (-0.0005, 0.033),
+                        range=(0.0005, y_max) if log else (-0.0005, y_max),
                     ),
                 ],
                 text=[
-                    pb.TextConfig(x=0.5, y=1.03, text=header_text, font_size=16, alignment="center"),
-                    pb.TextConfig(x=0.62, y=0.95, text=minimal_text, font_size=text_font_size),
+                    pb.TextConfig(x=0.5, y=1.03, text=header_text, font_size=18, alignment="center"),
+                    pb.TextConfig(x=0.05, y=0.90, text=minimal_text_obs, font_size=30),
+                    pb.TextConfig(x=0.05, y=0.83, text=minimal_text_pt, font_size=12),
                 ],
                 legend=pb.LegendConfig(location="upper right", anchor=(0.975, 0.95), font_size=22),
             ),
@@ -633,6 +704,9 @@ for log in [False, True]:
         figure=pb.Figure(edge_padding={"left": 0.12, "bottom": 0.11, "top": 0.94}),
     )
 
-    boxplot(HFGPMSE=HFGPMSE, hetGPMSE=hetGPMSE, plot_config=plot_config)
+    r = boxplot(HFGPMSE=HFGPMSE, hetGPMSE=hetGPMSE, plot_config=plot_config)
+
+# %%
+r[r["Value"] > 0.02].groupby("Variable").size().to_dict()
 
 # %%
