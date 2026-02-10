@@ -448,8 +448,8 @@ plot_config = pb.PlotConfig(
             ],
             text=[
                 pb.TextConfig(x=0.5, y=1.03, text=header_text, font_size=18, alignment="center"),
-                pb.TextConfig(x=0.95, y=0.70, text=minimal_text_obs, font_size=28),
-                pb.TextConfig(x=0.94, y=0.62, text=minimal_text_pt, font_size=12),
+                pb.TextConfig(x=0.95, y=0.70, text=minimal_text_obs, font_size=30),
+                pb.TextConfig(x=0.95, y=0.62, text=minimal_text_pt, font_size=12),
             ],
             legend=pb.LegendConfig(location="upper right", anchor=(0.95, 0.95), font_size=text_font_size),
         ),
@@ -614,8 +614,8 @@ plot_config = pb.PlotConfig(
             ],
             text=[
                 pb.TextConfig(x=0.5, y=1.03, text=header_text, font_size=16, alignment="center"),
-                pb.TextConfig(x=0.95, y=0.70, text=minimal_text_obs, font_size=28),
-                pb.TextConfig(x=0.94, y=0.62, text=minimal_text_pt, font_size=12),
+                pb.TextConfig(x=0.95, y=0.70, text=minimal_text_obs, font_size=30),
+                pb.TextConfig(x=0.95, y=0.62, text=minimal_text_pt, font_size=12),
             ],
             legend=pb.LegendConfig(location="upper right", anchor=(0.95, 0.95), font_size=text_font_size),
         ),
