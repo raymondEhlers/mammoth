@@ -439,7 +439,7 @@ plot_config = pb.PlotConfig(
                 pb.AxisConfig(
                     "y",
                     # label=r"$\sum_{p_{\text{T,}}\:\text{design}}$ MSE",
-                    label=r"Aggregated MSE",
+                    label=r"Aggregate MSE",
                     font_size=text_font_size,
                     range=(0.035, 0.24),
                     # range=(0.076, 0.235),
@@ -607,7 +607,7 @@ plot_config = pb.PlotConfig(
                 pb.AxisConfig(
                     "y",
                     # label=r"$\sum_{p_{\text{T,}}\:\text{design}}$ MSE",
-                    label=r"Aggregated MSE",
+                    label=r"Aggregate MSE",
                     font_size=text_font_size,
                     # range=(0.044, 0.2025),
                     range=(0.035, 0.24),
