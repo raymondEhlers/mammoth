@@ -176,6 +176,9 @@ def _define_calculation_functions(
     # NOTE: This currently only works for iterative splittings...
     #       Calculating recursive is way harder in any array-like manner.
     if iterative_splittings:
+        functions["soft_drop_z_cut_01"] = functools.partial(  # type: ignore[assignment]
+            analysis_jet_substructure.JetSplittingArray.soft_drop, z_cutoff=0.1
+        )
         functions["soft_drop_z_cut_02"] = functools.partial(  # type: ignore[assignment]
             analysis_jet_substructure.JetSplittingArray.soft_drop, z_cutoff=0.2
         )

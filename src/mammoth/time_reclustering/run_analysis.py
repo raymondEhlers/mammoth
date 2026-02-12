@@ -48,41 +48,34 @@ def define_productions() -> list[production.ProductionSettings]:
             #     specialization=HardestKtProductionSpecialization(),
             #     track_skim_config_filename=config_filename,
             # ),
-            # Production
             # production.ProductionSettings.read_config(
-            #     collision_system="embed_pythia", number=65,
-            #     specialization=HardestKtProductionSpecialization(),
-            #     track_skim_config_filename=config_filename,
-            # ),
-            # production.ProductionSettings.read_config(
-            #     collision_system="embed_pythia", number=66,
-            #     specialization=HardestKtProductionSpecialization(),
+            #     collision_system="pp_MC",
+            #     number=6,
+            #     specialization=grooming_workflow.ProductionSpecialization(),
             #     track_skim_config_filename=config_filename,
             # ),
             # Production
-            # production.ProductionSettings.read_config(
-            #    collision_system="pp_MC", number=69,
-            #    specialization=groomed_substructure_steering.ProductionSpecialization(),
-            #    track_skim_config_filename=config_filename,
-            # ),
-            # production.ProductionSettings.read_config(
-            #    collision_system="pp_MC", number=70,
-            #    specialization=groomed_substructure_steering.ProductionSpecialization(),
-            #    track_skim_config_filename=config_filename,
-            # ),
-            # production.ProductionSettings.read_config(
-            #    collision_system="pp_MC", number=71,
-            #    specialization=groomed_substructure_steering.ProductionSpecialization(),
-            #    track_skim_config_filename=config_filename,
-            # ),
-            # production.ProductionSettings.read_config(
-            #    collision_system="pp_MC", number=72,
-            #    specialization=groomed_substructure_steering.ProductionSpecialization(),
-            #    track_skim_config_filename=config_filename,
-            # ),
             production.ProductionSettings.read_config(
                 collision_system="pp_MC",
-                number=6,
+                number=78,
+                specialization=grooming_workflow.ProductionSpecialization(),
+                track_skim_config_filename=config_filename,
+            ),
+            production.ProductionSettings.read_config(
+                collision_system="pp_MC",
+                number=79,
+                specialization=grooming_workflow.ProductionSpecialization(),
+                track_skim_config_filename=config_filename,
+            ),
+            production.ProductionSettings.read_config(
+                collision_system="pp_MC",
+                number=80,
+                specialization=grooming_workflow.ProductionSpecialization(),
+                track_skim_config_filename=config_filename,
+            ),
+            production.ProductionSettings.read_config(
+                collision_system="pp_MC",
+                number=81,
                 specialization=grooming_workflow.ProductionSpecialization(),
                 track_skim_config_filename=config_filename,
             ),

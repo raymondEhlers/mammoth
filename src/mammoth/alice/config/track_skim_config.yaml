@@ -1257,6 +1257,60 @@ productions:
         generator_analysis_arguments:
           <<: *generator_arguments_default_pp_MC
           name: "jewel"
+    # Pythia fastsim w/ time reclustering, z_cut = 0.1
+    78:
+      metadata:
+        <<: *base_metadata_pythia
+        dataset: *LBL20_Pythia_FastSim_1_17pq
+        production_number: 78
+        label: "pythia_fastsim"
+      settings:
+        <<: *analysis_settings_time_reclustering_pp_MC_R04
+        output_settings:
+          <<: *reclustered_substructure_output_settings
+        selected_grooming_methods:
+          - "soft_drop_z_cut_01"
+    # Herwig fastsim w/ time reclustering, z_cut = 0.1
+    79:
+      metadata:
+        <<: *base_metadata_pythia
+        dataset: *LBL20_Herwig_FastSim_1_17pq
+        production_number: 79
+        label: "herwig_fastsim"
+      settings:
+        <<: *analysis_settings_time_reclustering_pp_MC_R04
+        output_settings:
+          <<: *reclustered_substructure_output_settings
+        selected_grooming_methods:
+          - "soft_drop_z_cut_01"
+    # Pythia fastsim w/ CA reclustering, z_cut = 0.1
+    80:
+      metadata:
+        <<: *base_metadata_pythia
+        dataset: *LBL20_Pythia_FastSim_1_17pq
+        production_number: 80
+        label: "pythia_fastsim"
+      settings:
+        <<: *analysis_settings_time_reclustering_pp_MC_R04
+        reclustering_settings: null
+        output_settings:
+          <<: *reclustered_substructure_output_settings
+        selected_grooming_methods:
+          - "soft_drop_z_cut_01"
+    # Herwig fastsim w/ CA reclustering, z_cut = 0.
+    81:
+      metadata:
+        <<: *base_metadata_pythia
+        dataset: *LBL20_Herwig_FastSim_1_17pq
+        production_number: 81
+        label: "herwig_fastsim"
+      settings:
+        <<: *analysis_settings_time_reclustering_pp_MC_R04
+        reclustering_settings: null
+        output_settings:
+          <<: *reclustered_substructure_output_settings
+        selected_grooming_methods:
+          - "soft_drop_z_cut_01"
 
   PbPb:
     2:
