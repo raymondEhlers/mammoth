@@ -1121,6 +1121,20 @@ productions:
         combinatorics_chunk_size: 500
         output_settings:
           <<: *EEC_output_settings_hadron_trigger_two_input_level
+    8:
+      # Test run for EBC in pp_MC, one input level, (towards Run 3, but this is using 20g4)
+      metadata:
+        <<: *base_metadata_pp_MC_one_level
+        dataset: *LHC20g4_pythia
+        production_number: 8
+        label: ""
+      settings:
+        <<: *analysis_settings_EBC_pp
+        chunk_size: 10000
+        # Only analyze a maximum of n chunks. For testing.
+        max_n_chunks: 2
+        output_settings:
+          <<: *EBC_output_settings
     # NOTE: Starts at 69 to be consistent with the "pythia", which this generalizes from.
     # Pythia fastsim w/ time reclustering
     69:
