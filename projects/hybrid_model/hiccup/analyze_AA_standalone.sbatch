@@ -17,8 +17,14 @@ set -x
 # Setup
 job_id_fixed=$(printf "%04d" $SLURM_ARRAY_TASK_ID)
 input_dir=/rstorage/rehlers/hybrid-bayesian/2025-summer-sandbox-data-sample/skim
+# 0-5%
+# NOTE: Can't combine to run as two separate e.g. apptainer commands because I need to edit the centrality selection by hand as of Nov 2025
 input_files=$(find ${input_dir}/HYBRID_Hadrons_05_Lres2_kappa_0p428/ -name "*${job_id_fixed}_final_state_hadrons*.parquet")
 analysis_output_dir="/rstorage/rehlers/hybrid-bayesian/2025-summer-sandbox-data-sample/analysis_output/HYBRID_Hadrons_05_Lres2_kappa_0p428"
+# 5-10%
+# NOTE: Can't combine to run as two separate e.g. apptainer commands because I need to edit the centrality selection by hand as of Nov 2025
+#input_files=$(find ${input_dir}/HYBRID_Hadrons_510_Lres2_kappa_0p428/ -name "*${job_id_fixed}_final_state_hadrons*.parquet")
+#analysis_output_dir="/rstorage/rehlers/hybrid-bayesian/2025-summer-sandbox-data-sample/analysis_output/HYBRID_Hadrons_510_Lres2_kappa_0p428"
 
 echo "Analyzing: ${input_files}"
 
