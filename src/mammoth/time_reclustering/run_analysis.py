@@ -60,24 +60,28 @@ def define_productions() -> list[production.ProductionSettings]:
                 number=78,
                 specialization=grooming_workflow.ProductionSpecialization(),
                 track_skim_config_filename=config_filename,
+                base_output_dir=Path("/rstorage/rehlers/trains"),
             ),
             production.ProductionSettings.read_config(
                 collision_system="pp_MC",
                 number=79,
                 specialization=grooming_workflow.ProductionSpecialization(),
                 track_skim_config_filename=config_filename,
+                base_output_dir=Path("/rstorage/rehlers/trains"),
             ),
             production.ProductionSettings.read_config(
                 collision_system="pp_MC",
                 number=80,
                 specialization=grooming_workflow.ProductionSpecialization(),
                 track_skim_config_filename=config_filename,
+                base_output_dir=Path("/rstorage/rehlers/trains"),
             ),
             production.ProductionSettings.read_config(
                 collision_system="pp_MC",
                 number=81,
                 specialization=grooming_workflow.ProductionSpecialization(),
                 track_skim_config_filename=config_filename,
+                base_output_dir=Path("/rstorage/rehlers/trains"),
             ),
         ]
     )
@@ -168,7 +172,9 @@ def run(job_framework: job_utils.JobFramework) -> list[Future[Any]]:
         target_n_tasks_to_run_simultaneously = 2
         walltime = "1:59:00"
     # facility: job_utils.FACILITIES = "ORNL_b587_long" if job_utils.hours_in_walltime(walltime) >= 2 else "ORNL_b587_short"
-    facility: job_utils.FACILITIES = "hiccup_std" if job_utils.hours_in_walltime(walltime) >= 2 else "hiccup_quick"
+    facility: job_utils.FACILITIES = (
+        "hiccup_staging_std" if job_utils.hours_in_walltime(walltime) >= 4 else "hiccup_staging_quick"
+    )
     # facility: job_utils.FACILITIES = "rehlers_mbp_m1pro"
 
     # Keep the job executor just to keep it alive

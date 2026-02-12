@@ -1270,6 +1270,9 @@ productions:
           <<: *reclustered_substructure_output_settings
         selected_grooming_methods:
           - "soft_drop_z_cut_01"
+        generator_analysis_arguments:
+          <<: *generator_arguments_default_pp_MC_fastsim
+          name: "pythia"
     # Herwig fastsim w/ time reclustering, z_cut = 0.1
     79:
       metadata:
@@ -1283,6 +1286,9 @@ productions:
           <<: *reclustered_substructure_output_settings
         selected_grooming_methods:
           - "soft_drop_z_cut_01"
+        generator_analysis_arguments:
+          <<: *generator_arguments_default_pp_MC_fastsim
+          name: "herwig"
     # Pythia fastsim w/ CA reclustering, z_cut = 0.1
     80:
       metadata:
@@ -1297,6 +1303,9 @@ productions:
           <<: *reclustered_substructure_output_settings
         selected_grooming_methods:
           - "soft_drop_z_cut_01"
+        generator_analysis_arguments:
+          <<: *generator_arguments_default_pp_MC_fastsim
+          name: "pythia"
     # Herwig fastsim w/ CA reclustering, z_cut = 0.
     81:
       metadata:
@@ -1311,6 +1320,9 @@ productions:
           <<: *reclustered_substructure_output_settings
         selected_grooming_methods:
           - "soft_drop_z_cut_01"
+        generator_analysis_arguments:
+          <<: *generator_arguments_default_pp_MC_fastsim
+          name: "herwig"
 
   PbPb:
     2:
