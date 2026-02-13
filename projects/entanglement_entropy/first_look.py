@@ -24,8 +24,12 @@ from pathlib import Path
 from typing import Any
 
 import matplotlib.pyplot as plt
+import numpy as np
+import numpy.typing as npt
 import pachyderm.plot as pb
+import polars as pl  # noqa: F401
 import uproot
+from pachyderm import binned_data
 
 base_path = Path("projects/entanglement_entropy")
 
@@ -275,15 +279,183 @@ for jet_label in ["lead", "sublead"]:
     fig.savefig(_output_path / f"{plot_config.name}.pdf")
     plt.close(fig)
 
+
 # %% [markdown]
 # # Entanglement entropy
 
+
 # %%
-import numpy as np
-import numpy.typing as npt
-from pachyderm import binned_data
+def vectorized_entropy(dist: npt.NDArray[np.floating], sum_axes: int | tuple[int]):
+    """
+    Calculate Shannon entropy for each jet_pt bin (vectorized).
+
+    Parameters:
+    dist: numpy array with jet_pt as the first dimension
+    sum_axes: int or tuple of axes to sum over for normalization and entropy
+
+    Returns:
+    entropy: 1D array of entropies for each jet_pt bin (in nats)
+    """
+    # Normalize along the specified axes (keepdims for proper broadcasting)
+    norm = np.sum(dist, axis=sum_axes, keepdims=True)
+    # print(f"{norm=}")
+    # if np.isclose(norm, 0):
+    #    return np.zeros(dist.shape[0])
+    # prob_dist = dist / norm
+    # prob_dist = np.where(norm > 0, dist / norm, 0)
+    # prob_dist = np.divdide(norm > 0, dist / norm, 0)
+    prob_dist = np.divide(dist, norm, out=np.zeros_like(dist), where=norm > 0)
+
+    # Handle zeros: use np.where to avoid log(0)
+    # safe_log = np.where(prob_dist > 0, np.log(prob_dist), 0)
+    safe_log = np.log(prob_dist, out=np.zeros_like(prob_dist), where=prob_dist > 0)
+
+    # Calculate entropy: -sum(p * log(p))
+    entropy = -np.sum(prob_dist * safe_log, axis=sum_axes)
+
+    return entropy.squeeze()
 
 
+input_hist = hists["data_n_constituents_lead_jet_pt"]
+h_joint = binned_data.BinnedData.from_existing_data(input_hist)
+h_lead = binned_data.BinnedData.from_existing_data(input_hist[:, :, sum])
+h_sublead = binned_data.BinnedData.from_existing_data(input_hist[:, sum, :])
+
+entropy_lead = vectorized_entropy(h_lead.values, sum_axes=1)
+entropy_sublead = vectorized_entropy(h_sublead.values, sum_axes=1)
+entropy_joint = vectorized_entropy(h_joint.values, sum_axes=(1, 2))
+
+mutual_information = entropy_lead + entropy_sublead - entropy_joint
+
+# %%
+# We'll define the "covariance", although I think it's really not a covariance.
+covariance = -1 * mutual_information
+covariance
+
+# %%
+# Plot mutual information
+
+text_font_size = 22
+
+text = "ALICE work-in-progress"
+text += "\n" + r"charged-particle jets"
+text += "\n" + r"$R = 0.4$ $\sqrt{s_{\text{NN}}} = 13.6\:\text{TeV}$"
+plot_config = pb.PlotConfig(
+    name="mutual_information_lead_jet_pt",
+    panels=[
+        # Main panel
+        pb.Panel(
+            axes=[
+                pb.AxisConfig(
+                    "x",
+                    label=r"$p_{\text{T, lead}}$",
+                    font_size=text_font_size,
+                ),
+                pb.AxisConfig(
+                    "y",
+                    label=r"$S_1 + S_2 - S_12$",
+                    font_size=text_font_size,
+                ),
+            ],
+            text=pb.TextConfig(x=0.05, y=0.81, text=text, font_size=18),
+            legend=pb.LegendConfig(location="upper left", anchor=(0.05, 0.95), font_size=22),
+        ),
+    ],
+    figure=pb.Figure(edge_padding={"left": 0.11, "bottom": 0.15}),
+)
+
+fig, ax = plt.subplots(
+    1,
+    1,
+    figsize=(10, 6.25),
+    sharex=True,
+)
+ax.plot(
+    h_lead.axes[0].bin_centers,
+    mutual_information,
+    label="ALICE data",
+    linestyle="",
+    marker="o",
+)
+
+plot_config.apply(fig=fig, ax=ax)
+
+_output_path = base_path / "first_look_figures"
+_output_path.mkdir(parents=True, exist_ok=True)
+fig.savefig(_output_path / f"{plot_config.name}.pdf")
+plt.close(fig)
+
+# %% [markdown]
+# ## Linfoot coefficient
+
+# %%
+# Another possible definition - using the Linfoot coefficient
+# $\rho = \sqrt{1 - \exp{2\text{Cov}(1, 2)}}$
+# We artificially introduce the sign to keep track of that information
+
+# linfoot = np.sign(covariance) * np.sqrt(1 - np.exp(2 * covariance))
+linfoot_coefficient = np.sqrt(1 - np.exp(2 * covariance))
+
+# Plot linfoot coefficient
+
+text_font_size = 22
+
+text = "ALICE work-in-progress"
+text += "\n" + r"charged-particle jets"
+text += "\n" + r"$R = 0.4$ $\sqrt{s_{\text{NN}}} = 13.6\:\text{TeV}$"
+text += "\n" + r"Linfoot coefficient w/ mutual info"
+text += "\n" + r"$\rho = \sqrt{1 - \exp(2 * -I(n_1, n_2))}$"
+plot_config = pb.PlotConfig(
+    name="linfoot_coefficient_mutual_information_lead_jet_pt",
+    panels=[
+        # Main panel
+        pb.Panel(
+            axes=[
+                pb.AxisConfig(
+                    "x",
+                    label=r"$p_{\text{T, lead}}$",
+                    font_size=text_font_size,
+                ),
+                pb.AxisConfig(
+                    "y",
+                    label=r"Linfoot $\rho$",
+                    font_size=text_font_size,
+                ),
+            ],
+            text=pb.TextConfig(x=0.05, y=0.81, text=text, font_size=18),
+            legend=pb.LegendConfig(location="upper left", anchor=(0.05, 0.95), font_size=22),
+        ),
+    ],
+    figure=pb.Figure(edge_padding={"left": 0.11, "bottom": 0.15}),
+)
+
+fig, ax = plt.subplots(
+    1,
+    1,
+    figsize=(10, 6.25),
+    sharex=True,
+)
+ax.plot(
+    h_lead.axes[0].bin_centers,
+    linfoot_coefficient,
+    label="ALICE data",
+    linestyle="",
+    marker="o",
+)
+
+plot_config.apply(fig=fig, ax=ax)
+
+_output_path = base_path / "first_look_figures"
+_output_path.mkdir(parents=True, exist_ok=True)
+fig.savefig(_output_path / f"{plot_config.name}.pdf")
+plt.close(fig)
+
+
+# %% [markdown]
+# # Older tests
+
+
+# %%
 def shannon_entropy(P: npt.NDArray[np.float64]) -> np.float64:
     return -np.sum(P[P > 0] * np.log(P[P > 0]), axis=1)
 
@@ -343,11 +515,8 @@ res.data
 # %%
 P_B.values()[:, P_B.values() > 0]
 
+
 # %%
-# 2nd try
-import numpy as np
-
-
 def calculate(h: binned_data.BinnedData) -> binned_data.BinnedData:
     # Normalize
     h /= np.sum(h.values)
@@ -366,109 +535,3 @@ def calculate(h: binned_data.BinnedData) -> binned_data.BinnedData:
 
 
 calculate(binned_data.BinnedData.from_existing_data(hists["data_n_constituents_lead_jet_pt"]))
-
-# %%
-# 3rd try....
-import numpy as np
-from pachyderm import binned_data
-
-
-def vectorized_entropy(dist: npt.NDArray[np.floating], sum_axes: int | tuple[int]):
-    """
-    Calculate Shannon entropy for each jet_pt bin (vectorized).
-
-    Parameters:
-    dist: numpy array with jet_pt as the first dimension
-    sum_axes: int or tuple of axes to sum over for normalization and entropy
-
-    Returns:
-    entropy: 1D array of entropies for each jet_pt bin (in nats)
-    """
-    # Normalize along the specified axes (keepdims for proper broadcasting)
-    norm = np.sum(dist, axis=sum_axes, keepdims=True)
-    # print(f"{norm=}")
-    # if np.isclose(norm, 0):
-    #    return np.zeros(dist.shape[0])
-    # prob_dist = dist / norm
-    # prob_dist = np.where(norm > 0, dist / norm, 0)
-    # prob_dist = np.divdide(norm > 0, dist / norm, 0)
-    prob_dist = np.divide(dist, norm, out=np.zeros_like(dist), where=norm > 0)
-
-    # Handle zeros: use np.where to avoid log(0)
-    # safe_log = np.where(prob_dist > 0, np.log(prob_dist), 0)
-    safe_log = np.log(prob_dist, out=np.zeros_like(prob_dist), where=prob_dist > 0)
-
-    # Calculate entropy: -sum(p * log(p))
-    entropy = -np.sum(prob_dist * safe_log, axis=sum_axes)
-
-    return entropy.squeeze()
-
-
-input_hist = hists["data_n_constituents_lead_jet_pt"]
-h_joint = binned_data.BinnedData.from_existing_data(input_hist)
-h_lead = binned_data.BinnedData.from_existing_data(input_hist[:, :, sum])
-h_sublead = binned_data.BinnedData.from_existing_data(input_hist[:, sum, :])
-
-entropy_lead = vectorized_entropy(h_lead.values, sum_axes=1)
-entropy_sublead = vectorized_entropy(h_sublead.values, sum_axes=1)
-entropy_joint = vectorized_entropy(h_joint.values, sum_axes=(1, 2))
-
-mutual_information = entropy_lead + entropy_sublead - entropy_joint
-
-# %%
-mutual_information
-
-# %%
-# Plot mutual information
-
-text_font_size = 22
-
-text = "ALICE work-in-progress"
-text += "\n" + r"charged-particle jets"
-text += "\n" + r"$R = 0.4$ $\sqrt{s_{\text{NN}}} = 13.6\:\text{TeV}$"
-plot_config = pb.PlotConfig(
-    name="mutual_information_lead_jet_pt",
-    panels=[
-        # Main panel
-        pb.Panel(
-            axes=[
-                pb.AxisConfig(
-                    "x",
-                    label=r"$p_{\text{T, lead}}$",
-                    font_size=text_font_size,
-                ),
-                pb.AxisConfig(
-                    "y",
-                    label=r"$S_1 + S_2 - S_12$",
-                    font_size=text_font_size,
-                ),
-            ],
-            text=pb.TextConfig(x=0.05, y=0.81, text=text, font_size=18),
-            legend=pb.LegendConfig(location="upper left", anchor=(0.05, 0.95), font_size=22),
-        ),
-    ],
-    figure=pb.Figure(edge_padding={"left": 0.11, "bottom": 0.15}),
-)
-
-fig, ax = plt.subplots(
-    1,
-    1,
-    figsize=(10, 6.25),
-    sharex=True,
-)
-ax.plot(
-    h_lead.axes[0].bin_centers,
-    mutual_information,
-    label="ALICE data",
-    linestyle="",
-    marker="o",
-)
-
-plot_config.apply(fig=fig, ax=ax)
-
-_output_path = base_path / "first_look_figures"
-_output_path.mkdir(parents=True, exist_ok=True)
-fig.savefig(_output_path / f"{plot_config.name}.pdf")
-plt.close(fig)
-
-# %%
