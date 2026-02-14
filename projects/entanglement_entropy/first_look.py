@@ -20,6 +20,7 @@
 # %%
 from __future__ import annotations
 
+import itertools
 from pathlib import Path
 from typing import Any
 
@@ -30,6 +31,8 @@ import pachyderm.plot as pb
 import polars as pl  # noqa: F401
 import uproot
 from pachyderm import binned_data
+
+from mammoth.framework.io import output_utils
 
 base_path = Path("projects/entanglement_entropy")
 
@@ -46,19 +49,115 @@ def read_data(filename: Path) -> dict[str, Any]:
     return output
 
 
+def split_input_hists_into_chunks(directory_containing_hists: Path, n_chunks: int) -> list[list[Path]]:
+    """Read data into N chunks, along with the merged hist"""
+    all_hists = list(directory_containing_hists.glob("*.root"))
+
+    # First, shuffle up the list
+    rng = np.random.default_rng()
+    # NOTE: shuffle is in place
+    rng.shuffle(all_hists)
+
+    # 2. Calculate the base size and remainder
+    list_len = len(all_hists)
+    base_size = list_len // n_chunks
+    remainder = list_len % n_chunks
+
+    # 3. Create an iterator from the shuffled list
+    it = iter(all_hists)
+
+    # 4. Use a list comprehension with itertools.islice to create chunks
+    chunks = []
+    for i in range(n_chunks):
+        # Determine the size of the current chunk
+        chunk_size = base_size + (1 if i < remainder else 0)
+
+        # Use islice to grab the next 'chunk_size' items from the iterator
+        # and convert the resulting iterator to a list
+        chunk = list(itertools.islice(it, chunk_size))
+        chunks.append(chunk)
+
+    return chunks
+
+
+def merge_hist_chunks(hists_in_chunks: list[list[Path]], merged_analysis_hists_path: Path) -> None:
+    # Merge each chunk
+    for i, input_hists in enumerate(hists_in_chunks):
+        output_utils.shit_hadd(input_filenames=input_hists, output_filename=merged_analysis_hists_path / f"{i}.root")
+
+    # And then the full merge
+    output_utils.shit_hadd(input_filenames=input_hists, output_filename=merged_analysis_hists_path / "full_merged.root")
+
+
+def read_merged_chunks(
+    merged_analysis_hists_path: Path, n_chunks: int
+) -> tuple[dict[str, dict[str, Any]], dict[str, Any]]:
+    hist_chunks = {}
+    for i in range(n_chunks):
+        hist_chunks[i] = read_data(merged_analysis_hists_path / f"{i}.root")
+
+    hists_merged = read_data(merged_analysis_hists_path / "full_merged.root")
+
+    return hist_chunks, hists_merged
+
+
+def read_hists_in_chunks(
+    directory_containing_hists: Path, n_chunks: int
+) -> tuple[dict[str, dict[str, Any]], dict[str, Any]]:
+    # Setup
+    merged_analysis_hists_path = directory_containing_hists / "merged" / "analysis_hists"
+    merged_analysis_hists_path.mkdir(parents=True, exist_ok=True)
+
+    # Check if they already exist. If so, no need to recreate them
+    def merged_files_exist(merged_analysis_hists_path: Path, n_chunks: int) -> bool:
+        files_exist = [(merged_analysis_hists_path / f"{i}.root").exists() for i in range(n_chunks)] + [
+            (merged_analysis_hists_path / "full_merged.root").exists()
+        ]
+
+        print(files_exist)
+
+        return all(files_exist)
+
+    if not merged_files_exist(merged_analysis_hists_path=merged_analysis_hists_path, n_chunks=n_chunks):
+        print("Creating files...")
+        # Split up the hists in chunk chunks
+        hist_filenames_in_chunks = split_input_hists_into_chunks(
+            directory_containing_hists=directory_containing_hists, n_chunks=n_chunks
+        )
+
+        # Merge them in the chunks (and write them to file)
+        merge_hist_chunks(
+            hists_in_chunks=hist_filenames_in_chunks, merged_analysis_hists_path=merged_analysis_hists_path
+        )
+    else:
+        print("Skipping file creation and using existing ones...")
+
+    # And then read them back so we can use them for analysis
+    return read_merged_chunks(merged_analysis_hists_path=merged_analysis_hists_path, n_chunks=n_chunks)
+
+
 # hists = read_data(base_path / "test_hiccup_0004" / "LHC22o__test_partial_merge__BerkeleyTree__dijet_trigger_pt_leading_20_140_subleading_10_140.root")
-hists = read_data(
-    Path("trains")
-    / "pp"
-    / "0004"
-    / "skim"
-    / "hists"
-    / "merged"
-    / "LHC22o__full_merge__BerkeleyTree__dijet_trigger_pt_leading_20_140_subleading_10_140.root"
+# hists = read_data(
+#     Path("trains")
+#     / "pp"
+#     / "0004"
+#     / "skim"
+#     / "hists"
+#     / "merged"
+#     / "LHC22o__full_merge__BerkeleyTree__dijet_trigger_pt_leading_20_140_subleading_10_140.root"
+# )
+
+hists_in_chunks, merged_hists = read_hists_in_chunks(
+    directory_containing_hists=Path("trains") / "pp" / "0004" / "skim" / "hists",
+    n_chunks=10,
 )
 
 # %%
+hists = merged_hists
 hists
+
+# %%
+# hists
 
 # %% [markdown]
 # # Spectra
@@ -102,6 +201,8 @@ fig, ax = plt.subplots(
     sharex=True,
 )
 hists["data_inclusive_jet_spectra"].plot(ax=ax, label="ALICE data")
+# for sub_hists in hists_in_chunks.values():
+#     sub_hists["data_inclusive_jet_spectra"].plot(ax=ax)
 
 plot_config.apply(fig=fig, ax=ax)
 
@@ -316,24 +417,55 @@ def vectorized_entropy(dist: npt.NDArray[np.floating], sum_axes: int | tuple[int
     return entropy.squeeze()
 
 
-input_hist = hists["data_n_constituents_lead_jet_pt"]
-h_joint = binned_data.BinnedData.from_existing_data(input_hist)
-h_lead = binned_data.BinnedData.from_existing_data(input_hist[:, :, sum])
-h_sublead = binned_data.BinnedData.from_existing_data(input_hist[:, sum, :])
+def calculate_mutual_information(input_hists: dict[str, hist.Hist]) -> npt.NDArray[np.float64]:
+    input_hist = input_hists["data_n_constituents_lead_jet_pt"]
+    h_joint = binned_data.BinnedData.from_existing_data(input_hist)
+    h_lead = binned_data.BinnedData.from_existing_data(input_hist[:, :, sum])
+    h_sublead = binned_data.BinnedData.from_existing_data(input_hist[:, sum, :])
 
-entropy_lead = vectorized_entropy(h_lead.values, sum_axes=1)
-entropy_sublead = vectorized_entropy(h_sublead.values, sum_axes=1)
-entropy_joint = vectorized_entropy(h_joint.values, sum_axes=(1, 2))
+    entropy_lead = vectorized_entropy(h_lead.values, sum_axes=1)
+    entropy_sublead = vectorized_entropy(h_sublead.values, sum_axes=1)
+    entropy_joint = vectorized_entropy(h_joint.values, sum_axes=(1, 2))
 
-mutual_information = entropy_lead + entropy_sublead - entropy_joint
+    mutual_information = entropy_lead + entropy_sublead - entropy_joint
+    return mutual_information  # noqa: RET504
+
+
+mutual_information = calculate_mutual_information(hists)
+mutual_information_chunks = {}
+for k, v in hists_in_chunks.items():
+    mutual_information_chunks[k] = calculate_mutual_information(v)
 
 # %%
 # We'll define the "covariance", although I think it's really not a covariance.
 covariance = -1 * mutual_information
 covariance
 
+covariance_chunks = {}
+for k, v in mutual_information_chunks.items():
+    covariance_chunks[k] = -1 * v
+
+
+# %%
+def calculate_uncertainties(values: dict[str, npt.NDArray[np.float64]], n_exclude: int = 0) -> npt.NDArray[np.float64]:
+    all_values = np.vstack([v for v in values.values()])  # noqa: C416
+    print(all_values[:, 32])
+    all_values = np.sort(all_values, axis=0)
+    limited = all_values
+    if n_exclude > 0:
+        limited = all_values[n_exclude:-n_exclude]
+    print(limited.shape)
+    print(limited[:, 32])
+    return np.min(limited, axis=0), np.max(limited, axis=0)
+
+
+calculate_uncertainties(mutual_information_chunks, n_exclude=1)
+
 # %%
 # Plot mutual information
+
+# Just need the binning info, so pick the full precision
+h_lead = binned_data.BinnedData.from_existing_data(hists["data_n_constituents_lead_jet_pt"][:, :, sum])
 
 text_font_size = 22
 
@@ -353,7 +485,7 @@ plot_config = pb.PlotConfig(
                 ),
                 pb.AxisConfig(
                     "y",
-                    label=r"$S_1 + S_2 - S_12$",
+                    label=r"$S_1 + S_2 - S_{12}$",
                     font_size=text_font_size,
                 ),
             ],
@@ -370,12 +502,50 @@ fig, ax = plt.subplots(
     figsize=(10, 6.25),
     sharex=True,
 )
+# Just plot the values
 ax.plot(
     h_lead.axes[0].bin_centers,
     mutual_information,
     label="ALICE data",
     linestyle="",
     marker="o",
+)
+# for v in mutual_information_chunks.values():
+#     ax.plot(
+#         h_lead.axes[0].bin_centers,
+#         v,
+#         #linestyle="-",
+#         marker="o",
+#     )
+
+# Plot with uncertainties
+mutual_information_low, mutual_information_high = calculate_uncertainties(mutual_information_chunks, n_exclude=0)
+# TODO(RJE): If I exclude, sometimes I'm getting negative errors since I'm excluding the largest value.
+#            I thought I could require at least 0, but somehow it doesn't work. Figure this out tomorrow
+low = np.maximum(mutual_information - mutual_information_low, np.zeros_like(mutual_information))
+high = np.maximum(mutual_information_high - mutual_information, np.zeros_like(mutual_information))
+low = mutual_information - mutual_information_low
+high = mutual_information_high - mutual_information
+print(f"{low=}, {high=}")
+# ax.errorbar(
+#     x=h_lead.axes[0].bin_centers,
+#     y=mutual_information,
+#     yerr=np.array(
+#         [
+#             mutual_information - mutual_information_low,
+#             mutual_information_high - mutual_information,
+#         ]
+#     ),
+#     label="ALICE data",
+# #     linestyle="",
+#     marker="o",
+# )
+# Just trying this out for visibility
+ax.fill_between(
+    x=h_lead.axes[0].bin_centers,
+    y1=mutual_information_low,
+    y2=mutual_information_high,
+    alpha=0.3,
 )
 
 plot_config.apply(fig=fig, ax=ax)
@@ -395,6 +565,7 @@ plt.close(fig)
 
 # linfoot = np.sign(covariance) * np.sqrt(1 - np.exp(2 * covariance))
 linfoot_coefficient = np.sqrt(1 - np.exp(2 * covariance))
+linfoot_coefficient_chunks = {k: np.sqrt(1 - np.exp(2 * _v)) for k, _v in covariance_chunks.items()}
 
 # Plot linfoot coefficient
 
@@ -404,7 +575,7 @@ text = "ALICE work-in-progress"
 text += "\n" + r"charged-particle jets"
 text += "\n" + r"$R = 0.4$ $\sqrt{s_{\text{NN}}} = 13.6\:\text{TeV}$"
 text += "\n" + r"Linfoot coefficient w/ mutual info"
-text += "\n" + r"$\rho = \sqrt{1 - \exp(2 * -I(n_1, n_2))}$"
+text += "\n" + r"$\rho = \sqrt{1 - \exp(-2 I(n_1, n_2))}$"
 plot_config = pb.PlotConfig(
     name="linfoot_coefficient_mutual_information_lead_jet_pt",
     panels=[
@@ -416,14 +587,10 @@ plot_config = pb.PlotConfig(
                     label=r"$p_{\text{T, lead}}$",
                     font_size=text_font_size,
                 ),
-                pb.AxisConfig(
-                    "y",
-                    label=r"Linfoot $\rho$",
-                    font_size=text_font_size,
-                ),
+                pb.AxisConfig("y", label=r"Linfoot $\rho$", font_size=text_font_size, range=(-0.1, 1.3)),
             ],
-            text=pb.TextConfig(x=0.05, y=0.81, text=text, font_size=18),
-            legend=pb.LegendConfig(location="upper left", anchor=(0.05, 0.95), font_size=22),
+            text=pb.TextConfig(x=0.03, y=0.85, text=text, font_size=18),
+            legend=pb.LegendConfig(location="upper left", anchor=(0.03, 0.95), font_size=22),
         ),
     ],
     figure=pb.Figure(edge_padding={"left": 0.11, "bottom": 0.15}),
@@ -441,6 +608,36 @@ ax.plot(
     label="ALICE data",
     linestyle="",
     marker="o",
+)
+
+# Plot with uncertainties
+linfoot_coefficient_low, linfoot_coefficient_high = calculate_uncertainties(linfoot_coefficient_chunks, n_exclude=0)
+# TODO(RJE): If I exclude, sometimes I'm getting negative errors since I'm excluding the largest value.
+#            I thought I could require at least 0, but somehow it doesn't work. Figure this out tomorrow
+low = np.maximum(linfoot_coefficient - linfoot_coefficient_low, np.zeros_like(linfoot_coefficient))
+high = np.maximum(linfoot_coefficient_high - linfoot_coefficient, np.zeros_like(linfoot_coefficient))
+low = linfoot_coefficient - linfoot_coefficient_low
+high = linfoot_coefficient_high - linfoot_coefficient
+print(f"{low=}, {high=}")
+# ax.errorbar(
+#     x=h_lead.axes[0].bin_centers,
+#     y=linfoot_coefficient,
+#     yerr=np.array(
+#         [
+#             linfoot_coefficient - linfoot_coefficient_low,
+#             linfoot_coefficient_high - linfoot_coefficient,
+#         ]
+#     ),
+#     label="ALICE data",
+# #     linestyle="",
+#     marker="o",
+# )
+# Just trying this out for visibility
+ax.fill_between(
+    x=h_lead.axes[0].bin_centers,
+    y1=linfoot_coefficient_low,
+    y2=linfoot_coefficient_high,
+    alpha=0.3,
 )
 
 plot_config.apply(fig=fig, ax=ax)
