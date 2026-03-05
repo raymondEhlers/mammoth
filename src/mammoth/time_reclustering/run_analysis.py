@@ -57,28 +57,28 @@ def define_productions() -> list[production.ProductionSettings]:
             # Production
             production.ProductionSettings.read_config(
                 collision_system="pp_MC",
-                number=78,
+                number=82,
                 specialization=grooming_workflow.ProductionSpecialization(),
                 track_skim_config_filename=config_filename,
                 base_output_dir=Path("/rstorage/rehlers/trains"),
             ),
             production.ProductionSettings.read_config(
                 collision_system="pp_MC",
-                number=79,
+                number=83,
                 specialization=grooming_workflow.ProductionSpecialization(),
                 track_skim_config_filename=config_filename,
                 base_output_dir=Path("/rstorage/rehlers/trains"),
             ),
             production.ProductionSettings.read_config(
                 collision_system="pp_MC",
-                number=80,
+                number=84,
                 specialization=grooming_workflow.ProductionSpecialization(),
                 track_skim_config_filename=config_filename,
                 base_output_dir=Path("/rstorage/rehlers/trains"),
             ),
             production.ProductionSettings.read_config(
                 collision_system="pp_MC",
-                number=81,
+                number=85,
                 specialization=grooming_workflow.ProductionSpecialization(),
                 track_skim_config_filename=config_filename,
                 base_output_dir=Path("/rstorage/rehlers/trains"),
@@ -166,7 +166,7 @@ def run(job_framework: job_utils.JobFramework) -> list[Future[Any]]:
     log_level = logging.INFO
     walltime = "24:00:00"
     override_minimize_IO_as_possible = None
-    debug_mode = True
+    debug_mode = False
     if debug_mode:
         # Usually, we want to run in the short queue
         target_n_tasks_to_run_simultaneously = 2

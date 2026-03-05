@@ -1323,6 +1323,73 @@ productions:
         generator_analysis_arguments:
           <<: *generator_arguments_default_pp_MC_fastsim
           name: "herwig"
+    # Pythia fastsim w/ time reclustering, z_cut = 0.1
+    # There was an issue with passing pt_hat and scale factor to 78-81, so re-run here
+    82:
+      metadata:
+        <<: *base_metadata_pythia
+        dataset: *LBL20_Pythia_FastSim_1_17pq
+        production_number: 82
+        label: "pythia_fastsim"
+      settings:
+        <<: *analysis_settings_time_reclustering_pp_MC_R04
+        output_settings:
+          <<: *reclustered_substructure_output_settings
+        selected_grooming_methods:
+          - "soft_drop_z_cut_01"
+        generator_analysis_arguments:
+          <<: *generator_arguments_default_pp_MC_fastsim
+          name: "pythia"
+    # Herwig fastsim w/ time reclustering, z_cut = 0.1
+    83:
+      metadata:
+        <<: *base_metadata_pythia
+        dataset: *LBL20_Herwig_FastSim_1_17pq
+        production_number: 83
+        label: "herwig_fastsim"
+      settings:
+        <<: *analysis_settings_time_reclustering_pp_MC_R04
+        output_settings:
+          <<: *reclustered_substructure_output_settings
+        selected_grooming_methods:
+          - "soft_drop_z_cut_01"
+        generator_analysis_arguments:
+          <<: *generator_arguments_default_pp_MC_fastsim
+          name: "herwig"
+    # Pythia fastsim w/ CA reclustering, z_cut = 0.1
+    84:
+      metadata:
+        <<: *base_metadata_pythia
+        dataset: *LBL20_Pythia_FastSim_1_17pq
+        production_number: 84
+        label: "pythia_fastsim"
+      settings:
+        <<: *analysis_settings_time_reclustering_pp_MC_R04
+        reclustering_settings: null
+        output_settings:
+          <<: *reclustered_substructure_output_settings
+        selected_grooming_methods:
+          - "soft_drop_z_cut_01"
+        generator_analysis_arguments:
+          <<: *generator_arguments_default_pp_MC_fastsim
+          name: "pythia"
+    # Herwig fastsim w/ CA reclustering, z_cut = 0.
+    85:
+      metadata:
+        <<: *base_metadata_pythia
+        dataset: *LBL20_Herwig_FastSim_1_17pq
+        production_number: 85
+        label: "herwig_fastsim"
+      settings:
+        <<: *analysis_settings_time_reclustering_pp_MC_R04
+        reclustering_settings: null
+        output_settings:
+          <<: *reclustered_substructure_output_settings
+        selected_grooming_methods:
+          - "soft_drop_z_cut_01"
+        generator_analysis_arguments:
+          <<: *generator_arguments_default_pp_MC_fastsim
+          name: "herwig"
 
   PbPb:
     2:
