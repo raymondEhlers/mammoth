@@ -498,9 +498,6 @@ def setup_framework_standard_workflow(  # noqa: C901
                 **analysis_arguments,
             )
         )
-        # NOTE: We need to customize the analysis arguments to pass the relevant scale factor,
-        #       so we make a copy for clarity. We'll update it each loop.
-        analysis_arguments_with_pt_hat_scale_factor = copy.deepcopy(analysis_arguments)
 
         # Scale factors
         scale_factors = None
@@ -514,6 +511,16 @@ def setup_framework_standard_workflow(  # noqa: C901
         _file_counter = 0
         for pt_hat_bin, input_filenames in input_files.items():
             # Setup the analysis arguments
+            # NOTE: We need to customize the analysis arguments to pass the relevant scale factor,
+            #       so we make a copy for clarity. We'll update it each loop.
+            # NOTE: As of March 2026, something changed in parsl that was causing it to take the
+            #       last loop value of the pt_hat bin for **all** tasks (i.e. it was evaluating the
+            #       all of the python_app calls after the for loop was completed). This wasn't previously
+            #       the cause, but it (or something around it) must have changed in the last year or so.
+            #       It can be fixed by a deepcopy for each loop, which is wasteful, but could be worse.
+            #       It's not worth the time to investigate further, so will copy it and move on.
+            analysis_arguments_with_pt_hat_scale_factor = copy.deepcopy(analysis_arguments)
+
             # (The pt hat value may not always be meaningful, but we always include it).
             analysis_arguments_with_pt_hat_scale_factor["pt_hat_bin"] = pt_hat_bin
             if scale_factors is not None:
@@ -751,10 +758,6 @@ def setup_framework_embed_workflow(  # noqa: C901
             _msg = "Check the embedding config - you need a signal dataset."
             raise ValueError(_msg)
 
-        # NOTE: We need to customize the analysis arguments to pass the relevant scale factor,
-        #       so we make a copy for clarity. We'll update it each loop.
-        analysis_arguments_with_pt_hat_scale_factor = copy.deepcopy(analysis_arguments)
-
         # Cross check input
         # NOTE: Need to wait until here because need the scale factors
         # NOTE: We usually need to skip this during debug mode because we may not have all pt hat bins in the input,
@@ -781,7 +784,16 @@ def setup_framework_embed_workflow(  # noqa: C901
             input_handling_config=_input_handling_config,
         )
         for _file_counter, (pt_hat_bin, signal_input, background_input) in enumerate(input_generator):
-            # Need to customize the analysis arguments to pass the relevant scale factor
+            # Setup the analysis arguments
+            # NOTE: We need to customize the analysis arguments to pass the relevant scale factor,
+            #       so we make a copy for clarity. We'll update it each loop.
+            # NOTE: As of March 2026, something changed in parsl that was causing it to take the
+            #       last loop value of the pt_hat bin for **all** tasks (i.e. it was evaluating the
+            #       all of the python_app calls after the for loop was completed). This wasn't previously
+            #       the cause, but it (or something around it) must have changed in the last year or so.
+            #       It can be fixed by a deepcopy for each loop, which is wasteful, but could be worse.
+            #       It's not worth the time to investigate further, so will copy it and move on.
+            analysis_arguments_with_pt_hat_scale_factor = copy.deepcopy(analysis_arguments)
             analysis_arguments_with_pt_hat_scale_factor["scale_factor"] = scale_factors[pt_hat_bin]
 
             if _file_counter % 500 == 0:
@@ -990,10 +1002,6 @@ def setup_framework_embed_workflow(  # noqa: C901
             _msg = "Check the thermal model config - you need a signal dataset."
             raise ValueError(_msg)
 
-        # NOTE: We need to customize the analysis arguments to pass the relevant scale factor,
-        #       so we make a copy for clarity. We'll update it each loop.
-        analysis_arguments_with_pt_hat_scale_factor = copy.deepcopy(analysis_arguments)
-
         # Cross check
         # NOTE: Need to wait until here because need the scale factors
         # NOTE: We usually need to skip this during debug mode because we may not have all pt hat bins in the input,
@@ -1009,6 +1017,16 @@ def setup_framework_embed_workflow(  # noqa: C901
         _file_counter = 0
         # Reversed because the higher pt hard bins are of more importance to get done sooner.
         for pt_hat_bin, input_filenames in reversed(input_files.items()):
+            # Setup the analysis arguments
+            # NOTE: We need to customize the analysis arguments to pass the relevant scale factor,
+            #       so we make a copy for clarity. We'll update it each loop.
+            # NOTE: As of March 2026, something changed in parsl that was causing it to take the
+            #       last loop value of the pt_hat bin for **all** tasks (i.e. it was evaluating the
+            #       all of the python_app calls after the for loop was completed). This wasn't previously
+            #       the cause, but it (or something around it) must have changed in the last year or so.
+            #       It can be fixed by a deepcopy for each loop, which is wasteful, but could be worse.
+            #       It's not worth the time to investigate further, so will copy it and move on.
+            analysis_arguments_with_pt_hat_scale_factor = copy.deepcopy(analysis_arguments)
             analysis_arguments_with_pt_hat_scale_factor["scale_factor"] = scale_factors[pt_hat_bin]
 
             for input_filename in input_filenames:
