@@ -109,7 +109,7 @@ def define_productions() -> list[production.ProductionSettings]:
             # Production
             production.ProductionSettings.read_config(
                 collision_system="pp_MC",
-                number=75,
+                number=76,
                 specialization=EECProductionSpecialization(),
                 track_skim_config_filename=config_filename,
                 base_output_dir=Path("/rstorage/rehlers/trains"),
@@ -191,8 +191,8 @@ def run(job_framework: job_utils.JobFramework) -> list[Future[Any]]:
     # Job execution configuration
     conda_environment_name = ""
     task_config = job_utils.TaskConfig(name=task_name, n_cores_per_task=1)
-    # target_n_tasks_to_run_simultaneously = 120
-    target_n_tasks_to_run_simultaneously = 110
+    target_n_tasks_to_run_simultaneously = 130
+    # target_n_tasks_to_run_simultaneously = 110
     # target_n_tasks_to_run_simultaneously = 60
     log_level = logging.INFO
     walltime = "24:00:00"
