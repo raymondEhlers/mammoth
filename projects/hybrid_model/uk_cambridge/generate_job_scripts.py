@@ -49,6 +49,23 @@ def _handle_local_jetscape_analysis_dir(local_jetscape_analysis_dir: Path | None
     return ""
 
 
+def _handle_optional_centrality_injection(inject_centrality: float | None = None) -> str:
+    """Handle optionally injecting the centrality into a skim.
+
+    This is useful for when the centrality is not otherwise available (e.g. hybrid-bayesian in 2025-2026).
+    Use this with care! It's of course strictly not correct, as it sets the event-by-event centrality to
+    the exact same value for every event.
+
+    Args:
+        inject_centrality: Centrality value to inject.
+    Returns:
+        String to either inject the centrality value (or not, depending on the value).
+    """
+    if inject_centrality is not None:
+        return f"--inject-centrality {inject_centrality}"
+    return ""
+
+
 slurm_template_convert_output_to_parquet = """#!/usr/bin/env bash
 
 #SBATCH --job-name={job_name}
@@ -79,7 +96,7 @@ echo "hybrid_job_index=${{hybrid_job_index}}, job_id_fixed=${{job_id_fixed}}, jo
 
 # Convert the output files to parquet
 # NOTE: HARDCODE: This is the only Cambridge HPC specific part. RJE does not want to deal with generalizing this at the moment (Jan 2026).
-time apptainer exec --cleanenv --no-home {local_jetscape_analysis_dir} -B /rds/project/rds-hCZCEbPdvZ8 -B {local_base_output_dir} {container_path} bash -c "cd /jetscapeOpt/jetscape-analysis/; COLUMNS=120 python3 -m jetscape_analysis.analysis.reader.skim_ascii -i {input_dir}/job-${{hybrid_job_index}}/HYBRID_Hadrons.out -o ${{local_job_output_dir}}/HYBRID_PbPb_${{job_id_fixed}}_final_state_hadrons.parquet -n {n_events_per_parquet_file}"
+time apptainer exec --cleanenv --no-home {local_jetscape_analysis_dir} -B /rds/project/rds-hCZCEbPdvZ8 -B {local_base_output_dir} {container_path} bash -c "cd /jetscapeOpt/jetscape-analysis/; COLUMNS=120 python3 -m jetscape_analysis.analysis.reader.skim_ascii -i {input_dir}/job-${{hybrid_job_index}}/HYBRID_Hadrons.out -o ${{local_job_output_dir}}/HYBRID_PbPb_${{job_id_fixed}}_final_state_hadrons.parquet -n {n_events_per_parquet_file} {optionally_inject_centrality}"
 
 # Copy all .parquet and .root files from the local job output dir to the job output dir, maintaining directory structure
 # We include the root files because we may have outputs from the post processing, and we do not want to have to update this command
@@ -107,6 +124,7 @@ def convert_to_parquet(
     #            Bumping slightly cuts the number of files in half, and we're not doing array at a time
     #            analysis, so we don't need to worry about the memory cost as much.
     n_events_per_parquet_file: int = 6000,
+    inject_centrality: float | None = None,
     job_name: str = "hybrid_bayesian",
     walltime_in_minutes: int = 60,
     local_jetscape_analysis_dir: Path | None = None,
@@ -136,6 +154,7 @@ def convert_to_parquet(
         input_dir=input_dir.resolve(),
         output_dir=output_dir.resolve(),
         n_events_per_parquet_file=n_events_per_parquet_file,
+        optionally_inject_centrality=_handle_optional_centrality_injection(inject_centrality),
         walltime_in_minutes=walltime_in_minutes,
         partition=partition,
         account=account,
@@ -346,6 +365,15 @@ def main_entry_point() -> None:
         metavar="run_number",
         help="Run number (on the analysis side)",
     )
+    parser.add_argument(
+        "--inject-centrality",
+        action="store",
+        type=float,
+        required=False,
+        default=None,
+        metavar="centrality",
+        help="Inject centrality into the skim",
+    )
 
     args = parser.parse_args()
 
@@ -355,6 +383,8 @@ def main_entry_point() -> None:
     logger.info(f"\tbase output dir: {args.output_dir}")
     logger.info(f"\tProduction number: {args.production_number}")
     logger.info(f"\tRun number: {args.run_number}")
+    logger.info("Skim parameters")
+    logger.info(f"\tInject centrality: {args.inject_centrality if args.inject_centrality is not None else False}")
     logger.info("Job parameters")
     logger.info(f"\tIndex: {args.start_job_index}-{args.end_job_index}")
     logger.info(f"Container path: {args.container_path}")
@@ -374,6 +404,8 @@ def main_entry_point() -> None:
             base_output_dir=args.output_dir,
             production_number=args.production_number,
             run_number=args.run_number,
+            # Skim parameters
+            inject_centrality=args.inject_centrality,
             # Job parameters
             start_job_index=args.start_job_index,
             end_job_index=args.end_job_index,
