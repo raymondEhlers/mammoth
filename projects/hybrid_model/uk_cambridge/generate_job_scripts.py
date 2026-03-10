@@ -168,7 +168,9 @@ def convert_to_parquet(
     log_dir.mkdir(parents=True, exist_ok=True)
 
     # Write the slurm script to a file
-    submit_slurm_path = base_output_dir / f"submit_convert_to_parquet_prod_{production_number}_run_{run_number}.slurm"
+    job_scripts_dir = base_output_dir / "job_scripts"
+    job_scripts_dir.mkdir(parents=True, exist_ok=True)
+    submit_slurm_path = job_scripts_dir / f"submit_convert_to_parquet_prod_{production_number}_run_{run_number}.slurm"
     with submit_slurm_path.open("w") as f:
         f.write(slurm_script_simulation_and_analysis)
 
@@ -280,7 +282,9 @@ def analyze_output(
     log_dir.mkdir(parents=True, exist_ok=True)
 
     # Write the slurm script to a file
-    submit_slurm_path = base_input_dir / f"submit_analysis_prod_{production_number}_run_{run_number}.slurm"
+    job_scripts_dir = base_input_dir / "job_scripts"
+    job_scripts_dir.mkdir(parents=True, exist_ok=True)
+    submit_slurm_path = job_scripts_dir / f"submit_analysis_prod_{production_number}_run_{run_number}.slurm"
     with submit_slurm_path.open("w") as f:
         f.write(slurm_script_analysis_only)
 
