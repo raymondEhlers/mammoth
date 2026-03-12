@@ -63,7 +63,7 @@ def generate_run_info(
     collision_system = "pp" if centrality is None else "PbPb"
 
     # Determine the fields and parameters that are needed
-    # NOTE: The true definition of these fields is in submit.py of the stat-xsede steering code.
+    # NOTE: The definitive list of these fields is in submit.py of the stat-xsede steering code.
     #       This function creates an approximate copy after the fact.
     run_info = {
         # Calculation type:
@@ -154,7 +154,7 @@ def generate_many_run_info(
         raise ValueError(msg)
 
     # Setup
-    design_point_values = load_design_point_values(Path("sandbox/StandardDesign_2026_03.dat"))
+    design_point_values = load_design_point_values(Path("design_points/Lres-E-loss-sandbox-2026-03.dat"))
     base_path = Path("run_info")
 
     # WARNING:
