@@ -116,9 +116,8 @@ def generate_run_info(
         run_info["parametrization"] = {
             # Parametrization type
             #   str: value
-            # NOTE(RJE): This isn't necessarily the right label, but it's fine as of 2026 March since we only
-            #            have one parametrization
-            "type": "2026_03_standard",
+            # NOTE(RJE): Cannot contain any underscores! We depend on that later in the aggregation.
+            "type": "Lres-E-loss",
             # Design point index
             #   int: Index of the design point run in this simulation
             "design_point_index": design_point_index,
@@ -239,7 +238,9 @@ def main_entry_point() -> None:
     setup_logging(level=logging.INFO)
 
     # Arguments
-    parser = argparse.ArgumentParser(description="Generate standalone slurm scripts")
+    parser = argparse.ArgumentParser(
+        description="Generate run_info files. Note that not all options are exposed through the arguments - you may need to edit some options manually in the source code."
+    )
     parser.add_argument(
         "-f",
         "--facility",
