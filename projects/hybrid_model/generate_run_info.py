@@ -62,7 +62,9 @@ def generate_run_info(
     run_number_formatted = f"Run{run_number:04d}"
     collision_system = "pp" if centrality is None else "PbPb"
 
-    # Determine the parameters and fields that are needed
+    # Determine the fields and parameters that are needed
+    # NOTE: The true definition of these fields is in submit.py of the stat-xsede steering code.
+    #       This function creates an approximate copy after the fact.
     run_info = {
         # Calculation type:
         #   str: `jet_energy_loss` or `pp_baseline`
@@ -128,69 +130,6 @@ def generate_run_info(
                 "kappa_sc": float(design_point_values[design_point_index, 1]),
             },
         }
-
-    # _default_run_info = {
-    #    #"calculation_type": execution_config.type.label(),
-    #    #"soft_sector_execution_type": execution_config.soft_sector_execution_type.label(),
-    #    #"pythia_process": execution_config.process.label(),
-    #    #"run_number": parameter_config.run_number,
-    #    #"sqrt_s": parameter_config.sqrt_s,
-    #    #"n_events_per_task": parameter_config.n_events_per_task,
-    #    #"n_events_per_parquet_file": execution_config.n_events_per_parquet_file,
-    #    #"power_law": power_law_power,
-    #    #"min_pt_hat": min_pt_hat_map[parameter_config.sqrt_s],
-    #    # These are only applicable for JEL, but it's easiest to just write an empty map or list when it's not applicable.
-    #    #"centrality": [],
-    #    #"parametrization": {},
-    #    # These parameters are related to the soft sector. We'll always write them for simplicity.
-    #    "index_to_hydro_event": {},
-    #    "set_reuse_hydro": None,
-    #    "n_reuse_hydro": None,
-    #    "skip_afterburner": None,
-    #    "number_of_repeated_sampling": None,
-    #    "write_qnvector": None
-    # }
-    """
-    ### AA
-    calculation_type: jet_energy_loss
-    centrality:
-    - 0
-    - 10
-    index_to_hydro_event:
-        ....
-    min_pt_hat: 4.0
-    n_events_per_parquet_file: 5000
-    n_events_per_task: 4800
-    parametrization:
-      design_point_index: 77
-      parametrization_values:
-        A: 7.85353449260192
-        B: 2.00906462523193
-        C: 8.19219483058415
-        D: 74.5781420242299
-        alpha_s: 0.40498248406137
-        q_switch: 9.88027913723634
-        t_start: 0.914045444231991
-      type: binomial
-    power_law: 4.0
-    run_number: 8096
-    sqrt_s: 2760
-
-    # Addition for JEL calculations
-    {
-        "centrality": list(parameter_config.centrality_range),
-        "parametrization": {
-            "type": parameter_config.parametrization_type.name,
-            "design_point_index": parameter_config.design_point_index,
-            "parametrization_values": _parametrization,
-        },
-    }
-
-    #### pp
-    calculation_type: pp_baseline
-    centrality: []
-    index_to_hydro_event: {}
-    """
 
     # Write the output to appropriate location
     filename = base_path / f"{facility}" / run_number_formatted / f"{run_number_formatted}_info.yaml"
