@@ -61,6 +61,9 @@ def steer_task_execution(  # noqa: C901
         msg = "Cannot return skim if processing in chunks. Update your Output settings."
         raise ValueError(msg)
 
+    # Allow stopping after n_chunks. Usually used for debugging
+    _max_n_chunks = task_settings.max_n_chunks
+
     _nonstandard_processing_outcome = []
     task_hists: dict[str, hist.Hist] = {}
     i_chunk = 0
@@ -176,6 +179,17 @@ def steer_task_execution(  # noqa: C901
 
             # Setup for next loop
             i_chunk += 1
+
+            # Stop at a specific number of chunks, but only if requested.
+            if _max_n_chunks > -1 and i_chunk >= _max_n_chunks:
+                _message = (
+                    True,
+                    f"Reached max number of chunks ({_max_n_chunks})",
+                )
+                _nonstandard_processing_outcome.append(_message)
+                logger.info(_message)
+                # Break output of the loop - we're all done
+                break
     except StopIteration:
         # All done!
         ...

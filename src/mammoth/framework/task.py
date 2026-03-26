@@ -70,6 +70,7 @@ class Settings:
     production_identifier: str
     collision_system: str
     chunk_size: sources.T_ChunkSize
+    max_n_chunks: int
     input_metadata: InputMetadata
 
     @property
@@ -556,6 +557,7 @@ def python_app_data(
         production_identifier: str,
         collision_system: str,
         chunk_size: sources.T_ChunkSize,
+        max_n_chunks: int,
         input_source_config: dict[str, Any],
         input_options_for_load_data_setup_source: dict[str, Any],
         output_settings_config: dict[str, Any],
@@ -628,6 +630,7 @@ def python_app_data(
                         production_identifier=production_identifier,
                         collision_system=collision_system,
                         chunk_size=chunk_size,
+                        max_n_chunks=max_n_chunks,
                         input_metadata={
                             "signal_source_config": input_source_config,
                             # NOTE: We intentionally pass the untranslated paths here to ensure that the task
@@ -718,6 +721,7 @@ def python_app_embed_MC_into_data(
         production_identifier: str,
         collision_system: str,
         chunk_size: sources.T_ChunkSize,
+        max_n_chunks: int,
         signal_input_source_config: dict[str, Any],
         n_signal_input_files: int,
         background_input_source_config: dict[str, Any],
@@ -778,6 +782,7 @@ def python_app_embed_MC_into_data(
                         production_identifier=production_identifier,
                         collision_system=collision_system,
                         chunk_size=chunk_size,
+                        max_n_chunks=max_n_chunks,
                         input_metadata={
                             "signal_source_config": signal_input_source_config,
                             # NOTE: We intentionally pass the untranslated paths here to ensure that the task
@@ -872,6 +877,7 @@ def python_app_embed_MC_into_thermal_model(
         production_identifier: str,
         collision_system: str,
         chunk_size: sources.T_ChunkSize,
+        max_n_chunks: int,
         input_options_for_load_data_setup_source: dict[str, Any],
         input_source_config: dict[str, Any],
         thermal_model_parameters: sources.ThermalModelParameters,
@@ -929,6 +935,7 @@ def python_app_embed_MC_into_thermal_model(
                         production_identifier=production_identifier,
                         collision_system=collision_system,
                         chunk_size=chunk_size,
+                        max_n_chunks=max_n_chunks,
                         input_metadata={
                             "signal_source_config": input_source_config,
                             # NOTE: We intentionally pass the untranslated paths here to ensure that the task

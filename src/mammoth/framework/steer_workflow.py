@@ -451,7 +451,11 @@ def setup_framework_standard_workflow(  # noqa: C901
         }
         # Chunk size
         chunk_size = _analysis_config.pop("chunk_size", sources.ChunkSizeSentinel.FULL_SOURCE)
-        logger.info(f"Processing chunk size for {chunk_size}")
+        msg = f"Processing chunk size for {chunk_size}"
+        max_n_chunks = _analysis_config.pop("max_n_chunks", -1)
+        if max_n_chunks > -1:
+            msg += f", with max n_chunks={max_n_chunks}"
+        logger.info(msg)
         # Sample fraction of input events (for quick analysis)
         sample_dataset_fraction = _metadata_config.get("sample_dataset_fraction", 1.0)
         if sample_dataset_fraction < 1.0:
@@ -561,6 +565,7 @@ def setup_framework_standard_workflow(  # noqa: C901
                         production_identifier=prod.identifier,
                         collision_system=prod.collision_system,
                         chunk_size=chunk_size,
+                        max_n_chunks=max_n_chunks,
                         # I/O
                         # Inputs
                         input_source_config=_metadata_config["dataset"],
@@ -707,7 +712,11 @@ def setup_framework_embed_workflow(  # noqa: C901
         _output_settings_config = _analysis_config.pop("output_settings")
         # Chunk size
         chunk_size = _analysis_config.pop("chunk_size", sources.ChunkSizeSentinel.FULL_SOURCE)
-        logger.info(f"Processing chunk size for {chunk_size}")
+        msg = f"Processing chunk size for {chunk_size}"
+        max_n_chunks = _analysis_config.pop("max_n_chunks", -1)
+        if max_n_chunks > -1:
+            msg += f", with max n_chunks={max_n_chunks}"
+        logger.info(msg)
         logger.info(
             f"Configuring embed pythia with {'background' if _background_is_constrained_source else 'signal'} as the constrained source."
         )
@@ -875,6 +884,7 @@ def setup_framework_embed_workflow(  # noqa: C901
                     production_identifier=prod.identifier,
                     collision_system=prod.collision_system,
                     chunk_size=chunk_size,
+                    max_n_chunks=max_n_chunks,
                     # I/O
                     # Inputs
                     signal_input_source_config=_metadata_config["signal_dataset"],
@@ -969,7 +979,11 @@ def setup_framework_embed_workflow(  # noqa: C901
         ]
         # Chunk size
         chunk_size = _analysis_config.pop("chunk_size")
-        logger.info(f"Processing chunk size for {chunk_size}")
+        msg = f"Processing chunk size for {chunk_size}"
+        max_n_chunks = _analysis_config.pop("max_n_chunks", -1)
+        if max_n_chunks > -1:
+            msg += f", with max n_chunks={max_n_chunks}"
+        logger.info(msg)
         # Sample fraction of input events (for quick analysis)
         sample_dataset_fraction = _metadata_config.get("sample_dataset_fraction", 1.0)
         if sample_dataset_fraction < 1.0:
@@ -1062,6 +1076,7 @@ def setup_framework_embed_workflow(  # noqa: C901
                         production_identifier=prod.identifier,
                         collision_system=prod.collision_system,
                         chunk_size=chunk_size,
+                        max_n_chunks=max_n_chunks,
                         # I/O
                         # Inputs
                         thermal_model_parameters=thermal_model_parameters,
