@@ -41,6 +41,7 @@ _centrality_dependence_of_N_events_per_task = {
     (10, 20): 5000,
     (20, 30): 5000,
     (30, 40): 5000,
+    (40, 50): 5000,
     None: 75000,
 }
 
@@ -84,7 +85,7 @@ def generate_run_info(
         # Number of events per job:
         #   int: n_events
         "n_events_per_task": _centrality_dependence_of_N_events_per_task[centrality],
-        # Number of events per parquet file:
+        # Max number of events per parquet file:
         #   int: n_events. We have this hard coded
         "n_events_per_parquet_file": 6000,
         # Power law exponent
