@@ -50,7 +50,7 @@ skimmed_datasets:
   LHC22o_pass7_AOD_346364: &LHC22o_pp_pass7
     name: "LHC22o_pass7_AOD_346364"
     collision_system: "pp"
-    sqrt_s: 5360
+    sqrt_s: 13600
     period: "LHC22o"
     # Keep track of the skim type for documentation
     skim_type: "run3_berkeley_skim"
