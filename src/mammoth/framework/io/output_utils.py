@@ -321,7 +321,49 @@ def _filter_for_supported_merging_types(contents: dict[str, Any], level: int = 0
     return output
 
 
-def shit_hadd() -> None:
+def shit_hadd(input_filenames: list[Path], output_filename: Path) -> None:
+    """Shit (eg. "simple") version of histogram add (`hadd`) to avoid needing root.
+
+    Args:
+        input_filenames: List of input filenames to be added together.
+        output_filename: Output filename to be written.
+
+    Returns:
+        Path to the output file.
+    """
+    # Delayed import since this is self contained
+    import mammoth.helpers
+
+    if output_filename.exists():
+        msg = f"Output already exists! {output_filename}"
+        raise ValueError(msg)
+
+    with uproot.recreate(output_filename) as f_out:
+        hists: dict[str, Any] = {}
+        with mammoth.helpers.progress_bar() as progress:
+            track_results = progress.add_task(total=len(input_filenames), description="Processing inputs...")
+            for input_filename in input_filenames:
+                logger.info(f"Processing {input_filename}")
+                # with uproot.open(input_filename, custom_classes={"AliEmcalList": uproot.models.TList.Model_TList}) as f_in:
+                with uproot.open(input_filename) as f_in:
+                    hists = merge_results(
+                        hists,
+                        _filter_for_supported_merging_types(
+                            # NOTE: We do these minor gymnastics so we can avoid having to remove the cycle (eg. ";1") by hand.
+                            #       It's not that hard, but no point in reinventing the wheel.
+                            contents={k: f_in[k] for k in f_in.keys(cycle=False)}
+                        ),
+                    )
+                progress.update(track_results, advance=1)
+
+        # NOTE: This is a little perverse, but even if we have a nested dict, uproot won't write in a TDirectory unless there
+        #      is a "/" in the name. So we just add one here as the separator.
+        write_hists_to_file(hists=hists, f=f_out, separator="/")
+
+    logger.info(f'🎉 Finished merging "{output_filename}"')
+
+
+def shit_hadd_entry_point() -> None:
     """Shit (eg. "simple") version of histogram add (`hadd`) to avoid needing root.
 
     Args:
@@ -342,36 +384,14 @@ def shit_hadd() -> None:
         description="shadd: Shi^H^H^HSimple hadd replacement", formatter_class=mammoth.helpers.RichHelpFormatter
     )
 
-    parser.add_argument("-i", "--input", required=True, nargs="+", type=Path, help="Input filename(s)")
+    def parse_input_filenames(paths: str) -> Any:
+        return [Path(path) for path in paths.split(" ")]
+
+    parser.add_argument("-i", "--input", required=True, nargs="+", type=parse_input_filenames, help="Input filename(s)")
     parser.add_argument("-o", "--output", required=True, type=Path, help="Output filename")
 
     args = parser.parse_args()
+    input_filenames: list[Path] = args.input
     output_filename: Path = args.output
 
-    if output_filename.exists():
-        msg = f"Output already exists! {args.output}"
-        raise ValueError(msg)
-
-    with uproot.recreate(output_filename) as f_out:
-        hists: dict[str, Any] = {}
-        with mammoth.helpers.progress_bar() as progress:
-            track_results = progress.add_task(total=len(args.input), description="Processing inputs...")
-            for input_filename in args.input:
-                logger.info(f"Processing {input_filename}")
-                # with uproot.open(input_filename, custom_classes={"AliEmcalList": uproot.models.TList.Model_TList}) as f_in:
-                with uproot.open(input_filename) as f_in:
-                    hists = merge_results(
-                        hists,
-                        _filter_for_supported_merging_types(
-                            # NOTE: We do these minor gymnastics so we can avoid having to remove the cycle (eg. ";1") by hand.
-                            #       It's not that hard, but no point in reinventing the wheel.
-                            contents={k: f_in[k] for k in f_in.keys(cycle=False)}
-                        ),
-                    )
-                progress.update(track_results, advance=1)
-
-        # NOTE: This is a little perverse, but even if we have a nested dict, uproot won't write in a TDirectory unless there
-        #      is a "/" in the name. So we just add one here as the separator.
-        write_hists_to_file(hists=hists, f=f_out, separator="/")
-
-    logger.info(f'🎉 Finished merging "{output_filename}"')
+    shit_hadd(input_filenames=input_filenames, output_filename=output_filename)
