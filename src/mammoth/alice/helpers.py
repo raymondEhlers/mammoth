@@ -57,7 +57,7 @@ class Run3EventSelection(enum.Enum):
         return is_bit_set(value=value, n=self.value)
 
     def to_int(self) -> int:
-        return 1 << self.value  # type: ignore[no-any-return]
+        return 1 << self.value
 
     @staticmethod
     def mask_from_values(values: list[Run3EventSelection]) -> int:
@@ -153,7 +153,7 @@ class Run3TrackSelection(enum.Enum):
         return is_bit_set(value=value, n=self.value)
 
     def to_int(self) -> int:
-        return 1 << self.value  # type: ignore[no-any-return]
+        return 1 << self.value
 
     @staticmethod
     def mask_from_values(values: list[Run3EventSelection]) -> int:
