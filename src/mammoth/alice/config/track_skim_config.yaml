@@ -62,6 +62,22 @@ skimmed_datasets:
     number_of_parent_directories_for_relative_output_filename: 2
     files:
       - "pp/346364/files.txt"
+  # LHC24_pp_ref, including LHC24ap and LHC24aq
+  LHC24_pp_ref_pass1_AOD_626869: &LHC24_pp_ref_pass1
+    name: "LHC24_pp_ref_pass1_AOD_626869"
+    collision_system: "pp"
+    sqrt_s: 5360
+    period: "LHC24apaq"
+    # Keep track of the skim type for documentation
+    skim_type: "run3_berkeley_skim"
+    # Parameters of the output
+    tree_name: "eventTree"
+    levels_in_output_file:
+      - "data"
+    # Number of parent directories to go up to create the relative output filename
+    number_of_parent_directories_for_relative_output_filename: 2
+    files:
+      - "pp/626869/files.txt"
 
   # pp_MC
   # pythia
@@ -917,6 +933,18 @@ productions:
         <<: *base_metadata_pp
         dataset: *LHC22o_pp_pass7
         production_number: 4
+        label: ""
+      settings:
+        <<: *analysis_settings_EBC_pp
+        chunk_size: 10000
+        output_settings:
+          <<: *EBC_output_settings
+    5:
+      # Test run for EBC with Run 3 pp_ref
+      metadata:
+        <<: *base_metadata_pp
+        dataset: *LHC24_pp_ref_pass1
+        production_number: 5
         label: ""
       settings:
         <<: *analysis_settings_EBC_pp
