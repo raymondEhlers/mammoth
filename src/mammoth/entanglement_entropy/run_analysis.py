@@ -89,31 +89,25 @@ def define_productions() -> list[production.ProductionSettings]:
             #     specialization=HardestKtProductionSpecialization(),
             #     track_skim_config_filename=config_filename,
             # ),
-            # Production
             # production.ProductionSettings.read_config(
-            #     collision_system="embed_pythia", number=65,
-            #     specialization=HardestKtProductionSpecialization(),
+            #     collision_system="pp_MC", number=8,
+            #     specialization=EBCProductionSpecialization(),
             #     track_skim_config_filename=config_filename,
             # ),
-            # production.ProductionSettings.read_config(
-            #     collision_system="embed_pythia", number=66,
-            #     specialization=HardestKtProductionSpecialization(),
-            #     track_skim_config_filename=config_filename,
-            # ),
-            # Debug
-            # production.ProductionSettings.read_config(
-            #     collision_system="PbPb", number=3,
-            #     specialization=HardestKtProductionSpecialization(),
-            #     track_skim_config_filename=config_filename,
-            # ),
-            # Production
             production.ProductionSettings.read_config(
-                collision_system="pp_MC",
-                number=75,
+                collision_system="pp",
+                number=5,
                 specialization=EBCProductionSpecialization(),
                 track_skim_config_filename=config_filename,
-                base_output_dir=Path("/rstorage/rehlers/trains"),
             ),
+            # Production
+            # production.ProductionSettings.read_config(
+            #     collision_system="pp_MC",
+            #     number=75,
+            #     specialization=EBCProductionSpecialization(),
+            #     track_skim_config_filename=config_filename,
+            #     base_output_dir=Path("/rstorage/rehlers/trains"),
+            # ),
         ]
     )
 
