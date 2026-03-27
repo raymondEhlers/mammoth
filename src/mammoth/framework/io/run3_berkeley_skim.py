@@ -29,8 +29,11 @@ class Columns:
     particle_level: dict[str, str]
 
     @classmethod
-    def create(cls, collision_system: str) -> Columns:
+    def create(cls, collision_system: str, skim_version: int) -> Columns:
         # Available columns:
+        ###################
+        # Version 1: LHC22o
+        ###################
         # ["run_number",
         #  "event_selection",
         #  "triggersel",
@@ -54,6 +57,21 @@ class Columns:
         #  "cluster_data_clusterdef",
         #  "cluster_data_matchedTrackIndex"]
 
+        #########################
+        # Version 2: LHC24_pp_ref
+        #########################
+        # run_number : run_number/I
+        # multiplicity : multiplicity/F
+        # centrality : centrality/F
+        # occupancy : occupancy/I
+        # event_sel : event_sel/s
+        # trig_sel  : trig_sel/l
+        # rct       : rct/i
+        # track_pt  : vector<float>
+        # track_eta : vector<float>
+        # track_phi : vector<float>
+        # track_sel : vector<unsigned char>
+
         # First, event level properties
         event_level_columns = {
             "run_number": "run_number",
@@ -65,8 +83,23 @@ class Columns:
                 {
                     "centrality": "centrality",
                     "multiplicity": "multiplicity",
+                    "rct": "rct",
                 }
             )
+        if skim_version == 2:
+            # Remove version 1 columns
+            for name in ["triggersel", "event_selection"]:
+                del event_level_columns[name]
+
+            # And then update with version 2 values
+            event_level_columns.update(
+                {
+                    "event_sel": "event_selection",
+                    "trig_sel": "trigger_selection",
+                    "occupancy": "occupancy",
+                }
+            )
+
         # Next, particle level columns
         # NOTE: As of Oct 2025, we'll skip the cluster columns
         _base_particle_columns = {
@@ -79,8 +112,16 @@ class Columns:
             "{prefix}_particle_ID": "particle_ID",
             "{prefix}_label": "identifier",
         }
+        _prefix = "track_data"
+
+        # And then update for skim_version 2 as needed
+        if skim_version == 2:
+            _prefix = "track"
+            del _base_particle_columns["{prefix}_tracksel"]
+            _base_particle_columns["{prefix}_sel"] = "track_selection"
+
         particle_columns = {
-            column.format(prefix="track_data"): field_name for column, field_name in _base_particle_columns.items()
+            column.format(prefix=_prefix): field_name for column, field_name in _base_particle_columns.items()
         }
         # Pick up the extra columns in the case of pythia
         # NOTE: This will cause issues if we ever do PbPb_MC without a fastsim. So far (June 2024), we haven't done this,
@@ -123,20 +164,29 @@ class FileSource:
         Returns:
             Iterable containing chunk size data in an awkward array.
         """
+        # Setup
+        # Use the metadata to determine what we need to include.
+        # NOTE: We're using the metadata that is provided by the user to avoid having to peek
+        #       at the file itself. This may not be the ideal balance (since it shifts the burden
+        #       to the user), but it's a reasonable starting point. We can always adjust it later.
+        parameters = self.metadata["skim_parameters"]
+        try:
+            skim_version = parameters["version"]
+        except KeyError as e:
+            msg = "Must provide skim version in metadata!"
+            raise ValueError(msg) from e
+
         if "parquet" not in self._filename.suffix:
-            columns = Columns.create(collision_system=self._collision_system)
+            columns = Columns.create(collision_system=self._collision_system, skim_version=skim_version)
             source: sources.Source = sources.UprootSource(
                 filename=self._filename,
-                # NOTE: We add a second star at the end of the default value because later versions of the track skim
-                #       add a version (e.g. v3) at the end of the tree name. So without it, we would miss those.
-                #       In the case of earlier versions, the extra wildcard won't cause any issues - it will
-                #       still find the existing tree.
                 tree_name=self.metadata.get("tree_name", "eventTree"),
                 columns=list(columns.event_level) + list(columns.particle_level),
             )
             return _transform_output(
                 gen_data=source.gen_data(chunk_size=chunk_size),
                 collision_system=self._collision_system,
+                skim_version=skim_version,
             )
         else:  # noqa: RET505
             source = sources.ParquetSource(
@@ -148,14 +198,17 @@ class FileSource:
 def _transform_output(
     gen_data: Generator[ak.Array, sources.T_ChunkSize | None, None],
     collision_system: str,
+    skim_version: int,
 ) -> Generator[ak.Array, sources.T_ChunkSize | None, None]:
-    _columns = Columns.create(collision_system=collision_system)
+    _columns = Columns.create(collision_system=collision_system, skim_version=skim_version)
 
     # NOTE: If there are no accepted tracks, we don't bother storing the event.
     #       However, we attempt to preclude this at the AnalysisTask level by not filling events
     #       where there are no accepted tracks in the first collection.
 
-    particle_data_columns = {c: v for c, v in _columns.particle_level.items() if "track_data" in c}
+    _search_prefix_map = {1: "track_data", 2: "track_"}
+    search_prefix = _search_prefix_map[skim_version]
+    particle_data_columns = {c: v for c, v in _columns.particle_level.items() if search_prefix in c}
     try:
         data = next(gen_data)
         while True:

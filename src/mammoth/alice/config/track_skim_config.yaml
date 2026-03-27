@@ -54,6 +54,8 @@ skimmed_datasets:
     period: "LHC22o"
     # Keep track of the skim type for documentation
     skim_type: "run3_berkeley_skim"
+    skim_parameters:
+      version: 1
     # Parameters of the output
     tree_name: "eventTree"
     levels_in_output_file:
@@ -70,6 +72,8 @@ skimmed_datasets:
     period: "LHC24apaq"
     # Keep track of the skim type for documentation
     skim_type: "run3_berkeley_skim"
+    skim_parameters:
+      version: 2
     # Parameters of the output
     tree_name: "eventTree"
     levels_in_output_file:
@@ -949,6 +953,7 @@ productions:
       settings:
         <<: *analysis_settings_EBC_pp
         chunk_size: 10000
+        max_n_chunks: 50
         output_settings:
           <<: *EBC_output_settings
     60:
