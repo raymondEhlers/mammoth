@@ -108,8 +108,8 @@ def _setup_base_hists(levels: list[str], trigger_parameters: TriggerParameters) 
         # N constituents as function of lead jet pt
         hists[f"{level}_n_constituents_lead_jet_pt"] = hist.Hist(
             hist.axis.Regular(151, -0.5, 150.5, label="leading_jet_pt"),
-            hist.axis.Regular(50, -0.5, 49, label="n_{const}^{lead}"),
-            hist.axis.Regular(50, -0.5, 49, label="n_{const}^{sublead}"),
+            hist.axis.Regular(50, -0.5, 49, label="$n_{const}^{lead}$"),
+            hist.axis.Regular(50, -0.5, 49, label="$n_{const}^{sublead}$"),
             storage=hist.storage.Weight(),
         )
 
@@ -441,6 +441,7 @@ def analyze_chunk_one_input_level(
     # Take the lowest value of any of the trigger classes, but at least 1 GeV
     min_jet_pt = max([min([r[0] for r in trigger_parameters.classes.values()]), 1.0])
     # And run the jet finding
+    # TODO(RJE): Meant to cut at 140, but never imposed the max pt cut. Impose this!
     logger.warning(f"For particle column '{level_name}', additional_kwargs: {additional_kwargs}")
     jets = ak.zip(
         {
