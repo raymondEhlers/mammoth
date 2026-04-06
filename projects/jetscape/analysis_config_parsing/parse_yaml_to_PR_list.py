@@ -451,7 +451,7 @@ def write_observable_names_csv(observables: dict[str, dict[str, Observable]], st
 
                     # Suffix
                     suffix = ""
-                    # TODO(RJE): Refactor from here..
+                    # NOTE: Could refactor from here if worth the time/effort
                     # Jet R
                     if "jet_R" in parameters:
                         suffix = f"_R{parameters['jet_R']}"
@@ -472,7 +472,6 @@ def write_observable_names_csv(observables: dict[str, dict[str, Observable]], st
                     if "r" in parameters:
                         main_suffix += f"_r{parameters['r']}"
                     logger.info(f"{main_suffix=}")
-                    # ENDTODO
 
                     for system in ["pp", "AA"]:
                         # system dir name
