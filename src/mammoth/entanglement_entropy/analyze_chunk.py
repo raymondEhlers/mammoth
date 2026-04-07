@@ -488,11 +488,13 @@ def analyze_chunk_one_input_level(
         trigger_parameters=trigger_parameters,
         particle_columns=[level_name],
         max_delta_phi_from_axis=max_delta_phi_from_axis,
-        require_at_most_two_leading_jets=True,
+        require_at_most_two_leading_jets=False,
     )
     hists.update(_qa_hists)
 
-    # Now we're interested in just the dijets, so we're going to drop events that don't have exactly two jest
+    # Now we're interested in just the dijets, so we're going to drop events that don't have exactly two jets
+    # NOTE: We didn't apply the selection of only two up to this point - otherwise, we could lose events, which could mess up event count alignment
+    # NOTE: We don't need to sort by pt here since we're selecting two dijets exclusively.
     events_with_only_two_jets_mask = ak.num(jets[level_name], axis=1) == 2
     dijets = jets[level_name][events_with_only_two_jets_mask]
     leading_jets = dijets[:, 0]
