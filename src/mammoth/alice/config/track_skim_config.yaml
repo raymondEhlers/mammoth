@@ -82,6 +82,25 @@ skimmed_datasets:
     number_of_parent_directories_for_relative_output_filename: 2
     files:
       - "pp/626869/files.txt"
+  # LHC25ae - OO
+  LHC25ae_pass1_AOD_631181: &LHC25ae_OO_pass1
+    name: "LHC25ae_pass1_AOD_626869"
+    collision_system: "OO"
+    sqrt_s: 5360
+    period: "LHC25ae"
+    # Keep track of the skim type for documentation
+    skim_type: "run3_berkeley_skim"
+    skim_parameters:
+      version: 2
+    run3: true
+    # Parameters of the output
+    tree_name: "eventTree"
+    levels_in_output_file:
+      - "data"
+    # Number of parent directories to go up to create the relative output filename
+    number_of_parent_directories_for_relative_output_filename: 2
+    files:
+      - "pp/631181/files.txt"
 
   # pp_MC
   # pythia
