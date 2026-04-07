@@ -444,8 +444,9 @@ def analyze_chunk_one_input_level(
     jet_R = trigger_parameters.parameters["jet_R"]
     # Take the lowest value of any of the trigger classes, but at least 1 GeV
     min_jet_pt = max([min([r[0] for r in trigger_parameters.classes.values()]), 1.0])
+    # Take the highest value of any of the trigger classes - up to 10 TeV (as the dummy value)
+    max_jet_pt = min([max([r[1] for r in trigger_parameters.classes.values()]), 10000])
     # And run the jet finding
-    # TODO(RJE): Meant to cut at 140, but never imposed the max pt cut. Impose this!
     logger.warning(f"For particle column '{level_name}', additional_kwargs: {additional_kwargs}")
     jets = ak.zip(
         {
@@ -454,7 +455,7 @@ def analyze_chunk_one_input_level(
                 jet_finding_settings=jet_finding.JetFindingSettings(
                     R=jet_R,
                     algorithm="anti-kt",
-                    pt_range=jet_finding.pt_range(pt_min=min_jet_pt),
+                    pt_range=jet_finding.pt_range(pt_min=min_jet_pt, pt_max=max_jet_pt),
                     eta_range=jet_finding.eta_range(jet_R=jet_R, fiducial_acceptance=True),
                     area_settings=area_settings,
                     **jet_finding_settings_additional_kwargs[level_name],
