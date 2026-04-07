@@ -1457,6 +1457,23 @@ productions:
         generator_analysis_arguments:
           <<: *generator_arguments_default_pp_MC_fastsim
           name: "herwig"
+    # EBC one level (part level) pythia run 2, just for comparison
+    86:
+      metadata:
+        <<: *base_metadata_pp_MC_one_level
+        dataset: *LHC18b8_pythia
+        production_number: 86
+        label: ""
+      settings:
+        <<: *analysis_settings_EBC_pp
+        output_settings:
+          <<: *EBC_output_settings
+        chunk_size: 10000
+        # And disable artificial tracking efficiency
+        det_level_artificial_tracking_efficiency: 1.0
+        generator_analysis_arguments:
+          <<: *generator_arguments_default_pp_MC
+          name: "pythia"
 
   PbPb:
     2:
