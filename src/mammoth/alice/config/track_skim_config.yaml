@@ -1006,6 +1006,19 @@ productions:
         <<: *analysis_settings_hardest_kt_pp_R02
         output_settings:
           <<: *reclustered_substructure_output_settings
+    63:
+      # EBC with Run 2 pp_ref
+      # Statistics will be awful, but would be worth double checking as best as I can...
+      metadata:
+        <<: *base_metadata_pp
+        dataset: *LHC17pq_pp
+        production_number: 3
+        label: ""
+      settings:
+        <<: *analysis_settings_EBC_pp
+        chunk_size: 10000
+        output_settings:
+          <<: *EBC_output_settings
 
   pythia:
     # Debug
