@@ -1012,7 +1012,7 @@ productions:
       metadata:
         <<: *base_metadata_pp
         dataset: *LHC17pq_pp
-        production_number: 3
+        production_number: 63
         label: ""
       settings:
         <<: *analysis_settings_EBC_pp
