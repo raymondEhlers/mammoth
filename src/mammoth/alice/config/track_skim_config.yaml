@@ -56,6 +56,7 @@ skimmed_datasets:
     skim_type: "run3_berkeley_skim"
     skim_parameters:
       version: 1
+    run3: true
     # Parameters of the output
     tree_name: "eventTree"
     levels_in_output_file:
@@ -74,6 +75,7 @@ skimmed_datasets:
     skim_type: "run3_berkeley_skim"
     skim_parameters:
       version: 2
+    run3: true
     # Parameters of the output
     tree_name: "eventTree"
     levels_in_output_file:
