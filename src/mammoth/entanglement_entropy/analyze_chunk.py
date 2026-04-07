@@ -368,12 +368,16 @@ def analyze_chunk_one_input_level(
         track_selection_additional_kwargs.update(_res)
 
     # Event selection
+    is_run_3 = input_metadata["signal_source_config"].get("run3", False)
     # This would apply to the signal events, because this is what we propagate from the embedding transform
     event_selection_mask = alice_helpers.Run3EventSelection.mask_from_values(
         # NOTE: This is sel8full, per the derived dataset.
         [alice_helpers.Run3EventSelection.sel8, alice_helpers.Run3EventSelection.selNoSameBunchPileup],
     )
-    arrays = alice_helpers.standard_event_selection(arrays=arrays, event_selection_mask=event_selection_mask)
+    arrays = alice_helpers.standard_event_selection(
+        arrays=arrays,
+        event_selection_mask=event_selection_mask if is_run_3 else None,
+    )
 
     # Track cuts
     track_selection_mask = alice_helpers.Run3TrackSelection.global_tracks.to_int()
@@ -382,7 +386,7 @@ def analyze_chunk_one_input_level(
         arrays=arrays,
         require_at_least_one_particle_in_each_collection_per_event=True,
         selected_particle_column_name=level_name,
-        track_selection_mask=track_selection_mask,
+        track_selection_mask=track_selection_mask if is_run_3 else None,
         **track_selection_additional_kwargs,
     )
 
