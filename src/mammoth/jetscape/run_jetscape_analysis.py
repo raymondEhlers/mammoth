@@ -110,7 +110,7 @@ def run_RAA_analysis(
     write_hists_filename: Path | None = None,
     inputs: Sequence[File] = [],
     outputs: Sequence[File] = [],  # noqa: ARG001
-) -> tuple[bool, str, str, dict[str, hist.Hist]]:
+) -> tuple[bool, str, str, dict[str, hist.Hist[hist.storage.Weight]]]:
     import traceback
     from pathlib import Path
 

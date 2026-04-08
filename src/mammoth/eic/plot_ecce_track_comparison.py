@@ -36,7 +36,7 @@ def get_eta_label(eta_range: tuple[float, float]) -> str:
 def _plot_tracking_comparison(
     input_specs: Sequence[run_ecce_analysis.DatasetSpec],
     input_spec_labels: Mapping[str, str],
-    hists: Mapping[str, Mapping[int, hist.Hist]],
+    hists: Mapping[str, Mapping[int, hist.Hist[hist.storage.Weight]]],
     all_regions: Sequence[tuple[float, float]],
     regions_index: Sequence[int],  # noqa: ARG001
     plot_config: pb.PlotConfig,
@@ -82,7 +82,7 @@ def _plot_tracking_comparison(
                 h.axes[0].centers,
                 h.values(),
                 xerr=h.axes[0].widths / 2,
-                yerr=np.sqrt(h.variances()),  # type: ignore[arg-type]
+                yerr=np.sqrt(h.variances()),
                 label=input_spec_labels[str(input_spec)]
                 if len(input_spec_hists) == 1
                 else get_eta_label(all_regions[eta_index]),
@@ -109,7 +109,7 @@ def _plot_tracking_comparison(
 def plot_tracking_comparison(
     input_specs: Sequence[run_ecce_analysis.DatasetSpec],
     input_spec_labels: Mapping[str, str],
-    output_hists: dict[str, dict[str, hist.Hist]],
+    output_hists: dict[str, dict[str, hist.Hist[hist.storage.Weight]]],
     hist_name_template: str,
     plot_name: str,
     all_regions: Sequence[tuple[float, float]],
@@ -127,7 +127,7 @@ def plot_tracking_comparison(
     logger.info(f"hist_name_template: {hist_name_template}")
     logger.info(f"input_specs: {input_specs[0]!s}")
 
-    hists: dict[str, dict[int, hist.Hist]] = {}
+    hists: dict[str, dict[int, hist.Hist[hist.storage.Weight]]] = {}
     for input_spec in input_specs:
         hists[str(input_spec)] = {}
         for index in regions_index:

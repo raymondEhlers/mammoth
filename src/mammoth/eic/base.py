@@ -21,7 +21,7 @@ def load_hists(
     filter: str | None = "",
     filters: Sequence[str] | None = None,
     require_ends_with_in_filter: bool = False,
-) -> dict[str, hist.Hist]:
+) -> dict[str, hist.Hist[hist.storage.Weight]]:
     """Load histograms from a flat root file
 
     Note:

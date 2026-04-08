@@ -53,13 +53,13 @@ class JetParameters:
 
 
 def scale_jets(
-    input_hists: dict[str, dict[str, hist.Hist]],
+    input_hists: dict[str, dict[str, hist.Hist[hist.storage.Weight]]],
     sim_config: Any,
     analysis_config: AnalysisConfig,
     cross_section: float,
     expected_luminosities: Mapping[str, float],
-) -> dict[str, dict[str, hist.Hist]]:
-    scaled_hists: dict[str, dict[str, hist.Hist]] = {}
+) -> dict[str, dict[str, hist.Hist[hist.storage.Weight]]]:
+    scaled_hists: dict[str, dict[str, hist.Hist[hist.storage.Weight]]] = {}
 
     # Supports both ep and eA
     for input_spec in sim_config.input_specs:
@@ -98,7 +98,7 @@ def scale_jets(
                             # luminosity while keeping the overall scale (values) fixed
                             # For all those complicated tests, it measures that we just need to scale the variance by 1 / expected_luminosity,
                             # which propagates to a 1/sqrt(expected_luminosity) in the error.
-                            h_scaled.variances()[:] = h_scaled.variances() / expected_luminosity  # type: ignore[index, operator]
+                            h_scaled.variances()[:] = h_scaled.variances() / expected_luminosity
 
                             # Store the new hist
                             scaled_hists[pdf_name][

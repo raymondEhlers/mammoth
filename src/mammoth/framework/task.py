@@ -192,7 +192,9 @@ class Output:
     collision_system: str
     success: bool
     message: str
-    hists: dict[str, hist.Hist] = attrs.field(factory=dict, kw_only=True, repr=lambda value: str(list(value.keys())))
+    hists: dict[str, hist.Hist[Any]] = attrs.field(
+        factory=dict, kw_only=True, repr=lambda value: str(list(value.keys()))
+    )
     results: dict[str, T_SkimTypes] = attrs.field(factory=dict, kw_only=True)
     metadata: dict[str, Any] = attrs.field(factory=dict, kw_only=True)
 
@@ -358,7 +360,7 @@ T_SkimTypes = Union[  # noqa: UP007
 
 @attrs.frozen(kw_only=True)
 class AnalysisOutput:
-    hists: dict[str, hist.Hist] = attrs.field(factory=dict)
+    hists: dict[str, hist.Hist[Any]] = attrs.field(factory=dict)
     skim: ak.Array | dict[str, T_SkimTypes] = attrs.field(factory=dict)
 
     def _write_hists(self, output_filename: Path) -> None:
@@ -432,7 +434,7 @@ class AnalysisOutput:
         if write_skim:
             self._write_skim(output_filename=output_filename, skim=skim)
 
-    def merge_hists(self, task_hists: dict[str, hist.Hist]) -> dict[str, hist.Hist]:
+    def merge_hists(self, task_hists: dict[str, hist.Hist[Any]]) -> dict[str, hist.Hist[Any]]:
         # No point in trying to merge if there are no hists!
         if self.hists:
             task_hists = output_utils.merge_results(task_hists, self.hists)

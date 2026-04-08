@@ -24,9 +24,9 @@ from mammoth.framework.analysis import tracking as analysis_tracking
 logger = logging.getLogger(__name__)
 
 
-def _setup_base_hists(levels: list[str]) -> dict[str, hist.Hist]:  # noqa: ARG001
+def _setup_base_hists(levels: list[str]) -> dict[str, hist.Hist[hist.storage.Weight]]:  # noqa: ARG001
     """Setup the basic histograms for the analysis."""
-    hists: dict[str, hist.Hist] = {}
+    hists: dict[str, hist.Hist[hist.storage.Weight]] = {}
     # N/A
     return hists
 
@@ -45,7 +45,7 @@ def analyze_track_skim_and_recluster_data(
     generator_analysis_arguments: framework_task.GeneratorAnalysisArguments | None = None,
     # Default analysis arguments
     validation_mode: bool = False,
-) -> tuple[ak.Array, dict[str, hist.Hist]]:
+) -> tuple[ak.Array, dict[str, hist.Hist[hist.storage.Weight]]]:
     """Analyze the track skim through reclustering for data (and one level of MC)
 
     NOTE:
@@ -227,7 +227,7 @@ def analyze_track_skim_and_recluster_MC(
     generator_analysis_arguments: framework_task.GeneratorAnalysisArguments | None = None,
     # Default analysis arguments
     validation_mode: bool = False,
-) -> tuple[ak.Array, dict[str, hist.Hist]]:
+) -> tuple[ak.Array, dict[str, hist.Hist[hist.storage.Weight]]]:
     """Analyze the track skim through reclustering for two level MC (pp_MC or PbPb_MC)
 
     NOTE:
@@ -458,7 +458,7 @@ def analyze_track_skim_and_recluster_embedding(
     generator_analysis_arguments: framework_task.GeneratorAnalysisArguments | None = None,
     # Default analysis arguments
     validation_mode: bool = False,
-) -> tuple[ak.Array, dict[str, hist.Hist]]:
+) -> tuple[ak.Array, dict[str, hist.Hist[hist.storage.Weight]]]:
     """Analyze the track skim through reclustering for embedding
 
     NOTE:

@@ -40,7 +40,7 @@ def format_R(R: float) -> str:
     return f"{round(R * 100):03}"
 
 
-def get_hists(filename: Path) -> dict[str, hist.Hist]:
+def get_hists(filename: Path) -> dict[str, hist.Hist[Any]]:
     hists = {}
     with uproot.open(Path(filename)) as f:
         for k in f.keys(cycle=False):
@@ -50,16 +50,16 @@ def get_hists(filename: Path) -> dict[str, hist.Hist]:
 
 
 def combine_spectra_in_cent_bins(
-    hists: Mapping[str, Mapping[str, hist.Hist]], jet_type: str, jet_R: float, a: str, b: str
-) -> hist.Hist:
+    hists: Mapping[str, Mapping[str, hist.Hist[Any]]], jet_type: str, jet_R: float, a: str, b: str
+) -> hist.Hist[Any]:
     name = f"{jet_type}_jetR{format_R(jet_R)}_n_events_weighted"
     # name = "n_events_weighted"
 
-    a_n_events: hist.Hist = hists[f"PbPb_{a}"][name]
-    b_n_events: hist.Hist = hists[f"PbPb_{b}"][name]
+    a_n_events: hist.Hist[Any] = hists[f"PbPb_{a}"][name]
+    b_n_events: hist.Hist[Any] = hists[f"PbPb_{b}"][name]
     name = f"{jet_type}_jetR{format_R(jet_R)}_jet_pt"
-    a_jet_pt: hist.Hist = hists[f"PbPb_{a}"][name]
-    b_jet_pt: hist.Hist = hists[f"PbPb_{b}"][name]
+    a_jet_pt: hist.Hist[Any] = hists[f"PbPb_{a}"][name]
+    b_jet_pt: hist.Hist[Any] = hists[f"PbPb_{b}"][name]
 
     # See Laura's note on adding
     # return ((a_jet_pt / a_n_events.values()[0]) + (b_jet_pt / b_n_events.values()[0])) / 2

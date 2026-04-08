@@ -148,41 +148,41 @@ def _define_calculation_functions(
     functions: dict[
         str, functools.partial[tuple[npt.NDArray[Scalar], AwkwardArray[int], AwkwardArray[AwkwardArray[int]]]]
     ] = {
-        "dynamical_core": functools.partial(analysis_jet_substructure.JetSplittingArray.dynamical_core, R=jet_R),  # type: ignore[dict-item]
-        "dynamical_z": functools.partial(analysis_jet_substructure.JetSplittingArray.dynamical_z, R=jet_R),  # type: ignore[dict-item]
-        "dynamical_kt": functools.partial(analysis_jet_substructure.JetSplittingArray.dynamical_kt, R=jet_R),  # type: ignore[dict-item]
-        "dynamical_time": functools.partial(analysis_jet_substructure.JetSplittingArray.dynamical_time, R=jet_R),  # type: ignore[dict-item]
-        "dynamical_core_z_cut_02": functools.partial(  # type: ignore[dict-item]
+        "dynamical_core": functools.partial(analysis_jet_substructure.JetSplittingArray.dynamical_core, R=jet_R),
+        "dynamical_z": functools.partial(analysis_jet_substructure.JetSplittingArray.dynamical_z, R=jet_R),
+        "dynamical_kt": functools.partial(analysis_jet_substructure.JetSplittingArray.dynamical_kt, R=jet_R),
+        "dynamical_time": functools.partial(analysis_jet_substructure.JetSplittingArray.dynamical_time, R=jet_R),
+        "dynamical_core_z_cut_02": functools.partial(
             analysis_jet_substructure.JetSplittingArray.dynamical_core,
             z_cutoff=0.2,
             R=jet_R,
         ),
-        "dynamical_kt_z_cut_02": functools.partial(  # type: ignore[dict-item]
+        "dynamical_kt_z_cut_02": functools.partial(
             analysis_jet_substructure.JetSplittingArray.dynamical_kt,
             z_cutoff=0.2,
             R=jet_R,
         ),
-        "dynamical_time_z_cut_02": functools.partial(  # type: ignore[dict-item]
+        "dynamical_time_z_cut_02": functools.partial(
             analysis_jet_substructure.JetSplittingArray.dynamical_time,
             z_cutoff=0.2,
             R=jet_R,
         ),
-        "leading_kt": functools.partial(  # type: ignore[dict-item]
+        "leading_kt": functools.partial(
             analysis_jet_substructure.JetSplittingArray.leading_kt,
         ),
-        "leading_kt_z_cut_02": functools.partial(analysis_jet_substructure.JetSplittingArray.leading_kt, z_cutoff=0.2),  # type: ignore[dict-item]
-        "leading_kt_z_cut_04": functools.partial(analysis_jet_substructure.JetSplittingArray.leading_kt, z_cutoff=0.4),  # type: ignore[dict-item]
+        "leading_kt_z_cut_02": functools.partial(analysis_jet_substructure.JetSplittingArray.leading_kt, z_cutoff=0.2),
+        "leading_kt_z_cut_04": functools.partial(analysis_jet_substructure.JetSplittingArray.leading_kt, z_cutoff=0.4),
     }
     # NOTE: This currently only works for iterative splittings...
     #       Calculating recursive is way harder in any array-like manner.
     if iterative_splittings:
-        functions["soft_drop_z_cut_01"] = functools.partial(  # type: ignore[assignment]
+        functions["soft_drop_z_cut_01"] = functools.partial(
             analysis_jet_substructure.JetSplittingArray.soft_drop, z_cutoff=0.1
         )
-        functions["soft_drop_z_cut_02"] = functools.partial(  # type: ignore[assignment]
+        functions["soft_drop_z_cut_02"] = functools.partial(
             analysis_jet_substructure.JetSplittingArray.soft_drop, z_cutoff=0.2
         )
-        functions["soft_drop_z_cut_04"] = functools.partial(  # type: ignore[assignment]
+        functions["soft_drop_z_cut_04"] = functools.partial(
             analysis_jet_substructure.JetSplittingArray.soft_drop, z_cutoff=0.4
         )
     # Only apply the selected grooming methods if meaningful
@@ -222,7 +222,7 @@ def _select_and_retrieve_splittings(
     return restricted_jets, restricted_splittings, restricted_splittings_indices
 
 
-@nb.njit  # type: ignore[misc]
+@nb.njit  # type: ignore[untyped-decorator]
 def _calculate_splitting_number(
     all_splittings: analysis_jet_substructure.JetSplittingArray,
     selected_splittings: analysis_jet_substructure.JetSplittingArray,
@@ -314,7 +314,7 @@ def calculate_splitting_number(
     return np.zeros(len(selected_splittings), dtype=np.int16)
 
 
-@nb.njit  # type: ignore[misc]
+@nb.njit  # type: ignore[untyped-decorator]
 def _find_contributing_subjets(input_jet: ak.Array, groomed_index: int) -> list[analysis_jet_substructure.Subjet]:
     """Find subjets which contribute to a given grooming index.
 
@@ -332,7 +332,7 @@ def _find_contributing_subjets(input_jet: ak.Array, groomed_index: int) -> list[
     return [sj for sj in input_jet.subjets if sj.parent_splitting_index == groomed_index]
 
 
-@nb.njit  # type: ignore[misc]
+@nb.njit  # type: ignore[untyped-decorator]
 def _sort_subjets(
     input_jet: ak.Array, input_subjets: list[analysis_jet_substructure.Subjet]
 ) -> tuple[analysis_jet_substructure.Subjet, analysis_jet_substructure.Subjet]:
@@ -355,7 +355,7 @@ def _sort_subjets(
     return leading, subleading
 
 
-@nb.njit  # type: ignore[misc]
+@nb.njit  # type: ignore[untyped-decorator]
 def _subjet_shared_momentum(
     generator_like_subjet: analysis_jet_substructure.Subjet,
     generator_like_jet: ak.Array,
@@ -387,7 +387,7 @@ def _subjet_shared_momentum(
     return sum_pt
 
 
-@nb.njit  # type: ignore[misc]
+@nb.njit  # type: ignore[untyped-decorator]
 def _subjet_pt(subjet: analysis_jet_substructure.Subjet, jet: ak.Array) -> float:
     """Calculate subjet pt by hand.
 
@@ -406,7 +406,7 @@ def _subjet_pt(subjet: analysis_jet_substructure.Subjet, jet: ak.Array) -> float
     return np.sqrt(px**2 + py**2)  # type: ignore[no-any-return]
 
 
-@nb.njit  # type: ignore[misc]
+@nb.njit  # type: ignore[untyped-decorator]
 def _subjet_contained_in_subjet(
     generator_like_subjet: analysis_jet_substructure.Subjet,
     generator_like_jet: ak.Array,
@@ -426,7 +426,7 @@ def _subjet_contained_in_subjet(
     ) > 0.5
 
 
-@nb.njit  # type: ignore[misc]
+@nb.njit  # type: ignore[untyped-decorator]
 def determine_matched_jets_numba(
     generator_like_jets: ak.Array,
     generator_like_splittings: analysis_jet_substructure.JetSplittingArray,
@@ -600,7 +600,7 @@ def prong_matching_numba_wrapper(
     return grooming_results
 
 
-@nb.njit  # type: ignore[misc]
+@nb.njit  # type: ignore[untyped-decorator]
 def _subjet_momentum_fraction_in_jet(
     generator_like_subjet: analysis_jet_substructure.Subjet,
     generator_like_jet: ak.Array,
@@ -636,7 +636,7 @@ def _subjet_momentum_fraction_in_jet(
     return sum_pt / _subjet_pt(generator_like_subjet, generator_like_jet)  # type: ignore[no-any-return]
 
 
-@nb.njit  # type: ignore[misc]
+@nb.njit  # type: ignore[untyped-decorator]
 def generator_subjet_momentum_fraction_in_measured_jet_numba(
     generator_like_jets: ak.Array,
     generator_like_splittings: analysis_jet_substructure.JetSplittingArray,

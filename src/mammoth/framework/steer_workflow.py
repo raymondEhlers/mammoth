@@ -485,6 +485,8 @@ def setup_framework_standard_workflow(  # noqa: C901
             )
             # Pt dependent for tracking efficiency uncertainty
             if _analysis_config.get("apply_pt_dependent_tracking_efficiency_uncertainty", False):
+                # Help out mypy...
+                assert det_level_artificial_tracking_efficiency is not None
                 # NOTE: The pt dependence is added on top of the baseline shift. e.g. .98 + pt dependence.
                 det_level_artificial_tracking_efficiency = (
                     analysis_tracking.PtDependentTrackingEfficiencyParameters.from_file(

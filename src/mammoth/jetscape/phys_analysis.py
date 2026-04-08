@@ -20,7 +20,7 @@ from mammoth.framework import jet_finding, particle_ID
 logger = logging.getLogger(__name__)
 
 
-@nb.njit  # type: ignore[misc]
+@nb.njit  # type: ignore[untyped-decorator]
 def _delta_phi(phi_a: float, phi_b: float, output_range: tuple[float, float] = (-np.pi, np.pi)) -> float:
     # Ensure that they're in the same range.
     phi_a = phi_a % (2 * np.pi)
@@ -33,12 +33,12 @@ def _delta_phi(phi_a: float, phi_b: float, output_range: tuple[float, float] = (
     return delta_phi
 
 
-@nb.njit  # type: ignore[misc]
+@nb.njit  # type: ignore[untyped-decorator]
 def _delta_R(eta_one: float, phi_one: float, eta_two: float, phi_two: float) -> float:
     return np.sqrt(_delta_phi(phi_one, phi_two) ** 2 + (eta_one - eta_two) ** 2)  # type: ignore[no-any-return]
 
 
-@nb.njit  # type: ignore[misc]
+@nb.njit  # type: ignore[untyped-decorator]
 def _subtract_holes_from_jets_pt(
     jets_pt: ak.Array,
     jets_eta: ak.Array,
@@ -68,7 +68,7 @@ def _subtract_holes_from_jets_pt(
     return builder
 
 
-@nb.njit  # type: ignore[misc]
+@nb.njit  # type: ignore[untyped-decorator]
 def _calculate_leading_track_cut_mask(
     constituents: ak.Array, leading_track_cut: float, charged_particle_PIDs: Sequence[int], builder: ak.ArrayBuilder
 ) -> ak.Array:

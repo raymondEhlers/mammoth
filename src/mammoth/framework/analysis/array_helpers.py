@@ -18,7 +18,7 @@ from mammoth_cpp._ext import smooth_array, smooth_array_f  # noqa: F401
 logger = logging.getLogger(__name__)
 
 
-@nb.njit  # type: ignore[misc]
+@nb.njit  # type: ignore[untyped-decorator]
 def _random_choice_jagged(local_index: ak.Array, n_counts: int, random_seed: int | None) -> npt.NDArray[np.bool_]:
     # Validation
     if random_seed is not None:

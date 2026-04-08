@@ -122,7 +122,7 @@ def _validate_recombiner_settings(jet_finding_settings: JetFindingSettings, part
         raise ValueError(_msg)
 
 
-@nb.njit  # type: ignore[misc]
+@nb.njit  # type: ignore[untyped-decorator]
 def _shared_momentum_fraction_for_flat_array_implementation(
     generator_like_jet_pts: ak.Array,
     generator_like_jet_constituents: ak.Array,
@@ -229,7 +229,7 @@ def shared_momentum_fraction_for_flat_array(
     )
 
 
-@nb.njit  # type: ignore[misc]
+@nb.njit  # type: ignore[untyped-decorator]
 def _jet_matching_geometrical_impl(
     jets_first: ak.Array, jets_second: ak.Array, n_jets_first: int, max_matching_distance: float
 ) -> npt.NDArray[np.int64]:
@@ -276,7 +276,7 @@ def _jet_matching_geometrical_impl(
     return matching_indices
 
 
-@nb.njit  # type: ignore[misc]
+@nb.njit  # type: ignore[untyped-decorator]
 def _jet_matching(
     jets_base: ak.Array, jets_tag: ak.Array, max_matching_distance: float
 ) -> tuple[npt.NDArray[np.int64], npt.NDArray[np.int64]]:
@@ -389,7 +389,7 @@ def jet_matching_geometrical(jets_base: ak.Array, jets_tag: ak.Array, max_matchi
     return base_to_tag_matching, tag_to_base_matching
 
 
-@nb.njit  # type: ignore[misc]
+@nb.njit  # type: ignore[untyped-decorator]
 def _calculate_unsubtracted_constituent_max_pt(
     input_arrays: ak.Array,
     input_arrays_source_indices: ak.Array,
@@ -520,7 +520,7 @@ def _indices_for_event_boundaries(array: ak.Array) -> npt.NDArray[np.int64]:
     return sum_counts  # noqa: RET504
 
 
-@nb.njit  # type: ignore[misc]
+@nb.njit  # type: ignore[untyped-decorator]
 def _find_constituent_indices_via_user_index_kernel(
     ref_particles_user_index: ak.Array,
     jet_constituents_user_index: ak.Array,
@@ -560,7 +560,7 @@ def _find_constituent_indices_via_user_index_kernel(
     return output_counter
 
 
-@nb.njit  # type: ignore[misc]
+@nb.njit  # type: ignore[untyped-decorator]
 def _find_constituent_indices_via_user_index(
     event_structured_particles_ref_ui: ak.Array,
     event_structured_jets_constituents_ui: ak.Array,
@@ -639,7 +639,7 @@ def find_constituent_indices_via_user_index(
     )
 
 
-@nb.njit  # type: ignore[misc]
+@nb.njit  # type: ignore[untyped-decorator]
 def _find_constituent_indices_via_user_index_for_subjets(
     event_structured_jets_ref_constituents_ui: ak.Array,
     event_structured_jets_with_subjets_constituents_ui: ak.Array,
@@ -723,7 +723,7 @@ def find_constituent_indices_via_user_index_for_subjets(
     )
 
 
-@nb.njit  # type: ignore[misc]
+@nb.njit  # type: ignore[untyped-decorator]
 def _find_unsubtracted_constituent_index_from_subtracted_index_via_user_index(
     event_structured_particles_ref_ui: ak.Array,
     event_structured_subtracted_index_to_unsubtracted_ui: ak.Array,
@@ -753,7 +753,7 @@ def _find_unsubtracted_constituent_index_from_subtracted_index_via_user_index(
     return output
 
 
-@nb.njit  # type: ignore[misc]
+@nb.njit  # type: ignore[untyped-decorator]
 def _find_unsubtracted_constituent_index_from_subtracted_index_via_user_index_old(
     user_indices: ak.Array,
     subtracted_index_to_unsubtracted_user_index: ak.Array,

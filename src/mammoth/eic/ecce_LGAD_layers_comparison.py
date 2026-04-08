@@ -24,7 +24,7 @@ logger = logging.getLogger(__name__)
 
 def _load_results(
     input_specs: Sequence[run_ecce_analysis.DatasetSpec], input_dir: Path, filename: str, filter: str = "hist"
-) -> dict[str, dict[str, hist.Hist]]:
+) -> dict[str, dict[str, hist.Hist[hist.storage.Weight]]]:
     output_hists = {}
     for spec in input_specs:
         logger.info(f"Loading hists from {input_dir / str(spec) / filename}")

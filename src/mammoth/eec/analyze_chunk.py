@@ -88,7 +88,9 @@ def customize_analysis_metadata(
     return {}
 
 
-def _setup_base_hists(levels: list[str], trigger_parameters: TriggerParameters) -> dict[str, hist.Hist]:
+def _setup_base_hists(
+    levels: list[str], trigger_parameters: TriggerParameters
+) -> dict[str, hist.Hist[hist.storage.Weight]]:
     """Setup the histograms for the embedding analysis."""
     hists = {}
 
@@ -227,7 +229,7 @@ def _find_jet_triggers(
     scale_factor: float,
     validation_mode: bool,
     # Outputs
-    hists: dict[str, hist.Hist],
+    hists: dict[str, hist.Hist[hist.storage.Weight]],
 ) -> tuple[dict[str, ak.Array], dict[str, ak.Array]]:
     msg = "Jet trigger isn't yet implemented for embedding analysis."
     raise NotImplementedError(msg)
@@ -242,7 +244,7 @@ def _find_hadron_triggers(
     scale_factor: float,
     validation_mode: bool,
     # Outputs
-    hists: dict[str, hist.Hist],
+    hists: dict[str, hist.Hist[hist.storage.Weight]],
 ) -> tuple[dict[str, ak.Array], dict[str, ak.Array]]:
     # NOTE: Use the signal fraction because we don't want any overlap between signal and reference events!
     signal_event_fraction = 0.8
@@ -302,7 +304,7 @@ def _find_triggers(
     scale_factor: float,
     validation_mode: bool,
     # Outputs
-    hists: dict[str, hist.Hist],
+    hists: dict[str, hist.Hist[hist.storage.Weight]],
 ) -> tuple[dict[str, ak.Array], dict[str, ak.Array]]:
     match trigger_parameters.type:
         case "jet":
@@ -344,7 +346,7 @@ def calculate_correlators(
     combinatorics_chunk_size: int,
     scale_factor: float,
     # Outputs
-    hists: dict[str, hist.Hist],
+    hists: dict[str, hist.Hist[hist.storage.Weight]],
     return_skim: bool,
     # Optional parameters
     background_index_identifier: int = -1,
@@ -521,7 +523,9 @@ def calculate_correlators(
     return trigger_skim_output
 
 
-def _setup_one_input_level_hists(level_names: list[str], trigger_parameters: TriggerParameters) -> dict[str, hist.Hist]:
+def _setup_one_input_level_hists(
+    level_names: list[str], trigger_parameters: TriggerParameters
+) -> dict[str, hist.Hist[hist.storage.Weight]]:
     return _setup_base_hists(
         levels=level_names,
         trigger_parameters=trigger_parameters,
@@ -618,7 +622,7 @@ def analyze_chunk_one_input_level(
 def _setup_two_input_level_hists(
     level_names: list[str],
     trigger_parameters: TriggerParameters,
-) -> dict[str, hist.Hist]:
+) -> dict[str, hist.Hist[hist.storage.Weight]]:
     return _setup_base_hists(
         levels=level_names,
         trigger_parameters=trigger_parameters,
@@ -739,7 +743,7 @@ def analyze_chunk_two_input_level(
 
 def _setup_three_input_level_hists(
     level_names: list[str], trigger_parameters: TriggerParameters
-) -> dict[str, hist.Hist]:
+) -> dict[str, hist.Hist[hist.storage.Weight]]:
     return _setup_base_hists(levels=level_names, trigger_parameters=trigger_parameters)
 
 
@@ -1012,7 +1016,7 @@ def minimal_test() -> None:
         chunk_size=1000,
     )
     # NOTE: Just for quick testing
-    merged_hists: dict[str, hist.Hist] = {}
+    merged_hists: dict[str, hist.Hist[hist.storage.Weight]] = {}
     for i_chunk, arrays in enumerate(iter_arrays):
         logger.info(f"Processing chunk: {i_chunk}")
         analysis_output = analyze_chunk_one_input_level(

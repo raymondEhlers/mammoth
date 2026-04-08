@@ -65,7 +65,7 @@ def steer_task_execution(  # noqa: C901
     _max_n_chunks = task_settings.max_n_chunks
 
     _nonstandard_processing_outcome = []
-    task_hists: dict[str, hist.Hist] = {}
+    task_hists: dict[str, hist.Hist[hist.storage.Weight]] = {}
     i_chunk = 0
     # NOTE: We use a while loop here so that we can bail out on processing before we even read the data if the file already exists.
     try:

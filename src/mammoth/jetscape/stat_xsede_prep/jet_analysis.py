@@ -123,7 +123,7 @@ def particle_pt_by_status(arrays: ak.Array, pt_hat_bin: tuple[int, int], base_ou
     plt.close(fig)
 
 
-@nb.njit  # type: ignore[misc]
+@nb.njit  # type: ignore[untyped-decorator]
 def phi_minus_pi_to_pi(phi_array: ak.Array, builder: ak.ArrayBuilder) -> ak.ArrayBuilder:
     for event in phi_array:
         builder.begin_list()

@@ -68,7 +68,9 @@ class SimulationConfig:
         )
 
 
-def _load_results(config: SimulationConfig, input_specs: Sequence[InputSpec]) -> dict[str, dict[str, hist.Hist]]:
+def _load_results(
+    config: SimulationConfig, input_specs: Sequence[InputSpec]
+) -> dict[str, dict[str, hist.Hist[hist.storage.Weight]]]:
     output_hists = {}
     for spec in input_specs:
         logger.info(f"Loading hists from {config.input_dir / spec.filename}")
@@ -80,19 +82,19 @@ def _load_results(config: SimulationConfig, input_specs: Sequence[InputSpec]) ->
         # output_hists[spec.n_PDF_name] = ecce_base.load_hists(config.input_dir / spec.filename)
         # Convert to hist.Hist
         for k, v in output_hists[spec.n_PDF_name].items():
-            output_hists[spec.n_PDF_name][k] = v.to_hist()  # type: ignore[attr-defined]
+            output_hists[spec.n_PDF_name][k] = v.to_hist()
 
     return output_hists
 
 
 def _calculate_ReA(
-    ep_hists: dict[str, hist.Hist],
-    eA_hists: dict[str, hist.Hist],
+    ep_hists: dict[str, hist.Hist[hist.storage.Weight]],
+    eA_hists: dict[str, hist.Hist[hist.storage.Weight]],
     parameters: JetParameters,
     narrow_rebin_factor: int = 2,
     wide_rebin_factor: int = 5,
     transition_for_binning: int = 10,
-) -> hist.Hist:
+) -> hist.Hist[hist.storage.Weight]:
     ep_hist = binned_data.BinnedData.from_existing_data(ep_hists[parameters.name_ep])
     eA_hist = binned_data.BinnedData.from_existing_data(eA_hists[parameters.name_eA])
 
@@ -101,10 +103,10 @@ def _calculate_ReA(
     # 1. rebin with two widths: narrow and wide
     # 2. merge the two histograms together at some bin, taking the narrow below and the wide above
     res = hist.Hist((eA_hist / ep_hist).to_boost_histogram())
-    narrow_rebin = res[: complex(0, transition_for_binning) : hist.rebin(narrow_rebin_factor)] / (  # type: ignore[misc,operator]
+    narrow_rebin = res[: complex(0, transition_for_binning) : hist.rebin(narrow_rebin_factor)] / (  # type: ignore[misc]
         narrow_rebin_factor * 1.0
     )
-    wide_rebin = res[complex(0, transition_for_binning) :: hist.rebin(wide_rebin_factor)] / (wide_rebin_factor * 1.0)  # type: ignore[misc,operator]
+    wide_rebin = res[complex(0, transition_for_binning) :: hist.rebin(wide_rebin_factor)] / (wide_rebin_factor * 1.0)  # type: ignore[misc]
 
     bin_edges = np.concatenate([narrow_rebin.axes[0].edges, wide_rebin.axes[0].edges[1:]])  # type: ignore[union-attr]
     values = np.concatenate([narrow_rebin.values(), wide_rebin.values()])  # type: ignore[union-attr]
@@ -118,13 +120,13 @@ def _calculate_ReA(
 
 
 def calculate_ReA(
-    input_hists: dict[str, dict[str, hist.Hist]],
+    input_hists: dict[str, dict[str, hist.Hist[hist.storage.Weight]]],
     sim_config: SimulationConfig,
     analysis_config: ecce_ReA_implementation.AnalysisConfig,
     narrow_rebin_factor: int = 2,
     wide_rebin_factor: int = 5,
-) -> dict[str, dict[JetParameters, hist.Hist]]:
-    ReA_hists: dict[str, dict[JetParameters, hist.Hist]] = {}
+) -> dict[str, dict[JetParameters, hist.Hist[hist.storage.Weight]]]:
+    ReA_hists: dict[str, dict[JetParameters, hist.Hist[hist.storage.Weight]]] = {}
 
     for input_spec in sim_config.input_specs:
         if input_spec.n_PDF_name == "ep":
@@ -166,12 +168,12 @@ def calculate_ReA(
 
 
 def calculate_double_ratio(
-    ReA_hists: dict[str, dict[JetParameters, hist.Hist]],
+    ReA_hists: dict[str, dict[JetParameters, hist.Hist[hist.storage.Weight]]],
     sim_config: SimulationConfig,
     analysis_config: ecce_ReA_implementation.AnalysisConfig,
     rebin_factor: int = 1,
-) -> dict[str, dict[JetParameters, hist.Hist]]:
-    double_ratio_hists: dict[str, dict[JetParameters, hist.Hist]] = {}
+) -> dict[str, dict[JetParameters, hist.Hist[hist.storage.Weight]]]:
+    double_ratio_hists: dict[str, dict[JetParameters, hist.Hist[hist.storage.Weight]]] = {}
 
     for input_spec in sim_config.input_specs:
         if input_spec.n_PDF_name == "ep":
@@ -222,7 +224,9 @@ def calculate_double_ratio(
     return double_ratio_hists
 
 
-def _calculate_nominal_variations(variation_hists: dict[JetParameters, hist.Hist], nominal_hist: hist.Hist) -> bool:
+def _calculate_nominal_variations(
+    variation_hists: dict[JetParameters, hist.Hist[hist.storage.Weight]], nominal_hist: hist.Hist[hist.storage.Weight]
+) -> bool:
     # Collect all of the differences from all of the variations
     differences_list = []
     for _k, v in variation_hists.items():
@@ -267,7 +271,7 @@ _okabe_ito_colors = [
 _jet_R_to_color_index = {0.3: 0, 0.5: 1, 0.8: 2, 1.0: 3}
 
 
-def _plot_spectra_2D(hist: hist.Hist, plot_config: pb.PlotConfig, output_dir: Path) -> None:
+def _plot_spectra_2D(hist: hist.Hist[hist.storage.Weight], plot_config: pb.PlotConfig, output_dir: Path) -> None:
     fig, ax = plt.subplots(figsize=(10, 7.5))
 
     # Determine the normalization range
@@ -299,7 +303,10 @@ def _plot_spectra_2D(hist: hist.Hist, plot_config: pb.PlotConfig, output_dir: Pa
 
 
 def _plot_multiple_R(
-    hists: Mapping[JetParameters, hist.Hist], is_ReA_related: bool, plot_config: pb.PlotConfig, output_dir: Path
+    hists: Mapping[JetParameters, hist.Hist[hist.storage.Weight]],
+    is_ReA_related: bool,
+    plot_config: pb.PlotConfig,
+    output_dir: Path,
 ) -> None:
     # with sns.color_palette("Set2"):
     fig, ax = plt.subplots(figsize=(10, 7.5))
@@ -311,7 +318,7 @@ def _plot_multiple_R(
             v.axes[0].centers,
             v.values(),
             xerr=v.axes[0].widths / 2,
-            yerr=np.sqrt(v.variances()),  # type: ignore[arg-type]
+            yerr=np.sqrt(v.variances()),
             linestyle="",
             label=f"$R = {round(int(k.jet_R) / 100, 2):01}$",
             marker="d",
@@ -346,7 +353,10 @@ def _plot_multiple_R(
 
 
 def _plot_n_PDF_variations(
-    hists: Mapping[JetParameters, hist.Hist], is_ReA_related: bool, plot_config: pb.PlotConfig, output_dir: Path
+    hists: Mapping[JetParameters, hist.Hist[hist.storage.Weight]],
+    is_ReA_related: bool,
+    plot_config: pb.PlotConfig,
+    output_dir: Path,
 ) -> None:
     # with sns.color_palette("Set2"):
     fig, ax = plt.subplots(figsize=(10, 7.5))
@@ -386,7 +396,9 @@ def _plot_n_PDF_variations(
 
     # Ensure the legend is visible
     # See: https://stackoverflow.com/a/42403471/12907985
-    for lh in ax.get_legend().legend_handles:
+    legend = ax.get_legend()
+    assert legend is not None
+    for lh in legend.legend_handles:
         # Help out mypy
         assert lh is not None
         lh.set_alpha(1)
@@ -397,8 +409,8 @@ def _plot_n_PDF_variations(
 
 
 def _plot_true_vs_det_level_ReA(
-    true_hists: Mapping[JetParameters, hist.Hist],
-    det_hists: Mapping[JetParameters, hist.Hist],
+    true_hists: Mapping[JetParameters, hist.Hist[hist.storage.Weight]],
+    det_hists: Mapping[JetParameters, hist.Hist[hist.storage.Weight]],
     plot_config: pb.PlotConfig,
     output_dir: Path,
 ) -> None:
@@ -413,7 +425,7 @@ def _plot_true_vs_det_level_ReA(
                 v.axes[0].centers,
                 v.values(),
                 xerr=v.axes[0].widths / 2,
-                yerr=np.sqrt(v.variances()),  # type: ignore[arg-type]
+                yerr=np.sqrt(v.variances()),
                 linestyle="",
                 # label=f"$R = {round(int(k.jet_R) / 100, 2):01}$",
                 label=k.jet_type.replace("_", " "),
@@ -474,7 +486,7 @@ _jet_type_display_label = {
 def plot_ReA(  # noqa: C901
     sim_config: SimulationConfig,
     analysis_config: ecce_ReA_implementation.AnalysisConfig,
-    input_hists: dict[str, dict[str, hist.Hist]],
+    input_hists: dict[str, dict[str, hist.Hist[hist.storage.Weight]]],
     cross_section: float,
     scale_jets_by_expected_luminosity: bool = False,
     expected_luminosities: Mapping[str, float] | None = None,

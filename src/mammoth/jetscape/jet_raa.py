@@ -8,6 +8,7 @@ from __future__ import annotations
 import logging
 from collections.abc import Mapping, Sequence
 from pathlib import Path
+from typing import Any
 
 import attrs
 import awkward as ak
@@ -223,9 +224,9 @@ def read_jet_skims(filename: Path, jet_R_values: Sequence[float]) -> dict[JetLab
     return jet_inputs
 
 
-def analyze_jets(arrays: ak.Array, jets: Mapping[JetLabel, ak.Array]) -> dict[str, hist.Hist]:
+def analyze_jets(arrays: ak.Array, jets: Mapping[JetLabel, ak.Array]) -> dict[str, hist.Hist[Any]]:
     # Define hists
-    hists = {}
+    hists: dict[str, hist.Hist[Any]] = {}
     hists["n_events"] = hist.Hist(hist.axis.Regular(1, -0.5, 0.5))
     hists["n_events_weighted"] = hist.Hist(hist.axis.Regular(1, -0.5, 0.5))
     for jet_label in jets:
@@ -267,7 +268,7 @@ def analyze_jets(arrays: ak.Array, jets: Mapping[JetLabel, ak.Array]) -> dict[st
     return hists
 
 
-def write_hists(hists: dict[str, hist.Hist], filename: Path) -> bool:
+def write_hists(hists: dict[str, hist.Hist[Any]], filename: Path) -> bool:
     filename.parent.mkdir(parents=True, exist_ok=True)
 
     logger.info(f"Writing hists to {filename}")
@@ -285,7 +286,7 @@ def run(
     jet_R_values: Sequence[float] | None = None,
     jets_skim_filename: Path | None = None,
     write_hists_filename: Path | None = None,
-) -> dict[str, hist.Hist]:
+) -> dict[str, hist.Hist[Any]]:
     # Validation
     if jet_R_values is None:
         jet_R_values = [0.2, 0.4, 0.6]

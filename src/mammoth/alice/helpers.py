@@ -279,7 +279,7 @@ class JetRejectionReason(StrEnum):  # type: ignore[misc]
     n_accepted = "n_accepted"
 
 
-def create_jet_selection_QA_hists(particle_columns: list[str]) -> dict[str, hist.Hist]:
+def create_jet_selection_QA_hists(particle_columns: list[str]) -> dict[str, hist.Hist[hist.storage.Weight]]:
     """Jet selection QA hists."""
     hists = {}
     for level in particle_columns:
@@ -295,7 +295,7 @@ def create_jet_selection_QA_hists(particle_columns: list[str]) -> dict[str, hist
 
 def fill_jet_QA_reason(
     reason: str,
-    hists: dict[str, hist.Hist],
+    hists: dict[str, hist.Hist[hist.storage.Weight]],
     masks: ak.Array,
     column_name: str,
 ) -> None:
@@ -325,7 +325,7 @@ def standard_jet_selection(
     substructure_constituent_requirements: bool,
     selected_particle_column_name: str = "",
     max_constituent_pt_values: Mapping[str, float] | None = None,
-) -> tuple[ak.Array, dict[str, hist.Hist]]:
+) -> tuple[ak.Array, dict[str, hist.Hist[hist.storage.Weight]]]:
     """Standard ALICE jet selection
 
     Includes selections on:

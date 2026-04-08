@@ -30,7 +30,7 @@ def run(
     jet_eta_limits: tuple[float, float],
     min_Q2: float,  # noqa: ARG001
     x_limits: tuple[float, float],  # noqa: ARG001
-    hists: Mapping[str, Mapping[str, bh.Histogram]],
+    hists: Mapping[str, Mapping[str, bh.Histogram[Any]]],
 ) -> None:
     # The outgoing parton always seems to be in index 7 (pythia index #8)
     # Need to be retrieved immediately because it will be cut in the "status" cut.
@@ -160,8 +160,8 @@ def run(
             IPython.embed()  # type: ignore[no-untyped-call]
 
 
-def setup_hists() -> dict[str, bh.Histogram]:
-    hists = {}
+def setup_hists() -> dict[str, bh.Histogram[Any]]:
+    hists: dict[str, bh.Histogram[Any]] = {}
     hists["jet_p"] = bh.Histogram(bh.axis.Regular(600, 0, 300), storage=bh.storage.Weight())
     hists["jet_pt"] = bh.Histogram(
         bh.axis.Regular(30, 0, 300), bh.axis.Regular(200, 0, 50), storage=bh.storage.Weight()

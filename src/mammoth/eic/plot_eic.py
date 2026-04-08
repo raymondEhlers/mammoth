@@ -150,7 +150,7 @@ def plot_jet_pt(
     # Setup
     p_ranges = [(100, 150), (150, 200), (200, 250), (0, 300)]
     p_range_for_mean_label = (0, 300)
-    bh_hist: bh.Histogram = hist.to_boost_histogram()
+    bh_hist: bh.Histogram[bh.storage.Weight] = hist.to_boost_histogram()
 
     fig, ax = plt.subplots(figsize=(12, 9))
     for p_range in p_ranges:
