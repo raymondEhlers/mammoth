@@ -62,12 +62,15 @@ def _installed_python_software() -> list[str]:
     """
     import sys
 
-    return (
-        subprocess.run([sys.executable, "-m", "pip", "freeze"], capture_output=True, check=True)
-        .stdout.decode("ascii")
-        .strip("\n")
-        .split("\n")
-    )
+    # First, check if pip is available (it may not be if e.g. we're using uv)
+    run_command = [sys.executable, "-m", "pip", "freeze"]
+    try:
+        subprocess.run([sys.executable, "-m", "pip", "--version"], capture_output=True, check=True)
+    except subprocess.CalledProcessError:
+        logger.info("pip does not appear to be available - trying with uv instead")
+        run_command = ["uv", "pip", "freeze"]
+
+    return subprocess.run(run_command, capture_output=True, check=True).stdout.decode("ascii").strip("\n").split("\n")
 
 
 def _describe_production_software(
