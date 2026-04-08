@@ -494,7 +494,7 @@ def analyze_chunk_one_input_level(
 
     # Now we're interested in just the dijets, so we're going to drop events that don't have exactly two jets
     # NOTE: We didn't apply the selection of only two up to this point - otherwise, we could lose events, which could mess up event count alignment
-    # NOTE: We don't need to sort by pt here since we're selecting two dijets exclusively.
+    # NOTE: Based on the jets return, these are implicitly sorted by jet pt.
     events_with_only_two_jets_mask = ak.num(jets[level_name], axis=1) == 2
     dijets = jets[level_name][events_with_only_two_jets_mask]
     leading_jets = dijets[:, 0]
@@ -516,12 +516,18 @@ def analyze_chunk_one_input_level(
         weight=scale_factors[pt_hat_bin],
     )
 
+    # Additional event level columns that are useful for skimming
+    event_level_columns = {}
+    if pt_hat_bin != -1:
+        event_level_columns = {"scale_factor": np.ones(len(leading_jets)) * scale_factors[pt_hat_bin]}
+
     return framework_task.AnalysisOutput(
         hists=hists,
         skim=ak.zip(
             {
                 f"{level_name}_leading_jet": leading_jets,
                 f"{level_name}_subleading_jet": subleading_jets,
+                **event_level_columns,
             },
             depth_limit=1,
         ),
