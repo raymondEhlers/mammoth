@@ -88,7 +88,10 @@ def customize_analysis_metadata(
     return {}
 
 
-def _setup_base_hists(levels: list[str], trigger_parameters: TriggerParameters) -> dict[str, hist.Hist]:  # noqa: ARG001
+def _setup_base_hists(
+    levels: list[str],
+    trigger_parameters: TriggerParameters,  # noqa: ARG001
+) -> dict[str, hist.Hist[hist.storage.Weight]]:
     """Setup the histograms for the embedding analysis."""
     hists = {}
 
@@ -124,7 +127,7 @@ class DijetRejectionReason(StrEnum):  # type: ignore[misc]
     n_accepted = "n_accepted"
 
 
-def create_dijet_selection_QA_hists(particle_columns: list[str]) -> dict[str, hist.Hist]:
+def create_dijet_selection_QA_hists(particle_columns: list[str]) -> dict[str, hist.Hist[hist.storage.Weight]]:
     """Dijet selection QA hists."""
     hists = {}
     for level in particle_columns:
@@ -140,7 +143,7 @@ def create_dijet_selection_QA_hists(particle_columns: list[str]) -> dict[str, hi
 
 def fill_dijet_QA_reason(
     reason: str,
-    hists: dict[str, hist.Hist],
+    hists: dict[str, hist.Hist[hist.storage.Weight]],
     masks: ak.Array,
     column_name: str,
 ) -> None:
@@ -171,7 +174,7 @@ def dijet_selection(
     particle_columns: list[str],
     max_delta_phi_from_axis: float,
     require_at_most_two_leading_jets: bool = False,
-) -> tuple[ak.Array, dict[str, hist.Hist]]:
+) -> tuple[ak.Array, dict[str, hist.Hist[hist.storage.Weight]]]:
     """Di-jet selections for EBC analysis
 
     Requirements:
@@ -309,7 +312,9 @@ def dijet_selection(
     return jets, hists
 
 
-def _setup_one_input_level_hists(level_names: list[str], trigger_parameters: TriggerParameters) -> dict[str, hist.Hist]:
+def _setup_one_input_level_hists(
+    level_names: list[str], trigger_parameters: TriggerParameters
+) -> dict[str, hist.Hist[hist.storage.Weight]]:
     return _setup_base_hists(
         levels=level_names,
         trigger_parameters=trigger_parameters,
@@ -537,7 +542,7 @@ def analyze_chunk_one_input_level(
 def _setup_two_input_level_hists(
     level_names: list[str],
     trigger_parameters: TriggerParameters,
-) -> dict[str, hist.Hist]:
+) -> dict[str, hist.Hist[hist.storage.Weight]]:
     return _setup_base_hists(
         levels=level_names,
         trigger_parameters=trigger_parameters,
@@ -655,7 +660,7 @@ def analyze_chunk_two_input_level(
 
 def _setup_three_input_level_hists(
     level_names: list[str], trigger_parameters: TriggerParameters
-) -> dict[str, hist.Hist]:
+) -> dict[str, hist.Hist[hist.storage.Weight]]:
     return _setup_base_hists(levels=level_names, trigger_parameters=trigger_parameters)
 
 
@@ -927,7 +932,7 @@ def minimal_test() -> None:
         chunk_size=1000,
     )
     # NOTE: Just for quick testing
-    merged_hists: dict[str, hist.Hist] = {}
+    merged_hists: dict[str, hist.Hist[hist.storage.Weight]] = {}
     for i_chunk, arrays in enumerate(iter_arrays):
         logger.info(f"Processing chunk: {i_chunk}")
         analysis_output = analyze_chunk_one_input_level(
