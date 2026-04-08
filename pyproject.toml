@@ -84,6 +84,21 @@ docs = [
     "sphinx_autodoc_typehints",
     "furo>=2023.08.17",
 ]
+# NOTE: Trying this out, but leaving the separate pdm and uv handling for pachyderm being editable
+dev = [
+    "ruff >=0.0.209",
+    "mypy >=0.931",
+    "ipython >=8.0",
+    "ipykernel >=6.15.1",
+    "pytest >=6.2.4",
+    "pytest-cov >=3",
+    "pytest-sugar >=0.9.5",
+    "pytest-xdist >=3.1.0",
+    # Included so we can grab the headers for vscode (also so that we can build in the env if we want)
+    "pybind11 >=2.10",
+    # pachyderm
+    # Handled separately by pdm (tool.pdm.dev-dependencies) and uv (workspace)
+]
 
 # NOTE: We use this for the dev dependencies because we need the PDM support for local
 #       editable repositories. If we ever don't need that, we can just move it to the
@@ -320,4 +335,17 @@ ignore = [
   ".readthedocs.yml",
   "src/*/_version.py",
   "noxfile.py",
+]
+
+[tool.uv.workspace]
+members = [
+    "external/pachyderm",
+]
+
+[tool.uv.sources]
+pachyderm = { workspace = true, editable = true }
+
+[dependency-groups]
+dev = [
+    "pachyderm",
 ]
