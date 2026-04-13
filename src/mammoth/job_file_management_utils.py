@@ -91,7 +91,7 @@ def cleanup_parsl_scratch_files_on_other_nodes(
     """
     # NOTE: We decide not to let the user customize this with arguments because there's
     #       a high chance of mistake, with significant consequence.
-    command = f"rm -r /scratch/u/{user}/parsl"
+    command = f"rm -r /scratch/u/{user}/parsl/*"
 
     for host in hosts:
         if not confirm(f"Do you want to run '{command}' on '{host}'?"):
