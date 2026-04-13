@@ -6,6 +6,7 @@
 from __future__ import annotations
 
 import logging
+import subprocess
 from pathlib import Path
 
 import awkward as ak
@@ -15,6 +16,144 @@ import mammoth.helpers
 from mammoth import job_file_management
 
 logger = logging.getLogger(__name__)
+
+
+def confirm(prompt: str) -> bool:
+    """Confirm the action, and only continue if yes is provided.
+
+    Args:
+        prompt: Prompt to show to the user.
+    Returns:
+        True if the user says yes.
+    """
+    answer = input(f"{prompt} [yes|y]").strip().lower()
+    return answer in {"y", "yes"}
+
+
+def _run_remote_command(user: str, host: str, command: str, timeout: int = 30) -> tuple[bool, str]:
+    """Run remote command.
+
+    NOTE:
+        This does no further validation of your command. It assumes that you've already
+        checked the command and confirmed that it does what you want!
+
+    Args:
+        user: Name of the user to ssh with.
+        host: Host to run command on. Note that this requires SSH non-interactive
+            authentication (i.e. using private key auth).
+        command: Command to run on the remote host
+    Return:
+        (true if successful, message)
+    """
+    ssh_cmd = [
+        "ssh",
+        "-o",
+        "BatchMode=yes",  # fail fast if auth fails
+        "-o",
+        "StrictHostKeyChecking=no",  # convenience; consider managing known_hosts instead
+        f"{user}@{host}",
+        command,
+    ]
+
+    logger.info(f"Command: {ssh_cmd}")
+    return (True, "success")
+
+    try:
+        subprocess.run(
+            ssh_cmd,
+            capture_output=True,
+            text=True,
+            check=True,
+            timeout=timeout,
+        )
+        return (True, "success")
+    except subprocess.TimeoutExpired:
+        return (False, "timeout")
+    except Exception as e:
+        return (False, f"failed with exception: {e!s}")
+
+
+def cleanup_parsl_scratch_files_on_other_nodes(
+    user: str,
+    hosts: list[str],
+) -> None:
+    """Cleanup parsl scratch files that are left on other nodes
+
+    NOTE:
+        This requires you to SSH non-interactive authentication (i.e. using private key auth).
+
+    Args:
+        user: Name of the user to ssh with.
+        hosts: Hosts to run command on. Note that this requires SSH non-interactive
+            authentication (i.e. using private key auth).
+    Returns:
+        None. The results are logged.
+    """
+    # NOTE: We decide not to let the user customize this with arguments because there's
+    #       a high chance of mistake, with significant consequence.
+    command = f"rm -r /scratch/u/{user}/parsl"
+
+    for host in hosts:
+        if not confirm(f"Do you want to run '{command}' on '{host}'?"):
+            continue
+
+        res = _run_remote_command(user=user, host=host, command=command)
+        if res[0]:
+            logger.info(f"Success on '{host}'!")
+        else:
+            logger.warning(f"Failed on '{host} with error: {res[1]}")
+
+
+def cleanup_parsl_scratch_files_on_other_nodes_entry_point() -> None:
+    """Entry point for cleanup parsl scratch files that are left on other nodes
+
+    NOTE:
+        This requires you to SSH non-interactive authentication (i.e. using private key auth).
+    """
+    mammoth.helpers.setup_logging(level=logging.INFO)
+
+    # Delayed import since this is self contained
+    import argparse
+
+    # Setup
+    parser = argparse.ArgumentParser(
+        description="Cleanup files from failed jobs. For safety, this only works on hiccup.",
+        formatter_class=mammoth.helpers.RichHelpFormatter,
+    )
+
+    parser.add_argument(
+        "-l", "--login-hostname", required=True, type=str, help="Hostname of the login node (for safety check)."
+    )
+    parser.add_argument(
+        "-u",
+        "--user",
+        required=True,
+        type=str,
+        help="User the jobs were run under. This is almost always your username.",
+    )
+
+    args = parser.parse_args()
+    hostname: str = args.login_hostname
+    user: str = args.user
+    if hostname != "hiccup0":
+        msg = "Attempted to run cleanup script on a system other than hiccup. This is not allowed for safety. If you want to run elsewhere, you'll have to update the source code."
+        raise RuntimeError(msg)
+
+    # hiccup specific functionality:
+    hosts = [
+        "hiccup1n",
+        "hiccup2n",
+        "hiccup3n",
+        "hiccup4n",
+        "hiccup5n",
+        "hiccup6",
+        "hiccup8n",
+    ]
+
+    cleanup_parsl_scratch_files_on_other_nodes(
+        user=user,
+        hosts=hosts,
+    )
 
 
 def check_if_file_is_valid(p: Path, settings: job_file_management.FileStagingSettings) -> bool:
@@ -180,7 +319,7 @@ def steer_handle_files_from_failed_jobs_entry_point() -> None:
 
     # Setup
     parser = argparse.ArgumentParser(
-        description="Sync files from filed jobs.", formatter_class=mammoth.helpers.RichHelpFormatter
+        description="Sync files from failed jobs.", formatter_class=mammoth.helpers.RichHelpFormatter
     )
 
     parser.add_argument("-n", "--node-work-dir", required=True, type=Path, help="Node work directory")
