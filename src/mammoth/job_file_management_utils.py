@@ -77,7 +77,7 @@ def cleanup_parsl_scratch_files_on_other_nodes(
     """Cleanup parsl scratch files that are left on other nodes
 
     NOTE:
-        This requires you to SSH non-interactive authentication (i.e. using private key auth).
+        This requires you to have SSH non-interactive authentication setup (i.e. using private key auth).
 
     Args:
         user: Name of the user to ssh with.
@@ -105,17 +105,22 @@ def cleanup_parsl_scratch_files_on_other_nodes_entry_point() -> None:
     """Entry point for cleanup parsl scratch files that are left on other nodes
 
     NOTE:
-        This requires you to SSH non-interactive authentication (i.e. using private key auth).
+        This requires you to have SSH non-interactive authentication setup (i.e. using private key auth).
     """
     mammoth.helpers.setup_logging(level=logging.INFO)
 
     # Delayed import since this is self contained
     import argparse
 
+    from rich_argparse import RawTextRichHelpFormatter
+
     # Setup
     parser = argparse.ArgumentParser(
-        description="Cleanup files from failed jobs. For safety, this only works on hiccup.",
-        formatter_class=mammoth.helpers.RichHelpFormatter,
+        description="""Cleanup files from failed jobs. For safety, this only works on hiccup.
+
+The idea is that you would run `handle_files_from_failed_jobs` to retrieve the good output files from jobs that failed,
+and then it should be followed by this to cleanup the rest of the directories (i.e. cleanup input files that are copied to scratch).""",
+        formatter_class=RawTextRichHelpFormatter,
     )
 
     parser.add_argument(
@@ -126,7 +131,7 @@ def cleanup_parsl_scratch_files_on_other_nodes_entry_point() -> None:
         "--user",
         required=True,
         type=str,
-        help="User the jobs were run under. This is almost always your username.",
+        help="User the jobs were run under. This is almost always your username. (e.g. you could pass $USER)",
     )
 
     args = parser.parse_args()
@@ -314,9 +319,15 @@ def steer_handle_files_from_failed_jobs_entry_point() -> None:
     # Delayed import since this is self contained
     import argparse
 
+    from rich_argparse import RawTextRichHelpFormatter
+
     # Setup
     parser = argparse.ArgumentParser(
-        description="Sync files from failed jobs.", formatter_class=mammoth.helpers.RichHelpFormatter
+        description="""Sync files from failed jobs to permanent storage.
+
+The idea is that you would run this to retrieve the good output files from jobs that failed (i.e. the job timed out or the manager was lost),
+and then it should be followed by `cleanup_files_from_failed_jobs` to cleanup the rest of the directories""",
+        formatter_class=RawTextRichHelpFormatter,
     )
 
     parser.add_argument("-n", "--node-work-dir", required=True, type=Path, help="Node work directory")
