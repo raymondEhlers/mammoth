@@ -961,7 +961,7 @@ productions:
         label: ""
       settings:
         <<: *analysis_settings_EBC_pp
-        chunk_size: 10000
+        chunk_size: 100000
         output_settings:
           <<: *EBC_output_settings
     5:
@@ -970,6 +970,19 @@ productions:
         <<: *base_metadata_pp
         dataset: *LHC24_pp_ref_pass1
         production_number: 5
+        label: ""
+      settings:
+        <<: *analysis_settings_EBC_pp
+        chunk_size: 10000
+        max_n_chunks: 50
+        output_settings:
+          <<: *EBC_output_settings
+    6:
+      # Test run for EBC with Run 3 pp_ref w/ some bug fixes
+      metadata:
+        <<: *base_metadata_pp
+        dataset: *LHC24_pp_ref_pass1
+        production_number: 6
         label: ""
       settings:
         <<: *analysis_settings_EBC_pp
