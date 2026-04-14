@@ -8,9 +8,11 @@ from __future__ import annotations
 import logging
 from pathlib import Path
 
+import attrs
 import awkward as ak
 import hist
 import numpy as np
+import numpy.typing as npt
 import uproot
 import vector
 
@@ -18,6 +20,13 @@ from mammoth.framework.io import output_utils
 
 logger = logging.getLogger(__name__)
 vector.register_awkward()
+
+
+@attrs.define
+class JetData:
+    leading_jet: ak.Array
+    subleading_jet: ak.Array
+    scale_factors: npt.NDArray[np.float64]
 
 
 def define_base_histograms(levels: list[str]) -> dict[str, hist.Hist[hist.storage.Weight]]:
@@ -46,10 +55,38 @@ def define_base_histograms(levels: list[str]) -> dict[str, hist.Hist[hist.storag
     return hists
 
 
+def fill_base_histograms(
+    levels: list[str], hists: dict[str, hist.Hist[hist.storage.Weight]], jet_data: JetData
+) -> bool:
+    # Spectra
+    for level_name in levels:
+        hists[f"{level_name}_leading_jet_spectra"].fill(
+            ak.flatten(jet_data.leading_jet.pt, axis=None),
+            weight=jet_data.scale_factors,
+        )
+        hists[f"{level_name}_subleading_jet_spectra"].fill(
+            ak.flatten(jet_data.subleading_jet.pt, axis=None),
+            weight=jet_data.scale_factors,
+        )
+
+        # (leading, subleading) N constituents as a function of (leading, subleading) jet pt
+        # NOTE: I can do multiple weights with: hist.storage.MultiWeight(3), where 3 = number of weights.
+        #       See e.g.: https://github.com/scikit-hep/boost-histogram/pull/1008 (called MultiCell)
+        hists[f"{level_name}_n_constituents_jet_pt"].fill(
+            ak.flatten(jet_data.leading_jet.pt, axis=None),
+            ak.flatten(jet_data.subleading_jet.pt, axis=None),
+            ak.flatten(ak.num(jet_data.leading_jet.constituents, axis=1), axis=None),
+            ak.flatten(ak.num(jet_data.subleading_jet.constituents, axis=1), axis=None),
+            weight=jet_data.scale_factors,
+        )
+
+    return True
+
+
 def load_data(
     skim_directory: Path,
     level_name: str,
-) -> tuple[ak.Array, ak.Array, ak.Array]:
+) -> JetData:
     logger.info(f"Loading skim data from {skim_directory}")
     arr = ak.from_parquet(skim_directory)
 
@@ -58,9 +95,11 @@ def load_data(
     subleading_jet = arr[f"{level_name}_subleading_jet"]
 
     # Use scale_factor when available
-    scale_factors = arr["scale_factor"] if "scale_factor" in ak.fields(arr) else np.ones(len(leading_jet))
+    # NOTE: I use a plural for the name since this values can vary in e.g. MC
+    #       (but I fall back to 1s because only data productions missed them)
+    scale_factors = arr["scale_factors"] if "scale_factor" in ak.fields(arr) else np.ones(len(leading_jet))
 
-    return leading_jet, subleading_jet, scale_factors
+    return JetData(leading_jet, subleading_jet, scale_factors)
 
 
 def skim_to_histograms(
@@ -70,7 +109,7 @@ def skim_to_histograms(
     level_name = "data"
 
     # NOTE: Could also consider dask_awkward. But for now, this is good enough.
-    leading_jet, subleading_jet, scale_factors = load_data(skim_directory=skim_directory, level_name=level_name)
+    jet_data = load_data(skim_directory=skim_directory, level_name=level_name)
 
     # Define hists
     hists = {}
@@ -81,30 +120,17 @@ def skim_to_histograms(
     # IPython.embed()
 
     # Fill hists
-    # Spectra
-    hists[f"{level_name}_leading_jet_spectra"].fill(
-        ak.flatten(leading_jet.pt, axis=None),
-        weight=scale_factors,
-    )
-    hists[f"{level_name}_subleading_jet_spectra"].fill(
-        ak.flatten(leading_jet.pt, axis=None),
-        weight=scale_factors,
-    )
-
-    # (leading, subleading) N constituents as a function of (leading, subleading) jet pt
-    # NOTE: I can do multiple weights with: hist.storage.MultiWeight(3), where 3 = number of weights.
-    #       See e.g.: https://github.com/scikit-hep/boost-histogram/pull/1008 (called MultiCell)
-    hists[f"{level_name}_n_constituents_jet_pt"].fill(
-        ak.flatten(leading_jet.pt, axis=None),
-        ak.flatten(subleading_jet.pt, axis=None),
-        ak.flatten(ak.num(leading_jet.constituents, axis=1), axis=None),
-        ak.flatten(ak.num(subleading_jet.constituents, axis=1), axis=None),
-        weight=scale_factors,
+    fill_base_histograms(
+        levels=[level_name],
+        hists=hists,
+        jet_data=jet_data,
     )
 
     # Write histograms
     output_hist_filename = skim_directory / "hists" / "analysis"
     output_hist_filename.parent.mkdir(parents=True, exist_ok=True)
+    # TODO(RJE): Writing 4d hists doesn't seem to be supported...
+    #            Either use pgz, or could just write flat tree with four entries (pt1, pt2, n_const_1, n_const_2)...
     with uproot.recreate(output_hist_filename) as f:
         output_utils.write_hists_to_file(hists=hists, f=f)
 
