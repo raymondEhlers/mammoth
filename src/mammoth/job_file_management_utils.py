@@ -49,23 +49,20 @@ def _run_remote_command(user: str, host: str, command: str, timeout: int = 30) -
         "ssh",
         "-o",
         "BatchMode=yes",  # fail fast if auth fails
-        "-o",
-        "StrictHostKeyChecking=no",  # convenience; consider managing known_hosts instead
         f"{user}@{host}",
         command,
     ]
-
-    logger.info(f"Command: {ssh_cmd}")
-    return (True, "success")
+    logger.debug(f"Running: {ssh_cmd}")
 
     try:
-        subprocess.run(
+        p = subprocess.run(
             ssh_cmd,
             capture_output=True,
             text=True,
             check=True,
             timeout=timeout,
         )
+        logger.debug(f"{p.stdout=!s}")
         return (True, "success")
     except subprocess.TimeoutExpired:
         return (False, "timeout")
