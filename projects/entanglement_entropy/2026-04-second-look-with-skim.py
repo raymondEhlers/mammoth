@@ -31,7 +31,7 @@ import polars as pl  # noqa: F401
 import uproot  # noqa: F401
 from pachyderm import binned_data
 
-from mammoth.entanglement_entropy import skim_to_hist
+from mammoth.entanglement_entropy import analysis_tools, skim_to_hist
 from mammoth.framework.io import output_utils  # noqa: F401
 
 base_path = Path("projects/entanglement_entropy")
@@ -41,6 +41,11 @@ pb.configure()
 # %load_ext autoreload
 
 # %autoreload 2
+
+# %%
+import mammoth.helpers
+
+mammoth.helpers.setup_logging()
 
 # %%
 # Load data
@@ -97,6 +102,9 @@ data_source_to_presentation_label = {
 
 # %%
 hists_per_data_source["run_2_pp_ref"].keys()
+
+# %%
+len(hists_per_data_source["run_3_pp_ref"]["data_leading_jet_spectra"].values())
 
 
 # %% [markdown]
@@ -159,9 +167,6 @@ def plot_dijet_spectra(
                 h.axes[0].bin_centers,
                 h.values,
                 xerr=h.axes[0].bin_widths / 2,
-                # TODO(RJE): It's not working for some reason - not sure why...
-                #            variances seem way too big compared to the values...
-                # NOTE: It should have been errors, not variances...
                 yerr=h.errors,
                 marker="o",
                 markersize=11,
@@ -350,9 +355,6 @@ def plot_n_constituents_1d(
                 h.axes[0].bin_centers,
                 h.values,
                 xerr=h.axes[0].bin_widths / 2,
-                # TODO(RJE): It's not working for some reason - not sure why...
-                #            variances seem way too big compared to the values...
-                # yerr=h.variances,
                 yerr=h.errors,
                 marker="o",
                 markersize=11,
@@ -381,109 +383,213 @@ for lead_jet_pt_range in [None, (10, 20), (20, 40), (40, 60), (60, 80), (80, 120
             hists_per_data_source=hists_per_data_source, lead_jet_pt_range=lead_jet_pt_range, log_y=log_y
         )
 
+# %% [markdown]
+#
 
 # %% [markdown]
 # # Entanglement entropy
 
+# %% [markdown]
+# ## Unsummed entropy
 
 # %%
-def vectorized_entropy(dist: npt.NDArray[np.floating], sum_axes: int | tuple[int]) -> npt.NDArray[np.floating]:
-    """Calculate Shannon entropy for each jet_pt bin (vectorized).
+entropies_unsummed = {
+    source: analysis_tools.calculate_entropy(hists, skip_entropy_sum=True)
+    for source, hists in hists_per_data_source.items()
+}
 
-    Args:
-        dist: numpy array with jet_pt as the first dimension
-        sum_axes: int or tuple of axes to sum over for normalization and entropy
+# %%
+np.sum(entropies_unsummed["run_3_pp_ref"].lead, axis=1)
 
-    Returns:
-        entropy: 1D array of entropies for each jet_pt bin (in nats)
-    """
-    # Normalize along the specified axes (keepdims for proper broadcasting)
-    norm = np.sum(dist, axis=sum_axes, keepdims=True)
-    # print(f"{norm=}")
-    # if np.isclose(norm, 0):
-    #    return np.zeros(dist.shape[0])
-    # prob_dist = dist / norm
-    # prob_dist = np.where(norm > 0, dist / norm, 0)
-    # prob_dist = np.divdide(norm > 0, dist / norm, 0)
-    prob_dist = np.divide(dist, norm, out=np.zeros_like(dist), where=norm > 0)
+# %%
+entropies_unsummed["run_3_pp_ref"].lead[1, :]
 
-    # Handle zeros: use np.where to avoid log(0)
-    # safe_log = np.where(prob_dist > 0, np.log(prob_dist), 0)
-    safe_log = np.log(prob_dist, out=np.zeros_like(prob_dist), where=prob_dist > 0)
+# %%
+import matplotlib as mpl
 
-    # Calculate entropy: -sum(p * log(p))
-    entropy = -np.sum(prob_dist * safe_log, axis=sum_axes)
+# Plot calculated entropies as a function of jet pt
 
-    return entropy.squeeze()
+# Just need the h_pt and n_const binning info, so arbitrarily pick the full precision
+h_pt = binned_data.BinnedData.from_existing_data(
+    hists_per_data_source["run_2_pp_ref"]["data_n_constituents_jet_pt"][:, :, sum, sum]
+)
+h_n_const = binned_data.BinnedData.from_existing_data(
+    hists_per_data_source["run_2_pp_ref"]["data_n_constituents_jet_pt"][sum, sum, :, :]
+)
 
 
-import attrs
+def plot_unsummed_entropy(
+    entropies: dict[str, hist.Hist[hist.storage.Weight]],
+    lead_jet_pt_ranges: list[tuple[float, float]],
+) -> None:
+    text_font_size = 22
+
+    for source, entropy in entropies.items():
+        # for label in ["lead", "sublead", "joint"]:
+        # NOTE: the joint has an additional dimension, so it's easier to handle separately.
+        for label in ["lead", "sublead"]:
+            text = "ALICE work-in-progress"
+            text += "\n" + r"charged-particle jets"
+            text += "\n" + r"$R = 0.4$"
+            text += "\n" + f"{data_source_to_presentation_label[source]}"
+            plot_config = pb.PlotConfig(
+                name=f"entropy_unsummed_{label}",
+                panels=[
+                    # Main panel
+                    pb.Panel(
+                        axes=[
+                            pb.AxisConfig(
+                                "x",
+                                label=r"$N_{\text{const}}$",
+                                font_size=text_font_size,
+                            ),
+                            pb.AxisConfig(
+                                "y",
+                                label=r"$-p \ln{p}$" + f"({label})",
+                                font_size=text_font_size,
+                                range=(-0.02, 0.35),
+                            ),
+                        ],
+                        text=pb.TextConfig(x=0.95, y=0.20, text=text, font_size=16),
+                        legend=pb.LegendConfig(location="upper right", font_size=12),
+                    ),
+                ],
+                figure=pb.Figure(edge_padding={"left": 0.11, "bottom": 0.15}),
+            )
+
+            fig, ax = plt.subplots(
+                1,
+                1,
+                figsize=(10, 6.25),
+                sharex=True,
+            )
+            # Make the colors a bit easier to follow
+            cmap = mpl.colormaps["viridis"]
+            colors = cmap(np.linspace(0, 1, len(lead_jet_pt_ranges)))
+            ax.set_prop_cycle(color=colors)
+
+            # Just plot the values
+            for jet_pt_range in lead_jet_pt_ranges:
+                low, high = h_pt.axes[0].find_bin(jet_pt_range[0]), h_pt.axes[0].find_bin(jet_pt_range[1])
+                ax.plot(
+                    h_n_const.axes[0].bin_centers,
+                    getattr(entropy, label)[low:high, :].squeeze(),
+                    label=rf"${jet_pt_range[0]} < p_{{\text{{T, jet}}}} < {jet_pt_range[1]}\:\text{{GeV}}/c$",
+                    linestyle="",
+                    marker="s",
+                )
+
+            plot_config.apply(fig=fig, ax=ax)
+
+            _output_path = base_path / "second_look_with_skim"
+            _output_path.mkdir(parents=True, exist_ok=True)
+            tag = f"_{source}"
+            fig.savefig(_output_path / f"{plot_config.name}{tag}.pdf")
+            plt.close(fig)
 
 
-@attrs.define(frozen=True)
-class Result:
-    lead: npt.NDArray[np.float64]
-    sublead: npt.NDArray[np.float64]
-    joint: npt.NDArray[np.float64]
+plot_unsummed_entropy(entropies_unsummed, lead_jet_pt_ranges=list(zip(range(10, 70, 5), range(11, 71, 5), strict=True)))
+
+# %%
+# Plot unsummed joint entropies as a function of jet pt
+
+# Just need the h_pt and n_const binning info, so arbitrarily pick the full precision
+h_pt = binned_data.BinnedData.from_existing_data(
+    hists_per_data_source["run_2_pp_ref"]["data_n_constituents_jet_pt"][:, :, sum, sum]
+)
+h_n_const = binned_data.BinnedData.from_existing_data(
+    hists_per_data_source["run_2_pp_ref"]["data_n_constituents_jet_pt"][sum, sum, :, :]
+)
 
 
-# def calculate_entropy(input_hists: dict[str, hist.Hist]) -> tuple[npt.NDArray[np.float64], npt.NDArray[np.float64], npt.NDArray[np.float64]]:
-def calculate_entropy(input_hists: dict[str, hist.Hist]) -> Result:
-    input_hist = input_hists["data_n_constituents_jet_pt"]
-    # Axes: (lead jet pt, lead n_const, sublead n_const)
-    h_joint = binned_data.BinnedData.from_existing_data(input_hist[:, sum, :, :])
-    # Axes: (lead jet pt, lead n_const)
-    h_lead = binned_data.BinnedData.from_existing_data(input_hist[:, sum, :, sum])
-    # Axes: (lead jet pt, sublead n_const)
-    h_sublead = binned_data.BinnedData.from_existing_data(input_hist[:, sum, sum, :])
+def plot_unsummed_entropy_joint(
+    entropies: dict[str, hist.Hist[hist.storage.Weight]],
+    lead_jet_pt_ranges: list[tuple[float, float]],
+) -> None:
+    text_font_size = 22
 
-    entropy_lead = vectorized_entropy(h_lead.values, sum_axes=1)
-    # NOTE: This is the same axis as for the lead because we've summed over the lead above
-    entropy_sublead = vectorized_entropy(h_sublead.values, sum_axes=1)
-    entropy_joint = vectorized_entropy(h_joint.values, sum_axes=(1, 2))
+    for source, entropy in entropies.items():
+        label = "joint"
+        for jet_pt_range in lead_jet_pt_ranges:
+            text = "ALICE work-in-progress"
+            text += "\n" + r"charged-particle jets"
+            text += (
+                "\n" + rf"$R = 0.4$, ${jet_pt_range[0]} < p_{{\text{{T, jet}}}} < {jet_pt_range[1]}\:\text{{GeV}}/c$"
+            )
+            text += "\n" + f"{data_source_to_presentation_label[source]}"
+            plot_config = pb.PlotConfig(
+                name=f"entropy_unsummed_{label}",
+                panels=[
+                    # Main panel
+                    pb.Panel(
+                        axes=[
+                            pb.AxisConfig(
+                                "x",
+                                label=r"$N_{\text{const, lead}}$",
+                                font_size=text_font_size,
+                            ),
+                            pb.AxisConfig(
+                                "y",
+                                label=r"$N_{\text{const, sublead}}$",
+                                font_size=text_font_size,
+                            ),
+                        ],
+                        text=pb.TextConfig(x=0.95, y=0.20, text=text, font_size=16),
+                    ),
+                ],
+                figure=pb.Figure(edge_padding={"left": 0.11, "bottom": 0.15}),
+            )
 
-    ##############################
-    # Including the sublead jet pt
-    ##############################
-    # Axes: (lead jet pt, sublead jet pt, lead n_const, sublead n_const)
-    # h_joint = binned_data.BinnedData.from_existing_data(input_hist)
-    # Axes: (lead jet pt, sublead jet pt, lead n_const)
-    # h_lead = binned_data.BinnedData.from_existing_data(input_hist[:, :, :, sum])
-    # Axes: (lead jet pt, sublead jet pt, sublead n_const)
-    # h_sublead = binned_data.BinnedData.from_existing_data(input_hist[:, sum, sum, :])
+            fig, ax = plt.subplots(
+                1,
+                1,
+                figsize=(10, 6.25),
+                sharex=True,
+            )
 
-    # entropy_lead = vectorized_entropy(h_lead.values, sum_axes=2)
-    # # NOTE: This is the same axis as for the lead because we've summed over the lead above
-    # entropy_sublead = vectorized_entropy(h_sublead.values, sum_axes=2)
-    # entropy_joint = vectorized_entropy(h_joint.values, sum_axes=(2, 3))
+            # Plot
+            low, high = h_pt.axes[0].find_bin(jet_pt_range[0]), h_pt.axes[0].find_bin(jet_pt_range[1])
+            values = entropy.joint[low:high, :, :].squeeze()
+            # Suppress values exactly at 0 for clarity
+            values[values == 0] = np.nan
+            mesh = ax.pcolormesh(
+                h_n_const.axes[0].bin_edges.T,
+                h_n_const.axes[1].bin_edges.T,
+                values.T,
+                norm=mpl.colors.Normalize(vmin=0.0, vmax=0.2),
+            )
+            fig.colorbar(mesh, pad=0.02)
 
-    # Returned values are the entropy values as a function of (lead jet pt, sublead jet pt)
-    return Result(lead=entropy_lead, sublead=entropy_sublead, joint=entropy_joint)
+            plot_config.apply(fig=fig, ax=ax)
+
+            _output_path = base_path / "second_look_with_skim"
+            _output_path.mkdir(parents=True, exist_ok=True)
+            tag = f"_{source}__jet_pt_{jet_pt_range[0]}_{jet_pt_range[1]}"
+            fig.savefig(_output_path / f"{plot_config.name}{tag}.pdf")
+            plt.close(fig)
 
 
-def calculate_mutual_information(input_hists: dict[str, hist.Hist]) -> npt.NDArray[np.float64]:
-    entropy = calculate_entropy(input_hists=input_hists)
+# plot_unsummed_entropy_joint(entropies_unsummed, lead_jet_pt_ranges=list(zip(range(10, 70, 5), range(11, 71, 5), strict=True)))
+plot_unsummed_entropy_joint(
+    entropies_unsummed, lead_jet_pt_ranges=list(zip(range(10, 20, 5), range(11, 21, 5), strict=True))
+)
 
-    mutual_information = entropy.lead + entropy.sublead - entropy.joint
-    return mutual_information  # noqa: RET504
+# %% [markdown]
+# ## Entropy
 
-
+# %%
 # As a function of leading jet pt
-entropies = {source: calculate_entropy(hists) for source, hists in hists_per_data_source.items()}
-# entropies_chunks = {}
-# for k, v in hists_in_chunks.items():
-#     entropies_chunks[k] = calculate_entropy(v)
-
-mutual_information = {source: calculate_mutual_information(hists) for source, hists in hists_per_data_source.items()}
-# mutual_information_chunks = {}
-# for k, v in hists_in_chunks.items():
-#     mutual_information_chunks[k] = calculate_mutual_information(v)
+entropies = {source: analysis_tools.calculate_entropy(hists) for source, hists in hists_per_data_source.items()}
+mutual_information = {
+    source: analysis_tools.calculate_mutual_information(hists, entropy=entropies[source])
+    for source, hists in hists_per_data_source.items()
+}
 
 # %%
-entropies.sublead.shape
+entropies["run_3_pp_ref"].sublead
 
 # %%
-# Plot entropies as a function of jet pt
+# Plot calculated entropies as a function of jet pt
 
 # Just need the pt binning info, so arbitrarily pick the full precision
 h_pt = binned_data.BinnedData.from_existing_data(
@@ -498,7 +604,7 @@ def plot_entropy(
 ) -> None:
     text_font_size = 22
 
-    for label in ["lead", "sublead"]:
+    for label in ["lead", "sublead", "joint"]:
         text = "ALICE work-in-progress"
         text += "\n" + r"charged-particle jets"
         text += "\n" + r"$R = 0.4$"
@@ -518,7 +624,7 @@ def plot_entropy(
                             "y",
                             label=r"$S_{\text{" + label + r"}}$",
                             font_size=text_font_size,
-                            range=(-0.15, 2.9),
+                            range=(-0.15, 2.9) if label != "joint" else (-0.15, None),
                         ),
                     ],
                     text=pb.TextConfig(x=0.05, y=0.25, text=text, font_size=16),
