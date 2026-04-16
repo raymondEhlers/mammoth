@@ -54,7 +54,7 @@ def random_choice_jagged(arrays: ak.Array, random_seed: int | None = None) -> ak
     return ak.unflatten(mask, ak.num(arrays))
 
 
-def shape_like(flat_array: npt.NDArray[np.number[npt.NBitBase]], array_with_desired_structure: ak.Array) -> ak.Array:
+def shape_like(flat_array: npt.NDArray[np.number[Any]], array_with_desired_structure: ak.Array) -> ak.Array:
     """Convert a flat array to the same structure as another array.
 
     Code from https://github.com/scikit-hep/awkward/discussions/3101#discussioncomment-9332008,

@@ -15,7 +15,7 @@ import numpy.typing as npt
 # Typing helpers
 # Generic for passing types through
 _T = TypeVar("_T", covariant=True)  # noqa: PLC0105
-_T_NP = TypeVar("_T_NP", bound=npt.NBitBase)
+_T_NP = TypeVar("_T_NP", bound=np.floating)
 # Generic numpy scalar
 # See: https://stackoverflow.com/a/71126857/12907985
 Scalar = TypeVar("Scalar", bound=np.generic, covariant=True)  # noqa: PLC0105
