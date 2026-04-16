@@ -16,12 +16,16 @@ from pachyderm import binned_data
 logger = logging.getLogger(__name__)
 
 
-def vectorized_entropy(dist: npt.NDArray[np.floating], sum_axes: int | tuple[int, ...]) -> npt.NDArray[np.floating]:
+def vectorized_entropy(
+    dist: npt.NDArray[np.floating], sum_axes: int | tuple[int, ...], skip_sum: bool = False
+) -> npt.NDArray[np.floating]:
     """Calculate Shannon entropy for each jet_pt bin (vectorized).
 
     Args:
         dist: numpy array with jet_pt as the first dimension
         sum_axes: int or tuple of axes to sum over for normalization and entropy
+        skip_sum: Skip the final sum that's used to calculate the entropy, and instead
+            return the full array. Useful for debugging. Default: False.
 
     Returns:
         entropy: 1D array of entropies for each jet_pt bin (in nats)
@@ -32,12 +36,17 @@ def vectorized_entropy(dist: npt.NDArray[np.floating], sum_axes: int | tuple[int
     # NOTE: Need to protect against 0s. In the case of 0s, we store 0.
     prob_dist = np.divide(dist, norm, out=np.zeros_like(dist), where=norm > 0)
 
+    # logger.info(f"Norm: {norm}")
+    logger.debug(f"prob sum: {np.sum(prob_dist, axis=sum_axes)}")
+
     # NOTE: Need to protect against 0s to avoid log(0)
     safe_log = np.log(prob_dist, out=np.zeros_like(prob_dist), where=prob_dist > 0)
 
     # Calculate entropy: -sum(p * log(p))
-    entropy: npt.NDArray[np.floating] = -np.sum(prob_dist * safe_log, axis=sum_axes)
+    if skip_sum:
+        return -1 * prob_dist * safe_log  # type: ignore[no-any-return]
 
+    entropy: npt.NDArray[np.floating] = -np.sum(prob_dist * safe_log, axis=sum_axes)
     return entropy.squeeze()
 
 
@@ -48,28 +57,31 @@ class Result:
     joint: npt.NDArray[np.floating]
 
 
-def calculate_entropy(input_hists: dict[str, hist.Hist[hist.storage.Weight]]) -> Result:
+def calculate_entropy(input_hists: dict[str, hist.Hist[hist.storage.Weight]], skip_entropy_sum: bool = False) -> Result:
     """Calculate entropy for the lead, sublead, and joint.
 
     Args:
         input_hists: Input histograms containing "data_n_constituents_jet_pt", the 4D
             histogram of (pt_1, pt_2, n_1, n_2).
+        skip_entropy_sum: Skip the final sum that's used to calculate the entropy, and instead
+            return the full array. Useful for debugging. Default: False.
     Returns:
         Calculation of entropy in a Result wrapper.
     """
     input_hist = input_hists["data_n_constituents_jet_pt"]
     # This formulation ignores the subleading pt axis entirely
     # Axes: (lead jet pt, lead n_const, sublead n_const)
+    logger.info("Joint dist")
     h_joint = binned_data.BinnedData.from_existing_data(input_hist[:, sum, :, :])  # type: ignore[index]
     # Axes: (lead jet pt, lead n_const)
     h_lead = binned_data.BinnedData.from_existing_data(input_hist[:, sum, :, sum])  # type: ignore[index]
     # Axes: (lead jet pt, sublead n_const)
     h_sublead = binned_data.BinnedData.from_existing_data(input_hist[:, sum, sum, :])  # type: ignore[index]
 
-    entropy_lead = vectorized_entropy(h_lead.values, sum_axes=1)
+    entropy_lead = vectorized_entropy(h_lead.values, sum_axes=1, skip_sum=skip_entropy_sum)
     # NOTE: This is the same axis as for the lead because we've summed over the lead above
-    entropy_sublead = vectorized_entropy(h_sublead.values, sum_axes=1)
-    entropy_joint = vectorized_entropy(h_joint.values, sum_axes=(1, 2))
+    entropy_sublead = vectorized_entropy(h_sublead.values, sum_axes=1, skip_sum=skip_entropy_sum)
+    entropy_joint = vectorized_entropy(h_joint.values, sum_axes=(1, 2), skip_sum=skip_entropy_sum)
 
     ##############################
     # Including the sublead jet pt
@@ -92,8 +104,11 @@ def calculate_entropy(input_hists: dict[str, hist.Hist[hist.storage.Weight]]) ->
     return Result(lead=entropy_lead, sublead=entropy_sublead, joint=entropy_joint)
 
 
-def calculate_mutual_information(input_hists: dict[str, hist.Hist[hist.storage.Weight]]) -> npt.NDArray[np.floating]:
-    entropy = calculate_entropy(input_hists=input_hists)
+def calculate_mutual_information(
+    input_hists: dict[str, hist.Hist[hist.storage.Weight]], entropy: Result | None
+) -> npt.NDArray[np.floating]:
+    if entropy is None:
+        entropy = calculate_entropy(input_hists=input_hists)
 
     mutual_information: npt.NDArray[np.floating] = entropy.lead + entropy.sublead - entropy.joint
     return mutual_information
