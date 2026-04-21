@@ -31,7 +31,7 @@ def _load_results(
         output_hists[str(spec)] = ecce_base.load_hists(input_dir / str(spec) / filename, filter=filter)
 
         for k, v in output_hists[str(spec)].items():
-            output_hists[str(spec)][k] = v.to_hist()  # type: ignore[attr-defined]
+            output_hists[str(spec)][k] = v.to_hist()
 
     return output_hists
 

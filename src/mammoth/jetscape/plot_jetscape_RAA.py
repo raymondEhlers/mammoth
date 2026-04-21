@@ -92,7 +92,7 @@ def _ML_jet_binning(system: str, jet_R: float) -> npt.NDArray[np.float64]:
             np.arange(100, max_pt_values[system] + 0.1, 20),
         ]
     )
-    return new_bins  # type: ignore[no-any-return] # noqa: RET504
+    return new_bins  # noqa: RET504
 
 
 def plot(  # noqa: C901
@@ -223,7 +223,7 @@ def plot(  # noqa: C901
                     name = f"{jet_type}_jetR{format_R(jet_R)}_jet_pt"
                     h_jet_pt = v[name]
 
-                    (h_jet_pt[:: hist.rebin(5)] / 5).plot(ax=ax, label=labels[system], linewidth=2)  # type: ignore[misc,operator,union-attr]
+                    (h_jet_pt[:: hist.rebin(5)] / 5).plot(ax=ax, label=labels[system], linewidth=2)  # type: ignore[misc,union-attr]
 
                     h_jet_pt_scaled = h_jet_pt / h_n_events.values()[0]
                     # h_jet_pt_scaled = h_jet_pt / np.sum(h_jet_pt.values())
@@ -251,13 +251,13 @@ def plot(  # noqa: C901
                 h_PbPb_00_10_jet_pt = combine_spectra_in_cent_bins(
                     hists=hists, jet_type=jet_type, jet_R=jet_R, a="00_05", b="05_10"
                 )
-                (h_PbPb_00_10_jet_pt[:: hist.rebin(5)] / 5).plot(ax=ax_scaled, label=labels["PbPb_00_10"], linewidth=2)  # type: ignore[misc,operator,union-attr]
+                (h_PbPb_00_10_jet_pt[:: hist.rebin(5)] / 5).plot(ax=ax_scaled, label=labels["PbPb_00_10"], linewidth=2)  # type: ignore[misc,union-attr]
 
                 # Calculate 30-50%
                 h_PbPb_30_50_jet_pt = combine_spectra_in_cent_bins(
                     hists=hists, jet_type=jet_type, jet_R=jet_R, a="30_40", b="40_50"
                 )
-                (h_PbPb_30_50_jet_pt[:: hist.rebin(5)] / 5).plot(ax=ax_scaled, label=labels["PbPb_30_50"], linewidth=2)  # type: ignore[misc,operator,union-attr]
+                (h_PbPb_30_50_jet_pt[:: hist.rebin(5)] / 5).plot(ax=ax_scaled, label=labels["PbPb_30_50"], linewidth=2)  # type: ignore[misc,union-attr]
 
                 # Calculate RAA for calculate centralities
                 # 0-10%
