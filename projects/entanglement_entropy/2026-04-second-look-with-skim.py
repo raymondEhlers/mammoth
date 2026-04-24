@@ -20,6 +20,7 @@
 # %%
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 
 import hist
@@ -34,13 +35,14 @@ from pachyderm import binned_data
 from mammoth.entanglement_entropy import analysis_tools, skim_to_hist
 from mammoth.framework.io import output_utils  # noqa: F401
 
-base_path = Path("projects/entanglement_entropy")
-
+logger = logging.getLogger(__name__)
 pb.configure()
 
 # %load_ext autoreload
 
 # %autoreload 2
+
+base_path = Path("projects/entanglement_entropy/third_look_with_skim")
 
 # %%
 import mammoth.helpers
@@ -70,6 +72,11 @@ run_3_pp_ref_data_with_run_2_stats = skim_to_hist.JetData(
     len(run_2_pp_ref_data.leading_jet),
 )
 
+# %% [markdown]
+# # Histogramming
+#
+# ## Traditional histograms
+
 # %%
 hists_per_data_source = {
     "run_2_pp_ref": skim_to_hist.define_base_histograms(levels=["data"]),
@@ -90,6 +97,86 @@ skim_to_hist.fill_base_histograms(
     jet_data=run_3_pp_ref_data_with_run_2_stats,
 )
 # skim_to_hist.fill_base_histograms(levels=["data"], hists=hists_per_data_source["run_2_pp_MC_pp_ref"], jet_data=run_2_pp_MC_pp_ref_data)
+
+# %% [markdown]
+# ## Approach to correct for bias
+#
+# Based on Appendix A.3 of https://arxiv.org/pdf/1408.3122 and Section IV of https://arxiv.org/pdf/1510.05657 .
+#
+# The concept here is that we need to control the number of bins and the number of jets so that they combine properly to account for the estimation of the bias. The correction is as follows:
+#
+# $I(a, b)=I_{\infty}(a, b)-\frac{1}{2 \log 2}\left(\frac{n_{\mathrm{bins}}^a}{N_{\mathrm{ev}}^a}+\frac{n_{\mathrm{bins}}^b}{N_{\mathrm{ev}}^b}-\frac{n_{\mathrm{bins}}^{a b}}{N_{\mathrm{ev}}^{a b}}\right)$
+
+# %% [markdown]
+# So we need to specify n_a, n_b and n_ab. We also need to specify the appropriate number of jets (which we're using instead of events).
+#
+# If we want to use the same size bins - i.e. n_a = n_b, we can use the approach from 1510. So in that case, n_ab = n_bins**2, and then we need:
+#
+# $ N_{\text{a}} = N_{\text{b}} = 2 N_{\text{ab}} / n_{\text{bins}} $
+#
+# $ N_{\text{ab}} = N_{\text{a}} n_{\text{bins}} / 2 $
+
+# %%
+import itertools
+
+# Let's start with n_bins = 30, so then n_ab = 900
+# -> This means that we need 30/2 = 15x more jets in our N_ab sample than our N_a sample
+# Let's determine our pt binning first. Start with 5 GeV wide bins
+
+
+def calculate_statistics_targets(
+    hists_per_data_source: dict[str, dict[str, hist.Hist[hist.storage.Weight]]],
+) -> tuple[list[int], list[int]]:
+    h_constituents_pt = hists_per_data_source["run_3_pp_ref"]["data_n_constituents_jet_pt"]
+    jet_pt_binning = (
+        binned_data.BinnedData.from_existing_data(h_constituents_pt).axes[0][:: binned_data.Rebin(5)].bin_edges
+    )
+
+    n_jets_a = []
+    n_jets_b = []
+    for lower, upper in itertools.pairwise(jet_pt_binning):
+        logger.info(f"Considering {lower}-{upper}")
+        # Integrating over the other pt axis
+        # n_jets_a.append(sum(
+        #     binned_data.BinnedData.from_existing_data(h_constituents_pt[lower * 1.0j:upper * 1.0j, sum, sum, sum]).values
+        # ))
+        # n_jets_b.append(sum(
+        #     binned_data.BinnedData.from_existing_data(h_constituents_pt[sum, lower * 1.0j:upper * 1.0j, sum, sum]).values
+        # ))
+        # Symmetric pt selections
+        n_jets_a.append(
+            sum(
+                binned_data.BinnedData.from_existing_data(
+                    h_constituents_pt[lower * 1.0j : upper * 1.0j, lower * 1.0j : upper * 1.0j : sum, sum, sum]
+                ).values
+            )
+        )
+        n_jets_b.append(
+            sum(
+                binned_data.BinnedData.from_existing_data(
+                    h_constituents_pt[lower * 1.0j : upper * 1.0j : sum, lower * 1.0j : upper * 1.0j, sum, sum]
+                ).values
+            )
+        )
+
+    return n_jets_a, n_jets_b
+
+
+res = calculate_statistics_targets(hists_per_data_source=hists_per_data_source)
+
+# %%
+res[0], res[1]
+
+# %%
+hists_per_data_source["run_3_pp_ref"]
+
+# %%
+h_constituents_pt = hists_per_data_source["run_3_pp_ref"]["data_n_constituents_jet_pt"]
+jet_pt_binning = binned_data.BinnedData.from_existing_data(h_constituents_pt).axes[0][:: binned_data.Rebin(5)].bin_edges
+jet_pt_binning
+
+# %% [markdown]
+# # Labeling
 
 # %%
 # Labels
@@ -177,7 +264,7 @@ def plot_dijet_spectra(
 
         plot_config.apply(fig=fig, ax=ax)
 
-        _output_path = base_path / "second_look_with_skim"
+        _output_path = base_path
         _output_path.mkdir(parents=True, exist_ok=True)
         tag = "_norm" if normalize else ""
         fig.savefig(_output_path / f"{plot_config.name}{tag}.pdf")
@@ -271,7 +358,7 @@ def plot_n_constituents_lead_pt_differential(
 
         plot_config.apply(fig=fig, ax=ax)
 
-        _output_path = base_path / "second_look_with_skim"
+        _output_path = base_path
         _output_path.mkdir(parents=True, exist_ok=True)
         tag = "_norm" if normalize else ""
         if lead_jet_pt_range:
@@ -297,7 +384,9 @@ def plot_n_constituents_1d(
 
     text = "ALICE work-in-progress"
     text += "\n" + r"charged-particle jets"
-    text += "\n" + r"$R = 0.4$"
+    text += (
+        "\n" + rf"$R = 0.4$, ${lead_jet_pt_range[0]} < p_{{\text{{T, jet}}}} < {lead_jet_pt_range[1]}\:\text{{GeV}}/c$"
+    )
     for jet_label in ["lead", "sublead"]:
         plot_config = pb.PlotConfig(
             name=f"n_constituents_{jet_label}",
@@ -365,7 +454,7 @@ def plot_n_constituents_1d(
 
             plot_config.apply(fig=fig, ax=ax)
 
-            _output_path = base_path / "second_look_with_skim"
+            _output_path = base_path
             _output_path.mkdir(parents=True, exist_ok=True)
 
             tag = ""
@@ -377,14 +466,12 @@ def plot_n_constituents_1d(
             plt.close(fig)
 
 
-for lead_jet_pt_range in [None, (10, 20), (20, 40), (40, 60), (60, 80), (80, 120)]:
+# for lead_jet_pt_range in [None, (10, 20), (20, 40), (40, 60), (60, 80), (80, 120)]:
+for lead_jet_pt_range in list(zip(range(10, 70, 5), range(11, 71, 5), strict=True)):
     for log_y in [False, True]:
         plot_n_constituents_1d(
             hists_per_data_source=hists_per_data_source, lead_jet_pt_range=lead_jet_pt_range, log_y=log_y
         )
-
-# %% [markdown]
-#
 
 # %% [markdown]
 # # Entanglement entropy
@@ -397,9 +484,6 @@ entropies_unsummed = {
     source: analysis_tools.calculate_entropy(hists, skip_entropy_sum=True)
     for source, hists in hists_per_data_source.items()
 }
-
-# %%
-np.sum(entropies_unsummed["run_3_pp_ref"].lead, axis=1)
 
 # %%
 entropies_unsummed["run_3_pp_ref"].lead[1, :]
@@ -481,7 +565,7 @@ def plot_unsummed_entropy(
 
             plot_config.apply(fig=fig, ax=ax)
 
-            _output_path = base_path / "second_look_with_skim"
+            _output_path = base_path
             _output_path.mkdir(parents=True, exist_ok=True)
             tag = f"_{source}"
             fig.savefig(_output_path / f"{plot_config.name}{tag}.pdf")
@@ -562,7 +646,7 @@ def plot_unsummed_entropy_joint(
 
             plot_config.apply(fig=fig, ax=ax)
 
-            _output_path = base_path / "second_look_with_skim"
+            _output_path = base_path
             _output_path.mkdir(parents=True, exist_ok=True)
             tag = f"_{source}__jet_pt_{jet_pt_range[0]}_{jet_pt_range[1]}"
             fig.savefig(_output_path / f"{plot_config.name}{tag}.pdf")
@@ -584,9 +668,6 @@ mutual_information = {
     source: analysis_tools.calculate_mutual_information(hists, entropy=entropies[source])
     for source, hists in hists_per_data_source.items()
 }
-
-# %%
-entropies["run_3_pp_ref"].sublead
 
 # %%
 # Plot calculated entropies as a function of jet pt
@@ -649,20 +730,22 @@ def plot_entropy(
                 linestyle="",
                 marker="s",
             )
-            # # Including subleading jet pt in the entropy range...
-            # x_axis_selection = 0 if label == "lead" else 1
-            # entropy_axis_selection = 1 if label == "lead" else 0
-            # ax.plot(
-            #     h_pt.axes[x_axis_selection].bin_centers,
-            #     np.sum(getattr(entropy, label), axis=entropy_axis_selection),
-            #     label=f"ALICE data ({data_source_to_presentation_label[source]})",
+            # Attempt at error prop
+            # ax.errorbar(
+            #     h_pt.axes[0].bin_centers,
+            #     getattr(entropy, label),
+            #     xerr=h.axes[0].bin_widths / 2,
+            #     yerr=h.errors,
+            #     marker="o",
+            #     markersize=11,
             #     linestyle="",
-            #     marker="s",
+            #     linewidth=3,
+            #     label=f"ALICE data ({data_source_to_presentation_label[source]})",
             # )
 
         plot_config.apply(fig=fig, ax=ax)
 
-        _output_path = base_path / "second_look_with_skim"
+        _output_path = base_path
         _output_path.mkdir(parents=True, exist_ok=True)
         fig.savefig(_output_path / f"{plot_config.name}.pdf")
         plt.close(fig)
@@ -740,7 +823,7 @@ def plot_mutual_information(
 
     plot_config.apply(fig=fig, ax=ax)
 
-    _output_path = base_path / "second_look_with_skim"
+    _output_path = base_path
     _output_path.mkdir(parents=True, exist_ok=True)
     tag = f"_{normalization}" if normalization else ""
     fig.savefig(_output_path / f"{plot_config.name}{tag}.pdf")
