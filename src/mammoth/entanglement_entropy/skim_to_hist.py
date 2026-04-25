@@ -47,10 +47,25 @@ def define_base_histograms(levels: list[str]) -> dict[str, hist.Hist[hist.storag
         hists[f"{level}_n_constituents_jet_pt"] = hist.Hist(
             hist.axis.Regular(131, 9.5, 140.5, label="leading_jet_pt"),
             hist.axis.Regular(131, 9.5, 140.5, label="subleading_jet_pt"),
-            hist.axis.Regular(50, -0.5, 49, label="$n_{const}^{lead}$"),
-            hist.axis.Regular(50, -0.5, 49, label="$n_{const}^{sublead}$"),
+            # Covering a broader range, to ensure we cover everything
+            # hist.axis.Regular(50, -0.5, 49, label="$n_{const}^{lead}$"),
+            # hist.axis.Regular(50, -0.5, 49, label="$n_{const}^{sublead}$"),
+            # In practice, 30 seems to be enough to cover to the n_const dynamic range
+            # hist.axis.Regular(30, -0.5, 29, label="$n_{const}^{lead}$"),
+            # hist.axis.Regular(30, -0.5, 29, label="$n_{const}^{sublead}$"),
+            # Use 28 instead since it makes aligning the bin numbers
+            # for the correction easier
+            hist.axis.Regular(28, -0.5, 27, label="$n_{const}^{lead}$"),
+            hist.axis.Regular(28, -0.5, 27, label="$n_{const}^{sublead}$"),
             storage=hist.storage.Weight(),
         )
+        # hists[f"{level}_n_constituents_jet_pt"] = hist.Hist(
+        #     hist.axis.Regular(26, 10, 140, label="leading_jet_pt"),
+        #     hist.axis.Regular(26, 10, 140, label="subleading_jet_pt"),
+        #     hist.axis.Regular(50, -0.5, 49, label="$n_{const}^{lead}$"),
+        #     hist.axis.Regular(50, -0.5, 49, label="$n_{const}^{sublead}$"),
+        #     storage=hist.storage.Weight(),
+        # )
 
     return hists
 

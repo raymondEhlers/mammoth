@@ -123,6 +123,9 @@ import itertools
 # -> This means that we need 30/2 = 15x more jets in our N_ab sample than our N_a sample
 # Let's determine our pt binning first. Start with 5 GeV wide bins
 
+# As of 2026 April 25, RJE just started implementing this, but this isn't used yet.
+# I instead implemented the correction by varying the binning in the lead, sublead, and joint
+
 
 def calculate_statistics_targets(
     hists_per_data_source: dict[str, dict[str, hist.Hist[hist.storage.Weight]]],
@@ -174,6 +177,9 @@ hists_per_data_source["run_3_pp_ref"]
 h_constituents_pt = hists_per_data_source["run_3_pp_ref"]["data_n_constituents_jet_pt"]
 jet_pt_binning = binned_data.BinnedData.from_existing_data(h_constituents_pt).axes[0][:: binned_data.Rebin(5)].bin_edges
 jet_pt_binning
+
+_lead = h_constituents_pt[40j:60j, sum, sum, sum]
+_joint = h_constituents_pt[40j:60j, 40j:60j, sum, sum]
 
 # %% [markdown]
 # # Labeling
@@ -481,7 +487,9 @@ for lead_jet_pt_range in list(zip(range(10, 70, 5), range(11, 71, 5), strict=Tru
 
 # %%
 entropies_unsummed = {
-    source: analysis_tools.calculate_entropy(hists, skip_entropy_sum=True)
+    # NOTE: We just take the first value of the tuple since we don't need
+    #       the jet counts for the unsummed entropy
+    source: analysis_tools.calculate_entropy(hists, skip_entropy_sum=True)[0]
     for source, hists in hists_per_data_source.items()
 }
 
@@ -662,10 +670,19 @@ plot_unsummed_entropy_joint(
 # ## Entropy
 
 # %%
+import importlib
+
+importlib.reload(analysis_tools)
+
 # As a function of leading jet pt
-entropies = {source: analysis_tools.calculate_entropy(hists) for source, hists in hists_per_data_source.items()}
+entropies = {
+    source: analysis_tools.calculate_entropy(hists, rebin_factor_for_joint_hist_to_apply_correction=4)
+    for source, hists in hists_per_data_source.items()
+}
+# Test for selecting on jet pt. But this isn't so trivial, since
+# entropies = {source: analysis_tools.calculate_entropy(hists, lead_jet_pt_range=(40, 60), sublead_jet_pt_range=(40, 60)) for source, hists in hists_per_data_source.items()}
 mutual_information = {
-    source: analysis_tools.calculate_mutual_information(hists, entropy=entropies[source])
+    source: (analysis_tools.calculate_mutual_information(hists, entropy=entropies[source][0]), entropies[source][1])
     for source, hists in hists_per_data_source.items()
 }
 
@@ -723,25 +740,14 @@ def plot_entropy(
         )
         # Just plot the values
         for source, entropy in entropies.items():
+            # NOTE: Should derive the error propagation...
             ax.plot(
                 h_pt.axes[0].bin_centers,
-                getattr(entropy, label),
+                getattr(entropy[0], label),
                 label=f"ALICE data ({data_source_to_presentation_label[source]})",
                 linestyle="",
                 marker="s",
             )
-            # Attempt at error prop
-            # ax.errorbar(
-            #     h_pt.axes[0].bin_centers,
-            #     getattr(entropy, label),
-            #     xerr=h.axes[0].bin_widths / 2,
-            #     yerr=h.errors,
-            #     marker="o",
-            #     markersize=11,
-            #     linestyle="",
-            #     linewidth=3,
-            #     label=f"ALICE data ({data_source_to_presentation_label[source]})",
-            # )
 
         plot_config.apply(fig=fig, ax=ax)
 
@@ -786,11 +792,14 @@ def plot_mutual_information(
                         "y",
                         label=r"$S_1 + S_2 - S_{12}$",
                         font_size=text_font_size,
-                        range=(-0.1, 2.5 if not normalization else 1.6),
+                        # range=(-0.1, 2.5 if not normalization else 1.6),
+                        range=(-0.1, 5),
                     ),
                 ],
                 text=pb.TextConfig(x=0.05, y=0.71, text=text, font_size=18),
-                legend=pb.LegendConfig(location="upper left", anchor=(0.05, 0.95), font_size=22),
+                legend=pb.LegendConfig(
+                    location="upper left", anchor=(0.05, 0.95), font_size=14, ncol=2, marker_label_spacing=0.1
+                ),
             ),
         ],
         figure=pb.Figure(edge_padding={"left": 0.11, "bottom": 0.15}),
@@ -803,23 +812,37 @@ def plot_mutual_information(
         sharex=True,
     )
     # Just plot the values
-    for source, info in mutual_information.items():
-        values = info.copy()
-        match normalization:
-            case "s1+s2":
-                values /= entropies[source].lead + entropies[source].sublead
-            case "min(s1,s2)":
-                values /= np.minimum(entropies[source].lead, entropies[source].sublead)
-            case _:
-                # Nothing to be done
-                ...
-        ax.plot(
-            h_pt.axes[0].bin_centers,
-            values,
-            label=f"ALICE data {data_source_to_presentation_label[source]}",
-            linestyle="",
-            marker="o",
-        )
+    for apply_correction in [False, True]:
+        for source, info in mutual_information.items():
+            logger.info(f"{apply_correction=}, {source=}")
+            values = info[0].copy()
+            if apply_correction:
+                # Apply a correction as a function of jet pt
+                # NOTE: These are all hardcodes of the n_const bin counts. These should be updated
+                #       to be retrieved dynmcailly, but I didn't bother yet since as of 2026 April 25,
+                #       I was still workong on understanding the correction.
+                # corr = 1/(2 * np.log(2)) * (30 / info[1].lead + 30 / info[1].sublead - (30 * 30) / info[1].joint)
+                # corr = 1/(2 * np.log(2)) * (28 / info[1].lead + 28 / info[1].sublead - (7 * 7)/ info[1].joint)
+                corr = 1 / (2 * np.log(2)) * (28 / info[1].lead + 28 / info[1].sublead - (14 * 14) / info[1].joint)
+                logger.warning(f"{corr=}")
+                values += corr
+            match normalization:
+                case "s1+s2":
+                    values /= entropies[source][0].lead + entropies[source][0].sublead
+                case "min(s1,s2)":
+                    values /= np.minimum(entropies[source][0].lead, entropies[source][0].sublead)
+                case _:
+                    # Nothing to be done
+                    ...
+            tag = " (Corr.)" if apply_correction else ""
+            ax.plot(
+                h_pt.axes[0].bin_centers,
+                values,
+                label=f"ALICE data {data_source_to_presentation_label[source]} {tag}",
+                linestyle="",
+                marker="o",
+                alpha=0.7,
+            )
 
     plot_config.apply(fig=fig, ax=ax)
 
