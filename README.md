@@ -36,7 +36,7 @@ For example, mammoth was used for the measurement recently released from the ALI
 
 # Installation
 
-To install mammoth, we have to 1) install the dependencies, and then 2) actually install the package.
+To install mammoth, we have to 1) [install the dependencies](#dependencies), and then 2) [actually install the mammoth package](#installing-mammoth). The expectation is that you are installing the package inside of a virtual environment. I won't cover it here, but if you're not familiar, you can try [some older instructions that I wrote](https://www.rehlers.com/posts/2025/software-2025-edition/), or check with your favorite search engine.
 
 ## Dependencies
 
@@ -50,11 +50,13 @@ We'll need to install:
 
 ### Pachyderm
 
-Pachyderm is a python physics support library that I maintain. When installing mammoth in development mode, pachyderm needs to be available in the `external` directory. You can do this via:
+Pachyderm is a python physics support library that I maintain. When installing mammoth in development mode (which is usually what you're doing), pachyderm needs to be available in the `external` directory. You can do this via:
 
 ```bash
 $ cd external; git clone https://github.com/raymondEhlers/pachyderm.git; cd -
 ```
+
+(you could also use symlinks to store it elsewhere, but that's beyond the scope of this document).
 
 ### FastJet
 
@@ -66,7 +68,7 @@ $ ./mammoth-cpp/external/install_fastjet.sh
 
 ### RooUnfold [Optional]
 
-RooUnfold is used for unfolding. If you're not familiar with this, you can ignore this dependency. RooUnfold requires boost and ROOT to be installed and available in your environment. You can install RooUnfold via:
+RooUnfold is used for unfolding. In my approach to analysis, the unfolding itself performed with the [alice-substructure package](https://github.com/raymondEhlers/alice-substructure). If you're not familiar with this, you can ignore this dependency. RooUnfold requires boost and ROOT to be installed and available in your environment - you're responsible for sorting that once (careful with potentially conflicting python versions). Once those are available, you can install RooUnfold via:
 
 ```bash
 $ ./external/install_roounfold.sh
@@ -74,13 +76,20 @@ $ ./external/install_roounfold.sh
 
 ## Installing mammoth
 
-The easiest way to install mammoth for development is to use `pdm`. `pdm` is preferred because it handles local dependencies better than most other build managers, which is particularly useful for development. Once you've setup the dependencies, you can install mammoth with:
+The easiest way to install mammoth for development is to use `pdm` or `uv`. I historically used `pdm`, but most packages, including my own, have moved towards `uv` since 2025. They each have their own quirks, but they generally support the features we need (namely, good handling of local editable dependencies). Once you've setup the dependencies, you can install mammoth (in editable mode) with:
 
 ```bash
+# If using pdm
 $ pdm install -d
+# If using uv
+$ uv pip install -e ".[dev,test]"
 ```
 
 Note that the `pdm` lock file (`pdm.lock`) is included in the repository, ensuring a reproducible environment.
+
+# Using mammoth
+
+There's a ton of functionality included in this repository, but it requires some background to use well. Please see the [dedicated documentation](docs/README.md). Some directories also have dedicated READMEs with details that are specific to particular projects - try browsing around in the `projects/` and `src/mammoth` directories, and see what you find.
 
 # Development helpers
 
