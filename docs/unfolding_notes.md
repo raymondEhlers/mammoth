@@ -15,21 +15,30 @@ I originally prepared these brief notes on unfolding for A. Takacs. It's a bit o
   - Bins with 0 counts will wreck your unfolding. Avoid them or adjust your binning.
   - If there's a ton of background dominated contributions in the response, you may need to eg. cut that region out. Off diagonal components will also often wreck your unfolding.
 - You can try filling the `Miss` on your response object when it's outside of the phase space that you want to accept. However, I know there have historically been some issues with it tracking entries correctly. It may work perfectly fine, but I haven't tried it. Instead, we usually just keep track of our efficiency manually by keeping two hists: the full efficiency hist, which is filled before any kinematic selections, and then the phase space selected hist. The ratio of those in the phase space of interest corrects for these misses. (at least this is how I understand the `Miss` functionality).
+
   - Just to be explicit, I mean:
+
   ```python
-  for f in files:
+  for t in trees:
       # Define hists
-      ...
+      define_hists(f)
+      # ...
+
       # Cuts at particle  level (ie. defining the possible region of your measurements. eg. No jets above 300 GeV at particle level will contribute to a 60 GeV measured jet.)
-      ...
+      # ...
+
       # Fill full efficiency hists
-      ...
+      # ...
+
       # Cuts at measured level (ie. you want to consider 40-120 GeV measured jets)
-      ...
+      # ...
+
       # Fill hists + response object
-      ....
+      # ....
   ```
+
   - Just as a heads up, if your efficiency correction is huge, it will make experimentalists nervous since the more you correct, the more model dependence you include. You can get out of this if you can show that the trend is model independent, but that can be trickier.
+
 - Convergence is usually determined by looking at the number of iterations and closure checks (see next). Generally, you want the movement of the next iteration to be small compared to the previous. Pick too high, and you'll explode the stat uncertainty (it inflates due to the regularization of the matrix inversion, and will tend to oscillate).
 - The last bit is the closure tests. Usually the most trivial tests we do are just dividing the dataset into two halves and using one to construct the response and the other as the input spectrum. After unfolding, we should recover the particle level spectra within uncertainties. You can also refold to double check that you get what you put in. If not, you may have a technical error. If in general you can't get convergence, it can indicate that you just can't unfold that observable.
   - Further steps would be eg. check that changing the shape of the input spectra while keeping the same response still converges.
