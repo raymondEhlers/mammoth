@@ -37,7 +37,7 @@ I originally prepared these brief notes on unfolding for A. Takacs. It's a bit o
       # ....
   ```
 
-  - Just as a heads up, if your efficiency correction is huge, it will make experimentalists nervous since the more you correct, the more model dependence you include. You can get out of this if you can show that the trend is model independent, but that can be trickier.
+  - If your efficiency correction is huge, it will make experimentalists nervous since the more you correct, the more model dependence you include. You can get out of this if you can show that the trend is model independent, but that can be trickier.
 
 - Convergence is usually determined by looking at the number of iterations and closure checks (see next). Generally, you want the movement of the next iteration to be small compared to the previous. Pick too high, and you'll explode the stat uncertainty (it inflates due to the regularization of the matrix inversion, and will tend to oscillate).
 - The last bit is the closure tests. Usually the most trivial tests we do are just dividing the dataset into two halves and using one to construct the response and the other as the input spectrum. After unfolding, we should recover the particle level spectra within uncertainties. You can also refold to double check that you get what you put in. If not, you may have a technical error. If in general you can't get convergence, it can indicate that you just can't unfold that observable.
