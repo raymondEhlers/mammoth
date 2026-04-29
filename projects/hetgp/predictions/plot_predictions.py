@@ -8,7 +8,7 @@
 #       format_version: '1.3'
 #       jupytext_version: 1.17.2
 #   kernelspec:
-#     display_name: .venv-3.12
+#     display_name: .venv-3.13
 #     language: python
 #     name: python3
 # ---
@@ -98,10 +98,6 @@ class MethodStyle:
 
 method_styles = {
     "hetgp": MethodStyle(
-        # Middle blue
-        # color="#2980b9",
-        # Light blue
-        # color="#4bafd0",
         # Orange
         color="#FF8301",
         marker="o",
@@ -109,6 +105,17 @@ method_styles = {
         label="VarP-GP",
         label_short="VarP-GP",
         zorder=10,
+    ),
+    "low_fidelity": MethodStyle(
+        # Middle blue
+        # color="#2980b9",
+        # Light blue
+        color="#4bafd0",
+        marker="d",
+        fillstyle="full",
+        label="LF-GP",
+        label_short="LF-GP",
+        zorder=6,
     ),
     "high_fidelity": MethodStyle(
         # Purple
@@ -133,11 +140,14 @@ method_styles = {
 
 
 # Plot showing the fully integrated residual error
-def plot_residual(HFGPMSE: pd.DataFrame, hetGPMSE: pd.DataFrame, plot_config: pb.PlotConfig) -> None:
+def plot_residual(
+    HFGPMSE: pd.DataFrame, LFGPMSE: pd.DataFrame, hetGPMSE: pd.DataFrame, plot_config: pb.PlotConfig
+) -> None:
     # Setup data
     sum_HFGPMSE = HFGPMSE.sum()
+    sum_LFGPMSE = LFGPMSE.sum()
     sum_hetGPMSE = hetGPMSE.sum()
-    compare_df = pd.DataFrame({"high_fidelity": sum_HFGPMSE, "hetgp": sum_hetGPMSE})
+    compare_df = pd.DataFrame({"high_fidelity": sum_HFGPMSE, "low_fidelity": sum_LFGPMSE, "hetgp": sum_hetGPMSE})
 
     fig, ax = plt.subplots(
         1,
@@ -176,11 +186,12 @@ def plot_residual(HFGPMSE: pd.DataFrame, hetGPMSE: pd.DataFrame, plot_config: pb
 # %%
 # Plot showing the box plot of a distribution
 # For the paper, we look at the pt distribution integrated over the design points
-def boxplot(HFGPMSE: pd.DataFrame, hetGPMSE: pd.DataFrame, plot_config: pb.PlotConfig) -> None:
+def boxplot(HFGPMSE: pd.DataFrame, LFGPMSE: pd.DataFrame, hetGPMSE: pd.DataFrame, plot_config: pb.PlotConfig) -> None:
     """Plot the boxplot.
 
     Args:
         HFGPMSE: MSE values of the HF-GP.
+        LFGPMSE: MSE values of the LF-GP.
         hetGPMSE: MSE values of the VarP-GP.
         plot_config: Plot configuration
     """
@@ -188,11 +199,14 @@ def boxplot(HFGPMSE: pd.DataFrame, hetGPMSE: pd.DataFrame, plot_config: pb.PlotC
     HFGPMSE_melted = HFGPMSE.melt(var_name="Variable", value_name="Value")
     HFGPMSE_melted["Source"] = "HF-GP"
 
+    LFGPMSE_melted = LFGPMSE.melt(var_name="Variable", value_name="Value")
+    LFGPMSE_melted["Source"] = "LF-GP"
+
     hetGPMSE_melted = hetGPMSE.melt(var_name="Variable", value_name="Value")
     hetGPMSE_melted["Source"] = "VarP-GP"
 
     # Combine both for plotting
-    df_combined = pd.concat([hetGPMSE_melted, HFGPMSE_melted])
+    df_combined = pd.concat([hetGPMSE_melted, LFGPMSE_melted, HFGPMSE_melted])
 
     # sns.boxplot treats the x-axis as categorical. This causes all kinds of problems.
     # So we need to handle this by hand, rather than using the built-in functions.
@@ -219,14 +233,14 @@ def boxplot(HFGPMSE: pd.DataFrame, hetGPMSE: pd.DataFrame, plot_config: pb.PlotC
     )
 
     # We match the order to the construction of the DataFrame, where we have hetGP first.
-    colors = [method_styles["hetgp"].color, method_styles["high_fidelity"].color]
+    colors = [method_styles["hetgp"].color, method_styles["low_fidelity"].color, method_styles["high_fidelity"].color]
 
     # Get unique variables and sources
     variables = sorted(df_combined["Variable"].unique())
     sources = df_combined["Source"].unique()
 
     # Define box width and offset for grouping
-    box_width = 0.8
+    box_width = 0.6
     # Use the same grey that's used in seaborn for the lines
     grey_for_lines = (75.0 / 255, 75.0 / 255, 75.0 / 255)
 
@@ -386,9 +400,11 @@ def read_csv(p: Path) -> pd.DataFrame:
 # %%
 # HetGP
 hetGPMSE = read_csv(base_path / "Hadron_HETGP_Prediction_by_bin.csv")
+# Low fidelity
+LFGPMSE = read_csv(base_path / "Hadron_LFGP_Prediction_by_bin.csv")
 # High fidelity
 HFGPMSE = read_csv(base_path / "Hadron_HFGP_Prediction_by_bin.csv")
-hetGPMSE, HFGPMSE
+hetGPMSE, LFGPMSE, HFGPMSE
 
 # %% [markdown]
 # ## Residual
@@ -448,8 +464,8 @@ plot_config = pb.PlotConfig(
             ],
             text=[
                 pb.TextConfig(x=0.5, y=1.03, text=header_text, font_size=18, alignment="center"),
-                pb.TextConfig(x=0.95, y=0.70, text=minimal_text_obs, font_size=30),
-                pb.TextConfig(x=0.95, y=0.62, text=minimal_text_pt, font_size=12),
+                pb.TextConfig(x=0.95, y=0.65, text=minimal_text_obs, font_size=30),
+                pb.TextConfig(x=0.95, y=0.57, text=minimal_text_pt, font_size=12),
             ],
             legend=pb.LegendConfig(location="upper right", anchor=(0.95, 0.95), font_size=text_font_size),
         ),
@@ -457,7 +473,7 @@ plot_config = pb.PlotConfig(
     figure=pb.Figure(edge_padding={"left": 0.11, "bottom": 0.11, "top": 0.94}),
 )
 
-compare_df = plot_residual(HFGPMSE=HFGPMSE, hetGPMSE=hetGPMSE, plot_config=plot_config)
+compare_df = plot_residual(HFGPMSE=HFGPMSE, LFGPMSE=LFGPMSE, hetGPMSE=hetGPMSE, plot_config=plot_config)
 
 # %%
 HFGPMSE.columns.astype(int)
@@ -540,7 +556,7 @@ for log in [False, True]:
         figure=pb.Figure(edge_padding={"left": 0.12, "bottom": 0.11, "top": 0.94}),
     )
 
-    r = boxplot(HFGPMSE=HFGPMSE, hetGPMSE=hetGPMSE, plot_config=plot_config)
+    r = boxplot(HFGPMSE=HFGPMSE, LFGPMSE=LFGPMSE, hetGPMSE=hetGPMSE, plot_config=plot_config)
 
 # %%
 r
@@ -553,9 +569,11 @@ r
 # %%
 # HetGP
 hetGPMSE = read_csv(base_path / "Jet_HETGP_Prediction_by_bin.csv")
+# Low fidelity
+LFGPMSE = read_csv(base_path / "Jet_LFGP_Prediction_by_bin.csv")
 # High fidelity
 HFGPMSE = read_csv(base_path / "Jet_HFGP_Prediction_by_bin.csv")
-hetGPMSE, HFGPMSE
+hetGPMSE, LFGPMSE, HFGPMSE
 
 # %% [markdown]
 # ## Residual
@@ -615,8 +633,8 @@ plot_config = pb.PlotConfig(
             ],
             text=[
                 pb.TextConfig(x=0.5, y=1.03, text=header_text, font_size=16, alignment="center"),
-                pb.TextConfig(x=0.95, y=0.70, text=minimal_text_obs, font_size=30),
-                pb.TextConfig(x=0.95, y=0.62, text=minimal_text_pt, font_size=12),
+                pb.TextConfig(x=0.95, y=0.65, text=minimal_text_obs, font_size=30),
+                pb.TextConfig(x=0.95, y=0.58, text=minimal_text_pt, font_size=12),
             ],
             legend=pb.LegendConfig(location="upper right", anchor=(0.95, 0.95), font_size=text_font_size),
         ),
@@ -624,7 +642,7 @@ plot_config = pb.PlotConfig(
     figure=pb.Figure(edge_padding={"left": 0.11, "bottom": 0.11, "top": 0.94}),
 )
 
-plot_residual(HFGPMSE=HFGPMSE, hetGPMSE=hetGPMSE, plot_config=plot_config)
+plot_residual(HFGPMSE=HFGPMSE, LFGPMSE=LFGPMSE, hetGPMSE=hetGPMSE, plot_config=plot_config)
 
 # %% [markdown]
 # ## Boxplot
@@ -706,7 +724,7 @@ for log in [False, True]:
         figure=pb.Figure(edge_padding={"left": 0.12, "bottom": 0.11, "top": 0.94}),
     )
 
-    r = boxplot(HFGPMSE=HFGPMSE, hetGPMSE=hetGPMSE, plot_config=plot_config)
+    r = boxplot(HFGPMSE=HFGPMSE, LFGPMSE=LFGPMSE, hetGPMSE=hetGPMSE, plot_config=plot_config)
 
 # %%
 r[r["Value"] > 0.02].groupby("Variable").size().to_dict()
