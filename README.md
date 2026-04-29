@@ -2,7 +2,6 @@
 
 [![Actions Status][actions-badge]][actions-link]
 [![Documentation Status][rtd-badge]][rtd-link]
-[![GitHub Discussion][github-discussions-badge]][github-discussions-link]
 
 <!-- SPHINX-START -->
 
@@ -11,8 +10,6 @@
 [actions-link]:             https://github.com/raymondEhlers/mammoth/actions
 [conda-badge]:              https://img.shields.io/conda/vn/conda-forge/mammoth
 [conda-link]:               https://github.com/conda-forge/mammoth-feedstock
-[github-discussions-badge]: https://img.shields.io/static/v1?label=Discussions&message=Ask&color=blue&logo=github
-[github-discussions-link]:  https://github.com/raymondEhlers/mammoth/discussions
 [pypi-link]:                https://pypi.org/project/mammoth/
 [pypi-platforms]:           https://img.shields.io/pypi/pyversions/mammoth
 [pypi-version]:             https://img.shields.io/pypi/v/mammoth
