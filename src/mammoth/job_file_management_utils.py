@@ -119,7 +119,7 @@ def cleanup_parsl_scratch_files_on_other_nodes_entry_point() -> None:
         description="""Cleanup files from failed jobs. For safety, this only works on hiccup.
 
 The idea is that you would run `handle_files_from_failed_jobs` to retrieve the good output files from jobs that failed,
-and then it should be followed by this to cleanup the rest of the directories (i.e. cleanup input files that are copied to scratch).""",
+and cleanup in the standard way as much as possible. Any remaining files can be cleaned up by this script (e.g. cleanup input files that are copied to scratch from separate failed jobs without good inputs).""",
         formatter_class=RawTextRichHelpFormatter,
     )
 
@@ -326,7 +326,7 @@ def steer_handle_files_from_failed_jobs_entry_point() -> None:
         description="""Sync files from failed jobs to permanent storage.
 
 The idea is that you would run this to retrieve the good output files from jobs that failed (i.e. the job timed out or the manager was lost),
-and then it should be followed by `cleanup_files_from_failed_jobs` to cleanup the rest of the directories""",
+and then it can be followed by `cleanup_files_from_failed_jobs` to cleanup the rest of the directories if anything is left over (e.g. from other failed runs, etc).""",
         formatter_class=RawTextRichHelpFormatter,
     )
 
