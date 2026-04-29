@@ -41,3 +41,10 @@ As usual, all analyses are listed in the track skim. The particular ones of note
     - Stored at: `/rstorage/rehlers/trains/pp_MC/0086/skim`
 
 Details on how the ALICE track skims are prepared is [available here in the guide on running analyses](https://github.com/raymondEhlers/mammoth/tree/main/docs/running_an_analysis.md). To get access to the stored files on hiccup, please contact Peter.
+
+## Possible next steps
+
+Possible next steps as of 2026 April 28
+
+- [ ] Follow through with a simple toy model in `projects/entanglement_entropy/measurement_toy`. Vary the statistical precision and compare the corrected values to the analytical calculation. See the notebook for further details.
+- [ ] Investigate the trivial correlation limits, as proposed by Peter. This can be implemented from the (pt1, pt2, n1, n2) histogram. Contact him for further information
