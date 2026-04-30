@@ -9,7 +9,7 @@ After [developing an analysis](developing_an_analysis.md), you need to follow so
 
 # Key concepts
 
-Each run of an analysis is known as a "production". This corresponds to a single run of a given analysis code over a single dataset with a specified set of analysis parameters. For example, this could be analysis of groomed jet Rg over the ALICE 2024 pp reference dataset for R = 0.4 jets, soft drop z_cut = 0.2, etc... ([We cover analysis parameters below](#analysis-settings), but for now, let's stick to higher level run parameters).
+Each run of an analysis is known as a "production". This corresponds to a single run of a given analysis code over a single dataset with a specified set of analysis parameters. For example, this could be analysis of groomed jet Rg over the ALICE 2024 pp reference dataset for R = 0.4 jets, soft drop z_cut = 0.2, etc... ([We cover a particular production dataset and analysis parameters below](#defining-and-running-a-production), but for now, let's stick to higher level parameters). Each production is defined for a collision system, and is assigned a unique number within that system.
 
 A production is defined in the `track_skim_config.yaml` defined in `src/mammoth/alice/config/track_skim_config.yaml`. There are a few different types of entries:
 
@@ -194,34 +194,234 @@ analysis_settings:
 > [!tip]
 > All of the high level keys (e.g. `pp_MC` inside of `_EBC_analysis_settings`) are defined by convention. You could name them anything - they're access through the YAML anchors.
 
-## Analysis settings
+# Defining and running a production
 
-.....
+Finally, a production number and collision system are created for an analysis.
 
-# Productions
+> [!note]
+> By convention, productions that we want to store begin from number 60. Numbers below that are considered test productions, and are transient.
+
+Consider the example for an entropy-based correlator analysis in pp collisions using Run 3 data. We'll use comments in this example to describe the how to define these arguments.
+
+```yaml
+productions:
+  pp:
+    64:
+      # EBC with Run 3 pp_ref w/ some bug fixes
+      # (n.b. It's helpful to include a brief summary comment, just to help keep track of what is what)
+      metadata:
+        # Start with the base pp metadata defined further up in the config
+        <<: *base_metadata_pp
+        # And we're going to analyze the pp_ref pass1 dataset defined further up in the config
+        dataset: *LHC24_pp_ref_pass1
+        # This production number should match the number used as the key (i.e. the key below 'pp')
+        production_number: 64
+        # You can add an additional label to the outputs. e.g. if you're analyzing central and semi_central separately.
+        # Here, we don't need it, so we set it to be empty
+        label: ""
+      settings:
+        # n.b. These settings **MUST** align with the argument names defined in analyze_chunk for the given analysis.
+        #      There are some general parameters, and then analysis specific parameters.
+        # Use the base EBC pp settings that we defined above
+        <<: *analysis_settings_EBC_pp
+        # How many events are included in a chunk that we analyze.
+        chunk_size: 10000
+        # How many of those chunks do we analyze before stop using an input file?
+        # For run 2 analyses, this is usually omitted since the files are much more split up.
+        # For run 3 analyses, the files are much larger, so it can be useful if you're trying to run a quicker test.
+        # NOTE: These are general statements, but they depend on how the track skim was constructed.
+        # NOTE: When you want the full statistics, you **MUST** remove this max value and let it run
+        #       over the input file until it's exhausted.
+        max_n_chunks: 50
+        # Analysis output settings that we defined above.
+        output_settings:
+          <<: *EBC_output_settings
+        # Here, we just take the default analysis parameters, but we could override any of the default analysis settings here.
+        # e.g. we could set:
+        #max_delta_phi_from_axis: 0.5
+```
+
+The production settings include the dataset settings and the analysis settings. The dataset settings define the IO, while the analysis settings match
 
 > [!tip]
-> I recommend storing the production.yaml files in a git repository. In conjunction with the track skim config, this will uniquely specify how each production was run.
+> The analysis settings **MUST** align with the argument names defined in analyze_chunk for the given analysis.
+> There are some general parameters, and then analysis specific parameters.
 
-- [ ] run_analysis.py
-  - Use one of the existing tasks as an example
-  - Note that some analysis (e.g. the time reclustering) use a notebook for executing the analysis
-- [ ] What do I need to edit?
+> [!tip]
+> There are many more possible arguments than I show here. Check out some other analyses to see what else is possible.
 
-# Running the analysis
+## Executing the analysis
 
-For general information on running the analysis code, see [docs/running_an_analysis.md].
+An analysis should be run via a `run_analysis` or `steering` module in the project src directory - e.g. `python3 -m mammoth.entanglement_entropy.run_analysis`.
+The name is set by convention, but is not strictly required.
+This module will usually contain:
 
-The analysis is run via `run_analysis` module in this directory - i.e. `python3 -m mammoth.entanglement_entropy.run_analysis`.
-You can configure the analysis:
+- Your ProductionSpecialization class ([see developing an analysis](developing_an_analysis.md)).
+- Setting up your workflow apps via `setup_framework_default_workflows` ([see developing an analysis](developing_an_analysis.md)).
+- A function to define the Productions(s) you want to run:
 
-- Running / execution options in the `main(...)` function
-- Running with parsl or dask in the call to `main(...)`
-- Configure the analysis parameters in the 'track skim config' yaml in the `src/mammoth/alice/config` directory
+```python
+def define_productions() -> list[production.ProductionSettings]:
+    # We want to provide the opportunity to run multiple productions at once.
+    # We'll do so by defining each production below and then iterating over them below
+    productions = []
+
+    # Create and store production information
+    _here = Path(__file__).parent
+    # This assumes that this file is stored in the `src/mammoth/<analysis>/` directory.
+    config_filename = Path(_here.parent / "alice" / "config" / "track_skim_config.yaml")
+    productions.extend(
+        # This is a list, so you could submit multiple productions at once.
+        [
+            production.ProductionSettings.read_config(
+                collision_system="pp",
+                number=64,
+                # Specialization for the entropy-based correlators analysis
+                specialization=EBCProductionSpecialization(),
+                # Location of the track skim config file.
+                track_skim_config_filename=config_filename,
+                # Inform the framework the base directory where the input track skim files are stored
+                base_output_dir=Path("/rstorage/rehlers/trains"),
+            ),
+        ]
+    )
+
+    # Write out the production settings
+    for production_settings in productions:
+        production_settings.store_production_parameters()
+
+    return productions
+```
+
+- A function to setup and submit tasks, usually called `setup_and_submit_tasks(...)`. Function names called there are set by convention, so you can usually blindly copy this function from any other analysis.
+- The `run(...)` function that is called to execute the analysis:
+
+```python
+def run(job_framework: job_utils.JobFramework) -> list[Future[Any]]:
+    # Job execution parameters
+    productions = define_productions()
+    task_name = "EBC_mammoth"
+
+    # Job execution configuration
+    # Can be skipped unless ROOT is needed (and then you need to setup a consistent conda environment)
+    conda_environment_name = ""
+    # Define the resources needed for a single job
+    task_config = job_utils.TaskConfig(name=task_name, n_cores_per_task=1)
+    # How many tasks we should aim to run at once
+    target_n_tasks_to_run_simultaneously = 110
+    # Logging
+    log_level = logging.INFO
+    # Job walltime
+    walltime = "24:00:00"
+    # Whether you want to override the IO minimization setting
+    override_minimize_IO_as_possible = None
+    # Debug mode is covered below. It's useful for testing and fixing issues, but SHOULD NOT be used for a full production run.
+    debug_mode = False
+    if debug_mode:
+        # Usually, we want to run in the short queue so that debugging runs faster
+        target_n_tasks_to_run_simultaneously = 2
+        walltime = "1:59:00"
+    # This uses the "hiccup" cluster at LBL. You can configure this with a simple string, but it's often nice to adapt
+    # based on the walltime.
+    # NOTE: This name goes back to the facility names that we defined in job_utils.
+    facility: job_utils.FACILITIES = (
+        "hiccup_staging_std"
+        if job_utils.hours_in_walltime(walltime) >= 2
+        else "hiccup_staging_quick"
+    )
+
+    # Setup the job framework that we've selected based on your settings.
+    # Keep the job executor just to keep it alive
+    job_executor, _job_framework_config, execution_settings = setup_job_framework(
+        job_framework=job_framework,
+        productions=productions,
+        task_config=task_config,
+        facility=facility,
+        walltime=walltime,
+        target_n_tasks_to_run_simultaneously=target_n_tasks_to_run_simultaneously,
+        log_level=log_level,
+        conda_environment_name=conda_environment_name,
+        override_minimize_IO_as_possible=override_minimize_IO_as_possible,
+        debug_mode=debug_mode,
+    )
+    # Submits all of the jobs over all of the input files, as defined in the production configuration.
+    all_results = setup_and_submit_tasks(
+        productions=productions,
+        task_config=task_config,
+        execution_settings=execution_settings,
+        job_executor=job_executor,
+    )
+
+    # Keeps track of the "futures" that correspond to eventual outputs from the tasks.
+    # This will drop you into an IPython shell, where you can check the status of the futures
+    # stored in `all_results`. You can close the shell with ctrl-d, or via `exit()`.
+    # If all of your futures have not yet resolved when it close it, it will wait until they're all done.
+    process_futures(
+        productions=productions, all_results=all_results, job_framework=job_framework
+    )
+
+    return all_results
+
+
+# This ensures that the run(...) function is executed with it is called with `python3 -m path.to.module` ...
+if __name__ == "__main__":
+    # This sets the job running framework. Possible options are:
+    # job_utils.JobFramework.parsl
+    # job_utils.JobFramework.dask_delayed
+    # job_utils.JobFramework.immediate_execution_debug
+    # Some thoughts on these options are listed below
+    run(job_framework=job_utils.JobFramework.dask_delayed)
+```
+
+> [!tip]
+> Go check out `src/mammoth/entanglement_entropy/run_analysis.py` for a complete example. This can provide a better overview than is possible by just looking at snippets.
+
+> [!tip]
+> You can also execute the steering through a jupyter notebook rather than calling the module through python. See `projects/time_reclustering/steering.py` (convert via jupytext). This can be particularly convenient if you want to do downstream steps, such as unfolding.
 
 # Practical information
 
-Below are a few tips and tracks for running analyses, based on experienced gathered using mammoth over the years.
+Below are a few tips and tricks for running analyses, based on experienced gathered using mammoth over the years.
+
+## Tips for running?
+
+At this point, a reasonable question is to ask: What do I usually need to edit?
+Most of the time, it's pretty simple:
+
+- Configure the production and analysis parameters in the 'track_skim_config.yaml' in the `src/mammoth/alice/config` directory
+- Modify the production settings in the `define_productions(...)` to execute that particular production.
+- Modify the execution options in the `main(...)` function, as needed (often, few changes are needed once you've figured out how to run an analysis on a cluster)
+- Decide which job framework to use in the call to `main(...)` (see the practical information below).
+
+> [!tip]
+> When you run an analysis, it will store a `production.yaml` file that includes the packages used to run the analysis, the analysis arguments, etc. I recommend storing this file in a git repository. In conjunction with the track skim config and the repo state, this uniquely specify how each production was run!
+
+## Choosing a job framework
+
+Parsl and dask distributed are both available for scheduling jobs with e.g. slurm.
+Both do approximately the same thing, but each has its quirks.
+To briefly summarize the two options:
+
+- [parsl](https://parsl-project.org/) was developed in the academic HPC world. It has example configurations for many US HPC systems.
+- [dask distributed](ihttps://distributed.dask.org/en/latest/) was developed as part of the broader dask project, which handles all kind of distributed computing.
+
+Both work, so pick your favorite.
+I usually pick the one that I'm most comfortable / have the most experience with on a given cluster.
+I would suggest that you arbitrarily pick one, go read a little bit about it, and if it sounds good, stick with it.
+If you have an issue, try switching to the other one.
+
+> [!tip]
+> Recall that since these frameworks handle job scheduling with slurm, the process need to stay alive while jobs are running. If you run as recommended above, it should do that by default.
+
+### Debugging scheduler problems
+
+Since dask and parsl schedule on different cluster nodes, they can be difficult to debug at times, especially if the issue is in the scheduler or deep in the mammoth framework.
+Often times, it can give errors that are nonspecific or related to file syncing that just indicate that the job failed.
+To work around this, there is a local, immediate execution job framework that can be used for debugging purposes.
+You can use it by setting the `job_framework` argument to `run(...)` to `job_utils.JobFramework.immediate_execution_debug`.
+
+> [!tip]
+> Parsl doesn't run on macOS (known issue, unlikely to be fixed soon), so this can also be extremely useful when testing on a macOS device.
 
 ## Defining cluster environments
 
@@ -281,14 +481,13 @@ All you need to do is to enable `minimize_IO_as_possible` in the `Facility` conf
 ## Debug mode
 
 While your full analysis will generally need to run on a cluster, it's often convenient to run a test analysis on your local computer - did you implement that cut correctly? Does it run as expected? etc.
+To help answer these questions, there's a debug mode, which you can set via the `debug_mode` argument to `setup_job_framework`.
+You can set it in a few different ways:
 
-- [ ] Something about debug mode
-
-### Debugging scheduler problems
-
-Since dask and parsl schedule on different notes, they can be difficult to debug at times, especially if the issue is in the scheduler or deep in the mammoth framework. Often times, it can give errors that are nonspecific or related to file syncing that just indicate that the job failed.
-
-- [ ] A quick note on the local executor.
+- `debug_mode=True`: This will enable debug mode, and start processing the first 2 files.
+- `debug_mode={<some files>}`. For example, `debug_mode: dict[str | int, Any] = {20: [Path("trains/pythia/2640/run_by_run/LHC20g4/296244/20/AnalysisResults.20g4.011.root")]}`, which will use the file `AnalysisResults.20g4.011.root` with pt hat bin 20.
+  - You can pass multiple files, etc.
+  - **YOU** are responsible for passing files in the right format for the collision system that you're running. What you need to pass depends on whether data vs MC, regular vs embedding, etc. You can check out the `mammoth.framework.steer_workflow` module to see some examples of what those should look like.
 
 > [!tip]
-> Parsl doesn't run on macOS, so this can also be extremely useful when testing on a macOS device.
+> I highly recommend running this in conjunction with the `immediate_execution_debug` job framework. Otherwise, it can very difficult to reason about multiple processes running in parallel. Plus, the logging is worse when running on different nodes.
