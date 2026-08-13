@@ -6,9 +6,9 @@
 #       extension: .py
 #       format_name: percent
 #       format_version: '1.3'
-#       jupytext_version: 1.17.2
+#       jupytext_version: 1.19.5
 #   kernelspec:
-#     display_name: .venv-3.13
+#     display_name: .venv-3.13 (3.13.11.final.0)
 #     language: python
 #     name: python3
 # ---
@@ -434,7 +434,7 @@ plt.show()
 text_font_size = 22
 
 # Labeling
-# The miniaml text contains only the most important text
+# The minimal text contains only the most important text
 # Everything else (e.g. what is not critical to distringuishing the plots) is kept in the header.
 # I skipped that it was trained on JETSCAPE (MATTER+LBT) - it's bulky, and never varies.
 header_text = r"Emulated: Hadron $R_{\text{AA}}$ in 0-5\% Pb-Pb, $\sqrt{s_{\text{NN}}} = 5.02\:\text{TeV}$,"
@@ -513,7 +513,7 @@ plt.show()
 text_font_size = 20
 for log in [False, True]:
     # Labeling
-    # The miniaml text contains only the most important text
+    # The minimal text contains only the most important text
     # Everything else (e.g. what is not critical to distringuishing the plots) is kept in the header.
     # I skipped that it was trained on JETSCAPE (MATTER+LBT) - it's bulky, and never varies.
     header_text = r"Emulated: Hadron $R_{\text{AA}}$ in 0-5\% Pb-Pb, $\sqrt{s_{\text{NN}}} = 5.02\:\text{TeV}$,"
@@ -603,7 +603,7 @@ plt.show()
 text_font_size = 22
 
 # Labeling
-# The miniaml text contains only the most important text
+# The minimal text contains only the most important text
 # Everything else (e.g. what is not critical to distringuishing the plots) is kept in the header.
 # I skipped that it was trained on JETSCAPE (MATTER+LBT) - it's bulky, and never varies.
 header_text = r"Emulated: $R = 0.4$ jet $R_{\text{AA}}$ in 0-10\% Pb-Pb, $\sqrt{s_{\text{NN}}} = 5.02\:\text{TeV}$,"
@@ -680,7 +680,7 @@ hetGPMSE_melted
 text_font_size = 20
 for log in [False, True]:
     # Labeling
-    # The miniaml text contains only the most important text
+    # The minimal text contains only the most important text
     # Everything else (e.g. what is not critical to distringuishing the plots) is kept in the header.
     # I skipped that it was trained on JETSCAPE (MATTER+LBT) - it's bulky, and never varies.
     header_text = r"Emulated: $R = 0.4$ jet $R_{\text{AA}}$ in 0-10\% Pb-Pb, $\sqrt{s_{\text{NN}}} = 5.02\:\text{TeV}$,"
@@ -714,7 +714,7 @@ for log in [False, True]:
                     ),
                 ],
                 text=[
-                    pb.TextConfig(x=0.5, y=1.03, text=header_text, font_size=18, alignment="center"),
+                    pb.TextConfig(x=0.5, y=1.03, text=header_text, font_size=16, alignment="center"),
                     pb.TextConfig(x=0.05, y=0.90, text=minimal_text_obs, font_size=30),
                     pb.TextConfig(x=0.05, y=0.83, text=minimal_text_pt, font_size=12),
                 ],
