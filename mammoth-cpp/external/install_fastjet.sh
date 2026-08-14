@@ -51,7 +51,7 @@ fi
 
 if [ ! -d fjcontrib-${fjcontrib_version} ]; then
     echo "Using fj-contrib tag: ${fjcontrib_version}"
-    curl -O -J -L http://fastjet.hepforge.org/contrib/downloads/fjcontrib-${fjcontrib_version}.tar.gz
+    curl -O -J -L https://fastjet.fr/contrib/downloads/fjcontrib-${fjcontrib_version}.tar.gz
     tar xfz fjcontrib-${fjcontrib_version}.tar.gz
 fi
 
