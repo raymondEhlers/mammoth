@@ -28,9 +28,6 @@ For example, mammoth was used for the measurement recently released from the ALI
 
 <p align="center"><img alt="Figure from ALICE quasi-particle scattering paper" src="docs/images/unfolded_kt_pp_PbPb_ratios_only_R02_dynamical_kt_soft_drop_z_cut_02.png" width="70%" /></p>
 
-> [!IMPORTANT]
-> This package is developed for my own use. Framework and code is subject to change, and documentation is limited!
-
 # Installation
 
 To install mammoth, we have to 1) [install the dependencies](#dependencies), and then 2) [actually install the mammoth package](#installing-mammoth). The expectation is that you are installing the package inside of a virtual environment. I won't cover it here, but if you're not familiar, you can try [some older instructions that I wrote](https://www.rehlers.com/posts/2025/software-2025-edition/), or check with your favorite search engine.
